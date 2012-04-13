@@ -13,6 +13,12 @@ generated_bundle.py
 .coverage*
 htmlcov/
 
-# Help
+# Epydoc Help
 html/
+
+# Sphinx build
+build/
+
+# Google Analytics setter
+private_make.sh
 
