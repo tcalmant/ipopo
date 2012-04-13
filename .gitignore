@@ -1,0 +1,18 @@
+# Python
+*.pyc
+__pycache__/
+
+# Module generated during tests
+generated_bundle.py
+
+# Binaries
+*.tar.gz
+*.zip
+
+# Coverage
+.coverage*
+htmlcov/
+
+# Help
+html/
+
