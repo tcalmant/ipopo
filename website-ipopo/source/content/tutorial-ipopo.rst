@@ -138,7 +138,16 @@ Component dependencies
 Component dependencies is based on services, provided by ones and consumed by
 others.
 
-In the following example, the consumer requires an incrementer.
+Validation and invalidation
+===========================
+
+A component is validated when all of its required dependencies have been
+injected, and is invalidated when one of its required dependencies is gone.
+
+Both methods take only one parameter : the context of the bundle that
+registered the component.
+
+In the following example, the consumer requires an incrementer :
 
 .. code-block:: python
 
@@ -187,4 +196,49 @@ A sample run, considering all bundles are started :
    >>> # Set the second incrementer usable again
    >>> incr2.change(True)
    Start: 3
+
+
+Bind  and unbind
+================
+
+Additionally, a component can be notified when a dependency (required or not)
+has been injected, using a bind method, or removed, using an unbind method.
+
+Both methods take two parameters :
+
+* the injected service object, to work directly with it
+* the ServiceReference object for the injected service, to have access to the
+  service information, properties, etc.
+
+If the injection allows to validate the component, the bind method is called
+before the validation one.
+Conversely, if the injection implies to invalidate the component, the unbind
+method is called after the invalidation one.
+
+If the requirement is an aggregation, the bind and unbind methods are called
+for each injected service.
+
+Here is the previous service consumer, printing a line each time a service is
+bound or unbound :
+
+.. code-block:: python
+
+   @ComponentFactory("ConsumerFactory")
+   @Requires("svc", "my.incrementer", spec_filter="(usable=True)")
+   class ConsumerFactory(object):
    
+      @Validate
+      def validate(self, context):
+          print "Start:", self.svc.increment()
+      
+      @Invalidate
+      def invalidate(self, context):
+          print "Stopped:", self.svc.increment()
+      
+      @Bind
+      def bind(self, service, reference):
+          print "Bound to", reference.get_property("instance.name")
+      
+      @Unbind
+      def unbind(self, service, reference):
+          print "Component lost", reference.get_property("instance.name")
