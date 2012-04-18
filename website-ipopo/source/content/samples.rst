@@ -16,3 +16,4 @@ Look at the :ref:`unittests` to have more code examples.
 
    tutorial-pelix
    tutorial-ipopo
+   tutorial-httpsvc
