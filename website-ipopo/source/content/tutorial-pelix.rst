@@ -3,8 +3,6 @@
 Pelix: the SOA framework
 ########################
 
-.. todo:: To be completed
-
 Pelix is the base service framework that is used by iPOPO.
 It defines two main concepts :
 
@@ -44,6 +42,26 @@ same framework instance.
    >>> framework.stop()
    >>> # Destroy it
    >>> pelix.FrameworkFactory.delete_framework(framework)
+
+Wait for the framework to stop
+==============================
+
+In multithreaded scripts, it is possible to wait for the framework
+to completely stop using the ``Framework.wait_for_stop(timeout)`` method.
+It take a timeout in parameter, None meaning wait forever, and it returns True
+if the framework stopped, False if the timeout raised.
+
+.. code-block:: python
+   
+   >>> # Import the Pelix module
+   >>> import pelix.framework as pelix
+   >>> # Start the framework with the given properties
+   >>> framework = pelix.FrameworkFactory.get_framework({'debug': True})
+   [...]
+   # Start a thread, do some stuffs
+   [...]
+   >>> # Wait the framework to stop
+   >>> framework.wait_for_stop()
 
 
 Work with bundles
@@ -155,8 +173,8 @@ Services should be registered and unregistered by the bundle activator or by
 a service. When a bundle is stopped, the framework automatically unregisters the
 corresponding services.
 
-Service registration
-====================
+Register a service
+==================
 
 A service is registered for one or more specifications and with some properties.
 The registrar stores a ServiceRegistration object, which will be used later for
@@ -296,3 +314,103 @@ using the ``unget_service()`` method of its bundle context.
    >>> svc = context.get_service(refs[1])
    pelix.framework.BundleException: Service not found
    (reference: ServiceReference(1, 1, ['my.incrementer']))
+
+
+Handle events
+*************
+
+The framework fires events when something happens.
+Listeners must register to the framework, using their bundle context, to be
+notified when a kind of event happens. Each kind of event is notified by a
+specific method that must be implemented by listeners.
+
+All listeners exceptions are logged, but doesn't stop the notification loops.
+
+
+Bundle listeners
+================
+
+A bundle listener will be notified of the following events, declared in
+pelix.framework.BundleEvent.
+
+A BundleEvent object have the following methods :
+
+* ``get_bundle()`` retrieves the Bundle object that caused this event,
+* ``get_kind()`` retrieves the kind of bundle event, one of the following :
+
+  * INSTALLED: the bundle has just been installed
+
+  * STARTED: the bundle has been successfully started
+
+  * STARTING: the bundle is about to be activated, its activator will be called.
+
+  * STOPPING: the bundle is about to be stopped, its activator will be called.
+
+  * STOPPING_PRECLEAN: the bundle activator has been called, but not all of the
+    services may have been unregistered
+
+  * STOPPED: the bundle has been stopped, all of its services have been
+    unregistered.
+
+  * UNINSTALLED: the bundle has been uninstalled.
+
+Listeners must implement a ``bundle_changed(self, event)`` method, where
+``event`` is BundleEvent object.
+
+To register a bundle listener, use the bundle context to call the following
+methods :
+
+* ``bundle_context.add_bundle_listener(listener)``
+* ``bundle_context.remove_bundle_listener(listener)``
+
+Service listeners
+=================
+
+A service listener will be notified of the following events, declared in
+pelix.framework.ServiceEvent.
+
+A ServiceEvent object have the following methods :
+
+* ``get_service_reference()`` retrieves the ServiceReference object of the
+  service that caused this event,
+
+* ``get_previous_properties()`` retrieves the previous value of the service
+  properties, if the event is MODIFIED or MODIFIED_ENDMATCH.
+
+* ``get_type()`` retrieves the kind of bundle event, one of the following :
+
+  * REGISTERED: the service has just been registered,
+
+  * MODIFIED: the service properties have been modified,
+
+  * MODIFIED_ENDMATCH: the service properties have been modified and does not
+    match the listener filter anymore,
+
+  * UNREGISTERING: the service has been unregistered.
+
+Listeners must implement a ``service_changed(self, event)`` method, where
+``event`` is ServiceEvent object.
+
+To register a service listener, use the bundle context to call the following
+methods :
+
+* ``bundle_context.add_service_listener(listener, ldap_filter=None)``.
+  Only services that matches the given LDAP filter will be notified to the
+  listener.
+
+* ``bundle_context.remove_service_listener(listener)``
+
+
+Framework stop listeners
+========================
+
+A listener can be notified when the framework itself is stopping, before it
+stops all bundles.
+
+Listeners must implement a ``framework_stopping(self)`` method.
+
+To register a framework stop listener, use the bundle context to call the
+following methods :
+
+* ``bundle_context.add_framework_stop_listener(listener)``
+* ``bundle_context.remove_framework_stop_listener(listener)``

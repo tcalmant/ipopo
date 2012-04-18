@@ -5,8 +5,6 @@ iPOPO: the component framework
 
 This tutorial shows how to work with the iPOPO framework.
 
-.. todo:: To be completed
-
 Install the iPOPO bundle
 ************************
 
