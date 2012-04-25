@@ -421,6 +421,17 @@ class ComponentFactory:
         setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT_DATA, \
                 context.to_dictionary_form())
 
+        # Tell the developer that it might use __slots__ to avoid the
+        # properties getter and setter injected in the instance
+        if len(context.properties_fields) > 0 \
+        and not hasattr(factory_class, "__slots__"):
+            _logger.debug("PERFORMANCE HINT: you might want to use a __slots__ "
+                          "entry in the class '%s' to avoid the properties "
+                          "handlers overhead, adding '%s' and '%s' to it.",
+                          factory_class.__name__,
+                          constants.IPOPO_PROPERTY_GETTER,
+                          constants.IPOPO_PROPERTY_SETTER)
+
         return factory_class
 
 # ------------------------------------------------------------------------------

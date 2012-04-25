@@ -1269,6 +1269,13 @@ def _manipulate_component(instance, stored_instance):
     assert instance is not None
     assert isinstance(stored_instance, _StoredInstance)
 
+    if not stored_instance.context.factory_context.properties_fields:
+        # Avoid injection of unused instance fields, avoiding more differences
+        # between the class definition and the instance fields
+        # -> Removes the overhead if the manipulated class has no __slots__ or
+        #    when runnig in Pypy.
+        return
+
     getter, setter = _field_property_generator(stored_instance)
 
     # Inject the getter and setter at the instance level
