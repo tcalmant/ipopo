@@ -17,12 +17,12 @@ Core iPOPO implementation
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
-    
+
     iPOPO is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-    
+
     You should have received a copy of the GNU General Public License
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
@@ -82,7 +82,7 @@ class IPopoEvent(object):
     def __init__(self, kind, factory_name, component_name):
         """
         Sets up the iPOPO event
-        
+
         :param kind: Kind of event
         :param factory_name: Name of the factory associated to the event
         :param component_name: Name of the component instance associated to the
@@ -96,7 +96,7 @@ class IPopoEvent(object):
     def get_component_name(self):
         """
         Retrieves the name of the component associated to the event
-        
+
         :return: the name of the component
         """
         return self.__component_name
@@ -105,7 +105,7 @@ class IPopoEvent(object):
     def get_factory_name(self):
         """
         Retrieves the name of the factory associated to the event
-        
+
         :return: the name of the component factory
         """
         return self.__factory_name
@@ -114,7 +114,7 @@ class IPopoEvent(object):
     def get_kind(self):
         """
         Retrieves the kind of event
-        
+
         :return: the kind of event
         """
         return self.__kind
@@ -175,7 +175,7 @@ class Requirement(object):
     def copy(self):
         """
         Returns a copy of this instance
-        
+
         :return: A copy of this instance
         """
         return Requirement(self.specifications, self.aggregate, self.optional, \
@@ -381,7 +381,7 @@ class FactoryContext(object):
     def set_bundle_context(self, bundle_context):
         """
         Sets up the bundle context associated to this factory context
-        
+
         :param bundle_context: The factory bundle context
         """
         if self.bundle_context is None:
@@ -469,7 +469,7 @@ class ComponentContext(object):
     def get_bundle_context(self):
         """
         Retrieves the bundle context
-        
+
         :return: The component bundle context
         """
         return self.factory_context.bundle_context
@@ -479,7 +479,7 @@ class ComponentContext(object):
         """
         Retrieves the registered method for the given event. Returns None if not
         found
-        
+
         :param event: A component life cycle event
         :return: The callback associated to the given event
         """
@@ -489,7 +489,7 @@ class ComponentContext(object):
     def get_factory_name(self):
         """
         Retrieves the component factory name
-        
+
         :return: The component factory name
         """
         return self.factory_context.name
@@ -498,7 +498,7 @@ class ComponentContext(object):
     def get_provides(self):
         """
         Retrieves the services that this component provides
-        
+
         :return: The services provided by this component
         """
         return self.factory_context.provides
@@ -1085,7 +1085,7 @@ class _StoredInstance(object):
             if invalidate:
                 self.invalidate(False)
 
-            # Ask for a new chance, if iPOPO is running... 
+            # Ask for a new chance, if iPOPO is running...
             if self._ipopo_service.running and self.update_bindings() \
             and invalidate:
                 self.validate(True)
@@ -1138,7 +1138,7 @@ class _StoredInstance(object):
                 # The call back method has already been called
                 self.invalidate(False)
 
-            # Ask for a new chance, if iPOPO is running... 
+            # Ask for a new chance, if iPOPO is running...
             if self._ipopo_service.running and self.update_bindings() \
             and (invalidate or can_validate):
                 self.validate(True)
@@ -1148,7 +1148,7 @@ class _StoredInstance(object):
 def _set_factory_context(factory_class, bundle_context):
     """
     Transforms the context data dictionary into its FactoryContext object form.
-    
+
     :param factory_class: A manipulated class
     :param bundle_context: The class bundle context
     :return: The factory context, None on error
@@ -1186,7 +1186,7 @@ def _load_bundle_factories(bundle):
     """
     Retrieves a list of pairs (FactoryContext, factory class) with all
     readable manipulated classes found in the bundle.
-    
+
     :param bundle: A Bundle object
     :return: The list of factories loaded from the bundle
     """
@@ -1292,8 +1292,8 @@ class _IPopoService(object):
     def __init__(self, bundle_context):
         """
         Sets up the iPOPO registry
-        
-        :param bundle_context: The iPOPO bundle context 
+
+        :param bundle_context: The iPOPO bundle context
         """
         # Store the bundle context
         self.__context = bundle_context
@@ -1320,7 +1320,7 @@ class _IPopoService(object):
         """
         Retrieves the list of all stored instances objects corresponding to
         the given factory name
-        
+
         :param factory_name: A factory name
         :return: All components instantiated from the given factory
         """
@@ -1333,7 +1333,7 @@ class _IPopoService(object):
     def _fire_ipopo_event(self, kind, factory_name, component_name=None):
         """
         Triggers an iPOPO event
-        
+
         :param kind: Kind of event
         :param factory_name: Name of the factory associated to the event
         :param component_name: Name of the component instance associated to the
@@ -1642,7 +1642,7 @@ class _IPopoService(object):
     def register_factory(self, bundle_context, factory):
         """
         Registers a manually created factory, using decorators programmatically
-        
+
         :param bundle_context: The factory bundle context
         :param factory: A manipulated class
         :return: True if the factory has been registered
@@ -1664,17 +1664,17 @@ class _IPopoService(object):
     def add_listener(self, listener):
         """
         Register an iPOPO event listener.
-        
+
         The event listener must have a method with the following prototype :
-        
+
         .. python::
-        
+
            def handle_ipopo_event(self, event):
                '''
                :param event: A IPopoEvent object
                '''
-               # ... 
-        
+               # ...
+
         :param listener: The listener to register
         :return: True if the listener has been added to the registry
         """
@@ -1685,13 +1685,22 @@ class _IPopoService(object):
     def remove_listener(self, listener):
         """
         Unregister an iPOPO event listener.
-        
+
         :param listener: The listener to register
         :return: True if the listener has been removed from the registry
         """
         with self.__listeners_lock:
             return remove_listener(self.__listeners, listener)
 
+
+    def get_registered_factories(self):
+        """
+        Retrieves the names of the registered factories
+
+        :return: A list of factories. Can be empty.
+        """
+        with self.__factories_lock:
+            return self.__factories.keys()[:]
 
 # ------------------------------------------------------------------------------
 
@@ -1711,7 +1720,7 @@ class _IPopoActivator(object):
     def start(self, context):
         """
         The bundle has started
-        
+
         :param context: The bundle context
         """
         assert isinstance(context, BundleContext)
@@ -1741,7 +1750,7 @@ class _IPopoActivator(object):
     def stop(self, context):
         """
         The bundle has stopped
-        
+
         :param context: The bundle context
         """
         assert isinstance(context, BundleContext)
