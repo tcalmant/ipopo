@@ -640,13 +640,19 @@ class FrameworkTest(unittest.TestCase):
         # Set module in raiser mode
         module.raiser = True
 
-        # Framework can't start
+        # Framework can start...
         log_off()
-        self.assertRaises(BundleException, framework.start)
+        self.assertTrue(framework.start(), "Framework should be started")
         log_on()
 
-        self.assertEquals(framework.get_state(), Bundle.RESOLVED,
-                          "Framework should be in RESOLVED state")
+        self.assertEquals(framework.get_state(), Bundle.ACTIVE,
+                          "Framework should be in ACTIVE state")
+
+        self.assertEquals(bundle.get_state(), Bundle.RESOLVED,
+                          "Bundle should be in RESOLVED state")
+
+        # Stop the framework
+        self.assertTrue(framework.stop(), "Framework should be stopped")
 
         # Remove raiser mode
         module.raiser = False
@@ -655,6 +661,8 @@ class FrameworkTest(unittest.TestCase):
         self.assertTrue(framework.start(), "Framework couldn't be started")
         self.assertEquals(framework.get_state(), Bundle.ACTIVE,
                           "Framework should be in ACTIVE state")
+        self.assertEquals(bundle.get_state(), Bundle.ACTIVE,
+                          "Bundle should be in ACTIVE state")
 
         # Set module in raiser mode
         module.raiser = True

@@ -78,6 +78,21 @@ class BundleException(Exception):
             Exception.__init__(self, content)
 
 
+class FrameworkException(Exception):
+    """
+    A framework exception is raised when an error can force the framework to
+    stop.
+    """
+    def __init__(self, message, needs_stop=False):
+        """
+        Sets up the exception
+        
+        :param message: A description of the exception
+        :param needs_stop: If True, the framework must be stopped
+        """
+        Exception.__init__(self, message)
+        self.needs_stop = needs_stop
+
 # ------------------------------------------------------------------------------
 
 class Bundle(object):
@@ -238,7 +253,7 @@ class Bundle(object):
                                 activator failed.
         """
         if self.__framework._state not in (Bundle.STARTING, Bundle.ACTIVE):
-            # Framework is not runnning
+            # Framework is not running
             raise BundleException("Framework must be started before its "
                                   "bundles")
 
@@ -263,12 +278,20 @@ class Bundle(object):
                     # Call the start method
                     starter(self.__context)
 
+                except (FrameworkException, BundleException):
+                    # Restore previous state
+                    self._state = previous_state
+
+                    # Re-raise directly Pelix exceptions
+                    _logger.exception("Pelix error raised by %s", self.__name)
+                    raise
+
                 except Exception as ex:
                     # Restore previous state
                     self._state = previous_state
 
                     # Raise the error
-                    _logger.exception("Error calling the activator")
+                    _logger.exception("Error raised by %s", self.__name)
                     raise BundleException(ex)
 
             # Bundle is now active
@@ -491,6 +514,9 @@ class Framework(Bundle):
 
         # The wait_for_stop event
         self._event = threading.Event()
+
+        # Framework is initially stopped...
+        self._event.set()
 
 
     @SynchronizedClassMethod('_lock')
@@ -1042,32 +1068,38 @@ class Framework(Bundle):
             # Already started framework
             return
 
-        # Reset the stop event
-        self._event.clear()
-
         # Starting...
         self._state = Bundle.STARTING
         self._fire_bundle_event(BundleEvent.STARTING)
 
-        # Start all registered bundles
-        try:
-            for bundle in self.__bundles.copy().values():
+        # Start all registered bundles (use a copy, just in case...)
+        for bundle in self.__bundles.copy().values():
+            try:
                 bundle.start()
 
-        except BundleException:
-            # A bundle failed to start : reset the framework state
-            self._state = Bundle.RESOLVED
+            except FrameworkException as ex:
+                # Important error
+                _logger.exception("Important error starting bundle: %s", bundle)
+                if ex.needs_stop:
+                    # Stop the framework (has to be in active state)
+                    self._state = Bundle.ACTIVE
+                    self.stop()
+                    return False
 
-            # Re-raise the error
-            raise
+            except BundleException:
+                # A bundle failed to start : just log
+                _logger.exception("Error starting bundle: %s", bundle)
 
         # Bundle is now active
         self._state = Bundle.ACTIVE
+
+        # Reset the stop event
+        self._event.clear()
         return True
 
 
     @SynchronizedClassMethod('_lock')
-    def stop(self):
+    def stop(self, force=False):
         """
         Stops the framework
 
