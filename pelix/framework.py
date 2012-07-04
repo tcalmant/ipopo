@@ -19,12 +19,12 @@ Pelix is a Python framework that aims to act as OSGi as much as possible
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
-    
+
     iPOPO is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-    
+
     You should have received a copy of the GNU General Public License
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
@@ -146,7 +146,7 @@ class Bundle(object):
     def get_bundle_context(self):
         """
         Retrieves the bundle context
-        
+
         :return: The bundle context
         """
         return self.__context
@@ -173,7 +173,7 @@ class Bundle(object):
     def get_module(self):
         """
         Retrieves the Python module corresponding to the bundle
-        
+
         :return: The Python module
         """
         return self.__module
@@ -182,7 +182,7 @@ class Bundle(object):
     def get_state(self):
         """
         Retrieves the bundle state
-        
+
         :return: The bundle state
         """
         return self._state
@@ -191,7 +191,7 @@ class Bundle(object):
     def get_symbolic_name(self):
         """
         Retrieves the bundle symbolic name (its Python module name)
-        
+
         :return: The bundle symbolic name
         """
         return self.__name
@@ -233,7 +233,7 @@ class Bundle(object):
         """
         Starts the bundle. Does nothing if the bundle is already starting or
         active.
-        
+
         :raise BundleException: The framework is not yet started or the bundle
                                 activator failed.
         """
@@ -279,7 +279,7 @@ class Bundle(object):
     def stop(self):
         """
         Stops the bundle. Does nothing if the bundle is already stopped.
-        
+
         :raise BundleException: The bundle activator failed.
         """
         if self._state != Bundle.ACTIVE:
@@ -489,24 +489,24 @@ class Framework(Bundle):
         self.__registry = {}
         self.__unregistering_services = {}
 
-        # The wait_for_stop condition
-        self._condition = threading.Condition()
+        # The wait_for_stop event
+        self._event = threading.Event()
 
 
     @SynchronizedClassMethod('_lock')
     def add_bundle_listener(self, listener):
         """
         Registers a bundle listener
-        
+
         The bundle listener must have a method with the following prototype :
-        
+
         .. python::
-        
+
            def bundle_changed(self, bundle_event):
                '''
                :param bundle_event: A BundleEvent object
                '''
-               # ... 
+               # ...
 
         :param listener: The bundle listener
         :return: True if the listener has been registered
@@ -519,16 +519,16 @@ class Framework(Bundle):
         """
         Registers a listener that will be called back right before the framework
         stops
-        
+
         The framework listener must have a method with the following prototype :
-        
+
         .. python::
-        
+
            def framework_stopping(self):
                '''
                No parameter given
                '''
-               # ... 
+               # ...
 
         :param listener: The framework stop listener
         :return: True if the listener has been registered
@@ -540,18 +540,18 @@ class Framework(Bundle):
     def add_service_listener(self, listener, ldap_filter=None):
         """
         Registers a service listener
-        
+
         The service listener must have a method with the following prototype :
-        
+
         .. python::
-        
+
            def service_changed(self, event):
                '''
                Called by Pelix when some service properties changes
-        
+
                :param event: A ServiceEvent object
                '''
-               # ... 
+               # ...
 
         :param listener: The service listener
         :param ldap_filter: Listener
@@ -576,10 +576,10 @@ class Framework(Bundle):
     def add_property(self, name, value):
         """
         Adds a property to the framework **if it is not yet set**.
-        
+
         If the property already exists (same name), then nothing is done.
         Properties can't be updated.
-        
+
         :param name: The property name
         :param value: The value to set
         :return: True if the property was stored, else False
@@ -1042,6 +1042,9 @@ class Framework(Bundle):
             # Already started framework
             return
 
+        # Reset the stop event
+        self._event.clear()
+
         # Starting...
         self._state = Bundle.STARTING
         self._fire_bundle_event(BundleEvent.STARTING)
@@ -1067,7 +1070,7 @@ class Framework(Bundle):
     def stop(self):
         """
         Stops the framework
-        
+
         :return: True if the framework stopped, False it wasn't running
         """
         if self._state != Bundle.ACTIVE:
@@ -1104,8 +1107,7 @@ class Framework(Bundle):
         self._fire_bundle_event(BundleEvent.STOPPED)
 
         # All bundles have been stopped, release "wait_for_stop"
-        with self._condition:
-            self._condition.notify_all()
+        self._event.set()
 
         return True
 
@@ -1196,9 +1198,9 @@ class Framework(Bundle):
         """
         Waits for the framework to stop. Does nothing if the framework bundle
         is not in ACTIVE state.
-        
+
         Uses a threading.Condition object
-        
+
         :param timeout: The maximum time to wait (in seconds)
         :return: True if the framework has stopped, False if the timeout raised
         """
@@ -1206,8 +1208,7 @@ class Framework(Bundle):
             # Inactive framework, ignore the call
             return True
 
-        with self._condition:
-            self._condition.wait(timeout)
+        self._event.wait(timeout)
 
         with self._lock:
             # If the timeout raised, we should be in another state
@@ -1249,7 +1250,7 @@ class BundleContext(object):
                '''
                :param bundle_event: A BundleEvent object
                '''
-               # ... 
+               # ...
 
         :param listener: The bundle listener
         :return: True if the listener has been registered
@@ -1261,16 +1262,16 @@ class BundleContext(object):
         """
         Registers a listener that will be called back right before the framework
         stops
-        
+
         The framework listener must have a method with the following prototype :
-        
+
         .. python::
-        
+
            def framework_stopping(self):
                '''
                No parameter given
                '''
-               # ... 
+               # ...
 
         :param listener: The framework stop listener
         :return: True if the listener has been registered
@@ -1281,18 +1282,18 @@ class BundleContext(object):
     def add_service_listener(self, listener, ldap_filter=None):
         """
         Registers a service listener
-        
+
         The service listener must have a method with the following prototype :
-        
+
         .. python::
-        
+
            def service_changed(self, event):
                '''
                Called by Pelix when some service properties changes
-        
+
                :param event: A ServiceEvent object
                '''
-               # ... 
+               # ...
 
         :param listener: The listener to register
         :param ldap_filter: An LDAP filter on the service properties
@@ -1411,7 +1412,7 @@ class BundleContext(object):
     def remove_bundle_listener(self, listener):
         """
         Unregisters a bundle listener
-        
+
         :param listener: The bundle listener
         :return: True if the listener has been unregistered
         """
@@ -1431,7 +1432,7 @@ class BundleContext(object):
     def remove_service_listener(self, listener):
         """
         Unregisters a service listener
-        
+
         :param listener: The service listener
         :return: True if the listener has been unregistered
         """
@@ -1911,6 +1912,3 @@ class FrameworkFactory(object):
             return True
 
         return False
-
-if __name__ == "__main__":
-    FrameworkFactory.get_framework()
