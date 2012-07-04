@@ -1571,7 +1571,19 @@ class _IPopoService(object):
                 # End the validation on success...
                 stored_instance.validate(False)
 
-            except Exception:
+            except pelix.FrameworkException as ex:
+                # Important error
+                _logger.exception("Important error validating %s", name)
+
+                # Kill the component
+                self.kill(name)
+
+                if ex.needs_stop:
+                    # Framework must be stopped...
+                    _logger.error("Framework must be stopped.")
+                    self.__context.get_bundle(0).stop()
+
+            except:
                 # Log the error
                 _logger.exception("Error validating '%s'", name)
 
