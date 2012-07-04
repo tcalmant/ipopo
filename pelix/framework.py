@@ -283,7 +283,8 @@ class Bundle(object):
                     self._state = previous_state
 
                     # Re-raise directly Pelix exceptions
-                    _logger.exception("Pelix error raised by %s", self.__name)
+                    _logger.exception("Pelix error raised by %s while starting",
+                                      self.__name)
                     raise
 
                 except Exception as ex:
@@ -291,7 +292,8 @@ class Bundle(object):
                     self._state = previous_state
 
                     # Raise the error
-                    _logger.exception("Error raised by %s", self.__name)
+                    _logger.exception("Error raised by %s while stopping",
+                                      self.__name)
                     raise BundleException(ex)
 
             # Bundle is now active
@@ -324,8 +326,18 @@ class Bundle(object):
                     # Call the start method
                     stopper(self.__context)
 
+                except (FrameworkException, BundleException) as ex:
+                    # Restore previous state
+                    self._state = previous_state
+
+                    # Re-raise directly Pelix exceptions
+                    _logger.exception("Pelix error raised by %s while stopping",
+                                      self.__name)
+                    exception = ex
+
                 except Exception as ex:
-                    _logger.exception("Error calling the activator")
+                    _logger.exception("Error raised by %s while stopping",
+                                      self.__name)
                     # Store the exception (raised after service clean up)
                     exception = BundleException(ex)
 
