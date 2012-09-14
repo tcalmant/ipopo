@@ -190,6 +190,8 @@ class DecoratorsTest(unittest.TestCase):
 
         # Assert it has been validated
         ref = context.get_service_reference(svc_spec)
+        self.assertIsNotNone(ref, "No reference found (component not validated)")
+
         compo = context.get_service(ref)
 
         self.assertEquals(compo.states, [IPopoEvent.INSTANTIATED,
