@@ -66,6 +66,7 @@ class TestComponentFactory(object):
         Constructor
         """
         self.name = None
+        self.ref = None
         self.states = []
         self.states.append(IPopoEvent.INSTANTIATED)
 
@@ -125,12 +126,13 @@ class ComponentFactoryB(TestComponentFactory):
         Bound
         """
         self.states.append(IPopoEvent.BOUND)
+        self.ref = svc_ref
 
         # Assert that the service is already usable
         assert self.service.echo(True)
 
     @Unbind
-    def unbind(self, svc):
+    def unbind(self, svc, svc_ref):
         """
         Unbound
         """
@@ -138,6 +140,8 @@ class ComponentFactoryB(TestComponentFactory):
 
         # Assert that the service is still usable
         assert self.service.echo(True)
+        assert self.ref is svc_ref
+        self.ref = None
 
 # ------------------------------------------------------------------------------
 

@@ -6,7 +6,7 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 :author: Thomas Calmant
 :copyright: Copyright 2012, isandlaTech
 :license: GPLv3
-:version: 0.3
+:version: 0.4
 :status: Alpha
 
 ..
@@ -423,14 +423,15 @@ class ComponentFactory:
 
         # Tell the developer that it might use __slots__ to avoid the
         # properties getter and setter injected in the instance
-        if len(context.properties_fields) > 0 \
-        and not hasattr(factory_class, "__slots__"):
-            _logger.debug("PERFORMANCE HINT: you might want to use a __slots__ "
-                          "entry in the class '%s' to avoid the properties "
-                          "handlers overhead, adding '%s' and '%s' to it.",
-                          factory_class.__name__,
-                          constants.IPOPO_PROPERTY_GETTER,
-                          constants.IPOPO_PROPERTY_SETTER)
+
+        #if len(context.properties_fields) > 0 \
+        #and not hasattr(factory_class, "__slots__"):
+        #    _logger.debug("PERFORMANCE HINT: you might want to use a __slots__"
+        #                  " entry in the class '%s' to avoid the properties"
+        #                  " handlers overhead, adding '%s' and '%s' to it.",
+        #                  factory_class.__name__,
+        #                  constants.IPOPO_PROPERTY_GETTER,
+        #                  constants.IPOPO_PROPERTY_SETTER)
 
         return factory_class
 
@@ -661,7 +662,7 @@ def Unbind(method):
         raise TypeError("@Unbind can only be applied on functions")
 
     # Tests the number of parameters
-    validate_method_arity(method, "service")
+    validate_method_arity(method, "service", "service_reference")
 
     _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS, \
                          constants.IPOPO_CALLBACK_UNBIND)
