@@ -1364,8 +1364,8 @@ class ServiceEventTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         log_off()
-        self.assertFalse(context.add_service_listener(self, "Invalid"), \
-                         "Invalid filter registered")
+        self.assertRaises(BundleException, context.add_service_listener, self,
+                          "Invalid")
         log_on()
 
         self.assertFalse(context.remove_service_listener(self), \
