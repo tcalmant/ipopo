@@ -273,7 +273,7 @@ class _RuntimeDependency(object):
     """
     Manages a required dependency field when a component is running
     """
-    def __init__(self, stored_instance, requirement):
+    def __init__(self, stored_instance, field, requirement):
         """
         Sets up the dependency
         """
@@ -283,11 +283,55 @@ class _RuntimeDependency(object):
         # The iPOPO StoredInstance object
         self.ipopo_instance = stored_instance
 
+        # The associated field
+        self.field = field
+
         # The underlying requirement
         self.requirement = requirement
 
         # Current field value
         self.value = None
+
+
+    def start(self):
+        """
+        Starts the dependency manager
+        """
+        self.ipopo_instance.register_listener(self, self.requirement.filter)
+
+
+    def stop(self):
+        """
+        Stops the dependency manager (must be called before clear())
+        """
+        self.ipopo_instance.unregister_listener(self)
+
+
+    def service_changed(self, event):
+        """
+        Called by the framework when a service event occurs
+        """
+        if not self.ipopo_instance.check_event(event):
+            # We've been told to ignore this event
+            return
+
+        with self._lock:
+            # Call sub-methods
+            kind = event.get_type()
+            svc_ref = event.get_service_reference()
+
+            if kind == ServiceEvent.REGISTERED:
+                # Service coming
+                self.on_service_arrival(svc_ref)
+
+            elif kind in (ServiceEvent.UNREGISTERING,
+                          ServiceEvent.MODIFIED_ENDMATCH):
+                # Service gone or not matching anymore
+                self.on_service_departure(svc_ref)
+
+            elif kind == ServiceEvent.MODIFIED:
+                # Modified properties (can be a new injection)
+                self.on_service_modify(svc_ref)
 
 
     def clear(self):
@@ -301,6 +345,7 @@ class _RuntimeDependency(object):
         self.ipopo_instance = None
         self.requirement = None
         self.value = None
+        self.field = None
 
 
     def is_valid(self):
@@ -315,15 +360,26 @@ class _SimpleDependency(_RuntimeDependency):
     """
     Manages a simple dependency field
     """
-    def __init__(self, stored_instance, requirement):
+    def __init__(self, stored_instance, field, requirement):
         """
         Sets up the dependency
         """
-        super(_SimpleDependency, self).__init__(stored_instance, requirement)
+        super(_SimpleDependency, self).__init__(stored_instance, field,
+                                                requirement)
 
         # We have only one reference to keep
         self.reference = None
 
+
+    def stop(self):
+        super(_SimpleDependency, self).stop()
+        if self.reference is not None:
+            # Use a list
+            result = [(self.value, self.reference)]
+        else:
+            result = None
+
+        return result
 
     def clear(self):
         """
@@ -332,15 +388,9 @@ class _SimpleDependency(_RuntimeDependency):
         
         :return: The removed bindings (list) or None
         """
-        if self.reference is not None:
-            # Use a list
-            result = [(self.value, self.reference)]
-        else:
-            result = None
-
         self.reference = None
         super(_SimpleDependency, self).clear()
-        return result
+
 
 
     def on_service_arrival(self, svc_ref):
@@ -348,8 +398,6 @@ class _SimpleDependency(_RuntimeDependency):
         Called when a service has been registered in the framework
         
         :param svc_ref: A service reference
-        :return: A tuple (service, reference) if the service has been kept,
-                 else None
         """
         with self._lock:
             if self.value is None \
@@ -357,7 +405,9 @@ class _SimpleDependency(_RuntimeDependency):
                 # Inject the service
                 self.reference = svc_ref
                 self.value = self.ipopo_instance.get_service(svc_ref)
-                return (self.value, self.reference)
+
+                self.ipopo_instance.bind(self, self.value, self.reference)
+                return True
 
 
     def on_service_departure(self, svc_ref):
@@ -365,18 +415,18 @@ class _SimpleDependency(_RuntimeDependency):
         Called when a service has been unregistered from the framework
         
         :param svc_ref: A service reference
-        :return: A tuple (service, reference) if the service has been lost,
-                 else None
         """
         with self._lock:
             if svc_ref is self.reference:
                 # Store the current values
-                result = (self.value, self.reference)
+                service, reference = self.value, self.reference
 
                 # Clean the instance values
                 self.value = None
                 self.reference = None
-                return result
+
+                self.ipopo_instance.unbind(self, service, reference)
+                return True
 
 
     def on_service_modify(self, svc_ref):
@@ -384,32 +434,19 @@ class _SimpleDependency(_RuntimeDependency):
         Called when a service has been modified in the framework
         
         :param svc_ref: A service reference
-        :return: A tuple (service, reference) if the service has been lost,
-                 else None
         """
         with self._lock:
             # Property matching test
             props_match = self.requirement.matches(svc_ref.get_properties())
-
-            if svc_ref is self.reference and not props_match:
-                # No more match
-                added = False
-                binding = self.on_service_departure(svc_ref)
-
-            elif self.reference is None and props_match:
+            if self.reference is None and props_match:
                 # A previously registered service now matches our filter
-                added = True
-                binding = self.on_service_arrival(svc_ref)
-
-            if binding is not None:
-                return (added, binding)
+                return self.on_service_arrival(svc_ref)
 
 
     def try_binding(self):
         """
         Searches for the required service if needed
         
-        :return: The list of injected bindings ((service, reference) tuples)
         :raise BundleException: Invalid ServiceReference found
         """
         with self._lock:
@@ -424,21 +461,19 @@ class _SimpleDependency(_RuntimeDependency):
                 return None
 
             # Use the first one
-            binding = self.on_service_arrival(refs[0])
-
-            # Return a list
-            return [binding]
+            self.on_service_arrival(refs[0])
 
 
 class _AggregateDependency(_RuntimeDependency):
     """
     Manages an aggregated dependency field
     """
-    def __init__(self, stored_instance, requirement):
+    def __init__(self, stored_instance, field, requirement):
         """
         Sets up the dependency
         """
-        super(_AggregateDependency, self).__init__(stored_instance, requirement)
+        super(_AggregateDependency, self).__init__(stored_instance, field,
+                                                   requirement)
 
         # We have multiple references to keep
         self.references = []
@@ -447,13 +482,15 @@ class _AggregateDependency(_RuntimeDependency):
         self.services = {}
 
 
-    def clear(self):
+    def stop(self):
         """
         Cleans up the manager. The manager can't be used after this method has
         been called
         
         :return: The removed bindings (list) or None
         """
+        super(_AggregateDependency, self).stop()
+
         if self.services:
             results = [(service, reference)
                        for service, reference in self.services.items()]
@@ -461,14 +498,16 @@ class _AggregateDependency(_RuntimeDependency):
         else:
             results = None
 
+        return results
+
+
+    def clear(self):
         del self.references[:]
         self.services.clear()
-
         self.references = None
         self.services = None
-
         super(_AggregateDependency, self).clear()
-        return results
+
 
 
     def on_service_arrival(self, svc_ref):
@@ -476,8 +515,6 @@ class _AggregateDependency(_RuntimeDependency):
         Called when a service has been registered in the framework
         
         :param svc_ref: A service reference
-        :return: A tuple (service, reference) if the service has been kept,
-                 else None
         """
         with self._lock:
             if svc_ref not in self.references \
@@ -494,7 +531,8 @@ class _AggregateDependency(_RuntimeDependency):
                 self.references.append(svc_ref)
                 self.services[svc_ref] = service
 
-                return (service, svc_ref)
+                self.ipopo_instance.bind(self, service, svc_ref)
+                return True
 
 
     def on_service_departure(self, svc_ref):
@@ -519,7 +557,8 @@ class _AggregateDependency(_RuntimeDependency):
                 if not self.value:
                     self.value = None
 
-                return (service, svc_ref)
+                self.ipopo_instance.unbind(self, service, svc_ref)
+                return True
 
 
     def on_service_modify(self, svc_ref):
@@ -533,20 +572,9 @@ class _AggregateDependency(_RuntimeDependency):
         with self._lock:
             # Property matching test
             props_match = self.requirement.matches(svc_ref.get_properties())
-
-            if not props_match and svc_ref in self.references:
-                # No more match
-                added = False
-                binding = self.on_service_departure(svc_ref)
-
-            elif props_match and svc_ref not in self.references:
+            if props_match and svc_ref not in self.references:
                 # A previously registered service now matches our filter
-                added = True
-                binding = self.on_service_arrival(svc_ref)
-
-            if binding is not None:
-                # A change occurred
-                return (added, binding)
+                return self.on_service_arrival(svc_ref)
 
 
     def try_binding(self):
@@ -574,17 +602,15 @@ class _AggregateDependency(_RuntimeDependency):
             try:
                 # Bind all new reference
                 for reference in refs:
-                    binding = self.on_service_arrival(reference)
-                    if binding is not None:
-                        results.append(binding)
-
-                return results
+                    added = self.on_service_arrival(reference)
+                    if added:
+                        results.append(reference)
 
             except BundleException as ex:
                 _logger.debug("Error binding multiple references: %s", ex)
 
                 # Undo what has just been done, ignoring errors
-                for service, reference in results:
+                for reference in results:
                     try:
                         self.on_service_departure(reference)
 
@@ -874,16 +900,6 @@ class _StoredInstance(object):
         # The iPOPO service
         self._ipopo_service = ipopo_service
 
-        # The runtime dependency managers (field -> dependency)
-        self._dependencies = {}
-        for field, requirement in context.requirements.items():
-            if requirement.aggregate:
-                dependency = _AggregateDependency(self, requirement)
-            else:
-                dependency = _SimpleDependency(self, requirement)
-
-            self._dependencies[field] = dependency
-
         # Component context
         self.context = context
 
@@ -902,9 +918,121 @@ class _StoredInstance(object):
         # Set the instance state
         self.state = _StoredInstance.INVALID
 
-        # Register to the events
+        # Store the bundle context
         self.bundle_context = self.context.get_bundle_context()
-        self.bundle_context.add_service_listener(self)
+
+        # The runtime dependency managers (field -> dependency)
+        self._dependencies = []
+        for field, requirement in context.requirements.items():
+            if requirement.aggregate:
+                dependency = _AggregateDependency(self, field, requirement)
+            else:
+                dependency = _SimpleDependency(self, field, requirement)
+
+            self._dependencies.append(dependency)
+
+
+    @SynchronizedClassMethod('_lock')
+    def register_listener(self, svc_listener, ldap_filter):
+        """
+        Registers a service listener
+        
+        :param svc_listener: A service listener
+        :param ldap_filter: The LDAP service filter
+        """
+        self.bundle_context.add_service_listener(svc_listener, ldap_filter)
+
+
+    @SynchronizedClassMethod('_lock')
+    def unregister_listener(self, svc_listener):
+        """
+        Unregisters a service listener
+        
+        :param svc_listener: A service listener
+        """
+        self.bundle_context.remove_service_listener(svc_listener)
+
+    @SynchronizedClassMethod('_lock')
+    def check_event(self, event):
+        """
+        Tests if the given service event must be handled or ignored, based
+        on the state of the iPOPO service and on the content of the event.
+        
+        :param event: A service event
+        :return: True if the event can be handled, False if it must be ignored
+        """
+        if self.state == _StoredInstance.KILLED:
+            # This call may have been blocked by the internal state lock,
+            # ignore it
+            return False
+
+        if self.registration is not None \
+        and event.get_service_reference() is self.registration.get_reference():
+            return False
+
+        return True
+
+    @SynchronizedClassMethod('_lock')
+    def bind(self, dependency, svc, svc_ref):
+        """
+        Called by a dependency manager to inject a new service and update the
+        component life cycle.
+        """
+        self.__set_binding(dependency, svc, svc_ref)
+        self.check_lifecycle()
+
+    @SynchronizedClassMethod('_lock')
+    def unbind(self, dependency, svc, svc_ref):
+        """
+        Called by a dependency manager to remove an injected service and to
+        update the component life cycle.
+        """
+        # Invalidate first (if needed)
+        self.check_lifecycle()
+
+        # Call unbind() and remove the injection
+        self.__unset_binding(dependency, svc, svc_ref)
+
+        # Try a new configuration
+        if self.update_bindings():
+            self.check_lifecycle()
+
+
+    @SynchronizedClassMethod('_lock')
+    def check_lifecycle(self):
+        """
+        Tests if the state of the component must be updated, based on its own
+        state and on the state of its dependencies
+        """
+        # Validation flags
+        was_valid = (self.state == _StoredInstance.VALID)
+        can_validate = self.state not in (_StoredInstance.VALIDATING,
+                                          _StoredInstance.VALID,
+                                          _StoredInstance.VALIDATION_PASSED)
+
+        # Test the validity of all dependencies
+        deps_valid = True
+        for dep in self._dependencies:
+            if not dep.is_valid():
+                deps_valid = False
+                break
+
+        # A dependency is missing
+        if was_valid and not deps_valid:
+            self.invalidate(True)
+
+        # We're all good
+        elif can_validate and deps_valid and self._ipopo_service.running:
+            self.validate(True)
+
+
+    @SynchronizedClassMethod('_lock')
+    def start(self):
+        """
+        Starts the dependency handlers
+        """
+        for dep in self._dependencies:
+            dep.start()
 
 
     def __repr__(self):
@@ -936,7 +1064,12 @@ class _StoredInstance(object):
             return None
 
         # Call it
-        return comp_callback(self.instance, *args, **kwargs)
+        result = comp_callback(self.instance, *args, **kwargs)
+        if result is None:
+            # Special case, if the call back returns nothing
+            return True
+
+        return result
 
 
     @SynchronizedClassMethod('_lock')
@@ -1000,17 +1133,19 @@ class _StoredInstance(object):
         # Now that we are nearly clean, be sure we were in a good registry state
         assert not self._ipopo_service.is_registered_instance(self.name)
 
-        for field, dependency in self._dependencies.items():
-            results = dependency.clear()
+        for dependency in self._dependencies:
+            results = dependency.stop()
             if results:
                 for binding in results:
-                    self.__unset_binding(field, dependency, binding)
+                    self.__unset_binding(dependency, binding[0], binding[1])
+
+            dependency.clear()
 
         # Change the state
         self.state = _StoredInstance.KILLED
 
         # Clean up members
-        self._dependencies.clear()
+        del self._dependencies[:]
         self.context = None
         self.instance = None
         self._ipopo_service = None
@@ -1032,10 +1167,25 @@ class _StoredInstance(object):
         try:
             return self.callback(event, *args, **kwargs)
 
+        except pelix.FrameworkException as ex:
+            # Important error
+            _logger.exception("Critical error calling back %s: %s",
+                              self.name, ex)
+
+            # Kill the component
+            self._ipopo_service.kill(self.name)
+
+            if ex.needs_stop:
+                # Framework must be stopped...
+                _logger.error("%s said that the Framework must be stopped.",
+                              self.name)
+                self.bundle_context.get_bundle(0).stop()
+            return False
+
         except:
             _logger.exception("Component '%s' : error calling callback " \
                                "method for event %s" % (self.name, event))
-            return None
+            return False
 
 
     def find_references(self, ldap_filter):
@@ -1062,7 +1212,7 @@ class _StoredInstance(object):
 
 
     @SynchronizedClassMethod('_lock')
-    def __set_binding(self, field, dependency, binding):
+    def __set_binding(self, dependency, service, reference):
         """
         Injects the given service into the given field
 
@@ -1070,18 +1220,15 @@ class _StoredInstance(object):
         :param dependency: The dependency manager
         :param binding: The binding, result of the dependency manager
         """
-        # Extract values
-        service, reference = binding
-
         # Set the value
-        setattr(self.instance, field, dependency.value)
+        setattr(self.instance, dependency.field, dependency.value)
 
         # Call the component back
         self.safe_callback(constants.IPOPO_CALLBACK_BIND, service, reference)
 
 
     @SynchronizedClassMethod('_lock')
-    def __unset_binding(self, field, dependency, binding):
+    def __unset_binding(self, dependency, service, reference):
         """
         Remove the given service from the given field
 
@@ -1089,14 +1236,11 @@ class _StoredInstance(object):
         :param dependency: The dependency manager
         :param binding: The binding, result of the dependency manager
         """
-        # Extract values
-        service, reference = binding
-
         # Call the component back
         self.safe_callback(constants.IPOPO_CALLBACK_UNBIND, service, reference)
 
         # Update the injected field
-        setattr(self.instance, field, dependency.value)
+        setattr(self.instance, dependency.field, dependency.value)
 
         # Unget the service
         self.bundle_context.unget_service(reference)
@@ -1111,13 +1255,13 @@ class _StoredInstance(object):
         """
         all_valid = True
 
-        for field, dependency in self._dependencies.items():
+        for dependency in self._dependencies:
             try:
                 # Try to bind
                 results = dependency.try_binding()
                 if results is not None:
                     for binding in results:
-                        self.__set_binding(field, dependency, binding)
+                        self.__set_binding(dependency, binding[0], binding[1])
 
             except BundleException as ex:
                 # Just log it
@@ -1158,11 +1302,14 @@ class _StoredInstance(object):
         if self.state == _StoredInstance.KILLED:
             raise RuntimeError("%s: Zombies !" % self.context.name)
 
-        if safe_callback or not self.state == _StoredInstance.VALIDATION_PASSED:
+        if safe_callback and not self.state == _StoredInstance.VALIDATION_PASSED:
             # Safe call back needed and not yet passed
             self.state = _StoredInstance.VALIDATING
-            self.safe_callback(constants.IPOPO_CALLBACK_VALIDATE, \
-                               self.bundle_context)
+            if not self.safe_callback(constants.IPOPO_CALLBACK_VALIDATE,
+                                      self.bundle_context):
+                # Stop there if the callback failed
+                self.invalidate(True)
+                return
 
         provides = self.context.get_provides()
 
@@ -1183,132 +1330,6 @@ class _StoredInstance(object):
         # Trigger the iPOPO event (after the service registration)
         self._ipopo_service._fire_ipopo_event(IPopoEvent.VALIDATED, \
                                               self.factory_name, self.name)
-
-
-    @SynchronizedClassMethod('_lock')
-    def service_changed(self, event):
-        """
-        Called by Pelix when some service properties changes
-
-        :param event: A ServiceEvent object
-        """
-        if self.state == _StoredInstance.KILLED:
-            # This call may have been blocked by the internal state lock,
-            # ignore it
-            return
-
-        kind = event.get_type()
-        reference = event.get_service_reference()
-        was_valid = (self.state == _StoredInstance.VALID)
-        can_validate = self.state not in (_StoredInstance.VALIDATING,
-                                          _StoredInstance.VALID,
-                                          _StoredInstance.VALIDATION_PASSED)
-
-        if self.registration is not None \
-        and reference is self.registration.get_reference():
-            # The event is about the service provided by this component
-            # FIXME: is it relevant ? this event should never happen.
-            if kind == ServiceEvent.UNREGISTERING and was_valid:
-                # Our service is being unregistered by someone else,
-                # e.g. the framework
-
-                # 1/ The registration is no more valid
-                self.registration = None
-
-                # 2/ Invalidate this component (with the call back)
-                self.invalidate(True)
-
-            else:
-                # Ignore other events
-                return
-
-        elif kind == ServiceEvent.REGISTERED:
-            # Ignore the event if iPOPO is not running.
-            if not self._ipopo_service.running:
-                return
-
-            # Test all dependencies
-            for field, dependency in self._dependencies.items():
-                # Update the dependency
-                binding = dependency.on_service_arrival(reference)
-                if binding is not None:
-                    # New injection possible
-                    self.__set_binding(field, dependency, binding)
-
-                # Update the validation flag
-                can_validate &= dependency.is_valid()
-
-            if can_validate:
-                # Validation accepted
-                self.validate(True)
-
-
-        elif kind == ServiceEvent.UNREGISTERING:
-            # The component might be invalidated
-            invalidated = False
-
-            # Test all dependencies
-            for field, dependency in self._dependencies.items():
-                # Update the dependency
-                binding = dependency.on_service_departure(reference)
-                if binding is not None:
-                    # Dependency went away
-                    if was_valid and not invalidated \
-                    and not dependency.is_valid():
-                        # Unsatisfied requirement: invalidate
-                        invalidated = True
-                        self.safe_callback(constants.IPOPO_CALLBACK_INVALIDATE,
-                                           self.bundle_context)
-
-                    # Remove the injected service
-                    self.__unset_binding(field, dependency, binding)
-
-            # Finish the invalidation if needed
-            if invalidated:
-                self.invalidate(False)
-
-            # Ask for a new chance, if iPOPO is running...
-            if self._ipopo_service.running and self.update_bindings() \
-            and invalidated:
-                self.validate(True)
-
-        elif kind == ServiceEvent.MODIFIED:
-            # Modified service property
-            invalidated = False
-
-            # Test all dependencies
-            for field, dependency in self._dependencies.items():
-                # Update the dependency
-                modification = dependency.on_service_modify(reference)
-                if modification is None:
-                    # Nothing happened
-                    continue
-
-                # Extract values
-                added, binding = modification
-                if added:
-                    self.__set_binding(field, dependency, binding)
-
-                else:
-                    if was_valid and not invalidated \
-                    and not dependency.is_valid():
-                        # Unsatisfied requirement: invalidate
-                        invalidated = True
-                        self.safe_callback(constants.IPOPO_CALLBACK_INVALIDATE,
-                                           self.bundle_context)
-
-                    # Unbind the dependency
-                    self.__unset_binding(field, dependency, binding)
-
-            # Finish the invalidation
-            if invalidated:
-                # The call back method has already been called
-                self.invalidate(False)
-
-            # Ask for a new chance, if iPOPO is running...
-            if self._ipopo_service.running and self.update_bindings() \
-            and (invalidated or can_validate):
-                self.validate(True)
 
 # ------------------------------------------------------------------------------
 
@@ -1723,40 +1744,12 @@ class _IPopoService(object):
             # Store the instance
             self.__instances[name] = stored_instance
 
+        # Start the manager
+        stored_instance.start()
+
         # Try to validate it
-        if stored_instance.update_bindings():
-            try:
-                # Set in validating mode
-                stored_instance.state = _StoredInstance.VALIDATING
-
-                stored_instance.callback(constants.IPOPO_CALLBACK_VALIDATE, \
-                                         component_context.get_bundle_context())
-
-                # Validation passed
-                stored_instance.state = _StoredInstance.VALIDATION_PASSED
-
-                # End the validation on success...
-                stored_instance.validate(False)
-
-            except pelix.FrameworkException as ex:
-                # Important error
-                _logger.exception("Important error validating %s", name)
-
-                # Kill the component
-                self.kill(name)
-
-                if ex.needs_stop:
-                    # Framework must be stopped...
-                    _logger.error("Framework must be stopped.")
-                    self.__context.get_bundle(0).stop()
-
-            except:
-                # Log the error
-                _logger.exception("Error validating '%s'", name)
-
-                # Kill the component
-                self.kill(name)
-                return None
+        stored_instance.update_bindings()
+        stored_instance.check_lifecycle()
 
         return instance
 
