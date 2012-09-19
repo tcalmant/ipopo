@@ -293,18 +293,66 @@ class _RuntimeDependency(object):
         self.value = None
 
 
-    def start(self):
+    def clear(self):
         """
-        Starts the dependency manager
+        Cleans up the manager. The manager can't be used after this method has
+        been called
+        
+        :return: The removed bindings (list) or None
         """
-        self.ipopo_instance.register_listener(self, self.requirement.filter)
+        self._lock = None
+        self.ipopo_instance = None
+        self.requirement = None
+        self.value = None
+        self.field = None
 
 
-    def stop(self):
+    def get_bindings(self):
         """
-        Stops the dependency manager (must be called before clear())
+        Retrieves the list of the references to the bound services
+        
+        :return: A list of ServiceReferences objects
         """
-        self.ipopo_instance.unregister_listener(self)
+        raise NotImplementedError("This method should be implemented by "
+                                  "child classes")
+
+
+    def is_valid(self):
+        """
+        Tests if the dependency is in a valid state
+        """
+        with self._lock:
+            return self.requirement.optional or self.value is not None
+
+
+    def on_service_arrival(self, svc_ref):
+        """
+        Called when a service has been registered in the framework
+        
+        :param svc_ref: A service reference
+        """
+        raise NotImplementedError("This method should be implemented by "
+                                  "child classes")
+
+
+    def on_service_departure(self, svc_ref):
+        """
+        Called when a service has been registered in the framework
+        
+        :param svc_ref: A service reference
+        """
+        raise NotImplementedError("This method should be implemented by "
+                                  "child classes")
+
+
+    def on_service_modify(self, svc_ref):
+        """
+        Called when a service has been registered in the framework
+        
+        :param svc_ref: A service reference
+        """
+        raise NotImplementedError("This method should be implemented by "
+                                  "child classes")
 
 
     def service_changed(self, event):
@@ -334,26 +382,18 @@ class _RuntimeDependency(object):
                 self.on_service_modify(svc_ref)
 
 
-    def clear(self):
+    def start(self):
         """
-        Cleans up the manager. The manager can't be used after this method has
-        been called
-        
-        :return: The removed bindings (list) or None
+        Starts the dependency manager
         """
-        self._lock = None
-        self.ipopo_instance = None
-        self.requirement = None
-        self.value = None
-        self.field = None
+        self.ipopo_instance.register_listener(self, self.requirement.filter)
 
 
-    def is_valid(self):
+    def stop(self):
         """
-        Tests if the dependency is in a valid state
+        Stops the dependency manager (must be called before clear())
         """
-        with self._lock:
-            return self.requirement.optional or self.value is not None
+        self.ipopo_instance.unregister_listener(self)
 
 
 class _SimpleDependency(_RuntimeDependency):
@@ -371,16 +411,6 @@ class _SimpleDependency(_RuntimeDependency):
         self.reference = None
 
 
-    def stop(self):
-        super(_SimpleDependency, self).stop()
-        if self.reference is not None:
-            # Use a list
-            result = [(self.value, self.reference)]
-        else:
-            result = None
-
-        return result
-
     def clear(self):
         """
         Cleans up the manager. The manager can't be used after this method has
@@ -391,6 +421,19 @@ class _SimpleDependency(_RuntimeDependency):
         self.reference = None
         super(_SimpleDependency, self).clear()
 
+
+    def get_bindings(self):
+        """
+        Retrieves the list of the references to the bound services
+        
+        :return: A list of ServiceReferences objects
+        """
+        result = []
+        with self._lock:
+            if self.reference:
+                result.append(self.reference)
+
+        return result
 
 
     def on_service_arrival(self, svc_ref):
@@ -443,6 +486,20 @@ class _SimpleDependency(_RuntimeDependency):
                 return self.on_service_arrival(svc_ref)
 
 
+    def stop(self):
+        """
+        Stops the dependency manager (must be called before clear())
+        """
+        super(_SimpleDependency, self).stop()
+        if self.reference is not None:
+            # Use a list
+            result = [(self.value, self.reference)]
+        else:
+            result = None
+
+        return result
+
+
     def try_binding(self):
         """
         Searches for the required service if needed
@@ -482,32 +539,28 @@ class _AggregateDependency(_RuntimeDependency):
         self.services = {}
 
 
-    def stop(self):
+    def clear(self):
         """
         Cleans up the manager. The manager can't be used after this method has
         been called
         
         :return: The removed bindings (list) or None
         """
-        super(_AggregateDependency, self).stop()
-
-        if self.services:
-            results = [(service, reference)
-                       for service, reference in self.services.items()]
-
-        else:
-            results = None
-
-        return results
-
-
-    def clear(self):
         del self.references[:]
         self.services.clear()
         self.references = None
         self.services = None
         super(_AggregateDependency, self).clear()
 
+
+    def get_bindings(self):
+        """
+        Retrieves the list of the references to the bound services
+        
+        :return: A list of ServiceReferences objects
+        """
+        with self._lock:
+            return self.references[:]
 
 
     def on_service_arrival(self, svc_ref):
@@ -575,6 +628,22 @@ class _AggregateDependency(_RuntimeDependency):
             if props_match and svc_ref not in self.references:
                 # A previously registered service now matches our filter
                 return self.on_service_arrival(svc_ref)
+
+
+    def stop(self):
+        """
+        Stops the dependency manager (must be called before clear())
+        """
+        super(_AggregateDependency, self).stop()
+
+        if self.services:
+            results = [(service, reference)
+                       for service, reference in self.services.items()]
+
+        else:
+            results = None
+
+        return results
 
 
     def try_binding(self):
@@ -1869,6 +1938,76 @@ class _IPopoService(object):
 
             result.sort()
             return result
+
+
+    def get_instance_details(self, name):
+        """
+        Retrieves a snapshot of the given component instance.
+        The result dictionary has the following keys:
+        
+        * name: The component name
+        * factory: The name of the component factory
+        * state: The current component state
+        * service (optional): The reference of the service provided by the
+          component
+        * dependencies: A dictionary associating field names with the following
+          dictionary:
+        
+          * handler: The name of the type of the dependency handler
+          * filter (optional): The requirement LDAP filter
+          * optional: A flag indicating whether the requirement is optional or
+            not
+          * aggregate: A flag indicating whether the requirement is a set of
+            services or not
+          * binding: A list of the ServiceReference the component is bound to
+        
+        :param name: The name of a component instance
+        :return: A dictionary of details
+        :raise ValueError: Invalid component name
+        """
+        with self.__instances_lock:
+            if name not in self.__instances:
+                raise ValueError("Unknown component: %s" % name)
+
+            stored_instance = self.__instances[name]
+            assert isinstance(stored_instance, _StoredInstance)
+            with stored_instance._lock:
+                result = {}
+                result["name"] = stored_instance.name
+
+                # Factory name
+                result["factory"] = stored_instance.factory_name
+
+                # Component state
+                result["state"] = stored_instance.state
+
+                # Provided service
+                if stored_instance.registration:
+                    result["service"] = \
+                                    stored_instance.registration.get_reference()
+
+                # Dependencies
+                result["dependencies"] = {}
+                for dependency in stored_instance._dependencies:
+                    # Dependency
+                    info = result["dependencies"][dependency.field] = {}
+                    info["handler"] = type(dependency).__name__
+
+                    # Requirement
+                    req = dependency.requirement
+                    if req.filter:
+                        info["filter"] = str(req.filter)
+
+                    info["optional"] = req.optional
+                    info["aggregate"] = req.aggregate
+
+                    # Bindings
+                    info["bindings"] = dependency.get_bindings()
+
+                # All done
+                return result
+
+
 
 
     def get_factories(self):
