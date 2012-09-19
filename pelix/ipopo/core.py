@@ -75,6 +75,9 @@ class IPopoEvent(object):
     UNBOUND = 6
     """ A reference has been removed from the component """
 
+    KILLED = 9
+    """ A component has been killed (removed from the list of instances) """
+
     UNREGISTERED = 10
     """ A component factory has been unregistered """
 
@@ -1206,6 +1209,10 @@ class _StoredInstance(object):
 
         # Change the state
         self.state = _StoredInstance.KILLED
+
+        # Trigger the event
+        self._ipopo_service._fire_ipopo_event(IPopoEvent.KILLED,
+                                              self.factory_name, self.name)
 
         # Clean up members
         del self._dependencies[:]
