@@ -879,11 +879,6 @@ class _StoredInstance(object):
     VALIDATING = 3
     """ This component is currently validating """
 
-    VALIDATION_PASSED = 4
-    """
-    The component validation callback passed, the component validation can end
-    """
-
     def __init__(self, ipopo_service, context, instance):
         """
         Sets up the instance object
@@ -1007,8 +1002,7 @@ class _StoredInstance(object):
         # Validation flags
         was_valid = (self.state == _StoredInstance.VALID)
         can_validate = self.state not in (_StoredInstance.VALIDATING,
-                                          _StoredInstance.VALID,
-                                          _StoredInstance.VALIDATION_PASSED)
+                                          _StoredInstance.VALID)
 
         # Test the validity of all dependencies
         deps_valid = True
@@ -1061,7 +1055,7 @@ class _StoredInstance(object):
         comp_callback = self.context.get_callback(event)
         if not comp_callback:
             # No registered callback
-            return None
+            return True
 
         # Call it
         result = comp_callback(self.instance, *args, **kwargs)
@@ -1302,7 +1296,7 @@ class _StoredInstance(object):
         if self.state == _StoredInstance.KILLED:
             raise RuntimeError("%s: Zombies !" % self.context.name)
 
-        if safe_callback and not self.state == _StoredInstance.VALIDATION_PASSED:
+        if safe_callback:
             # Safe call back needed and not yet passed
             self.state = _StoredInstance.VALIDATING
             if not self.safe_callback(constants.IPOPO_CALLBACK_VALIDATE,
@@ -1618,12 +1612,8 @@ class _IPopoService(object):
             # Find out which factories must be removed
             to_remove = []
 
-            for name, factory in self.__factories.items():
-                # Bundle Context is stored in the Factory Context
-                factory_context = getattr(factory, \
-                                          constants.IPOPO_FACTORY_CONTEXT)
-
-                if factory_context.bundle_context.get_bundle() is bundle:
+            for name in self.__factories:
+                if self.get_factory_bundle(name) is bundle:
                     # Found
                     to_remove.append(name)
 
@@ -1865,14 +1855,51 @@ class _IPopoService(object):
             return remove_listener(self.__listeners, listener)
 
 
-    def get_registered_factories(self):
+    def get_instances(self):
+        """
+        Retrieves the list of the currently registered component instances
+        
+        :return: A list of (name, factory name, state) tuples.
+        """
+        with self.__instances_lock:
+            result = []
+            for name, stored_instance in self.__instances.items():
+                result.append((name, stored_instance.factory_name,
+                               stored_instance.state))
+
+            result.sort()
+            return result
+
+
+    def get_factories(self):
         """
         Retrieves the names of the registered factories
 
         :return: A list of factories. Can be empty.
         """
         with self.__factories_lock:
-            return self.__factories.keys()[:]
+            result = list(self.__factories.keys())
+            result.sort()
+            return result
+
+
+    def get_factory_bundle(self, name):
+        """
+        Retrieves the Pelix Bundle object that registered the given factory
+        
+        :param factory: The name of a factory
+        :return: The Bundle that registered the given factory
+        :raise ValueError: Invalid factory
+        """
+        with self.__factories_lock:
+            if name not in self.__factories:
+                raise ValueError("Unknown factory '%s'" % name)
+
+            factory = self.__factories[name]
+
+            # Bundle Context is stored in the Factory Context
+            factory_context = getattr(factory, constants.IPOPO_FACTORY_CONTEXT)
+            return factory_context.bundle_context.get_bundle()
 
 # ------------------------------------------------------------------------------
 
