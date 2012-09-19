@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 #-- Content-Encoding: UTF-8 --
 
-from distutils.core import setup
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
 
 setup(name='iPOPO',
       version='0.3',
