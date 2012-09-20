@@ -324,8 +324,7 @@ class _RuntimeDependency(object):
         """
         Tests if the dependency is in a valid state
         """
-        with self._lock:
-            return self.requirement.optional or self.value is not None
+        return self.requirement.optional or self.value is not None
 
 
     def on_service_arrival(self, svc_ref):
@@ -366,23 +365,22 @@ class _RuntimeDependency(object):
             # We've been told to ignore this event
             return
 
-        with self._lock:
-            # Call sub-methods
-            kind = event.get_type()
-            svc_ref = event.get_service_reference()
+        # Call sub-methods
+        kind = event.get_type()
+        svc_ref = event.get_service_reference()
 
-            if kind == ServiceEvent.REGISTERED:
-                # Service coming
-                self.on_service_arrival(svc_ref)
+        if kind == ServiceEvent.REGISTERED:
+            # Service coming
+            self.on_service_arrival(svc_ref)
 
-            elif kind in (ServiceEvent.UNREGISTERING,
-                          ServiceEvent.MODIFIED_ENDMATCH):
-                # Service gone or not matching anymore
-                self.on_service_departure(svc_ref)
+        elif kind in (ServiceEvent.UNREGISTERING,
+                      ServiceEvent.MODIFIED_ENDMATCH):
+            # Service gone or not matching anymore
+            self.on_service_departure(svc_ref)
 
-            elif kind == ServiceEvent.MODIFIED:
-                # Modified properties (can be a new injection)
-                self.on_service_modify(svc_ref)
+        elif kind == ServiceEvent.MODIFIED:
+            # Modified properties (can be a new injection)
+            self.on_service_modify(svc_ref)
 
 
     def start(self):
@@ -446,8 +444,7 @@ class _SimpleDependency(_RuntimeDependency):
         :param svc_ref: A service reference
         """
         with self._lock:
-            if self.value is None \
-            and self.requirement.matches(svc_ref.get_properties()):
+            if self.value is None:
                 # Inject the service
                 self.reference = svc_ref
                 self.value = self.ipopo_instance.get_service(svc_ref)
@@ -482,9 +479,7 @@ class _SimpleDependency(_RuntimeDependency):
         :param svc_ref: A service reference
         """
         with self._lock:
-            # Property matching test
-            props_match = self.requirement.matches(svc_ref.get_properties())
-            if self.reference is None and props_match:
+            if self.reference is None:
                 # A previously registered service now matches our filter
                 return self.on_service_arrival(svc_ref)
 
@@ -512,13 +507,13 @@ class _SimpleDependency(_RuntimeDependency):
         with self._lock:
             if self.reference is not None:
                 # Already bound
-                return None
+                return
 
             # Get all matching services
             refs = self.ipopo_instance.find_references(self.requirement.filter)
             if not refs:
                 # No match found
-                return None
+                return
 
             # Use the first one
             self.on_service_arrival(refs[0])
@@ -573,8 +568,7 @@ class _AggregateDependency(_RuntimeDependency):
         :param svc_ref: A service reference
         """
         with self._lock:
-            if svc_ref not in self.references \
-            and self.requirement.matches(svc_ref.get_properties()):
+            if svc_ref not in self.references:
                 # Get the new service
                 service = self.ipopo_instance.get_service(svc_ref)
 
@@ -626,9 +620,7 @@ class _AggregateDependency(_RuntimeDependency):
                  been changed, else None
         """
         with self._lock:
-            # Property matching test
-            props_match = self.requirement.matches(svc_ref.get_properties())
-            if props_match and svc_ref not in self.references:
+            if svc_ref not in self.references:
                 # A previously registered service now matches our filter
                 return self.on_service_arrival(svc_ref)
 
@@ -653,7 +645,6 @@ class _AggregateDependency(_RuntimeDependency):
         """
         Searches for the required service if needed
         
-        :return: The list of injected bindings ((service, reference) tuples)
         :raise BundleException: Invalid ServiceReference found
         """
         with self._lock:
@@ -661,14 +652,14 @@ class _AggregateDependency(_RuntimeDependency):
             refs = self.ipopo_instance.find_references(self.requirement.filter)
             if not refs:
                 # No match found
-                return None
+                return
 
             # Filter found references
             refs = [reference for reference in refs
                     if reference not in self.references]
             if not refs:
                 # No new match found
-                return None
+                return
 
             results = []
             try:
@@ -999,7 +990,6 @@ class _StoredInstance(object):
             self._dependencies.append(dependency)
 
 
-    @SynchronizedClassMethod('_lock')
     def register_listener(self, svc_listener, ldap_filter):
         """
         Registers a service listener
@@ -1007,19 +997,20 @@ class _StoredInstance(object):
         :param svc_listener: A service listener
         :param ldap_filter: The LDAP service filter
         """
-        self.bundle_context.add_service_listener(svc_listener, ldap_filter)
+        with self._lock:
+            self.bundle_context.add_service_listener(svc_listener, ldap_filter)
 
 
-    @SynchronizedClassMethod('_lock')
     def unregister_listener(self, svc_listener):
         """
         Unregisters a service listener
         
         :param svc_listener: A service listener
         """
-        self.bundle_context.remove_service_listener(svc_listener)
+        with self._lock:
+            self.bundle_context.remove_service_listener(svc_listener)
 
-    @SynchronizedClassMethod('_lock')
+
     def check_event(self, event):
         """
         Tests if the given service event must be handled or ignored, based
@@ -1028,77 +1019,80 @@ class _StoredInstance(object):
         :param event: A service event
         :return: True if the event can be handled, False if it must be ignored
         """
-        if self.state == _StoredInstance.KILLED:
-            # This call may have been blocked by the internal state lock,
-            # ignore it
-            return False
+        with self._lock:
+            if self.state == _StoredInstance.KILLED:
+                # This call may have been blocked by the internal state lock,
+                # ignore it
+                return False
 
-        if self.registration is not None \
-        and event.get_service_reference() is self.registration.get_reference():
-            return False
+            if self.registration is not None \
+            and event.get_service_reference() is self.registration.get_reference():
+                return False
 
-        return True
+            return True
 
-    @SynchronizedClassMethod('_lock')
+
     def bind(self, dependency, svc, svc_ref):
         """
         Called by a dependency manager to inject a new service and update the
         component life cycle.
         """
-        self.__set_binding(dependency, svc, svc_ref)
-        self.check_lifecycle()
+        with self._lock:
+            self.__set_binding(dependency, svc, svc_ref)
+            self.check_lifecycle()
 
-    @SynchronizedClassMethod('_lock')
+
     def unbind(self, dependency, svc, svc_ref):
         """
         Called by a dependency manager to remove an injected service and to
         update the component life cycle.
         """
-        # Invalidate first (if needed)
-        self.check_lifecycle()
-
-        # Call unbind() and remove the injection
-        self.__unset_binding(dependency, svc, svc_ref)
-
-        # Try a new configuration
-        if self.update_bindings():
+        with self._lock:
+            # Invalidate first (if needed)
             self.check_lifecycle()
 
+            # Call unbind() and remove the injection
+            self.__unset_binding(dependency, svc, svc_ref)
 
-    @SynchronizedClassMethod('_lock')
+            # Try a new configuration
+            if self.update_bindings():
+                self.check_lifecycle()
+
+
     def check_lifecycle(self):
         """
         Tests if the state of the component must be updated, based on its own
         state and on the state of its dependencies
         """
-        # Validation flags
-        was_valid = (self.state == _StoredInstance.VALID)
-        can_validate = self.state not in (_StoredInstance.VALIDATING,
-                                          _StoredInstance.VALID)
+        with self._lock:
+            # Validation flags
+            was_valid = (self.state == _StoredInstance.VALID)
+            can_validate = self.state not in (_StoredInstance.VALIDATING,
+                                              _StoredInstance.VALID)
 
-        # Test the validity of all dependencies
-        deps_valid = True
-        for dep in self._dependencies:
-            if not dep.is_valid():
-                deps_valid = False
-                break
+            # Test the validity of all dependencies
+            deps_valid = True
+            for dep in self._dependencies:
+                if not dep.is_valid():
+                    deps_valid = False
+                    break
 
-        # A dependency is missing
-        if was_valid and not deps_valid:
-            self.invalidate(True)
+            # A dependency is missing
+            if was_valid and not deps_valid:
+                self.invalidate(True)
 
-        # We're all good
-        elif can_validate and deps_valid and self._ipopo_service.running:
-            self.validate(True)
+            # We're all good
+            elif can_validate and deps_valid and self._ipopo_service.running:
+                self.validate(True)
 
 
-    @SynchronizedClassMethod('_lock')
     def start(self):
         """
         Starts the dependency handlers
         """
-        for dep in self._dependencies:
-            dep.start()
+        with self._lock:
+            for dep in self._dependencies:
+                dep.start()
 
 
     def __repr__(self):
@@ -1115,7 +1109,6 @@ class _StoredInstance(object):
         return "StoredInstance(%s, %d)" % (self.name, self.state)
 
 
-    @SynchronizedClassMethod('_lock')
     def callback(self, event, *args, **kwargs):
         """
         Calls the registered method in the component for the given event
@@ -1124,18 +1117,19 @@ class _StoredInstance(object):
         :return: The callback result, or None
         :raise Exception: Something went wrong
         """
-        comp_callback = self.context.get_callback(event)
-        if not comp_callback:
-            # No registered callback
-            return True
+        with self._lock:
+            comp_callback = self.context.get_callback(event)
+            if not comp_callback:
+                # No registered callback
+                return True
 
-        # Call it
-        result = comp_callback(self.instance, *args, **kwargs)
-        if result is None:
-            # Special case, if the call back returns nothing
-            return True
+            # Call it
+            result = comp_callback(self.instance, *args, **kwargs)
+            if result is None:
+                # Special case, if the call back returns nothing
+                return True
 
-        return result
+            return result
 
 
     @SynchronizedClassMethod('_lock')
@@ -1281,7 +1275,6 @@ class _StoredInstance(object):
         return self.bundle_context.get_service(reference)
 
 
-    @SynchronizedClassMethod('_lock')
     def __set_binding(self, dependency, service, reference):
         """
         Injects the given service into the given field
@@ -1290,14 +1283,15 @@ class _StoredInstance(object):
         :param dependency: The dependency manager
         :param binding: The binding, result of the dependency manager
         """
-        # Set the value
-        setattr(self.instance, dependency.field, dependency.value)
+        with self._lock:
+            # Set the value
+            setattr(self.instance, dependency.field, dependency.value)
 
-        # Call the component back
-        self.safe_callback(constants.IPOPO_CALLBACK_BIND, service, reference)
+            # Call the component back
+            self.safe_callback(constants.IPOPO_CALLBACK_BIND,
+                               service, reference)
 
 
-    @SynchronizedClassMethod('_lock')
     def __unset_binding(self, dependency, service, reference):
         """
         Remove the given service from the given field
@@ -1306,14 +1300,16 @@ class _StoredInstance(object):
         :param dependency: The dependency manager
         :param binding: The binding, result of the dependency manager
         """
-        # Call the component back
-        self.safe_callback(constants.IPOPO_CALLBACK_UNBIND, service, reference)
+        with self._lock:
+            # Call the component back
+            self.safe_callback(constants.IPOPO_CALLBACK_UNBIND,
+                               service, reference)
 
-        # Update the injected field
-        setattr(self.instance, dependency.field, dependency.value)
+            # Update the injected field
+            setattr(self.instance, dependency.field, dependency.value)
 
-        # Unget the service
-        self.bundle_context.unget_service(reference)
+            # Unget the service
+            self.bundle_context.unget_service(reference)
 
 
     @SynchronizedClassMethod('_lock')
@@ -1328,10 +1324,7 @@ class _StoredInstance(object):
         for dependency in self._dependencies:
             try:
                 # Try to bind
-                results = dependency.try_binding()
-                if results is not None:
-                    for binding in results:
-                        self.__set_binding(dependency, binding[0], binding[1])
+                dependency.try_binding()
 
             except BundleException as ex:
                 # Just log it
