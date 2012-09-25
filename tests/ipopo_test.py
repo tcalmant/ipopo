@@ -81,6 +81,7 @@ class DecoratorsTest(unittest.TestCase):
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
 
+
     def tearDown(self):
         """
         Called after each test
@@ -223,7 +224,7 @@ class DecoratorsTest(unittest.TestCase):
 
 class LifeCycleTest(unittest.TestCase):
     """
-    Tests the component life cyle
+    Tests the component life cycle
     """
     def setUp(self):
         """
@@ -233,6 +234,7 @@ class LifeCycleTest(unittest.TestCase):
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
         self.module = install_bundle(self.framework)
+
 
     def tearDown(self):
         """
@@ -328,6 +330,7 @@ class ProvidesTest(unittest.TestCase):
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
 
+
     def tearDown(self):
         """
         Called after each test
@@ -356,11 +359,27 @@ class ProvidesTest(unittest.TestCase):
             ref = context.get_service_reference(IEchoService)
             self.assertIsNotNone(ref, "Service hasn't been registered")
 
+            # Second service should be there
+            ref2 = context.get_service_reference("TestService")
+            self.assertIsNotNone(ref, "Service hasn't been registered")
+
+            # References must be different
+            self.assertNotEquals(ref, ref2,
+                                 "Service references must be different")
+
+            # Compare service instances
             svc = context.get_service(ref)
-            self.assertIs(svc, compoA, \
+            self.assertIs(svc, compoA,
                           "Different instances for service and component")
+
+            svc2 = context.get_service(ref2)
+            self.assertEquals(svc, svc2, "Got different service instances")
+
+            # Clean up
             context.unget_service(ref)
+            context.unget_service(ref2)
             svc = None
+            svc2 = None
 
             # Invalidate the component
             self.ipopo.invalidate(NAME_A)
@@ -389,6 +408,7 @@ class RequirementTest(unittest.TestCase):
         self.framework = FrameworkFactory.get_framework()
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
+
 
     def tearDown(self):
         """

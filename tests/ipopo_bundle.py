@@ -96,6 +96,7 @@ class TestComponentFactory(object):
 @ComponentFactory(name=FACTORY_A)
 @Property("usable", PROP_USABLE, True)
 @Provides(specifications=IEchoService)
+@Provides(specifications="TestService")
 class ComponentFactoryA(TestComponentFactory, IEchoService):
     """
     Sample Component A
