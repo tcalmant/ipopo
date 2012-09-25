@@ -685,6 +685,78 @@ class _AggregateDependency(_RuntimeDependency):
 
 # ------------------------------------------------------------------------------
 
+class _ServiceRegistrationHandler(object):
+    """
+    Handles the registration of a service provided by a component
+    """
+    def __init__(self, specifications, ipopo_instance):
+        """
+        Sets up the handler
+        """
+        self.specifications = specifications
+        self.ipopo_instance = ipopo_instance
+
+        # The ServiceRegistration object
+        self.registration = None
+
+
+    def is_service_reference(self, svc_ref):
+        """
+        Tests if the given service reference corresponds to the current one
+        
+        :param svc_ref: A service reference
+        :return: True if the given object references the provided service 
+        """
+        return self.registration is not None \
+            and self.registration.get_reference() is svc_ref
+
+
+    def on_property_change(self, name, old_value, new_value):
+        """
+        Called by the instance manager when a component property is modified
+
+        :param name: The changed property name
+        :param old_value: The previous property value
+        :param new_value: The new property value
+        """
+        if self.registration is not None:
+            # use the registration to trigger the service event
+            self.registration.set_properties({name: new_value})
+
+
+    def post_validate(self):
+        """
+        Called by the instance manager once the component has been validated
+        """
+        if self.specifications:
+            # Use a copy of component properties
+            properties = self.ipopo_instance.context.properties.copy()
+            bundle_context = self.ipopo_instance.bundle_context
+
+            # Register the service
+            self.registration = bundle_context.register_service(
+                                            self.specifications,
+                                            self.ipopo_instance.instance,
+                                            properties)
+
+
+    def pre_invalidate(self):
+        """
+        Called by the instance manager before the component is invalidated
+        """
+        if self.registration is not None:
+            # Ignore error
+            try:
+                self.registration.unregister()
+
+            except BundleException as ex:
+                # Only log the error at this level
+                _logger.error("Error unregistering a component service: %s", ex)
+
+            self.registration = None
+
+# ------------------------------------------------------------------------------
+
 class FactoryContext(object):
     """
     Represents the data stored in a component factory (class)
@@ -927,8 +999,9 @@ class _StoredInstance(object):
     """
 
     # Try to reduce memory footprint (stored instances)
-    __slot__ = ('bundle_context', 'context', 'factory_name', 'instance', 'name',
-                'registration', 'state', '_lock', '_dependencies')
+    __slots__ = ('bundle_context', 'context', 'factory_name', 'instance',
+                 'name', 'state', '_dependencies', '_ipopo_service', '_lock',
+                 '_provided_services')
 
     INVALID = 0
     """ This component has been invalidated """
@@ -970,16 +1043,19 @@ class _StoredInstance(object):
         # Component instance
         self.instance = instance
 
-        # The provided service registration
-        self.registration = None
-
         # Set the instance state
         self.state = _StoredInstance.INVALID
 
         # Store the bundle context
         self.bundle_context = self.context.get_bundle_context()
 
-        # The runtime dependency managers (field -> dependency)
+        # The provided services handlers
+        reg_handler = _ServiceRegistrationHandler(self.context.get_provides(),
+                                                  self)
+        self._provided_services = [reg_handler]
+
+
+        # The runtime dependency handlers
         self._dependencies = []
         for field, requirement in context.requirements.items():
             if requirement.aggregate:
@@ -1025,9 +1101,10 @@ class _StoredInstance(object):
                 # ignore it
                 return False
 
-            if self.registration is not None \
-            and event.get_service_reference() is self.registration.get_reference():
-                return False
+            svc_ref = event.get_service_reference()
+            for provided in self._provided_services:
+                if provided.is_service_reference(svc_ref):
+                    return False
 
             return True
 
@@ -1148,16 +1225,9 @@ class _StoredInstance(object):
         # Change the state
         self.state = _StoredInstance.INVALID
 
-        if self.registration is not None:
-            # Ignore error
-            try:
-                self.registration.unregister()
-
-            except BundleException:
-                # Ignore error at this level
-                pass
-
-            self.registration = None
+        # Call the handlers
+        for provided_svc in self._provided_services:
+            provided_svc.pre_invalidate()
 
         # Call the component
         if callback:
@@ -1312,32 +1382,30 @@ class _StoredInstance(object):
             self.bundle_context.unget_service(reference)
 
 
-    @SynchronizedClassMethod('_lock')
     def update_bindings(self):
         """
         Updates the bindings of the given component
 
         :return: True if the component can be validated
         """
-        all_valid = True
+        with self._lock:
+            all_valid = True
+            for dependency in self._dependencies:
+                try:
+                    # Try to bind
+                    dependency.try_binding()
 
-        for dependency in self._dependencies:
-            try:
-                # Try to bind
-                dependency.try_binding()
+                except BundleException as ex:
+                    # Just log it
+                    _logger.exception("Error trying to update bindings: %s", ex)
 
-            except BundleException as ex:
-                # Just log it
-                _logger.exception("Error trying to update bindings: %s", ex)
+                finally:
+                    # Update the validity flag
+                    all_valid &= dependency.is_valid()
 
-            finally:
-                # Update the validity flag
-                all_valid &= dependency.is_valid()
-
-        return all_valid
+            return all_valid
 
 
-    @SynchronizedClassMethod('_lock')
     def update_property(self, name, old_value, new_value):
         """
         Handles a property changed event
@@ -1346,9 +1414,9 @@ class _StoredInstance(object):
         :param old_value: The previous property value
         :param new_value: The new property value
         """
-        if self.registration is not None:
-            # use the registration to trigger the service event
-            self.registration.set_properties({name: new_value})
+        with self._lock:
+            for provided_svc in self._provided_services:
+                provided_svc.on_property_change(name, old_value, new_value)
 
 
     @SynchronizedClassMethod('_lock')
@@ -1374,21 +1442,12 @@ class _StoredInstance(object):
                 self.invalidate(True)
                 return
 
-        provides = self.context.get_provides()
-
         # All good
         self.state = _StoredInstance.VALID
 
-        if not provides:
-            # Nothing registered
-            self.registration = None
-
-        else:
-            self.registration = self.bundle_context.register_service(\
-                                            self.context.get_provides(), \
-                                            self.instance, \
-                                            self.context.properties.copy(), \
-                                            True)
+        # Call the handlers
+        for provided_svc in self._provided_services:
+            provided_svc.post_validate()
 
         # Trigger the iPOPO event (after the service registration)
         self._ipopo_service._fire_ipopo_event(IPopoEvent.VALIDATED, \
@@ -1982,9 +2041,11 @@ class _IPopoService(object):
                 result["state"] = stored_instance.state
 
                 # Provided service
-                if stored_instance.registration:
-                    result["service"] = \
-                                    stored_instance.registration.get_reference()
+                result["services"] = {}
+                for provided_svc in stored_instance._provided_services:
+                    svc_ref = provided_svc.registration.get_reference()
+                    svc_id = svc_ref.get_propery(pelix.SERVICE_ID)
+                    result["services"][svc_id] = svc_ref
 
                 # Dependencies
                 result["dependencies"] = {}
