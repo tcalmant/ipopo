@@ -692,6 +692,9 @@ class _ServiceRegistrationHandler(object):
     def __init__(self, specifications, ipopo_instance):
         """
         Sets up the handler
+        
+        :param specifications: The service specifications
+        :param ipopo_instance: The iPOPO component StoredInstance
         """
         self.specifications = specifications
         self.ipopo_instance = ipopo_instance
@@ -784,7 +787,7 @@ class FactoryContext(object):
         # Properties fields : Field name -> Property name
         self.properties_fields = {}
 
-        # Provided specifications (array of strings)
+        # Provided specifications (array of arrays of strings)
         self.provides = []
 
         # Requirements : Field name -> Requirement object
@@ -985,9 +988,10 @@ class ComponentContext(object):
 
     def get_provides(self):
         """
-        Retrieves the services that this component provides
+        Retrieves the services provided by this component.
+        Returns an array containing arrays of specifications.
 
-        :return: The services provided by this component
+        :return: An array of arrays of strings
         """
         return self.factory_context.provides
 
@@ -1050,9 +1054,10 @@ class _StoredInstance(object):
         self.bundle_context = self.context.get_bundle_context()
 
         # The provided services handlers
-        reg_handler = _ServiceRegistrationHandler(self.context.get_provides(),
-                                                  self)
-        self._provided_services = [reg_handler]
+        self._provided_services = []
+        for specs in self.context.get_provides():
+            handler = _ServiceRegistrationHandler(specs, self)
+            self._provided_services.append(handler)
 
 
         # The runtime dependency handlers

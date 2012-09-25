@@ -530,7 +530,7 @@ class Provides:
 
     def __call__(self, clazz):
         """
-        Adds the interface to the class iPOPO field.
+        Adds the provided service information to the class context iPOPO field.
         Creates the field if needed.
         
         :param clazz: The class to decorate
@@ -545,10 +545,14 @@ class Provides:
         # Get the factory context
         context = _get_factory_context(clazz)
 
+        # Avoid duplicates (but keep the order)
+        filtered_specs = []
         for spec in self.__specifications:
-            if spec not in context.provides:
-                # Avoid duplicates
-                context.provides.append(spec)
+            if spec not in filtered_specs:
+                filtered_specs.append(spec)
+
+        # Store the service information
+        context.provides.append(filtered_specs)
 
         return clazz
 
