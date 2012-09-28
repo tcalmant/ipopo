@@ -355,6 +355,9 @@ class Bundle(object):
             return
 
         with self._lock:
+            # Store the bundle current state
+            previous_state = self._state
+
             # Stopping...
             self._state = Bundle.STOPPING
             self._fire_bundle_event(BundleEvent.STOPPING)
