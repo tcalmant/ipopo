@@ -149,7 +149,7 @@ class Bundle(object):
         """
         String representation
         """
-        return "Bundle(%d, %s)" % (self.__id, self.__name)
+        return "Bundle(ID={0}, Name={1})".format(self.__id, self.__name)
 
 
     def _fire_bundle_event(self, kind):
@@ -236,7 +236,7 @@ class Bundle(object):
             raise BundleException("Can't call 'get_registered_services' on an "
                                   "uninstalled bundle")
 
-        self.__framework._registry.get_bundle_registered_services(self)
+        return self.__framework._registry.get_bundle_registered_services(self)
 
 
     def get_services_in_use(self):
@@ -257,7 +257,7 @@ class Bundle(object):
             raise BundleException("Can't call 'get_services_in_use' on an "
                                   "uninstalled bundle")
 
-        self.__framework._registry.get_bundle_imported_services(self)
+        return self.__framework._registry.get_bundle_imported_services(self)
 
 
     def get_state(self):
@@ -564,7 +564,7 @@ class Framework(Bundle):
 
         with self.__bundles_lock:
             if bundle_id not in self.__bundles:
-                raise BundleException("Invalid bundle ID %d" % bundle_id)
+                raise BundleException("Invalid bundle ID {0}".format(bundle_id))
 
             return self.__bundles[bundle_id]
 
@@ -733,7 +733,8 @@ class Framework(Bundle):
 
             if not svc_clazz or not is_string(svc_clazz):
                 # Invalid class name
-                raise BundleException("Invalid class name : %s" % svc_clazz)
+                raise BundleException("Invalid class name: {0}".format(
+                                                                    svc_clazz))
 
             # Class OK
             classes.append(svc_clazz)
@@ -830,10 +831,10 @@ class Framework(Bundle):
             try:
                 bundle.stop()
 
-            except:
+            except Exception as ex:
                 # Just log exceptions
-                _logger.exception("Error stopping bundle %s" \
-                                  % bundle.get_symbolic_name())
+                _logger.exception("Error stopping bundle %s: %s",
+                                  bundle.get_symbolic_name(), ex)
 
         # Framework is now stopped
         self._state = Bundle.RESOLVED
@@ -875,7 +876,7 @@ class Framework(Bundle):
 
             bundle_id = bundle.get_bundle_id()
             if bundle_id not in self.__bundles:
-                raise BundleException("Invalid bundle %s" % bundle)
+                raise BundleException("Invalid bundle {0}".format(bundle))
 
             # Notify listeners
             self._dispatcher.fire_bundle_event(BundleEvent(BundleEvent.UNINSTALLED,
@@ -1003,7 +1004,7 @@ class _EventDispatcher(object):
         with self.__bnd_lock:
             if listener in self.__bnd_listeners:
                 _logger.warning("Already known bundle listener '%s'",
-                                str(listener))
+                                listener)
                 return False
 
             self.__bnd_listeners.append(listener)
@@ -1026,7 +1027,7 @@ class _EventDispatcher(object):
         with self.__fw_lock:
             if listener in self.__fw_listeners:
                 _logger.warning("Already known framework listener '%s'",
-                                str(listener))
+                                listener)
                 return False
 
             self.__fw_listeners.append(listener)
@@ -1049,13 +1050,13 @@ class _EventDispatcher(object):
         with self.__svc_lock:
             if listener in self.__svc_listeners:
                 _logger.warning("Already known service listener '%s'",
-                                str(listener))
+                                listener)
                 return False
 
             try:
                 ldap_filter = ldapfilter.get_ldap_filter(ldap_filter)
             except ValueError as ex:
-                raise BundleException("Invalid service filter: %s" % str(ex))
+                raise BundleException("Invalid service filter: {0}".format(ex))
 
             self.__svc_listeners[listener] = ldap_filter
             return True
@@ -1263,11 +1264,7 @@ class _ServiceRegistry(object):
             self.__svc_bundle[svc_ref] = bundle
 
             # Reverse map, to ease bundle/service association
-            if bundle not in self.__bundle_svc:
-                bundle_refs = self.__bundle_svc[bundle] = []
-            else:
-                bundle_refs = self.__bundle_svc[bundle]
-            bundle_refs.append(svc_ref)
+            self.__bundle_svc.setdefault(bundle, []).append(svc_ref)
 
             return svc_registration
 
@@ -1282,7 +1279,7 @@ class _ServiceRegistry(object):
         """
         with self.__svc_lock:
             if svc_ref not in self.__svc_registry:
-                raise BundleException("Unknown service: %s" % str(svc_ref))
+                raise BundleException("Unknown service: {0}".format(svc_ref))
 
             # Get the owner
             bundle = self.__svc_bundle[svc_ref]
@@ -1333,12 +1330,12 @@ class _ServiceRegistry(object):
 
             elif ldap_filter is None:
                 # Make a filter for the object class
-                new_filter = "(%s=%s)" % (OBJECTCLASS, clazz)
+                new_filter = "({0}={1})".format(OBJECTCLASS, clazz)
 
             else:
                 # Combine filter with a AND operator
                 new_filter = ldapfilter.combine_filters(\
-                                        ["(%s=%s)" % (OBJECTCLASS, clazz), \
+                                        ["({0}={1})".format(OBJECTCLASS, clazz),
                                          ldap_filter])
 
             # Parse the filter
@@ -1423,8 +1420,8 @@ class _ServiceRegistry(object):
 
             else:
                 # Not found
-                raise BundleException("Service not found (reference: %s)" \
-                                      % reference)
+                raise BundleException("Service not found (reference: {0})" \
+                                      .format(reference))
 
 
     def unget_service(self, bundle, reference):
@@ -1472,7 +1469,7 @@ class BundleContext(object):
         """
         String representation
         """
-        return "BundleContext(%s)" % str(self.__bundle)
+        return "BundleContext({0})".format(self.__bundle)
 
 
     def add_bundle_listener(self, listener):
@@ -1701,9 +1698,9 @@ class ServiceReference(object):
         # Check properties
         for mandatory in (SERVICE_ID, OBJECTCLASS):
             if mandatory not in properties:
-                raise BundleException(\
-                            "A Service must at least have a '%s' entry" \
-                            % mandatory)
+                raise BundleException(
+                            "A Service must at least have a '{0}' entry"\
+                            .format(mandatory))
 
         # Properties lock (used by ServiceRegistration too)
         self._props_lock = threading.RLock()
@@ -1721,10 +1718,10 @@ class ServiceReference(object):
         """
         String representation
         """
-        return "ServiceReference(%s, %d, %s)" \
-                % (self.__service_id, \
-                   self.__bundle.get_bundle_id(), \
-                   self.__properties[OBJECTCLASS])
+        return "ServiceReference(ID={0}, Bundle={1}, Specs={2})".format(
+                                                self.__service_id,
+                                                self.__bundle.get_bundle_id(),
+                                                self.__properties[OBJECTCLASS])
 
 
     def __hash__(self):
@@ -1908,7 +1905,7 @@ class ServiceRegistration(object):
         """
         String representation
         """
-        return "ServiceRegistration(%s)" % str(self.__reference)
+        return "ServiceRegistration({0})".format(self.__reference)
 
 
     def get_reference(self):
@@ -2015,7 +2012,7 @@ class BundleEvent(object):
         """
         String representation
         """
-        return "BundleEvent(%d, %s)" % (self.__kind, str(self.__bundle))
+        return "BundleEvent({0}, {1})".format(self.__kind, self.__bundle)
 
 
     def get_bundle(self):
@@ -2077,8 +2074,7 @@ class ServiceEvent(object):
         """
         String representation
         """
-        return "ServiceEvent(%s, %s)" % (self.__kind, \
-                                         str(self.__reference))
+        return "ServiceEvent({0}, {1})".format(self.__kind, self.__reference)
 
 
     def get_previous_properties(self):
