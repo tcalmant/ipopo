@@ -96,11 +96,19 @@ class TestComponentFactory(object):
 @ComponentFactory(name=FACTORY_A)
 @Property("usable", PROP_USABLE, True)
 @Provides(specifications=IEchoService)
-@Provides(specifications="TestService")
+@Provides(specifications="TestService", controller="_test_ctrl")
 class ComponentFactoryA(TestComponentFactory, IEchoService):
     """
     Sample Component A
     """
+    def __init__(self):
+        """"
+        Constructor
+        """
+        super(ComponentFactoryA, self).__init__()
+        self._test_ctrl = False
+
+
     def echo(self, value):
         """
         Implementation of IEchoService
@@ -113,6 +121,13 @@ class ComponentFactoryA(TestComponentFactory, IEchoService):
         Changes the usable property
         """
         self.usable = usable
+
+
+    def change_controller(self, value):
+        """
+        Change the controller value
+        """
+        self._test_ctrl = value
 
 
 @ComponentFactory(name=FACTORY_B)

@@ -394,6 +394,72 @@ class ProvidesTest(unittest.TestCase):
             except:
                 pass
 
+
+    def testController(self):
+        """
+        Tests the service controller
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+        assert isinstance(context, BundleContext)
+
+        # Assert that the service is not yet available
+        self.assertIsNone(context.get_service_reference(IEchoService), \
+                          "Service is already registered")
+        self.assertIsNone(context.get_service_reference("TestService"), \
+                          "TestService is already registered")
+
+        # Instantiate the component
+        compoA = self.ipopo.instantiate(module.FACTORY_A, NAME_A)
+
+        try:
+            # Service should be there (controller default value is True)
+            self.assertIsNotNone(context.get_service_reference(IEchoService),
+                                 "EchoService hasn't been registered")
+
+            ref = context.get_service_reference("TestService")
+            self.assertIsNotNone(ref, "TestService hasn't been registered")
+
+            # Get the service instance
+            svc = context.get_service(ref)
+
+            # Change the value of the controller
+            svc.change_controller(False)
+            self.assertIsNone(context.get_service_reference("TestService"),
+                              "TestService hasn't been unregistered")
+            self.assertIsNotNone(context.get_service_reference(IEchoService),
+                                 "EchoService has been unregistered")
+
+            # Re-change the value
+            svc.change_controller(True)
+            self.assertIsNotNone(context.get_service_reference("TestService"),
+                                 "TestService hasn't been re-registered")
+            self.assertIsNotNone(context.get_service_reference(IEchoService),
+                                 "EchoService has been unregistered")
+
+            # Invalidate the component
+            self.ipopo.invalidate(NAME_A)
+
+            # Re-change the value (once invalidated)
+            svc.change_controller(True)
+
+            # Service should not be there anymore
+            self.assertIsNone(context.get_service_reference("TestService"), \
+                              "TestService is still registered")
+            self.assertIsNone(context.get_service_reference(IEchoService),
+                              "EchoService is still registered")
+
+            # Clean up
+            context.unget_service(ref)
+            svc = None
+            ref = None
+
+        finally:
+            try:
+                self.ipopo.kill(NAME_A)
+            except:
+                pass
+
 # ------------------------------------------------------------------------------
 
 class RequirementTest(unittest.TestCase):
