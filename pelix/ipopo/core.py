@@ -196,8 +196,8 @@ class Requirement(object):
         :raise TypeError: Invalid form type (only dictionaries are accepted)
         """
         if not isinstance(dictionary, dict):
-            raise TypeError("Invalid form type '%s'" \
-                            % type(dictionary).__name__)
+            raise TypeError("Invalid form type '{0}'".format(
+                                                    type(dictionary).__name__))
 
         if not "specifications" in dictionary:
             raise ValueError("Missing specifications in the dictionary form")
@@ -239,17 +239,16 @@ class Requirement(object):
         and not isinstance(spec_filter, ldapfilter.LDAPFilter) \
         and not isinstance(spec_filter, ldapfilter.LDAPCriteria):
             # Unknown type
-            raise TypeError("Invalid filter type %s" \
-                            % type(spec_filter).__name__)
+            raise TypeError("Invalid filter type {0}".format(
+                                                    type(spec_filter).__name__))
 
         ldap_criteria = []
         for spec in self.specifications:
-            ldap_criteria.append("(%s=%s)" \
-                                 % (pelix.OBJECTCLASS, \
-                                    ldapfilter.escape_LDAP(spec)))
+            ldap_criteria.append("({0}={1})".format(pelix.OBJECTCLASS,
+                                                ldapfilter.escape_LDAP(spec)))
 
         # Make the filter, escaping the specification name
-        ldap_filter = "(|%s)" % "".join(ldap_criteria)
+        ldap_filter = "(|{0})".format("".join(ldap_criteria))
 
         if spec_filter is not None:
             # String given
@@ -841,22 +840,22 @@ class FactoryContext(object):
         instance = cls()
 
         if not isinstance(dictionary, dict):
-            raise TypeError("Invalid form type '%s'" \
-                            % type(dictionary).__name__)
+            raise TypeError("Invalid form type '{0}'".format(
+                                                    type(dictionary).__name__))
 
         # Basic fields
         for field in cls.__basic_fields:
 
             if field not in dictionary:
-                raise ValueError("Incomplete dictionary form : " \
-                                 "missing '%s'" % field)
+                raise ValueError("Incomplete dictionary form: missing {0}" \
+                                 .format(field))
 
             setattr(instance, field, dictionary[field])
 
         # Requirements field
         if 'requirements' not in dictionary:
-            raise ValueError("Incomplete dictionary form : " \
-                             "missing 'requirements'")
+            raise ValueError("Incomplete dictionary form: missing " \
+                             "'requirements'")
 
         requirements = dictionary['requirements']
         if not isinstance(requirements, dict):
@@ -1188,7 +1187,8 @@ class _StoredInstance(object):
         """
         String representation
         """
-        return "StoredInstance(%s, %d)" % (self.name, self.state)
+        return "StoredInstance(Name={0}, State={1})".format(self.name,
+                                                            self.state)
 
 
     def callback(self, event, *args, **kwargs):
@@ -1322,8 +1322,8 @@ class _StoredInstance(object):
             return False
 
         except:
-            _logger.exception("Component '%s' : error calling callback " \
-                               "method for event %s" % (self.name, event))
+            _logger.exception("Component '{0}' : error calling callback " \
+                               "method for event {1}".format(self.name, event))
             return False
 
 
@@ -1436,7 +1436,7 @@ class _StoredInstance(object):
             return
 
         if self.state == _StoredInstance.KILLED:
-            raise RuntimeError("%s: Zombies !" % self.context.name)
+            raise RuntimeError("{0}: Zombies !".format(self.context.name))
 
         if safe_callback:
             # Safe call back needed and not yet passed
@@ -1704,8 +1704,8 @@ class _IPopoService(object):
             raise ValueError("A factory name must be a non-empty string")
 
         if not inspect.isclass(factory):
-            raise TypeError("Invalid factory class '%s'" \
-                            % type(factory).__name__)
+            raise TypeError("Invalid factory class '{0}'".format(
+                                                        type(factory).__name__))
 
         with self.__factories_lock:
             if factory_name in self.__factories:
@@ -1713,8 +1713,8 @@ class _IPopoService(object):
                     _logger.info("Overriding factory '%s'", factory_name)
 
                 else:
-                    raise ValueError("'%s' factory already exist" \
-                                     % factory_name)
+                    raise ValueError("'{0}' factory already exist".format(
+                                                                factory_name))
 
             self.__factories[factory_name] = factory
 
@@ -1812,21 +1812,22 @@ class _IPopoService(object):
 
         with self.__instances_lock:
             if name in self.__instances:
-                raise ValueError("'%s' is an already running instance name" \
-                                 % name)
+                raise ValueError("'{0}' is an already running instance name" \
+                                 .format(name))
 
             with self.__factories_lock:
                 # Can raise a ValueError exception
                 factory = self.__factories.get(factory_name, None)
                 if factory is None:
-                    raise TypeError("Unknown factory '%s'" % factory_name)
+                    raise TypeError("Unknown factory '{0}'" \
+                                    .format(factory_name))
 
                 # Get the factory context
                 factory_context = getattr(factory, \
                                           constants.IPOPO_FACTORY_CONTEXT, None)
                 if factory_context is None:
-                    raise TypeError("Factory context missing in '%s'" \
-                                    % factory_name)
+                    raise TypeError("Factory context missing in '{0}'" \
+                                    .format(factory_name))
 
             # Create component instance
             try:
@@ -1836,8 +1837,8 @@ class _IPopoService(object):
                 _logger.exception("Error creating the instance '%s' " \
                                   "from factory '%s'", name, factory_name)
 
-                raise TypeError("Factory '%s' failed to create '%s'" \
-                                % (factory_name, name))
+                raise TypeError("Factory '{0}' failed to create '{1}'" \
+                                .format(factory_name, name))
 
             # Normalize given properties
             if properties is None or not isinstance(properties, dict):
@@ -1886,7 +1887,8 @@ class _IPopoService(object):
         """
         with self.__instances_lock:
             if name not in self.__instances:
-                raise ValueError("Unknown component instance '%s'" % name)
+                raise ValueError("Unknown component instance '{0}'"\
+                                 .format(name))
 
             stored_instance = self.__instances[name]
 
@@ -1926,7 +1928,8 @@ class _IPopoService(object):
 
         with self.__instances_lock:
             if name not in self.__instances:
-                raise ValueError("Unknown component instance '%s'" % name)
+                raise ValueError("Unknown component instance '{0}'" \
+                                 .format(name))
 
             stored_instance = self.__instances.pop(name)
 
@@ -2031,7 +2034,7 @@ class _IPopoService(object):
         """
         with self.__instances_lock:
             if name not in self.__instances:
-                raise ValueError("Unknown component: %s" % name)
+                raise ValueError("Unknown component: {0}".format(name))
 
             stored_instance = self.__instances[name]
             assert isinstance(stored_instance, _StoredInstance)
@@ -2098,7 +2101,7 @@ class _IPopoService(object):
         """
         with self.__factories_lock:
             if name not in self.__factories:
-                raise ValueError("Unknown factory '%s'" % name)
+                raise ValueError("Unknown factory '{0}'".format(name))
 
             factory = self.__factories[name]
 

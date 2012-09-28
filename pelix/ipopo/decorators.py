@@ -92,12 +92,12 @@ def get_method_description(method):
             line_no = -1
 
         return "'{method}' ({file}:{line})".format(method=method.__name__,
-                                        file=inspect.getfile(method),
-                                        line=line_no)
+                                                   file=inspect.getfile(method),
+                                                   line=line_no)
 
     except TypeError:
         # Method can't be inspected
-        return "'%s'" % method.__name__
+        return "'{0}'".format(method.__name__)
 
 
 def validate_method_arity(method, *needed_args):
@@ -118,23 +118,23 @@ def validate_method_arity(method, *needed_args):
 
     if len(method_args) == 0:
         # No argument at all
-        raise TypeError("Decorated method %s must have at least the 'self' "
-                        "parameter" % get_method_description(method))
+        raise TypeError("Decorated method {0} must have at least the 'self' "
+                        "parameter".format(get_method_description(method)))
 
     if argspec.varargs is not None:
         # Variable arguments
         if len(method_args) != 1 or method_args[0] != "self":
             # Other arguments detected
-            raise TypeError("When using '*args', the decorated %s method must "
-                        "only accept the 'self' argument"
-                        % get_method_description(method))
+            raise TypeError("When using '*args', the decorated {0} method must "
+                            "only accept the 'self' argument".format(
+                                get_method_description(method)))
 
     elif len(method_args) != nb_needed_args or method_args[0] != 'self':
         # "Normal" arguments
-        raise TypeError("The decorated method %s must accept exactly %d "
-                        "parameters : (self, %s)"
-                        % (get_method_description(method), nb_needed_args,
-                           ", ".join(needed_args)))
+        raise TypeError("The decorated method {0} must accept exactly {1} "
+                        "parameters : (self, {3})".format(
+                                get_method_description(method), nb_needed_args,
+                                ", ".join(needed_args)))
 
 # ------------------------------------------------------------------------------
 
@@ -345,7 +345,7 @@ class Instantiate:
         """
         if not inspect.isclass(factory_class):
             raise TypeError("@ComponentFactory can decorate only classes, " \
-                            "not '%s'" % type(factory_class).__name__)
+                            "not '{0}'".format(type(factory_class).__name__))
 
         instances = getattr(factory_class, constants.IPOPO_INSTANCES, None)
 
@@ -393,7 +393,7 @@ class ComponentFactory:
         """
         if not inspect.isclass(factory_class):
             raise TypeError("@ComponentFactory can decorate only classes, " \
-                            "not '%s'" % type(factory_class).__name__)
+                            "not '{0}'".format(type(factory_class).__name__))
 
         # Get the factory context
         context = _get_factory_context(factory_class)
@@ -454,8 +454,8 @@ class Property:
         """
 
         if not field:
-            raise ValueError("@Property with name '%s' : field name missing" \
-                             % name)
+            raise ValueError("@Property with name '{0}' : field name missing" \
+                             .format(name))
 
         if not name:
             # No name given : use the field name
@@ -476,8 +476,8 @@ class Property:
         :raise TypeError: If *clazz* is not a type
         """
         if not inspect.isclass(clazz):
-            raise TypeError("@Property can decorate only classes, not '%s'" \
-                            % type(clazz).__name__)
+            raise TypeError("@Property can decorate only classes, not '{0}'" \
+                            .format(type(clazz).__name__))
 
         # Get the factory context
         context = _get_factory_context(clazz)
@@ -521,8 +521,8 @@ class Provides:
             self.__specifications = [specifications]
 
         elif not isinstance(specifications, list):
-            raise ValueError("Unhandled @Provides specifications type : %s" \
-                             % type(specifications).__name__)
+            raise ValueError("Unhandled @Provides specifications type : {0}" \
+                             .format(type(specifications).__name__))
 
         else:
             self.__specification = specifications
@@ -539,8 +539,8 @@ class Provides:
         """
 
         if not inspect.isclass(clazz):
-            raise TypeError("@Provides can decorate only classes, not '%s'" \
-                            % type(clazz).__name__)
+            raise TypeError("@Provides can decorate only classes, not '{0}'" \
+                            .format(type(clazz).__name__))
 
         # Get the factory context
         context = _get_factory_context(clazz)
@@ -591,8 +591,8 @@ class Requires:
         :raise TypeError: If *clazz* is not a type
         """
         if not inspect.isclass(clazz):
-            raise TypeError("@Provides can decorate only classes, not '%s'" \
-                            % type(clazz).__name__)
+            raise TypeError("@Provides can decorate only classes, not '{0}'" \
+                            .format(type(clazz).__name__))
 
         # Set up the property in the class
         context = _get_factory_context(clazz)

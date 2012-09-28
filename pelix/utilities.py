@@ -119,9 +119,9 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
                 for lock in locks:
                     if lock is None:
                         # No lock...
-                        raise AttributeError("Lock '%s' can't be None in class %s" \
-                                            % (locks_attr_names[i],
-                                               type(self).__name__))
+                        raise AttributeError(
+                            "Lock '{0}' can't be None in class {1}".format(
+                                    locks_attr_names[i], type(self).__name__))
 
                     # Get the lock
                     i += 1

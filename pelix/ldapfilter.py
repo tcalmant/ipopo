@@ -98,14 +98,14 @@ class LDAPFilter(object):
         """
         String description
         """
-        return "%s.get_ldap_filter(%s)" % (__name__, repr(self.__str__()))
+        return "{0}.get_ldap_filter({1!r})".format(__name__, self.__str__())
 
 
     def __str__(self):
         """
         String representation
         """
-        return "(%s%s)" % (operator2str(self.operator), \
+        return "({0}{1})".format(operator2str(self.operator),
                "".join([str(subfilter) for subfilter in self.subfilters]))
 
 
@@ -120,8 +120,8 @@ class LDAPFilter(object):
         """
         if not isinstance(ldap_filter, LDAPFilter) \
         and not isinstance(ldap_filter, LDAPCriteria):
-            raise TypeError("Invalid filter type : %s" \
-                  % (type(ldap_filter).__name__))
+            raise TypeError("Invalid filter type: {0}".format(
+                                                type(ldap_filter).__name__))
 
         if len(self.subfilters) >= 1 and self.operator == NOT:
             raise ValueError("Not operator only handles one child")
@@ -206,8 +206,8 @@ class LDAPCriteria(object):
         :raise ValueError: If one of the parameters is empty
         """
         if not name or not value or not comparator:
-            raise ValueError("Invalid criteria parameter (%s, %s, %s)" \
-                             % (name, value, comparator))
+            raise ValueError("Invalid criteria parameter ({0}, {1}, {2})"\
+                             .format(name, value, comparator))
 
         self.name = name
         self.value = value
@@ -235,15 +235,15 @@ class LDAPCriteria(object):
         """
         String representation
         """
-        return '%s.get_ldap_filter(%s)' % (__name__, repr(self.__str__()))
+        return '{0}.get_ldap_filter({1!r})'.format(__name__, self.__str__())
 
 
     def __str__(self):
         """
         String description
         """
-        return "(%s%s%s)" % (self.name, comparator2str(self.comparator), \
-                             self.value)
+        return "({0}{1}{2})".format(self.name, comparator2str(self.comparator),
+                                    self.value)
 
 
     def matches(self, properties):
@@ -332,11 +332,11 @@ def escape_LDAP(ldap_string):
 
     # Leading space
     if ldap_string.startswith(" "):
-        ldap_string = "\\ %s" % ldap_string[1:]
+        ldap_string = "\\ {0}".format(ldap_string[1:])
 
     # Trailing space
     if ldap_string.endswith(" "):
-        ldap_string = "%s\\ " % ldap_string[:-1]
+        ldap_string = "{0}\\ ".format(ldap_string[:-1])
 
     # Escape other characters
     for escaped in ESCAPED_CHARACTERS:
@@ -691,20 +691,20 @@ def _parse_LDAP_criteria(ldap_filter, startidx, endidx):
 
     else:
         # Comparator never found
-        raise ValueError("Comparator not found in '%s'" \
-                         % ldap_filter[startidx:endidx])
+        raise ValueError("Comparator not found in '{0}'" \
+                         .format(ldap_filter[startidx:endidx]))
 
     if i == startidx:
         # Attribute name is missing
-        raise ValueError("Attribute name is missing in '%s'" \
-                         % ldap_filter[startidx:endidx])
+        raise ValueError("Attribute name is missing in '{0}'" \
+                         .format(ldap_filter[startidx:endidx]))
 
     comparator = _compute_comparator(ldap_filter, i)
     if comparator is None:
         # Unknown comparator
-        raise ValueError("Unknown comparator in '%s' - %s\nFilter : %s" \
-                         % (ldap_filter[startidx:endidx], ldap_filter[i], \
-                            ldap_filter))
+        raise ValueError("Unknown comparator in '{0}' - {1}\nFilter : {2}" \
+                         .format(ldap_filter[startidx:endidx], ldap_filter[i],
+                                 ldap_filter))
 
     # The attribute name can be extracted directly
     attribute_name = ldap_filter[startidx:i].strip()
@@ -799,8 +799,8 @@ def _parse_LDAP(ldap_filter):
                         root = ended_filter
 
                 else:
-                    raise ValueError("Too many end of parenthesis :%d: %s" % \
-                                     (idx, ldap_filter[idx:]))
+                    raise ValueError("Too many end of parenthesis:{0}: {1}" \
+                                     .format(idx, ldap_filter[idx:]))
 
             elif ldap_filter[idx] == '\\':
                 # Next character must be ignored
@@ -844,7 +844,8 @@ def get_ldap_filter(ldap_filter):
         return _parse_LDAP(ldap_filter)
 
     # Unknown type
-    raise TypeError("Unhandled filter type %s" % type(ldap_filter).__name__)
+    raise TypeError("Unhandled filter type {0}"\
+                    .format(type(ldap_filter).__name__))
 
 
 def combine_filters(filters, operator=AND):
