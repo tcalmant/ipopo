@@ -268,16 +268,22 @@ def _append_object_entry(obj, list_name, entry):
 
 # ------------------------------------------------------------------------------
 
-def _ipopo_class_field_property(name, value):
+def _ipopo_class_field_property(name, value, methods_prefix):
     """
     Sets up an iPOPO field property, using Python property() capabilities
     
     :param name: The property name
     :param value: The property default value
+    :param methods_prefix: The common prefix of the getter and setter injected
+                           methods
     :return: A generated Python property()
     """
     # The property lock
     lock = threading.RLock()
+
+    # Prepare the methods names
+    getter_name = "{0}{1}".format(methods_prefix, constants.IPOPO_GETTER_SUFFIX)
+    setter_name = "{0}{1}".format(methods_prefix, constants.IPOPO_SETTER_SUFFIX)
 
     def get_value(self):
         """
@@ -285,7 +291,7 @@ def _ipopo_class_field_property(name, value):
         
         :return: The property value
         """
-        getter = getattr(self, constants.IPOPO_PROPERTY_GETTER, None)
+        getter = getattr(self, getter_name, None)
         if getter is not None:
             with lock:
                 return getter(self, name)
@@ -300,7 +306,7 @@ def _ipopo_class_field_property(name, value):
         :param new_value: The new property value
         :return: The new value
         """
-        setter = getattr(self, constants.IPOPO_PROPERTY_SETTER, None)
+        setter = getattr(self, setter_name, None)
         if setter is not None:
             with lock:
                 return setter(self, name, new_value)
@@ -491,7 +497,8 @@ class Property:
         # Inject a property in the class. The property will call an instance
         # level getter / setter, injected by iPOPO after the instance creation
         setattr(clazz, self.__field, \
-                _ipopo_class_field_property(self.__name, self.__value))
+                _ipopo_class_field_property(self.__name, self.__value,
+                                            constants.IPOPO_PROPERTY_PREFIX))
 
         return clazz
 
@@ -503,12 +510,14 @@ class Provides:
     
     Defines an interface exported by a component.
     """
-    def __init__(self, specifications=None):
+    def __init__(self, specifications=None, controller=None):
         """
-        Sets up the specifications
+        Sets up a provided service.
+        A service controller can be defined to enable or disable the service.
         
         :param specifications: A list of provided interface(s) name(s)
                                (can't be empty)
+        :param controller: Name of the service controller class field (optional)
         :raise ValueError: If the name if None or empty
         """
         if not specifications:
@@ -526,6 +535,8 @@ class Provides:
 
         else:
             self.__specification = specifications
+
+        self.__controller = controller
 
 
     def __call__(self, clazz):
@@ -552,7 +563,14 @@ class Provides:
                 filtered_specs.append(spec)
 
         # Store the service information
-        context.provides.append(filtered_specs)
+        context.provides.append((filtered_specs, self.__controller))
+
+        if self.__controller:
+            # Inject a property in the class. The property will call an instance
+            # level getter / setter, injected by iPOPO after the instance creation
+            setattr(clazz, self.__controller,
+                    _ipopo_class_field_property(self.__controller, True,
+                                            constants.IPOPO_CONTROLLER_PREFIX))
 
         return clazz
 

@@ -688,15 +688,22 @@ class _ServiceRegistrationHandler(object):
     """
     Handles the registration of a service provided by a component
     """
-    def __init__(self, specifications, ipopo_instance):
+    def __init__(self, specifications, controller_name, ipopo_instance):
         """
         Sets up the handler
         
         :param specifications: The service specifications
+        :param controller_name: Name of the associated service controller
+                                (can be None)
         :param ipopo_instance: The iPOPO component StoredInstance
         """
         self.specifications = specifications
         self.ipopo_instance = ipopo_instance
+
+        self.__controller = controller_name
+        # Controller is "on" by default
+        self.__controller_on = True
+        self.__validated = False
 
         # The ServiceRegistration object
         self.registration = None
@@ -711,6 +718,28 @@ class _ServiceRegistrationHandler(object):
         """
         return self.registration is not None \
             and self.registration.get_reference() is svc_ref
+
+
+    def on_controller_change(self, name, value):
+        """
+        Called by the instance manager when a controller value has been modified
+        
+        :param name: The name of the controller
+        :param value: The new value of the controller
+        """
+        if self.__controller != name:
+            # Nothing to do
+            return
+
+        # Update the controller value
+        self.__controller_on = value
+        if value:
+            # Controller switched to "ON"
+            self._register_service()
+
+        else:
+            # Controller switched to "OFF"
+            self._unregister_service()
 
 
     def on_property_change(self, name, old_value, new_value):
@@ -730,7 +759,28 @@ class _ServiceRegistrationHandler(object):
         """
         Called by the instance manager once the component has been validated
         """
-        if self.specifications:
+        # Update the validation flag
+        self.__validated = True
+        self._register_service()
+
+
+    def pre_invalidate(self):
+        """
+        Called by the instance manager before the component is invalidated
+        """
+        # Update the validation flag
+        self.__validated = False
+
+        # Force service unregistration
+        self._unregister_service()
+
+
+    def _register_service(self):
+        """
+        Registers the provided service, if possible
+        """
+        if self.registration is None and self.specifications \
+        and self.__validated and self.__controller_on:
             # Use a copy of component properties
             properties = self.ipopo_instance.context.properties.copy()
             bundle_context = self.ipopo_instance.bundle_context
@@ -742,9 +792,9 @@ class _ServiceRegistrationHandler(object):
                                             properties)
 
 
-    def pre_invalidate(self):
+    def _unregister_service(self):
         """
-        Called by the instance manager before the component is invalidated
+        Unregisters the provided service, if needed
         """
         if self.registration is not None:
             # Ignore error
@@ -786,7 +836,8 @@ class FactoryContext(object):
         # Properties fields : Field name -> Property name
         self.properties_fields = {}
 
-        # Provided specifications (array of arrays of strings)
+        # Provided specifications:
+        # Array of tuples (specifications(arrays of strings), controller name)
         self.provides = []
 
         # Requirements : Field name -> Requirement object
@@ -990,7 +1041,7 @@ class ComponentContext(object):
         Retrieves the services provided by this component.
         Returns an array containing arrays of specifications.
 
-        :return: An array of arrays of strings
+        :return: An array of tuples (specifications, controller)
         """
         return self.factory_context.provides
 
@@ -1003,8 +1054,8 @@ class _StoredInstance(object):
 
     # Try to reduce memory footprint (stored instances)
     __slots__ = ('bundle_context', 'context', 'factory_name', 'instance',
-                 'name', 'state', '_dependencies', '_ipopo_service', '_lock',
-                 '_provided_services')
+                 'name', 'state', '_controllers_state', '_dependencies',
+                 '_ipopo_service', '_lock', '_provided_services')
 
     INVALID = 0
     """ This component has been invalidated """
@@ -1052,10 +1103,13 @@ class _StoredInstance(object):
         # Store the bundle context
         self.bundle_context = self.context.get_bundle_context()
 
+        # The controllers state dictionary
+        self._controllers_state = {}
+
         # The provided services handlers
         self._provided_services = []
-        for specs in self.context.get_provides():
-            handler = _ServiceRegistrationHandler(specs, self)
+        for specs, controller in self.context.get_provides():
+            handler = _ServiceRegistrationHandler(specs, controller, self)
             self._provided_services.append(handler)
 
 
@@ -1411,6 +1465,30 @@ class _StoredInstance(object):
             return all_valid
 
 
+    def get_controller_state(self, name):
+        """
+        Retrieves the state of the controller with the given name
+        
+        :param name: The name of the controller
+        :return: The value of the controller
+        :raise KeyError: No value associated to this controller
+        """
+        return self._controllers_state[name]
+
+
+    def set_controller_state(self, name, value):
+        """
+        Sets the state of the controller with the given name
+        
+        :param name: The name of the controller
+        :param value: The new value of the controller
+        """
+        with self._lock:
+            self._controllers_state[name] = value
+            for controller in self._provided_services:
+                controller.on_controller_change(name, value)
+
+
     def update_property(self, name, old_value, new_value):
         """
         Handles a property changed event
@@ -1562,13 +1640,52 @@ def _field_property_generator(stored_instance):
 
         # Get the previous value
         old_value = stored_instance.context.properties.get(name, None)
-
-        # Change the property
-        stored_instance.context.properties[name] = new_value
-
         if new_value != old_value:
+            # Change the property
+            stored_instance.context.properties[name] = new_value
+
             # New value is different of the old one, trigger an event
             stored_instance.update_property(name, old_value, new_value)
+
+        return new_value
+
+    return (get_value, set_value)
+
+
+def _field_controller_generator(stored_instance):
+    """
+    Generates the methods called by the injected controller
+
+    :param stored_instance: A stored component instance
+    """
+    def get_value(self, name):
+        """
+        Retrieves the controller value, from the iPOPO dictionaries
+
+        :param name: The property name
+        :return: The property value
+        """
+        if stored_instance.context is None:
+            return None
+
+        return stored_instance.get_controller_state(name)
+
+
+    def set_value(self, name, new_value):
+        """
+        Sets the property value and trigger an update event
+
+        :param name: The property name
+        :param new_value: The new property value
+        """
+        if stored_instance.context is None:
+            return None
+
+        # Get the previous value
+        old_value = stored_instance.get_controller_state(name)
+        if new_value != old_value:
+            # Update the controller state
+            stored_instance.set_controller_state(name, new_value)
 
         return new_value
 
@@ -1584,18 +1701,45 @@ def _manipulate_component(instance, stored_instance):
     assert instance is not None
     assert isinstance(stored_instance, _StoredInstance)
 
-    if not stored_instance.context.factory_context.properties_fields:
+    # Inject properties
+    if stored_instance.context.factory_context.properties_fields:
         # Avoid injection of unused instance fields, avoiding more differences
         # between the class definition and the instance fields
         # -> Removes the overhead if the manipulated class has no __slots__ or
-        #    when runnig in Pypy.
-        return
+        #    when running in Pypy.
+        getter, setter = _field_property_generator(stored_instance)
 
-    getter, setter = _field_property_generator(stored_instance)
+        # Prepare the methods names
+        getter_name = "{0}{1}".format(constants.IPOPO_PROPERTY_PREFIX,
+                                      constants.IPOPO_GETTER_SUFFIX)
+        setter_name = "{0}{1}".format(constants.IPOPO_PROPERTY_PREFIX,
+                                      constants.IPOPO_SETTER_SUFFIX)
 
-    # Inject the getter and setter at the instance level
-    setattr(instance, constants.IPOPO_PROPERTY_GETTER, getter)
-    setattr(instance, constants.IPOPO_PROPERTY_SETTER, setter)
+        # Inject the getter and setter at the instance level
+        setattr(instance, getter_name, getter)
+        setattr(instance, setter_name, setter)
+
+    # Inject controllers
+    provides_tuples = stored_instance.context.factory_context.provides
+    if provides_tuples:
+        # Avoid injection of unused instance fields...
+        controllers = set([value[1] for value in provides_tuples if value[1]])
+        if controllers:
+            # Prepare the methods names
+            getter_name = "{0}{1}".format(constants.IPOPO_CONTROLLER_PREFIX,
+                                          constants.IPOPO_GETTER_SUFFIX)
+            setter_name = "{0}{1}".format(constants.IPOPO_CONTROLLER_PREFIX,
+                                          constants.IPOPO_SETTER_SUFFIX)
+
+            # Inject the getter and setter at the instance level
+            getter, setter = _field_controller_generator(stored_instance)
+            setattr(instance, getter_name, getter)
+            setattr(instance, setter_name, setter)
+
+            # Controllers are valid by default
+            for name in controllers:
+                stored_instance.set_controller_state(name, True)
+
 
 # ------------------------------------------------------------------------------
 
