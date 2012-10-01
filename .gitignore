@@ -2,6 +2,9 @@
 *.pyc
 __pycache__/
 
+# When installed in develop mode
+iPOPO.egg-info/
+
 # Module generated during tests
 generated_bundle.py
 
