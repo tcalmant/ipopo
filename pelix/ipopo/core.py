@@ -572,10 +572,6 @@ class _AggregateDependency(_RuntimeDependency):
         """
         super(_AggregateDependency, self).__init__(stored_instance, field,
                                                    requirement)
-
-        # We have multiple references to keep
-        self.references = []
-
         # Reference -> Service
         self.services = {}
 
@@ -587,9 +583,7 @@ class _AggregateDependency(_RuntimeDependency):
         
         :return: The removed bindings (list) or None
         """
-        del self.references[:]
         self.services.clear()
-        self.references = None
         self.services = None
         super(_AggregateDependency, self).clear()
 
@@ -601,7 +595,7 @@ class _AggregateDependency(_RuntimeDependency):
         :return: A list of ServiceReferences objects
         """
         with self._lock:
-            return self.references[:]
+            return list(self.services.keys())
 
 
     def on_service_arrival(self, svc_ref):
@@ -611,7 +605,7 @@ class _AggregateDependency(_RuntimeDependency):
         :param svc_ref: A service reference
         """
         with self._lock:
-            if svc_ref not in self.references:
+            if svc_ref not in self.services:
                 # Get the new service
                 service = self._context.get_service(svc_ref)
 
@@ -621,7 +615,6 @@ class _AggregateDependency(_RuntimeDependency):
 
                 # Store the information
                 self.value.append(service)
-                self.references.append(svc_ref)
                 self.services[svc_ref] = service
 
                 self._ipopo_instance.bind(self, service, svc_ref)
@@ -637,13 +630,12 @@ class _AggregateDependency(_RuntimeDependency):
                  else None
         """
         with self._lock:
-            if svc_ref in self.references:
+            if svc_ref in self.services:
                 # Get the service instance
                 service = self.services[svc_ref]
 
                 # Clean the instance values
                 del self.services[svc_ref]
-                self.references.remove(svc_ref)
                 self.value.remove(service)
 
                 # Nullify the value if needed
@@ -663,7 +655,7 @@ class _AggregateDependency(_RuntimeDependency):
                  been changed, else None
         """
         with self._lock:
-            if svc_ref not in self.references:
+            if svc_ref not in self.services:
                 # A previously registered service now matches our filter
                 return self.on_service_arrival(svc_ref)
 
@@ -676,7 +668,7 @@ class _AggregateDependency(_RuntimeDependency):
 
         if self.services:
             results = [(service, reference)
-                       for service, reference in self.services.items()]
+                       for reference, service in self.services.items()]
 
         else:
             results = None
@@ -700,7 +692,7 @@ class _AggregateDependency(_RuntimeDependency):
 
             # Filter found references
             refs = [reference for reference in refs
-                    if reference not in self.references]
+                    if reference not in self.services]
             if not refs:
                 # No new match found
                 return
