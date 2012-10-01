@@ -362,7 +362,7 @@ class IPopoRemoteShell(object):
         :param svc_ref: The reference of the bound service
         """
         specs = svc_ref.get_property(pelix.OBJECTCLASS)
-        if SHELL_COMMAND_SPEC in specs:
+        if self._shell and SHELL_COMMAND_SPEC in specs:
             # Shell command unbound
             namespace = svc.get_namespace()
             self._shell.unregister(namespace)
@@ -403,4 +403,6 @@ class IPopoRemoteShell(object):
 
         # Close the server socket (ignore errors)
         self._server.server_close()
+
+        _logger.info("RemoteShell gone")
 
