@@ -161,6 +161,11 @@ def _get_factory_context(cls):
                 context = FactoryContext.from_dictionary_form(context)
 
             context = context.copy()
+
+            # Clear the values that must not be inherited:
+            # * Provided services
+            del context.provides[:]
+
             setattr(cls, constants.IPOPO_FACTORY_CONTEXT_DATA, context)
 
         # We have a context of our own, make sure we have a FactoryContext
@@ -223,12 +228,13 @@ def _ipopo_setup_callback(cls, context):
 
         # Store the call backs
         for _callback in method_callbacks:
-            if _callback in callbacks:
-                _logger.debug("Redefining the _callback %s in '%s'. " \
-                              "Previous _callback : '%s' (%s). " \
-                              "New callback : %s", \
-                              _callback, name, callbacks[_callback].__name__, \
-                              callbacks[_callback], function)
+            if _callback in callbacks and \
+            not is_from_parent(cls, callbacks[_callback].__name__):
+                _logger.warning("Redefining the callback %s in '%s'. " \
+                                "Previous callback : '%s' (%s). " \
+                                "New callback : %s", _callback, name,
+                                callbacks[_callback].__name__,
+                                callbacks[_callback], function)
 
             callbacks[_callback] = function
 
