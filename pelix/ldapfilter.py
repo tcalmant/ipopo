@@ -31,6 +31,8 @@ from pelix.utilities import is_string
 
 # ------------------------------------------------------------------------------
 
+__version__ = (0, 3, 0)
+
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 

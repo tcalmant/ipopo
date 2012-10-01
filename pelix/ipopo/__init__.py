@@ -8,7 +8,7 @@ iPOPO is a component-based application framework
 :author: Thomas Calmant
 :copyright: Copyright 2012, isandlaTech
 :license: GPLv3
-:version: 0.3
+:version: 0.4
 :status: Alpha
 
 ..
@@ -29,7 +29,7 @@ iPOPO is a component-based application framework
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
-# ------------------------------------------------------------------------------
+__version__ = (0, 4, 0)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"

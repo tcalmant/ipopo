@@ -6,7 +6,7 @@ Defines some iPOPO constants
 :author: Thomas Calmant
 :copyright: Copyright 2012, isandlaTech
 :license: GPLv3
-:version: 0.3
+:version: 0.4
 :status: Alpha
 
 ..
@@ -27,9 +27,7 @@ Defines some iPOPO constants
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from pelix.framework import BundleException
-
-# ------------------------------------------------------------------------------
+__version__ = (0, 4, 0)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
@@ -66,6 +64,8 @@ IPOPO_INSTANCE_NAME = "instance.name"
 IPOPO_REQUIRES_FILTERS = "requires.filters"
 
 # ------------------------------------------------------------------------------
+
+from pelix.framework import BundleException
 
 def get_ipopo_svc_ref(bundle_context):
     """

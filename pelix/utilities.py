@@ -32,6 +32,8 @@ import threading
 
 # ------------------------------------------------------------------------------
 
+__version__ = (0, 3, 0)
+
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 

@@ -8,7 +8,7 @@ Pelix is a Python framework that aims to act as OSGi as much as possible
 :author: Thomas Calmant
 :copyright: Copyright 2012, isandlaTech
 :license: GPLv3
-:version: 0.3
+:version: 0.4
 :status: Alpha
 
 ..
@@ -56,7 +56,7 @@ SERVICE_RANKING = "service.ranking"
 __docformat__ = "restructuredtext en"
 
 # Module version
-__version__ = (1, 0, 0)
+__version__ = (0, 4, 0)
 
 # Prepare the module logger
 _logger = logging.getLogger("pelix.main")

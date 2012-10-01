@@ -27,6 +27,13 @@ Defines the iPOPO decorators classes to manipulate component factory classes
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
+__version__ = (0, 4, 0)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
+# ------------------------------------------------------------------------------
+
 from pelix.utilities import is_string
 from pelix.ipopo.core import FactoryContext, Requirement
 
@@ -40,9 +47,6 @@ import threading
 import types
 
 # ------------------------------------------------------------------------------
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
 
 # Prepare the module logger
 _logger = logging.getLogger("ipopo.decorators")

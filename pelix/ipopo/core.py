@@ -27,6 +27,13 @@ Core iPOPO implementation
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
+__version__ = (0, 4, 0)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
+# ------------------------------------------------------------------------------
+
 from pelix.framework import BundleContext, ServiceEvent, BundleEvent, \
     Bundle, BundleException
 from pelix.utilities import remove_all_occurrences, SynchronizedClassMethod, \
@@ -43,9 +50,6 @@ import logging
 import threading
 
 # ------------------------------------------------------------------------------
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
 
 # Prepare the module logger
 _logger = logging.getLogger("ipopo.core")
