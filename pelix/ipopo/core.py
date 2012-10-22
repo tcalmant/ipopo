@@ -369,7 +369,8 @@ class _RuntimeDependency(object):
         """
         Tests if the dependency is in a valid state
         """
-        return self.requirement.optional or self.value is not None
+        return (self.requirement is not None and self.requirement.optional) \
+            or self.value is not None
 
 
     def on_service_arrival(self, svc_ref):
