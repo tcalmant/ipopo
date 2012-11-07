@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 Utility methods and decorators
 
@@ -238,19 +238,28 @@ def remove_listener(registry, listener):
 
 # ------------------------------------------------------------------------------
 
-def is_string(string):
-    """
-    Utility method to test if the given parameter is a string
-    (Python 2.x, 3.x) or a unicode (Python 2.x) object
-
-    :param string: A potential string object
-    :return: True if the given object is a string object or a Python 2.6
-             unicode object
-    """
-    if PYTHON_3:
+if PYTHON_3:
+    def is_string(string):
+        """
+        Utility method to test if the given parameter is a string
+        (Python 2.x, 3.x) or a unicode (Python 2.x) object
+    
+        :param string: A potential string object
+        :return: True if the given object is a string object or a Python 2.6
+                 unicode object
+        """
         # Python 3 only have the str string type
         return isinstance(string, str)
 
-    else:
+else:
+    def is_string(string):
+        """
+        Utility method to test if the given parameter is a string
+        (Python 2.x, 3.x) or a unicode (Python 2.x) object
+    
+        :param string: A potential string object
+        :return: True if the given object is a string object or a Python 2.6
+                 unicode object
+        """
         # Python 2 also have unicode
-        return isinstance(string, str) or isinstance(string, unicode)
+        return isinstance(string, (str, unicode))

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 Defines the iPOPO decorators classes to manipulate component factory classes
 
@@ -440,8 +440,8 @@ class ComponentFactory:
         # Tell the developer that it might use __slots__ to avoid the
         # properties getter and setter injected in the instance
 
-        #if len(context.properties_fields) > 0 \
-        #and not hasattr(factory_class, "__slots__"):
+        # if len(context.properties_fields) > 0 \
+        # and not hasattr(factory_class, "__slots__"):
         #    _logger.debug("PERFORMANCE HINT: you might want to use a __slots__"
         #                  " entry in the class '%s' to avoid the properties"
         #                  " handlers overhead, adding '%s' and '%s' to it.",
@@ -514,6 +514,38 @@ class Property:
 
 # ------------------------------------------------------------------------------
 
+def _get_specifications(specifications):
+    """
+    Computes the list of strings corresponding to the given specifications
+    
+    :param specifications: A string, a class or a list of specifications
+    :return: A list of strings
+    :raise ValueError: Invalid specification found
+    """
+    if not specifications:
+        raise ValueError("No specifications given")
+
+    if inspect.isclass(specifications):
+        # Get the name of the class
+        return [specifications.__name__]
+
+    elif is_string(specifications):
+        # Specification name
+        return [specifications]
+
+    elif isinstance(specifications, (list, tuple)):
+        # List given: normalize its content
+        results = []
+        for specification in specifications:
+            results.extend(_get_specifications(specification))
+
+        return results
+
+    else:
+        raise ValueError("Unhandled specifications type : {0}" \
+                         .format(type(specifications).__name__))
+
+
 class Provides:
     """
     @Provides decorator
@@ -533,19 +565,7 @@ class Provides:
         if not specifications:
             raise ValueError("Provided interface name can't be empty")
 
-        if inspect.isclass(specifications):
-            self.__specifications = [specifications.__name__]
-
-        elif is_string(specifications):
-            self.__specifications = [specifications]
-
-        elif not isinstance(specifications, list):
-            raise ValueError("Unhandled @Provides specifications type : {0}" \
-                             .format(type(specifications).__name__))
-
-        else:
-            self.__specification = specifications
-
+        self.__specifications = _get_specifications(specifications)
         self.__controller = controller
 
 
