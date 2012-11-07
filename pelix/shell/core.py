@@ -53,7 +53,7 @@ def _find_assignment(arg_token):
     """
     Find the first non-escaped assignment in the given argument token.
     Returns -1 if no assignment was found.
-    
+
     :param arg_token: The argument token
     :return: The index of the first assignment, or -1
     """
@@ -75,7 +75,7 @@ def _make_args(args_list):
     Converts the given list of arguments into a list (args) and a
     dictionary (kwargs).
     All arguments with an assignment are put into kwargs, others in args.
-    
+
     :param args_list: The list of arguments to be treated
     :return: The (arg_token, kwargs) tuple.
     """
@@ -100,7 +100,7 @@ def _make_args(args_list):
 def _split_ns_command(cmd_token):
     """
     Extracts the name space and the command name of the given command token
-    
+
     :param cmd_token: The command token
     :return: The extracted (name space, command) tuple
     """
@@ -147,7 +147,7 @@ class ShellUtils(object):
     def make_table(self, headers, lines):
         """
         Generates an ASCII table according to the given headers and lines
-        
+
         :param headers: List of table headers
         :param lines: List of table lines (tuples).
         :return: The ASCII representation of the table
@@ -213,13 +213,13 @@ class ShellUtils(object):
 class Shell(object):
     """
     A simple shell, based on shlex.
-    
+
     Allows to use name spaces.
     """
     def __init__(self, context, utilities):
         """
         Sets up the shell
-        
+
         :param context: The bundle context
         """
         self._commands = {}
@@ -250,9 +250,9 @@ class Shell(object):
     def register_command(self, namespace, command, method):
         """
         Registers the given command to the shell.
-        
-        The namespace can be None, empty or "default" 
-        
+
+        The namespace can be None, empty or "default"
+
         :param namespace: The command name space.
         :param command: The shell name of the command
         :param method: The method to call
@@ -292,7 +292,7 @@ class Shell(object):
         """
         Unregisters the given command. If command is None, the whole name space
         is unregistered.
-        
+
         :param namespace: The command name space.
         :param command: The shell name of the command, or None
         :return: True if the command was known, else False
@@ -450,9 +450,9 @@ class Shell(object):
         for bundle in bundles:
             # Make the line
             line = [str(entry) for entry in
-                    (bundle.get_bundle_id()), bundle.get_symbolic_name(),
+                    (bundle.get_bundle_id(), bundle.get_symbolic_name(),
                     self._utils.bundlestate_to_str(bundle.get_state()),
-                    bundle.get_version()]
+                    bundle.get_version())]
 
             lines.append(line)
 
@@ -620,7 +620,7 @@ class PelixActivator(object):
     def start(self, context):
         """
         Bundle starting
-        
+
         :param context: The bundle context
         """
         try:
@@ -642,7 +642,7 @@ class PelixActivator(object):
     def stop(self, context):
         """
         Bundle stopping
-        
+
         :param context: The bundle context
         """
         if self._shell_reg is not None:
