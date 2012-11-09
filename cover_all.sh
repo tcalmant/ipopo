@@ -2,25 +2,31 @@
 # Utility script to call the Python tool "coverage" for all test modules
 
 export PYTHONPATH=$(pwd)
+PYTHONS=("python" "python3")
+DEFAULT_PYTHON="python3"
+
+COVERAGE="import coverage; coverage.main()"
 
 echo "Erase..."
-coverage erase
-rm -fr htmldoc 2>/dev/null
+rm -fr htmlcov
+$DEFAULT_PYTHON -c "$COVERAGE" erase
 
-echo "Run..."
-
-files=(utilities ldapfilter pelix ipopo)
-for i in ${files[@]}
+for PYTHON in "${PYTHONS[@]}"
 do
-    echo "Working on $i"
-    coverage run --source pelix --parallel-mode tests/${i}_test.py || exit 1
+    echo "Run... using $PYTHON"
+    files=(utilities ldapfilter pelix ipopo)
+    for i in ${files[@]}
+    do
+        echo "Working on $i"
+        $PYTHON -c "$COVERAGE" run --source pelix --parallel-mode tests/${i}_test.py || exit 1
+    done
 done
 
 echo "Combine..."
-coverage combine
+$DEFAULT_PYTHON -c "$COVERAGE" combine
 
 echo "HTML..."
-coverage html
+$DEFAULT_PYTHON -c "$COVERAGE" html
 
 echo "Done."
-python -m webbrowser ./htmlcov/index.html
+$DEFAULT_PYTHON -m webbrowser ./htmlcov/index.html
