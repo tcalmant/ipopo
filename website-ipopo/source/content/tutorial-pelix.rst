@@ -4,14 +4,14 @@ Pelix: the SOA framework
 ########################
 
 Pelix is the base service framework that is used by iPOPO.
-It defines two main concepts :
+It defines two main concepts:
 
-* bundles, the deployment units. A bundle is a Python module installed using
+* *bundles*, the deployment units. A bundle is a Python module installed using
   a Pelix Framework object. It has a life-cycle of its own and it can register
   services to the framework.
 
-* service, an object that is registered for given specifications, associated to
-  some properties. A consumer can request a service from the framework that
+* *service*, an object that is registered for given specifications, associated
+  to some properties. A consumer can request a service from the framework that
   matches a specification and a filter on its properties.
 
 
@@ -43,6 +43,7 @@ same framework instance.
    >>> # Destroy it
    >>> pelix.FrameworkFactory.delete_framework(framework)
 
+
 Wait for the framework to stop
 ==============================
 
@@ -70,7 +71,7 @@ Work with bundles
 A bundle is a Python module, loaded by Pelix. It can have an activator, an
 instance of a class that has a ``start()`` and a ``stop()`` method.
 
-Here is a simple bundle :
+Here is a simple bundle:
 
 .. code-block:: python
    
@@ -125,7 +126,7 @@ Here is a simple bundle :
 
 
 If the sample bundle is saved in a file called *simple.py*, visible in the
-Python path, then it can be loaded in Pelix with the following snippet :
+Python path, then it can be loaded in Pelix with the following snippet:
 
 .. code-block:: python
 
@@ -254,7 +255,7 @@ Consume a service
 
 To consume a service, the first thing to do is to enumerate the existing
 services registered in Pelix that corresponds to a required specification and
-to a property filter : the result will be a list of ServiceReference objects.
+to a property filter: the result will be a list of ServiceReference objects.
 Then Pelix can return the service instance associated to a service reference.
 
 When a consumer doesn't need a service anymore, it may release the reference
@@ -302,7 +303,8 @@ using the ``unget_service()`` method of its bundle context.
    >>> refs = context.get_all_service_references("my.incrementer",
                                                  "(thread.safe=*)")
    >>> [str(ref) for ref in refs]
-   ["ServiceReference(2, 1, ['my.incrementer'])", "ServiceReference(1, 1, ['my.incrementer'])"]
+   ["ServiceReference(2, 1, ['my.incrementer'])",
+    "ServiceReference(1, 1, ['my.incrementer'])"]
    
    >>> # References instances are unique in the framework
    >>> ref is refs[1]
@@ -333,32 +335,38 @@ Bundle listeners
 A bundle listener will be notified of the following events, declared in
 pelix.framework.BundleEvent.
 
-A BundleEvent object have the following methods :
+A BundleEvent object have the following methods:
 
 * ``get_bundle()`` retrieves the Bundle object that caused this event,
-* ``get_kind()`` retrieves the kind of bundle event, one of the following :
+* ``get_kind()`` retrieves the kind of bundle event, one of the following:
 
-  * INSTALLED: the bundle has just been installed
-
-  * STARTED: the bundle has been successfully started
-
-  * STARTING: the bundle is about to be activated, its activator will be called.
-
-  * STOPPING: the bundle is about to be stopped, its activator will be called.
-
-  * STOPPING_PRECLEAN: the bundle activator has been called, but not all of the
-    services may have been unregistered
-
-  * STOPPED: the bundle has been stopped, all of its services have been
-    unregistered.
-
-  * UNINSTALLED: the bundle has been uninstalled.
+  +-------------------+---------------------------------------------------+
+  | Kind              | Description                                       |
+  +===================+===================================================+
+  | INSTALLED         | the bundle has just been installed.               |
+  +-------------------+---------------------------------------------------+
+  | STARTED           | the bundle has been successfully started.         |
+  +-------------------+---------------------------------------------------+
+  | STARTING          | the bundle is about to be activated,              |
+  |                   | its activator will be called.                     |
+  +-------------------+---------------------------------------------------+
+  | STOPPING          | the bundle is about to be stopped,                |
+  |                   | its activator will be called.                     |
+  +-------------------+---------------------------------------------------+
+  | STOPPING_PRECLEAN | the bundle activator has been called, but not all |
+  |                   | of the services may have been unregistered.       |
+  +-------------------+---------------------------------------------------+
+  | STOPPED           | the bundle has been stopped, all of its services  |
+  |                   | have been unregistered.                           |
+  +-------------------+---------------------------------------------------+
+  | UNINSTALLED       | the bundle has been uninstalled.                  |
+  +-------------------+---------------------------------------------------+
 
 Listeners must implement a ``bundle_changed(self, event)`` method, where
 ``event`` is BundleEvent object.
 
 To register a bundle listener, use the bundle context to call the following
-methods :
+methods:
 
 * ``bundle_context.add_bundle_listener(listener)``
 * ``bundle_context.remove_bundle_listener(listener)``
@@ -369,7 +377,7 @@ Service listeners
 A service listener will be notified of the following events, declared in
 pelix.framework.ServiceEvent.
 
-A ServiceEvent object have the following methods :
+A ServiceEvent object have the following methods:
 
 * ``get_service_reference()`` retrieves the ServiceReference object of the
   service that caused this event,
@@ -377,22 +385,27 @@ A ServiceEvent object have the following methods :
 * ``get_previous_properties()`` retrieves the previous value of the service
   properties, if the event is MODIFIED or MODIFIED_ENDMATCH.
 
-* ``get_type()`` retrieves the kind of bundle event, one of the following :
+* ``get_type()`` retrieves the kind of bundle event, one of the following:
 
-  * REGISTERED: the service has just been registered,
+  +-------------------+-----------------------------------------------+
+  | Type              | Description                                   |
+  +===================+===============================================+
+  | REGISTERED        | the service has just been registered.         |
+  +-------------------+-----------------------------------------------+
+  | MODIFIED          | the service properties have been modified.    |
+  +-------------------+-----------------------------------------------+
+  | MODIFIED_ENDMATCH | the service properties have been modified and |
+  |                   | does not match the listener filter anymore.   |
+  +-------------------+-----------------------------------------------+
+  | UNREGISTERING     | the service has been unregistered.            |
+  +-------------------+-----------------------------------------------+
 
-  * MODIFIED: the service properties have been modified,
-
-  * MODIFIED_ENDMATCH: the service properties have been modified and does not
-    match the listener filter anymore,
-
-  * UNREGISTERING: the service has been unregistered.
 
 Listeners must implement a ``service_changed(self, event)`` method, where
 ``event`` is ServiceEvent object.
 
 To register a service listener, use the bundle context to call the following
-methods :
+methods:
 
 * ``bundle_context.add_service_listener(listener, ldap_filter=None)``.
   Only services that matches the given LDAP filter will be notified to the
@@ -410,7 +423,7 @@ stops all bundles.
 Listeners must implement a ``framework_stopping(self)`` method.
 
 To register a framework stop listener, use the bundle context to call the
-following methods :
+following methods:
 
 * ``bundle_context.add_framework_stop_listener(listener)``
 * ``bundle_context.remove_framework_stop_listener(listener)``

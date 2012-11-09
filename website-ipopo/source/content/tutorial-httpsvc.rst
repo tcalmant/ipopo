@@ -67,7 +67,7 @@ Hello world servlet
 Run the server
 **************
 
-Now, it's to start the whole project :
+Now, it's time to start the whole project:
 
 .. literalinclude:: /_static/httpsvc/demo.py
    :language: python

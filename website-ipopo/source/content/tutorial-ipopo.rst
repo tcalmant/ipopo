@@ -101,9 +101,9 @@ loaded and the requested components will be instantiated, if possible.
 Use the iPOPO service
 *********************
 
-The iPOPO service provides three methods :
+The iPOPO service provides three methods:
 
-* ``instantiate(factory_name, name, properties)`` : starts a new component from
+* ``instantiate(factory_name, name, properties)``: starts a new component from
   the given factory, with the given name and properties. If a component with
   the same name already exists, the instantiation fails.
 
@@ -116,11 +116,11 @@ The iPOPO service provides three methods :
      >>> compo.increment()
      1
 
-* ``invalidate(name)`` : invalidates the component with the given name. This
+* ``invalidate(name)``: invalidates the component with the given name. This
   is a test method, as the component will be automatically re-validated when a
   new service event will be triggered.
 
-* ``kill(name)`` : destroys the component with the given name. The component is
+* ``kill(name)``: destroys the component with the given name. The component is
   invalidated then removed from the iPOPO registry.
 
   .. code-block:: python
@@ -142,10 +142,10 @@ Validation and invalidation
 A component is validated when all of its required dependencies have been
 injected, and is invalidated when one of its required dependencies is gone.
 
-Both methods take only one parameter : the context of the bundle that
+Both methods take only one parameter: the context of the bundle that
 registered the component.
 
-In the following example, the consumer requires an incrementer :
+In the following example, the consumer requires an incrementer:
 
 .. code-block:: python
 
@@ -166,7 +166,7 @@ The service is injected before the component is validated and after it is
 invalidated. That way, it can be used by the consumer can use it a last time
 when the service or the consumer is invalidated.
 
-A sample run, considering all bundles are started :
+A sample run, considering all bundles are started:
 
 .. code-block:: python
 
@@ -180,7 +180,7 @@ A sample run, considering all bundles are started :
                                  {"usable": True})
    incr2: Ready...
    
-   >>> # Set the first incrementer unusable : the injection will be updated.
+   >>> # Set the first incrementer unusable: the injection will be updated.
    >>> # As the injection is not optional, the consumer will be invalidated
    >>> # during the re-injection
    >>> consumer.svc.change(False)
@@ -202,7 +202,7 @@ Bind  and unbind
 Additionally, a component can be notified when a dependency (required or not)
 has been injected, using a bind method, or removed, using an unbind method.
 
-Both methods take two parameters :
+Both methods take two parameters:
 
 * the injected service object, to work directly with it
 * the ServiceReference object for the injected service, to have access to the
@@ -217,7 +217,7 @@ If the requirement is an aggregation, the bind and unbind methods are called
 for each injected service.
 
 Here is the previous service consumer, printing a line each time a service is
-bound or unbound :
+bound or unbound:
 
 .. code-block:: python
 

@@ -10,18 +10,18 @@ Pre-requisites
 **************
 
 The distribution contains iPOPO and Pelix packages, which are fully runnable
-with any Python 2.7 to Python 3.2 compatible interpreter.
+with any Python 2.7 to Python 3.3 compatible interpreter.
 If the back-port of the `importlib <http://pypi.python.org/pypi/importlib>`_ is
 installed, iPOPO can also be run on a Python 2.6 compatible interpreter.
 
-iPOPO has been tested on :
+iPOPO has been tested on:
 
 * `CPython <http://python.org/download/>`_ 2.6, 2.7, 3.1 and 3.2
 * `Pypy <http://pypy.org/>`_ 1.8
 
 Feel free to report other interpreters which can run iPOPO.
 
-Due to syntax changes, it can't be run on a Python 2.5 interpreter
+Due to syntax changes, iPOPO can't be run on a Python 2.5 interpreter
 (e.g. `Jython <http://www.jython.org/>`_).
 
 
@@ -33,11 +33,11 @@ The installation process is based on Python setup tools.
 #. Download the latest version of iPOPO
    `here <http://ipopo.coderxpress.net/dl/ipopo-latest.zip>`_
 #. Extract the content and go into *ipopo-dist* directory
-#. Run the *setup.py* file :
+#. Run the *setup.py* file:
 
    ``python setup.py install``
 
-#. Test if the installation is correct :
+#. Test if the installation is correct:
 
    .. code-block:: python
 
@@ -52,18 +52,26 @@ The installation process is based on Python setup tools.
 Unit tests
 **********
 
-Unit tests are in a different distribution file :
+Unit tests are in a different distribution file:
 `unit tests <http://ipopo.coderxpress.net/dl/ipopo-latest-tests.zip>`_.
 
-To apply the tests, just run the following modules :
+To apply the tests, just run the following modules:
 
-* tests.utilities_test : Tests the utility module, namely the synchronization
-  decorators.
-* tests.ldapfilter_test : Tests the LDAP filter module
-* tests.pelix_test : Tests the Pelix framework, bundles, services and events
-* tests.ipopo_test : Tests the iPOPO component manager and decorators
++---------------------------+--------------------------------------------------+
+| Module                    | Description                                      |
++===========================+==================================================+
+| ``tests.utilities_test``  | Tests the utility module, namely the             |
+|                           | synchronization decorators.                      |
++---------------------------+--------------------------------------------------+
+| ``tests.ldapfilter_test`` | Tests the LDAP filter module                     |
++---------------------------+--------------------------------------------------+
+| ``tests.pelix_test``      | Tests the Pelix framework, bundles, services and |
+|                           | events                                           |
++---------------------------+--------------------------------------------------+
+| ``tests.ipopo_test``      | Tests the iPOPO component manager and decorators |
++---------------------------+--------------------------------------------------+
 
-For example :
+For example:
 
 .. code-block:: bash
    
@@ -112,7 +120,7 @@ Pelix has been tested with |SL4A|_ r5 and its default Python 2.6.2 interpreter.
 
    #. Run *SL4A*
    #. *Menu* > View > Interpreters
-   #. Select *Python 2.6.2* : it should start a Python console
+   #. Select *Python 2.6.2*: it should start a Python console
    #. Enter ``exit()`` to stop the interpreter
    #. Choose *yes* to close the terminal.
 
@@ -125,14 +133,14 @@ To work on Python 2.6, Pelix needs the ``importlib`` module.
 The easiest way to get it is to download it from Pypi and push it to the SL4A
 scripts directory.
 
-#. Download ``importlib`` from Pypi : `<http://pypi.python.org/pypi/importlib>`_
+#. Download ``importlib`` from Pypi: `<http://pypi.python.org/pypi/importlib>`_
 #. Extract the *importlib/__init__.py* file and rename it *importlib.py*
 #. Push *importlib.py* to the Android folder */sdcard/sl4a/scripts*
 
    * You can do it using a removable SD card (and store the file in
      *sl4a/scripts*)
 
-   * Or, if you installed the Android SDK, you can do it with *adb* :
+   * Or, if you installed the Android SDK, you can do it with *adb*:
 
      .. code-block:: bash
 
@@ -140,8 +148,8 @@ scripts directory.
 
 .. note::
 
-     You can also but importlib.py in /sdcad/sl4a, to avoid modifying the Python
-     path before start a Pelix framework (see :ref:`test_android`).
+     You can also put importlib.py in */sdcard/sl4a*, to avoid modifying the
+     Python path before start a Pelix framework (see :ref:`test_android`).
 
 
 Install the Pelix-iPOPO egg file
@@ -149,19 +157,19 @@ Install the Pelix-iPOPO egg file
 
 Currently, the *setup.py* used by Pelix is based on the ``distutils`` package
 which can't be used to make. Therefore, you'll have to modify *setup.py*,
-replacing the line :
+replacing the line:
 
 .. code-block:: python
 
    from distutils.core import setup
 
-by :
+by:
 
 .. code-block:: python
 
    from setuptools import setup
 
-Then you can create the egg file with the following command :
+Then you can create the egg file with the following command:
 
 .. code-block:: bash
 
@@ -169,7 +177,7 @@ Then you can create the egg file with the following command :
 
 The egg file will be created in the *dist* directory, and you need to push it
 in the download folder of your Android, namely */sdcard/download* (using *adb*
-or copying it on a removable SD card) :
+or copying it on a removable SD card):
 
 .. code-block:: bash
 
@@ -177,7 +185,7 @@ or copying it on a removable SD card) :
    adb push dist/iPOPO-0.3-py2.6.egg /sdcard/download
 
 
-Finally, you'll have to install the egg file with Python4Android :
+Finally, you'll have to install the egg file with Python4Android:
 
 #. Run *Python for Android*
 #. Press *Import Modules*
@@ -188,7 +196,7 @@ Finally, you'll have to install the egg file with Python4Android :
 Test the Android installation
 =============================
 
-Start a Python interpreter from SL4A and type the following commands :
+Start a Python interpreter from SL4A and type the following commands:
 
 .. code-block:: python
 

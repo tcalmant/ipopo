@@ -5,7 +5,7 @@
 Tutorial
 ########
 
-This tutorial in made of two parts : the first one shows how to use Pelix, the
+This tutorial in made of two parts: the first one shows how to use Pelix, the
 SOA framework, the second shows how to work with iPOPO, the component framework.
 
 Look at the :ref:`unittests` to have more code examples.
