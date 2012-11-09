@@ -89,8 +89,13 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
     :param sorted: If True, the names list will be sorted before locking
     :return: The decorator method, surrounded with the lock
     """
+    # Filter the names (remove empty ones)
+    locks_attr_names = [lock_name
+                        for lock_name in locks_attr_names
+                        if lock_name]
+
     if not locks_attr_names:
-        raise ValueError("The lock name can't be empty")
+        raise ValueError("The lock names list can't be empty")
 
     if 'sorted' not in kwargs or kwargs['sorted']:
         # Sort the lock names if requested
@@ -146,11 +151,6 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
     # Return the wrapped method
     return wrapped
 
-
-# Compute lock types only once (in is_lock)
-_LOCK_TYPES = None
-""" Lock types tuple, computed on first call to is_lock() """
-
 def is_lock(lock):
     """
     Tests if the given lock is an instance of a lock class
@@ -159,22 +159,7 @@ def is_lock(lock):
         # Don't do useless tests
         return False
 
-    global _LOCK_TYPES
-    if _LOCK_TYPES is None:
-        # Lock creators are methods, so we have to create a lock to have its
-        # type
-        _LOCK_TYPES = tuple(type(lock) for lock in (threading.Lock(),
-                                                    threading.RLock(),
-                                                    threading.Semaphore(),
-                                                    threading.Condition()))
-
-    if isinstance(lock, _LOCK_TYPES):
-        # Known type
-        return True
-
-    lock_api = ('acquire', 'release', '__enter__', '__exit__')
-
-    for attr in lock_api:
+    for attr in ('acquire', 'release', '__enter__', '__exit__'):
         if not hasattr(lock, attr):
             # Missing something
             return False

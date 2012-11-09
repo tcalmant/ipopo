@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 iPOPO test module. Tests both the iPOPO core module and decorators
 
@@ -13,7 +13,14 @@ from tests.interfaces import IEchoService
 
 import logging
 import os
-import unittest
+
+try:
+    import unittest2 as unittest
+
+except ImportError:
+    import unittest
+    import tests
+    tests.inject_unittest_methods()
 
 # ------------------------------------------------------------------------------
 

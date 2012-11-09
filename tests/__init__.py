@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 Test package for Pelix
 
@@ -126,11 +126,12 @@ def assertGreaterEqual(self, a, b, msg=None):
 
 # ------------------------------------------------------------------------------
 
-INJECTED_METHODS = (assertIn, assertNotIn, assertIs, assertIsNone,
-                    assertIsNotNone, assertLess, assertLessEqual, assertGreater,
-                    assertGreaterEqual)
+def inject_unittest_methods():
+    INJECTED_METHODS = (assertIn, assertNotIn, assertIs, assertIsNone,
+                        assertIsNotNone, assertLess, assertLessEqual,
+                        assertGreater, assertGreaterEqual)
 
-for method in INJECTED_METHODS:
-    if not hasattr(unittest.TestCase, method.__name__):
-        # Inject the missing method
-        setattr(unittest.TestCase, method.__name__, method)
+    for method in INJECTED_METHODS:
+        if not hasattr(unittest.TestCase, method.__name__):
+            # Inject the missing method
+            setattr(unittest.TestCase, method.__name__, method)

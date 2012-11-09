@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 LDAP filter parser tests
 
@@ -9,7 +9,13 @@ LDAP filter parser tests
 from pelix.ldapfilter import get_ldap_filter
 import pelix.ldapfilter
 
-import unittest
+try:
+    import unittest2 as unittest
+
+except ImportError:
+    import unittest
+    import tests
+    tests.inject_unittest_methods()
 
 # ------------------------------------------------------------------------------
 

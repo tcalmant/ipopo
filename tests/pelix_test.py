@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 Pelix framework test module. Tests the framework, bundles handling, service
 handling and events.
@@ -16,9 +16,16 @@ from tests.interfaces import IEchoService
 import pelix.framework as pelix
 import os
 import logging
-import unittest
 import threading
 import time
+
+try:
+    import unittest2 as unittest
+
+except ImportError:
+    import unittest
+    import tests
+    tests.inject_unittest_methods()
 
 # ------------------------------------------------------------------------------
 
