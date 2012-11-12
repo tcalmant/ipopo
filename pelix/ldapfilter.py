@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 Dependency-less LDAP filter parser for Python
 
@@ -28,6 +28,7 @@ Dependency-less LDAP filter parser for Python
 """
 
 from pelix.utilities import is_string
+import inspect
 
 # ------------------------------------------------------------------------------
 
@@ -66,6 +67,9 @@ class LDAPFilter(object):
         """
         Initializer
         """
+        if operator not in (AND, OR, NOT):
+            raise ValueError("Invalid operator: {0}".format(operator))
+
         self.subfilters = []
         self.operator = operator
 
@@ -120,8 +124,7 @@ class LDAPFilter(object):
         :raise ValueError: If the more than one filter is associated to a
         NOT operator
         """
-        if not isinstance(ldap_filter, LDAPFilter) \
-        and not isinstance(ldap_filter, LDAPCriteria):
+        if not isinstance(ldap_filter, (LDAPFilter, LDAPCriteria)):
             raise TypeError("Invalid filter type: {0}".format(
                                                 type(ldap_filter).__name__))
 
@@ -184,7 +187,7 @@ class LDAPFilter(object):
             # Normal filter
             return self
 
-        elif size == 1:
+        else:
             if self.operator == NOT:
                 # NOT is the only operator to accept 1 operand
                 return self
@@ -192,9 +195,6 @@ class LDAPFilter(object):
             else:
                 # Return the only child as the filter object
                 return self.subfilters[0].normalize()
-
-        # Empty filter
-        return None
 
 
 class LDAPCriteria(object):
@@ -208,8 +208,14 @@ class LDAPCriteria(object):
         :raise ValueError: If one of the parameters is empty
         """
         if not name or not value or not comparator:
+            # Refuse empty values
             raise ValueError("Invalid criteria parameter ({0}, {1}, {2})"\
                              .format(name, value, comparator))
+
+        if not inspect.isfunction(comparator) \
+        and not inspect.ismethod(comparator):
+            # Ensure we have a valid comparator
+            raise ValueError("Comparator must be a method: {0}", comparator)
 
         self.name = name
         self.value = value
@@ -387,7 +393,7 @@ def _comparator_star(filter_value, tested_value):
     """
     if filter_value == '*':
         # The filter value is a joker : simple presence test
-        if filter_value is None:
+        if tested_value is None:
             return False
 
         elif hasattr(tested_value, "__len__"):
@@ -438,9 +444,8 @@ def _comparator_eq(filter_value, tested_value):
     """
     Tests if the filter value is equal to the tested value
     """
-    if isinstance(tested_value, list):
+    if isinstance(tested_value, (list, tuple)):
         # Special case : lists
-
         if '*' in filter_value:
             # Special case : jokers (stars) in the filter
             for value in tested_value:
@@ -482,24 +487,24 @@ def _comparator_approximate(filter_value, tested_value):
     If the tested value is a string or an array of string, it compares their
     lower case forms
     """
+    lower_filter_value = filter_value.lower()
+
     if is_string(tested_value):
-        return _comparator_eq(filter_value.lower(), tested_value.lower())
+        # Lower case comparison
+        return _comparator_eq(lower_filter_value, tested_value.lower())
 
     elif hasattr(tested_value, '__iter__'):
-
+        # Extract a list of strings
         new_tested = [value.lower() for value in tested_value \
                       if is_string(value)]
 
-        if len(new_tested) != len(tested_value):
-            # Not strings, use the basic comparison
-            return _comparator_eq(filter_value, tested_value)
+        if _comparator_eq(lower_filter_value, new_tested):
+            # Value found in the strings
+            return True
 
-        else:
-            # Compare converted values
-            return _comparator_eq(filter_value.lower(), new_tested)
-
-    else:
-        return _comparator_eq(filter_value, tested_value)
+    # Compare the raw values
+    return _comparator_eq(filter_value, tested_value) \
+        or _comparator_eq(lower_filter_value, tested_value)
 
 
 def _comparator_le(filter_value, tested_value):
@@ -519,14 +524,31 @@ def _comparator_lt(filter_value, tested_value):
     tested_value < filter_value
     """
     if is_string(filter_value):
+        value_type = type(tested_value)
         try:
             # Try a conversion
-            filter_value = type(tested_value)(filter_value)
-        except:
-            # Incompatible values
-            return False
+            filter_value = value_type(filter_value)
 
-    return tested_value < filter_value
+        except (TypeError, ValueError):
+            if value_type is int:
+                # Integer/float comparison trick
+                try:
+                    filter_value = float(filter_value)
+
+                except (TypeError, ValueError):
+                    # None-float value
+                    return False
+
+            else:
+                # Incompatible type
+                return False
+
+    try:
+        return tested_value < filter_value
+
+    except TypeError:
+        # Incompatible type
+        return False
 
 
 def _comparator_ge(filter_value, tested_value):
@@ -546,14 +568,32 @@ def _comparator_gt(filter_value, tested_value):
     tested_value > filter_value
     """
     if is_string(filter_value):
+        value_type = type(tested_value)
         try:
             # Try a conversion
-            filter_value = type(tested_value)(filter_value)
-        except:
-            # Incompatible values
-            return False
+            filter_value = value_type(filter_value)
 
-    return tested_value > filter_value
+        except (TypeError, ValueError):
+            if value_type is int:
+                # Integer/float comparison trick
+                try:
+                    filter_value = float(filter_value)
+
+                except (TypeError, ValueError):
+                    # None-float value
+                    return False
+
+            else:
+                # Incompatible type
+                return False
+
+    try:
+        return tested_value > filter_value
+
+    except TypeError:
+        # Incompatible type
+        return False
+
 
 # ------------------------------------------------------------------------------
 
@@ -658,7 +698,7 @@ def _skip_spaces(string, idx):
     return -1
 
 
-def _parse_LDAP_criteria(ldap_filter, startidx, endidx):
+def _parse_LDAP_criteria(ldap_filter, startidx=0, endidx= -1):
     """
     Parses an LDAP sub filter (criteria)
 
@@ -670,13 +710,18 @@ def _parse_LDAP_criteria(ldap_filter, startidx, endidx):
     """
     comparators = "=<>~"
 
+    if endidx < 0:
+        endidx = len(ldap_filter)
+
+    if startidx >= endidx or startidx < 0 or endidx > len(ldap_filter):
+        raise ValueError("Invalid string range start={0}, end={1}" \
+                         .format(startidx, endidx))
+
     # Get the comparator
     i = startidx
     escaped = False
     while i < endidx:
-
         if not escaped:
-
             if ldap_filter[i] == ESCAPE_CHARACTER:
                 # Next character escaped
                 escaped = True
@@ -713,6 +758,10 @@ def _parse_LDAP_criteria(ldap_filter, startidx, endidx):
 
     # Find the end of the comparator
     i += 1
+    if i >= endidx:
+        raise ValueError("Compared value is missing in '{0}'" \
+                         .format(ldap_filter[startidx:endidx]))
+
     while ldap_filter[i] in comparators:
         i += 1
 
@@ -836,8 +885,7 @@ def get_ldap_filter(ldap_filter):
     if ldap_filter is None:
         return None
 
-    if isinstance(ldap_filter, LDAPFilter) \
-    or isinstance(ldap_filter, LDAPCriteria):
+    if isinstance(ldap_filter, (LDAPFilter, LDAPCriteria)):
         # No conversion needed
         return ldap_filter
 
