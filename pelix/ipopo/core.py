@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 Core iPOPO implementation
 
@@ -173,31 +173,15 @@ class Requirement(object):
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter
         """
+        if not isinstance(specifications, (list, tuple)):
+            raise TypeError("Specifications must be a list/tuple of strings")
+
         if not specifications:
-            raise TypeError("A specification must be given")
-
-        if not isinstance(specifications, list):
-            # Convert specification into a list
-            specifications = [specifications]
-
-        converted_specs = []
-        for spec in specifications:
-
-            if is_string(spec):
-                spec_str = spec
-
-            elif inspect.isclass(spec):
-                spec_str = spec.__name__
-
-            else:
-                raise TypeError("The requirement specification must be a " \
-                                "string or a list of string")
-
-            converted_specs.append(spec_str)
+            raise ValueError("A specification must be given")
 
         self.aggregate = aggregate
         self.optional = optional
-        self.specifications = converted_specs
+        self.specifications = specifications
 
         # Set up the requirement filter (after setting up self.specification)
         self.filter = None

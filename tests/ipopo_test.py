@@ -7,7 +7,7 @@ iPOPO test module. Tests both the iPOPO core module and decorators
 """
 
 from pelix.ipopo import constants, decorators
-from pelix.ipopo.core import IPopoEvent
+from pelix.ipopo.core import IPopoEvent, FactoryContext
 from pelix.framework import FrameworkFactory, BundleContext
 from tests.interfaces import IEchoService
 
@@ -110,24 +110,25 @@ class DecoratorsTest(unittest.TestCase):
                     }
 
         # Define some non decorable types
-        class BadClass:
+        class BadClass(object):
             pass
-
-        bad_types = (None, 12, "Bad", BadClass)
 
         # Define a decorable method
         def empty_method():
-            """
-            Dummy method
-            """
+            pass
+
+        def args_method(abc, *args):
+            pass
+
+        def kwargs_method(abc, **kwargs):
             pass
 
         def correct_method(self, *args):
-            """
-            Dummy method
-            """
             pass
 
+
+        bad_types = (None, 12, "Bad", BadClass)
+        bad_methods = (None, empty_method, args_method, kwargs_method)
 
         self.assertFalse(hasattr(empty_method, \
                                  constants.IPOPO_METHOD_CALLBACKS), \
@@ -138,9 +139,9 @@ class DecoratorsTest(unittest.TestCase):
                                  "The method is already tagged")
 
         for decorator, callback in callbacks.items():
-
             # Ensure that the empty  method will fail being decorated
-            self.assertRaises(TypeError, decorator, empty_method)
+            for bad_method in bad_methods:
+                self.assertRaises(TypeError, decorator, bad_method)
 
             # Decorate the method
             decorated = decorator(correct_method)
@@ -158,74 +159,172 @@ class DecoratorsTest(unittest.TestCase):
                 self.assertRaises(TypeError, decorator, bad)
 
 
+    def testComponentFactory(self):
+        """
+        Tests the @ComponentFactory decorator
+        """
+        instance_name = "test"
+
+        @decorators.Instantiate(instance_name)
+        class DummyClass(object):
+            pass
+
+        class ChildClass(DummyClass):
+            pass
+
+        def method():
+            pass
+
+        # Invalid target
+        for invalid in (None, method, 123):
+            self.assertRaises(TypeError, decorators.ComponentFactory("test"),
+                              invalid)
+
+        # Transform the class into a component
+        decorators.ComponentFactory()(DummyClass)
+
+        # No name -> generated one
+        parent_context = decorators._get_factory_context(DummyClass)
+        self.assertEqual(parent_context.name, "DummyClassFactory",
+                         "Invalid generated name")
+
+        # Transform the child class
+        decorators.ComponentFactory()(ChildClass)
+
+        # Ensure the instantiation was not inherited
+        self.assertIn(instance_name,
+                      getattr(DummyClass, constants.IPOPO_INSTANCES),
+                      "Instance disappeared of parent")
+
+        # Child attribute is set to None in this case
+        self.assertIsNone(getattr(ChildClass, constants.IPOPO_INSTANCES),
+                          "Instances kept in child")
+
+
     def testInstantiate(self):
         """
         Tests the @Instantiate decorator
         """
-        factory = "basic-component-factory"
-        name = "basic-component"
-        svc_spec = "basic-component-svc"
-        bundle_name = "tests.ipopo_bundle"
+        class DummyClass(object):
+            pass
 
-        # Assert the framework is clean
-        self.assertFalse(self.ipopo.is_registered_factory(factory),
-                         "Factory already registered")
+        def method():
+            pass
 
-        self.assertFalse(self.ipopo.is_registered_instance(name),
-                         "Instance already registered")
+        # Empty name
+        for empty in ("", "   "):
+            self.assertRaises(ValueError, decorators.Instantiate, empty)
 
-        # Install the bundle
-        context = self.framework.get_bundle_context()
-        bid = context.install_bundle(bundle_name)
-        bundle = context.get_bundle(bid)
+        # Invalid name type
+        for invalid in (None, [], tuple(), 123):
+            self.assertRaises(TypeError, decorators.Instantiate, invalid)
 
-        # Bundle is installed, assert that the framework is still clean
-        self.assertFalse(self.ipopo.is_registered_factory(factory),
-                         "Factory registered while the bundle is stopped")
+        # Invalid properties type
+        for invalid in ("props", [1, 2], tuple((1, 2, 3)), 123):
+            self.assertRaises(TypeError, decorators.Instantiate, "test",
+                              invalid)
 
-        self.assertFalse(self.ipopo.is_registered_instance(name),
-                         "Instance registered while the bundle is stopped")
+        # Invalid target
+        for invalid in (None, method, 123):
+            self.assertRaises(TypeError, decorators.Instantiate("test"),
+                              invalid)
 
-        # Start the bundle
-        bundle.start()
+        # 1st injection
+        decorators.Instantiate("test", {"id": 1})(DummyClass)
 
-        # Assert the component has been registered
-        self.assertTrue(self.ipopo.is_registered_factory(factory),
-                         "Factory not registered while the bundle is started")
+        # 2nd injection: nothing happens
+        decorators.Instantiate("test", {"id": 2})(DummyClass)
 
-        self.assertTrue(self.ipopo.is_registered_instance(name),
-                         "Instance not registered while the bundle is started")
+        instances = getattr(DummyClass, constants.IPOPO_INSTANCES)
+        self.assertEqual(instances["test"]["id"], 1,
+                         "Instance properties have been overridden")
 
-        # Assert it has been validated
-        ref = context.get_service_reference(svc_spec)
-        self.assertIsNotNone(ref, "No reference found (component not validated)")
 
-        compo = context.get_service(ref)
+    def testProperty(self):
+        """
+        Tests the @Property decorator
+        """
+        class DummyClass(object):
+            pass
 
-        self.assertEqual(compo.states, [IPopoEvent.INSTANTIATED,
-                                        IPopoEvent.VALIDATED],
-                         "@Instantiate component should have been validated")
-        del compo.states[:]
+        def method():
+            pass
 
-        # Stop the bundle
-        bundle.stop()
+        # Empty or invalid field name
+        for invalid in ("", "   ", "a space"):
+            self.assertRaises(ValueError, decorators.Property, invalid)
 
-        # Assert the component has been invalidated
-        self.assertEqual(compo.states, [IPopoEvent.INVALIDATED],
-                         "@Instantiate component should have been invalidated")
+        for empty in ("", "   "):
+            # No error should be raised
+            decorators.Property("field", empty)
 
-        # Assert the framework has been cleaned up
-        self.assertFalse(self.ipopo.is_registered_factory(factory),
-                         "Factory registered while the bundle has been stopped")
+        # Invalid type
+        self.assertRaises(TypeError, decorators.Property, None)
+        for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
+            self.assertRaises(TypeError, decorators.Property, invalid)
+            self.assertRaises(TypeError, decorators.Property, "field", invalid)
 
-        self.assertFalse(self.ipopo.is_registered_instance(name),
-                         "Instance registered while the bundle has been "
-                         "stopped")
+        # Invalid target
+        for invalid in (None, method, 123):
+            self.assertRaises(TypeError, decorators.Property("field", "name"),
+                              invalid)
 
-        # Ensure the service has been unregistered properly
-        self.assertIsNone(context.get_service_reference(svc_spec),
-                          "@Instantiate service is still there")
 
+    def testProvides(self):
+        """
+        Tests the @Provides decorator
+        """
+        class DummyClass(object):
+            pass
+
+        def method():
+            pass
+
+        # Empty specification
+        for empty in (None, "", "   "):
+            self.assertRaises(ValueError, decorators.Provides, empty)
+
+            # No error should be raised
+            decorators.Provides("spec", empty)
+
+        # Field name with a space
+        self.assertRaises(ValueError, decorators.Provides, "spec", "a space")
+
+        # Invalid specification type
+        for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
+            self.assertRaises(ValueError, decorators.Provides, invalid)
+            self.assertRaises(ValueError, decorators.Provides, "spec", invalid)
+
+        # Invalid target
+        for invalid in (None, method, 123):
+            self.assertRaises(TypeError, decorators.Provides("spec", "field"),
+                              invalid)
+
+
+    def testRequires(self):
+        """
+        Tests the @Requires decorator
+        """
+        class DummyClass(object):
+            pass
+
+        def method():
+            pass
+
+        # Empty field or specification
+        for empty in (None, "", "   "):
+            self.assertRaises(ValueError, decorators.Requires, empty)
+            self.assertRaises(ValueError, decorators.Requires, "field", empty)
+
+        # Invalid field or specification type
+        for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
+            self.assertRaises(TypeError, decorators.Requires, invalid)
+            self.assertRaises(ValueError, decorators.Requires, "field", invalid)
+
+        # Invalid target
+        for invalid in (None, method, 123):
+            self.assertRaises(TypeError, decorators.Requires("field", "spec"),
+                              invalid)
 
 # ------------------------------------------------------------------------------
 
@@ -321,9 +420,97 @@ class LifeCycleTest(unittest.TestCase):
         self.assertFalse(self.ipopo.is_registered_instance(NAME_A), \
                         "Instance is still in the registry")
 
-
-
 # ------------------------------------------------------------------------------
+
+class InstantiateTest(unittest.TestCase):
+    """
+    Specific test case to test @Instantiate, as it needs a pure framework
+    """
+    def setUp(self):
+        """
+        Called before each test. Initiates a framework.
+        """
+        self.framework = FrameworkFactory.get_framework()
+        self.framework.start()
+        self.ipopo = install_ipopo(self.framework)
+
+
+    def tearDown(self):
+        """
+        Called after each test
+        """
+        self.framework.stop()
+        FrameworkFactory.delete_framework(self.framework)
+
+    def testInstantiate(self):
+        """
+        Tests the life cycle with an @Instantiate decorator
+        """
+        factory = "basic-component-factory"
+        name = "basic-component"
+        svc_spec = "basic-component-svc"
+        bundle_name = "tests.ipopo_bundle"
+
+        # Assert the framework is clean
+        self.assertFalse(self.ipopo.is_registered_factory(factory),
+                         "Factory already registered")
+
+        self.assertFalse(self.ipopo.is_registered_instance(name),
+                         "Instance already registered")
+
+        # Install the bundle
+        context = self.framework.get_bundle_context()
+        bid = context.install_bundle(bundle_name)
+        bundle = context.get_bundle(bid)
+
+        # Bundle is installed, assert that the framework is still clean
+        self.assertFalse(self.ipopo.is_registered_factory(factory),
+                         "Factory registered while the bundle is stopped")
+
+        self.assertFalse(self.ipopo.is_registered_instance(name),
+                         "Instance registered while the bundle is stopped")
+
+        # Start the bundle
+        bundle.start()
+
+        # Assert the component has been registered
+        self.assertTrue(self.ipopo.is_registered_factory(factory),
+                         "Factory not registered while the bundle is started")
+
+        self.assertTrue(self.ipopo.is_registered_instance(name),
+                         "Instance not registered while the bundle is started")
+
+        # Assert it has been validated
+        ref = context.get_service_reference(svc_spec)
+        self.assertIsNotNone(ref, "No reference found (component not validated)")
+
+        compo = context.get_service(ref)
+
+        self.assertEqual(compo.states, [IPopoEvent.INSTANTIATED,
+                                        IPopoEvent.VALIDATED],
+                         "@Instantiate component should have been validated")
+        del compo.states[:]
+
+        # Stop the bundle
+        bundle.stop()
+
+        # Assert the component has been invalidated
+        self.assertEqual(compo.states, [IPopoEvent.INVALIDATED],
+                         "@Instantiate component should have been invalidated")
+
+        # Assert the framework has been cleaned up
+        self.assertFalse(self.ipopo.is_registered_factory(factory),
+                         "Factory registered while the bundle has been stopped")
+
+        self.assertFalse(self.ipopo.is_registered_instance(name),
+                         "Instance registered while the bundle has been "
+                         "stopped")
+
+        # Ensure the service has been unregistered properly
+        self.assertIsNone(context.get_service_reference(svc_spec),
+                          "@Instantiate service is still there")
+
+
 
 class ProvidesTest(unittest.TestCase):
     """
@@ -695,6 +882,45 @@ class SimpleTests(unittest.TestCase):
         self.assertIsNone(constants.get_ipopo_svc_ref(self.context),
                           "iPOPO service found while stopped.")
 
+        # Uninstall the bundle
+        ref.get_bundle().uninstall()
+
+        # Ensure the service is not accessible anymore
+        self.assertIsNone(constants.get_ipopo_svc_ref(self.context),
+                          "iPOPO service found while stopped.")
+
+
+    def testGetFactoryContext(self):
+        """
+        Tests the _get_factory_context() method
+        """
+        class DummyClass(object):
+            pass
+
+        class ChildClass(DummyClass):
+            pass
+
+        # Assert the field doesn't exist yet
+        self.assertRaises(AttributeError, getattr, DummyClass,
+                          constants.IPOPO_FACTORY_CONTEXT_DATA)
+
+        # Convert the parent into a component
+        DummyClass = decorators.ComponentFactory("dummy-factory") \
+                     (
+                        decorators.Requires("field", "req")
+                        (DummyClass)
+                     )
+
+        # Get the context
+        class_context = decorators._get_factory_context(DummyClass)
+        self.assertIsNotNone(decorators._get_factory_context(DummyClass),
+                             "Invalid factory context")
+
+        # The child has a copy of the parent context
+        child_context = decorators._get_factory_context(ChildClass)
+        self.assertIsNot(child_context, class_context,
+                         "The child must have a copy of the context")
+
 
     def testGetMethodDescription(self):
         """
@@ -714,6 +940,39 @@ class SimpleTests(unittest.TestCase):
                          decorators.get_method_description(os.getpid),
                          "Invalid description of getpid()")
 
+    def testGetSpecifications(self):
+        """
+        Tests the _get_specifications() method
+        """
+        for empty in (None, "", [], tuple()):
+            self.assertRaises(ValueError, decorators._get_specifications, empty)
+
+        # Class specification
+        class Spec(object):
+            pass
+
+        self.assertEqual(decorators._get_specifications(Spec),
+                         [Spec.__name__],
+                         "Class not converted into string")
+
+        # String specification
+        simple_spec = ["simple.spec"]
+        self.assertEqual(decorators._get_specifications(simple_spec[0]),
+                         simple_spec,
+                         "Simple string not converted into a list")
+
+        # Multiple specifications
+        multiple_spec = ["spec.1", "spec.2", Spec]
+        result_spec = ["spec.1", "spec.2", Spec.__name__]
+
+        self.assertEqual(decorators._get_specifications(multiple_spec),
+                         result_spec,
+                         "Invalid conversion of multiple specifications")
+
+        # Unhandled types
+        for invalid in (123, {"spec": 1}):
+            self.assertRaises(ValueError, decorators._get_specifications,
+                              invalid)
 
 # ------------------------------------------------------------------------------
 

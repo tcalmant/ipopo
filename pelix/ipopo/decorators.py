@@ -136,7 +136,7 @@ def validate_method_arity(method, *needed_args):
     elif len(method_args) != nb_needed_args or method_args[0] != 'self':
         # "Normal" arguments
         raise TypeError("The decorated method {0} must accept exactly {1} "
-                        "parameters : (self, {3})".format(
+                        "parameters : (self, {2})".format(
                                 get_method_description(method), nb_needed_args,
                                 ", ".join(needed_args)))
 
@@ -155,7 +155,6 @@ def _get_factory_context(cls):
     if context is None:
         # Class not yet manipulated
         context = FactoryContext()
-        setattr(cls, constants.IPOPO_FACTORY_CONTEXT_DATA, context)
 
     else:
         if is_from_parent(cls, constants.IPOPO_FACTORY_CONTEXT_DATA):
@@ -170,29 +169,13 @@ def _get_factory_context(cls):
             # * Provided services
             del context.provides[:]
 
-            setattr(cls, constants.IPOPO_FACTORY_CONTEXT_DATA, context)
-
         # We have a context of our own, make sure we have a FactoryContext
         if isinstance(context, dict):
             # Already manipulated and stored class
             context = FactoryContext.from_dictionary_form(context)
-            setattr(cls, constants.IPOPO_FACTORY_CONTEXT_DATA, context)
 
+    setattr(cls, constants.IPOPO_FACTORY_CONTEXT_DATA, context)
     return context
-
-
-def _is_method_or_function(tested):
-    """
-    Tests if the given object is function or a method using the inspect
-    module
-    
-    In Python 2.x classes, class functions are methods
-    In Python 3.x classes, there are functions
-    
-    :param tested: An object to be tested
-    :return: True if the tested object is a function or a method
-    """
-    return inspect.isfunction(tested) or inspect.ismethod(tested)
 
 
 def _ipopo_setup_callback(cls, context):
@@ -211,7 +194,7 @@ def _ipopo_setup_callback(cls, context):
     else:
         callbacks = {}
 
-    functions = inspect.getmembers(cls, _is_method_or_function)
+    functions = inspect.getmembers(cls, inspect.isroutine)
 
     for name, function in functions:
 
@@ -256,21 +239,16 @@ def _append_object_entry(obj, list_name, entry):
     :param obj: The object that contains the list
     :param list_name: The name of the list member in *obj*
     :param entry: The entry to be added to the list
+    :raise ValueError: Invalid attribute content
     """
     # Get the list
-    try:
-        obj_list = getattr(obj, list_name)
-        if not obj_list:
-            # Prepare a new dictionary dictionary
-            obj_list = []
-
-    except AttributeError:
+    obj_list = getattr(obj, list_name, None)
+    if obj_list is None:
         # We'll have to create it
         obj_list = []
         setattr(obj, list_name, obj_list)
 
-
-    assert(isinstance(obj_list, list))
+    assert isinstance(obj_list, list)
 
     # Set up the property, if needed
     if entry not in obj_list:
@@ -338,14 +316,15 @@ class Instantiate:
         :param name: Instance name
         :param properties: Instance properties
         """
-        if not isinstance(name, str):
+        if not is_string(name):
             raise TypeError("Instance name must be a string")
 
         if properties is not None and not isinstance(properties, dict):
             raise TypeError("Instance properties must be a dictionary or None")
 
+        name = name.strip()
         if not name:
-            raise ValueError("Invalid instance name '%s'", name)
+            raise ValueError("Invalid instance name '{0}'".format(name))
 
         self.__name = name
         self.__properties = properties
@@ -466,15 +445,27 @@ class Property:
         :param field: The property field in the class (can't be None nor empty)
         :param name: The property name (if None, this will be the field name)
         :param value: The property value
-        :raise ValueError: If The name if None or empty
+        :raise TypeError: Invalid argument type
+        :raise ValueError: If the name or the name is None or empty
         """
+        # Field validity test
+        if not is_string(field):
+            raise TypeError("Field name must be a string")
 
-        if not field:
-            raise ValueError("@Property with name '{0}' : field name missing" \
-                             .format(name))
+        field = field.strip()
+        if not field or ' ' in field:
+            raise ValueError("Empty or invalid property field name '{0}'"
+                             .format(field))
+
+        # Name validity test
+        if name is not None:
+            if not is_string(name):
+                raise TypeError("Property name must be a string")
+
+            name = name.strip()
 
         if not name:
-            # No name given : use the field name
+            # No name given: use the field name
             name = field
 
         self.__field = field
@@ -531,6 +522,10 @@ def _get_specifications(specifications):
 
     elif is_string(specifications):
         # Specification name
+        specifications = specifications.strip()
+        if not specifications:
+            raise ValueError("Empty specification given")
+
         return [specifications]
 
     elif isinstance(specifications, (list, tuple)):
@@ -560,10 +555,20 @@ class Provides:
         :param specifications: A list of provided interface(s) name(s)
                                (can't be empty)
         :param controller: Name of the service controller class field (optional)
-        :raise ValueError: If the name if None or empty
+        :raise ValueError: If the specifications are invalid
         """
-        if not specifications:
-            raise ValueError("Provided interface name can't be empty")
+        if controller is not None:
+            if not is_string(controller):
+                raise ValueError("Controller name must be a string")
+
+            controller = controller.strip()
+            if not controller:
+                # Empty controller name
+                _logger.warning("Empty controller name given")
+                controller = None
+
+            elif ' ' in controller:
+                raise ValueError("Controller name contains spaces")
 
         self.__specifications = _get_specifications(specifications)
         self.__controller = controller
@@ -624,11 +629,22 @@ class Requires:
         :param spec_filter: An LDAP query to filter injected services upon their
                             properties
         :raise TypeError: A parameter has an invalid type
-        :raise ValueError: An error occurred while parsing the filter
+        :raise ValueError: An error occurred while parsing the filter or an
+                           argument is incorrect
         """
+        if not field:
+            raise ValueError("Empty field name.")
+
+        if not is_string(field):
+            raise TypeError("The field name must be a string, not {0}" \
+                            .format(type(field).__name__))
+
+        if ' ' in field:
+            raise ValueError("Field name can't contain spaces.")
+
         self.__field = field
-        self.__requirement = Requirement(specification, aggregate, \
-                                               optional, spec_filter)
+        self.__requirement = Requirement(_get_specifications(specification),
+                                         aggregate, optional, spec_filter)
 
     def __call__(self, clazz):
         """
@@ -676,7 +692,7 @@ def Bind(method):
     :param method: The decorated method
     :raise TypeError: The decorated element is not a valid function
     """
-    if type(method) is not types.FunctionType:
+    if not inspect.isroutine(method):
         raise TypeError("@Bind can only be applied on functions")
 
     # Tests the number of parameters
