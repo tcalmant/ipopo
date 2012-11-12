@@ -136,8 +136,8 @@ class BundlesTest(unittest.TestCase):
         # Activator
         bundle.start()
 
-        self.assertEquals(bundle.get_state(), Bundle.ACTIVE, \
-                          "Bundle should be considered active")
+        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
+                         "Bundle should be considered active")
 
         self.assertTrue(module.started, "Bundle should be started now")
         self.assertFalse(module.stopped, "Bundle should not be stopped yet")
@@ -153,8 +153,8 @@ class BundlesTest(unittest.TestCase):
         # De-activate
         bundle.stop()
 
-        self.assertNotEquals(bundle.get_state(), Bundle.ACTIVE, \
-                             "Bundle shouldn't be considered active")
+        self.assertNotEqual(bundle.get_state(), Bundle.ACTIVE,
+                            "Bundle shouldn't be considered active")
 
         self.assertTrue(module.started, "Bundle should be changed")
         self.assertTrue(module.stopped, "Bundle should be stopped now")
@@ -167,8 +167,8 @@ class BundlesTest(unittest.TestCase):
         # Uninstall (validated in another test)
         bundle.uninstall()
 
-        self.assertEquals(bundle.get_state(), Bundle.UNINSTALLED, \
-                          "Bundle should be considered uninstalled")
+        self.assertEqual(bundle.get_state(), Bundle.UNINSTALLED,
+                         "Bundle should be considered uninstalled")
 
 
     def testLifeCycleExceptions(self):
@@ -200,8 +200,8 @@ class BundlesTest(unittest.TestCase):
         log_on()
 
         # Assert post-exception state
-        self.assertNotEquals(bundle.get_state(), Bundle.ACTIVE, \
-                             "Bundle shouldn't be considered active")
+        self.assertNotEqual(bundle.get_state(), Bundle.ACTIVE,
+                            "Bundle shouldn't be considered active")
         self.assertFalse(module.started, "Bundle should not be started yet")
         self.assertFalse(module.stopped, "Bundle should not be stopped yet")
 
@@ -209,8 +209,8 @@ class BundlesTest(unittest.TestCase):
         module.raiser = False
         bundle.start()
 
-        self.assertEquals(bundle.get_state(), Bundle.ACTIVE, \
-                          "Bundle should be considered active")
+        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
+                         "Bundle should be considered active")
 
         self.assertTrue(module.started, "Bundle should be started now")
         self.assertFalse(module.stopped, "Bundle should not be stopped yet")
@@ -222,8 +222,8 @@ class BundlesTest(unittest.TestCase):
         self.assertRaises(BundleException, bundle.stop)
         log_on()
 
-        self.assertNotEquals(bundle.get_state(), Bundle.ACTIVE, \
-                             "Bundle shouldn't be considered active")
+        self.assertNotEqual(bundle.get_state(), Bundle.ACTIVE,
+                            "Bundle shouldn't be considered active")
         self.assertTrue(module.started, "Bundle should be changed")
         self.assertFalse(module.stopped, "Bundle should be stopped now")
 
@@ -374,20 +374,21 @@ def test_fct():
         module = bundle.get_module()
 
         # Validate the bundle name
-        self.assertEquals(bundle.get_symbolic_name(), self.test_bundle_name, \
-                          "Names are different (%s / %s)" \
-                          % (bundle.get_symbolic_name(), self.test_bundle_name))
+        self.assertEqual(bundle.get_symbolic_name(), self.test_bundle_name,
+                         "Names are different ({0} / {1})" \
+                         .format(bundle.get_symbolic_name(),
+                                 self.test_bundle_name))
 
         # Validate get_location()
         bundle_without_ext = os.path.splitext(bundle.get_location())[0]
-        self.assertEquals(bundle_without_ext, self.test_bundle_loc, \
-                          "Not the same location %s -> %s" \
-                          % (self.test_bundle_loc, bundle_without_ext))
+        self.assertEqual(bundle_without_ext, self.test_bundle_loc,
+                         "Not the same location {0} -> {1}" \
+                         .format(self.test_bundle_loc, bundle_without_ext))
 
         # Validate the version number
         self.assertEqual(bundle.get_version(), module.__version__, \
-                         "Different versions found (%s / %s)" \
-                         % (bundle.get_version(), module.__version__))
+                         "Different versions found ({0} / {1})" \
+                         .format(bundle.get_version(), module.__version__))
 
         # Remove the bundle
         bundle.uninstall()
@@ -549,31 +550,31 @@ class FrameworkTest(unittest.TestCase):
         bid = context.install_bundle("tests.simple_bundle")
         bundle = context.get_bundle(bid)
 
-        self.assertEquals(bundle.get_state(), Bundle.RESOLVED,
-                          "Bundle should be in RESOLVED state")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
+                         "Bundle should be in RESOLVED state")
 
         # Starting the bundle now should fail
         self.assertRaises(BundleException, bundle.start)
-        self.assertEquals(bundle.get_state(), Bundle.RESOLVED,
-                          "Bundle should be in RESOLVED state")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
+                         "Bundle should be in RESOLVED state")
 
         # Start the framework
         framework.start()
 
         # Bundle should have been started now
-        self.assertEquals(bundle.get_state(), Bundle.ACTIVE,
-                          "Bundle should be in ACTIVE state")
+        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
+                         "Bundle should be in ACTIVE state")
 
         # Stop the framework
         framework.stop()
 
-        self.assertEquals(bundle.get_state(), Bundle.RESOLVED,
-                          "Bundle should be in RESOLVED state")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
+                         "Bundle should be in RESOLVED state")
 
         # Try to start the bundle again (must fail)
         self.assertRaises(BundleException, bundle.start)
-        self.assertEquals(bundle.get_state(), Bundle.RESOLVED,
-                          "Bundle should be in RESOLVED state")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
+                         "Bundle should be in RESOLVED state")
 
         FrameworkFactory.delete_framework(framework)
 
@@ -622,8 +623,8 @@ class FrameworkTest(unittest.TestCase):
 
         # The framework must have been stopped and must be active
         self.assertTrue(self.stopping, "Stop listener not called")
-        self.assertEquals(framework.get_state(), Bundle.ACTIVE,
-                          "Framework hasn't been restarted")
+        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
+                         "Framework hasn't been restarted")
 
         framework.stop()
         FrameworkFactory.delete_framework(framework)
@@ -652,11 +653,11 @@ class FrameworkTest(unittest.TestCase):
         self.assertTrue(framework.start(), "Framework should be started")
         log_on()
 
-        self.assertEquals(framework.get_state(), Bundle.ACTIVE,
-                          "Framework should be in ACTIVE state")
+        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
+                         "Framework should be in ACTIVE state")
 
-        self.assertEquals(bundle.get_state(), Bundle.RESOLVED,
-                          "Bundle should be in RESOLVED state")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
+                         "Bundle should be in RESOLVED state")
 
         # Stop the framework
         self.assertTrue(framework.stop(), "Framework should be stopped")
@@ -666,10 +667,10 @@ class FrameworkTest(unittest.TestCase):
 
         # Framework can start
         self.assertTrue(framework.start(), "Framework couldn't be started")
-        self.assertEquals(framework.get_state(), Bundle.ACTIVE,
-                          "Framework should be in ACTIVE state")
-        self.assertEquals(bundle.get_state(), Bundle.ACTIVE,
-                          "Bundle should be in ACTIVE state")
+        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
+                         "Framework should be in ACTIVE state")
+        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
+                         "Bundle should be in ACTIVE state")
 
         # Set module in raiser mode
         module.raiser = True
@@ -696,13 +697,13 @@ class FrameworkTest(unittest.TestCase):
         props = {pelix_test_name: pelix_test}
         framework = FrameworkFactory.get_framework(props)
 
-        self.assertEquals(framework.get_property(pelix_test_name), pelix_test, \
-                          "Invalid property value (preset value not set)")
+        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
+                         "Invalid property value (preset value not set)")
 
         # Pre-set property has priority
         os.environ[pelix_test_name] = pelix_test_2
-        self.assertEquals(framework.get_property(pelix_test_name), pelix_test, \
-                          "Invalid property value (preset has priority)")
+        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
+                         "Invalid property value (preset has priority)")
         del os.environ[pelix_test_name]
 
         FrameworkFactory.delete_framework(framework)
@@ -722,8 +723,8 @@ class FrameworkTest(unittest.TestCase):
                           "Magic property value")
 
         os.environ[pelix_test_name] = pelix_test
-        self.assertEquals(framework.get_property(pelix_test_name), pelix_test, \
-                          "Invalid property value")
+        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
+                         "Invalid property value")
         del os.environ[pelix_test_name]
 
         FrameworkFactory.delete_framework(framework)
@@ -747,15 +748,15 @@ class FrameworkTest(unittest.TestCase):
         self.assertTrue(framework.add_property(pelix_test_name, pelix_test),
                         "add_property shouldn't fail on first call")
 
-        self.assertEquals(framework.get_property(pelix_test_name), pelix_test, \
-                          "Invalid property value")
+        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
+                         "Invalid property value")
 
         # Update the property (must fail)
         self.assertFalse(framework.add_property(pelix_test_name, pelix_test_2),
                         "add_property must fail on second call")
 
-        self.assertEquals(framework.get_property(pelix_test_name), pelix_test, \
-                          "Invalid property value")
+        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
+                         "Invalid property value")
 
         FrameworkFactory.delete_framework(framework)
 
@@ -929,26 +930,26 @@ class LocalBundleTest(unittest.TestCase):
                       "Different bundle returned by ID and by name")
 
         # Validate the symbolic name
-        self.assertEquals(bundle.get_symbolic_name(), __name__, \
-                          "Bundle (%s) and module (%s) are different" \
-                          % (bundle.get_symbolic_name(), __name__))
+        self.assertEqual(bundle.get_symbolic_name(), __name__,
+                         "Bundle ({0}) and module ({1}) are different" \
+                         .format(bundle.get_symbolic_name(), __name__))
 
         # Validate get_bundle() via bundle context
         context_bundle = bundle.get_bundle_context().get_bundle()
-        self.assertIs(bundle, context_bundle, \
-                      "Not the same bundle :\n%d / %s\n%d / %s" \
-                      % (id(bundle), bundle, \
-                         id(context_bundle), context_bundle))
+        self.assertIs(bundle, context_bundle,
+                      "Not the same bundle :\n{0:d} / {1}\n{2:d} / {3}" \
+                      .format(id(bundle), bundle,
+                              id(context_bundle), context_bundle))
 
         # Validate get_version()
-        self.assertEquals(bundle.get_version(), __version__, \
-                          "Not the same version %s -> %s" \
-                          % (__version__, bundle.get_version()))
+        self.assertEqual(bundle.get_version(), __version__,
+                         "Not the same version {0} -> {1}" \
+                         .format(__version__, bundle.get_version()))
 
         # Validate get_location()
-        self.assertEquals(bundle.get_location(), __file__, \
-                          "Not the same location %s -> %s" \
-                          % (__file__, bundle.get_location()))
+        self.assertEqual(bundle.get_location(), __file__,
+                         "Not the same location {0} -> {1}" \
+                         .format(__file__, bundle.get_location()))
 
 # ------------------------------------------------------------------------------
 
@@ -1163,16 +1164,16 @@ class ServicesTest(unittest.TestCase):
                                                  pelix.SERVICE_RANKING: 128})
 
         # Tests
-        self.assertEquals(ref1, ref1, "ID1 == ID1")
-        self.assertEquals(ref1.__cmp__(ref1), 0, "Equality per __cmp__()")
+        self.assertEqual(ref1, ref1, "ID1 == ID1")
+        self.assertEqual(ref1.__cmp__(ref1), 0, "Equality per __cmp__()")
 
-        self.assertEquals(ref1.__cmp__("titi"), -1,
-                          "Lesser than unknown with  __cmp__()")
-        self.assertNotEquals(ref1, "titi", "Not equal to unknown with __eq__()")
+        self.assertEqual(ref1.__cmp__("titi"), -1,
+                         "Lesser than unknown with  __cmp__()")
+        self.assertNotEqual(ref1, "titi", "Not equal to unknown with __eq__()")
         self.assertLess(ref1, "titi", "Lesser than unknown with  __lt__()")
         self.assertLessEqual(ref1, "titi", "Lesser than unknown with  __le__()")
 
-        self.assertEquals(ref1, ref1b, "ID1 == ID1.0")
+        self.assertEqual(ref1, ref1b, "ID1 == ID1.0")
         self.assertGreaterEqual(ref1, ref1b, "ID1 >= ID1.0")
 
         # ID comparison
@@ -1217,13 +1218,13 @@ class ServicesTest(unittest.TestCase):
 
         # Ensure the reference uses a copy of the properties
         base_props["test"] = 21
-        self.assertEquals(ref.get_property("test"), 42,
-                          "Property updated by the dictionary reference")
+        self.assertEqual(ref.get_property("test"), 42,
+                         "Property updated by the dictionary reference")
 
         # Update the properties
         update_props = {pelix.OBJECTCLASS: "ref2",
-                      pelix.SERVICE_ID: 20,
-                      "test": 21}
+                        pelix.SERVICE_ID: 20,
+                        "test": 21}
 
         reg.set_properties(update_props)
 
@@ -1231,11 +1232,11 @@ class ServicesTest(unittest.TestCase):
         self.assertListEqual(ref.get_property(pelix.OBJECTCLASS), object_class,
                           "Modified objectClass property")
 
-        self.assertEquals(ref.get_property(pelix.SERVICE_ID), svc_id,
-                           "Modified service ID")
+        self.assertEqual(ref.get_property(pelix.SERVICE_ID), svc_id,
+                         "Modified service ID")
 
-        self.assertEquals(ref.get_property("test"), 21,
-                          "Extra property not updated")
+        self.assertEqual(ref.get_property("test"), 21,
+                         "Extra property not updated")
 
 
     def testGetAllReferences(self):
@@ -1248,7 +1249,7 @@ class ServicesTest(unittest.TestCase):
         # Get all references count
         all_refs = context.get_all_service_references(None, None)
         self.assertIsNotNone(all_refs, "All references result must not be None")
-        self.assertEquals(len(all_refs), 0, "Services list should be empty")
+        self.assertEqual(len(all_refs), 0, "Services list should be empty")
 
         # Install the service bundle
         bid = context.install_bundle(self.test_bundle_name)
@@ -1257,7 +1258,7 @@ class ServicesTest(unittest.TestCase):
         # No services yet
         all_refs = context.get_all_service_references(None, None)
         self.assertIsNotNone(all_refs, "All references result must not be None")
-        self.assertEquals(len(all_refs), 0, "Services list should be empty")
+        self.assertEqual(len(all_refs), 0, "Services list should be empty")
 
         # Start the bundle
         bundle.start()
@@ -1269,7 +1270,7 @@ class ServicesTest(unittest.TestCase):
         # Try with an empty filter (lists should be equal)
         all_refs_2 = context.get_all_service_references(None, "")
         self.assertListEqual(all_refs, all_refs_2,
-                             "References lists should be equals")
+                             "References lists should be equal")
 
         # Assert that the registered service is in the list
         ref = context.get_service_reference(IEchoService)
@@ -1335,9 +1336,9 @@ class ServiceEventTest(unittest.TestCase):
         if kind == ServiceEvent.MODIFIED \
         or kind == ServiceEvent.MODIFIED_ENDMATCH:
             # Properties have been modified
-            self.assertNotEquals(ref.get_properties(), \
-                                 event.get_previous_properties(), \
-                                 "Modified event for unchanged properties")
+            self.assertNotEqual(ref.get_properties(),
+                                event.get_previous_properties(),
+                                "Modified event for unchanged properties")
 
         self.assertNotIn(kind, self.received, "Event received twice")
         self.received.append(kind)

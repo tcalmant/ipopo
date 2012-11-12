@@ -202,17 +202,17 @@ class DecoratorsTest(unittest.TestCase):
 
         compo = context.get_service(ref)
 
-        self.assertEquals(compo.states, [IPopoEvent.INSTANTIATED,
-                                         IPopoEvent.VALIDATED],
-                          "@Instantiate component should have been validated")
+        self.assertEqual(compo.states, [IPopoEvent.INSTANTIATED,
+                                        IPopoEvent.VALIDATED],
+                         "@Instantiate component should have been validated")
         del compo.states[:]
 
         # Stop the bundle
         bundle.stop()
 
         # Assert the component has been invalidated
-        self.assertEquals(compo.states, [IPopoEvent.INVALIDATED],
-                          "@Instantiate component should have been invalidated")
+        self.assertEqual(compo.states, [IPopoEvent.INVALIDATED],
+                         "@Instantiate component should have been invalidated")
 
         # Assert the framework has been cleaned up
         self.assertFalse(self.ipopo.is_registered_factory(factory),
@@ -371,8 +371,8 @@ class ProvidesTest(unittest.TestCase):
             self.assertIsNotNone(ref, "Service hasn't been registered")
 
             # References must be different
-            self.assertNotEquals(ref, ref2,
-                                 "Service references must be different")
+            self.assertNotEqual(ref, ref2,
+                                "Service references must be different")
 
             # Compare service instances
             svc = context.get_service(ref)
@@ -380,7 +380,7 @@ class ProvidesTest(unittest.TestCase):
                           "Different instances for service and component")
 
             svc2 = context.get_service(ref2)
-            self.assertEquals(svc, svc2, "Got different service instances")
+            self.assertEqual(svc, svc2, "Got different service instances")
 
             # Clean up
             context.unget_service(ref)
@@ -710,9 +710,9 @@ class SimpleTests(unittest.TestCase):
                       "File couldn't determined")
 
         # Some methods are unreadable
-        self.assertEquals("'getpid'",
-                          decorators.get_method_description(os.getpid),
-                          "Invalid description of getpid()")
+        self.assertEqual("'getpid'",
+                         decorators.get_method_description(os.getpid),
+                         "Invalid description of getpid()")
 
 
 # ------------------------------------------------------------------------------

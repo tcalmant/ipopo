@@ -69,16 +69,16 @@ class LDAPUtilitiesTest(unittest.TestCase):
             str_comparator = pelix.ldapfilter.comparator2str(\
                                                         ldap_filter.comparator)
 
-            self.assertEquals(str_comparator, comparator,
-                              "Bad string for comparator '%s' : '%s'"
-                              % (comparator, str_comparator))
+            self.assertEqual(str_comparator, comparator,
+                             "Bad string for comparator '{0}': '{1}'" \
+                             .format(comparator, str_comparator))
 
         # Invalid comparators
         for comparator in (None, str, str(), int()):
             str_comparator = pelix.ldapfilter.comparator2str(comparator)
-            self.assertEquals(str_comparator, "??",
-                          "Bad string for comparator '%s' : '%s'"
-                          % (comparator, str_comparator))
+            self.assertEqual(str_comparator, "??",
+                             "Bad string for comparator '{0}': '{1}'" \
+                             .format(comparator, str_comparator))
 
 
     def testOperator2str(self):
@@ -91,15 +91,15 @@ class LDAPUtilitiesTest(unittest.TestCase):
 
         for operator, str_operator in operators.items():
             conv_operator = pelix.ldapfilter.operator2str(operator)
-            self.assertEquals(str_operator, conv_operator,
-                              "Invalid operator conversion '%s' : '%s'"
-                              % (str_operator, conv_operator))
+            self.assertEqual(str_operator, conv_operator,
+                             "Invalid operator conversion '{0}': '{1}'" \
+                             .format(str_operator, conv_operator))
 
         for operator in (None, str, int, str(), "AND", "OR", "NOT", 42):
             conv_operator = pelix.ldapfilter.operator2str(operator)
-            self.assertEquals("<unknown>", conv_operator,
-                              "Invalid operator conversion '%s' : '%s'"
-                              % (str_operator, conv_operator))
+            self.assertEqual("<unknown>", conv_operator,
+                             "Invalid operator conversion '{0}': '{1}'"
+                             .format(str_operator, conv_operator))
 
 
     def testEscapeLDAP(self):
@@ -139,15 +139,15 @@ class LDAPUtilitiesTest(unittest.TestCase):
         for normal, escaped in tested_values.items():
             # Escape
             ldap_escape = pelix.ldapfilter.escape_LDAP(normal)
-            self.assertEquals(escaped, ldap_escape,
-                              "Invalid escape '%s' should be '%s'"
-                              % (ldap_escape, escaped))
+            self.assertEqual(escaped, ldap_escape,
+                             "Invalid escape '{0}' should be '{1}'" \
+                             .format(ldap_escape, escaped))
 
             # Un-escape
             ldap_unescape = pelix.ldapfilter.unescape_LDAP(ldap_escape)
-            self.assertEquals(escaped, ldap_escape,
-                              "Invalid un-escape '%s' should be '%s'"
-                              % (ldap_unescape, normal))
+            self.assertEqual(escaped, ldap_escape,
+                             "Invalid unescape '{0}' should be '{1}'"
+                             .format(ldap_unescape, normal))
 
 
 # ------------------------------------------------------------------------------
@@ -197,7 +197,7 @@ class LDAPCriteriaTest(unittest.TestCase):
         assert isinstance(criteria, pelix.ldapfilter.LDAPCriteria)
 
         # Assert strings representations are equals
-        self.assertEquals(str_criteria, str(criteria))
+        self.assertEqual(str_criteria, str(criteria))
 
         # Conversion
         repr_criteria = repr(criteria)
@@ -208,7 +208,7 @@ class LDAPCriteriaTest(unittest.TestCase):
         eval_filter = eval(repr_criteria)
 
         # Equality based on the string form
-        self.assertEquals(str_criteria, str(eval_filter), "Invalid evaluation")
+        self.assertEqual(str_criteria, str(eval_filter), "Invalid evaluation")
 
 
     def testEq(self):
@@ -542,7 +542,7 @@ class LDAPFilterTest(unittest.TestCase):
         ldap_filter = get_ldap_filter(str_filter)
 
         # Assert strings representations are equals
-        self.assertEquals(str_filter, str(ldap_filter))
+        self.assertEqual(str_filter, str(ldap_filter))
 
         # Conversion
         repr_filter = repr(ldap_filter)
@@ -553,7 +553,7 @@ class LDAPFilterTest(unittest.TestCase):
         eval_filter = eval(repr_filter)
 
         # Equality based on the string form
-        self.assertEquals(str_filter, str(eval_filter), "Invalid evaluation")
+        self.assertEqual(str_filter, str(eval_filter), "Invalid evaluation")
 
         # Match test
         for test_value in (True, False):
@@ -562,10 +562,10 @@ class LDAPFilterTest(unittest.TestCase):
                     properties = {"test": test_value, "test2": test2_value, \
                                   "test3": test3_value}
 
-                    self.assertEquals(ldap_filter.matches(properties),
-                                      eval_filter.matches(properties),
-                                      "Different result found for %s" \
-                                      % properties)
+                    self.assertEqual(ldap_filter.matches(properties),
+                                     eval_filter.matches(properties),
+                                     "Different result found for %s" \
+                                     .format(properties))
 
 
     def testEq(self):
