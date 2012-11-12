@@ -212,8 +212,7 @@ class LDAPCriteria(object):
             raise ValueError("Invalid criteria parameter ({0}, {1}, {2})"\
                              .format(name, value, comparator))
 
-        if not inspect.isfunction(comparator) \
-        and not inspect.ismethod(comparator):
+        if not inspect.isroutine(comparator):
             # Ensure we have a valid comparator
             raise ValueError("Comparator must be a method: {0}", comparator)
 
