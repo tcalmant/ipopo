@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 Core module for Pelix.
 
@@ -335,7 +335,7 @@ class Bundle(object):
                     self._state = previous_state
 
                     # Raise the error
-                    _logger.exception("Error raised by %s while stopping",
+                    _logger.exception("Error raised by %s while starting",
                                       self.__name)
                     raise BundleException(ex)
 
@@ -736,15 +736,15 @@ class Framework(Bundle):
 
             if not svc_clazz or not is_string(svc_clazz):
                 # Invalid class name
-                raise BundleException("Invalid class name: {0}".format(
-                                                                    svc_clazz))
+                raise BundleException("Invalid class name: {0}" \
+                                      .format(svc_clazz))
 
             # Class OK
             classes.append(svc_clazz)
 
         # Make the service registration
         registration = self._registry.register(bundle, classes, properties,
-                                                service)
+                                               service)
 
         # Update the bundle registration information
         bundle._registered_service(registration)
@@ -900,7 +900,7 @@ class Framework(Bundle):
         :param reference: A ServiceRegistration to the service to unregister
         :raise BundleException: Invalid reference
         """
-        assert(isinstance(registration, ServiceRegistration))
+        assert isinstance(registration, ServiceRegistration)
 
         # Get the Service Reference
         reference = registration.get_reference()
@@ -2133,14 +2133,14 @@ class FrameworkFactory(object):
         :return: True on success, else False
         """
         if cls.__singleton is framework:
-
+            # Stop the framework
             try:
                 framework.stop()
 
             except:
                 _logger.exception("Error stopping the framework")
 
-
+            # Uninstall its bundles
             bundles = framework.get_bundles()
             for bundle in bundles:
                 try:
@@ -2149,6 +2149,10 @@ class FrameworkFactory(object):
                     _logger.exception("Error uninstalling bundle %s", \
                                       bundle.get_symbolic_name())
 
+            # Clear the event dispatcher
+            framework._dispatcher.clear()
+
+            # Clear the singleton
             cls.__singleton = None
             return True
 

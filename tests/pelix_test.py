@@ -16,6 +16,7 @@ from tests.interfaces import IEchoService
 import pelix.framework as pelix
 import os
 import logging
+import sys
 import threading
 import time
 
@@ -47,6 +48,7 @@ class BundlesTest(unittest.TestCase):
         """
         self.framework = FrameworkFactory.get_framework()
         self.framework.start()
+        self.context = self.framework.get_bundle_context()
 
         self.test_bundle_name = "tests.simple_bundle"
         # File path, without extension
@@ -67,8 +69,7 @@ class BundlesTest(unittest.TestCase):
         Tries to install an invalid bundle
         """
         # Try to install the bundle
-        context = self.framework.get_bundle_context()
-        self.assertRaises(BundleException, context.install_bundle,
+        self.assertRaises(BundleException, self.context.install_bundle,
                           "//Invalid Name\\\\")
 
 
@@ -79,14 +80,11 @@ class BundlesTest(unittest.TestCase):
         @param test_bundle_id: If True, also tests if the test bundle ID is 1
         """
         # Install the bundle
-        context = self.framework.get_bundle_context()
-        assert isinstance(context, BundleContext)
-
-        bid = context.install_bundle(self.test_bundle_name)
+        bid = self.context.install_bundle(self.test_bundle_name)
         if test_bundle_id:
             self.assertEqual(bid, 1, "Not the first bundle in framework")
 
-        bundle = context.get_bundle(bid)
+        bundle = self.context.get_bundle(bid)
         assert isinstance(bundle, Bundle)
 
         # Get the internal module
@@ -119,11 +117,8 @@ class BundlesTest(unittest.TestCase):
         @param test_bundle_id: If True, also tests if the test bundle ID is 1
         """
         # Install the bundle
-        context = self.framework.get_bundle_context()
-        assert isinstance(context, BundleContext)
-
-        bid = context.install_bundle(self.test_bundle_name)
-        bundle = context.get_bundle(bid)
+        bid = self.context.install_bundle(self.test_bundle_name)
+        bundle = self.context.get_bundle(bid)
         assert isinstance(bundle, Bundle)
 
         # Get the internal module
@@ -178,11 +173,8 @@ class BundlesTest(unittest.TestCase):
         @param test_bundle_id: If True, also tests if the test bundle ID is 1
         """
         # Install the bundle
-        context = self.framework.get_bundle_context()
-        assert isinstance(context, BundleContext)
-
-        bid = context.install_bundle(self.test_bundle_name)
-        bundle = context.get_bundle(bid)
+        bid = self.context.install_bundle(self.test_bundle_name)
+        bundle = self.context.get_bundle(bid)
         assert isinstance(bundle, Bundle)
 
         # Get the internal module
@@ -253,15 +245,12 @@ class BundlesTest(unittest.TestCase):
         Tests if a bundle is correctly uninstalled and if it is really
         unaccessible after its uninstallation.
         """
-        context = self.framework.get_bundle_context()
-        assert isinstance(context, BundleContext)
-
         # Install the bundle
-        bid = context.install_bundle(self.test_bundle_name)
+        bid = self.context.install_bundle(self.test_bundle_name)
         self.assertEqual(bid, 1, "Invalid first bundle ID '%d'" % bid)
 
         # Get the bundle
-        bundle = context.get_bundle(bid)
+        bundle = self.context.get_bundle(bid)
         assert isinstance(bundle, Bundle)
 
         # Test state
@@ -284,7 +273,7 @@ class BundlesTest(unittest.TestCase):
                          "Invalid fresh stop state %d" % bundle.get_state())
 
         # The bundle must not be accessible through the framework
-        self.assertRaises(BundleException, context.get_bundle, bid)
+        self.assertRaises(BundleException, self.context.get_bundle, bid)
 
         self.assertRaises(BundleException, self.framework.get_bundle_by_id, bid)
 
@@ -319,9 +308,8 @@ def test_fct():
         f.close()
 
         # 2/ Install the bundle and get its variable
-        context = self.framework.get_bundle_context()
-        bid = context.install_bundle(bundle_name)
-        bundle = context.get_bundle(bid)
+        bid = self.context.install_bundle(bundle_name)
+        bundle = self.context.get_bundle(bid)
         module = bundle.get_module()
 
         # Also start the bundle
@@ -367,7 +355,7 @@ def test_fct():
         self.assertEqual(bid, 1, "Invalid first bundle ID '%d'" % bid)
 
         # Get the bundle
-        bundle = self.framework.get_bundle_context().get_bundle(bid)
+        bundle = self.context.get_bundle(bid)
         assert isinstance(bundle, Bundle)
 
         # Get the internal module
@@ -517,6 +505,14 @@ class FrameworkTest(unittest.TestCase):
         Sets up tests variables
         """
         self.stopping = False
+
+
+    def tearDown(self):
+        """
+        Cleans up the tests variables
+        """
+        if 'tests.simple_bundle' in sys.modules:
+            del sys.modules['tests.simple_bundle']
 
 
     def testBundleZero(self):
@@ -681,6 +677,105 @@ class FrameworkTest(unittest.TestCase):
         log_on()
 
         self.assertTrue(self.stopping, "Stop listener not called")
+
+        FrameworkFactory.delete_framework(framework)
+
+
+    def testFrameworkStopRaiser(self):
+        """
+        Tests framework start and stop with a bundle raising exception
+        """
+        framework = FrameworkFactory.get_framework()
+        context = framework.get_bundle_context()
+
+        # Register the stop listener
+        context.add_framework_stop_listener(self)
+
+        # Install the bundle
+        bid = context.install_bundle("tests.simple_bundle")
+        bundle = context.get_bundle(bid)
+        module = bundle.get_module()
+
+        # Set module in non-raiser mode
+        module.raiser = False
+
+        # Framework can start...
+        log_off()
+        self.assertTrue(framework.start(), "Framework should be started")
+        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
+                         "Framework should be in ACTIVE state")
+        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
+                         "Bundle should be in ACTIVE state")
+        log_on()
+
+        # Set module in raiser mode
+        module.raiser = True
+
+        # Bundle must raise the exception and stay active
+        log_off()
+        self.assertRaises(BundleException, bundle.stop)
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
+                         "Bundle should be in RESOLVED state")
+        log_on()
+
+        # Stop framework
+        framework.stop()
+        FrameworkFactory.delete_framework(framework)
+
+
+    def testFrameworkStopper(self):
+        """
+        Tests FrameworkException stop flag handling
+        """
+        framework = FrameworkFactory.get_framework()
+        context = framework.get_bundle_context()
+
+        # Install the bundle
+        bid = context.install_bundle("tests.simple_bundle")
+        bundle = context.get_bundle(bid)
+        module = bundle.get_module()
+
+        # Set module in raiser stop mode
+        module.fw_raiser = True
+        module.fw_raiser_stop = True
+
+        log_off()
+        self.assertFalse(framework.start(), "Framework should be stopped")
+        self.assertEqual(framework.get_state(), Bundle.RESOLVED,
+                         "Framework should be stopped")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
+                         "Bundle should be stopped")
+        log_on()
+
+        # Set module in raiser non-stop mode
+        module.fw_raiser_stop = False
+
+        log_off()
+        self.assertTrue(framework.start(), "Framework should be stopped")
+        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
+                         "Framework should be started")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
+                         "Bundle should be stopped")
+        log_on()
+
+        # Start the module
+        module.fw_raiser = False
+        bundle.start()
+        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
+                         "Bundle should be active")
+
+        # Set module in raiser mode
+        module.fw_raiser = True
+        module.fw_raiser_stop = True
+
+        # Stop the framework
+        log_off()
+        self.assertTrue(framework.stop(), "Framework couldn't be stopped")
+        self.assertEqual(framework.get_state(), Bundle.RESOLVED,
+                         "Framework should be stopped")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
+                         "Bundle should be stopped")
+        log_on()
 
         FrameworkFactory.delete_framework(framework)
 
@@ -968,9 +1063,6 @@ class ServicesTest(unittest.TestCase):
         self.framework = FrameworkFactory.get_framework()
         self.framework.start()
 
-        fw_context = self.framework.get_bundle_context()
-        assert isinstance(fw_context, BundleContext)
-
 
     def tearDown(self):
         """
@@ -1111,6 +1203,8 @@ class ServicesTest(unittest.TestCase):
         # Install the service bundle
         bid = context.install_bundle(self.test_bundle_name)
         bundle = context.get_bundle(bid)
+        assert isinstance(bundle, Bundle)
+
         module = bundle.get_module()
 
         # --- Start it (registers a service) ---
@@ -1122,12 +1216,30 @@ class ServicesTest(unittest.TestCase):
         ref = context.get_service_reference(IEchoService)
         self.assertIsNotNone(ref, "get_service_reference found nothing")
 
+        registered_svcs = bundle.get_registered_services()
+        self.assertIn(ref, registered_svcs,
+                      "Reference not in registered services")
+
+        # Get the service
+        svc = context.get_service(ref)
+        self.assertIn(ref, self.framework.get_services_in_use(),
+                      "Reference usage not indicated")
+
+        context.unget_service(ref)
+        self.assertNotIn(ref, self.framework.get_services_in_use(),
+                         "Reference usage not removed")
+        svc = None
+
         # --- Uninstall the bundle without stopping it first ---
         bundle.uninstall()
 
         # The service should be deleted
         ref = context.get_service_reference(IEchoService)
         self.assertIsNone(ref, "get_service_reference found : %s" % ref)
+
+        # We shouldn't have access to the bundle services anymore
+        self.assertRaises(BundleException, bundle.get_registered_services)
+        self.assertRaises(BundleException, bundle.get_services_in_use)
 
 
     def testServiceReferencesCmp(self):
@@ -1283,6 +1395,41 @@ class ServicesTest(unittest.TestCase):
         # Test an invalid filter
         self.assertRaises(BundleException, context.get_all_service_references,
                           None, "/// Invalid Filter ///")
+
+
+    def testMultipleUNegistrations(self):
+        """
+        Tests behavior when unregistering the same service twice
+        """
+        context = self.framework.get_bundle_context()
+        assert isinstance(context, BundleContext)
+
+        # Register a dummy service
+        registration = context.register_service("test", self, None, False)
+
+        # Unregister it twice
+        registration.unregister()
+        self.assertRaises(BundleException, registration.unregister)
+
+
+    def testInvalidGetService(self):
+        """
+        Tests behavior when using get_service on an invalid service
+        """
+        context = self.framework.get_bundle_context()
+        assert isinstance(context, BundleContext)
+
+        # Register a dummy service
+        registration = context.register_service("test", self, None, False)
+
+        # Get the reference
+        reference = registration.get_reference()
+
+        # Unregister the service
+        registration.unregister()
+
+        # Try to get it
+        self.assertRaises(BundleException, context.get_service, reference)
 
 
 # ------------------------------------------------------------------------------

@@ -1,17 +1,19 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 Simple bundle with an activator (no service registered).
 
 :author: Thomas Calmant
 """
-from pelix.framework import BundleContext
+from pelix.framework import BundleContext, FrameworkException
 
 __version__ = (1, 0, 0)
 
 started = False
 stopped = False
 raiser = False
+fw_raiser = False
+fw_raiser_stop = False
 
 class ActivatorTest:
     """
@@ -32,6 +34,9 @@ class ActivatorTest:
         assert isinstance(context, BundleContext)
         self.context = context
 
+        if fw_raiser:
+            raise FrameworkException("Framework Exception", fw_raiser_stop)
+
         if raiser:
             raise Exception("Some exception")
 
@@ -45,6 +50,9 @@ class ActivatorTest:
         """
         assert isinstance(context, BundleContext)
         assert self.context is context
+
+        if fw_raiser:
+            raise FrameworkException("Framework Exception", fw_raiser_stop)
 
         if raiser:
             raise Exception("Some exception")
