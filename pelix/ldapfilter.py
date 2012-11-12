@@ -217,7 +217,7 @@ class LDAPCriteria(object):
             # Ensure we have a valid comparator
             raise ValueError("Comparator must be a method: {0}", comparator)
 
-        self.name = name
+        self.name = str(name)
         self.value = value
         self.comparator = comparator
 
@@ -230,13 +230,18 @@ class LDAPCriteria(object):
             # Bad type
             return False
 
-        for member in ('name', 'value', 'comparator'):
+        for member in ('name', 'comparator'):
             if getattr(self, member) != getattr(other, member):
                 # Difference found
                 return False
 
-        # Passed
-        return True
+        if type(self.value) == type(other.value):
+            # Same type: direct comparison
+            return self.value == other.value
+
+        else:
+            # Convert to strings for comparison
+            return str(self.value) == str(other.value)
 
 
     def __repr__(self):
@@ -250,8 +255,9 @@ class LDAPCriteria(object):
         """
         String description
         """
-        return "({0}{1}{2})".format(self.name, comparator2str(self.comparator),
-                                    self.value)
+        return "({0}{1}{2})".format(escape_LDAP(self.name),
+                                    comparator2str(self.comparator),
+                                    escape_LDAP(str(self.value)))
 
 
     def matches(self, properties):
@@ -631,23 +637,18 @@ def _compute_comparator(string, idx):
             # Strictly greater
             return _comparator_gt
 
-        else:
-            # Invalid operator
-            return None
+    else:
+        if part1 == '<':
+            # Less or equal
+            return _comparator_le
 
-    if part1 == '<':
-        # Less or equal
-        return _comparator_le
+        elif part1 == '>':
+            # Greater or equal
+            return _comparator_ge
 
-    elif part1 == '>':
-        # Greater or equal
-        return _comparator_ge
-
-    elif part1 == '~':
-        # Approximate equality
-        return _comparator_approximate
-
-    return None
+        elif part1 == '~':
+            # Approximate equality
+            return _comparator_approximate
 
 
 def _compute_operation(string, idx):
@@ -783,15 +784,16 @@ def _parse_LDAP(ldap_filter):
     :return: An LDAPFilter object, None if the filter was empty
     :raise ValueError: The LDAP filter string is invalid
     """
-    if not ldap_filter:
+    if ldap_filter is None:
+        # Nothing to do
         return None
 
     assert is_string(ldap_filter)
 
-    # Beginning of the filter
-    idx = _skip_spaces(ldap_filter, 0)
-    if idx == -1:
-        # No non-space character found
+    # Remove surrounding spaces
+    ldap_filter = ldap_filter.strip()
+    if not ldap_filter:
+        # Empty string
         return None
 
     escaped = False
@@ -800,14 +802,15 @@ def _parse_LDAP(ldap_filter):
     stack = []
     subfilter_stack = []
 
+    idx = 0
     while idx < filter_len:
-
         if not escaped:
             if ldap_filter[idx] == '(':
                 # Opening filter : get the operator
                 idx = _skip_spaces(ldap_filter, idx + 1)
                 if idx == -1:
-                    raise ValueError("Missing filter operator")
+                    raise ValueError("Missing filter operator: {0}" \
+                                     .format(ldap_filter))
 
                 operator = _compute_operation(ldap_filter, idx)
                 if operator is not None:
@@ -911,7 +914,7 @@ def combine_filters(filters, operator=AND):
     if not filters:
         return None
 
-    if not hasattr(filters, '__iter__'):
+    if not hasattr(filters, '__iter__') or is_string(filters):
         raise TypeError("Filters argument must be iterable")
 
     # Remove None filters and convert others

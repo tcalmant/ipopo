@@ -150,6 +150,143 @@ class LDAPUtilitiesTest(unittest.TestCase):
                              .format(ldap_unescape, normal))
 
 
+    def testParseCriteria(self):
+        """
+        Tests the _parse_LDAP_criteria() method
+        """
+        # Invalid criteria / incomplete operators
+        for invalid in ("test 12", "=12", "test=", "test~12", "test~"):
+            self.assertRaises(ValueError,
+                              pelix.ldapfilter._parse_LDAP_criteria, invalid)
+
+        # Escape test (avoid the first test)
+        value = "a=2 tes\ t\==1\ 2\~"
+        criteria = pelix.ldapfilter._parse_LDAP_criteria(value, 4, len(value))
+        self.assertEqual(criteria.name, "tes t=",
+                         "Escaped name not correctly parsed")
+        self.assertEqual(criteria.value, "1 2~",
+                         "Escaped value not correctly parsed")
+
+        # Invalid test range
+        test_str = "test=1"
+        self.assertRaises(ValueError,
+                          pelix.ldapfilter._parse_LDAP_criteria,
+                          test_str, 0, len(test_str) + 1)
+
+        self.assertRaises(ValueError,
+                          pelix.ldapfilter._parse_LDAP_criteria,
+                          test_str, -1, len(test_str))
+
+        self.assertRaises(ValueError,
+                          pelix.ldapfilter._parse_LDAP_criteria,
+                          test_str, len(test_str) - 1 , len(test_str) - 2)
+
+
+    def testParseLDAP(self):
+        """
+        Tests the _parse_LDAP method
+        """
+        # Empty filters
+        for empty in (None, "", "   "):
+            self.assertEqual(pelix.ldapfilter._parse_LDAP(empty), None,
+                             "Empty filter: must return None")
+
+        # Invalid filters
+        for invalid in ("(", "(test", "(|(test=True)(test=False))))",
+                        "(test)", "((test=1)(test2=1))"):
+            self.assertRaises(ValueError, pelix.ldapfilter._parse_LDAP, invalid)
+
+        # Criteria parsing
+        criteria = pelix.ldapfilter.LDAPCriteria("test", True,
+                                             pelix.ldapfilter._comparator_eq)
+        self.assertEqual(pelix.ldapfilter._parse_LDAP(str(criteria)), criteria,
+                         "Incorrect result: {0:s}".format(criteria))
+
+        # Filter parsing
+        ldap_filter = pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.AND)
+        sub_filter = pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.OR)
+        sub_filter_2 = pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.NOT)
+        sub_filter_2.subfilters.append(criteria)
+        sub_filter.subfilters.append(sub_filter_2)
+        sub_filter.subfilters.append(criteria)
+        ldap_filter.subfilters.append(sub_filter)
+        ldap_filter.subfilters.append(criteria)
+
+        criteria_2 = pelix.ldapfilter.LDAPCriteria("te st=", True,
+                                                pelix.ldapfilter._comparator_eq)
+        ldap_filter.subfilters.append(criteria_2)
+
+        self.assertEqual(pelix.ldapfilter._parse_LDAP(str(ldap_filter)),
+                         ldap_filter.normalize(),
+                         "Incorrect result: {0:s}".format(ldap_filter))
+
+
+    def testCombine(self):
+        """
+        Tests the combine_filters() method
+        """
+        # Standard case
+        criterias = [get_ldap_filter("(test=True)"),
+                     get_ldap_filter("(test2=False)")]
+
+        for operator in (pelix.ldapfilter.AND, pelix.ldapfilter.OR):
+            ldap_filter = pelix.ldapfilter.combine_filters(criterias, operator)
+
+            assert isinstance(ldap_filter, pelix.ldapfilter.LDAPFilter)
+            self.assertEqual(ldap_filter.operator, operator,
+                             "Invalid operator")
+            self.assertEqual(len(ldap_filter.subfilters), 2,
+                             "Invalid count of sub filters")
+
+            for criteria in criterias:
+                self.assertIn(criteria, ldap_filter.subfilters,
+                              "A criteria is missing in the result")
+
+        # No filter given
+        for empty in (None, [], tuple(), (None, None, None)):
+            self.assertIsNone(pelix.ldapfilter.combine_filters(empty),
+                              "Can't combine an empty list of filters")
+
+        # Empty sub filters
+        ldap_filter_1 = get_ldap_filter("(test=True)")
+        ldap_filter_2 = pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.AND)
+        self.assertIsNone(pelix.ldapfilter.combine_filters(empty),
+                          "Empty sub filters: return None")
+
+        # Invalid types
+        for invalid in ("Filters", get_ldap_filter("(!(test=True))")):
+            self.assertRaises(TypeError, pelix.ldapfilter.combine_filters,
+                              invalid)
+
+        # Unique filter in result
+        self.assertIs(pelix.ldapfilter.combine_filters((None, ldap_filter_1)),
+                      ldap_filter_1, "The result of combine must be minimal")
+
+
+    def testGetLdapFilter(self):
+        """
+        Tests the get_ldap_filter() method
+        """
+        # Simple parsing / re-parsing test
+        for str_filter, filter_type in \
+                (("(|(test=True)(test2=False))", pelix.ldapfilter.LDAPFilter),
+                 ("(test=True)", pelix.ldapfilter.LDAPCriteria)):
+            ldap_filter = get_ldap_filter(str_filter)
+            assert isinstance(ldap_filter, filter_type)
+
+            self.assertEqual(str(ldap_filter), str_filter, "Invalid parsing")
+            self.assertIs(get_ldap_filter(ldap_filter), ldap_filter,
+                          "get_ldap_filter should return the given object.")
+
+        # Empty filters
+        for empty in (None, "", "   "):
+            self.assertIsNone(get_ldap_filter(empty),
+                              "Empty filter should return None")
+
+        # Invalid types
+        for invalid in (1, [], {}):
+            self.assertRaises(TypeError, get_ldap_filter, invalid)
+
 # ------------------------------------------------------------------------------
 
 class LDAPCriteriaTest(unittest.TestCase):
@@ -228,7 +365,7 @@ class LDAPCriteriaTest(unittest.TestCase):
                             "Invalid equality (type)")
 
         # Tests order must not provide a different filter
-        str_filter_2 = "(&(test2=True)(test=False))"
+        str_filter_2 = "(&(test2 = True)(test = False))"
         ldap_filter_2 = get_ldap_filter(str_filter_2)
         self.assertEqual(ldap_filter, ldap_filter_2, "Filters are not equal")
 
@@ -256,38 +393,6 @@ class LDAPCriteriaTest(unittest.TestCase):
         criteria = get_ldap_filter("(test=True)")
         self.assertIs(criteria, criteria.normalize(),
                       "Criteria.normalize() must return itself")
-
-
-    def testParseCriteria(self):
-        """
-        Tests the _parse_LDAP_criteria() method
-        """
-        for invalid in ("test 12", "=12", "test=", "test~12"):
-            self.assertRaises(ValueError,
-                              pelix.ldapfilter._parse_LDAP_criteria, invalid)
-
-        # Escape test (avoid the first test)
-        value = "a=2 tes\ t\==1\ 2\~"
-        criteria = pelix.ldapfilter._parse_LDAP_criteria(value, 4, len(value))
-        self.assertEqual(criteria.name, "tes t=",
-                         "Escaped name not correctly parsed")
-        self.assertEqual(criteria.value, "1 2~",
-                         "Escaped value not correctly parsed")
-
-        # Invalid test range
-        test_str = "test=1"
-        self.assertRaises(ValueError,
-                          pelix.ldapfilter._parse_LDAP_criteria,
-                          test_str, 0, len(test_str) + 1)
-
-        self.assertRaises(ValueError,
-                          pelix.ldapfilter._parse_LDAP_criteria,
-                          test_str, -1, len(test_str))
-
-        self.assertRaises(ValueError,
-                          pelix.ldapfilter._parse_LDAP_criteria,
-                          test_str, len(test_str) - 1 , len(test_str) - 2)
-
 
 
     def testEmptyCriteria(self):
