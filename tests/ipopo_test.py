@@ -8,7 +8,9 @@ iPOPO test module. Tests both the iPOPO core module and decorators
 
 from pelix.ipopo import constants, decorators
 from pelix.ipopo.core import IPopoEvent, FactoryContext
-from pelix.framework import FrameworkFactory, BundleContext
+from pelix.framework import FrameworkFactory, Bundle, BundleContext
+
+from tests import log_on, log_off
 from tests.interfaces import IEchoService
 
 import logging
@@ -31,6 +33,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 NAME_A = "componentA"
 NAME_B = "componentB"
+NAME_C = "componentC"
 
 # ------------------------------------------------------------------------------
 
@@ -835,6 +838,180 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual([IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND], \
                          compoB.states, \
                          "Invalid component states : %s" % compoB.states)
+
+
+    def testAggregateDependency(self):
+        """
+        Tests a component that aggregates dependencies
+        """
+        # Install the test bundle
+        module = install_bundle(self.framework)
+
+        # Instantiate C (no requirement present, but they are optional)
+        compoC = self.ipopo.instantiate(module.FACTORY_C, NAME_C)
+        self.assertIsNone(compoC.services,
+                          "Aggregate dependency without value must be None")
+        self.assertEqual([IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
+                         compoC.states,
+                         "Invalid component states: {0}".format(compoC.states))
+        compoC.reset()
+
+        # Register a first service
+        context = self.framework.get_bundle_context()
+        reg = context.register_service(IEchoService, self, None)
+
+        # The dependency must be injected
+        self.assertIn(self, compoC.services, "Service not injected")
+        self.assertEqual([IPopoEvent.BOUND], compoC.states,
+                         "Invalid component states: {0}".format(compoC.states))
+        compoC.reset()
+
+        # Instantiate A
+        compoA = self.ipopo.instantiate(module.FACTORY_A, NAME_A)
+
+        # The dependency must be injected
+        self.assertIn(self, compoC.services, "Service illegally removed")
+        self.assertIn(compoA, compoC.services, "Service not injected")
+        self.assertEqual([IPopoEvent.BOUND], compoC.states,
+                         "Invalid component states: {0}".format(compoC.states))
+        compoC.reset()
+
+        # TODO: set A unusable
+
+        # Unregister the first service
+        reg.unregister()
+
+        # The dependency must have been removed
+        self.assertNotIn(self, compoC.services, "Service not removed")
+        self.assertIn(compoA, compoC.services, "Service illegally removed")
+        self.assertEqual([IPopoEvent.UNBOUND], compoC.states,
+                         "Invalid component states: {0}".format(compoC.states))
+        compoC.reset()
+
+        # Delete A
+        self.ipopo.kill(NAME_A)
+
+        # The dependency must have been removed
+        self.assertIsNone(compoC.services,
+                          "Aggregate dependency without value must be None")
+        self.assertEqual([IPopoEvent.UNBOUND], compoC.states,
+                         "Invalid component states: {0}".format(compoC.states))
+        compoC.reset()
+
+        # Delete C
+        self.ipopo.kill(NAME_C)
+        self.assertEqual([IPopoEvent.INVALIDATED], compoC.states,
+                         "Invalid component states: {0}".format(compoC.states))
+
+
+    def testCallbackRaiser(self):
+        """
+        Tests exception handling during a callback
+        """
+        module = install_bundle(self.framework)
+
+        # Instantiate B (no requirement present)
+        compoB = self.ipopo.instantiate(module.FACTORY_B, NAME_B)
+        self.assertEqual([IPopoEvent.INSTANTIATED], compoB.states, \
+                         "Invalid component states : %s" % compoB.states)
+        compoB.reset()
+
+        # Set B in raiser mode
+        compoB.raiser = True
+
+        # Instantiate A (validated)
+        log_off()
+        compoA = self.ipopo.instantiate(module.FACTORY_A, NAME_A)
+        log_on()
+
+        self.assertEqual([IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
+                         compoA.states,
+                         "Invalid component states : %s" % compoA.states)
+        compoA.reset()
+
+        # B must have been validated
+        self.assertEqual([IPopoEvent.BOUND, IPopoEvent.VALIDATED],
+                         compoB.states,
+                         "Invalid component states : %s" % compoB.states)
+        compoB.reset()
+
+        # Uninstantiate A
+        log_off()
+        self.ipopo.kill(NAME_A)
+        log_on()
+
+        self.assertEqual([IPopoEvent.INVALIDATED], compoA.states, \
+                         "Invalid component states : %s" % compoA.states)
+
+        # Uninstantiate B
+        self.assertEqual([IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
+                         compoB.states, \
+                         "Invalid component states : %s" % compoB.states)
+
+
+    def testCallbackInstantiateStopper(self):
+        """
+        Tests exception handling during a callback
+        """
+        module = install_bundle(self.framework)
+
+        # Instantiate B (no requirement present)
+        compoB = self.ipopo.instantiate(module.FACTORY_B, NAME_B)
+        self.assertEqual([IPopoEvent.INSTANTIATED], compoB.states, \
+                         "Invalid component states : %s" % compoB.states)
+        compoB.reset()
+
+        # Set B in raiser mode
+        compoB.fw_raiser = True
+        compoB.fw_raiser_stop = False
+
+        # Instantiate A (validated)
+        log_off()
+        compoA = self.ipopo.instantiate(module.FACTORY_A, NAME_A)
+        log_on()
+
+        self.assertEqual([IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
+                         compoA.states,
+                         "Invalid component states : %s" % compoA.states)
+        compoA.reset()
+
+        # B must have failed to start
+        self.assertEqual([IPopoEvent.BOUND, IPopoEvent.UNBOUND],
+                         compoB.states,
+                         "Invalid component states : %s" % compoB.states)
+        compoB.reset()
+
+        # Framework must still be active
+        self.assertEqual(self.framework.get_state(), Bundle.ACTIVE,
+                         "Framework has stopped")
+
+        # B must have been automatically killed
+        instances = [info[0] for info in self.ipopo.get_instances()]
+        self.assertIn(NAME_A, instances, "Component A should still be there")
+        self.assertNotIn(NAME_B, instances, "Component B still in instances")
+
+        # Kill A
+        self.ipopo.kill(NAME_A)
+
+        # Instantiate B (no requirement present)
+        compoB = self.ipopo.instantiate(module.FACTORY_B, NAME_B)
+        self.assertEqual([IPopoEvent.INSTANTIATED], compoB.states, \
+                         "Invalid component states : %s" % compoB.states)
+        compoB.reset()
+
+        # Set B in raiser mode
+        compoB.fw_raiser = True
+        compoB.fw_raiser_stop = True
+
+        # Instantiate A (validated)
+        log_off()
+        compoA = self.ipopo.instantiate(module.FACTORY_A, NAME_A)
+        log_on()
+
+        # Framework must have stopped now
+        self.assertEqual(self.framework.get_state(), Bundle.RESOLVED,
+                         "Framework hasn't stopped")
+
 
 # ------------------------------------------------------------------------------
 

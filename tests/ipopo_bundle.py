@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 Bundle defining multiple component factories for iPOPO tests
 
@@ -9,7 +9,7 @@ from pelix.ipopo.constants import IPOPO_INSTANCE_NAME
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
     Requires, Validate, Invalidate, Unbind, Bind, Instantiate
 from pelix.ipopo.core import IPopoEvent
-from pelix.framework import BundleContext
+from pelix.framework import BundleContext, FrameworkException
 from tests.interfaces import IEchoService
 
 # ------------------------------------------------------------------------------
@@ -18,6 +18,7 @@ __version__ = (1, 0, 0)
 
 FACTORY_A = "ipopo.tests.a"
 FACTORY_B = "ipopo.tests.b"
+FACTORY_C = "ipopo.tests.c"
 PROP_USABLE = "usable"
 
 # ------------------------------------------------------------------------------
@@ -136,6 +137,16 @@ class ComponentFactoryB(TestComponentFactory):
     """
     Sample Component B
     """
+    def __init__(self):
+        """"
+        Constructor
+        """
+        super(ComponentFactoryB, self).__init__()
+        self.service = None
+        self.raiser = False
+        self.fw_raiser = False
+        self.fw_raiser_stop = False
+
     @Bind
     def bind(self, svc, svc_ref):
         """
@@ -146,6 +157,13 @@ class ComponentFactoryB(TestComponentFactory):
 
         # Assert that the service is already usable
         assert self.service.echo(True)
+
+        if self.fw_raiser:
+            raise FrameworkException("FrameworkException", self.fw_raiser_stop)
+
+
+        if self.raiser:
+            raise Exception("Some exception")
 
     @Unbind
     def unbind(self, svc, svc_ref):
@@ -158,6 +176,47 @@ class ComponentFactoryB(TestComponentFactory):
         assert self.service.echo(True)
         assert self.ref is svc_ref
         self.ref = None
+
+        if self.fw_raiser:
+            raise FrameworkException("FrameworkException", self.fw_raiser_stop)
+
+        if self.raiser:
+            raise Exception("Some exception")
+
+
+@ComponentFactory(name=FACTORY_C)
+@Requires(field="services", specification=IEchoService, aggregate=True,
+          optional=True)
+class ComponentFactoryC(TestComponentFactory):
+    """
+    Sample component C
+    """
+    def __init__(self):
+        """"
+        Constructor
+        """
+        super(ComponentFactoryC, self).__init__()
+        self.services = None
+
+    @Bind
+    def bind(self, svc, svc_ref):
+        """
+        Bound
+        """
+        self.states.append(IPopoEvent.BOUND)
+
+        # Assert that the service is already usable
+        assert svc in self.services
+
+    @Unbind
+    def unbind(self, svc, svc_ref):
+        """
+        Unbound
+        """
+        self.states.append(IPopoEvent.UNBOUND)
+
+        # Assert that the service has been removed
+        assert svc not in self.services
 
 # ------------------------------------------------------------------------------
 
