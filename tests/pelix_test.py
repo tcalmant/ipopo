@@ -31,9 +31,6 @@ except ImportError:
 
 __version__ = (1, 0, 0)
 
-# Set logging level
-logging.basicConfig(level=logging.DEBUG)
-
 # ------------------------------------------------------------------------------
 
 class BundlesTest(unittest.TestCase):
@@ -1535,4 +1532,7 @@ class ServiceEventTest(unittest.TestCase):
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    # Set logging level
+    logging.basicConfig(level=logging.DEBUG)
+
     unittest.main()
