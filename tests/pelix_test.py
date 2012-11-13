@@ -876,8 +876,10 @@ class FrameworkTest(unittest.TestCase):
         self.assertTrue(context.add_framework_stop_listener(self),
                         "Can't register the stop listener")
 
+        log_off()
         self.assertFalse(context.add_framework_stop_listener(self),
                          "Stop listener registered twice")
+        log_on()
 
         # Assert running state
         self.assertFalse(self.stopping, "Invalid running state")
@@ -892,8 +894,10 @@ class FrameworkTest(unittest.TestCase):
         self.assertTrue(context.remove_framework_stop_listener(self),
                         "Can't unregister the stop listener")
 
+        log_off()
         self.assertFalse(context.remove_framework_stop_listener(self),
                          "Stop listener unregistered twice")
+        log_on()
 
         FrameworkFactory.delete_framework(framework)
 
@@ -1394,7 +1398,7 @@ class ServicesTest(unittest.TestCase):
                           None, "/// Invalid Filter ///")
 
 
-    def testMultipleUNegistrations(self):
+    def testMultipleUnregistrations(self):
         """
         Tests behavior when unregistering the same service twice
         """
@@ -1496,16 +1500,22 @@ class ServiceEventTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Double registration
-        self.assertTrue(context.add_service_listener(self), \
+        self.assertTrue(context.add_service_listener(self),
                         "Can't register the service listener")
-        self.assertFalse(context.add_service_listener(self), \
+
+        log_off()
+        self.assertFalse(context.add_service_listener(self),
                         "Service listener registered twice")
+        log_on()
 
         # Double unregistration
-        self.assertTrue(context.remove_service_listener(self), \
+        self.assertTrue(context.remove_service_listener(self),
                         "Can't unregister the service listener")
-        self.assertFalse(context.remove_service_listener(self), \
+
+        log_off()
+        self.assertFalse(context.remove_service_listener(self),
                         "Service listener unregistered twice")
+        log_on()
 
 
     def testInvalidFilterListener(self):

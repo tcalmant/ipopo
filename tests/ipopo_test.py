@@ -233,7 +233,9 @@ class DecoratorsTest(unittest.TestCase):
         decorators.Instantiate("test", {"id": 1})(DummyClass)
 
         # 2nd injection: nothing happens
+        log_off()
         decorators.Instantiate("test", {"id": 2})(DummyClass)
+        log_on()
 
         instances = getattr(DummyClass, constants.IPOPO_INSTANCES)
         self.assertEqual(instances["test"]["id"], 1,
@@ -285,7 +287,9 @@ class DecoratorsTest(unittest.TestCase):
             self.assertRaises(ValueError, decorators.Provides, empty)
 
             # No error should be raised
+            log_off()
             decorators.Provides("spec", empty)
+            log_on()
 
         # Field name with a space
         self.assertRaises(ValueError, decorators.Provides, "spec", "a space")

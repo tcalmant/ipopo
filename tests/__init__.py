@@ -15,15 +15,13 @@ def log_on():
     """
     Activates the logging
     """
-    root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
+    logging.disable(logging.NOTSET)
 
 def log_off():
     """
     Activates the logging
     """
-    root = logging.getLogger()
-    root.setLevel(logging.CRITICAL)
+    logging.disable(logging.CRITICAL)
 
 # ------------------------------------------------------------------------------
 
