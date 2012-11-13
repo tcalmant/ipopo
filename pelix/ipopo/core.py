@@ -235,7 +235,7 @@ class Requirement(object):
             # No properties : invalid service
             return False
 
-        assert(isinstance(properties, dict))
+        assert isinstance(properties, dict)
 
         # Properties filter test
         return self.filter.matches(properties)
@@ -248,9 +248,10 @@ class Requirement(object):
         :param spec_filter: The new requirement filter
         :raise TypeError: Unknown filter type
         """
-        if spec_filter is not None and not is_string(spec_filter) \
-        and not isinstance(spec_filter, ldapfilter.LDAPFilter) \
-        and not isinstance(spec_filter, ldapfilter.LDAPCriteria):
+        if spec_filter is not None \
+        and not is_string(spec_filter) \
+        and not isinstance(spec_filter,
+                           (ldapfilter.LDAPFilter, ldapfilter.LDAPCriteria)):
             # Unknown type
             raise TypeError("Invalid filter type {0}".format(
                                                     type(spec_filter).__name__))
@@ -1450,7 +1451,7 @@ class _StoredInstance(object):
                 # Safe call back needed and not yet passed
                 self.state = _StoredInstance.VALIDATING
                 if not self.__safe_callback(constants.IPOPO_CALLBACK_VALIDATE,
-                                          self.bundle_context):
+                                            self.bundle_context):
                     # Stop there if the callback failed
                     self.invalidate(True)
                     return
@@ -1461,9 +1462,12 @@ class _StoredInstance(object):
             # Call the handlers
             self.__safe_handlers_callback('post_validate')
 
-            # Trigger the iPOPO event (after the service _registration)
-            self._ipopo_service._fire_ipopo_event(IPopoEvent.VALIDATED,
-                                                  self.factory_name, self.name)
+            # We may have caused a framework error, so check if iPOPO is active
+            if self._ipopo_service is not None:
+                # Trigger the iPOPO event (after the service _registration)
+                self._ipopo_service._fire_ipopo_event(IPopoEvent.VALIDATED,
+                                                      self.factory_name,
+                                                      self.name)
 
 
     def __callback(self, event, *args, **kwargs):

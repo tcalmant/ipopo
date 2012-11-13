@@ -200,7 +200,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
         criteria = pelix.ldapfilter.LDAPCriteria("test", True,
                                              pelix.ldapfilter._comparator_eq)
         self.assertEqual(pelix.ldapfilter._parse_LDAP(str(criteria)), criteria,
-                         "Incorrect result: {0:s}".format(criteria))
+                         "Incorrect result: {0}".format(criteria))
 
         # Filter parsing
         ldap_filter = pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.AND)
@@ -218,7 +218,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
 
         self.assertEqual(pelix.ldapfilter._parse_LDAP(str(ldap_filter)),
                          ldap_filter.normalize(),
-                         "Incorrect result: {0:s}".format(ldap_filter))
+                         "Incorrect result: {0}".format(ldap_filter))
 
 
     def testCombine(self):
