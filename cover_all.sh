@@ -14,7 +14,7 @@ $DEFAULT_PYTHON -c "$COVERAGE" erase
 for PYTHON in "${PYTHONS[@]}"
 do
     echo "Run... using $PYTHON"
-    files=(utilities ldapfilter pelix ipopo)
+    files=("utilities" "ldapfilter" "pelix" "ipopo" "http/basic")
     for i in ${files[@]}
     do
         echo "Working on $i"

@@ -220,9 +220,8 @@ class _RequestHandler(BaseHTTPRequestHandler):
         # Parse the URL
         parsed_url = urlparse.urlparse(self.path)
         parsed_path = parsed_url.path
-        if parsed_path[0] != '/':
-            parsed_path = "/%s" % parsed_path
 
+        # Get the corresponding servlet
         servlet_info = self._service.get_servlet(parsed_path)
         if servlet_info is not None:
             servlet = servlet_info[0]
@@ -240,6 +239,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
         # Return the super implementation if needed
         return self.send_no_servlet_response
+
 
     def log_error(self, message, *args, **kwargs):
         """
@@ -326,41 +326,6 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 
 # ------------------------------------------------------------------------------
 
-def _safe_callback(instance, method, *args, **kwargs):
-    """
-    Safely calls the given method in the given instance.
-    Returns True on method absence.
-    Returns False on error.
-    Returns the method result if found.
-    
-    :param instance: The instance to call
-    :param method: The method to call in the instance
-    :return: The method result or True on method absence or False on error
-    """
-    # Call back the method
-    if instance is None:
-        # Consider invalidity as a failure
-        return False
-
-    callback = getattr(instance, method, None)
-    if callback is None:
-        # Consider absence as a success
-        return True
-
-    try:
-        result = callback(*args, **kwargs)
-        if result is None:
-            # Special case: consider None as success
-            return True
-
-        return result
-
-    except Exception as ex:
-            self.log_exception("Error calling back an instance: %s", ex)
-
-    return False
-
-
 @ComponentFactory(name=HTTP_SERVICE_COMPONENT_FACTORY)
 @Provides(specifications=http.HTTP_SERVICE)
 @Requires("_servlets_services", http.HTTP_SERVLET, True, True)
@@ -400,6 +365,48 @@ class HttpService(object):
         self._thread = None
 
 
+    def __str__(self):
+        """
+        String representation of the instance
+        """
+        return "BasicHttpService({0}, {1:d})".format(self._address, self._port)
+
+
+    def __safe_callback(self, instance, method, *args, **kwargs):
+        """
+        Safely calls the given method in the given instance.
+        Returns True on method absence.
+        Returns False on error.
+        Returns the method result if found.
+        
+        :param instance: The instance to call
+        :param method: The method to call in the instance
+        :return: The method result or True on method absence or False on error
+        """
+        # Call back the method
+        if instance is None:
+            # Consider invalidity as a failure
+            return False
+
+        callback = getattr(instance, method, None)
+        if callback is None:
+            # Consider absence as a success
+            return True
+
+        try:
+            result = callback(*args, **kwargs)
+            if result is None:
+                # Special case: consider None as success
+                return True
+
+            return result
+
+        except Exception as ex:
+                self.log_exception("Error calling back an instance: %s", ex)
+
+        return False
+
+
     @Bind
     def _bind(self, service, service_reference):
         """
@@ -430,22 +437,23 @@ class HttpService(object):
             self.unregister(None, service)
 
 
+    def get_access(self):
+        """
+        Retrieves the (address, port) tuple to access the server
+        """
+        sock_info = self._server.socket.getsockname()
+
+        # Only keep the address and the port information
+        return sock_info[0], sock_info[1]
+
+
     def get_hostname(self):
         """
         Retrieves the server host name
         
-        :return: The host name
+        :return: The server host name
         """
         return socket.gethostname()
-
-
-    def get_port(self):
-        """
-        Retrieves the port that this server listens to
-        
-        :return: The port this server listens to
-        """
-        return self._port
 
 
     def get_servlet(self, path):
@@ -456,7 +464,7 @@ class HttpService(object):
         :param path: A request URI
         :return: A tuple (servlet, parameters) or None
         """
-        if not path:
+        if not path or path[0] != "/":
             # No path, nothing to return
             return None
 
@@ -479,7 +487,7 @@ class HttpService(object):
 
             else:
                 # Retrieve the stored information
-                return self._servlets[servlet_path]
+                return self._servlets[longest_match]
 
 
     def register_servlet(self, path, servlet, parameters=None):
@@ -513,11 +521,16 @@ class HttpService(object):
         with self._lock:
             if path in self._servlets:
                 # Already registered path
-                raise ValueError("A servlet is already registered on {0}" \
-                                 .format(path))
+                if self._servlets[path][0] is servlet:
+                    # Nothing to do
+                    return True
+
+                else:
+                    raise ValueError("A servlet is already registered on {0}" \
+                                     .format(path))
 
             # Call back the method
-            if _safe_callback(servlet, "bound_to", path, parameters):
+            if self.__safe_callback(servlet, "bound_to", path, parameters):
                 # Store the servlet
                 self._servlets[path] = (servlet, parameters)
                 return True
@@ -533,7 +546,7 @@ class HttpService(object):
         :param servlet: If given, unregisters all the paths handled by this
                         servlet
         
-        :return: True if at least one path as been unregistered.
+        :return: True if at least one path as been unregistered, else False
         """
         if servlet is not None:
             with self._lock:
@@ -563,11 +576,12 @@ class HttpService(object):
                     # Unknown path
                     return False
 
-                _safe_callback(servlet_info[0], "unbound_from",
-                               path, servlet_info[1])
+                self.__safe_callback(servlet_info[0], "unbound_from",
+                                     path, servlet_info[1])
 
                 # Remove the servlet
                 del self._servlets[path]
+                return True
 
 
     def log(self, level, message, *args, **kwargs):
@@ -602,8 +616,13 @@ class HttpService(object):
             # Local host by default
             self._address = "localhost"
 
-        # Ensure we have an integer
-        self._port = int(self._port)
+        if self._port is None or self._port < 0:
+            # Random port
+            self._port = 0
+
+        else:
+            # Ensure we have an integer
+            self._port = int(self._port)
 
         # Set up the logger
         if self._logger_name is not None:
@@ -621,6 +640,9 @@ class HttpService(object):
         self._server = _HttpServerFamily((self._address, self._port),
                                          lambda *x: _RequestHandler(self, *x),
                                          self._logger)
+
+        # Property update (if port was 0)
+        self._port = self._server.socket.getsockname()[1]
 
         # Run it in a separate thread
         self._thread = threading.Thread(target=self._server.serve_forever)
@@ -647,14 +669,15 @@ class HttpService(object):
                  "Waiting HTTP server ([%s]:%d) thread to stop...",
                  self._address, self._port)
         self._thread.join(2)
-        self._thread = None
 
         # Close the server
         self._server.server_close()
-        self._server = None
 
         self.log(logging.INFO, "HTTP server down: [%s]:%d ...",
                  self._address, self._port)
 
-        if self._logger is not None:
-            self._logger = None
+        # Clean up
+        self._servlets.clear()
+        self._thread = None
+        self._server = None
+        self._logger = None
