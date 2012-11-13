@@ -350,12 +350,12 @@ class Instantiate:
             instances = {}
             setattr(factory_class, constants.IPOPO_INSTANCES, instances)
 
-        if self.__name in instances:
-            _logger.warn("Component '%s' defined twice, new definition ignored",
-                         self.__name)
+        if self.__name not in instances:
+            instances[self.__name] = self.__properties
 
         else:
-            instances[self.__name] = self.__properties
+            _logger.warn("Component '%s' defined twice, new definition ignored",
+                         self.__name)
 
         return factory_class
 
@@ -416,17 +416,12 @@ class ComponentFactory:
         setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT_DATA, \
                 context.to_dictionary_form())
 
-        # Tell the developer that it might use __slots__ to avoid the
-        # properties getter and setter injected in the instance
-
-        # if len(context.properties_fields) > 0 \
-        # and not hasattr(factory_class, "__slots__"):
-        #    _logger.debug("PERFORMANCE HINT: you might want to use a __slots__"
-        #                  " entry in the class '%s' to avoid the properties"
-        #                  " handlers overhead, adding '%s' and '%s' to it.",
-        #                  factory_class.__name__,
-        #                  constants.IPOPO_PROPERTY_GETTER,
-        #                  constants.IPOPO_PROPERTY_SETTER)
+        # Inject the properties getter and setter if needed
+        if len(context.properties_fields) > 0:
+            setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX \
+                    + constants.IPOPO_GETTER_SUFFIX, None)
+            setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX \
+                    + constants.IPOPO_SETTER_SUFFIX, None)
 
         return factory_class
 
@@ -606,6 +601,12 @@ class Provides:
             setattr(clazz, self.__controller,
                     _ipopo_class_field_property(self.__controller, True,
                                             constants.IPOPO_CONTROLLER_PREFIX))
+
+            # Inject the future controller methods
+            setattr(clazz, constants.IPOPO_CONTROLLER_PREFIX \
+                    + constants.IPOPO_GETTER_SUFFIX, None)
+            setattr(clazz, constants.IPOPO_CONTROLLER_PREFIX \
+                    + constants.IPOPO_SETTER_SUFFIX, None)
 
         return clazz
 
