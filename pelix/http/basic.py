@@ -213,38 +213,33 @@ class _RequestHandler(BaseHTTPRequestHandler):
         :return: The found attribute
         :raise AttributeError: Attribute not found
         """
-        try:
-            if not name.startswith("do_"):
-                # Not a request handling
-                return super(BaseHTTPRequestHandler, self).__getattribute__(name)
+        if not name.startswith("do_"):
+            # Not a request handling
+            return object.__getattribute__(self, name)
 
-            # Parse the URL
-            parsed_url = urlparse.urlparse(self.path)
-            parsed_path = parsed_url.path
-            if parsed_path[0] != '/':
-                parsed_path = "/%s" % parsed_path
+        # Parse the URL
+        parsed_url = urlparse.urlparse(self.path)
+        parsed_path = parsed_url.path
+        if parsed_path[0] != '/':
+            parsed_path = "/%s" % parsed_path
 
-            servlet_info = self._service.get_servlet(parsed_path)
-            if servlet_info is not None:
-                servlet = servlet_info[0]
-                if hasattr(servlet, name):
-                    # Prepare the helpers
-                    request = _HTTPServletRequest(self)
-                    response = _HTTPServletResponse(self)
+        servlet_info = self._service.get_servlet(parsed_path)
+        if servlet_info is not None:
+            servlet = servlet_info[0]
+            if hasattr(servlet, name):
+                # Prepare the helpers
+                request = _HTTPServletRequest(self)
+                response = _HTTPServletResponse(self)
 
-                    # Create a wrapper to pass the handler to the servlet
-                    def wrapper():
-                        return getattr(servlet, name)(request, response)
+                # Create a wrapper to pass the handler to the servlet
+                def wrapper():
+                    return getattr(servlet, name)(request, response)
 
-                    # Return it
-                    return wrapper
+                # Return it
+                return wrapper
 
-            # Return the super implementation if needed
-            return self.send_no_servlet_response
-        except:
-            self._service.log_exception("WTF ???")
-            raise
-
+        # Return the super implementation if needed
+        return self.send_no_servlet_response
 
     def log_error(self, message, *args, **kwargs):
         """
