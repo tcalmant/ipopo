@@ -195,6 +195,10 @@ class Requirement(object):
         """
         Equality test
         """
+        if other is self:
+            # Identity check
+            return True
+
         if not isinstance(other, Requirement):
             # Different types
             return False
@@ -349,7 +353,7 @@ class _RuntimeDependency(object):
         self.requirement = requirement
 
         # Current field value
-        self.value = None
+        self._value = None
 
 
     def clear(self):
@@ -363,7 +367,7 @@ class _RuntimeDependency(object):
         self._ipopo_instance = None
         self._context = None
         self.requirement = None
-        self.value = None
+        self._value = None
         self.field = None
 
 
@@ -386,12 +390,22 @@ class _RuntimeDependency(object):
         return (HANDLER_DEPENDENCY,)
 
 
+    def get_value(self):
+        """
+        Retrieves the value to inject in the component (can be different of
+        self._value)
+        
+        :return: The value to inject
+        """
+        return self._value
+
+
     def is_valid(self):
         """
         Tests if the dependency is in a valid state
         """
         return (self.requirement is not None and self.requirement.optional) \
-            or self.value is not None
+            or self._value is not None
 
 
     def on_service_arrival(self, svc_ref):
@@ -511,12 +525,12 @@ class _SimpleDependency(_RuntimeDependency):
         :param svc_ref: A service reference
         """
         with self._lock:
-            if self.value is None:
+            if self._value is None:
                 # Inject the service
                 self.reference = svc_ref
-                self.value = self._context.get_service(svc_ref)
+                self._value = self._context.get_service(svc_ref)
 
-                self._ipopo_instance.bind(self, self.value, self.reference)
+                self._ipopo_instance.bind(self, self._value, self.reference)
                 return True
 
 
@@ -529,10 +543,10 @@ class _SimpleDependency(_RuntimeDependency):
         with self._lock:
             if svc_ref is self.reference:
                 # Store the current values
-                service, reference = self.value, self.reference
+                service, reference = self._value, self.reference
 
                 # Clean the instance values
-                self.value = None
+                self._value = None
                 self.reference = None
 
                 self._ipopo_instance.unbind(self, service, reference)
@@ -558,7 +572,7 @@ class _SimpleDependency(_RuntimeDependency):
         super(_SimpleDependency, self).stop()
         if self.reference is not None:
             # Use a list
-            result = [(self.value, self.reference)]
+            result = [(self._value, self.reference)]
         else:
             result = None
 
@@ -597,6 +611,9 @@ class _AggregateDependency(_RuntimeDependency):
         # Reference -> Service
         self.services = {}
 
+        # Future injected value
+        self._future_value = None
+
 
     def clear(self):
         """
@@ -607,6 +624,11 @@ class _AggregateDependency(_RuntimeDependency):
         """
         self.services.clear()
         self.services = None
+
+        if self._future_value is not None:
+            del self._future_value[:]
+            self._future_value = None
+
         super(_AggregateDependency, self).clear()
 
 
@@ -620,6 +642,31 @@ class _AggregateDependency(_RuntimeDependency):
             return list(self.services.keys())
 
 
+    def get_value(self):
+        """
+        Retrieves the value to inject in the component (can be different of
+        self._value)
+        
+        :return: The value to inject
+        """
+        with self._lock:
+            # The value field must be a copy of our list
+            if self._future_value is not None:
+                self._value = self._future_value[:]
+            else:
+                self._value = None
+
+            return self._value
+
+
+    def is_valid(self):
+        """
+        Tests if the dependency is in a valid state
+        """
+        return (self.requirement is not None and self.requirement.optional) \
+            or self._future_value is not None
+
+
     def on_service_arrival(self, svc_ref):
         """
         Called when a service has been registered in the framework
@@ -631,12 +678,12 @@ class _AggregateDependency(_RuntimeDependency):
                 # Get the new service
                 service = self._context.get_service(svc_ref)
 
-                if self.value is None:
+                if self._future_value is None:
                     # First value
-                    self.value = []
+                    self._future_value = []
 
                 # Store the information
-                self.value.append(service)
+                self._future_value.append(service)
                 self.services[svc_ref] = service
 
                 self._ipopo_instance.bind(self, service, svc_ref)
@@ -658,11 +705,11 @@ class _AggregateDependency(_RuntimeDependency):
 
                 # Clean the instance values
                 del self.services[svc_ref]
-                self.value.remove(service)
+                self._future_value.remove(service)
 
                 # Nullify the value if needed
-                if not self.value:
-                    self.value = None
+                if not self._future_value:
+                    self._future_value = None
 
                 self._ipopo_instance.unbind(self, service, svc_ref)
                 return True
@@ -893,7 +940,7 @@ class FactoryContext(object):
     Represents the data stored in a component factory (class)
     """
 
-    __basic_fields = ('callbacks', 'name', 'properties', 'properties_fields', \
+    __basic_fields = ('callbacks', 'name', 'properties', 'properties_fields',
                       'provides')
 
     def __init__(self):
@@ -921,6 +968,43 @@ class FactoryContext(object):
 
         # Requirements : Field name -> Requirement object
         self.requirements = {}
+
+
+    def __eq__(self, other):
+        """
+        Equality test
+        """
+        if other is self:
+            # Identity
+            return True
+
+        if not isinstance(other, FactoryContext):
+            # Different types
+            return False
+
+        # Do not compare the bundle context, as it must not be stored
+        for field in ('name', 'callbacks', 'properties', 'properties_fields',
+                      'requirements'):
+            # Comparable fields
+            if getattr(self, field, None) != getattr(other, field, None):
+                return False
+
+        # Treat the list differently
+        if len(self.provides) != len(other.provides):
+            return False
+
+        for provided in self.provides:
+            if provided not in other.provides:
+                # Missing a provided service
+                return False
+
+        return True
+
+    def __ne__(self, other):
+        """
+        Inequality test
+        """
+        return not self.__eq__(other)
 
 
     def copy(self):
@@ -966,16 +1050,15 @@ class FactoryContext(object):
         :raise ValueError: An attribute is missing in the dictionary form
         :raise TypeError: Invalid form type (only dictionaries are accepted)
         """
-        # Prepare the instance, initializing it
-        instance = cls()
-
         if not isinstance(dictionary, dict):
             raise TypeError("Invalid form type '{0}'".format(
                                                     type(dictionary).__name__))
 
+        # Prepare the instance, initializing it
+        instance = cls()
+
         # Basic fields
         for field in cls.__basic_fields:
-
             if field not in dictionary:
                 raise ValueError("Incomplete dictionary form: missing {0}" \
                                  .format(field))
@@ -1684,7 +1767,7 @@ class _StoredInstance(object):
         """
         with self._lock:
             # Set the value
-            setattr(self.instance, dependency.field, dependency.value)
+            setattr(self.instance, dependency.field, dependency.get_value())
 
             # Call the component back
             self.__safe_callback(constants.IPOPO_CALLBACK_BIND,
@@ -1705,7 +1788,7 @@ class _StoredInstance(object):
                                  service, reference)
 
             # Update the injected field
-            setattr(self.instance, dependency.field, dependency.value)
+            setattr(self.instance, dependency.field, dependency.get_value())
 
             # Unget the service
             self.bundle_context.unget_service(reference)

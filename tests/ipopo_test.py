@@ -762,7 +762,6 @@ class RequirementTest(unittest.TestCase):
     """
     Tests the component requirements behavior
     """
-
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -975,7 +974,23 @@ class RequirementTest(unittest.TestCase):
                          "Invalid component states: {0}".format(compoC.states))
         compoC.reset()
 
-        # TODO: set A unusable
+        # Delete A
+        self.ipopo.kill(NAME_A)
+
+        # The dependency must have been removed
+        self.assertNotIn(compoA, compoC.services, "Service not removed")
+        self.assertIn(self, compoC.services, "Service illegally removed")
+        self.assertEqual([IPopoEvent.UNBOUND], compoC.states,
+                         "Invalid component states: {0}".format(compoC.states))
+        compoC.reset()
+
+        # Instantiate A
+        compoA = self.ipopo.instantiate(module.FACTORY_A, NAME_A)
+        self.assertIn(self, compoC.services, "Service illegally removed")
+        self.assertIn(compoA, compoC.services, "Service not injected")
+        self.assertEqual([IPopoEvent.BOUND], compoC.states,
+                         "Invalid component states: {0}".format(compoC.states))
+        compoC.reset()
 
         # Unregister the first service
         reg.unregister()
@@ -1295,6 +1310,11 @@ class SimpleCoreTests(unittest.TestCase):
         with_filter = Requirement(["spec"], spec_filter="(test=True)")
 
         # Match test
+        self.assertFalse(without_filter.matches(None),
+                        "Should never match with None")
+        self.assertFalse(with_filter.matches(None),
+                         "Should never match with None")
+
         for invalid in (None, "False", False, [False]):
             props = {pelix.OBJECTCLASS: "spec", "test": invalid}
             self.assertTrue(without_filter.matches(props),
@@ -1332,31 +1352,49 @@ class SimpleCoreTests(unittest.TestCase):
         req_2 = req_1.copy()
         self.assertEqual(req_1, req_1, "Requirement is not equal to its copy")
 
-        # Different objects
+        # Different filter
+        req_2.set_filter("(test=False)")
+        self.assertNotEqual(req_1, req_2,
+                            "Requirements are equal with different filter")
+        req_2.filter = req_1.filter
+
+        # Different flags
         req_2.optional = not req_1.optional
         self.assertNotEqual(req_1, req_2,
-                            "Requirement is equal with different optional flag")
+                        "Requirements are equal with different optional flag")
 
         req_2.aggregate = not req_1.aggregate
         self.assertNotEqual(req_1, req_2,
-                            "Requirement is equal with different flags")
+                        "Requirements are equal with different flags")
 
         req_2.optional = req_1.optional
         self.assertNotEqual(req_1, req_2,
-                        "Requirement is equal with different aggregate flags")
+                        "Requirements are equal with different aggregate flags")
 
 
     def testRequirementDictForm(self):
         """
-        Tests dictionary form serialization of Requirement
+        Tests the dictionary form serialization of Requirement
         """
         Requirement = self.ipopo_bundle.Requirement
 
         req_1 = Requirement(["spec_1", "spec_2"], True, True,
                             spec_filter="(test=True)")
 
-        req_2 = Requirement(["spec_1"], False, True,
-                            spec_filter="(test=True)")
+        # Invalid type
+        for invalid in (None, [], "test"):
+            self.assertRaises(TypeError, Requirement.from_dictionary_form,
+                              invalid)
+
+        # Invalid content
+        for invalid in ({}, {"spec": 0}, {"aggregate": False}):
+            self.assertRaises(ValueError, Requirement.from_dictionary_form,
+                              invalid)
+
+        # A dictionary should be accepted with only specifications
+        Requirement.from_dictionary_form({"specifications": ["spec"]})
+        self.assertRaises(TypeError, Requirement.from_dictionary_form,
+                          {"specifications": "spec"})
 
         for specifications in (["spec_1"], ["spec_1", "spec_2"]):
             for aggregate in (True, False):
@@ -1380,6 +1418,64 @@ class SimpleCoreTests(unittest.TestCase):
                         self.assertEqual(req, req_2,
                                          "Invalid serialization result")
 
+
+    def testFactoryContext(self):
+        """
+        Tests the dictionary form serialization of FactoryContext
+        """
+        FactoryContext = self.ipopo_bundle.FactoryContext
+        Requirement = self.ipopo_bundle.Requirement
+
+        # Prepare a requirement
+        req_1 = Requirement(["spec_1", "spec_2"], True, True,
+                            spec_filter="(test=True)")
+
+        # Prepare a context (content type is not tested)
+        context = FactoryContext()
+        context.bundle_context = 0
+        context.callbacks['callback'] = 'fct'
+        context.name = 'name'
+        context.properties['prop'] = 42
+        context.properties_fields['field_prop'] = 'prop'
+        context.provides.append('provides')
+        context.requirements['field_req'] = req_1
+
+        # Identity test
+        self.assertEqual(context, context, "Identity error")
+
+        # Copy test
+        context_2 = context.copy()
+        self.assertEqual(context, context_2, "Copy equality error")
+        self.assertIsNot(req_1, context_2, "Requirements must be copied")
+
+        # To dictionary
+        dict_form = context.to_dictionary_form()
+        self.assertIs(type(dict_form), dict, "Not a dictionary form")
+
+        # From dictionary
+        context_2 = FactoryContext.from_dictionary_form(dict_form)
+        self.assertIs(type(context_2), FactoryContext,
+                      "Not a FactoryContext form")
+        self.assertEqual(context, context_2, "Copy equality error")
+        self.assertIsNot(req_1, context_2, "Requirements must be copied")
+
+        # Invalid parameters types
+        for invalid in (None, "", "aaa", ["a"], 10):
+            self.assertRaises(TypeError, FactoryContext.from_dictionary_form,
+                              invalid)
+
+        # Invalid content
+        dict_copy = dict_form.copy()
+        for key, value in dict_form.items():
+            del dict_copy[key]
+            self.assertRaises(ValueError, FactoryContext.from_dictionary_form,
+                              dict_copy)
+            dict_copy[key] = value
+
+        for invalid in (None, "", ['aa'], 123):
+            dict_copy['requirements'] = invalid
+            self.assertRaises(TypeError, FactoryContext.from_dictionary_form,
+                              dict_copy)
 
 # ------------------------------------------------------------------------------
 

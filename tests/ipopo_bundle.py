@@ -218,7 +218,7 @@ class ComponentFactoryC(TestComponentFactory):
         self.states.append(IPopoEvent.UNBOUND)
 
         # Assert that the service has been removed
-        assert svc not in self.services
+        assert svc in self.services
 
 # ------------------------------------------------------------------------------
 
