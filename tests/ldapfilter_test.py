@@ -23,11 +23,16 @@ except ImportError:
 
 __version__ = (1, 0, 0)
 
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
+# ------------------------------------------------------------------------------
+
 def applyTest(self, filters, key):
     """
     Applies a list of tests according to the given dictionary
 
-    Dictionary format : filter -> ([True, results], [False, results])
+    Dictionary format: filter -> ([True, results], [False, results])
 
     @param filters: A filters test dictionary
     @param key: The key to use in the property dictionary
@@ -36,19 +41,20 @@ def applyTest(self, filters, key):
 
     for filter_str, tests in filters.items():
         ldap_filter = get_ldap_filter(filter_str)
-        self.assertIsNotNone(ldap_filter, "%s is a valid filter" \
-                             % filter_str)
+        self.assertIsNotNone(ldap_filter, "{0} is a valid filter" \
+                             .format(filter_str))
 
         for good in tests[0]:
             props[key] = good
-            self.assertTrue(ldap_filter.matches(props), \
-                    "Filter '%s' should match %s" % (ldap_filter, props))
+            self.assertTrue(ldap_filter.matches(props),
+                            "Filter '{0}' should match {1}" \
+                            .format(ldap_filter, props))
 
         for bad in tests[1]:
             props[key] = bad
-            self.assertFalse(ldap_filter.matches(props), \
-                    "Filter '%s' should not match %s" \
-                    % (ldap_filter, props))
+            self.assertFalse(ldap_filter.matches(props),
+                             "Filter '{0}' should not match {1}" \
+                             .format(ldap_filter, props))
 
 # ------------------------------------------------------------------------------
 
@@ -63,7 +69,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
         """
         for comparator in ('=', '<', '<=', '>', '>=', '=', '~='):
             # Parse a criteria with that comparator
-            ldap_filter = get_ldap_filter("(a%s1)" % comparator)
+            ldap_filter = get_ldap_filter("(a{0}1)".format(comparator))
 
             # Get the string version of the parsed comparator
             str_comparator = pelix.ldapfilter.comparator2str(\
@@ -109,7 +115,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
         Tested values from :
         https://www.owasp.org/index.php/Preventing_LDAP_Injection_in_Java
         """
-        # Tested values : normal -> escaped
+        # Tested values: normal -> escaped
         tested_values = {
                          # None -> None
                          None: None,
@@ -146,7 +152,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
             # Un-escape
             ldap_unescape = pelix.ldapfilter.unescape_LDAP(ldap_escape)
             self.assertEqual(escaped, ldap_escape,
-                             "Invalid unescape '{0}' should be '{1}'"
+                             "Invalid unescape '{0}' should be '{1}'" \
                              .format(ldap_unescape, normal))
 
 
@@ -325,7 +331,7 @@ class LDAPCriteriaTest(unittest.TestCase):
         """
         Tests repr() -> eval() transformation
         """
-        # String filter : no spaces between operators nor operands
+        # String filter: no spaces between operators nor operands
         # => allows direct str() results tests
         str_criteria = "(test=False)"
 
@@ -338,7 +344,7 @@ class LDAPCriteriaTest(unittest.TestCase):
 
         # Conversion
         repr_criteria = repr(criteria)
-        self.assertIn(str_criteria, repr_criteria, \
+        self.assertIn(str_criteria, repr_criteria,
                       "The representation must contain the criteria string")
 
         # Evaluation
@@ -401,7 +407,7 @@ class LDAPCriteriaTest(unittest.TestCase):
         """
         self.assertIsNone(get_ldap_filter(None), "None filter must return None")
         self.assertIsNone(get_ldap_filter(""), "Empty filter must return None")
-        self.assertIsNone(get_ldap_filter(" "), \
+        self.assertIsNone(get_ldap_filter(" "),
                           "Trimmed filter must return None")
 
 
@@ -416,23 +422,25 @@ class LDAPCriteriaTest(unittest.TestCase):
 
         # Test with a single property
         props["valid"] = True
-        self.assertTrue(ldap_filter.matches(props), \
-                        "Filter '%s' should match %s" % (ldap_filter, props))
+        self.assertTrue(ldap_filter.matches(props),
+                        "Filter '{0}' should match {1}" \
+                        .format(ldap_filter, props))
 
         props["valid"] = False
-        self.assertFalse(ldap_filter.matches(props), \
-                        "Filter '%s' should not match %s" \
-                        % (ldap_filter, props))
+        self.assertFalse(ldap_filter.matches(props),
+                         "Filter '{0}' should not match {1}" \
+                         .format(ldap_filter, props))
 
         # Test the ignorance of other properties
         props["valid2"] = True
-        self.assertFalse(ldap_filter.matches(props), \
-                        "Filter '%s' should not match %s" \
-                        % (ldap_filter, props))
+        self.assertFalse(ldap_filter.matches(props),
+                         "Filter '{0}' should not match {1}" \
+                         .format(ldap_filter, props))
 
         props["valid"] = "True"
-        self.assertTrue(ldap_filter.matches(props), \
-                        "Filter '%s' should match %s" % (ldap_filter, props))
+        self.assertTrue(ldap_filter.matches(props),
+                        "Filter '{0}' should match {1}" \
+                        .format(ldap_filter, props))
 
 
     def testPresenceCriteria(self):
@@ -445,41 +453,44 @@ class LDAPCriteriaTest(unittest.TestCase):
         self.assertIsNotNone(ldap_filter, "Filter should not be None")
 
         # Missing value
-        self.assertFalse(ldap_filter.matches(props), \
-                        "Filter '%s' should not match %s" \
-                        % (ldap_filter, props))
+        self.assertFalse(ldap_filter.matches(props),
+                         "Filter '{0}' should not match {1}" \
+                         .format(ldap_filter, props))
 
         # Still missing
         props["valid2"] = True
-        self.assertFalse(ldap_filter.matches(props), \
-                        "Filter '%s' should not match %s" \
-                        % (ldap_filter, props))
+        self.assertFalse(ldap_filter.matches(props),
+                         "Filter '{0}' should not match {1}" \
+                         .format(ldap_filter, props))
 
         # Value present
         props["valid"] = True
-        self.assertTrue(ldap_filter.matches(props), \
-                        "Filter '%s' should match %s" % (ldap_filter, props))
+        self.assertTrue(ldap_filter.matches(props),
+                        "Filter '{0}' should match {1}" \
+                        .format(ldap_filter, props))
 
         props["valid"] = False
-        self.assertTrue(ldap_filter.matches(props), \
-                        "Filter '%s' should match %s" % (ldap_filter, props))
+        self.assertTrue(ldap_filter.matches(props),
+                        "Filter '{0}' should match {1}" \
+                        .format(ldap_filter, props))
 
         # Some other type
         props["valid"] = "1234"
-        self.assertTrue(ldap_filter.matches(props), \
-                        "Filter '%s' should match %s" % (ldap_filter, props))
+        self.assertTrue(ldap_filter.matches(props),
+                        "Filter '{0}' should match {1}" \
+                        .format(ldap_filter, props))
 
         # Empty string
         props["valid"] = ""
-        self.assertFalse(ldap_filter.matches(props), \
-                        "Filter '%s' should not match %s" \
-                        % (ldap_filter, props))
+        self.assertFalse(ldap_filter.matches(props),
+                         "Filter '{0}' should not match {1}" \
+                         .format(ldap_filter, props))
 
         # Empty list
         props["valid"] = []
-        self.assertFalse(ldap_filter.matches(props), \
-                        "Filter '%s' should not match %s" \
-                        % (ldap_filter, props))
+        self.assertFalse(ldap_filter.matches(props),
+                         "Filter '{0}' should not match {1}" \
+                         .format(ldap_filter, props))
 
 
     def testStarCriteria(self):
@@ -488,21 +499,21 @@ class LDAPCriteriaTest(unittest.TestCase):
         """
         filters = {}
         # Simple string test
-        filters["(string=after*)"] = (("after", "after1234"), \
+        filters["(string=after*)"] = (("after", "after1234"),
                                       ("1324after", "before", "After"))
 
-        filters["(string=*before)"] = (("before", "1234before"), \
+        filters["(string=*before)"] = (("before", "1234before"),
                                        ("after", "before1234"), "Before")
 
-        filters["(string=*middle*)"] = (("middle", "aaamiddle1234", \
-                                         "middle456", "798middle"), \
+        filters["(string=*middle*)"] = (("middle", "aaamiddle1234",
+                                         "middle456", "798middle"),
                                         ("miDDle"))
 
         filters["(string=*mi*ed*)"] = (("mixed", "mixed1234", "798mixed",
                                         "mi O_O ed"), ("Mixed"))
 
         # List test
-        filters["(string=*li*ed*)"] = ((["listed"], ["toto", "aaaliXed123"]), \
+        filters["(string=*li*ed*)"] = ((["listed"], ["toto", "aaaliXed123"]),
                                       ([], ["LixeD"], ["toto"]))
 
         applyTest(self, filters, "string")
@@ -530,9 +541,9 @@ class LDAPCriteriaTest(unittest.TestCase):
         Test the presence filter on lists
         """
         filters = {}
-        filters["(list=toto)"] = ((["toto"], ["titi", "toto"], \
-                                   ["toto", "titi"], \
-                                   ["titi", "toto", "tutu"]), \
+        filters["(list=toto)"] = ((["toto"], ["titi", "toto"],
+                                   ["toto", "titi"],
+                                   ["titi", "toto", "tutu"]),
                                   ([], ["titi"], ["*toto*"]))
 
         applyTest(self, filters, "list")
@@ -600,7 +611,7 @@ class LDAPCriteriaTest(unittest.TestCase):
 
         # Star test
         filters["(string~=*test*)"] = ((["bigTest", "def"], "test", "TEST42"),
-                                    ([], ["aBc"], "T3st"))
+                                       ([], ["aBc"], "T3st"))
 
         applyTest(self, filters, "string")
 
@@ -639,7 +650,7 @@ class LDAPFilterTest(unittest.TestCase):
         """
         Test repr() -> eval() transformation
         """
-        # String filter : no spaces between operators nor operands
+        # String filter: no spaces between operators nor operands
         # => allows direct str() results tests
         str_filter = "(&(test=False)(test2=True))"
 
@@ -664,12 +675,12 @@ class LDAPFilterTest(unittest.TestCase):
         for test_value in (True, False):
             for test2_value in (True, False):
                 for test3_value in (None, True, False, 42, "string"):
-                    properties = {"test": test_value, "test2": test2_value, \
+                    properties = {"test": test_value, "test2": test2_value,
                                   "test3": test3_value}
 
                     self.assertEqual(ldap_filter.matches(properties),
                                      eval_filter.matches(properties),
-                                     "Different result found for %s" \
+                                     "Different result found for {0}" \
                                      .format(properties))
 
 
@@ -783,7 +794,7 @@ class LDAPFilterTest(unittest.TestCase):
         applyTest(self, filters, "test")
 
         # NOT handles only one operand
-        self.assertRaises(ValueError, get_ldap_filter, \
+        self.assertRaises(ValueError, get_ldap_filter,
                           "(!(test=True)(test2=False))")
 
 
@@ -797,24 +808,28 @@ class LDAPFilterTest(unittest.TestCase):
         # Valid
         props["test"] = True
         props["test2"] = False
-        self.assertTrue(ldap_filter.matches(props), \
-                    "Filter '%s' should match %s" % (ldap_filter, props))
+        self.assertTrue(ldap_filter.matches(props),
+                        "Filter '{0}' should match {1}" \
+                        .format(ldap_filter, props))
 
         # Invalid...
         props["test"] = False
         props["test2"] = False
-        self.assertFalse(ldap_filter.matches(props), \
-                    "Filter '%s' should not match %s" % (ldap_filter, props))
+        self.assertFalse(ldap_filter.matches(props),
+                         "Filter '{0}' should not match {1}" \
+                         .format(ldap_filter, props))
 
         props["test"] = False
         props["test2"] = True
-        self.assertFalse(ldap_filter.matches(props), \
-                    "Filter '%s' should not match %s" % (ldap_filter, props))
+        self.assertFalse(ldap_filter.matches(props),
+                         "Filter '{0}' should not match {1}" \
+                         .format(ldap_filter, props))
 
         props["test"] = True
         props["test2"] = True
-        self.assertFalse(ldap_filter.matches(props), \
-                    "Filter '%s' should not match %s" % (ldap_filter, props))
+        self.assertFalse(ldap_filter.matches(props),
+                         "Filter '{0}' should not match {1}" \
+                         .format(ldap_filter, props))
 
     def testOr(self):
         """
@@ -826,26 +841,33 @@ class LDAPFilterTest(unittest.TestCase):
         # Valid ...
         props["test"] = True
         props["test2"] = False
-        self.assertTrue(ldap_filter.matches(props), \
-                    "Filter '%s' should match %s" % (ldap_filter, props))
+        self.assertTrue(ldap_filter.matches(props),
+                        "Filter '{0}' should match {1}" \
+                        .format(ldap_filter, props))
 
         props["test"] = False
         props["test2"] = False
-        self.assertTrue(ldap_filter.matches(props), \
-                    "Filter '%s' should match %s" % (ldap_filter, props))
+        self.assertTrue(ldap_filter.matches(props),
+                        "Filter '{0}' should match {1}" \
+                        .format(ldap_filter, props))
 
         props["test"] = True
         props["test2"] = True
-        self.assertTrue(ldap_filter.matches(props), \
-                    "Filter '%s' should match %s" % (ldap_filter, props))
+        self.assertTrue(ldap_filter.matches(props),
+                        "Filter '{0}' should match {1}" \
+                        .format(ldap_filter, props))
 
         # Invalid...
         props["test"] = False
         props["test2"] = True
-        self.assertFalse(ldap_filter.matches(props), \
-                    "Filter '%s' should not match %s" % (ldap_filter, props))
+        self.assertFalse(ldap_filter.matches(props),
+                         "Filter '{0}' should not match {1}" \
+                         .format(ldap_filter, props))
 
 # ------------------------------------------------------------------------------
 
-if __name__ == "__main__":
+def main():
     unittest.main()
+
+if __name__ == "__main__":
+    main()

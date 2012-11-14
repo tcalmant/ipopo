@@ -25,6 +25,9 @@ except ImportError:
 
 __version__ = (1, 1, 0)
 
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
 # ------------------------------------------------------------------------------
 
 class SynchronizationUtilitiesTest(unittest.TestCase):
@@ -48,13 +51,13 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
 
         for test in valid:
             self.assertTrue(utilities.is_lock(test),
-                            "Valid lock not detected : %s"
-                            % type(test).__name__)
+                            "Valid lock not detected: {0}" \
+                            .format(type(test).__name__))
 
         for test in invalid:
             self.assertFalse(utilities.is_lock(test),
-                            "Invalid lock not detected : %s"
-                            % type(test).__name__)
+                             "Invalid lock not detected: {0}" \
+                            .format(type(test).__name__))
 
 
     @utilities.SynchronizedClassMethod('lock')
@@ -72,7 +75,7 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
 
         :param no_lock: If True, create the lock, else let the decorator do it
         """
-        # Thread results : ID -> starting time
+        # Thread results: ID -> starting time
         result = {}
 
         # Synchronization lock
@@ -278,11 +281,11 @@ class UtilitiesTest(unittest.TestCase):
 
         for value in valid:
             self.assertTrue(utilities.is_string(value),
-                            "'%s' is a string".format(value))
+                            "'{0}' is a string".format(value))
 
         for value in invalid:
             self.assertFalse(utilities.is_string(value),
-                             "'%s' is not a string".format(value))
+                             "'{0}' is not a string".format(value))
 
 
     def testAddRemoveListener(self):

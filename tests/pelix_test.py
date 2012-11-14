@@ -49,8 +49,8 @@ class BundlesTest(unittest.TestCase):
 
         self.test_bundle_name = "tests.simple_bundle"
         # File path, without extension
-        self.test_bundle_loc = os.path.abspath(self.test_bundle_name.replace(
-                                                                '.', os.sep))
+        self.test_bundle_loc = os.path.abspath(\
+                                    self.test_bundle_name.replace('.', os.sep))
 
 
     def tearDown(self):
@@ -230,10 +230,10 @@ class BundlesTest(unittest.TestCase):
         Keeping two separate calls instead of using a loop allows to see at
         which pass the test have failed
         """
-        # Pass 1 : normal test
+        # Pass 1: normal test
         self.testLifeCycle(True)
 
-        # Pass 2 : refresh test
+        # Pass 2: refresh test
         self.testLifeCycle(False)
 
 
@@ -244,30 +244,34 @@ class BundlesTest(unittest.TestCase):
         """
         # Install the bundle
         bid = self.context.install_bundle(self.test_bundle_name)
-        self.assertEqual(bid, 1, "Invalid first bundle ID '%d'" % bid)
+        self.assertEqual(bid, 1, "Invalid first bundle ID '{0:d}'".format(bid))
 
         # Get the bundle
         bundle = self.context.get_bundle(bid)
         assert isinstance(bundle, Bundle)
 
         # Test state
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED, \
-                         "Invalid fresh install state %d" % bundle.get_state())
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
+                         "Invalid fresh install state {0:d}" \
+                         .format(bundle.get_state()))
 
         # Start
         bundle.start()
-        self.assertEqual(bundle.get_state(), Bundle.ACTIVE, \
-                         "Invalid fresh start state %d" % bundle.get_state())
+        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
+                         "Invalid fresh start state {0:d}" \
+                         .format(bundle.get_state()))
 
         # Stop
         bundle.stop()
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED, \
-                         "Invalid fresh stop state %d" % bundle.get_state())
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
+                         "Invalid fresh stop state {0:d}" \
+                         .format(bundle.get_state()))
 
         # Uninstall
         bundle.uninstall()
-        self.assertEqual(bundle.get_state(), Bundle.UNINSTALLED, \
-                         "Invalid fresh stop state %d" % bundle.get_state())
+        self.assertEqual(bundle.get_state(), Bundle.UNINSTALLED,
+                         "Invalid fresh stop state {0:d}" \
+                         .format(bundle.get_state()))
 
         # The bundle must not be accessible through the framework
         self.assertRaises(BundleException, self.context.get_bundle, bid)
@@ -295,12 +299,12 @@ def test_fct():
 
         # 0/ Clean up existing files
         for ext in ("py", "pyc"):
-            path = "./%s.%s" % (bundle_name, ext)
+            path = ".{sep}{0}.{1}".format(bundle_name, ext, sep=os.path.sep)
             if os.path.exists(path):
                 os.remove(path)
 
         # 1/ Prepare the bundle, test variable is set to False
-        f = open("./%s.py" % bundle_name, "w")
+        f = open(".{sep}{0}.py".format(bundle_name, sep=os.path.sep), "w")
         f.write(bundle_content.format(version="1.0.0", test=False))
         f.close()
 
@@ -315,7 +319,7 @@ def test_fct():
         self.assertFalse(module.test_var, "Test variable should be False")
 
         # 3/ Change the bundle file
-        f = open("./%s.py" % bundle_name, "w")
+        f = open(".{sep}{0}.py".format(bundle_name, sep=os.path.sep), "w")
         f.write(bundle_content.format(version="1.0.1", test=True))
         f.close()
 
@@ -325,7 +329,7 @@ def test_fct():
         self.assertTrue(module.test_var, "Test variable should be True")
 
         # 5/ Change the bundle file, make it erroneous
-        f = open("./%s.py" % bundle_name, "w")
+        f = open(".{sep}{0}.py".format(bundle_name, sep=os.path.sep), "w")
         f.write(bundle_content.format(version="1.0.2", test="\n"))
         f.close()
 
@@ -337,7 +341,7 @@ def test_fct():
 
         # Finally, change the test file to be a valid module
         # -> Used by coverage for its report
-        f = open("./%s.py" % bundle_name, "w")
+        f = open(".{sep}{0}.py".format(bundle_name, sep=os.path.sep), "w")
         f.write(bundle_content.format(version="1.0.0", test=False))
         f.close()
 
@@ -349,7 +353,7 @@ def test_fct():
         """
         # Install the bundle
         bid = self.framework.install_bundle(self.test_bundle_name)
-        self.assertEqual(bid, 1, "Invalid first bundle ID '%d'" % bid)
+        self.assertEqual(bid, 1, "Invalid first bundle ID '{0:d}'".format(bid))
 
         # Get the bundle
         bundle = self.context.get_bundle(bid)
@@ -371,7 +375,7 @@ def test_fct():
                          .format(self.test_bundle_loc, bundle_without_ext))
 
         # Validate the version number
-        self.assertEqual(bundle.get_version(), module.__version__, \
+        self.assertEqual(bundle.get_version(), module.__version__,
                          "Different versions found ({0} / {1})" \
                          .format(bundle.get_version(), module.__version__))
 
@@ -427,7 +431,7 @@ class BundleEventTest(unittest.TestCase):
         if self.bundle is not None \
         and kind == BundleEvent.INSTALLED:
             # Bundle is not yet locally known...
-            self.assertIs(self.bundle, bundle, \
+            self.assertIs(self.bundle, bundle,
                           "Received an event for an other bundle.")
 
         self.assertNotIn(kind, self.received, "Event received twice")
@@ -442,7 +446,7 @@ class BundleEventTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Register to events
-        self.assertTrue(context.add_bundle_listener(self), \
+        self.assertTrue(context.add_bundle_listener(self),
                         "Can't register the bundle listener")
 
         # Install the bundle
@@ -450,15 +454,15 @@ class BundleEventTest(unittest.TestCase):
         self.bundle = bundle = context.get_bundle(bid)
         assert isinstance(bundle, Bundle)
         # Assert the Install events has been received
-        self.assertEqual([BundleEvent.INSTALLED], \
-                          self.received, "Received %s" % self.received)
+        self.assertEqual([BundleEvent.INSTALLED],
+                          self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Start the bundle
         bundle.start()
         # Assert the events have been received
-        self.assertEqual([BundleEvent.STARTING, BundleEvent.STARTED], \
-                          self.received, "Received %s" % self.received)
+        self.assertEqual([BundleEvent.STARTING, BundleEvent.STARTED],
+                          self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Stop the bundle
@@ -466,14 +470,14 @@ class BundleEventTest(unittest.TestCase):
         # Assert the events have been received
         self.assertEqual([BundleEvent.STOPPING, BundleEvent.STOPPING_PRECLEAN,
                           BundleEvent.STOPPED], self.received,
-                         "Received %s" % self.received)
+                         "Received {0}".format(self.received))
         self.reset_state()
 
         # Uninstall the bundle
         bundle.uninstall()
         # Assert the events have been received
-        self.assertEqual([BundleEvent.UNINSTALLED], \
-                          self.received, "Received %s" % self.received)
+        self.assertEqual([BundleEvent.UNINSTALLED],
+                          self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Unregister from events
@@ -518,7 +522,7 @@ class FrameworkTest(unittest.TestCase):
         """
         framework = FrameworkFactory.get_framework()
 
-        self.assertIsNone(framework.get_bundle_by_name(None), \
+        self.assertIsNone(framework.get_bundle_by_name(None),
                           "None name is not bundle 0")
 
         self.assertIs(framework, framework.get_bundle_by_id(0),
@@ -811,7 +815,7 @@ class FrameworkTest(unittest.TestCase):
         # Test without pre-set properties
         framework = FrameworkFactory.get_framework()
 
-        self.assertIsNone(framework.get_property(pelix_test_name), \
+        self.assertIsNone(framework.get_property(pelix_test_name),
                           "Magic property value")
 
         os.environ[pelix_test_name] = pelix_test
@@ -833,7 +837,7 @@ class FrameworkTest(unittest.TestCase):
         # Test without pre-set properties
         framework = FrameworkFactory.get_framework()
 
-        self.assertIsNone(framework.get_property(pelix_test_name), \
+        self.assertIsNone(framework.get_property(pelix_test_name),
                           "Magic property value")
 
         # Add the property
@@ -1022,7 +1026,7 @@ class LocalBundleTest(unittest.TestCase):
         # Get a reference to the bundle, by name
         bundle_2 = fw_context.get_bundle(0).get_bundle_by_name(__name__)
 
-        self.assertIs(bundle, bundle_2, \
+        self.assertIs(bundle, bundle_2,
                       "Different bundle returned by ID and by name")
 
         # Validate the symbolic name
@@ -1033,7 +1037,7 @@ class LocalBundleTest(unittest.TestCase):
         # Validate get_bundle() via bundle context
         context_bundle = bundle.get_bundle_context().get_bundle()
         self.assertIs(bundle, context_bundle,
-                      "Not the same bundle :\n{0:d} / {1}\n{2:d} / {3}" \
+                      "Not the same bundle:\n{0:d} / {1}\n{2:d} / {3}" \
                       .format(id(bundle), bundle,
                               id(context_bundle), context_bundle))
 
@@ -1091,19 +1095,20 @@ class ServicesTest(unittest.TestCase):
 
         # Assert we can't access the service
         ref1 = context.get_service_reference(IEchoService)
-        self.assertIsNone(ref1, "get_service_reference found : %s" % ref1)
+        self.assertIsNone(ref1, "get_service_reference found: {0}".format(ref1))
 
         ref2 = context.get_service_reference(IEchoService, svc_filter)
-        self.assertIsNone(ref2, "get_service_reference, filtered found : %s" \
-                          % ref2)
+        self.assertIsNone(ref2, "get_service_reference, filtered found: {0}" \
+                          .format(ref2))
 
         refs = context.get_all_service_references(IEchoService, None)
-        self.assertIsNone(refs, "get_all_service_reference found : %s" % refs)
+        self.assertIsNone(refs, "get_all_service_reference found: {0}" \
+                          .format(refs))
 
         refs = context.get_all_service_references(IEchoService, svc_filter)
-        self.assertIsNone(refs, \
-                          "get_all_service_reference, filtered found : %s" \
-                          % refs)
+        self.assertIsNone(refs,
+                          "get_all_service_reference, filtered found: {0}" \
+                          .format(refs))
 
         # --- Start it (registers a service) ---
         bundle.start()
@@ -1113,7 +1118,7 @@ class ServicesTest(unittest.TestCase):
         self.assertIsNotNone(ref1, "get_service_reference found nothing")
 
         ref2 = context.get_service_reference(IEchoService, svc_filter)
-        self.assertIsNotNone(ref2, \
+        self.assertIsNotNone(ref2,
                              "get_service_reference, filtered found nothing")
 
         # Assert we found the same references
@@ -1128,11 +1133,11 @@ class ServicesTest(unittest.TestCase):
         refs = context.get_all_service_references(IEchoService, svc_filter)
 
         # Assert we found only one reference
-        self.assertIsNotNone(refs, \
+        self.assertIsNotNone(refs,
                              "get_all_service_reference filtered found nothing")
 
         # Assert that the first found reference is the first of "all" references
-        self.assertIs(ref1, refs[0], \
+        self.assertIs(ref1, refs[0],
                       "Not the same references through get and get_all")
 
 
@@ -1175,19 +1180,20 @@ class ServicesTest(unittest.TestCase):
 
         # Assert we can't access the service
         ref1 = context.get_service_reference(IEchoService)
-        self.assertIsNone(ref1, "get_service_reference found : %s" % ref1)
+        self.assertIsNone(ref1, "get_service_reference found: {0}".format(ref1))
 
         ref2 = context.get_service_reference(IEchoService, svc_filter)
-        self.assertIsNone(ref2, "get_service_reference, filtered found : %s" \
-                          % ref2)
+        self.assertIsNone(ref2, "get_service_reference, filtered found: {0}" \
+                          .format(ref2))
 
         refs = context.get_all_service_references(IEchoService, None)
-        self.assertIsNone(refs, "get_all_service_reference found : %s" % refs)
+        self.assertIsNone(refs, "get_all_service_reference found: {0}"\
+                          .format(refs))
 
         refs = context.get_all_service_references(IEchoService, svc_filter)
-        self.assertIsNone(refs, \
-                          "get_all_service_reference, filtered found : %s" \
-                          % refs)
+        self.assertIsNone(refs,
+                          "get_all_service_reference, filtered found: {0}" \
+                          .format(refs))
 
         # --- Uninstall it ---
         bundle.uninstall()
@@ -1236,7 +1242,7 @@ class ServicesTest(unittest.TestCase):
 
         # The service should be deleted
         ref = context.get_service_reference(IEchoService)
-        self.assertIsNone(ref, "get_service_reference found : %s" % ref)
+        self.assertIsNone(ref, "get_service_reference found: {0}".format(ref))
 
         # We shouldn't have access to the bundle services anymore
         self.assertRaises(BundleException, bundle.get_registered_services)
@@ -1323,11 +1329,11 @@ class ServicesTest(unittest.TestCase):
         # Ensure that reserved properties have been overridden
         object_class = ref.get_property(pelix.OBJECTCLASS)
         self.assertListEqual(object_class, ["class"],
-                          "Invalid objectClass property '%s'" % object_class)
+                             "Invalid objectClass property '{0}'" \
+                             .format(object_class))
 
         svc_id = ref.get_property(pelix.SERVICE_ID)
-        self.assertGreater(svc_id, 0,
-                           "Invalid service ID")
+        self.assertGreater(svc_id, 0, "Invalid service ID")
 
         # Ensure the reference uses a copy of the properties
         base_props["test"] = 21
@@ -1530,7 +1536,7 @@ class ServiceEventTest(unittest.TestCase):
                           "Invalid")
         log_on()
 
-        self.assertFalse(context.remove_service_listener(self), \
+        self.assertFalse(context.remove_service_listener(self),
                          "Invalid filter was registered anyway")
 
 
@@ -1542,7 +1548,7 @@ class ServiceEventTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Register to events
-        self.assertTrue(context.add_service_listener(self), \
+        self.assertTrue(context.add_service_listener(self),
                         "Can't register the service listener")
 
         # Install the bundle
@@ -1550,27 +1556,27 @@ class ServiceEventTest(unittest.TestCase):
         self.bundle = bundle = context.get_bundle(bid)
         assert isinstance(bundle, Bundle)
         # Assert the Install events has been received
-        self.assertEqual([], self.received, "Received %s" % self.received)
+        self.assertEqual([], self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Start the bundle
         bundle.start()
         # Assert the events have been received
-        self.assertEqual([ServiceEvent.REGISTERED], \
-                          self.received, "Received %s" % self.received)
+        self.assertEqual([ServiceEvent.REGISTERED],
+                          self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Stop the bundle
         bundle.stop()
         # Assert the events have been received
-        self.assertEqual([ServiceEvent.UNREGISTERING], \
-                          self.received, "Received %s" % self.received)
+        self.assertEqual([ServiceEvent.UNREGISTERING],
+                          self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Uninstall the bundle
         bundle.uninstall()
         # Assert the events have been received
-        self.assertEqual([], self.received, "Received %s" % self.received)
+        self.assertEqual([], self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Unregister from events
@@ -1586,7 +1592,7 @@ class ServiceEventTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Register to events
-        self.assertTrue(context.add_service_listener(self), \
+        self.assertTrue(context.add_service_listener(self),
                         "Can't register the service listener")
 
         # Install the bundle
@@ -1594,14 +1600,14 @@ class ServiceEventTest(unittest.TestCase):
         self.bundle = bundle = context.get_bundle(bid)
         assert isinstance(bundle, Bundle)
         # Assert the Install events has been received
-        self.assertEqual([], self.received, "Received %s" % self.received)
+        self.assertEqual([], self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Start the bundle
         bundle.start()
         # Assert the events have been received
-        self.assertEqual([ServiceEvent.REGISTERED], \
-                          self.received, "Received %s" % self.received)
+        self.assertEqual([ServiceEvent.REGISTERED],
+                          self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Uninstall the bundle, without unregistering the service
@@ -1610,8 +1616,8 @@ class ServiceEventTest(unittest.TestCase):
         bundle.uninstall()
 
         # Assert the events have been received
-        self.assertEqual([ServiceEvent.UNREGISTERING], \
-                          self.received, "Received %s" % self.received)
+        self.assertEqual([ServiceEvent.UNREGISTERING],
+                          self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Unregister from events
@@ -1626,7 +1632,7 @@ class ServiceEventTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Register to events
-        self.assertTrue(context.add_service_listener(self, "(test=True)"), \
+        self.assertTrue(context.add_service_listener(self, "(test=True)"),
                         "Can't register the service listener")
 
         # Install the bundle
@@ -1637,8 +1643,8 @@ class ServiceEventTest(unittest.TestCase):
         # Start the bundle
         bundle.start()
         # Assert the events have been received
-        self.assertEqual([ServiceEvent.REGISTERED], \
-                          self.received, "Received %s" % self.received)
+        self.assertEqual([ServiceEvent.REGISTERED],
+                          self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Get the service
@@ -1650,34 +1656,35 @@ class ServiceEventTest(unittest.TestCase):
 
         # Modify the service => Simple modification
         svc.modify({"answer": 42})
-        self.assertEqual([ServiceEvent.MODIFIED], \
-                          self.received, "Received %s" % self.received)
+        self.assertEqual([ServiceEvent.MODIFIED],
+                          self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Set the same value => No event should be sent
         svc.modify({"answer": 42})
-        self.assertEqual([], self.received, "Received %s" % self.received)
+        self.assertEqual([], self.received,
+                         "Received {0}".format(self.received))
         self.reset_state()
 
         # Modify the service => Ends the filter match
         svc.modify({"test": False})
         # Assert the events have been received
-        self.assertEqual([ServiceEvent.MODIFIED_ENDMATCH], \
-                          self.received, "Received %s" % self.received)
+        self.assertEqual([ServiceEvent.MODIFIED_ENDMATCH],
+                          self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Modify the service => the filter matches again
         svc.modify({"test": True})
         # Assert the events have been received
-        self.assertEqual([ServiceEvent.MODIFIED], \
-                          self.received, "Received %s" % self.received)
+        self.assertEqual([ServiceEvent.MODIFIED],
+                          self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Stop the bundle
         bundle.stop()
         # Assert the events have been received
-        self.assertEqual([ServiceEvent.UNREGISTERING], \
-                          self.received, "Received %s" % self.received)
+        self.assertEqual([ServiceEvent.UNREGISTERING],
+                          self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Uninstall the bundle
