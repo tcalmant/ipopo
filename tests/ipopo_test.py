@@ -10,13 +10,13 @@ from pelix.ipopo import constants, decorators
 from pelix.ipopo.core import IPopoEvent, FactoryContext
 from pelix.framework import FrameworkFactory, Bundle, BundleContext
 
+import pelix.framework as pelix
+
 from tests import log_on, log_off
 from tests.interfaces import IEchoService
 
 import logging
 import os
-from pelix.ipopo.decorators import ComponentFactory, Instantiate, Requires, \
-    Provides, Property
 
 try:
     import unittest2 as unittest
@@ -29,6 +29,9 @@ except ImportError:
 # ------------------------------------------------------------------------------
 
 __version__ = (1, 0, 0)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 NAME_A = "componentA"
 NAME_B = "componentB"
@@ -65,16 +68,14 @@ def install_ipopo(framework):
     assert isinstance(context, BundleContext)
 
     # Install & start the bundle
-    bid = context.install_bundle("pelix.ipopo.core")
-    bundle = context.get_bundle(bid)
-    bundle.start()
+    install_bundle(framework, "pelix.ipopo.core")
 
     # Get the service
-    ref = context.get_service_reference(constants.IPOPO_SERVICE_SPECIFICATION)
-    if ref is None:
+    service = constants.get_ipopo_svc_ref(context)
+    if service is None:
         raise Exception("iPOPO Service not found")
 
-    return context.get_service(ref)
+    return service[1]
 
 # ------------------------------------------------------------------------------
 
@@ -357,14 +358,14 @@ class ManipulatedClassTest(unittest.TestCase):
         Tests the behavior of a manipulated class outside a framework
         """
         # Prepare the class
-        @ComponentFactory("test-factory")
-        @Instantiate("test-instance")
-        @Provides("spec_1")
-        @Provides("spec_2", "controller")
-        @Requires("req_1", "spec_1")
-        @Requires("req_2", "spec_1", True, True)
-        @Property("prop_1", "prop.1")
-        @Property("prop_2", "prop.2", 42)
+        @decorators.ComponentFactory("test-factory")
+        @decorators.Instantiate("test-instance")
+        @decorators.Provides("spec_1")
+        @decorators.Provides("spec_2", "controller")
+        @decorators.Requires("req_1", "spec_1")
+        @decorators.Requires("req_2", "spec_1", True, True)
+        @decorators.Property("prop_1", "prop.1")
+        @decorators.Property("prop_2", "prop.2", 42)
         class TestClass(object):
             pass
 
@@ -1112,9 +1113,9 @@ class RequirementTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
-class SimpleTests(unittest.TestCase):
+class SimpleDecoratorsTests(unittest.TestCase):
     """
-    Tests the component life cyle
+    Tests the decorators utility methods
     """
     def setUp(self):
         """
@@ -1247,6 +1248,138 @@ class SimpleTests(unittest.TestCase):
         for invalid in (123, {"spec": 1}):
             self.assertRaises(ValueError, decorators._get_specifications,
                               invalid)
+
+# ------------------------------------------------------------------------------
+
+class SimpleCoreTests(unittest.TestCase):
+    """
+    Tests the core methods and classes
+    """
+    def setUp(self):
+        """
+        Called before each test. Initiates a framework.
+        """
+        self.framework = FrameworkFactory.get_framework()
+        self.framework.start()
+        self.ipopo_bundle = install_bundle(self.framework, "pelix.ipopo.core")
+
+
+    def tearDown(self):
+        """
+        Called after each test
+        """
+        FrameworkFactory.delete_framework(self.framework)
+
+
+    def testRequirement(self):
+        """
+        Tests the Requirement class type checking
+        """
+        Requirement = self.ipopo_bundle.Requirement
+
+        # Invalid type
+        for invalid in (None, "specification", 1234):
+            self.assertRaises(TypeError, Requirement, invalid)
+
+        # Empty content
+        for empty in ([], tuple()):
+            self.assertRaises(ValueError, Requirement, empty)
+
+        # Invalid filter type
+        for invalid in (123, ["a", "b"]):
+            self.assertRaises(TypeError, Requirement, ["spec"],
+                              spec_filter=invalid)
+
+        # Valid values
+        without_filter = Requirement(["spec"])
+        with_filter = Requirement(["spec"], spec_filter="(test=True)")
+
+        # Match test
+        for invalid in (None, "False", False, [False]):
+            props = {pelix.OBJECTCLASS: "spec", "test": invalid}
+            self.assertTrue(without_filter.matches(props),
+                            "Should match without filter: {0}".format(props))
+            self.assertFalse(with_filter.matches(props),
+                             "Shouldn't match with filter: {0}".format(props))
+
+        for valid in ("True", True, [True]):
+            props = {pelix.OBJECTCLASS: "spec", "test": valid}
+            self.assertTrue(without_filter.matches(props),
+                            "Should match without filter: {0}".format(props))
+            self.assertTrue(with_filter.matches(props),
+                            "Should match with filter: {0}".format(props))
+
+
+    def testRequirementEquality(self):
+        """
+        Tests Requirement equality test
+        """
+        Requirement = self.ipopo_bundle.Requirement
+
+        req_1 = Requirement(["spec_1", "spec_2"], True, True,
+                            spec_filter="(test=True)")
+
+        # Identity
+        self.assertEqual(req_1, req_1, "Requirement is not equal to itself")
+
+        # Different types
+        for req_2 in (None, "test", [], {}, req_1.to_dictionary_form()):
+            self.assertNotEqual(req_1, req_2,
+                                "Requirement should be equal to {0}" \
+                                .format(req_1))
+
+        # Copy
+        req_2 = req_1.copy()
+        self.assertEqual(req_1, req_1, "Requirement is not equal to its copy")
+
+        # Different objects
+        req_2.optional = not req_1.optional
+        self.assertNotEqual(req_1, req_2,
+                            "Requirement is equal with different optional flag")
+
+        req_2.aggregate = not req_1.aggregate
+        self.assertNotEqual(req_1, req_2,
+                            "Requirement is equal with different flags")
+
+        req_2.optional = req_1.optional
+        self.assertNotEqual(req_1, req_2,
+                        "Requirement is equal with different aggregate flags")
+
+
+    def testRequirementDictForm(self):
+        """
+        Tests dictionary form serialization of Requirement
+        """
+        Requirement = self.ipopo_bundle.Requirement
+
+        req_1 = Requirement(["spec_1", "spec_2"], True, True,
+                            spec_filter="(test=True)")
+
+        req_2 = Requirement(["spec_1"], False, True,
+                            spec_filter="(test=True)")
+
+        for specifications in (["spec_1"], ["spec_1", "spec_2"]):
+            for aggregate in (True, False):
+                for optional in (True, False):
+                    for spec_filter in (None, "(test=True)"):
+                        # Requirement
+                        req = Requirement(specifications, aggregate, optional,
+                                          spec_filter)
+
+                        # Dictionary form
+                        dict_form = req.to_dictionary_form()
+                        self.assertIs(type(dict_form), dict,
+                                      "to_dict: not a dictionary")
+
+                        # Conversion
+                        req_2 = Requirement.from_dictionary_form(dict_form)
+                        self.assertIs(type(req_2), Requirement,
+                                      "from_dict: not a Requirement")
+
+                        # Assert equality
+                        self.assertEqual(req, req_2,
+                                         "Invalid serialization result")
+
 
 # ------------------------------------------------------------------------------
 

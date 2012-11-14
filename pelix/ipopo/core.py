@@ -157,10 +157,10 @@ class Requirement(object):
     """
     Represents a component requirement
     """
-    # The dictionary form fields
-    __stored_fields__ = ('specifications', 'aggregate', 'optional', 'filter')
+    # The dictionary form fields (filter is a special case)
+    __stored_fields__ = ('specifications', 'aggregate', 'optional')
 
-    def __init__(self, specifications, aggregate=False, optional=False, \
+    def __init__(self, specifications, aggregate=False, optional=False,
                  spec_filter=None):
         """
         Sets up the requirement
@@ -183,9 +183,38 @@ class Requirement(object):
         self.optional = optional
         self.specifications = specifications
 
+        # Original filter keeper
+        self.__original_filter = None
+
         # Set up the requirement filter (after setting up self.specification)
         self.filter = None
         self.set_filter(spec_filter)
+
+
+    def __eq__(self, other):
+        """
+        Equality test
+        """
+        if not isinstance(other, Requirement):
+            # Different types
+            return False
+
+        if self.aggregate != other.aggregate or self.optional != other.optional:
+            # Different flags
+            return False
+
+        if self.filter != other.filter:
+            # Different filters (therefore different specifications)
+            return False
+
+        return True
+
+
+    def __ne__(self, other):
+        """
+        Inequality test
+        """
+        return not self.__eq__(other)
 
 
     def copy(self):
@@ -194,8 +223,8 @@ class Requirement(object):
 
         :return: A copy of this instance
         """
-        return Requirement(self.specifications, self.aggregate, self.optional, \
-                           self.filter)
+        return Requirement(self.specifications, self.aggregate, self.optional,
+                           self.__original_filter)
 
 
     @classmethod
@@ -263,8 +292,13 @@ class Requirement(object):
         ldap_filter = "(|{0})".format("".join(ldap_criteria))
 
         if spec_filter is not None:
-            # String given
+            # Filter given, keep its string form
+            self.__original_filter = str(spec_filter)
             ldap_filter = ldapfilter.combine_filters([ldap_filter, spec_filter])
+
+        else:
+            # No filter
+            self.__original_filter = None
 
         # Parse the filter
         self.filter = ldapfilter.get_ldap_filter(ldap_filter)
@@ -279,6 +313,10 @@ class Requirement(object):
         result = {}
         for field in self.__stored_fields__:
             result[field] = getattr(self, field)
+
+        # Special case: store the original filter
+        result['filter'] = self.__original_filter
+
         return result
 
 # ------------------------------------------------------------------------------
