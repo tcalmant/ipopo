@@ -1784,6 +1784,13 @@ class ServiceReference(object):
         return self.__service_id == other.__service_id
 
 
+    def __ne__(self, other):
+        """
+        Inequal to other
+        """
+        return not self.__eq__(other)
+
+
     def __ge__(self, other):
         """
         Greater or equal

@@ -100,6 +100,13 @@ class LDAPFilter(object):
         return True
 
 
+    def __ne__(self, other):
+        """
+        Inequality testing
+        """
+        return not self.__eq__(other)
+
+
     def __repr__(self):
         """
         String description
@@ -236,11 +243,19 @@ class LDAPCriteria(object):
 
         if type(self.value) == type(other.value):
             # Same type: direct comparison
-            return self.value == other.value
+            result = self.value == other.value
+            return result
 
         else:
             # Convert to strings for comparison
             return str(self.value) == str(other.value)
+
+
+    def __ne__(self, other):
+        """
+        Inequality testing
+        """
+        return not self.__eq__(other)
 
 
     def __repr__(self):
