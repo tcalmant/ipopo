@@ -256,6 +256,17 @@ def _append_object_entry(obj, list_name, entry):
 
 # ------------------------------------------------------------------------------
 
+class Holder(object):
+    """
+    Simple class that holds a value
+    """
+    def __init__(self, value):
+        """
+        Sets up the holder instance
+        """
+        self.value = value
+
+
 def _ipopo_class_field_property(name, value, methods_prefix):
     """
     Sets up an iPOPO field property, using Python property() capabilities
@@ -273,6 +284,8 @@ def _ipopo_class_field_property(name, value, methods_prefix):
     getter_name = "{0}{1}".format(methods_prefix, constants.IPOPO_GETTER_SUFFIX)
     setter_name = "{0}{1}".format(methods_prefix, constants.IPOPO_SETTER_SUFFIX)
 
+    local_holder = Holder(value)
+
     def get_value(self):
         """
         Retrieves the property value, from the iPOPO dictionaries
@@ -281,10 +294,13 @@ def _ipopo_class_field_property(name, value, methods_prefix):
         """
         getter = getattr(self, getter_name, None)
         if getter is not None:
+            # Use the component getter
             with lock:
                 return getter(self, name)
 
-        return value
+        else:
+            # Use the local holder
+            return local_holder.value
 
 
     def set_value(self, new_value):
@@ -292,14 +308,16 @@ def _ipopo_class_field_property(name, value, methods_prefix):
         Sets the property value and trigger an update event
         
         :param new_value: The new property value
-        :return: The new value
         """
         setter = getattr(self, setter_name, None)
         if setter is not None:
+            # Use the component setter
             with lock:
-                return setter(self, name, new_value)
+                setter(self, name, new_value)
 
-        return new_value
+        else:
+            # Change the local holder
+            local_holder.value = new_value
 
     return property(get_value, set_value)
 
@@ -662,6 +680,9 @@ class Requires:
         # Set up the property in the class
         context = _get_factory_context(clazz)
         context.requirements[self.__field] = self.__requirement
+
+        # Inject the field
+        setattr(clazz, self.__field, None)
 
         return clazz
 

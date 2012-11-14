@@ -96,8 +96,10 @@ class TestComponentFactory(object):
 
 @ComponentFactory(name=FACTORY_A)
 @Property("usable", PROP_USABLE, True)
+@Property("prop_1", "prop.1")
 @Provides(specifications=IEchoService)
 @Provides(specifications="TestService", controller="_test_ctrl")
+@Requires("_req_1", "dummy", optional=True)
 class ComponentFactoryA(TestComponentFactory, IEchoService):
     """
     Sample Component A
@@ -107,7 +109,7 @@ class ComponentFactoryA(TestComponentFactory, IEchoService):
         Constructor
         """
         super(ComponentFactoryA, self).__init__()
-        self._test_ctrl = False
+        self.prop_1 = 10
 
 
     def echo(self, value):

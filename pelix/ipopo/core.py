@@ -210,7 +210,7 @@ class Requirement(object):
         """
         if not isinstance(dictionary, dict):
             raise TypeError("Invalid form type '{0}'".format(
-                                                    type(dictionary).__name__))
+                                                     type(dictionary).__name__))
 
         if not "specifications" in dictionary:
             raise ValueError("Missing specifications in the dictionary form")
@@ -218,8 +218,7 @@ class Requirement(object):
         specs = dictionary["specifications"]
         aggregate = dictionary.get("aggregate", False)
         optional = dictionary.get("optional", False)
-        spec_filter = ldapfilter.get_ldap_filter(dictionary.get("filter", \
-                                                                None))
+        spec_filter = ldapfilter.get_ldap_filter(dictionary.get("filter", None))
 
         return cls(specs, aggregate, optional, spec_filter)
 
@@ -248,8 +247,7 @@ class Requirement(object):
         :param spec_filter: The new requirement filter
         :raise TypeError: Unknown filter type
         """
-        if spec_filter is not None \
-        and not is_string(spec_filter) \
+        if spec_filter is not None and not is_string(spec_filter) \
         and not isinstance(spec_filter,
                            (ldapfilter.LDAPFilter, ldapfilter.LDAPCriteria)):
             # Unknown type
@@ -1761,9 +1759,7 @@ def _field_property_generator(stored_instance):
         :param name: The property name
         :return: The property value
         """
-        if stored_instance.context is None:
-            return None
-
+        assert stored_instance.context is not None
         return stored_instance.context.properties.get(name, None)
 
 
@@ -1774,8 +1770,7 @@ def _field_property_generator(stored_instance):
         :param name: The property name
         :param new_value: The new property value
         """
-        if stored_instance.context is None:
-            return None
+        assert stored_instance.context is not None
 
         # Get the previous value
         old_value = stored_instance.context.properties.get(name, None)
@@ -1804,9 +1799,7 @@ def _field_controller_generator(stored_instance):
         :param name: The property name
         :return: The property value
         """
-        if stored_instance.context is None:
-            return None
-
+        assert stored_instance.context is not None
         return stored_instance.get_controller_state(name)
 
 
@@ -1817,8 +1810,7 @@ def _field_controller_generator(stored_instance):
         :param name: The property name
         :param new_value: The new property value
         """
-        if stored_instance.context is None:
-            return None
+        assert stored_instance.context is not None
 
         # Get the previous value
         old_value = stored_instance.get_controller_state(name)

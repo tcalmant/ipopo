@@ -15,6 +15,8 @@ from tests.interfaces import IEchoService
 
 import logging
 import os
+from pelix.ipopo.decorators import ComponentFactory, Instantiate, Requires, \
+    Provides, Property
 
 try:
     import unittest2 as unittest
@@ -332,6 +334,100 @@ class DecoratorsTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+class ManipulatedClassTest(unittest.TestCase):
+    """
+    Tests the usage as a classic class of a manipulated component factory
+    """
+    def setUp(self):
+        """
+        Called before each test. Initiates a framework.
+        """
+        self.framework = None
+
+    def tearDown(self):
+        """
+        Called after each test
+        """
+        if self.framework is not None:
+            FrameworkFactory.delete_framework(self.framework)
+
+
+    def testOutsideFramework(self):
+        """
+        Tests the behavior of a manipulated class outside a framework
+        """
+        # Prepare the class
+        @ComponentFactory("test-factory")
+        @Instantiate("test-instance")
+        @Provides("spec_1")
+        @Provides("spec_2", "controller")
+        @Requires("req_1", "spec_1")
+        @Requires("req_2", "spec_1", True, True)
+        @Property("prop_1", "prop.1")
+        @Property("prop_2", "prop.2", 42)
+        class TestClass(object):
+            pass
+
+        # Instantiate
+        instance = TestClass()
+
+        # Check fields presence and values
+        self.assertTrue(instance.controller, "Default service controller is On")
+        self.assertIsNone(instance.req_1, "Requirement is not None")
+        self.assertIsNone(instance.req_2, "Requirement is not None")
+        self.assertIsNone(instance.prop_1, "Default property value is None")
+        self.assertEqual(instance.prop_2, 42, "Incorrect property value")
+
+        # Check property modification
+        instance.prop_1 = 10
+        instance.prop_2 = False
+
+        self.assertEqual(instance.prop_1, 10, "Property value not modified")
+        self.assertEqual(instance.prop_2, False, "Property value not modified")
+
+
+    def testInsideFramework(self):
+        """
+        Tests the behavior of a manipulated class attributes
+        """
+        # Start the framework
+        self.framework = FrameworkFactory.get_framework()
+        self.framework.start()
+        ipopo = install_ipopo(self.framework)
+        module = install_bundle(self.framework)
+
+        # Instantiate the test class
+        instance = module.ComponentFactoryA()
+
+        # Check fields presence and values
+        self.assertTrue(instance._test_ctrl, "Default service controller is On")
+        self.assertIsNone(instance._req_1, "Requirement is not None")
+        self.assertEqual(instance.prop_1, 10, "Constructor property value lost")
+        self.assertEqual(instance.usable, True, "Incorrect property value")
+        del instance
+
+        # Instantiate component A (validated)
+        instance = ipopo.instantiate(module.FACTORY_A, NAME_A)
+
+        # Check fields presence and values
+        self.assertTrue(instance._test_ctrl, "Default service controller is On")
+        self.assertIsNone(instance._req_1, "Requirement is not None")
+        self.assertIsNone(instance.prop_1, "Default property value is None")
+        self.assertEqual(instance.usable, True, "Incorrect property value")
+
+        instance.prop_1 = 42
+        instance.usable = False
+
+        self.assertEqual(instance.prop_1, 42, "Property value not modified")
+        self.assertEqual(instance.usable, False, "Property value not modified")
+
+        # Set A usable again
+        instance.change(True)
+
+        self.assertEqual(instance.usable, True, "Property value not modified")
+
+# ------------------------------------------------------------------------------
+
 class LifeCycleTest(unittest.TestCase):
     """
     Tests the component life cycle
@@ -446,6 +542,7 @@ class InstantiateTest(unittest.TestCase):
         self.framework.stop()
         FrameworkFactory.delete_framework(self.framework)
 
+
     def testInstantiate(self):
         """
         Tests the life cycle with an @Instantiate decorator
@@ -514,7 +611,7 @@ class InstantiateTest(unittest.TestCase):
         self.assertIsNone(context.get_service_reference(svc_spec),
                           "@Instantiate service is still there")
 
-
+# ------------------------------------------------------------------------------
 
 class ProvidesTest(unittest.TestCase):
     """
@@ -1012,7 +1109,6 @@ class RequirementTest(unittest.TestCase):
         # Framework must have stopped now
         self.assertEqual(self.framework.get_state(), Bundle.RESOLVED,
                          "Framework hasn't stopped")
-
 
 # ------------------------------------------------------------------------------
 
