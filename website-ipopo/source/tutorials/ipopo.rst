@@ -11,6 +11,7 @@ Install the iPOPO bundle
 iPOPO is a simple bundle that has to be installed in a Pelix framework instance.
 
 .. code-block:: python
+   :linenos:
 
    >>> # Import the Pelix module
    >>> import pelix.framework as pelix
@@ -39,63 +40,65 @@ instances of factory classes.
 Here is a sample factory class:
 
 .. code-block:: python
+   :linenos:
+   
+   from pelix.ipopo.decorators import *
+   import pelix.ipopo.constants as constants
 
-     from pelix.ipopo.decorators import *
-     import pelix.ipopo.constants as constants
+   # The component manipulator
+   @ComponentFactory(name="MyIncrementerFactory")
+   # Tell we want an instance of this factory
+   @Instantiate("MyIncrementer")
+   # An injected property field, here the component instance name
+   @Property("name", constants.IPOPO_INSTANCE_NAME)
+   # A component specific property, with a default value
+   @Property("thread_safe", "thread.safe", False)
+   @Property("usable", "usable", True)
+   @Provides(specifications="my.incrementer")
+   class ComponentIncrementer(object):
+       """
+       Sample Incrementer
+       """
+       def change(self, usable):
+           """
+           Changes the usable property
+           """
+           self.usable = usable 
 
-     # The component manipulator
-     @ComponentFactory(name="MyIncrementerFactory")
-     # Tell we want an instance of this factory
-     @Instantiate("MyIncrementer")
-     # An injected property field, here the component instance name
-     @Property("name", constants.IPOPO_INSTANCE_NAME)
-     # A component specific property, with a default value
-     @Property("thread_safe", "thread.safe", False)
-     @Property("usable", "usable", True)
-     @Provides(specifications="my.incrementer")
-     class ComponentIncrementer(object):
-         """
-         Sample Incrementer
-         """
-         def change(self, usable):
-             """
-             Changes the usable property
-             """
-             self.usable = usable 
-
-         def increment(self):
-             """
-             Service implementation
-             """
-             self.count += 1
-             return self.count
+       def increment(self):
+           """
+           Service implementation
+           """
+           self.count += 1
+           return self.count
+       
+       @Validate
+       def validate(self, context):
+           """
+           Component validated
+           """
+           self.count = 0
+           print "%s: Ready..." % self.name
          
-         @Validate
-         def validate(self, context):
-             """
-             Component validated
-             """
-             self.count = 0
-             print "%s: Ready..." % self.name
-         
-         @Invalidate
-         def invalidate(self, context):
-             """
-             Component invalidated
-             """
-             self.count = 0
-             print "%s: Gone." % self.name
+       @Invalidate
+       def invalidate(self, context):
+           """
+           Component invalidated
+           """
+           self.count = 0
+           print "%s: Gone." % self.name
 
 
 When the bundle containing this class will be started, its factories will be
 loaded and the requested components will be instantiated, if possible.
 
 .. code-block:: python
-
-     >>> bid = context.install_bundle("test_ipopo")
-     >>> bundle = context.get_bundle(bid)
-     >>> bundle.start()
-     MyIncrementer: Ready...
+   :linenos:
+   
+   >>> bid = context.install_bundle("test_ipopo")
+   >>> bundle = context.get_bundle(bid)
+   >>> bundle.start()
+   MyIncrementer: Ready...
 
 
 Use the iPOPO service
@@ -108,6 +111,7 @@ The iPOPO service provides three methods:
   the same name already exists, the instantiation fails.
 
   .. code-block:: python
+     :linenos:
 
      >>> # Starts a new incrementer
      >>> compo = ipopo.instantiate("MyIncrementerFactory", "incr2",
@@ -124,6 +128,7 @@ The iPOPO service provides three methods:
   invalidated then removed from the iPOPO registry.
 
   .. code-block:: python
+     :linenos:
 
      >>> # Invalidates the started incrementer
      >>> ipopo.kill("incr2")
@@ -148,6 +153,7 @@ registered the component.
 In the following example, the consumer requires an incrementer:
 
 .. code-block:: python
+   :linenos:
 
    @ComponentFactory("ConsumerFactory")
    @Requires("svc", "my.incrementer", spec_filter="(usable=True)")
@@ -169,6 +175,7 @@ when the service or the consumer is invalidated.
 A sample run, considering all bundles are started:
 
 .. code-block:: python
+   :linenos:
 
    >>> # Remember, a component named "MyIncrementer" has automatically been
    >>> # started by iPOPO (@Instantiate decorator on the factory)
@@ -220,6 +227,7 @@ Here is the previous service consumer, printing a line each time a service is
 bound or unbound:
 
 .. code-block:: python
+   :linenos:
 
    @ComponentFactory("ConsumerFactory")
    @Requires("svc", "my.incrementer", spec_filter="(usable=True)")

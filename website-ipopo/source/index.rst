@@ -3,7 +3,8 @@
 iPOPO : A component model for Python
 ####################################
 
-iPOPO is a component model framework for Python, inspired from the Java project
+iPOPO is a service-oriented component model framework for Python, inspired
+from the Java project
 `iPOJO <http://felix.apache.org/site/apache-felix-ipojo.html>`_.
 Its development is supported by `isandlaTech <http://www.isandlatech.com>`_.
 
@@ -11,20 +12,9 @@ Its development is supported by `isandlaTech <http://www.isandlatech.com>`_.
    :maxdepth: 2
 
    content/install
-   content/samples
-
-
-API Documentation
-*****************
-
-The API documentation is available in different formats:
-
-* HTML: `online <http://ipopo.coderxpress.net/api/>`_,
-  `archive (zip) <http://ipopo.coderxpress.net/dl/ipopo-latest-doc-html.zip>`_
-* `PDF (zip) <http://ipopo.coderxpress.net/dl/ipopo-latest-doc-pdf.zip>`_
-
-Older versions of the API can be downloaded here:
-`<http://ipopo.coderxpress.net/dl/>`_.
+   tutorials/index
+   reviews/index
+   content/roadmap
 
 
 Download
@@ -43,8 +33,21 @@ Older versions are available here:
 `<http://ipopo.coderxpress.net/dl/>`_.
 
 
-Discussions
-***********
+API Documentation
+*****************
+
+The API documentation is available in different formats:
+
+* HTML: `online <http://ipopo.coderxpress.net/api/>`_,
+  `archive (zip) <http://ipopo.coderxpress.net/dl/ipopo-latest-doc-html.zip>`_
+* `PDF (zip) <http://ipopo.coderxpress.net/dl/ipopo-latest-doc-pdf.zip>`_
+
+Older versions of the API can be downloaded here:
+`<http://ipopo.coderxpress.net/dl/>`_.
+
+
+Support
+*******
 
 Feedback and proposals are really appreciated, so feel free to send a message on
 the iPOPO Google groups:
