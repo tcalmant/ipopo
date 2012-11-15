@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 Defines some iPOPO constants
 
@@ -65,7 +65,30 @@ IPOPO_REQUIRES_FILTERS = "requires.filters"
 
 # ------------------------------------------------------------------------------
 
-from pelix.framework import BundleException
+HANDLER_DEPENDENCY = 'dependency'
+"""
+Represents the 'dependency' kind of handler.
+Those handlers must implement the following methods:
+* get_bindings(): Retrieves the list of bound service references
+* is_valid(): Returns True if the dependency is in a valid state
+"""
+
+HANDLER_SERVICE_PROVIDER = 'service_provider'
+"""
+Represents the 'service_provider' kind of handler.
+Those handlers must implement the following method:
+* get_service_reference(): Retrieves the reference of the provided service
+  (a ServiceReference object).
+
+It should also implement the following ones:
+* on_controller_changer(): Called when a component controller has been modified.
+  The publication of a service might be stopped if its controller is set to
+  False.
+* on_property_change(): Called when a component property has been modified.
+  The provided service properties should be modified accordingly.
+"""
+
+# ------------------------------------------------------------------------------
 
 def get_ipopo_svc_ref(bundle_context):
     """
@@ -76,6 +99,9 @@ def get_ipopo_svc_ref(bundle_context):
     :return: The reference to the iPOPO service and the service itself,
              None if not available
     """
+    # Late import
+    import pelix.framework
+
     ref = bundle_context.get_service_reference(IPOPO_SERVICE_SPECIFICATION)
     if ref is None:
         return None
@@ -83,8 +109,79 @@ def get_ipopo_svc_ref(bundle_context):
     try:
         svc = bundle_context.get_service(ref)
 
-    except BundleException:
+    except pelix.framework.BundleException:
         # Service reference has been invalidated
         return None
 
     return (ref, svc)
+
+# ------------------------------------------------------------------------------
+
+class IPopoEvent(object):
+    """
+    An iPOPO event descriptor.
+    """
+    REGISTERED = 1
+    """ A component factory has been registered """
+
+    INSTANTIATED = 2
+    """ A component has been instantiated, but not yet validated """
+
+    VALIDATED = 3
+    """ A component has been validated """
+
+    INVALIDATED = 4
+    """ A component has been invalidated """
+
+    BOUND = 5
+    """ A reference has been injected in the component """
+
+    UNBOUND = 6
+    """ A reference has been removed from the component """
+
+    KILLED = 9
+    """ A component has been killed (removed from the list of instances) """
+
+    UNREGISTERED = 10
+    """ A component factory has been unregistered """
+
+
+    def __init__(self, kind, factory_name, component_name):
+        """
+        Sets up the iPOPO event
+
+        :param kind: Kind of event
+        :param factory_name: Name of the factory associated to the event
+        :param component_name: Name of the component instance associated to the
+                               event
+        """
+        self.__kind = kind
+        self.__factory_name = factory_name
+        self.__component_name = component_name
+
+
+    def get_component_name(self):
+        """
+        Retrieves the name of the component associated to the event
+
+        :return: the name of the component
+        """
+        return self.__component_name
+
+
+    def get_factory_name(self):
+        """
+        Retrieves the name of the factory associated to the event
+
+        :return: the name of the component factory
+        """
+        return self.__factory_name
+
+
+    def get_kind(self):
+        """
+        Retrieves the kind of event
+
+        :return: the kind of event
+        """
+        return self.__kind

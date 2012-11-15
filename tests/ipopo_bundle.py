@@ -5,16 +5,20 @@ Bundle defining multiple component factories for iPOPO tests
 
 :author: Thomas Calmant
 """
-from pelix.ipopo.constants import IPOPO_INSTANCE_NAME
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
     Requires, Validate, Invalidate, Unbind, Bind, Instantiate
-from pelix.ipopo.core import IPopoEvent
+
+from pelix.ipopo.constants import IPOPO_INSTANCE_NAME, IPopoEvent
+
 from pelix.framework import BundleContext, FrameworkException
 from tests.interfaces import IEchoService
 
 # ------------------------------------------------------------------------------
 
 __version__ = (1, 0, 0)
+
+BASIC_FACTORY = "basic-component-factory"
+BASIC_INSTANCE = "basic-component"
 
 FACTORY_A = "ipopo.tests.a"
 FACTORY_B = "ipopo.tests.b"
@@ -24,8 +28,8 @@ PROP_USABLE = "usable"
 # ------------------------------------------------------------------------------
 
 # Auto-instantiated component (tests the decorator)
-@ComponentFactory("basic-component-factory")
-@Instantiate("basic-component")
+@ComponentFactory(BASIC_FACTORY)
+@Instantiate(BASIC_INSTANCE)
 @Provides("basic-component-svc")
 class BasicComponent(object):
     """

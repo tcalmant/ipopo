@@ -56,103 +56,6 @@ _logger = logging.getLogger("ipopo.core")
 
 # ------------------------------------------------------------------------------
 
-HANDLER_DEPENDENCY = 'dependency'
-"""
-Represents the 'dependency' kind of handler.
-Those handlers must implement the following methods:
-* get_bindings(): Retrieves the list of bound service references
-* is_valid(): Returns True if the dependency is in a valid state
-"""
-
-HANDLER_SERVICE_PROVIDER = 'service_provider'
-"""
-Represents the 'service_provider' kind of handler.
-Those handlers must implement the following method:
-* get_service_reference(): Retrieves the reference of the provided service
-  (a ServiceReference object).
-
-It should also implement the following ones:
-* on_controller_changer(): Called when a component controller has been modified.
-  The publication of a service might be stopped if its controller is set to
-  False.
-* on_property_change(): Called when a component property has been modified.
-  The provided service properties should be modified accordingly.
-"""
-
-# ------------------------------------------------------------------------------
-
-class IPopoEvent(object):
-    """
-    An event object for iPOPO
-    """
-
-    REGISTERED = 1
-    """ A component factory has been registered """
-
-    INSTANTIATED = 2
-    """ A component has been instantiated, but not yet validated """
-
-    VALIDATED = 3
-    """ A component has been validated """
-
-    INVALIDATED = 4
-    """ A component has been invalidated """
-
-    BOUND = 5
-    """ A reference has been injected in the component """
-
-    UNBOUND = 6
-    """ A reference has been removed from the component """
-
-    KILLED = 9
-    """ A component has been killed (removed from the list of instances) """
-
-    UNREGISTERED = 10
-    """ A component factory has been unregistered """
-
-
-    def __init__(self, kind, factory_name, component_name):
-        """
-        Sets up the iPOPO event
-
-        :param kind: Kind of event
-        :param factory_name: Name of the factory associated to the event
-        :param component_name: Name of the component instance associated to the
-                               event
-        """
-        self.__kind = kind
-        self.__factory_name = factory_name
-        self.__component_name = component_name
-
-
-    def get_component_name(self):
-        """
-        Retrieves the name of the component associated to the event
-
-        :return: the name of the component
-        """
-        return self.__component_name
-
-
-    def get_factory_name(self):
-        """
-        Retrieves the name of the factory associated to the event
-
-        :return: the name of the component factory
-        """
-        return self.__factory_name
-
-
-    def get_kind(self):
-        """
-        Retrieves the kind of event
-
-        :return: the kind of event
-        """
-        return self.__kind
-
-# ------------------------------------------------------------------------------
-
 class Requirement(object):
     """
     Represents a component requirement
@@ -377,8 +280,7 @@ class _RuntimeDependency(object):
         
         :return: A list of ServiceReferences objects
         """
-        raise NotImplementedError("This method should be implemented by "
-                                  "child classes")
+        raise NotImplementedError
 
 
     def get_kinds(self):
@@ -387,7 +289,7 @@ class _RuntimeDependency(object):
         
         :return: the kinds of this handler
         """
-        return (HANDLER_DEPENDENCY,)
+        return (constants.HANDLER_DEPENDENCY,)
 
 
     def get_value(self):
@@ -414,8 +316,7 @@ class _RuntimeDependency(object):
         
         :param svc_ref: A service reference
         """
-        raise NotImplementedError("This method should be implemented by "
-                                  "child classes")
+        raise NotImplementedError
 
 
     def on_service_departure(self, svc_ref):
@@ -424,8 +325,7 @@ class _RuntimeDependency(object):
         
         :param svc_ref: A service reference
         """
-        raise NotImplementedError("This method should be implemented by "
-                                  "child classes")
+        raise NotImplementedError
 
 
     def on_service_modify(self, svc_ref):
@@ -434,8 +334,7 @@ class _RuntimeDependency(object):
         
         :param svc_ref: A service reference
         """
-        raise NotImplementedError("This method should be implemented by "
-                                  "child classes")
+        raise NotImplementedError
 
 
     def service_changed(self, event):
@@ -832,7 +731,7 @@ class _ServiceRegistrationHandler(object):
         
         :return: the kinds of this handler
         """
-        return (HANDLER_SERVICE_PROVIDER,)
+        return (constants.HANDLER_SERVICE_PROVIDER,)
 
 
     def get_service_reference(self):
@@ -1438,7 +1337,7 @@ class _StoredInstance(object):
         """
         with self._lock:
             all_valid = True
-            for handler in self._handlers.get(HANDLER_DEPENDENCY, []):
+            for handler in self._handlers.get(constants.HANDLER_DEPENDENCY, []):
                 # Try to bind
                 self.__safe_handler_callback(handler, 'try_binding')
 
@@ -1482,9 +1381,9 @@ class _StoredInstance(object):
                                    self.bundle_context)
 
                 # Trigger an "Invalidated" event
-                self._ipopo_service._fire_ipopo_event(IPopoEvent.INVALIDATED,
-                                                      self.factory_name,
-                                                      self.name)
+                self._ipopo_service._fire_ipopo_event(
+                                              constants.IPopoEvent.INVALIDATED,
+                                              self.factory_name, self.name)
 
             # Call the handlers
             self.__safe_handlers_callback('post_invalidate')
@@ -1536,7 +1435,7 @@ class _StoredInstance(object):
             self.state = _StoredInstance.KILLED
 
             # Trigger the event
-            self._ipopo_service._fire_ipopo_event(IPopoEvent.KILLED,
+            self._ipopo_service._fire_ipopo_event(constants.IPopoEvent.KILLED,
                                                   self.factory_name, self.name)
 
             # Clean up members
@@ -1584,9 +1483,9 @@ class _StoredInstance(object):
             # We may have caused a framework error, so check if iPOPO is active
             if self._ipopo_service is not None:
                 # Trigger the iPOPO event (after the service _registration)
-                self._ipopo_service._fire_ipopo_event(IPopoEvent.VALIDATED,
-                                                      self.factory_name,
-                                                      self.name)
+                self._ipopo_service._fire_ipopo_event(
+                                              constants.IPopoEvent.VALIDATED,
+                                              self.factory_name, self.name)
 
 
     def __callback(self, event, *args, **kwargs):
@@ -2056,8 +1955,9 @@ class _IPopoService(object):
 
             for listener in listeners:
                 try:
-                    listener.handle_ipopo_event(IPopoEvent(kind, factory_name,
-                                                           component_name))
+                    listener.handle_ipopo_event(constants.IPopoEvent(kind,
+                                                             factory_name,
+                                                             component_name))
 
                 except:
                     _logger.exception("Error calling an iPOPO event handler")
@@ -2115,7 +2015,8 @@ class _IPopoService(object):
             self.__factories[factory_name] = factory
 
             # Trigger an event
-            self._fire_ipopo_event(IPopoEvent.REGISTERED, factory_name)
+            self._fire_ipopo_event(constants.IPopoEvent.REGISTERED,
+                                   factory_name)
 
 
     def _unregister_all_factories(self):
@@ -2126,7 +2027,7 @@ class _IPopoService(object):
         factories = list(self.__factories.keys())
 
         for factory_name in factories:
-            self._unregister_factory(factory_name)
+            self.unregister_factory(factory_name)
 
 
     def _unregister_bundle_factories(self, bundle):
@@ -2148,43 +2049,7 @@ class _IPopoService(object):
 
             # Remove all of them
             for factory in to_remove:
-                self._unregister_factory(factory)
-
-
-    def _unregister_factory(self, factory_name):
-        """
-        Unregisters the given component factory
-
-        :param factory_name: Name of the factory to unregister
-        :return: True the factory has been removed, False if the factory is
-                 unknown
-        """
-        if not factory_name:
-            # Empty name
-            return False
-
-        with self.__factories_lock:
-            if factory_name not in self.__factories:
-                # Unknown factory
-                return False
-
-            # Trigger an event
-            self._fire_ipopo_event(IPopoEvent.UNREGISTERED, factory_name)
-
-            # Invalidate and delete all components of this factory
-            with self.__instances_lock:
-                # Compute the list of __instances to remove
-                to_remove = self.__get_stored_instances_by_factory(factory_name)
-
-                # Remove instances from the registry: avoids dependencies \
-                # update to link against a component from this factory again.
-                for instance in to_remove:
-                    self.kill(instance.name)
-
-            # Remove the factory from the registry
-            del self.__factories[factory_name]
-
-        return True
+                self.unregister_factory(factory)
 
 
     def instantiate(self, factory_name, name, properties=None):
@@ -2200,10 +2065,10 @@ class _IPopoService(object):
         :raise Exception: Something wrong occurred in the factory
         """
         # Test parameters
-        if not factory_name:
+        if not factory_name or not is_string(factory_name):
             raise ValueError("Invalid factory name")
 
-        if not name:
+        if not name or not is_string(name):
             raise ValueError("Invalid component name")
 
         with self.__instances_lock:
@@ -2266,6 +2131,10 @@ class _IPopoService(object):
 
         # Start the manager
         stored_instance.start()
+
+        # Notify listeners now that every thing is ready to run
+        self._fire_ipopo_event(constants.IPopoEvent.INSTANTIATED,
+                               factory_name, name)
 
         # Try to validate it
         stored_instance.update_bindings()
@@ -2341,7 +2210,7 @@ class _IPopoService(object):
         :param factory: A manipulated class
         :return: True if the factory has been registered
         :raise ValueError: Invalid parameter, or factory already registered
-        :raise TypeError: Invalid factory type
+        :raise TypeError: Invalid factory type (not a manipulated class)
         """
         if factory is None or bundle_context is None:
             # Invalid parameter, to nothing
@@ -2349,9 +2218,46 @@ class _IPopoService(object):
 
         context = _set_factory_context(factory, bundle_context)
         if not context:
-            return False
+            raise TypeError("Not a manipulated class (no context found)")
 
         self._register_factory(context.name, factory, False)
+        return True
+
+
+    def unregister_factory(self, factory_name):
+        """
+        Unregisters the given component factory
+
+        :param factory_name: Name of the factory to unregister
+        :return: True the factory has been removed, False if the factory is
+                 unknown
+        """
+        if not factory_name or not is_string(factory_name):
+            # Invalid name
+            return False
+
+        with self.__factories_lock:
+            if factory_name not in self.__factories:
+                # Unknown factory
+                return False
+
+            # Trigger an event
+            self._fire_ipopo_event(constants.IPopoEvent.UNREGISTERED,
+                                   factory_name)
+
+            # Invalidate and delete all components of this factory
+            with self.__instances_lock:
+                # Compute the list of __instances to remove
+                to_remove = self.__get_stored_instances_by_factory(factory_name)
+
+                # Remove instances from the registry: avoids dependencies \
+                # update to link against a component from this factory again.
+                for instance in to_remove:
+                    self.kill(instance.name)
+
+            # Remove the factory from the registry
+            del self.__factories[factory_name]
+
         return True
 
 
@@ -2428,6 +2334,9 @@ class _IPopoService(object):
         :return: A dictionary of details
         :raise ValueError: Invalid component name
         """
+        if not is_string(name):
+            raise ValueError("Component name must be a string")
+
         with self.__instances_lock:
             if name not in self.__instances:
                 raise ValueError("Unknown component: {0}".format(name))
@@ -2446,7 +2355,8 @@ class _IPopoService(object):
 
                 # Provided service
                 result["services"] = {}
-                for handler in stored_instance.get_handlers(HANDLER_SERVICE_PROVIDER):
+                for handler in stored_instance.get_handlers(
+                                            constants.HANDLER_SERVICE_PROVIDER):
                     svc_ref = handler.get_service_reference()
                     if svc_ref is not None:
                         svc_id = svc_ref.get_property(pelix.SERVICE_ID)
@@ -2454,7 +2364,8 @@ class _IPopoService(object):
 
                 # Dependencies
                 result["dependencies"] = {}
-                for dependency in stored_instance.get_handlers(HANDLER_DEPENDENCY):
+                for dependency in stored_instance.get_handlers(
+                                            constants.HANDLER_DEPENDENCY):
                     # Dependency
                     info = result["dependencies"][dependency.field] = {}
                     info["handler"] = type(dependency).__name__
@@ -2472,8 +2383,6 @@ class _IPopoService(object):
 
                 # All done
                 return result
-
-
 
 
     def get_factories(self):
