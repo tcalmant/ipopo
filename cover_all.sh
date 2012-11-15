@@ -1,10 +1,26 @@
 #!/bin/bash
 # Utility script to call the Python tool "coverage" for all test modules
 
+export PYTHONPATH=$(pwd)
+
+# Interpreters to run the tests
+TEST_PYTHONS=("python" "python3" "pypy")
+
+# Modules to test
+TEST_MODULES=("utilities" "ldapfilter" "pelix" "ipopo" "http/basic")
+
+# Interpreter to use to combine files, etc
+DEFAULT_PYTHON="python"
+
+# Python snippet to start coverage
+COVERAGE="import coverage; coverage.main()"
+
+# HTML report output directory
+OUT_HTML=./htmlcov
+
 # ------------------------------------------------------------------------------
 
 echo "Preparing coverage configuration..."
-OUT_HTML=./htmlcov
 COVERAGE_RC=.coveragerc
 
 cat > $COVERAGE_RC <<EOF
@@ -28,25 +44,18 @@ cat $COVERAGE_RC
 
 # ------------------------------------------------------------------------------
 
-export PYTHONPATH=$(pwd)
-PYTHONS=("python" "python3" "pypy")
-DEFAULT_PYTHON="python3"
-
-COVERAGE="import coverage; coverage.main()"
-
 echo "Erase..."
 rm -fr $OUT_HTML
 $DEFAULT_PYTHON -c "$COVERAGE" erase
 
-for PYTHON in "${PYTHONS[@]}"
+for PYTHON in "${TEST_PYTHONS[@]}"
 do
     # Test the interpreter
     $PYTHON --version >/dev/null 2>&1
     if [ $? -eq 0 ]
     then
         echo "Run... using $PYTHON"
-        files=("utilities" "ldapfilter" "pelix" "ipopo" "http/basic")
-        for i in ${files[@]}
+        for i in ${TEST_MODULES[@]}
         do
             echo "Working on $i"
             $PYTHON -c "$COVERAGE" run tests/${i}_test.py || exit 1

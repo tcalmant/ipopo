@@ -1,10 +1,23 @@
 #!/bin/bash
 # Utility script to call the Python tool "coverage" for a specific test module
 
+export PYTHONPATH=$(pwd)
+
+# Interpreters to run the tests
+TEST_PYTHONS=("python" "python3" "pypy")
+
+# Interpreter to use to combine files, etc
+DEFAULT_PYTHON="python"
+
+# Python snippet to start coverage
+COVERAGE="import coverage; coverage.main()"
+
+# HTML report output directory
+OUT_HTML=./htmlcov
+
 # ------------------------------------------------------------------------------
 
 echo "Preparing coverage configuration..."
-OUT_HTML=./htmlcov
 COVERAGE_RC=.coveragerc
 
 cat > $COVERAGE_RC <<EOF
@@ -28,17 +41,11 @@ cat $COVERAGE_RC
 
 # ------------------------------------------------------------------------------
 
-export PYTHONPATH=$(pwd)
-PYTHONS=("python" "python3" "pypy")
-DEFAULT_PYTHON="python3"
-
-COVERAGE="import coverage; coverage.main()"
-
 echo "Erase..."
 rm -fr $OUT_HTML
 $DEFAULT_PYTHON -c "$COVERAGE" erase
 
-for PYTHON in "${PYTHONS[@]}"
+for PYTHON in "${TEST_PYTHONS[@]}"
 do
     # Test the interpreter
     $PYTHON --version >/dev/null 2>&1
