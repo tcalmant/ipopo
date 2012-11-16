@@ -3,48 +3,93 @@
 Pelix: the SOA framework
 ########################
 
+This tutorial shows how to start the framework, how to work with bundles and
+how to work with services.
+If you are only interested in iPOPO, you can skip the last section.
+
+
 Concepts
 ********
 
 Pelix is the base service-oriented architecture (SOA) framework that is used
 by iPOPO.
-It defines two main concepts:
+It defines two main concepts: service and bundle.
 
-* *service*, an object that is registered for given specifications, associated
-  to some properties. A consumer can request a service from the framework that
-  matches a specification and a filter on its properties.
+Service
+=======
 
-  * *service reference*: an object that allows any bundle to access to the
-    service information. It provides read to the services properties, to
-    the bundle which registered it, to the ones which use it, etc.
+A *service* is an object that is registered for given specifications and
+associated to some properties.
 
-  * *service registration*: an object that represents the service registration
-    in the framework. It allows to modify the service properties and to
-    unregister the service.
-    This object shall not be accessible by other bundles/services.
+The bundle that registers the service must keep the *service registration*
+object, which represents the service registration in the framework.
+It allows to modify the service properties and to unregister the service.
+This object shall not be accessible by other bundles/services.
+All services must be unregistered when their bundle is stopped.
 
 
-* *bundle*, the deployment unit.
+A consumer can request a service from the framework that matches a specification
+and a set of properties. The framework will return a *service reference*, which
+provides a read-only access to the description of its associated service:
+properties, registering bundle, bundles using it...
 
-  A bundle is a Python module installed using a Pelix Framework instance.
-  It has a life-cycle of its own and it can register services to the framework.
 
-  All bundles have a unique symbolic name (their module name) and an integer
-  identifier that is unique for a framework instance.
+Bundle
+======
 
-  .. note:: The framework itself is always the framework with ID 0.
+A bundle is a Python module installed using a Pelix Framework instance.
 
-  * *activator*: a bundle can have an activator, i.e. an instance of class
-    with a ``start()`` and a ``stop()`` method, which are called according
-    to the bundle life-cycle.
+All bundles have a unique symbolic name (their module name) and an integer
+identifier that is unique for a framework instance.
 
-  * *context*: a bundle has a context which allows it to interact with the
-    framework. All services of a bundle must be registered using its context.
+.. note:: The framework itself is always the framework with ID 0.
 
-This tutorial shows how to start the framework, how to work with bundles and
-how to work with services.
-If you are only interested in iPOPO, you can skip the last section.
 
+Bundle life cycle
+-----------------
+
+The bundle life cycle depends on framework's one, but must be handled
+programmatically.
+
+.. figure:: /_static/bundle_lifecycle.png
+   :scale: 50%
+   :alt: Bundle life cycle
+   :align: center
+   
+   Bundle life cycle
+
++-------------+---------------------------------------------------------+
+| State       | Description                                             |
++=============+=========================================================+
+| INSTALLED   | The module has been correctly imported.                 |
+|             | Its activator has not yet been called.                  |
++-------------+---------------------------------------------------------+
+| ACTIVE      | The bundle has been called and didn't raised any error. |
++-------------+---------------------------------------------------------+
+| UNINSTALLED | The bundle is being removed of the framework.           |
++-------------+---------------------------------------------------------+
+
+
+Bundle activator
+----------------
+
+A bundle activator is an object with a ``start()`` and a ``stop()`` method,
+which are called by the framework according to the bundle life-cycle.
+
+The activator is always the variable ``activator`` at the module-level.
+It shall be the only instantiation done during the module loading.
+
+Bundle context
+--------------
+
+A context is associated to each bundle, to allow it to interact with the
+framework.
+
+It must be used to register and request services, to request framework state,
+etc.
+
+The API of the bundle context can found here:
+`BundleContext <http://ipopo.coderxpress.net/api/pelix.framework.BundleContext-class.html>`_.
 
 Start the framework
 *******************

@@ -1,5 +1,7 @@
 .. Tutorial iPOPO Manipulation
 
+.. _manipulation:
+
 iPOPO Manipulation
 ##################
 

@@ -5,31 +5,156 @@ iPOPO: the component framework
 
 This tutorial shows how to work with the iPOPO framework.
 
+
+Concepts
+********
+
+iPOPO is a service-oriented component model.
+
+A component is an object with a life-cycle, requiring services and providing
+ones, and associated to properties.
+The code of a component is reduced to its functional purpose: life-cycle,
+dependencies, etc, are handled by iPOPO.
+
+In iPOPO, a component is an instance of component factory, i.e. a Python class
+manipulated with the iPOPO decorators.
+The usage of decorators is described in :ref:`decorators`.
+The manipulation process is explained in :ref:`manipulation`.
+
+
+Component life cycle
+====================
+
+The component life cycle is handled by an instance manager created by the iPOPO
+service.
+
+This instance manager will inject control methods, inject dependencies,
+register the component services.
+All changes will be notified to the component using the callback methods it
+declared.
+
+
+.. figure:: /_static/component_lifecycle.png
+   :scale: 50%
+   :alt: Component life cycle
+   :align: center
+   
+   Component life cycle
+
++--------------+---------------------------------------------------------------+
+| State        | Description                                                   |
++==============+===============================================================+
+| INSTANTIATED | The component has been instantiated.                          |
+|              | Its constructor has been called.                              |
++--------------+---------------------------------------------------------------+
+| VALIDATED    | All required dependencies have been injected.                 |
+|              | All services provided by the component have been registered.  |
++--------------+---------------------------------------------------------------+
+| KILLED       | The component has been invalidated and won't be usable again. |
++--------------+---------------------------------------------------------------+
+
+
+Callback methods
+================
+
+A component can defined four callback methods, using decorators.
+The name of the methods can be anything but a *private* method (prefix with
+two underscores `__`)
+
++-------------+------------------------+---------------------------------------+
+| Decorator   | Signature              | Description                           |
++=============+========================+=======================================+
+| @Validate   | ``def validate(self,   | The component is validating: all its  |
+|             | context)``             | dependencies have been injected.      |
+|             |                        | The component will go in VALIDATED    |
+|             |                        | state if this method doesn't raise an |
+|             |                        | exception.                            |
++-------------+------------------------+---------------------------------------+
+| @Invalidate | ``def invalidate(self, | The component is invalidating: its    |
+|             | context)``             | services are still there.             |
+|             |                        | The component will go in INVALIDATED  |
+|             |                        | state even if an exception is raised. |
++-------------+------------------------+---------------------------------------+
+| @Bind       | ``def bind(self,       | This method is called after a         |
+|             | service, reference)``  | dependency has been injected.         |
++-------------+------------------------+---------------------------------------+
+| @Unbind     | ``def unbind(self,     | This method is called before a        |
+|             | service,reference)``   | dependency is removed.                |
++-------------+------------------------+---------------------------------------+
+
+
 Install the iPOPO bundle
 ************************
 
-iPOPO is a simple bundle that has to be installed in a Pelix framework instance.
+iPOPO is a bundle, named ``pelix.ipopo.core``.
+It needs to be installed in a Pelix framework instance, like any bundle.
 
 .. code-block:: python
    :linenos:
 
-   >>> # Import the Pelix module
-   >>> import pelix.framework as pelix
-   >>> # Start the framework
-   >>> framework = pelix.FrameworkFactory.get_framework()   
-   >>> # Get the bundle context
-   >>> context = framework.get_bundle_context()
+   # Import the Pelix module
+   import pelix.framework as pelix
    
-   >>> # Install and start the bundle
-   >>> bundle_id = context.install_bundle("pelix.ipopo.core")
-   >>> bundle = context.get_bundle(bundle_id)
-   >>> bundle.start()
+   # Start the framework
+   framework = pelix.FrameworkFactory.get_framework()
+   framework.start()   
    
-   >>> # Get the iPOPO service
-   >>> from pelix.ipopo.constants import IPOPO_SERVICE_SPECIFICATION
-   >>> ipopo_ref = context.get_service_reference(IPOPO_SERVICE_SPECIFICATION)
-   >>> ipopo = context.get_service(ipopo_ref)
+   # Get the bundle context
+   context = framework.get_bundle_context()
+   
+   # Install and iPOPO the bundle
+   bundle_id = context.install_bundle("pelix.ipopo.core")
+   bundle = context.get_bundle(bundle_id)
+   bundle.start()
 
+
+Get the iPOPO service
+*********************
+
+If you use the ``@Instantiate`` decorator to start all your components, you
+might not need to use the iPOPO service itself.
+
+
+There are two equivalent ways to retrieve the iPOPO service:
+
+* the standard Pelix way:
+
+  .. code-block:: python
+     :linenos:
+
+     # Get the iPOPO service specification
+     from pelix.ipopo.constants import IPOPO_SERVICE_SPECIFICATION
+
+     # Find the service (context is a BundleContext)
+     ipopo_ref = context.get_service_reference(IPOPO_SERVICE_SPECIFICATION)
+     if ipopo_ref is None:
+          print("iPOPO service not present")
+          return
+
+     try:
+          # Use it
+          ipopo = context.get_service(ipopo_ref)
+
+     except pelix.framework.BundleException as ex:
+          print("Error retrieving the iPOPO service: {0}".format(ex))
+          return
+
+
+* with the iPOPO utility method, which wraps the Pelix way:
+
+  .. code-block:: python
+     :linenos:
+
+     # Get the iPOPO utility method
+     from pelix.ipopo.constants import get_ipopo_svc_ref
+
+     # Get the service (context is a BundleContext)
+     ipopo = get_ipopo_svc_ref(context)
+     if ipopo is None:
+          print("iPOPO service not found")
+
+
+.. _decorators:
 
 Write a component factory
 *************************
@@ -89,8 +214,30 @@ Here is a sample factory class:
            print "%s: Gone." % self.name
 
 
+* Lines 5-13: the decorators manipulates the class
+
+  +-------------------+---------------------------------------------------+
+  | Decorator         | Description                                       |
+  +===================+===================================================+
+  | @ComponentFactory | Finalizes the manipulation                        |
+  +-------------------+---------------------------------------------------+
+  | @Instantiate      | Tells iPOPO to instantiate the component          |
+  |                   | "MyIncrementer" as soon as the factory is loaded  |
+  +-------------------+---------------------------------------------------+
+  | @Property         | Defines the properties of the component and their |
+  |                   | associated field                                  |
+  +-------------------+---------------------------------------------------+
+  | @Provides         | Defines the service provided by the component     |
+  +-------------------+---------------------------------------------------+
+
+* Lines 14-30: Implementation of the component
+
+* Lines 31-45: Definition of callback methods, called when iPOPO validates or
+  invalidates the component
+
+
 When the bundle containing this class will be started, its factories will be
-loaded and the requested components will be instantiated, if possible.
+loaded and the indicated component will be instantiated, if possible.
 
 .. code-block:: python
    :linenos:
@@ -104,11 +251,21 @@ loaded and the requested components will be instantiated, if possible.
 Use the iPOPO service
 *********************
 
-The iPOPO service provides three methods:
+The iPOPO service provides four important methods:
 
-* ``instantiate(factory_name, name, properties)``: starts a new component from
-  the given factory, with the given name and properties. If a component with
-  the same name already exists, the instantiation fails.
+* ``register_factory(context, factory_class)``: registers the given
+  **manipulated** class as a factory. The name of the factory is found in
+  the manipulation attributes.
+  If the class has not been manipulated or if the factory name has already
+  been used, an error is raised.
+  The given bundle context will be used for services registration and retrieval.
+
+* ``unregister_factory(factory_name)``: unregisters the factory of the given
+  name.
+
+* ``instantiate(factory_name, name, properties)``: starts a new component using
+  the given factory, with the given name and properties.
+  The instantiation fails if a component with the same name already exists.
 
   .. code-block:: python
      :linenos:
@@ -120,12 +277,8 @@ The iPOPO service provides three methods:
      >>> compo.increment()
      1
 
-* ``invalidate(name)``: invalidates the component with the given name. This
-  is a test method, as the component will be automatically re-validated when a
-  new service event will be triggered.
-
-* ``kill(name)``: destroys the component with the given name. The component is
-  invalidated then removed from the iPOPO registry.
+* ``kill(name)``: destroys the component with the given name.
+  The component is invalidated then removed from the iPOPO registry.
 
   .. code-block:: python
      :linenos:
@@ -248,3 +401,9 @@ bound or unbound:
       @Unbind
       def unbind(self, service, reference):
           print "Component lost", reference.get_property("instance.name")
+
+          
+Provide a service
+*****************
+
+.. todo:: @Provides + service controller
