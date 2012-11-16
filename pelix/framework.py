@@ -1680,9 +1680,12 @@ class BundleContext(object):
     def unget_service(self, reference):
         """
         Disables a reference to the service
+        
+        :return: True if the bundle was using this reference, else False
         """
         # Lose the dependency
-        self.__framework._registry.unget_service(self.__bundle, reference)
+        return self.__framework._registry.unget_service(self.__bundle,
+                                                        reference)
 
 
 # ------------------------------------------------------------------------------
