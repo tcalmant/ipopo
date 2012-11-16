@@ -83,10 +83,12 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
     """
     A synchronizer decorator for class methods. An AttributeError can be raised
     at runtime if the given lock attribute doesn't exist or if it is None.
+    
+    If a parameter ``sorted`` is found in ``kwargs`` and its value is True,
+    then the list of locks names will be sorted before locking.
 
     :param locks_attr_names: A list of the lock(s) attribute(s) name(s) to be
                              used for synchronization
-    :param sorted: If True, the names list will be sorted before locking
     :return: The decorator method, surrounded with the lock
     """
     # Filter the names (remove empty ones)

@@ -69,6 +69,7 @@ HANDLER_DEPENDENCY = 'dependency'
 """
 Represents the 'dependency' kind of handler.
 Those handlers must implement the following methods:
+
 * get_bindings(): Retrieves the list of bound service references
 * is_valid(): Returns True if the dependency is in a valid state
 """
@@ -77,10 +78,12 @@ HANDLER_SERVICE_PROVIDER = 'service_provider'
 """
 Represents the 'service_provider' kind of handler.
 Those handlers must implement the following method:
+
 * get_service_reference(): Retrieves the reference of the provided service
   (a ServiceReference object).
 
 It should also implement the following ones:
+
 * on_controller_changer(): Called when a component controller has been modified.
   The publication of a service might be stopped if its controller is set to
   False.

@@ -700,7 +700,7 @@ class _ServiceRegistrationHandler(object):
         :param specifications: The service specifications
         :param controller_name: Name of the associated service controller
                                 (can be None)
-        :param _ipopo_instance: The iPOPO component StoredInstance
+        :param ipopo_instance: The iPOPO component StoredInstance
         """
         self.specifications = specifications
         self._ipopo_instance = ipopo_instance
@@ -1362,7 +1362,7 @@ class _StoredInstance(object):
         Applies the component invalidation.
 
         :param callback: If True, call back the component before the
-        invalidation
+                         invalidation
         """
         with self._lock:
             if self.state != _StoredInstance.VALID:
@@ -1450,7 +1450,7 @@ class _StoredInstance(object):
         """
         Ends the component validation, registering services
 
-        :param __safe_callback: If True, calls the component validation callback
+        :param safe_callback: If True, calls the component validation callback
         :raise RuntimeError: You try to awake a dead component
         """
         with self._lock:
@@ -1555,6 +1555,7 @@ class _StoredInstance(object):
         Logs exceptions, but doesn't propagate them.
         
         Special arguments can be given in kwargs:
+        
         * 'none_as_true': If set to True and the method returned None or doesn't
                           exist, the result is considered as True.
                           If set to False, None result is kept as is.
@@ -1607,6 +1608,7 @@ class _StoredInstance(object):
         Methods called in handlers must return None, True or False.
         
         Special parameters can be given in kwargs:
+        
         * 'exception_as_error': if it is set to True and an exception is raised
           by a handler, then this method will return False. By default, this
           flag is set to False and exceptions are ignored.
@@ -1658,11 +1660,11 @@ class _StoredInstance(object):
 
     def __set_binding(self, dependency, service, reference):
         """
-        Injects the given service into the given field
+        Injects a service in the component
 
-        :param field: The field where the service is injected
-        :param dependency: The dependency manager
-        :param binding: The binding, result of the dependency manager
+        :param dependency: The dependency handler
+        :param service: The injected service
+        :param reference: The reference of the injected service
         """
         with self._lock:
             # Set the value
@@ -1675,11 +1677,11 @@ class _StoredInstance(object):
 
     def __unset_binding(self, dependency, service, reference):
         """
-        Remove the given service from the given field
+        Removes a service from the component
 
-        :param field: The field where the service is injected
-        :param dependency: The dependency manager
-        :param binding: The binding, result of the dependency manager
+        :param dependency: The dependency handler
+        :param service: The injected service
+        :param reference: The reference of the injected service
         """
         with self._lock:
             # Call the component back
@@ -2401,7 +2403,7 @@ class _IPopoService(object):
         """
         Retrieves the Pelix Bundle object that registered the given factory
         
-        :param factory: The name of a factory
+        :param name: The name of a factory
         :return: The Bundle that registered the given factory
         :raise ValueError: Invalid factory
         """

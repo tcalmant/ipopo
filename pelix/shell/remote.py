@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 iPOPO remote shell
 
@@ -31,6 +31,9 @@ telnet or netcat.
 """
 
 __version__ = (0, 1, 0)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

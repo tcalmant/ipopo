@@ -32,6 +32,9 @@ Python library.
 
 __version__ = (0, 1, 0)
 
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
 # ------------------------------------------------------------------------------
 
 from pelix.ipopo.decorators import ComponentFactory, Provides, Validate, \

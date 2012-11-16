@@ -289,8 +289,6 @@ def _ipopo_class_field_property(name, value, methods_prefix):
     def get_value(self):
         """
         Retrieves the property value, from the iPOPO dictionaries
-        
-        :return: The property value
         """
         getter = getattr(self, getter_name, None)
         if getter is not None:

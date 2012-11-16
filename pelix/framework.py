@@ -230,7 +230,7 @@ class Bundle(object):
         unregistered at any time.
         
         :return: An array of ServiceReference objects or None.
-        :throws BundleException: If the bundle has been uninstalled
+        :raise BundleException: If the bundle has been uninstalled
         """
         if self._state == Bundle.UNINSTALLED:
             raise BundleException("Can't call 'get_registered_services' on an "
@@ -251,7 +251,7 @@ class Bundle(object):
         or unregistered at any time.
         
         :return: An array of ServiceReference objects or None.
-        :throws BundleException: If the bundle has been uninstalled
+        :raise BundleException: If the bundle has been uninstalled
         """
         if self._state == Bundle.UNINSTALLED:
             raise BundleException("Can't call 'get_services_in_use' on an "
@@ -557,7 +557,7 @@ class Framework(Bundle):
         """
         Retrieves the bundle with the given ID
 
-        :param id: ID of an installed bundle
+        :param bundle_id: ID of an installed bundle
         :return: The requested bundle
         :raise BundleException: The ID is invalid
         """
@@ -576,7 +576,7 @@ class Framework(Bundle):
         """
         Retrieves the bundle with the given name
 
-        :param name: Name of the bundle to look for
+        :param bundle_name: Name of the bundle to look for
         :return: The requested bundle, None if not found
         """
         if bundle_name is None:
@@ -897,7 +897,7 @@ class Framework(Bundle):
         """
         Unregisters the given service
 
-        :param reference: A ServiceRegistration to the service to unregister
+        :param registration: A ServiceRegistration to the service to unregister
         :raise BundleException: Invalid reference
         """
         assert isinstance(registration, ServiceRegistration)
@@ -1377,8 +1377,9 @@ class _ServiceRegistry(object):
         the Framework is a very dynamic environment, services can be modified
         or unregistered at any time.
         
+        :param bundle: The bundle to look into
         :return: An array of ServiceReference objects or None.
-        :throws BundleException: If the bundle has been uninstalled
+        :raise BundleException: If the bundle has been uninstalled
         """
         with self.__svc_lock:
             return self.__bundle_imports.get(bundle, None)
@@ -1389,7 +1390,7 @@ class _ServiceRegistry(object):
         Retrieves the services registered by the given bundle. Returns None
         if the bundle didn't register any service.
         
-        :param bundle: A bundle
+        :param bundle: The bundle to look into
         :return: The services registered by the bundle, or None
         """
         with self.__svc_lock:

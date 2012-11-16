@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 iPOPO shell commands
 
@@ -30,6 +30,9 @@ Provides commands to the Pelix shell to get the state of iPOPO instances.
 """
 
 __version__ = (0, 1, 0)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

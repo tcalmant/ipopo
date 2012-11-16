@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 Pelix shell bundle.
 
@@ -30,6 +30,9 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 """
 
 __version__ = (0, 1, 0)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

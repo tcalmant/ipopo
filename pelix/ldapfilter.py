@@ -129,7 +129,7 @@ class LDAPFilter(object):
         :param ldap_filter: An LDAP filter or criteria
         :raise TypeError: If the parameter is not of a known type
         :raise ValueError: If the more than one filter is associated to a
-        NOT operator
+                           NOT operator
         """
         if not isinstance(ldap_filter, (LDAPFilter, LDAPCriteria)):
             raise TypeError("Invalid filter type: {0}".format(
