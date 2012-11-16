@@ -21,6 +21,10 @@ manipulated with the iPOPO decorators.
 The usage of decorators is described in :ref:`decorators`.
 The manipulation process is explained in :ref:`manipulation`.
 
+.. important:: Due to the use of Python properties, all component factories
+   must be new-style classes. It is the case of all Python 3 classes, but
+   Python 2.x classes must explicitly extend ``object``.
+
 
 Component life cycle
 ====================
@@ -161,6 +165,10 @@ Write a component factory
 
 The principle of iPOPO is to handle the life cycle of components which are
 instances of factory classes.
+
+.. important:: Due to the use of Python properties, all component factories
+   must be new-style classes. It is the case of all Python 3 classes, but
+   Python 2.x classes must explicitly extend ``object``.
 
 Here is a sample factory class:
 
@@ -403,7 +411,205 @@ bound or unbound:
           print "Component lost", reference.get_property("instance.name")
 
           
-Provide a service
-*****************
+Provided service
+****************
 
-.. todo:: @Provides + service controller
+A component can provide one or more services, with one or more specifications
+each.
+All component properties and all property changes are propagated to the
+properties of the provided services.
+
+iPOPO also allows to control if a service must be provided or not using a
+boolean controller field, which can be different or shared for every provided
+service.
+
+As always, a snippet is better than a long description:
+
+.. code-block:: python
+   :linenos:
+   
+   @ComponentFactory(name="MyFactory")
+   @Property("_property_field", "some.property", 42)
+   @Provides(specifications="service.test_1")
+   @Provides(specifications="service.test_2", controller="_test_ctrl")
+   class Component(object):
+    """
+    Sample Component A
+    """
+    def __init__(self):
+       """
+       Constructor
+       """
+       # This code is for out-of-iPOPO instantiations
+       self._property_field = 10
+    
+    def change_property(self, value):
+       """
+       Changes the value of the service property
+       """
+       self._property_field = value
+       
+    def change_controller(self, value):
+       """
+       Change the controller value
+
+       If value is False, then the *service.test_2* will be unregistered
+       """
+       self._test_ctrl = value
+
+
+This component has one property, ``some.property``, associated to the component
+field ``_property_field``.
+It also provides two distinct services, with one specification each.
+The service ``service.test_2`` has a controller, which can be toggled using
+the ``change_controller()`` method of the component.
+
+
+Live test
+*********
+
+This section is a succession of commands ran in Python 2.6.5, with ``importlib``
+installed, on an Ubuntu 10.04, using iPOPO 0.4.
+
+It summarizes everything that have been told in the Pelix and iPOPO tutorials.
+
+.. code-block:: python
+   :linenos:
+   
+   # Prepare the component class
+   >>> from pelix.ipopo.decorators import ComponentFactory, Property, Provides
+   >>> @ComponentFactory(name="MyFactory")
+   ... @Property("_property_field", "some.property", 42)
+   ... @Provides(specifications="service.test_1")
+   ... @Provides(specifications="service.test_2", controller="_test_ctrl")
+   ... class Component(object):
+   ...  """
+   ...  Sample Component A
+   ...  """
+   ...  def __init__(self):
+   ...     """
+   ...     Constructor
+   ...     """
+   ...     # This code is for out-of-iPOPO instantiations
+   ...     self._property_field = 10
+   ...  def change_property(self, value):
+   ...     """
+   ...     Changes the value of the service property
+   ...     """
+   ...     self._property_field = value
+   ...  def change_controller(self, value):
+   ...     """
+   ...     Change the controller value
+   ...     
+   ...     If value is False, then the *service.test_2* will be unregistered
+   ...     """
+   ...     self._test_ctrl = value
+   ...
+   
+   # Start a framework
+   >>> import pelix.framework
+   >>> framework = pelix.framework.FrameworkFactory.get_framework()
+   >>> context = framework.get_bundle_context()
+   
+   # Install the iPOPO bundle: it will be started with the framework
+   >>> context.install_bundle('pelix.ipopo.core')
+   1
+
+   # Start the framework
+   >>> framework.start()
+   True
+
+   # Get the iPOPO service
+   >>> from pelix.ipopo.constants import get_ipopo_svc_ref
+   >>> ipopo = get_ipopo_svc_ref(context)[1]
+
+   # Register the factory
+   >>> ipopo.register_factory(context, Component)
+   True
+
+   # Instantiate the component
+   >>> instance = ipopo.instantiate('MyFactory', 'MyInstance')
+   
+   # Test services presence: we have two different services (different IDs)
+   >>> [str(ref) for ref in context.get_all_service_references('service.test_1', None)]
+   ["ServiceReference(ID=3, Bundle=0, Specs=['service.test_1'])"]
+   >>> [str(ref) for ref in context.get_all_service_references('service.test_2', None)]
+   ["ServiceReference(ID=2, Bundle=0, Specs=['service.test_2'])"]
+   
+   # Show service properties
+   >>> ref_1 = context.get_all_service_references('service.test_1', None)[0]
+   >>> ref_2 = context.get_all_service_references('service.test_2', None)[0]
+   >>> print ref_1.get_properties()
+   {'some.property': 42, 'instance.name': 'MyInstance', 'service.id': 3, 'objectClass': ['service.test_1']}
+   >>> print ref_2.get_properties()
+   {'some.property': 42, 'instance.name': 'MyInstance', 'service.id': 2, 'objectClass': ['service.test_2']}
+   
+   # Get the services
+   >>> svc_1 = context.get_service(ref_1)
+   >>> svc_2 = context.get_service(ref_2)
+   
+   # The component instance provides both services:
+   # we can use either instance, svc_1 or svc_2 to access the same object
+   >>> instance is svc_1 and instance is svc_2 and svc_1 is svc_2
+   True
+
+   # Change component property
+   >>> svc_1.change_property(128)
+   >>> print ref_1.get_properties()
+   {'some.property': 128, 'instance.name': 'MyInstance', 'service.id': 3, 'objectClass': ['service.test_1']}
+   >>> print ref_2.get_properties()
+   {'some.property': 128, 'instance.name': 'MyInstance', 'service.id': 2, 'objectClass': ['service.test_2']}
+   
+   # Change controller value
+   >>> instance.change_controller(False)
+   >>> [str(ref) for ref in context.get_all_service_references('service.test_1', None)]
+   ["ServiceReference(ID=3, Bundle=0, Specs=['service.test_1'])"]
+   >>> context.get_all_service_references('service.test_2', None)
+   >>> # No match found: get_all_service_references returns None
+   
+   # Reset controller value
+   >>> instance.change_controller(True)
+   >>> [str(ref) for ref in context.get_all_service_references('service.test_1', None)]
+   ["ServiceReference(ID=3, Bundle=0, Specs=['service.test_1'])"]
+   >>> context.get_all_service_references('service.test_2', None)
+   [<pelix.framework.ServiceReference object at 0x21721d0>]
+   >>> [str(ref) for ref in context.get_all_service_references('service.test_2', None)]
+   ["ServiceReference(ID=4, Bundle=0, Specs=['service.test_2'])"]
+   >>> # Service came back
+   
+   # WARNING: the service has been registered a second time, which means it
+   # will have a different reference:
+   >>> ref_3 = context.get_all_service_references('service.test_2', None)[0]
+   >>> ref_3 is ref_2
+   False
+   
+   # Unget the services
+   >>> context.unget_service(ref_1)
+   True
+   
+   # Unget service never raises exceptions, even when using old references
+   >>> context.unget_service(ref_2)
+   False
+   
+   # Stop the framework
+   # It will stop the iPOPO bundle which will kill the component instance
+   # and unregister its factory.
+   >>> framework.stop()
+   True
+   
+   # Delete it
+   >>> pelix.framework.FrameworkFactory.delete_framework(framework)
+   True
+   
+   # Don't forget to clean up variables references
+   >>> instance = svc_1 = svc_2 = None
+   >>> ref_1 = ref_2 = ref_3 = None
+   >>> framework = None
+   # Python interpreter is clean
+
+
+Now you known how to run a Pelix framework, how to use the iPOPO service and
+how to write iPOPO components.
+
+You can go further by reading the next section, explaining how the class
+manipulation works.
