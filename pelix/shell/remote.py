@@ -193,10 +193,9 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
     """
     Threaded TCP Server handling different address families
     """
-    def __init__(self, server_address, request_handler_class,
-                 bind_and_activate=True):
+    def __init__(self, server_address, request_handler_class):
         """
-        Sets up the server
+        Sets up the TCP server. Doesn't bind nor activate it.
         """
         # Determine the address family
         addr_info = socket.getaddrinfo(server_address[0], server_address[1],
@@ -209,7 +208,20 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         # Call the super constructor
         socketserver.ThreadingTCPServer.__init__(self, server_address,
                                                  request_handler_class,
-                                                 bind_and_activate)
+                                                 False)
+
+        if self.address_family == socket.AF_INET6:
+            # Explicitly ask to be accessible both by IPv4 and IPv6
+            # Some versions of Python don't have V6ONLY.
+            # On Linux, IPC6_V6ONLY = 26
+            IPV6_V6ONLY = getattr(socket, "IPV6_V6ONLY", 26)
+
+            try:
+                self.socket.setsockopt(socket.IPPROTO_IPV6, IPV6_V6ONLY, 0)
+
+            except socket.error as ex:
+                # Log the error
+                _logger.exception("Couldn't set IP double stack flag: %s", ex)
 
 
 def _create_server(shell, server_address, port):
@@ -226,8 +238,7 @@ def _create_server(shell, server_address, port):
     request_handler = lambda *args: RemoteConsole(shell, active_flag, *args)
 
     # Set up the server
-    server = ThreadingTCPServerFamily((server_address, port), request_handler,
-                                      False)
+    server = ThreadingTCPServerFamily((server_address, port), request_handler)
 
     # Set flags
     server.daemon_threads = True
