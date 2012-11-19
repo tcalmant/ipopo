@@ -651,30 +651,36 @@ class Framework(Bundle):
         return "org.psem2m.pelix"
 
 
-    def install_bundle(self, location):
+    def install_bundle(self, name):
         """
-        Installs the bundle from the given location
+        Installs the bundle with the given name
 
-        :param location: A bundle location
+        :param name: A bundle name
         :return: The installed bundle ID
         :raise BundleException: Something happened
         """
         with self.__bundles_lock:
+            # A bundle can't be installed twice
+            for bundle in self.__bundles.values():
+                if bundle.get_symbolic_name() == name:
+                    _logger.warning('Already installed bundle: %s', name)
+                    return bundle.get_bundle_id()
+
             # Load the module
             try:
-                # module = __import__(location) -> package level
+                # module = __import__(name) -> package level
                 # import_module -> Nested module
 
                 # Special case : __main__ module
-                if location == "__main__":
+                if name == "__main__":
                     try:
-                        module = sys.modules[location]
+                        module = sys.modules[name]
 
                     except KeyError:
-                        raise BundleException("Error reloading the 'main' module")
+                        raise BundleException("Can't reload the 'main' module")
 
                 else:
-                    module = importlib.import_module(location)
+                    module = importlib.import_module(name)
 
             except ImportError as ex:
                 # Error importing the module
@@ -684,7 +690,7 @@ class Framework(Bundle):
             bundle_id = self.__next_bundle_id
 
             # Prepare the bundle object and its context
-            bundle = Bundle(self, bundle_id, location, module)
+            bundle = Bundle(self, bundle_id, name, module)
 
             # Store the bundle
             self.__bundles[bundle_id] = bundle
