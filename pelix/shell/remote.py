@@ -58,7 +58,6 @@ else:
 # ------------------------------------------------------------------------------
 
 SHELL_SERVICE_SPEC = "pelix.shell"
-SHELL_COMMAND_SPEC = "ipopo.shell.command"
 
 _logger = logging.getLogger(__name__)
 
@@ -195,12 +194,17 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
     Threaded TCP Server handling different address families
     """
     def __init__(self, server_address, request_handler_class,
-                 bind_and_activate=True, address_family=socket.AF_INET):
+                 bind_and_activate=True):
         """
         Sets up the server
         """
-        # Set the family
-        self.address_family = address_family
+        # Determine the address family
+        addr_info = socket.getaddrinfo(server_address[0], server_address[1],
+                                       0, 0, socket.SOL_TCP)
+
+        # Change the address family before the socket is created
+        # Get the family of the first possibility
+        self.address_family = addr_info[0][0]
 
         # Call the super constructor
         socketserver.ThreadingTCPServer.__init__(self, server_address,
@@ -208,14 +212,13 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
                                                  bind_and_activate)
 
 
-def _create_server(shell, server_address, port, address_family=None):
+def _create_server(shell, server_address, port):
     """
     Creates the TCP console on the given address and port
     
     :param shell: The remote shell handler
     :param server_address: Server bound address
     :param port: Server port
-    :param address_family: The IP address family
     :return: server thread, TCP server object
     """
     # Set up the request handler creator
@@ -224,7 +227,7 @@ def _create_server(shell, server_address, port, address_family=None):
 
     # Set up the server
     server = ThreadingTCPServerFamily((server_address, port), request_handler,
-                                      False, address_family)
+                                      False)
 
     # Set flags
     server.daemon_threads = True
@@ -236,6 +239,7 @@ def _create_server(shell, server_address, port, address_family=None):
 
     # Serve clients
     server_thread = threading.Thread(target=server.serve_forever)
+    server_thread.daemon = True
     server_thread.start()
 
     return (server_thread, server, active_flag)
@@ -243,10 +247,9 @@ def _create_server(shell, server_address, port, address_family=None):
 # ------------------------------------------------------------------------------
 
 @ComponentFactory("ipopo-remote-shell-factory")
+@Property("_address", "shell.address", "localhost")
 @Property("_port", "shell.port", 9000)
 @Requires("_shell", SHELL_SERVICE_SPEC)
-@Requires("_handlers", SHELL_COMMAND_SPEC, aggregate=True, optional=True)
-@Instantiate("ipopo-remote-shell")
 class IPopoRemoteShell(object):
     """
     The iPOPO Remote Shell, based on the Pelix Shell
@@ -257,14 +260,13 @@ class IPopoRemoteShell(object):
         """
         # Component shell
         self._shell = None
-        self._handlers = None
+        self._address = None
         self._port = 0
 
         # Internals
         self._thread = None
         self._server = None
         self._server_flag = None
-        self._remote_handlers = {}
 
 
     def get_banner(self):
@@ -303,90 +305,28 @@ class IPopoRemoteShell(object):
         return self._shell.execute(line, rfile, wfile)
 
 
-    def __register_handler(self, handler):
-        """
-        Registers the given command handler to the shell
-        """
-        # Shell command bound, and shell active
-        namespace = handler.get_namespace()
-        if handler not in self._remote_handlers:
-            # Local service
-            for command, method in handler.get_methods():
-                self._shell.register_command(namespace, command, method)
-
-        else:
-            # Imported service
-            host = self._remote_handlers[handler]
-            _logger.info("Bound to a remote command handler from %s", host)
-
-            namespace = ".".join((host, namespace))
-            for command, method_name in handler.get_methods_names():
-                def proxy(*args, **kwargs):
-                    """
-                    Remote command proxy
-                    """
-                    return getattr(handler, method_name)(*args, **kwargs)
-
-                self._shell.register_command(namespace, command, proxy)
-
-
-    @Bind
-    def bind(self, svc, svc_ref):
-        """
-        Called by iPOPO when a service is bound
-        
-        :param svc: The bound service
-        :param svc_ref: The reference of the bound service
-        """
-        specs = svc_ref.get_property(pelix.OBJECTCLASS)
-        if SHELL_COMMAND_SPEC in specs:
-            # Command handler bound
-            if svc_ref.get_property("service.imported"):
-                # Imported command
-                self._remote_handlers[svc] = \
-                                svc_ref.get_property("service.imported.from")
-
-            if self._shell is not None:
-                # The shell is active, register the command handler immediately
-                self.__register_handler(svc)
-
-        elif self._handlers and SHELL_SERVICE_SPEC in specs:
-            # Bound to the shell, register bound commands if any
-            for handler in self._handlers:
-                self.__register_handler(handler)
-
-
-    @Unbind
-    def unbind(self, svc, svc_ref):
-        """
-        Called by iPOPO when a service is bound
-        
-        :param svc: The bound service
-        :param svc_ref: The reference of the bound service
-        """
-        specs = svc_ref.get_property(pelix.OBJECTCLASS)
-        if self._shell and SHELL_COMMAND_SPEC in specs:
-            # Shell command unbound
-            namespace = svc.get_namespace()
-            self._shell.unregister(namespace)
-
-            # Clean up the references
-            if svc in self._remote_handlers:
-                del self._remote_handlers[svc]
-
-
     @Validate
     def validate(self, context):
         """
         Component validation
         """
-        # Start the TCP server
-        port = int(self._port)
-        self._thread, self._server, \
-            self._server_flag = _create_server(self, "::", port,
-                                               socket.AF_INET6)
+        if not self._address:
+            # Local host by default
+            self._address = "localhost"
 
-        _logger.info("RemoteShell validated on port: %d", port)
+        if self._port is None or self._port < 0:
+            # Random port
+            self._port = 0
+
+        else:
+            # Ensure we have an integer
+            self._port = int(self._port)
+
+        # Start the TCP server
+        self._thread, self._server, self._server_flag = \
+                                _create_server(self, self._address, self._port)
+
+        _logger.info("RemoteShell validated on port: %d", self._port)
 
 
     @Invalidate
@@ -397,9 +337,6 @@ class IPopoRemoteShell(object):
         # Stop the clients loops
         self._server_flag.set_value(False)
 
-        # Clear data
-        self._remote_handlers.clear()
-
         # Shutdown the server
         self._server.shutdown()
         self._thread.join(2)
@@ -407,5 +344,10 @@ class IPopoRemoteShell(object):
         # Close the server socket (ignore errors)
         self._server.server_close()
 
-        _logger.info("RemoteShell gone")
+        # Clean up
+        self._thread = None
+        self._server = None
+        self._server_flag = None
+
+        _logger.info("RemoteShell gone from port: %d", self._port)
 
