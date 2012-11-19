@@ -44,7 +44,7 @@ import logging
 
 # ------------------------------------------------------------------------------
 
-SHELL_COMMAND_SPEC = "ipopo.shell.command"
+SHELL_COMMAND_SPEC = "pelix.shell.command"
 SHELL_UTILS_SERVICE_SPEC = "pelix.shell.utilities"
 
 _logger = logging.getLogger(__name__)

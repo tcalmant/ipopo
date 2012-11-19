@@ -46,6 +46,7 @@ import sys
 
 DEFAULT_NAMESPACE = "default"
 SHELL_SERVICE_SPEC = "pelix.shell"
+SHELL_COMMAND_SPEC = "pelix.shell.command"
 SHELL_UTILS_SERVICE_SPEC = "pelix.shell.utilities"
 
 _logger = logging.getLogger(__name__)
@@ -151,8 +152,8 @@ class ShellUtils(object):
         """
         Generates an ASCII table according to the given headers and lines
 
-        :param headers: List of table headers
-        :param lines: List of table lines (tuples).
+        :param headers: List of table headers (N-tuple)
+        :param lines: List of table lines (N-tuples).
         :return: The ASCII representation of the table
         :raise ValueError: Different number of columns between headers and lines
         """
@@ -229,6 +230,12 @@ class Shell(object):
         self._context = context
         self._utils = utilities
 
+        # Bound services: reference -> service
+        self._bound_references = {}
+
+        # Service reference -> (name space, [commands])
+        self._reference_commands = {}
+
         # Register basic commands
         self.register_command(None, "bd", self.bundle_details)
         self.register_command(None, "bl", self.bundles_list)
@@ -248,6 +255,86 @@ class Shell(object):
         self.register_command(None, "quit", self.quit)
         self.register_command(None, "close", self.quit)
         self.register_command(None, "exit", self.quit)
+
+
+    def _bind_handler(self, svc_ref):
+        """
+        Called if a command service has been found.
+        Registers the methods of this service.
+        
+        :param svc_ref: A reference to the found service
+        :return: True if the commands have been registered
+        """
+        if svc_ref in self._bound_references:
+            # Already bound service
+            return False
+
+        # Get the service
+        handler = self._context.get_service(svc_ref)
+
+        # Get its name space
+        namespace = handler.get_namespace()
+        commands = []
+
+        # Get the host exporting the service, if any
+        remote_host = None
+        if svc_ref.get_property("service.imported"):
+            # Imported service: store its host
+            remote_host = svc_ref.get_property("service.imported.from")
+
+        if not remote_host:
+            # Local service: register all its methods directly
+            for command, method in handler.get_methods():
+                self.register_command(namespace, command, method)
+                commands.append(command)
+
+        else:
+            # Imported service
+            _logger.info("Bound to a remote command handler from %s",
+                         remote_host)
+
+            # Prefix its name space
+            namespace = ".".join((remote_host, namespace))
+            for command, method_name in handler.get_methods_names():
+                # Use a proxy to call the methods
+                def proxy(*args, **kwargs):
+                    """
+                    Remote command proxy
+                    """
+                    return getattr(handler, method_name)(*args, **kwargs)
+
+                self.register_command(namespace, command, proxy)
+                commands.append(command)
+
+        # Store the reference
+        self._bound_references[svc_ref] = handler
+        self._reference_commands[svc_ref] = (namespace, commands)
+        return True
+
+
+    def _unbind_handler(self, svc_ref):
+        """
+        Called if a command service is gone.
+        Unregisters its commands.
+        
+        :param svc_ref: A reference to the unbound service
+        :return: True if the commands have been unregistered
+        """
+        if svc_ref not in self._bound_references:
+            # Unknown reference
+            return False
+
+        # Unregister its commands
+        handler = self._bound_references[svc_ref]
+        namespace, commands = self._reference_commands[svc_ref]
+        for command in commands:
+            self.unregister(namespace, command)
+
+        # Release the service
+        self._context.unget_service(svc_ref)
+        del self._bound_references[svc_ref]
+        del self._reference_commands[svc_ref]
+        return True
 
 
     def register_command(self, namespace, command, method):
@@ -616,8 +703,26 @@ class PelixActivator(object):
         """
         Sets up the activator
         """
+        self._shell = None
         self._shell_reg = None
         self._utils_reg = None
+
+
+    def service_changed(self, event):
+        """
+        Called when a command provider service event occurred
+        """
+        kind = event.get_type()
+        reference = event.get_service_reference()
+
+        if kind in (pelix.ServiceEvent.REGISTERED,
+                    pelix.ServiceEvent.MODIFIED):
+            # New or modified service
+            self._shell._bind_handler(reference)
+
+        else:
+            # Service gone or not matching anymore
+            self._shell._unbind_handler(reference)
 
 
     def start(self, context):
@@ -629,12 +734,23 @@ class PelixActivator(object):
         try:
             # Prepare the shell utility service
             utils = ShellUtils()
-            shell = Shell(context, utils)
+            self._shell = Shell(context, utils)
 
             self._shell_reg = context.register_service(SHELL_SERVICE_SPEC,
-                                                       shell, {})
+                                                       self._shell, {})
             self._utils_reg = context.register_service(SHELL_UTILS_SERVICE_SPEC,
                                                        utils, {})
+
+            # Register the service listener
+            spec_filter = '({0}={1})'.format(pelix.OBJECTCLASS,
+                                             SHELL_COMMAND_SPEC)
+            context.add_service_listener(self, spec_filter)
+
+            # Register existing command services
+            refs = context.get_all_service_references(SHELL_COMMAND_SPEC, None)
+            if refs is not None:
+                for ref in refs:
+                    self._shell._bind_handler(ref)
 
             _logger.info("Shell services registered")
 
@@ -648,6 +764,7 @@ class PelixActivator(object):
 
         :param context: The bundle context
         """
+        # Unregister the service listener
         if self._shell_reg is not None:
             self._shell_reg.unregister()
             self._shell_reg = None
@@ -656,6 +773,7 @@ class PelixActivator(object):
             self._utils_reg.unregister()
             self._utils_reg = None
 
+        self._shell = None
         _logger.info("Shell services unregistered")
 
 
