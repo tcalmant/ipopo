@@ -6,20 +6,20 @@ iPOPO test module. Tests both the iPOPO core module and decorators
 :author: Thomas Calmant
 """
 
-from pelix.ipopo import constants, decorators
 from pelix.ipopo.constants import IPopoEvent
 from pelix.ipopo.core import FactoryContext
 from pelix.framework import FrameworkFactory, Bundle, BundleContext
 from pelix.utilities import is_string
 
-import pelix.framework as pelix
-
 from tests import log_on, log_off
 from tests.interfaces import IEchoService
 
+import pelix.ipopo.constants as constants
+import pelix.ipopo.decorators as decorators
+import pelix.framework as pelix
+
 import logging
 import os
-from pelix.ipopo.decorators import ComponentFactory
 
 try:
     import unittest2 as unittest
@@ -167,7 +167,7 @@ class DecoratorsTest(unittest.TestCase):
 
     def testComponentFactory(self):
         """
-        Tests the @ComponentFactory decorator
+        Tests the @decorators.ComponentFactory decorator
         """
         instance_name = "test"
 
@@ -1532,7 +1532,7 @@ class IPopoServiceTest(unittest.TestCase):
         FACTORY = "dummy-factory"
         context = self.framework.get_bundle_context()
 
-        @ComponentFactory(FACTORY)
+        @decorators.ComponentFactory(FACTORY)
         class TestComponent(object):
             pass
 
@@ -1605,7 +1605,7 @@ class IPopoServiceTest(unittest.TestCase):
         FACTORY = "dummy-factory"
         context = self.framework.get_bundle_context()
 
-        @ComponentFactory(FACTORY)
+        @decorators.ComponentFactory(FACTORY)
         class TestComponent(object):
             pass
 
@@ -1691,7 +1691,7 @@ class IPopoServiceTest(unittest.TestCase):
         INSTANCE = "dummy-instance"
         context = self.framework.get_bundle_context()
 
-        @ComponentFactory(FACTORY)
+        @decorators.ComponentFactory(FACTORY)
         class TestComponent(object):
             pass
 
@@ -1715,7 +1715,7 @@ class IPopoServiceTest(unittest.TestCase):
         self.ipopo.kill(INSTANCE)
 
         # Exception on instantiate -> Type Error
-        @ComponentFactory(FACTORY_2)
+        @decorators.ComponentFactory(FACTORY_2)
         class TestComponent2(object):
             def __init__(self):
                 raise NotImplementedError
@@ -1736,7 +1736,7 @@ class IPopoServiceTest(unittest.TestCase):
         INSTANCE = "dummy-instance"
         context = self.framework.get_bundle_context()
 
-        @ComponentFactory(FACTORY)
+        @decorators.ComponentFactory(FACTORY)
         class TestComponent(object):
             pass
 
