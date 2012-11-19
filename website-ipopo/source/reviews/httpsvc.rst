@@ -206,7 +206,7 @@ This snippet shows how to write a component providing the servlet service:
    
    @ComponentFactory(name='simple-servlet-factory')
    @Instantiate('simple-servlet')
-   @Provides(specifications=pelix.http.servlet)
+   @Provides(specifications='pelix.http.servlet')
    @Property('_path', 'pelix.http.path', "/servlet")
    class SimpleServletFactory(object):
        """
