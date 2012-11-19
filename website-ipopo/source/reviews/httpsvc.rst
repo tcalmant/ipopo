@@ -22,7 +22,7 @@ Installation
 The basic implementation of the HTTP service is defined in ``pelix.http.basic``.
 It is based on the HTTP server available in the standard Python library.
 Future implementations might appear in the future Pelix implementations, based
-on more robuts requests handlers, e.g.
+on more robust requests handlers, e.g.
 `Twisted <http://twistedmatrix.com/trac/>`_.
 
 
@@ -85,10 +85,10 @@ to handle requests.
 Interface
 =========
 
-HTTP Service
+HTTP service
 ------------
 
-The HTTP service provides the following interface
+The HTTP service provides the following interface:
 
 +--------------------------+-------------------------------------------------+
 | Method                   | Description                                     |
@@ -142,7 +142,7 @@ A servlet for the Pelix HTTP service has the following methods:
 +-------------------------+---------------------------------------------+
 
 
-HTTP Request
+HTTP request
 ------------
 
 The HTTP request helper wraps the calls to the ``BasicHTTPRequestHandler`` in
@@ -166,7 +166,7 @@ the basic implementation, and provides the following methods:
 +----------------------+-----------------------------------------------+
 
 
-HTTP Response
+HTTP response
 -------------
 
 The HTTP response helper wraps the calls to the ``BasicHTTPRequestHandler`` in
