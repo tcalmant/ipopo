@@ -85,13 +85,14 @@ The core shell service and the iPOPO commands component are not configurable.
 
 The remote shell component can be configured using the following properties:
 
-+---------------+---------------+-----------------------------------------+
-| Property      | Default value | Description                             |
-+===============+===============+=========================================+
-| shell.address | localhost     | Address the server will be bound to     |
-+---------------+---------------+-----------------------------------------+
-| shell.port    | 9000          | TCP port that the server will listen to |
-+---------------+---------------+-----------------------------------------+
++---------------------+---------------+--------------------------------------+
+| Property            | Default value | Description                          |
++=====================+===============+======================================+
+| pelix.shell.address | localhost     | Address the server will be bound to  |
++---------------------+---------------+--------------------------------------+
+| pelix.shell.port    | 9000          | TCP port that the server will listen |
+|                     |               | to                                   |
++---------------------+---------------+--------------------------------------+
 
 
 Interface

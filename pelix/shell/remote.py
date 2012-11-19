@@ -258,8 +258,8 @@ def _create_server(shell, server_address, port):
 # ------------------------------------------------------------------------------
 
 @ComponentFactory("ipopo-remote-shell-factory")
-@Property("_address", "shell.address", "localhost")
-@Property("_port", "shell.port", 9000)
+@Property("_address", "pelix.shell.address", "localhost")
+@Property("_port", "pelix.shell.port", 9000)
 @Requires("_shell", SHELL_SERVICE_SPEC)
 class IPopoRemoteShell(object):
     """
