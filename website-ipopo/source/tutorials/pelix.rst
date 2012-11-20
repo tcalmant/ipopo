@@ -94,13 +94,17 @@ The API of the bundle context can found here:
 Start the framework
 *******************
 
-To create a Pelix instance, you need to use the ``FrameworkFactory`` class.
-A framework can be instantiated with a set of properties which will be
-then accessible by bundles and services.
-
 .. important:: Currently, it is not possible to run two Pelix frameworks in the
    same Python interpreter instance, as it would cause problems to manage
    modules versionning.
+
+
+Using the ``FrameworkFactory`` class
+====================================
+
+To create a Pelix instance, you need to use the ``FrameworkFactory`` class.
+A framework can be instantiated with a set of properties which will be
+then accessible by bundles and services.
 
 Be sure to destroy the framework before starting a new one. Calling
 ``get_framework()`` twice without calling ``delete_framework()`` will return the
@@ -123,6 +127,56 @@ same framework instance.
 
 The framework instance is considered as a bundle, with a context,
 life-cycle, ... and can be used as any other bundles by the framework starter.
+
+
+Using the utility method
+========================
+
+Since version 0.4, the ``pelix.framework`` module provides a utility method to
+start the framework: ``create_framework``.
+
+It takes five parameters:
+
++---------------+---------+---------------------------------------------------+
+| Parameters    | Default | Description                                       |
++===============+=========+===================================================+
+| bundles       | []      | A list of bundles to pre-install                  |
++---------------+---------+---------------------------------------------------+
+| properties    | None    | A dictionary of framework properties              |
++---------------+---------+---------------------------------------------------+
+| auto_start    | False   | If True, the framework and its bundles will be    |
+|               |         | automatically started                             |
++---------------+---------+---------------------------------------------------+
+| wait_for_stop | False   | If True and if *auto_start* is True, the method   |
+|               |         | will return only after the framework has stopped, |
+|               |         | and will stop the framework on keyboard           |
+|               |         | interruption                                      |
++---------------+---------+---------------------------------------------------+
+| auto_delete   | False   | If True and if *wait_for_stop* and *auto_start*   |
+|               |         | are True, the method will delete the framework    |
+|               |         | once it will have stopped                         |
++---------------+---------+---------------------------------------------------+
+
+
+The snippet below shows how to use this utility method:
+
+.. code-block:: python
+   :linenos:
+   
+   import pelix.framework
+   
+   # Framework totally handled by the method, using a bootstrap to load
+   # other bundles...
+   pelix.framework.create_framework(['a.bootstrap.bundle'], None, \
+                                    True, True, True)
+
+   # Equivalent, but with manual framework handling
+   framework = pelix.framework.create_framework()
+   framework.get_context().install_bundle('a.bootstrap.bundle')
+   framework.start()
+   framework.wait_for_stop()
+   # !! you have to delete it by yourself !!
+   FrameworkFactory.delete_framework(framework)
 
 
 Wait for the framework to stop

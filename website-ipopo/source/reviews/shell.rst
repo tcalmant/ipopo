@@ -10,22 +10,69 @@ In order to interact with the Pelix framework and its components, the shell
 service allows to register a set of commands that will be used by shell
 interfaces.
 
-Pelix/iPOPO distribution comes with three bundles:
+The core shell module stores the command regrouped into namespaces.
+The name to use in a console to access a command is ``namespace.command``.
 
-+--------------------+--------------------------------------------------------+
-| Bundle             | Description                                            |
-+====================+========================================================+
-| pelix.shell.core   | Provides the core shell service, the commands registry |
-|                    | and the basic Pelix commands                           |
-+--------------------+--------------------------------------------------------+
-| pelix.shell.ipopo  | Provides iPOPO shell commands                          |
-+--------------------+--------------------------------------------------------+
-| pelix.shell.remote | Provides a raw-TCP access to the shell                 |
-+--------------------+--------------------------------------------------------+
+Pelix/iPOPO distribution comes with four bundles:
+
++---------------------+--------------------------------------------------------+
+| Bundle              | Description                                            |
++=====================+========================================================+
+| pelix.shell.core    | Provides the core shell service, the commands registry |
+|                     | and the basic Pelix commands                           |
++---------------------+--------------------------------------------------------+
+| pelix.shell.ipopo   | Provides iPOPO shell commands                          |
++---------------------+--------------------------------------------------------+
+| pelix.shell.console | An interactive console based on *readline*             |
++---------------------+--------------------------------------------------------+
+| pelix.shell.remote  | Provides a raw-TCP access to the shell                 |
++---------------------+--------------------------------------------------------+
 
 
 Usage
 *****
+
+Using the interactive console
+=============================
+
+The ``pelix.shell.console`` module can be used as standard bundle and
+installed in a framework instance, but it can also be used as a script to
+start a framework instance, with only iPOPO and the shell bundles pre-installed.
+
+For example:
+
+.. code-block:: none
+   :linenos:
+   
+   $ python -m pelix.shell.console
+   ** Pelix Shell prompt **
+   $ bl
+   +----+---------------------+--------+-----------+
+   | ID |        Name         | State  |  Version  |
+   +====+=====================+========+===========+
+   | 0  | org.psem2m.pelix    | ACTIVE | (0, 4, 0) |
+   +----+---------------------+--------+-----------+
+   | 1  | pelix.shell.core    | ACTIVE | (0, 1, 0) |
+   +----+---------------------+--------+-----------+
+   | 2  | pelix.shell.console | ACTIVE | (0, 1, 0) |
+   +----+---------------------+--------+-----------+
+   | 3  | pelix.shell.ipopo   | ACTIVE | (0, 1, 0) |
+   +----+---------------------+--------+-----------+
+   $ quit
+   Bye !
+
+
+.. note:: Pelix must be correctly installed (i.e. accessible in your Python
+   path) for this command to work.
+
+
+The commands that you can execute are described in the section
+:ref:`shell-commands`.
+
+If you are running the script on a platform that provides the ``readline``
+module (most of Unix platforms), the interactive console can complete command
+names using the *tab* key.
+
 
 Instantiation
 =============
@@ -191,6 +238,8 @@ The ``get_methods_names()`` method is there to prepare remote services tests,
 and will allow to execute commands from a distant framework.
 
 
+.. _shell-commands:
+
 Commands
 ********
 
@@ -230,7 +279,9 @@ specifying it.
 iPOPO
 =====
 
-These commands are in the name space ``ipopo``.
+These commands are in the name space ``ipopo`` and needs the
+``pelix.ipopo.core`` service to be registered, which means that the bundle
+``pelix.ipopo.core`` must be installed.
 
 +------------------------------+--------------------------------------------+
 | Command                      | Description                                |
@@ -290,7 +341,7 @@ connection and *rlwrap* to allow line modifications:
    +----+---------------------------+--------------------------------------+---------+
    | 4  | ['ipopo.shell.command']   | Bundle(ID=3, Name=pelix.shell.ipopo) | None    |
    +----+---------------------------+--------------------------------------+---------+
-   $ ipopo:instances
+   $ ipopo.instances
    +----------------------+------------------------------+------------+
    |         Name         |           Factory            |   State    |
    +======================+==============================+============+
@@ -371,5 +422,5 @@ This snippet shows how to write a component providing the command service:
            stdout.write('Counter = {0}'.format(self.counter))
 
 
-Now you can install this bundle and use the commands *counter:more*,
-*counter:less* and *counter:print*.
+Now you can install this bundle and use the commands *counter.more*,
+*counter.less* and *counter.print*.
