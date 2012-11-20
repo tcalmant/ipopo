@@ -109,7 +109,7 @@ def _split_ns_command(cmd_token):
     :return: The extracted (name space, command) tuple
     """
     namespace = None
-    cmd_split = cmd_token.split(':', 1)
+    cmd_split = cmd_token.split('.', 1)
     if len(cmd_split) == 1:
         # No name space given
         command = cmd_split[0]
@@ -357,7 +357,7 @@ class Shell(object):
             return False
 
         if method is None:
-            _logger.error("No method given for %s:%s", namespace, command)
+            _logger.error("No method given for %s.%s", namespace, command)
             return False
 
         # Store everything in lower case
@@ -370,7 +370,7 @@ class Shell(object):
             space = self._commands[namespace]
 
         if command in space:
-            _logger.error("Command already registered: %s:%s", namespace,
+            _logger.error("Command already registered: %s.%s", namespace,
                           command)
             return False
 
@@ -399,7 +399,7 @@ class Shell(object):
         if command is not None:
             # Remove the command
             if command not in self._commands[namespace]:
-                _logger.warning("Unknown command: %s:%s", namespace, command)
+                _logger.warning("Unknown command: %s.%s", namespace, command)
                 return False
 
             del self._commands[namespace][command]
@@ -439,8 +439,8 @@ class Shell(object):
         # Get the method
         method = space.get(command, None)
         if method is None:
-            _logger.warning("Unknown command: %s:%s", namespace, command)
-            stdout.write("Unknown command: %s:%s\n" % (namespace, command))
+            _logger.warning("Unknown command: %s.%s", namespace, command)
+            stdout.write("Unknown command: %s.%s\n" % (namespace, command))
             return False
 
         # Make arguments and keyword arguments
@@ -469,6 +469,35 @@ class Shell(object):
         Returns the PS1, the basic shell prompt
         """
         return "$ "
+
+
+    def get_namespaces(self):
+        """
+        Retrieves the list of known name spaces (without the default one)
+        
+        :return: The list of known name spaces
+        """
+        namespaces = list(self._commands.keys())
+        namespaces.remove(DEFAULT_NAMESPACE)
+        namespaces.sort()
+        return namespaces
+
+
+    def get_commands(self, namespace):
+        """
+        Retrieves the commands of the given name space. If *namespace* is None
+        or empty, it retrieves the commands of the default name space
+        
+        :param namespace: The commands name space
+        :return: A list of commands names
+        """
+        if not namespace:
+            # Default namespace:
+            namespace = DEFAULT_NAMESPACE
+
+        commands = list(self._commands[namespace].keys())
+        commands.sort()
+        return commands
 
 
     def bundle_details(self, stdin, stdout, bundle_id):
