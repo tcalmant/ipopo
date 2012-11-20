@@ -2143,6 +2143,23 @@ class FrameworkFactory(object):
 
 
     @classmethod
+    def is_framework_running(cls, framework=None):
+        """
+        Tests if the given framework has been constructed and not deleted.
+        If *framework* is None, then the methods returns if at least one
+        framework is running.
+        
+        :param framework: The framework instance to be tested
+        :return: True if the framework is running
+        """
+        if framework is None:
+            return cls.__singleton is not None
+
+        else:
+            return cls.__singleton == framework
+
+
+    @classmethod
     def delete_framework(cls, framework):
         """
         Removes the framework singleton
@@ -2174,3 +2191,61 @@ class FrameworkFactory(object):
             return True
 
         return False
+
+# ------------------------------------------------------------------------------
+
+def create_framework(bundles, properties=None,
+                     auto_start=False, wait_for_stop=False, auto_delete=False):
+    """
+    Creates a Pelix framework, installs the given bundles and returns its
+    instance reference.
+    If *auto_start* is True, the framework will be started once all bundles
+    will have been installed 
+    If *wait_for_stop* is True, the method will return only when the framework
+    will have stopped. This requires *auto_start* to be True.
+    If *auto_delete* is True, the framework will be deleted once it has stopped,
+    and the method will return None.
+    This requires *wait_for_stop* and *auto_start* to be True.
+    
+    :param bundles: Bundles to initially install (shouldn't be empty if
+                    *wait_for_stop* is True)
+    :param properties: Optional framework properties
+    :param auto_start: If True, the framework will be started immediately
+    :param wait_for_stop: If True, the method will return only when the
+                          framework will have stopped
+    :param auto_delete: If True, deletes the framework once it stopped.
+    :return: The framework instance
+    :raise ValueError: Only one framework can run at a time
+    """
+    # Test if a framework already exists
+    if FrameworkFactory.is_framework_running(None):
+        raise ValueError('A framework is already running')
+
+    # Create the framework
+    framework = FrameworkFactory.get_framework(properties)
+
+    # Install bundles
+    context = framework.get_bundle_context()
+    for bundle in bundles:
+        context.install_bundle(bundle)
+
+    if auto_start:
+        # Automatically start the framework
+        framework.start()
+
+        if wait_for_stop:
+            # Wait for the framework to stop
+            try:
+                framework.wait_for_stop(None)
+
+            except KeyboardInterrupt:
+                # Stop keyboard interruptions
+                if framework.get_state() == Bundle.ACTIVE:
+                    framework.stop()
+
+            if auto_delete:
+                # Delete the framework
+                FrameworkFactory.delete_framework(framework)
+                framework = None
+
+    return framework
