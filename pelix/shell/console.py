@@ -58,6 +58,10 @@ except ImportError:
     # Readline is missing, not critical
     readline = None
 
+# Before Python 3, input() was raw_input()
+if sys.version_info[0] < 3:
+    input = raw_input
+
 # ------------------------------------------------------------------------------
 
 class InteractiveShell(object):
@@ -102,7 +106,8 @@ class InteractiveShell(object):
 
             while not self._stop_event.is_set():
                 # Wait for the shell to be there
-                if self._shell_event.wait(.2):
+                # Before Python 2.7, wait() doesn't return a result
+                if self._shell_event.wait(.2) or self._shell_event.is_set():
                     with self._lock:
                         # Shell present
                         if first_prompt:
@@ -111,7 +116,7 @@ class InteractiveShell(object):
                             first_prompt = False
 
                         # Read the line
-                        line = raw_input(self._shell.get_ps1())
+                        line = input(self._shell.get_ps1())
                         # Execute it
                         self._shell.execute(line, sys.stdin, sys.stdout)
 
