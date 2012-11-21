@@ -41,10 +41,29 @@ the following command:
 Install iPOPO
 *************
 
+From the Python Package Index
+=============================
+
+Since version 0.4, iPOPO can be installed using ``easy_install`` or ``pip``:
+
+.. code-block:: bash
+   :linenos:
+   
+   # Using easy_install
+   sudo easy_install -U iPOPO
+   
+   # Using pip
+   sudo pip install --upgrade iPOPO
+
+
+From the source files
+=====================
+
 The installation process is based on Python setup tools.
 
 #. Download the latest version of iPOPO
-   `here <http://ipopo.coderxpress.net/dl/ipopo-latest.zip>`_
+   `here <http://ipopo.coderxpress.net/dl/ipopo-latest.zip>`_, or clone the
+   git directory from `GitHub <https://github.com/tcalmant/ipopo>`_.
 #. Extract the content and go into *ipopo-dist* directory
 #. Run the *setup.py* file:
 

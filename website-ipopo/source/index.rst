@@ -20,17 +20,20 @@ Its development is supported by `isandlaTech <http://www.isandlatech.com>`_.
 Download
 ********
 
-The project source code is available on GitHub:
-`<https://github.com/tcalmant/ipopo>`_
-
 The latest stable version of iPOPO (|release|) can be downloaded here:
 `<http://ipopo.coderxpress.net/dl/ipopo-latest.zip>`_.
+
+The project source code is available on GitHub:
+`<https://github.com/tcalmant/ipopo>`_
 
 The development version of iPOPO can be downloaded here:
 `<https://github.com/tcalmant/ipopo/archive/master.zip>`_.
 
 Older versions are available here:
 `<http://ipopo.coderxpress.net/dl/>`_.
+
+The project is also accessible using the Python Package Index (PyPI):
+`<http://pypi.python.org/pypi/iPOPO>`_.
 
 
 API Documentation
