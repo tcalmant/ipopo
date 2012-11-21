@@ -30,7 +30,7 @@ setup(name='iPOPO',
       author_email='thomas.calmant@gmail.com',
       url='http://ipopo.coderxpress.net/',
       download_url='http://ipopo.coderxpress.net/ipopo-0.4.zip',
-      packages=['pelix', 'pelix.ipopo', 'pelix.shell'],
+      packages=['pelix', 'pelix.ipopo', 'pelix.http', 'pelix.shell'],
       classifiers=[
             'Development Status :: 3 - Alpha',
             'Environment :: Console',
