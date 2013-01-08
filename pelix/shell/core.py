@@ -39,6 +39,7 @@ __docformat__ = "restructuredtext en"
 import pelix.framework as pelix
 
 import logging
+import os
 import shlex
 import sys
 
@@ -248,6 +249,12 @@ class Shell(object):
         self.register_command(None, "update", self.update)
         self.register_command(None, "install", self.install)
         self.register_command(None, "uninstall", self.uninstall)
+
+        self.register_command(None, "properties", self.properties_list)
+        self.register_command(None, "property", self.property_value)
+
+        self.register_command(None, "sysprops", self.environment_list)
+        self.register_command(None, "sysprop", self.environment_value)
 
         self.register_command(None, "help", self.print_help)
         self.register_command(None, "?", self.print_help)
@@ -659,6 +666,58 @@ class Shell(object):
                 stdout.write("\t\t%s\n" % ' '.join(doc.split()))
 
 
+    def properties_list(self, stdin, stdout):
+        """
+        Lists the properties of the framework
+        """
+        # Get the framework
+        framework = self._context.get_bundle(0)
+
+        # Head of the table
+        headers = ('Property Name', 'Value')
+
+        # Lines
+        lines = [item for item in framework.get_properties().items()]
+
+        # Sort lines
+        lines.sort()
+
+        # Print the table
+        stdout.write(self._utils.make_table(headers, lines))
+
+
+    def property_value(self, stdin, stdout, name):
+        """
+        property <name> - Prints the value of the given property, looking into
+        framework properties then environment variables.
+        """
+        stdout.write('{0}\n'.format(self._context.get_property(name)))
+
+
+    def environment_list(self, stdin, stdout):
+        """
+        Lists the framework process environment variables
+        """
+        # Head of the table
+        headers = ('Environment Variable', 'Value')
+
+        # Lines
+        lines = [item for item in os.environ.items()]
+
+        # Sort lines
+        lines.sort()
+
+        # Print the table
+        stdout.write(self._utils.make_table(headers, lines))
+
+
+    def environment_value(self, stdin, stdout, name):
+        """
+        sysprop <name> - Prints the value of the given environment variable
+        """
+        stdout.write('{0}\n'.format(os.getenv(name)))
+
+
     def quit(self, stdin, stdout):
         """
         Stops the current shell session (raises a KeyboardInterrupt exception)
@@ -794,6 +853,9 @@ class PelixActivator(object):
         :param context: The bundle context
         """
         # Unregister the service listener
+        context.remove_service_listener(self)
+
+        # Unregister the services
         if self._shell_reg is not None:
             self._shell_reg.unregister()
             self._shell_reg = None

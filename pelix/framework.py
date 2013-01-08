@@ -605,6 +605,14 @@ class Framework(Bundle):
             return list(self.__bundles.values())
 
 
+    def get_properties(self):
+        """
+        Retrieves a copy of the stored framework properties.
+        """
+        with self.__properties_lock:
+            return self.__properties.copy()
+
+
     def get_property(self, name):
         """
         Retrieves a framework or system property. As framework properties don't
@@ -617,6 +625,16 @@ class Framework(Bundle):
                 return self.__properties[name]
 
         return os.getenv(name)
+
+
+    def get_property_keys(self):
+        """
+        Returns an array of the keys in the properties of the service
+
+        :return: An array of property keys.
+        """
+        with self.__properties_lock:
+            return tuple(self.__properties.keys())
 
 
     def get_service(self, bundle, reference):
