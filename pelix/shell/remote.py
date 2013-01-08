@@ -110,15 +110,24 @@ class RemoteConsole(socketserver.StreamRequestHandler):
 
     def send(self, data):
         """
-        Send data to the client
+        Tries to send data to the client.
         
         :param data: Data to be sent
+        :return: True if the data was sent, False on error
         """
         if data is not None:
             data = data.encode("UTF-8")
 
-        self.wfile.write(data)
-        self.wfile.flush()
+        try:
+            self.wfile.write(data)
+            self.wfile.flush()
+            return True
+
+        except IOError:
+            # An error occurred, mask it
+            # -> This allows to handle the command even if the client has been
+            # disconnect (i.e. "echo stop 0 | nc localhost 9000")
+            return False
 
 
     def handle(self):
@@ -180,12 +189,8 @@ class RemoteConsole(socketserver.StreamRequestHandler):
             _logger.info("RemoteConsole client gone: [%s]:%d",
                          self.client_address[0], self.client_address[1])
 
-            try:
-                # Be polite, if possible
-                self.send("\nSession closed. Good bye.\n")
-            except:
-                # Can't send data anymore
-                pass
+            # Be polite
+            self.send("\nSession closed. Good bye.\n")
 
 # ------------------------------------------------------------------------------
 
