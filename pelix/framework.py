@@ -664,9 +664,9 @@ class Framework(Bundle):
         """
         Retrieves the framework symbolic name
 
-        :return: Always "org.psem2m.pelix"
+        :return: Always "pelix.framework"
         """
-        return "org.psem2m.pelix"
+        return "pelix.framework"
 
 
     def install_bundle(self, name):
