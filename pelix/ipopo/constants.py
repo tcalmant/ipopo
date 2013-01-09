@@ -61,7 +61,15 @@ IPOPO_CALLBACK_INVALIDATE = "INVALIDATE"
 
 # Properties
 IPOPO_INSTANCE_NAME = "instance.name"
+""" Name of the component instance """
+
 IPOPO_REQUIRES_FILTERS = "requires.filters"
+""" Dictionary to override @Requires filters """
+
+IPOPO_AUTO_RESTART = "pelix.ipopo.auto_restart"
+"""
+If True, the component will be re-instantiated after its bundle has been updated
+"""
 
 # ------------------------------------------------------------------------------
 

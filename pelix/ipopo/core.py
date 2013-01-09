@@ -1919,6 +1919,9 @@ class _IPopoService(object):
         # Event listeners
         self.__listeners = []
 
+        # Auto-restarted components (Bundle -> [(factory, name, properties)]
+        self.__auto_restart = {}
+
         # Service state
         self.running = False
 
@@ -1940,6 +1943,69 @@ class _IPopoService(object):
             return [stored_instance \
                     for stored_instance in self.__instances.values() \
                     if stored_instance.factory_name == factory_name]
+
+
+    def _autorestart_store_components(self, bundle):
+        """
+        Stores the components of the given bundle with the auto-restart property
+        
+        :param bundle: A Bundle object
+        """
+        with self.__instances_lock:
+            # Prepare the list of components
+            store = self.__auto_restart.setdefault(bundle, [])
+
+            for stored_instance in self.__instances.values():
+                # Get the factory name
+                factory = stored_instance.factory_name
+
+                if self.get_factory_bundle(factory) is bundle:
+                    # Factory from this bundle
+
+                    # Test component properties
+                    properties = stored_instance.context.properties
+                    if properties.get(constants.IPOPO_AUTO_RESTART):
+                        # Auto-restart property found
+                        store.append((factory, stored_instance.name,
+                                      properties))
+
+
+    def _autorestart_components(self, bundle):
+        """
+        Restart the components of the given bundle
+        
+        :param bundle: A Bundle object
+        """
+        with self.__instances_lock:
+
+            instances = self.__auto_restart.get(bundle)
+            if not instances:
+                # Nothing to do
+                return
+
+            for factory, name, properties in instances:
+                try:
+                    # Instantiate the given component
+                    self.instantiate(factory, name, properties)
+
+                except Exception as ex:
+                    # Log error, but continue to work
+                    _logger.exception("Error restarting component '%s' ('%s')"
+                                      "from bundle %s (%d)", name, factory,
+                                      bundle.get_symbolic_name(),
+                                      bundle.get_bundle_id())
+
+
+    def _autorestart_clear_components(self, bundle):
+        """
+        Clear the list of auto-restart components of the given bundle
+        
+        :param bundle: A Bundle object
+        """
+        with self.__instances_lock:
+            # Simply delete the entry
+            if bundle in self.__auto_restart:
+                del self.__auto_restart[bundle]
 
 
     def _fire_ipopo_event(self, kind, factory_name, component_name=None):
@@ -2508,6 +2574,19 @@ class _IPopoActivator(object):
             # is called. That way, the activator can use the registered
             # factories.
             self.service._register_bundle_factories(bundle)
+
+        elif kind == BundleEvent.UPDATE_BEGIN:
+            # A bundle will be updated, store its auto-restart component
+            self.service._autorestart_store_components(bundle)
+
+        elif kind == BundleEvent.UPDATED:
+            # Update has finished, restart stored components
+            self.service._autorestart_components(bundle)
+            self.service._autorestart_clear_components(bundle)
+
+        elif kind == BundleEvent.UPDATE_FAILED:
+            # Update failed, clean the stored components
+            self.service._autorestart_clear_components(bundle)
 
 
     def framework_stopping(self):

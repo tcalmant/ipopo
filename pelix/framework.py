@@ -43,6 +43,7 @@ import logging
 import os
 import sys
 import threading
+from manifest import Bundle
 
 ACTIVATOR = "activator"
 
@@ -450,8 +451,16 @@ class Bundle(object):
         # Was it active ?
         restart = self._state == Bundle.ACTIVE
 
-        # Stop the bundle
-        self.stop()
+        # Send the update event
+        self._fire_bundle_event(BundleEvent.UPDATE_BEGIN)
+
+        try:
+            # Stop the bundle
+            self.stop()
+        except:
+            # Something wrong occurred, notify listeners
+            self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
+            raise
 
         # Change the source file age
         module_file = getattr(self.__module, "__file__", None)
@@ -470,9 +479,17 @@ class Bundle(object):
             # Reset times
             os.utime(module_file, (st.st_atime, st.st_mtime))
 
-        # Re-start the bundle
         if restart:
-            self.start()
+            try:
+                # Re-start the bundle
+                self.start()
+            except:
+                # Something wrong occurred, notify listeners
+                self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
+                raise
+
+        # Bundle update finished
+        self._fire_bundle_event(BundleEvent.UPDATED)
 
 # ------------------------------------------------------------------------------
 
@@ -2035,7 +2052,13 @@ class BundleEvent(object):
     """The bundle has been uninstalled."""
 
     UPDATED = 8
-    """The bundle has been updated."""
+    """The bundle has been updated. (called after STARTED) """
+
+    UPDATE_BEGIN = 32
+    """ The bundle will be updated (called before STOPPING) """
+
+    UPDATE_FAILED = 64
+    """ The bundle update has failed. The bundle might be in RESOLVED state """
 
 
     def __init__(self, kind, bundle):
