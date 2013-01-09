@@ -342,6 +342,9 @@ class IPopoRemoteShell(object):
         self._thread, self._server, self._server_flag = \
                                 _create_server(self, self._address, self._port)
 
+        # Property update (if port was 0)
+        self._port = self._server.socket.getsockname()[1]
+
         _logger.info("RemoteShell validated on port: %d", self._port)
 
 
