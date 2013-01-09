@@ -336,7 +336,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 @Property("_port", http.HTTP_SERVICE_PORT, 8080)
 @Property("_instance_name", constants.IPOPO_INSTANCE_NAME)
 @Property("_logger_name", "pelix.http.logger.name", "")
-@Property("_logger_level", "pelix.http.logger.level", logging.ERROR)
+@Property("_logger_level", "pelix.http.logger.level", None)
 class HttpService(object):
     """
     Basic HTTP service component
@@ -634,7 +634,12 @@ class HttpService(object):
                 self._logger_name = self._instance_name
 
             self._logger = logging.getLogger(self._logger_name)
-            self._logger.level = int(self._logger_level)
+
+            if self._logger_level is None:
+                self._logger_level = logging.root.level
+
+            else:
+                self._logger.level = int(self._logger_level)
 
         self.log(logging.INFO, "Starting HTTP server: [%s]:%d ...",
                  self._address, self._port)
