@@ -1878,6 +1878,13 @@ def _manipulate_component(instance, stored_instance):
         # Avoid injection of unused instance fields...
         controllers = set([value[1] for value in provides_tuples if value[1]])
         if controllers:
+            # Controllers are valid by default
+            for name in controllers:
+                # Get the current value of the member (True by default)
+                controller_value = getattr(instance, name, True)
+                # Store the controller value
+                stored_instance.set_controller_state(name, controller_value)
+
             # Prepare the methods names
             getter_name = "{0}{1}".format(constants.IPOPO_CONTROLLER_PREFIX,
                                           constants.IPOPO_GETTER_SUFFIX)
@@ -1888,10 +1895,6 @@ def _manipulate_component(instance, stored_instance):
             getter, setter = _field_controller_generator(stored_instance)
             setattr(instance, getter_name, getter)
             setattr(instance, setter_name, setter)
-
-            # Controllers are valid by default
-            for name in controllers:
-                stored_instance.set_controller_state(name, True)
 
 
 # ------------------------------------------------------------------------------
