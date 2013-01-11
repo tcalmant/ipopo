@@ -30,7 +30,8 @@ telnet or netcat.
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
-__version__ = (0, 1, 0)
+# Module version
+__version__ = "0.1.1"
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
@@ -39,6 +40,8 @@ __docformat__ = "restructuredtext en"
 
 from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
     Validate, Invalidate, Bind, Unbind, Instantiate
+from pelix.shell import SHELL_SERVICE_SPEC
+
 import pelix.framework as pelix
 
 # ------------------------------------------------------------------------------
@@ -56,8 +59,6 @@ else:
     import SocketServer as socketserver
 
 # ------------------------------------------------------------------------------
-
-SHELL_SERVICE_SPEC = "pelix.shell"
 
 _logger = logging.getLogger(__name__)
 

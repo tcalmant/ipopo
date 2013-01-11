@@ -30,23 +30,28 @@ available.
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
-__version__ = (0, 1, 0)
+# Module version
+__version__ = "0.1.1"
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+# Shell constants
+from pelix.shell import SHELL_SERVICE_SPEC
 import pelix.framework as pelix
+
+# Standard library
 import logging
 import sys
 import threading
 
 # ------------------------------------------------------------------------------
 
-SHELL_SERVICE_SPEC = "pelix.shell"
-
 _logger = logging.getLogger(__name__)
+
+# ------------------------------------------------------------------------------
 
 try:
     # Set up readline if available

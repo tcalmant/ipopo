@@ -29,23 +29,26 @@ Provides commands to the Pelix shell to get the state of iPOPO instances.
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
-__version__ = (0, 1, 0)
+# Module version
+__version__ = "0.2.0"
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-from pelix.ipopo.constants import IPOPO_SERVICE_SPECIFICATION
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
     Instantiate
+
+# iPOPO constants
+from pelix.ipopo.constants import IPOPO_SERVICE_SPECIFICATION
+
+# Shell constants
+from pelix.shell import SHELL_COMMAND_SPEC, SHELL_UTILS_SERVICE_SPEC
 
 import logging
 
 # ------------------------------------------------------------------------------
-
-SHELL_COMMAND_SPEC = "pelix.shell.command"
-SHELL_UTILS_SERVICE_SPEC = "pelix.shell.utilities"
 
 _logger = logging.getLogger(__name__)
 
@@ -116,17 +119,17 @@ class IPopoCommands(object):
         return result
 
 
-    def list_factories(self, stdin, stdout):
+    def list_factories(self, io_handler):
         """
         Lists the available iPOPO component factories
         """
         header = ('Factory', 'Bundle')
         lines = [(name, self._ipopo.get_factory_bundle(name))
                  for name in self._ipopo.get_factories()]
-        stdout.write(self._utils.make_table(header, lines))
+        io_handler.write(self._utils.make_table(header, lines))
 
 
-    def list_instances(self, stdin, stdout):
+    def list_instances(self, io_handler):
         """
         Lists the active iPOPO component instances
         """
@@ -134,10 +137,10 @@ class IPopoCommands(object):
         lines = [(name, factory, ipopo_state_to_str(state))
                  for name, factory, state in self._ipopo.get_instances()]
 
-        stdout.write(self._utils.make_table(headers, lines))
+        io_handler.write(self._utils.make_table(headers, lines))
 
 
-    def instance_details(self, stdin, stdout, name):
+    def instance_details(self, io_handler, name):
         """
         instance <name> - Prints the details of the given component instance
         """
@@ -147,7 +150,7 @@ class IPopoCommands(object):
             details = self._ipopo.get_instance_details(name)
 
         except ValueError as ex:
-            stdout.write("Error getting instance details: %s\n" % ex)
+            io_handler.write_line("Error getting instance details: {0}", ex)
             return
 
         lines.append("Name   : {0}".format(details["name"]))
@@ -171,35 +174,35 @@ class IPopoCommands(object):
                 lines.append('\t\t\t{0}'.format(ref))
 
         lines.append("")
-        stdout.write('\n'.join(lines))
+        io_handler.write('\n'.join(lines))
 
 
-    def instantiate(self, stdin, stdout, factory, name, **kwargs):
+    def instantiate(self, io_handler, factory, name, **kwargs):
         """
         instantiate <factory> <name> [<property=value> ...] - Instantiate a
         component of the given factory with the given name and properties
         """
         try:
             self._ipopo.instantiate(factory, name, kwargs)
-            stdout.write("Component '%s' instantiated.\n" % name)
+            io_handler.write_line("Component '{0}' instantiated.", name)
 
         except ValueError as ex:
-            stdout.write("Invalid parameter: %s\n" % ex)
+            io_handler.write_line("Invalid parameter: {0}", ex)
 
         except TypeError as ex:
-            stdout.write("Invalid factory: %s\n" % ex)
+            io_handler.write_line("Invalid factory: {0}", ex)
 
         except Exception as ex:
-            stdout.write("Error instantiating the component: %s\n" % ex)
+            io_handler.write_line("Error instantiating the component: {0}", ex)
 
 
-    def kill(self, stdin, stdout, name):
+    def kill(self, io_handler, name):
         """
         kill <name> - Kills the given component instance
         """
         try:
             self._ipopo.kill(name)
-            stdout.write("Component '%s' killed.\n" % name)
+            io_handler.write_line("Component '{0}' killed.", name)
 
         except ValueError as ex:
-            stdout.write("Invalid parameter: %s\n" % ex)
+            io_handler.write_line("Invalid parameter: {0}", ex)

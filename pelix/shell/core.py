@@ -29,26 +29,29 @@ Provides the basic command parsing and execution support to make a Pelix shell.
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
-__version__ = (0, 1, 0)
+# Module version
+__version__ = "0.2.0"
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+# Shell constants
+from pelix.shell import SHELL_SERVICE_SPEC, SHELL_COMMAND_SPEC, \
+    SHELL_UTILS_SERVICE_SPEC
 import pelix.framework as pelix
 
+import io
 import logging
 import os
 import shlex
 import sys
+import traceback
 
 # ------------------------------------------------------------------------------
 
 DEFAULT_NAMESPACE = "default"
-SHELL_SERVICE_SPEC = "pelix.shell"
-SHELL_COMMAND_SPEC = "pelix.shell.command"
-SHELL_UTILS_SERVICE_SPEC = "pelix.shell.utilities"
 
 _logger = logging.getLogger(__name__)
 
@@ -126,6 +129,78 @@ def _split_ns_command(cmd_token):
 
     # Use lower case values only
     return namespace.lower(), command.lower()
+
+# ------------------------------------------------------------------------------
+
+class IOHandler(io.RawIOBase):
+    """
+    Handles I/O operations between the command handler and the client
+    It automatically converts the given data to bytes in Python 3.
+    """
+    def __init__(self, input, output, encoding='UTF-8'):
+        """
+        Sets up the printer
+        
+        :param input: Input stream
+        :param output: Output stream
+        :param encoding: Output encoding
+        """
+        self.input = input
+        self.output = output
+        self.encoding = encoding
+
+        # Set up class methods
+        if sys.version_info[0] == 3:
+            self.read = _read_python3
+            self.write = _write_python3
+
+        else:
+            self.read = self.input.read
+            self.write = self.output.write
+
+
+    def _read_python3(self, n):
+        """
+        Reads the input stream
+        
+        :param n: Maximum bytes to read
+        :return: The result of ``self.input.read()``
+        """
+        return self.input.read(n).decode(self.encoding)
+
+
+    def _write_python3(self, data):
+        """
+        Converts the given data then writes it
+        
+        :param data: Data to be written
+        :return: The result of ``self.output.write()``
+        """
+        if type(data) is str:
+            data = data.encode(self.encoding)
+
+        self.output.write(data)
+
+
+    def write_line(self, line, *args, **kwargs):
+        """
+        Formats and writes a line to the output
+        """
+        if line is None:
+            # Empty line
+            line = '\n'
+
+        else:
+            # Format the line
+            line = line.format(*args, **kwargs)
+
+        # Add the trailing new line
+        if line[-1] != '\n':
+            line = line + '\n'
+
+        # Write it
+        self.write(line)
+
 
 # ------------------------------------------------------------------------------
 
@@ -255,6 +330,9 @@ class Shell(object):
 
         self.register_command(None, "sysprops", self.environment_list)
         self.register_command(None, "sysprop", self.environment_value)
+
+        self.register_command(None, "threads", self.threads_list)
+        self.register_command(None, "thread", self.thread_details)
 
         self.register_command(None, "help", self.print_help)
         self.register_command(None, "?", self.print_help)
@@ -430,24 +508,32 @@ class Shell(object):
         if not cmdline:
             return False
 
+        if sys.version_info[0] == 3:
+            # TODO: use compatibility service
+            cmdline = str(cmdline, 'UTF-8')
+
         line_split = shlex.split(cmdline, True, True)
         if not line_split:
             return False
 
         namespace, command = _split_ns_command(line_split[0])
 
+        # Prepare the I/O handler
+        io_handler = IOHandler(stdin, stdout)
+
         # Get the space
         space = self._commands.get(namespace, None)
         if not space:
             _logger.warning("Unknown name space: %s", namespace)
-            stdout.write("Unknown name space %s\n" % namespace)
+            io_handler.write_line("Unknown name space {0}", namespace)
             return False
 
         # Get the method
         method = space.get(command, None)
         if method is None:
             _logger.warning("Unknown command: %s.%s", namespace, command)
-            stdout.write("Unknown command: %s.%s\n" % (namespace, command))
+            io_handler.write_line("Unknown command: {0}.{1}", namespace,
+                                  command)
             return False
 
         # Make arguments and keyword arguments
@@ -455,12 +541,12 @@ class Shell(object):
 
         # Execute it
         try:
-            return method(stdin, stdout, *args, **kwargs)
+            return method(io_handler, *args, **kwargs)
 
         except TypeError as ex:
             # Invalid arguments...
             _logger.exception("Invalid method call: %s", ex)
-            stdout.write("Invalid method call: %s\n" % (ex))
+            io_handler.write_line("Invalid method call: {0}", ex)
             return False
 
 
@@ -507,7 +593,7 @@ class Shell(object):
         return commands
 
 
-    def bundle_details(self, stdin, stdout, bundle_id):
+    def bundle_details(self, io_handler, bundle_id):
         """
         Prints the details of the given bundle
         """
@@ -516,7 +602,7 @@ class Shell(object):
             bundle = self._context.get_bundle(bundle_id)
 
         except pelix.BundleException:
-            stdout.write("Unknown bundle ID: {0}".format(bundle_id))
+            io_handler.write_line("Unknown bundle ID: {0}", bundle_id)
             return
 
         lines = []
@@ -555,10 +641,10 @@ class Shell(object):
             lines.append("\tError: {0}".format(ex))
 
         lines.append("")
-        stdout.write('\n'.join(lines))
+        io_handler.write('\n'.join(lines))
 
 
-    def bundles_list(self, stdin, stdout):
+    def bundles_list(self, io_handler):
         """
         Lists the bundles in the framework and their state
         """
@@ -583,27 +669,27 @@ class Shell(object):
             lines.append(line)
 
         # Print'em all
-        stdout.write(self._utils.make_table(headers, lines))
+        io_handler.write(self._utils.make_table(headers, lines))
 
 
-    def service_details(self, stdin, stdout, service_id):
+    def service_details(self, io_handler, service_id):
         """
         Prints the details of the given service
         """
         svc_ref = self._context.get_service_reference(None,
-                                            '({0}={1})'.format(pelix.SERVICE_ID,
-                                                               service_id))
+                                '({0}={1})'.format(pelix.SERVICE_ID,
+                                                   service_id))
         if svc_ref is None:
-            stdout.write('Service not found: {0}\n'.format(service_id))
+            io_handler.write_line('Service not found: {0}', service_id)
             return
 
         lines = []
         lines.append("ID    : {0}".format(svc_ref.get_property(
-                                                    pelix.SERVICE_ID)))
+                                            pelix.SERVICE_ID)))
         lines.append("Rank  : {0}".format(svc_ref.get_property(
-                                                    pelix.SERVICE_RANKING)))
+                                            pelix.SERVICE_RANKING)))
         lines.append("Specs : {0}".format(svc_ref.get_property(
-                                                    pelix.OBJECTCLASS)))
+                                            pelix.OBJECTCLASS)))
         lines.append("Bundle: {0}".format(svc_ref.get_bundle()))
         lines.append("Properties:")
         for key, value in svc_ref.get_properties().items():
@@ -614,10 +700,10 @@ class Shell(object):
             lines.append("\t{0}".format(bundle))
 
         lines.append("")
-        stdout.write('\n'.join(lines))
+        io_handler.write('\n'.join(lines))
 
 
-    def services_list(self, stdin, stdout):
+    def services_list(self, io_handler):
         """
         Lists the services in the framework
         """
@@ -642,10 +728,10 @@ class Shell(object):
             lines.append(line)
 
         # Print'em all
-        stdout.write(self._utils.make_table(headers, lines))
+        io_handler.write(self._utils.make_table(headers, lines))
 
 
-    def print_help(self, stdin, stdout):
+    def print_help(self, io_handler):
         """
         Prints the available methods and their documentation
         """
@@ -655,18 +741,18 @@ class Shell(object):
         namespaces.insert(0, DEFAULT_NAMESPACE)
 
         for namespace in namespaces:
-            stdout.write("* Namespace '%s':\n" % namespace)
+            io_handler.write_line("* Namespace '{0}':", namespace)
             names = [command for command in self._commands[namespace]]
             names.sort()
 
             for name in names:
-                stdout.write("- %s\n" % name)
+                io_handler.write_line("- {0}", name)
                 doc = getattr(self._commands[namespace][name], '__doc__',
                               "(Documentation missing)")
-                stdout.write("\t\t%s\n" % ' '.join(doc.split()))
+                io_handler.write_line("\t\t{0}", ' '.join(doc.split()))
 
 
-    def properties_list(self, stdin, stdout):
+    def properties_list(self, io_handler):
         """
         Lists the properties of the framework
         """
@@ -683,18 +769,18 @@ class Shell(object):
         lines.sort()
 
         # Print the table
-        stdout.write(self._utils.make_table(headers, lines))
+        io_handler.write(self._utils.make_table(headers, lines))
 
 
-    def property_value(self, stdin, stdout, name):
+    def property_value(self, io_handler, name):
         """
         property <name> - Prints the value of the given property, looking into
         framework properties then environment variables.
         """
-        stdout.write('{0}\n'.format(self._context.get_property(name)))
+        io_handler.write_line(self._context.get_property(name))
 
 
-    def environment_list(self, stdin, stdout):
+    def environment_list(self, io_handler):
         """
         Lists the framework process environment variables
         """
@@ -708,75 +794,128 @@ class Shell(object):
         lines.sort()
 
         # Print the table
-        stdout.write(self._utils.make_table(headers, lines))
+        io_handler.write(self._utils.make_table(headers, lines))
 
 
-    def environment_value(self, stdin, stdout, name):
+    def environment_value(self, io_handler, name):
         """
         sysprop <name> - Prints the value of the given environment variable
         """
-        stdout.write('{0}\n'.format(os.getenv(name)))
+        io_handler.write_line(os.getenv(name))
 
 
-    def quit(self, stdin, stdout):
+    def threads_list(self, io_handler):
+        """
+        Lists the active threads and their current code line
+        """
+        # Extract frames
+        frames = sys._current_frames()
+
+        # Sort by thread ID
+        thread_ids = frames.keys()
+        thread_ids.sort()
+
+        lines = []
+        for thread_id in thread_ids:
+            # Get the corresponding stack
+            stack = frames[thread_id]
+
+            # Construct the code position
+            lines.append('Thread ID: {0}'.format(thread_id))
+            lines.append('Stack trace:')
+            lines.extend((line.rstrip()
+                          for line in traceback.format_stack(stack, 8)))
+            lines.append('')
+
+        lines.append('')
+
+        # Sort the lines
+        io_handler.write('\n'.join(lines))
+
+
+    def thread_details(self, io_handler, thread_id):
+        """
+        thread <id> - Prints details about the given thread
+        """
+        try:
+            stack = sys._current_frames()[int(thread_id)]
+
+        except KeyError:
+            io_handler.write_line("Unknown thread ID: {0}", thread_id)
+
+        except ValueError:
+            io_handler.write_line("Invalid thread ID: {0}", thread_id)
+
+        else:
+            lines = []
+            lines.append('Thread ID: {0}'.format(thread_id))
+            lines.append('Stack trace:')
+            lines.extend((line.rstrip()
+                          for line in traceback.format_stack(stack)))
+
+        lines.append("")
+        io_handler.write('\n'.join(lines))
+
+
+    def quit(self, io_handler):
         """
         Stops the current shell session (raises a KeyboardInterrupt exception)
         """
         raise KeyboardInterrupt()
 
 
-    def start(self, stdin, stdout, bundle_id):
+    def start(self, io_handler, bundle_id):
         """
         start <bundle_id> - Starts the given bundle ID
         """
         bundle_id = int(bundle_id)
         bundle = self._context.get_bundle(bundle_id)
         if bundle is None:
-            stdout.write("Unknown bundle: %d\n", bundle_id)
+            io_handler.write_line("Unknown bundle: {0}", bundle_id)
 
         bundle.start()
 
 
-    def stop(self, stdin, stdout, bundle_id):
+    def stop(self, io_handler, bundle_id):
         """
         stop <bundle_id> - Stops the given bundle
         """
         bundle_id = int(bundle_id)
         bundle = self._context.get_bundle(bundle_id)
         if bundle is None:
-            stdout.write("Unknown bundle: %d\n" % bundle_id)
+            io_handler.write_line("Unknown bundle: {0}", bundle_id)
 
         bundle.stop()
 
 
-    def update(self, stdin, stdout, bundle_id):
+    def update(self, io_handler, bundle_id):
         """
         update <bundle_id> - Updates the given bundle ID
         """
         bundle_id = int(bundle_id)
         bundle = self._context.get_bundle(bundle_id)
         if bundle is None:
-            stdout.write("Unknown bundle: %d\n" % bundle_id)
+            io_handler.write_line("Unknown bundle: {0}", bundle_id)
 
         bundle.update()
 
 
-    def install(self, stdin, stdout, location):
+    def install(self, io_handler, location):
         """
         install <bundle_id> - Installs the given bundle
         """
         bundle_id = self._context.install_bundle(location)
-        stdout.write("Bundle ID: %d\n" % bundle_id)
+        io_handler.write_line("Bundle ID: {0}", bundle_id)
 
 
-    def uninstall(self, stdin, stdout, bundle_id):
+    def uninstall(self, io_handler, bundle_id):
         """
         uninstall <bundle_id> - Uninstalls the given bundle
         """
         bundle_id = int(bundle_id)
         bundle = self._context.get_bundle(bundle_id)
         if bundle is None:
-            stdout.write("Unknown bundle: %d\n" % bundle_id)
+            io_handler.write_line("Unknown bundle: {0}", bundle_id)
 
         bundle.uninstall()
 
@@ -826,6 +965,7 @@ class PelixActivator(object):
 
             self._shell_reg = context.register_service(SHELL_SERVICE_SPEC,
                                                        self._shell, {})
+
             self._utils_reg = context.register_service(SHELL_UTILS_SERVICE_SPEC,
                                                        utils, {})
 
@@ -835,7 +975,8 @@ class PelixActivator(object):
             context.add_service_listener(self, spec_filter)
 
             # Register existing command services
-            refs = context.get_all_service_references(SHELL_COMMAND_SPEC, None)
+            refs = context.get_all_service_references(SHELL_COMMAND_SPEC,
+                                                      None)
             if refs is not None:
                 for ref in refs:
                     self._shell._bind_handler(ref)
