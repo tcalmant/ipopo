@@ -43,7 +43,6 @@ import logging
 import os
 import sys
 import threading
-from manifest import Bundle
 
 ACTIVATOR = "activator"
 
