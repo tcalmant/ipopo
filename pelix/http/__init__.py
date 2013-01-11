@@ -109,8 +109,13 @@ class AbstractHTTPServletRequest(object):
         
         :return: The read data
         """
-        size = self.get_header('content-length', -1)
-        return self.get_rfile.read(size)
+        try:
+            size = int(self.get_header('content-length'))
+
+        except ValueError:
+            size = -1
+
+        return self.get_rfile().read(size)
 
 
 class AbstractHTTPServletResponse(object):
