@@ -226,6 +226,7 @@ def remove_listener(registry, listener):
 # ------------------------------------------------------------------------------
 
 if PYTHON_3:
+    # Python 3 interpreter : bytes & str
     def is_string(string):
         """
         Utility method to test if the given parameter is a string
@@ -238,7 +239,42 @@ if PYTHON_3:
         # Python 3 only have the str string type
         return isinstance(string, str)
 
+    def to_bytes(data, encoding="UTF-8"):
+        """
+        Converts the given string to an array of bytes.
+        Returns the first parameter if it is already an array of bytes.
+        
+        :param data: A unicode string
+        :param encoding: The encoding of data
+        :return: The corresponding array of bytes
+        """
+        if type(data) is bytes:
+            # Nothing to do
+            return data
+
+        return data.encode(encoding)
+
+
+    def to_str(data, encoding="UTF-8"):
+        """
+        Converts the given parameter to a string.
+        Returns the first parameter if it is already an instance of ``str``.
+        
+        :param data: A string
+        :param encoding: The encoding of data
+        :return: The corresponding string
+        """
+        if type(data) is str:
+            # Nothing to do
+            return data
+
+        return str(data, encoding)
+
+    # Same operation
+    to_unicode = to_str
+
 else:
+    # Python 2 interpreter : str & unicode
     def is_string(string):
         """
         Utility method to test if the given parameter is a string
@@ -250,3 +286,39 @@ else:
         """
         # Python 2 also have unicode
         return isinstance(string, (str, unicode))
+
+
+    def to_str(data, encoding="UTF-8"):
+        """
+        Converts the given parameter to a string.
+        Returns the first parameter if it is already an instance of ``str``.
+        
+        :param data: A string
+        :param encoding: The encoding of data
+        :return: The corresponding string
+        """
+        if type(data) is str:
+            # Nothing to do
+            return data
+
+        return data.encode(encoding)
+
+
+    # Same operation
+    to_bytes = to_str
+
+
+    def to_unicode(data, encoding="UTF-8"):
+        """
+        Converts the given string to an unicode string using ``str.decode()``.
+        Returns the first parameter if it is already an instance of ``unicode``.
+        
+        :param data: A string
+        :param encoding: The encoding of data
+        :return: The corresponding ``unicode`` string
+        """
+        if type(data) is unicode:
+            # Nothing to do
+            return data
+
+        return data.decode(encoding)
