@@ -36,6 +36,11 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+# Pelix utility methods
+from pelix.utilities import to_bytes
+
+# ------------------------------------------------------------------------------
+
 # HTTP service constants
 HTTP_SERVICE = "pelix.http.service"
 """ HTTP Service specification """
@@ -196,7 +201,7 @@ class AbstractHTTPServletResponse(object):
             self.set_header("content-type", mime_type)
 
         # Convert the content
-        content = content.encode()
+        content = to_bytes(content)
 
         if content_length is not None:
             if content_length < 0:
