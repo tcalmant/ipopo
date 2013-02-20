@@ -40,8 +40,12 @@ __docformat__ = "restructuredtext en"
 # Shell constants
 from pelix.shell import SHELL_SERVICE_SPEC, SHELL_COMMAND_SPEC, \
     SHELL_UTILS_SERVICE_SPEC
+
+# Pelix modules
+from pelix.utilities import to_str
 import pelix.framework as pelix
 
+# Standard library
 import io
 import logging
 import os
@@ -137,22 +141,22 @@ class IOHandler(io.RawIOBase):
     Handles I/O operations between the command handler and the client
     It automatically converts the given data to bytes in Python 3.
     """
-    def __init__(self, input, output, encoding='UTF-8'):
+    def __init__(self, instream, out_stream, encoding='UTF-8'):
         """
         Sets up the printer
         
-        :param input: Input stream
-        :param output: Output stream
+        :param instream: Input stream
+        :param out_stream: Output stream
         :param encoding: Output encoding
         """
-        self.input = input
-        self.output = output
+        self.input = instream
+        self.output = out_stream
         self.encoding = encoding
 
         # Set up class methods
         if sys.version_info[0] == 3:
-            self.read = _read_python3
-            self.write = _write_python3
+            self.read = self._read_python3
+            self.write = self._write_python3
 
         else:
             self.read = self.input.read
@@ -166,7 +170,7 @@ class IOHandler(io.RawIOBase):
         :param n: Maximum bytes to read
         :return: The result of ``self.input.read()``
         """
-        return self.input.read(n).decode(self.encoding)
+        return to_str(self.input.read(n), self.encoding)
 
 
     def _write_python3(self, data):
@@ -176,10 +180,7 @@ class IOHandler(io.RawIOBase):
         :param data: Data to be written
         :return: The result of ``self.output.write()``
         """
-        if type(data) is str:
-            data = data.encode(self.encoding)
-
-        self.output.write(data)
+        self.output.write(to_str(data, self.encoding))
 
 
     def write_line(self, line, *args, **kwargs):
@@ -410,7 +411,6 @@ class Shell(object):
             return False
 
         # Unregister its commands
-        handler = self._bound_references[svc_ref]
         namespace, commands = self._reference_commands[svc_ref]
         for command in commands:
             self.unregister(namespace, command)
@@ -508,9 +508,8 @@ class Shell(object):
         if not cmdline:
             return False
 
-        if sys.version_info[0] == 3:
-            # TODO: use compatibility service
-            cmdline = str(cmdline, 'UTF-8')
+        # Convert the line into a string
+        cmdline = to_str(cmdline)
 
         line_split = shlex.split(cmdline, True, True)
         if not line_split:
@@ -545,7 +544,7 @@ class Shell(object):
 
         except TypeError as ex:
             # Invalid arguments...
-            _logger.exception("Invalid method call: %s", ex)
+            _logger.error("Invalid method call: %s", ex)
             io_handler.write_line("Invalid method call: {0}", ex)
             return False
 

@@ -310,7 +310,8 @@ class Activator(object):
         self._cleanup()
 
         # Stop the framework
-        self._context.get_bundle(0).stop()
+        if self._context is not None:
+            self._context.get_bundle(0).stop()
 
 
     def _cleanup(self):
