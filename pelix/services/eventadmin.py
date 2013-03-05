@@ -201,22 +201,26 @@ class EventAdmin(object):
 
 
 
-    def send(self, event):
+    def send(self, topic, properties=None):
         """
         Sends synchronously the given event
         
-        :param event: An Event object
+        :param topic: Topic of event
+        :param properties: Associated properties
         """
+        event = Event(topic, properties)
         self.__notify_handlers(event, self._get_handlers(event))
 
 
-    def post(self, event):
+    def post(self, topic, properties=None):
         """
         Sends asynchronously the given event
         
-        :param event: An Event object
+        :param topic: Topic of event
+        :param properties: Associated properties
         """
         # Enqueue the task in the thread pool
+        event = Event(topic, properties)
         self._pool.enqueue(self.__notify_handlers, event,
                            self._get_handlers(event))
 
