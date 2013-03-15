@@ -636,7 +636,7 @@ class HttpService(object):
             self._logger = logging.getLogger(self._logger_name)
 
             if self._logger_level is None:
-                self._logger_level = logging.root.level
+                self._logger.level = logging.INFO
 
             else:
                 self._logger.level = int(self._logger_level)
