@@ -331,13 +331,15 @@ class IPopoRemoteShell(object):
             # Local host by default
             self._address = "localhost"
 
-        if self._port is None or self._port < 0:
-            # Random port
-            self._port = 0
-
-        else:
-            # Ensure we have an integer
+        try:
             self._port = int(self._port)
+            if self._port < 0 or self._port > 65535:
+                # Invalid port value
+                self._port = 0
+
+        except ValueError:
+            # Invalid port string: use a random port
+            self._port = 0
 
         # Start the TCP server
         self._thread, self._server, self._server_flag = \
