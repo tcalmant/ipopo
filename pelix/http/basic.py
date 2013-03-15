@@ -251,11 +251,11 @@ class _RequestHandler(BaseHTTPRequestHandler):
         self._service.log(logging.ERROR, message, *args, **kwargs)
 
 
-    def log_request(self, message, *args, **kwargs):
+    def log_request(self, code='-', size='-'):
         """
-        Log a request to the server
+        Logs a request to the server
         """
-        self._service.log(logging.DEBUG, message, *args, **kwargs)
+        self._service.log(logging.DEBUG, '"%s" %s', self.requestline, code)
 
 
     def send_no_servlet_response(self):
