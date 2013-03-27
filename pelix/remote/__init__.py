@@ -50,17 +50,23 @@ listen.imported properties.
 PROP_ENDPOINT_NAME = "endpoint.name"
 """ Name of the end point of an exported service """
 
-PROP_EXPORTED_CONFIGS = "service.exported.configs"
+PREFIX_PROP_EXPORTED = "service.exported."
+""" Prefix common to all export properties (for filtering) """
+
+PROP_EXPORTED_CONFIGS = "{0}configs".format(PREFIX_PROP_EXPORTED)
 """ Export configurations (xmlrpc, ...) (array of strings) """
 
-PROP_EXPORTED_INTERFACES = "service.exported.interfaces"
+PROP_EXPORTED_INTERFACES = "{0}interfaces".format(PREFIX_PROP_EXPORTED)
 """ Exported specifications (array of strings) """
 
 PROP_IMPORTED = "service.imported"
 """ Flag indicating that the service has been imported """
 
 PROP_IMPORTED_CONFIGS = "service.imported.configs"
-""" Configurations of the imported service """
+""" Configurations of the imported service (mirror of PROP_EXPORTED_CONFIGS) """
+
+PROP_IMPORTED_INTERFACES = "service.imported.interfaces"
+""" Imported specifications (mirror of PROP_EXPORTED_INTERFACES) """
 
 PROP_LISTEN_IMPORTED = "listen.imported"
 """
