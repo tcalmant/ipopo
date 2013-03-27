@@ -57,7 +57,7 @@ class Event(object):
     """
     Represents an event for the EventAdmin
     """
-    def __init__(self, topic, properties=None):
+    def __init__(self, topic="<none>", properties=None):
         """
         Sets up the event
         
