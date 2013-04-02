@@ -7,9 +7,7 @@ iPOPO test module. Tests both the iPOPO core module and decorators
 """
 
 from pelix.ipopo.constants import IPopoEvent
-from pelix.ipopo.core import FactoryContext
 from pelix.framework import FrameworkFactory, Bundle, BundleContext
-from pelix.utilities import is_string
 
 from tests import log_on, log_off
 from tests.interfaces import IEchoService
@@ -526,6 +524,90 @@ class LifeCycleTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+class FieldCallbackTest(unittest.TestCase):
+    """
+    Tests the component life cycle
+    """
+    def setUp(self):
+        """
+        Called before each test. Initiates a framework.
+        """
+        self.framework = FrameworkFactory.get_framework()
+        self.framework.start()
+        self.ipopo = install_ipopo(self.framework)
+        self.module = install_bundle(self.framework,
+                                     "tests.ipopo_fields_bundle")
+
+
+    def tearDown(self):
+        """
+        Called after each test
+        """
+        self.framework.stop()
+        FrameworkFactory.delete_framework(self.framework)
+
+
+    def testLifeCycleFieldCallback(self):
+        """
+        Tests the order of field notifications
+        """
+        # Consumer
+        compo = self.ipopo.instantiate(self.module.FACTORY_C, "consumer")
+        self.assertEquals(compo.states, [], "States should be empty")
+
+        # Service A
+        svc_a = self.ipopo.instantiate(self.module.FACTORY_A, "svcA")
+        self.assertEquals(compo.states,
+                          [self.module.BIND_A, self.module.BIND_FIELD_A],
+                          "Service A bound incorrectly")
+        del compo.states[:]
+
+        # Service B
+        svc_b = self.ipopo.instantiate(self.module.FACTORY_B, "svcB")
+        self.assertEquals(compo.states,
+                          [self.module.BIND_B, self.module.BIND_FIELD_B],
+                          "Service B bound incorrectly")
+        del compo.states[:]
+
+        # Update A
+        self.assertNotEquals(svc_a._prop, 42,
+                             "Value already at requested value")
+        compo.change_a(42)
+        self.assertEquals(svc_a._prop, 42, "Value not changed")
+        self.assertEquals(compo.states,
+                          [self.module.UPDATE_FIELD_A, self.module.UPDATE_A],
+                          "Service A updated incorrectly")
+        del compo.states[:]
+
+        # Update B
+        self.assertNotEquals(svc_b._prop, -123,
+                             "Value already at requested value")
+        compo.change_b(-123)
+        self.assertEquals(svc_b._prop, -123, "Value not changed")
+        self.assertEquals(compo.states,
+                          [self.module.UPDATE_FIELD_B, self.module.UPDATE_B],
+                          "Service B updated incorrectly")
+        del compo.states[:]
+
+        # Kill service A
+        self.ipopo.kill("svcA")
+        self.assertEquals(compo.states,
+                          [self.module.UNBIND_FIELD_A, self.module.UNBIND_A],
+                          "Service A unbound incorrectly")
+        del compo.states[:]
+
+        # Kill service B
+        self.ipopo.kill("svcB")
+        self.assertEquals(compo.states,
+                          [self.module.UNBIND_FIELD_B, self.module.UNBIND_B],
+                          "Service B unbound incorrectly")
+        del compo.states[:]
+
+        # Kill consumer
+        self.ipopo.kill("consumer")
+
+# ------------------------------------------------------------------------------
+
 class InstantiateTest(unittest.TestCase):
     """
     Specific test case to test @Instantiate, as it needs a pure framework
@@ -710,7 +792,7 @@ class ProvidesTest(unittest.TestCase):
                           "TestService is already registered")
 
         # Instantiate the component
-        compoA = self.ipopo.instantiate(module.FACTORY_A, NAME_A)
+        self.ipopo.instantiate(module.FACTORY_A, NAME_A)
 
         try:
             # Service should be there (controller default value is True)
@@ -1032,7 +1114,7 @@ class RequirementTest(unittest.TestCase):
 
         # Register a first service
         context = self.framework.get_bundle_context()
-        reg = context.register_service(IEchoService, self, None)
+        context.register_service(IEchoService, self, None)
 
         # Instantiate C (no requirement present, but they are optional)
         compoC = self.ipopo.instantiate(module.FACTORY_C, NAME_C)
@@ -1403,9 +1485,6 @@ class SimpleCoreTests(unittest.TestCase):
         """
         Requirement = self.ipopo_bundle.Requirement
 
-        req_1 = Requirement(["spec_1", "spec_2"], True, True,
-                            spec_filter="(test=True)")
-
         # Invalid type
         for invalid in (None, [], "test"):
             self.assertRaises(TypeError, Requirement.from_dictionary_form,
@@ -1631,7 +1710,6 @@ class IPopoServiceTest(unittest.TestCase):
         Instance details method test
         """
         module = install_bundle(self.framework)
-        bundle = self.framework.get_bundle_by_name("tests.ipopo_bundle")
 
         # Invalid component names
         for invalid in (None, "", [1], ["a", "b"]):

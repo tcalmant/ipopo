@@ -40,9 +40,15 @@ IPOPO_SERVICE_SPECIFICATION = "pelix.ipopo.core"
 # ------------------------------------------------------------------------------
 
 # Injected class fields
-IPOPO_METHOD_CALLBACKS = "_ipopo_callbacks"
+# Contains a list of callback types
+IPOPO_METHOD_CALLBACKS = "__ipopo_callbacks__"
+# Contains a list of tuples (field, callback type)
+IPOPO_METHOD_FIELD_CALLBACKS = "__ipopo_field_callbacks__"
+# FactoryContext object storage
 IPOPO_FACTORY_CONTEXT = "__ipopo_factory_context__"
+# Dictionary form of the FactoryContext
 IPOPO_FACTORY_CONTEXT_DATA = "__ipopo_factory_context_data__"
+# List of instantiations
 IPOPO_INSTANCES = "__ipopo_instances__"
 
 # Method called by the injected property (must be injected in the instance)
@@ -55,7 +61,11 @@ IPOPO_CONTROLLER_PREFIX = "_ipopo_controller"
 
 # Callbacks
 IPOPO_CALLBACK_BIND = "BIND"
+IPOPO_CALLBACK_BIND_FIELD = "BIND_FIELD"
+IPOPO_CALLBACK_UPDATE = "UPDATE"
+IPOPO_CALLBACK_UPDATE_FIELD = "UPDATE_FIELD"
 IPOPO_CALLBACK_UNBIND = "UNBIND"
+IPOPO_CALLBACK_UNBIND_FIELD = "UNBIND_FIELD"
 IPOPO_CALLBACK_VALIDATE = "VALIDATE"
 IPOPO_CALLBACK_INVALIDATE = "INVALIDATE"
 

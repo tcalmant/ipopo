@@ -27,7 +27,7 @@ Core iPOPO implementation
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
-__version__ = (0, 4, 0)
+__version__ = "0.4.9"
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
@@ -36,8 +36,7 @@ __docformat__ = "restructuredtext en"
 
 from pelix.framework import BundleContext, ServiceEvent, BundleEvent, \
     Bundle, BundleException
-from pelix.utilities import remove_all_occurrences, SynchronizedClassMethod, \
-    add_listener, remove_listener, is_string
+from pelix.utilities import add_listener, remove_listener, is_string
 
 import pelix.ipopo.constants as constants
 import pelix.framework as pelix
@@ -328,11 +327,12 @@ class _RuntimeDependency(object):
         raise NotImplementedError
 
 
-    def on_service_modify(self, svc_ref):
+    def on_service_modify(self, svc_ref, old_properties):
         """
         Called when a service has been registered in the framework
         
         :param svc_ref: A service reference
+        :param old_properties: Previous properties values
         """
         raise NotImplementedError
 
@@ -360,7 +360,7 @@ class _RuntimeDependency(object):
 
         elif kind == ServiceEvent.MODIFIED:
             # Modified properties (can be a new injection)
-            self.on_service_modify(svc_ref)
+            self.on_service_modify(svc_ref, event.get_previous_properties())
 
 
     def start(self):
@@ -452,16 +452,22 @@ class _SimpleDependency(_RuntimeDependency):
                 return True
 
 
-    def on_service_modify(self, svc_ref):
+    def on_service_modify(self, svc_ref, old_properties):
         """
         Called when a service has been modified in the framework
         
         :param svc_ref: A service reference
+        :param old_properties: Previous properties values
         """
         with self._lock:
             if self.reference is None:
                 # A previously registered service now matches our filter
                 return self.on_service_arrival(svc_ref)
+
+            else:
+                # Notify the property modification
+                self._ipopo_instance.update(self, self._value, self.reference,
+                                            old_properties)
 
 
     def stop(self):
@@ -614,11 +620,12 @@ class _AggregateDependency(_RuntimeDependency):
                 return True
 
 
-    def on_service_modify(self, svc_ref):
+    def on_service_modify(self, svc_ref, old_properties):
         """
         Called when a service has been modified in the framework
         
         :param svc_ref: A service reference
+        :param old_properties: Previous properties values
         :return: A tuple (added, (service, reference)) if the dependency has
                  been changed, else None
         """
@@ -626,6 +633,11 @@ class _AggregateDependency(_RuntimeDependency):
             if svc_ref not in self.services:
                 # A previously registered service now matches our filter
                 return self.on_service_arrival(svc_ref)
+
+            else:
+                # Notify the property modification
+                self._ipopo_instance.update(self, self.services[svc_ref],
+                                            svc_ref, old_properties)
 
 
     def stop(self):
@@ -839,8 +851,8 @@ class FactoryContext(object):
     Represents the data stored in a component factory (class)
     """
 
-    __basic_fields = ('callbacks', 'name', 'properties', 'properties_fields',
-                      'provides')
+    __basic_fields = ('callbacks', 'field_callbacks', 'name', 'properties',
+                      'properties_fields', 'provides')
 
     def __init__(self):
         """
@@ -851,6 +863,9 @@ class FactoryContext(object):
 
         # Callbacks : Kind -> callback method
         self.callbacks = {}
+
+        # Field callbacks: Field -> {Kind -> Callback}
+        self.field_callbacks = {}
 
         # The factory name
         self.name = None
@@ -882,8 +897,8 @@ class FactoryContext(object):
             return False
 
         # Do not compare the bundle context, as it must not be stored
-        for field in ('name', 'callbacks', 'properties', 'properties_fields',
-                      'requirements'):
+        for field in ('name', 'callbacks', 'field_callbacks', 'properties',
+                      'properties_fields', 'requirements'):
             # Comparable fields
             if getattr(self, field, None) != getattr(other, field, None):
                 return False
@@ -913,8 +928,8 @@ class FactoryContext(object):
         context = FactoryContext()
 
         direct = ("bundle_context", "name")
-        copied = ("callbacks", "properties", "properties_fields",
-                  "requirements")
+        copied = ("callbacks", "field_callbacks", "properties",
+                  "properties_fields", "requirements")
         lists = ("provides",)
 
         # Direct copy of primitive values
@@ -1088,6 +1103,19 @@ class ComponentContext(object):
         return self.factory_context.callbacks.get(event, None)
 
 
+    def get_field_callback(self, field, event):
+        """
+        Retrieves the registered method for the given event. Returns None if not
+        found
+
+        :param field: Name of the dependency field
+        :param event: A component life cycle event
+        :return: The callback associated to the given event
+        """
+        return self.factory_context.field_callbacks.get(field,
+                                                        {}).get(event, None)
+
+
     def get_factory_name(self):
         """
         Retrieves the component factory name
@@ -1226,6 +1254,15 @@ class _StoredInstance(object):
         """
         with self._lock:
             self.__set_binding(dependency, svc, svc_ref)
+            self.check_lifecycle()
+
+
+    def update(self, dependency, svc, svc_ref, old_properties):
+        """
+        TODO: docstring
+        """
+        with self._lock:
+            self.__update_binding(dependency, svc, svc_ref, old_properties)
             self.check_lifecycle()
 
 
@@ -1511,6 +1548,30 @@ class _StoredInstance(object):
             return result
 
 
+    def __field_callback(self, field, event, *args, **kwargs):
+        """
+        Calls the registered method in the component for the given field event
+
+        :param field: A field name
+        :param event: An event (IPOPO_CALLBACK_VALIDATE, ...)
+        :return: The callback result, or None
+        :raise Exception: Something went wrong
+        """
+        with self._lock:
+            comp_callback = self.context.get_field_callback(field, event)
+            if not comp_callback:
+                # No registered callback
+                return True
+
+            # Call it
+            result = comp_callback(self.instance, field, *args, **kwargs)
+            if result is None:
+                # Special case, if the call back returns nothing
+                return True
+
+            return result
+
+
     def __safe_callback(self, event, *args, **kwargs):
         """
         Calls the registered method in the component for the given event,
@@ -1526,6 +1587,45 @@ class _StoredInstance(object):
 
             try:
                 return self.__callback(event, *args, **kwargs)
+
+            except pelix.FrameworkException as ex:
+                # Important error
+                _logger.exception("Critical error calling back %s: %s",
+                                  self.name, ex)
+
+                # Kill the component
+                self._ipopo_service.kill(self.name)
+
+                if ex.needs_stop:
+                    # Framework must be stopped...
+                    _logger.error("%s said that the Framework must be stopped.",
+                                  self.name)
+                    self.bundle_context.get_bundle(0).stop()
+                return False
+
+            except:
+                _logger.exception("Component '{0}' : error calling callback " \
+                                  "method for event {1}".format(self.name,
+                                                                event))
+                return False
+
+
+    def __safe_field_callback(self, field, event, *args, **kwargs):
+        """
+        Calls the registered method in the component for the given event,
+        ignoring raised exceptions
+
+        :param field: Name of the modified field
+        :param event: A field event (IPOPO_CALLBACK_BIND_FIELD, ...)
+        :return: The callback result, or None
+        """
+        with self._lock:
+            if self.state == _StoredInstance.KILLED:
+                # Invalid state
+                return None
+
+            try:
+                return self.__field_callback(field, event, *args, **kwargs)
 
             except pelix.FrameworkException as ex:
                 # Important error
@@ -1674,6 +1774,24 @@ class _StoredInstance(object):
             self.__safe_callback(constants.IPOPO_CALLBACK_BIND,
                                  service, reference)
 
+            self.__safe_field_callback(dependency.field,
+                                       constants.IPOPO_CALLBACK_BIND_FIELD,
+                                       service, reference)
+
+
+    def __update_binding(self, dependency, service, reference, old_properties):
+        """
+        TODO: docstring
+        """
+        with self._lock:
+            # Call the component back
+            self.__safe_field_callback(dependency.field,
+                                       constants.IPOPO_CALLBACK_UPDATE_FIELD,
+                                       service, reference, old_properties)
+
+            self.__safe_callback(constants.IPOPO_CALLBACK_UPDATE,
+                                 service, reference, old_properties)
+
 
     def __unset_binding(self, dependency, service, reference):
         """
@@ -1685,6 +1803,10 @@ class _StoredInstance(object):
         """
         with self._lock:
             # Call the component back
+            self.__safe_field_callback(dependency.field,
+                                       constants.IPOPO_CALLBACK_UNBIND_FIELD,
+                                       service, reference)
+
             self.__safe_callback(constants.IPOPO_CALLBACK_UNBIND,
                                  service, reference)
 
@@ -1994,9 +2116,9 @@ class _IPopoService(object):
                 except Exception as ex:
                     # Log error, but continue to work
                     _logger.exception("Error restarting component '%s' ('%s')"
-                                      "from bundle %s (%d)", name, factory,
+                                      "from bundle %s (%d): %s", name, factory,
                                       bundle.get_symbolic_name(),
-                                      bundle.get_bundle_id())
+                                      bundle.get_bundle_id(), ex)
 
 
     def _autorestart_clear_components(self, bundle):

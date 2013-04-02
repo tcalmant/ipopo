@@ -27,7 +27,7 @@ Defines the iPOPO decorators classes to manipulate component factory classes
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
-__version__ = (0, 4, 0)
+__version__ = "0.4.9"
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
@@ -229,6 +229,59 @@ def _ipopo_setup_callback(cls, context):
     context.callbacks.clear()
     context.callbacks.update(callbacks)
 
+
+def _ipopo_setup_field_callback(cls, context):
+    """
+    Sets up the class _field_callback dictionary
+    
+    :param cls: The class to handle
+    :param context: The factory class context
+    """
+    assert inspect.isclass(cls)
+    assert isinstance(context, FactoryContext)
+
+    if context.field_callbacks is not None:
+        callbacks = context.field_callbacks.copy()
+
+    else:
+        callbacks = {}
+
+    functions = inspect.getmembers(cls, inspect.isroutine)
+
+    for name, function in functions:
+        if not hasattr(function, constants.IPOPO_METHOD_FIELD_CALLBACKS):
+            # No attribute, get the next member
+            continue
+
+        method_callbacks = getattr(function,
+                                   constants.IPOPO_METHOD_FIELD_CALLBACKS)
+        if not isinstance(method_callbacks, list):
+            # Invalid content
+            _logger.warning("Invalid attribute %s in %s", \
+                            constants.IPOPO_METHOD_FIELD_CALLBACKS, name)
+            continue
+
+        # Keeping it allows inheritance : by removing it, only the first
+        # child will see the attribute -> Don't remove it
+
+        # Store the call backs
+        for kind, field in method_callbacks:
+            fields_cbs = callbacks.setdefault(field, {})
+
+            if kind in fields_cbs and \
+            not is_from_parent(cls, fields_cbs[kind].__name__):
+                _logger.warning("Redefining the callback %s in '%s'. " \
+                                "Previous callback : '%s' (%s). " \
+                                "New callback : %s", kind, name,
+                                fields_cbs[kind].__name__,
+                                fields_cbs[kind], function)
+
+            fields_cbs[kind] = function
+
+    # Update the factory context
+    context.field_callbacks.clear()
+    context.field_callbacks.update(callbacks)
+
 # ------------------------------------------------------------------------------
 
 def _append_object_entry(obj, list_name, entry):
@@ -417,6 +470,7 @@ class ComponentFactory:
 
         # Find callbacks
         _ipopo_setup_callback(factory_class, context)
+        _ipopo_setup_field_callback(factory_class, context)
 
         # Clean up inherited fields, to avoid weird behavior
         for field in ComponentFactory.NON_INHERITABLE_FIELDS:
@@ -686,6 +740,171 @@ class Requires:
 
 # ------------------------------------------------------------------------------
 
+class BindField(object):
+    """
+    BindField callback decorator, called when a component is bound to a
+    dependency, injected in the given field.
+    
+    The decorated method must have the following prototype :
+    
+    .. python::
+       def bind_method(self, field, service, service_reference):
+           '''
+           Method called when a service is bound to the component
+           
+           :param field: Field wherein the dependency is injected
+           :param service: The injected service instance.
+           :param service_reference: The injected service ServiceReference
+           '''
+           # ...
+    
+    If the service is a required one, the bind callback is called **before** the
+    component is validated.
+    The bind field callback is called **after** the global bind method.
+    
+    The service reference can be stored *if its reference is deleted on unbind*.
+    
+    Exceptions raised by a bind callback are ignored.
+    
+    :param method: The decorated method
+    :raise TypeError: The decorated element is not a valid function
+    """
+    def __init__(self, field):
+        """
+        Sets up the decorator
+        
+        :param field: Field associated to the binding
+        """
+        self._field = field
+
+
+    def __call__(self, method):
+        """
+        Updates the "field callback" list for this method
+        
+        :param method: Method to decorate
+        :return: Decorated method
+        """
+        if not inspect.isroutine(method):
+            raise TypeError("@BindField can only be applied on functions")
+
+        # Tests the number of parameters
+        validate_method_arity(method, "field", "service", "service_reference")
+
+        _append_object_entry(method, constants.IPOPO_METHOD_FIELD_CALLBACKS,
+                             (constants.IPOPO_CALLBACK_BIND_FIELD,
+                              self._field))
+        return method
+
+
+class UpdateField(object):
+    """
+    UpdateField callback decorator, called when a component dependency property
+    has been modified.
+    
+    The decorated method must have the following prototype :
+    
+    .. python::
+       def update_method(self, service, service_reference, old_properties):
+           '''
+           Method called when a service is bound to the component
+           
+           :param service: The injected service instance.
+           :param service_reference: The injected service ServiceReference
+           :param old_properties: Previous service properties
+           '''
+           # ...
+    
+    Exceptions raised by an update callback are ignored.
+    
+    :param method: The decorated method
+    :raise TypeError: The decorated element is not a valid function
+    """
+    def __init__(self, field):
+        """
+        Sets up the decorator
+        
+        :param field: Field associated to the binding
+        """
+        self._field = field
+
+
+    def __call__(self, method):
+        """
+        Updates the "field callback" list for this method
+        
+        :param method: Method to decorate
+        :return: Decorated method
+        """
+        if not inspect.isroutine(method):
+            raise TypeError("@UnbindField can only be applied on functions")
+
+        # Tests the number of parameters
+        validate_method_arity(method, "field", "service", "service_reference",
+                              "old_properties")
+
+        _append_object_entry(method, constants.IPOPO_METHOD_FIELD_CALLBACKS,
+                             (constants.IPOPO_CALLBACK_UPDATE_FIELD,
+                              self._field))
+        return method
+
+
+class UnbindField(object):
+    """
+    UnbindField callback decorator, called when a component is unbound to a
+    dependency, removed from the given field.
+    
+    The decorated method must have the following prototype :
+    
+    .. python::
+       def unbind_method(self, field, service, service_reference):
+           '''
+           Method called when a service is bound to the component
+           
+           :param field: Field wherein the dependency is injected
+           :param service: The injected service instance.
+           :param service_reference: The injected service ServiceReference
+           '''
+           # ...
+    
+    If the service is a required one, the unbind callback is called **after**
+    the component has been invalidated.
+    The unbind field callback is called **before** the global unbind method.
+    
+    Exceptions raised by an unbind callback are ignored.
+    
+    :param method: The decorated method
+    :raise TypeError: The decorated element is not a valid function
+    """
+    def __init__(self, field):
+        """
+        Sets up the decorator
+        
+        :param field: Field associated to the binding
+        """
+        self._field = field
+
+
+    def __call__(self, method):
+        """
+        Updates the "field callback" list for this method
+        
+        :param method: Method to decorate
+        :return: Decorated method
+        """
+        if not inspect.isroutine(method):
+            raise TypeError("@UnbindField can only be applied on functions")
+
+        # Tests the number of parameters
+        validate_method_arity(method, "field", "service", "service_reference")
+
+        _append_object_entry(method, constants.IPOPO_METHOD_FIELD_CALLBACKS,
+                             (constants.IPOPO_CALLBACK_UNBIND_FIELD,
+                              self._field))
+        return method
+
+# ------------------------------------------------------------------------------
+
 def Bind(method):
     """
     Bind callback decorator, called when a component is bound to a dependency.
@@ -693,11 +912,11 @@ def Bind(method):
     The decorated method must have the following prototype :
     
     .. python::
-       def bind_method(self, injected_service, service_reference):
+       def bind_method(self, service, service_reference):
            '''
            Method called when a service is bound to the component
            
-           :param injected_service: The injected service instance.
+           :param service: The injected service instance.
            :param service_reference: The injected service ServiceReference
            '''
            # ...
@@ -723,6 +942,41 @@ def Bind(method):
     return method
 
 
+def Update(method):
+    """
+    Update callback decorator, called when a component dependency property has
+    been modified.
+    
+    The decorated method must have the following prototype :
+    
+    .. python::
+       def update_method(self, service, service_reference, old_properties):
+           '''
+           Method called when a service is bound to the component
+           
+           :param service: The injected service instance.
+           :param service_reference: The injected service ServiceReference
+           :param old_properties: Previous service properties
+           '''
+           # ...
+    
+    Exceptions raised by an update callback are ignored.
+    
+    :param method: The decorated method
+    :raise TypeError: The decorated element is not a valid function
+    """
+    if type(method) is not types.FunctionType:
+        raise TypeError("@Update can only be applied on functions")
+
+    # Tests the number of parameters
+    validate_method_arity(method, "service", "service_reference",
+                          "old_properties")
+
+    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS, \
+                         constants.IPOPO_CALLBACK_UPDATE)
+    return method
+
+
 def Unbind(method):
     """
     Unbind callback decorator, called when a component dependency is unbound.
@@ -730,11 +984,12 @@ def Unbind(method):
     The decorated method must have the following prototype :
     
     .. python::
-       def unbind_method(self, injected_instance):
+       def unbind_method(self, service, service_reference):
            '''
            Method called when a service is bound to the component
            
-           :param injected_instance: The injected service instance.
+           :param service: The injected service instance.
+           :param service_reference: The injected service ServiceReference
            '''
            # ...
     
