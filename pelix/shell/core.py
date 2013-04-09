@@ -746,8 +746,8 @@ class Shell(object):
 
             for name in names:
                 io_handler.write_line("- {0}", name)
-                doc = getattr(self._commands[namespace][name], '__doc__',
-                              "(Documentation missing)")
+                doc = getattr(self._commands[namespace][name], '__doc__', \
+                              None) or "(Documentation missing)"
                 io_handler.write_line("\t\t{0}", ' '.join(doc.split()))
 
 
