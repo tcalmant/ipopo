@@ -29,8 +29,7 @@ Pelix is a Python framework that aims to act as OSGi as much as possible
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from pelix.utilities import SynchronizedClassMethod, add_listener, \
-    remove_listener, is_string
+from pelix.utilities import SynchronizedClassMethod, is_string, Deprecated
 
 import pelix.ldapfilter as ldapfilter
 
@@ -41,6 +40,7 @@ import importlib
 import inspect
 import logging
 import os
+import pkgutil
 import sys
 import threading
 
@@ -56,7 +56,8 @@ SERVICE_RANKING = "service.ranking"
 __docformat__ = "restructuredtext en"
 
 # Module version
-__version__ = (0, 4, 0)
+__version_info__ = (0, 4, 9)
+__version__ = ".".join(map(str, __version_info__))
 
 # Prepare the module logger
 _logger = logging.getLogger("pelix.main")
@@ -124,7 +125,7 @@ class Bundle(object):
         Sets up the bundle descriptor
 
         :param framework: The host framework
-        :param bundle_id: The bundle ID in the host framework
+        :param bundle_id: The ID of the bundle in the host framework
         :param name: The bundle symbolic name
         :param module: The bundle module
         """
@@ -280,11 +281,23 @@ class Bundle(object):
 
     def get_version(self):
         """
-        Retrieves the bundle version
+        Retrieves the bundle version, using the ``__version__`` or
+        ``__version_info__`` attributes of its module.
 
-        :return: The bundle version, (0,0,0) by default
+        :return: The bundle version, "0.0.0" by default
         """
-        return getattr(self.__module, "__version__", (0, 0, 0))
+        # Get the version value
+        version = getattr(self.__module, "__version__", None)
+        if version:
+            return version
+
+        # Convert the __version_info__ entry
+        info = getattr(self.__module, "__version_info__", None)
+        if info:
+            return ".".join(map(str, __version_info__))
+
+        # No version
+        return "0.0.0"
 
 
     def start(self):
@@ -427,19 +440,19 @@ class Bundle(object):
             del self.__registered_services[:]
 
 
-    @SynchronizedClassMethod('_lock')
     def uninstall(self):
         """
-        Uninstall the bundle
+        Uninstalls the bundle
         """
-        if self._state == Bundle.ACTIVE:
-            self.stop()
+        with self._lock:
+            if self._state == Bundle.ACTIVE:
+                self.stop()
 
-        # Change the bundle state
-        self._state = Bundle.UNINSTALLED
+            # Change the bundle state
+            self._state = Bundle.UNINSTALLED
 
-        # Call the framework
-        self.__framework.uninstall_bundle(self)
+            # Call the framework
+            self.__framework.uninstall_bundle(self)
 
 
     @SynchronizedClassMethod('_lock')
@@ -516,7 +529,7 @@ class Framework(Bundle):
         # Properties lock
         self.__properties_lock = threading.Lock()
 
-        # Bundles
+        # Bundles (start at 1, as 0 is reserved for the framework itself)
         self.__next_bundle_id = 1
 
         # Bundle ID -> Bundle object
@@ -637,10 +650,7 @@ class Framework(Bundle):
         :param name: The property name
         """
         with self.__properties_lock:
-            if name in self.__properties:
-                return self.__properties[name]
-
-        return os.getenv(name)
+            return self.__properties.get(name, os.getenv(name))
 
 
     def get_property_keys(self):
@@ -664,10 +674,10 @@ class Framework(Bundle):
         :raise TypeError: The argument is not a ServiceReference object
         """
         if not isinstance(bundle, Bundle):
-            raise TypeError("A Bundle object must be given")
+            raise TypeError("First argument must be a Bundle object")
 
         if not isinstance(reference, ServiceReference):
-            raise TypeError("A ServiceReference object must be given")
+            raise TypeError("Second argument must be a ServiceReference object")
 
         if reference in self.__unregistering_services:
             # Unregistering service, just give it
@@ -685,12 +695,20 @@ class Framework(Bundle):
         return "pelix.framework"
 
 
-    def install_bundle(self, name):
+    def install_bundle(self, name, path=None):
         """
         Installs the bundle with the given name
+        
+        *Note:* Before Pelix 0.5.0, this method returned the ID of the installed
+        bundle, instead of the Bundle object. 
+        
+        **WARNING:** The behavior of the loading process is subject to changes,
+        as it does not allow to safely run multiple frameworks in the same
+        Python interpreter, as they might share global module values.
 
         :param name: A bundle name
-        :return: The installed bundle ID
+        :param path: Preferred path to load the module
+        :return: The installed Bundle object
         :raise BundleException: Something happened
         """
         with self.__bundles_lock:
@@ -698,27 +716,38 @@ class Framework(Bundle):
             for bundle in self.__bundles.values():
                 if bundle.get_symbolic_name() == name:
                     _logger.warning('Already installed bundle: %s', name)
-                    return bundle.get_bundle_id()
+                    return bundle
 
             # Load the module
             try:
-                # module = __import__(name) -> package level
-                # import_module -> Nested module
+                if path:
+                    # Use the given path in priority
+                    sys.path.insert(0, path)
 
-                # Special case : __main__ module
-                if name == "__main__":
-                    try:
-                        module = sys.modules[name]
-
-                    except KeyError:
-                        raise BundleException("Can't reload the 'main' module")
+                if name in sys.modules:
+                    # The module has already been loaded
+                    module = sys.modules[name]
 
                 else:
+                    # Load the module
+                    #  __import__(name) -> package level
+                    # import_module -> module level
                     module = importlib.import_module(name)
 
             except ImportError as ex:
                 # Error importing the module
-                raise BundleException(ex)
+                raise BundleException("Error installing bundle {0}: {1}" \
+                                      .format(name, ex))
+
+            finally:
+                if path:
+                    # Clean up the path. The loaded module(s) might
+                    # have changed the path content, so do not use an
+                    # index
+                    sys.path.remove(path)
+
+            # Add the module to sys.modules, just to be sure
+            sys.modules[name] = module
 
             # Compute the bundle ID
             bundle_id = self.__next_bundle_id
@@ -736,7 +765,141 @@ class Framework(Bundle):
         event = BundleEvent(BundleEvent.INSTALLED, bundle)
         self._dispatcher.fire_bundle_event(event)
 
-        return bundle_id
+        return bundle
+
+
+    def install_package(self, path, recursive=False, prefix=None):
+        """
+        Installs all the modules found in the given package
+        
+        :param path: Path of the package (folder)
+        :param recursive: If True, install the sub-packages too
+        :param prefix: (**internal**) Prefix for all found modules
+        :return: A 2-tuple, with the list of installed bundles and the list
+                 of failed modules names
+        :raise ValueError: Invalid path
+        """
+        if not path:
+            raise ValueError("Empty path")
+
+        elif not is_string(path):
+            raise ValueError("Path must be a string")
+
+        # Use an absolute path
+        path = os.path.abspath(path)
+        if not os.path.exists(path):
+            raise ValueError("Inexistent path: {0}".format(path))
+
+        # Create a simple visitor
+        def visitor(fullname, is_package, module_path):
+            # Accept everything in recursive mode, else avoid packages
+            return recursive or not is_package
+
+        # Set up the prefix if needed
+        if prefix is None:
+            prefix = os.path.basename(path)
+
+        bundles = set()
+        failed = set()
+
+        with self.__bundles_lock:
+            try:
+                # Install the package first, resolved from the parent directory
+                bundles.add(self.install_bundle(prefix, os.path.dirname(path)))
+
+                # Visit the package
+                visited, sub_failed = self.install_visiting(path, visitor,
+                                                            prefix)
+
+                # Update the sets
+                bundles.update(visited)
+                failed.update(sub_failed)
+
+            except BundleException as ex:
+                # Error loading the module
+                _logger.warning("Error loading package %s: %s", prefix, ex)
+                failed.add(prefix)
+
+        return bundles, failed
+
+
+    def install_visiting(self, path, visitor, prefix=None):
+        """
+        Installs all the modules found in the given path if they are accepted
+        by the visitor.
+        
+        The visitor must be a callable accepting 3 parameters:
+        
+           * fullname: The full name of the module
+           * is_package: If True, the module is a package
+           * module_path: The path to the module file
+        
+        :param path: Root search path
+        :param visitor: The visiting callable
+        :param prefix: (**internal**) Prefix for all found modules
+        :return: A 2-tuple, with the list of installed bundles and the list
+                 of failed modules names
+        :raise ValueError: Invalid path or visitor
+        """
+        # Validate the path
+        if not path:
+            raise ValueError("Empty path")
+
+        elif not is_string(path):
+            raise ValueError("Path must be a string")
+
+        # Validate the visitor
+        if visitor is None:
+            raise ValueError("No visitor method given")
+
+        # Use an absolute path
+        path = os.path.abspath(path)
+        if not os.path.exists(path):
+            raise ValueError("Inexistent path: {0}".format(path))
+
+        # Set up the prefix if needed
+        if prefix is None:
+            prefix = os.path.basename(path)
+
+        bundles = set()
+        failed = set()
+
+        with self.__bundles_lock:
+            # Use an ImpImporter per iteration because, in Python 3,
+            # pkgutil.iter_modules() will use a _FileImporter on the second walk
+            # in a package which will return nothing
+            for name, is_package in pkgutil.ImpImporter(path).iter_modules():
+                # Compute the full name of the module
+                fullname = '.'.join((prefix, name)) if prefix else name
+
+                try:
+                    if visitor(fullname, is_package, path):
+                        if is_package:
+                            # Install the package
+                            bundles.add(self.install_bundle(fullname, path))
+
+                            # Visit the package
+                            sub_path = os.path.join(path, name)
+                            sub_bundles, sub_failed = self.install_visiting(
+                                                                sub_path,
+                                                                visitor,
+                                                                fullname)
+                            bundles.update(sub_bundles)
+                            failed.update(sub_failed)
+
+                        else:
+                            # Install the bundle
+                            bundles.add(self.install_bundle(fullname, path))
+
+                except BundleException as ex:
+                    # Error loading the module
+                    _logger.warning("Error visiting %s: %s", fullname, ex)
+
+                    # Try the next module
+                    failed.add(fullname)
+                    continue
+
+        return bundles, failed
 
 
     def register_service(self, bundle, clazz, service, properties, send_event):
@@ -930,7 +1093,9 @@ class Framework(Bundle):
 
             # Remove it from the system => avoid unintended behaviors and forces
             # a complete module reload if it is re-installed
-            del sys.modules[bundle.get_symbolic_name()]
+            name = bundle.get_symbolic_name()
+            if name in sys.modules:
+                del sys.modules[name]
 
 
     def unregister_service(self, registration):
@@ -965,14 +1130,17 @@ class Framework(Bundle):
         return True
 
 
-    @SynchronizedClassMethod('_lock')
     def update(self):
         """
-        Stops and starts the framework
+        Stops and starts the framework, if the framework is active.
+        
+        :raise BundleException: Something wrong occurred while stopping or 
+                                starting the framework.
         """
-        if self._state == Bundle.ACTIVE:
-            self.stop()
-            self.start()
+        with self._lock:
+            if self._state == Bundle.ACTIVE:
+                self.stop()
+                self.start()
 
 
     def wait_for_stop(self, timeout=None):
@@ -1200,7 +1368,7 @@ class _EventDispatcher(object):
         properties = event.get_service_reference().get_properties()
         previous = None
         endmatch_event = None
-        svc_modified = (event.get_type() == ServiceEvent.MODIFIED)
+        svc_modified = (event.get_kind() == ServiceEvent.MODIFIED)
 
         if svc_modified:
             # Modified service event : prepare the end match event
@@ -1452,11 +1620,7 @@ class _ServiceRegistry(object):
                 service = self.__svc_registry[reference]
 
                 # Indicate the dependency
-                if bundle not in self.__bundle_imports:
-                    imports = self.__bundle_imports[bundle] = []
-                else:
-                    imports = self.__bundle_imports[bundle]
-
+                imports = self.__bundle_imports.setdefault(bundle, [])
                 imports.append(reference)
                 reference.used_by(bundle)
 
@@ -1661,15 +1825,56 @@ class BundleContext(object):
         return refs
 
 
-    def install_bundle(self, location):
+    def install_bundle(self, name, path=None):
         """
-        Installs the bundle at the given location
+        Installs the bundle with the given name
+        
+        *Note:* Before Pelix 0.5.0, this method returned the ID of the installed
+        bundle, instead of the Bundle object. 
+        
+        **WARNING:** The behavior of the loading process is subject to changes,
+        as it does not allow to safely run multiple frameworks in the same
+        Python interpreter, as they might share global module values.
 
-        :param location: Location of the bundle to install
-        :return: The installed bundle ID
-        :raise BundleException: An error occurred while installing the bundle
+        :param name: The name of the bundle to install
+        :param path: Preferred path to load the module
+        :return: The installed Bundle object
+        :raise BundleException: Something happened
         """
-        return self.__framework.install_bundle(location)
+        return self.__framework.install_bundle(name, path)
+
+
+    def install_package(self, path, recursive=False):
+        """
+        Installs all the modules found in the given package
+        
+        :param path: Path of the package (folder)
+        :param recursive: If True, install the sub-packages too
+        :return: A 2-tuple, with the list of installed bundles and the list
+                 of failed modules names
+        :raise ValueError: Invalid path
+        """
+        return self.__framework.install_package(path, recursive)
+
+
+    def install_visiting(self, path, visitor):
+        """
+        Installs all the modules found in the given path if they are accepted
+        by the visitor.
+        
+        The visitor must be a callable accepting 3 parameters:
+        
+           * fullname: The full name of the module
+           * is_package: If True, the module is a package
+           * module_path: The path to the module file
+        
+        :param path: Root search path
+        :param visitor: The visiting callable
+        :return: A 2-tuple, with the list of installed bundles and the list
+                 of failed modules names
+        :raise ValueError: Invalid path or visitor
+        """
+        return self.__framework.install_visiting(path, visitor)
 
 
     def register_service(self, clazz, service, properties, send_event=True):
@@ -2152,6 +2357,14 @@ class ServiceEvent(object):
         return self.__reference
 
 
+    def get_kind(self):
+        """
+        Retrieves the kind of service event
+        """
+        return self.__kind
+
+
+    @Deprecated("ServiceEvent: get_type() must be replaced by get_kind()")
     def get_type(self):
         """
         Retrieves the kind of service event
