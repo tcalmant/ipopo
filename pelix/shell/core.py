@@ -903,8 +903,8 @@ class Shell(object):
         """
         install <bundle_id> - Installs the given bundle
         """
-        bundle_id = self._context.install_bundle(location)
-        io_handler.write_line("Bundle ID: {0}", bundle_id)
+        bundle = self._context.install_bundle(location)
+        io_handler.write_line("Bundle ID: {0}", bundle.get_bundle_id())
 
 
     def uninstall(self, io_handler, bundle_id):
@@ -938,7 +938,7 @@ class PelixActivator(object):
         """
         Called when a command provider service event occurred
         """
-        kind = event.get_type()
+        kind = event.get_kind()
         reference = event.get_service_reference()
 
         if kind in (pelix.ServiceEvent.REGISTERED,

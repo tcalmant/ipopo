@@ -190,7 +190,7 @@ class InteractiveShell(object):
         """
         Called by Pelix when an events changes
         """
-        kind = event.get_type()
+        kind = event.get_kind()
         reference = event.get_service_reference()
 
         if kind in (pelix.ServiceEvent.REGISTERED,

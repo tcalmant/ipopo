@@ -346,7 +346,7 @@ class _RuntimeDependency(object):
             return
 
         # Call sub-methods
-        kind = event.get_type()
+        kind = event.get_kind()
         svc_ref = event.get_service_reference()
 
         if kind == ServiceEvent.REGISTERED:
