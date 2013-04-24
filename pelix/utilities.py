@@ -31,6 +31,7 @@ from collections import deque
 import logging
 import sys
 import threading
+import traceback
 
 # ------------------------------------------------------------------------------
 
@@ -44,7 +45,7 @@ PYTHON_3 = (sys.version_info[0] == 3)
 
 # ------------------------------------------------------------------------------
 
-class Deprecated(DeprecationWarning):
+class Deprecated(object):
     """
     Prints a warning when using the decorated method
     """
@@ -71,8 +72,12 @@ class Deprecated(DeprecationWarning):
         """
         if not self.__already_logged:
             # Print only if not already done
-            logging.getLogger(self.__logger).warning("%s: %s", method_name,
-                                                     self.__message)
+            stack = '\n\t'.join(traceback.format_stack())
+
+            logging.getLogger(self.__logger).warning("%s: %s\n%s",
+                                                     method_name,
+                                                     self.__message,
+                                                     stack)
             self.__already_logged = True
 
 
@@ -94,7 +99,7 @@ class Deprecated(DeprecationWarning):
 
 # ------------------------------------------------------------------------------
 
-class Synchronized:
+class Synchronized(object):
     """
     A synchronizer for global methods
     """
