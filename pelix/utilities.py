@@ -27,6 +27,8 @@ Utility methods and decorators
 
 from functools import wraps
 from collections import deque
+
+import logging
 import sys
 import threading
 
@@ -39,6 +41,56 @@ __docformat__ = "restructuredtext en"
 
 # Using Python 3
 PYTHON_3 = (sys.version_info[0] == 3)
+
+# ------------------------------------------------------------------------------
+
+class Deprecated(DeprecationWarning):
+    """
+    Prints a warning when using the decorated method
+    """
+    def __init__(self, message=None, logger=None):
+        """
+        Sets the deprecation message, e.g. to indicate which method to call
+        instead.
+        If a logger is given, its 'warning' method will be called to print the
+        message; else the standard 'print' method will be used.
+        
+        :param message: Message to be printed
+        :param logger: The name of the logger to use, or None.
+        """
+        self.__message = message or "Deprecated method"
+        self.__logger = logger or None
+        self.__already_logged = False
+
+
+    def __log(self, method_name):
+        """
+        Logs the deprecation message on first call, does nothing after 
+        
+        :param method_name: Name of the deprecated method
+        """
+        if not self.__already_logged:
+            # Print only if not already done
+            logging.getLogger(self.__logger).warning("%s: %s", method_name,
+                                                     self.__message)
+            self.__already_logged = True
+
+
+    def __call__(self, method):
+        """
+        Applies the modifications
+        
+        :param method: The decorated method
+        :return: The wrapped method
+        """
+        # Prepare the wrapped call
+        @wraps(method)
+        def wrapped(*args, **kwargs):
+            self.__log(method.__name__)
+            return method(*args, **kwargs)
+
+        return wrapped
+
 
 # ------------------------------------------------------------------------------
 
