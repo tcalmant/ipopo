@@ -29,7 +29,7 @@ except ImportError:
 
 # ------------------------------------------------------------------------------
 
-__version__ = (1, 0, 0)
+__version__ = "1.0.0"
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
@@ -50,8 +50,7 @@ def install_bundle(framework, bundle_name="tests.ipopo_bundle"):
     """
     context = framework.get_bundle_context()
 
-    bid = context.install_bundle(bundle_name)
-    bundle = context.get_bundle(bid)
+    bundle = context.install_bundle(bundle_name)
     bundle.start()
 
     return bundle.get_module()
@@ -553,52 +552,52 @@ class FieldCallbackTest(unittest.TestCase):
         """
         # Consumer
         compo = self.ipopo.instantiate(self.module.FACTORY_C, "consumer")
-        self.assertEquals(compo.states, [], "States should be empty")
+        self.assertEqual(compo.states, [], "States should be empty")
 
         # Service A
         svc_a = self.ipopo.instantiate(self.module.FACTORY_A, "svcA")
-        self.assertEquals(compo.states,
+        self.assertEqual(compo.states,
                           [self.module.BIND_A, self.module.BIND_FIELD_A],
                           "Service A bound incorrectly")
         del compo.states[:]
 
         # Service B
         svc_b = self.ipopo.instantiate(self.module.FACTORY_B, "svcB")
-        self.assertEquals(compo.states,
+        self.assertEqual(compo.states,
                           [self.module.BIND_B, self.module.BIND_FIELD_B],
                           "Service B bound incorrectly")
         del compo.states[:]
 
         # Update A
-        self.assertNotEquals(svc_a._prop, 42,
+        self.assertNotEqual(svc_a._prop, 42,
                              "Value already at requested value")
         compo.change_a(42)
-        self.assertEquals(svc_a._prop, 42, "Value not changed")
-        self.assertEquals(compo.states,
+        self.assertEqual(svc_a._prop, 42, "Value not changed")
+        self.assertEqual(compo.states,
                           [self.module.UPDATE_FIELD_A, self.module.UPDATE_A],
                           "Service A updated incorrectly")
         del compo.states[:]
 
         # Update B
-        self.assertNotEquals(svc_b._prop, -123,
+        self.assertNotEqual(svc_b._prop, -123,
                              "Value already at requested value")
         compo.change_b(-123)
-        self.assertEquals(svc_b._prop, -123, "Value not changed")
-        self.assertEquals(compo.states,
+        self.assertEqual(svc_b._prop, -123, "Value not changed")
+        self.assertEqual(compo.states,
                           [self.module.UPDATE_FIELD_B, self.module.UPDATE_B],
                           "Service B updated incorrectly")
         del compo.states[:]
 
         # Kill service A
         self.ipopo.kill("svcA")
-        self.assertEquals(compo.states,
+        self.assertEqual(compo.states,
                           [self.module.UNBIND_FIELD_A, self.module.UNBIND_A],
                           "Service A unbound incorrectly")
         del compo.states[:]
 
         # Kill service B
         self.ipopo.kill("svcB")
-        self.assertEquals(compo.states,
+        self.assertEqual(compo.states,
                           [self.module.UNBIND_FIELD_B, self.module.UNBIND_B],
                           "Service B unbound incorrectly")
         del compo.states[:]
@@ -647,8 +646,7 @@ class InstantiateTest(unittest.TestCase):
 
         # Install the bundle
         context = self.framework.get_bundle_context()
-        bid = context.install_bundle(bundle_name)
-        bundle = context.get_bundle(bid)
+        bundle = context.install_bundle(bundle_name)
 
         # Bundle is installed, assert that the framework is still clean
         self.assertFalse(self.ipopo.is_registered_factory(factory),

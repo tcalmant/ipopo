@@ -30,7 +30,7 @@ except ImportError:
 
 # ------------------------------------------------------------------------------
 
-__version__ = (1, 0, 0)
+__version__ = "1.0.0"
 
 # ------------------------------------------------------------------------------
 
@@ -77,12 +77,11 @@ class BundlesTest(unittest.TestCase):
         @param test_bundle_id: If True, also tests if the test bundle ID is 1
         """
         # Install the bundle
-        bid = self.context.install_bundle(self.test_bundle_name)
-        if test_bundle_id:
-            self.assertEqual(bid, 1, "Not the first bundle in framework")
-
-        bundle = self.context.get_bundle(bid)
+        bundle = self.context.install_bundle(self.test_bundle_name)
         assert isinstance(bundle, Bundle)
+        if test_bundle_id:
+            self.assertEqual(bundle.get_bundle_id(), 1,
+                             "Not the first bundle in framework")
 
         # Get the internal module
         module = bundle.get_module()
@@ -114,8 +113,7 @@ class BundlesTest(unittest.TestCase):
         @param test_bundle_id: If True, also tests if the test bundle ID is 1
         """
         # Install the bundle
-        bid = self.context.install_bundle(self.test_bundle_name)
-        bundle = self.context.get_bundle(bid)
+        bundle = self.context.install_bundle(self.test_bundle_name)
         assert isinstance(bundle, Bundle)
 
         # Get the internal module
@@ -170,8 +168,7 @@ class BundlesTest(unittest.TestCase):
         @param test_bundle_id: If True, also tests if the test bundle ID is 1
         """
         # Install the bundle
-        bid = self.context.install_bundle(self.test_bundle_name)
-        bundle = self.context.get_bundle(bid)
+        bundle = self.context.install_bundle(self.test_bundle_name)
         assert isinstance(bundle, Bundle)
 
         # Get the internal module
@@ -243,12 +240,11 @@ class BundlesTest(unittest.TestCase):
         unaccessible after its uninstallation.
         """
         # Install the bundle
-        bid = self.context.install_bundle(self.test_bundle_name)
-        self.assertEqual(bid, 1, "Invalid first bundle ID '{0:d}'".format(bid))
-
-        # Get the bundle
-        bundle = self.context.get_bundle(bid)
+        bundle = self.context.install_bundle(self.test_bundle_name)
         assert isinstance(bundle, Bundle)
+
+        bid = bundle.get_bundle_id()
+        self.assertEqual(bid, 1, "Invalid first bundle ID '{0:d}'".format(bid))
 
         # Test state
         self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
@@ -309,8 +305,7 @@ def test_fct():
         f.close()
 
         # 2/ Install the bundle and get its variable
-        bid = self.context.install_bundle(bundle_name)
-        bundle = self.context.get_bundle(bid)
+        bundle = self.context.install_bundle(bundle_name)
         module = bundle.get_module()
 
         # Also start the bundle
@@ -352,12 +347,11 @@ def test_fct():
         Tests if the version is correctly read from the bundle
         """
         # Install the bundle
-        bid = self.framework.install_bundle(self.test_bundle_name)
-        self.assertEqual(bid, 1, "Invalid first bundle ID '{0:d}'".format(bid))
-
-        # Get the bundle
-        bundle = self.context.get_bundle(bid)
+        bundle = self.framework.install_bundle(self.test_bundle_name)
         assert isinstance(bundle, Bundle)
+
+        bid = bundle.get_bundle_id()
+        self.assertEqual(bid, 1, "Invalid first bundle ID '{0:d}'".format(bid))
 
         # Get the internal module
         module = bundle.get_module()
@@ -450,8 +444,7 @@ class BundleEventTest(unittest.TestCase):
                         "Can't register the bundle listener")
 
         # Install the bundle
-        bid = context.install_bundle(self.test_bundle_name)
-        self.bundle = bundle = context.get_bundle(bid)
+        self.bundle = bundle = context.install_bundle(self.test_bundle_name)
         assert isinstance(bundle, Bundle)
         # Assert the Install events has been received
         self.assertEqual([BundleEvent.INSTALLED],
@@ -544,8 +537,7 @@ class FrameworkTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Install a bundle
-        bid = context.install_bundle("tests.simple_bundle")
-        bundle = context.get_bundle(bid)
+        bundle = context.install_bundle("tests.simple_bundle")
 
         self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
                          "Bundle should be in RESOLVED state")
@@ -638,8 +630,7 @@ class FrameworkTest(unittest.TestCase):
         context.add_framework_stop_listener(self)
 
         # Install the bundle
-        bid = context.install_bundle("tests.simple_bundle")
-        bundle = context.get_bundle(bid)
+        bundle = context.install_bundle("tests.simple_bundle")
         module = bundle.get_module()
 
         # Set module in raiser mode
@@ -693,8 +684,7 @@ class FrameworkTest(unittest.TestCase):
         context.add_framework_stop_listener(self)
 
         # Install the bundle
-        bid = context.install_bundle("tests.simple_bundle")
-        bundle = context.get_bundle(bid)
+        bundle = context.install_bundle("tests.simple_bundle")
         module = bundle.get_module()
 
         # Set module in non-raiser mode
@@ -732,8 +722,7 @@ class FrameworkTest(unittest.TestCase):
         context = framework.get_bundle_context()
 
         # Install the bundle
-        bid = context.install_bundle("tests.simple_bundle")
-        bundle = context.get_bundle(bid)
+        bundle = context.install_bundle("tests.simple_bundle")
         module = bundle.get_module()
 
         # Set module in raiser stop mode
@@ -1018,10 +1007,7 @@ class LocalBundleTest(unittest.TestCase):
         assert isinstance(fw_context, BundleContext)
 
         # Install local bundle in framework (for service installation & co)
-        bid = fw_context.install_bundle(__name__)
-
-        # Get a reference to the bundle
-        bundle = fw_context.get_bundle(bid)
+        bundle = fw_context.install_bundle(__name__)
 
         # Get a reference to the bundle, by name
         bundle_2 = fw_context.get_bundle(0).get_bundle_by_name(__name__)
@@ -1088,8 +1074,7 @@ class ServicesTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Install the service bundle
-        bid = context.install_bundle(self.test_bundle_name)
-        bundle = context.get_bundle(bid)
+        bundle = context.install_bundle(self.test_bundle_name)
         bundle_context = bundle.get_bundle_context()
         module = bundle.get_module()
 
@@ -1208,8 +1193,7 @@ class ServicesTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Install the service bundle
-        bid = context.install_bundle(self.test_bundle_name)
-        bundle = context.get_bundle(bid)
+        bundle = context.install_bundle(self.test_bundle_name)
         assert isinstance(bundle, Bundle)
 
         module = bundle.get_module()
@@ -1229,6 +1213,7 @@ class ServicesTest(unittest.TestCase):
 
         # Get the service
         svc = context.get_service(ref)
+        self.assertIsNotNone(svc, "Service not found")
         self.assertIn(ref, self.framework.get_services_in_use(),
                       "Reference usage not indicated")
 
@@ -1371,8 +1356,7 @@ class ServicesTest(unittest.TestCase):
         self.assertEqual(len(all_refs), 0, "Services list should be empty")
 
         # Install the service bundle
-        bid = context.install_bundle(self.test_bundle_name)
-        bundle = context.get_bundle(bid)
+        bundle = context.install_bundle(self.test_bundle_name)
 
         # No services yet
         all_refs = context.get_all_service_references(None, None)
@@ -1485,7 +1469,7 @@ class ServiceEventTest(unittest.TestCase):
         ref = event.get_service_reference()
         self.assertIsNotNone(ref, "Invalid service reference in the event")
 
-        kind = event.get_type()
+        kind = event.get_kind()
 
         if kind == ServiceEvent.MODIFIED \
         or kind == ServiceEvent.MODIFIED_ENDMATCH:
@@ -1552,8 +1536,7 @@ class ServiceEventTest(unittest.TestCase):
                         "Can't register the service listener")
 
         # Install the bundle
-        bid = context.install_bundle(self.test_bundle_name)
-        self.bundle = bundle = context.get_bundle(bid)
+        self.bundle = bundle = context.install_bundle(self.test_bundle_name)
         assert isinstance(bundle, Bundle)
         # Assert the Install events has been received
         self.assertEqual([], self.received, "Received {0}".format(self.received))
@@ -1596,8 +1579,7 @@ class ServiceEventTest(unittest.TestCase):
                         "Can't register the service listener")
 
         # Install the bundle
-        bid = context.install_bundle(self.test_bundle_name)
-        self.bundle = bundle = context.get_bundle(bid)
+        self.bundle = bundle = context.install_bundle(self.test_bundle_name)
         assert isinstance(bundle, Bundle)
         # Assert the Install events has been received
         self.assertEqual([], self.received, "Received {0}".format(self.received))
@@ -1636,8 +1618,7 @@ class ServiceEventTest(unittest.TestCase):
                         "Can't register the service listener")
 
         # Install the bundle
-        bid = context.install_bundle(self.test_bundle_name)
-        self.bundle = bundle = context.get_bundle(bid)
+        self.bundle = bundle = context.install_bundle(self.test_bundle_name)
         assert isinstance(bundle, Bundle)
 
         # Start the bundle

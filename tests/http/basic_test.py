@@ -9,12 +9,8 @@ from pelix.framework import FrameworkFactory, BundleContext
 from tests import log_on, log_off
 
 import pelix.ipopo.constants as constants
-import pelix.framework as pelix
-import os
 import logging
 import sys
-import threading
-import time
 
 try:
     import unittest2 as unittest
@@ -53,8 +49,7 @@ def install_bundle(framework, bundle_name="tests.ipopo_bundle"):
     """
     context = framework.get_bundle_context()
 
-    bid = context.install_bundle(bundle_name)
-    bundle = context.get_bundle(bid)
+    bundle = context.install_bundle(bundle_name)
     bundle.start()
 
     return bundle.get_module()
@@ -72,8 +67,7 @@ def install_ipopo(framework):
     assert isinstance(context, BundleContext)
 
     # Install & start the bundle
-    bid = context.install_bundle("pelix.ipopo.core")
-    bundle = context.get_bundle(bid)
+    bundle = context.install_bundle("pelix.ipopo.core")
     bundle.start()
 
     # Get the service
@@ -166,7 +160,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         """
         Tests the server when no servlet is active
         """
-        http_svc = instantiate_server(self.ipopo, self.http_bundle)
+        instantiate_server(self.ipopo, self.http_bundle)
         self.assertEqual(get_http_page(only_code=True), 404,
                          "Received something other than a 404")
 
@@ -225,7 +219,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         self.assertEqual([], servlet.bound, "bound_to called")
         servlet.reset()
 
-         # Test access to /
+        # Test access to /
         self.assertEqual(get_http_page(uri="/", only_code=True), 404,
                          "Received something other than a 404")
 
