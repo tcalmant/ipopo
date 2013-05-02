@@ -1,5 +1,5 @@
 #!/usr/bin/python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 HTTP Service demo for Pelix / iPOPO : the demo launcher
 
@@ -42,8 +42,7 @@ def main(http_port=8080):
     bundles = ('pelix.ipopo.core', 'http_svc', 'hello_servlet', 'extra_info')
     for bundle in bundles:
         _logger.info("Starting bundle %s...", bundle)
-        bid = context.install_bundle(bundle)
-        context.get_bundle(bid).start()
+        context.install_bundle(bundle).start()
 
     _logger.info("All bundles successfully started.")
 

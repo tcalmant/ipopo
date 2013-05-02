@@ -183,17 +183,22 @@ Change the interpreters
 -----------------------
 
 To change the interpreters that will execute the tests, you have to modify
-the **PYTHONS** Bash array
+the **TEST_PYTHONS** Bash array in the ``cover.sh`` and ``cover_all.sh``
+scripts.
 
 
 Change the scripts in ``cover_all.sh``
 --------------------------------------
 
+The ``cover_all.sh`` script executes the coverage module on all scripts
+indicated in the **TEST_MODULES** Bash array.
+It surrounds the names in this array by *./tests/* and *.py*.
+
 
 Installation on Android
 ***********************
 
-Pelix and iPOPO can also be installed on Android, using the |SL4A|_ project.
+Pelix and iPOPO can be installed on Android, using the |SL4A|_ project.
 
 Install Python on your Android device
 =====================================
@@ -270,14 +275,14 @@ it in the download folder of your Android, namely */sdcard/download*
 .. code-block:: bash
 
    # Using adb
-   adb push dist/iPOPO-0.3-py2.6.egg /sdcard/download
+   adb push dist/iPOPO-0.5-py2.6.egg /sdcard/download
 
 
 Finally, you'll have to install the egg file with *Python4Android*:
 
 #. Run the *Python for Android* application
 #. Press *Import Modules*
-#. Select *iPOPO-0.3-py2.6.egg*
+#. Select *iPOPO-0.5-py2.6.egg*
 
 .. _test_android:
 
@@ -295,8 +300,7 @@ Start a Python interpreter from SL4A and type the following commands:
    
    # Install & start iPOPO
    context = framework.get_bundle_context()
-   bid = context.install_bundle('pelix.ipopo.core')
-   context.get_bundle(bid).start()
+   context.install_bundle('pelix.ipopo.core').start()
    
    # ... iPOPO is ready, see the tutorials to write your components
 

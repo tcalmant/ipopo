@@ -3,7 +3,7 @@
 Road map
 ########
 
-This road map is given as an indication of the future features of iPOPO, but
+This road map is given as an *indication* of the future features of iPOPO, but
 it might not be fully respected.
 
 Feel free to post feature requests on
@@ -11,58 +11,62 @@ Feel free to post feature requests on
 `users mailing list <http://groups.google.com/group/ipopo-users>`_.
 
 
-Planned for next release
+High priority features
+**********************
+
+Those features are required for the associated release version.
+
++----------------------+---------+---------------------------------------------+
+| Name                 | Version | Description                                 |
++======================+=========+=============================================+
+| iPOPO Handlers       | 0.5.1   | Handlers should be services used by         |
+|                      |         | the iPOPO core instance managers            |
++----------------------+---------+---------------------------------------------+
+| @RequiresMap         | 0.5.1   | New handler for iPOPO: injects a map, the   |
+|                      |         | key being computed according to the service |
+|                      |         | properties                                  |
++----------------------+---------+---------------------------------------------+
+| Package installation | 0.6     | Enhance the install_package() method        |
+|                      |         | implementation                              |
++----------------------+---------+---------------------------------------------+
+
+
+Medium priority features
 ************************
 
-Future work on iPOPO will mainly concern:
+Those feature won't block a release if they are missing.
 
-#. Improvements on the bundle loading operation:
++---------------+---------+--------------------------------------------------+
+| Name          | Version | Description                                      |
++===============+=========+==================================================+
+| Documentation | 0.5.1   | Add more documentation upon the methods of Pelix |
+|               |         | and iPOPO                                        |
++---------------+---------+--------------------------------------------------+
+| Tutorials     | 0.5.1   | Write more tutorials for Pelix, iPOPO and the    |
+|               |         | provided services                                |
++---------------+---------+--------------------------------------------------+
+| Finder/Loader | 0.7     | Implement a PEP-302 Finder/Loader to control the |
+|               |         | whole module import process                      |
++---------------+---------+--------------------------------------------------+
 
-   * Using the ``__import__`` hook
-   * Using a framework instance-local ``sys.modules`` list, to isolate
-     the interpreters modules of the framework ones.
+Low priority features
+*********************
 
-#. Ability to load a Python package as bundle or a set of bundles
+Those features are not associated to any milestone in the development process.
 
-   * Using the ``__import__`` hook and walking through the package with
-     ``importlib``
-
-
-Ideas for future versions
-*************************
-
-* Implement more OSGi-like services:
-
-  * *Service Factories*: special services that returns a service instance
-    according to the requesting bundle
-  * *LogService*: using the Python logging package to implement the OSGi
-    interfaces
-  * *ConfigAdmin*: a configuration utility service
-  * *EventAdmin*: an inter-service event notifier
-  * *Remote Services*: to be able to work with a remote instance of Pelix or
-    even with WebServices.
-    I am currently looking into `Spyne <http://spyne.io/>`_ to ease the
-    implementation.
-
-* Provide a benchmark suite, comparing both start up and execution times
-  using Pelix, Pelix/iPOPO or standard Python.
-
-* Add a support of UPnP, in relation with the *Remote Services* implementation
-
-  * A Pelix service might be discovered and used by other devices through UPnP
-
-* Add other interfaces for the Pelix shell:
-
-  * Text interface (standard input)
-  * XMPP interface
-  * ...
-
-* Add more tutorials to the web site:
-
-  * How to transform a simple module into a Pelix bundle
-  * Implementation of a *cron*-like service
-  * ...
-
-* Provide a bridge to ease the usage of C libraries as modules or services
-* Provide a more interesting specification model, testing if a service
-  really implements its claimed specifications.
++-------------+--------------------------------------------------------------+
+| Name        | Description                                                  |
++=============+==============================================================+
+| LogService  | Replace the direct of the ``logging`` package by a set of    |
+|             | services: LogService (used by writers), LogListeners,        |
+|             | LogWriter, ...                                               |
++-------------+--------------------------------------------------------------+
+| ConfigAdmin | White-board pattern based configuration service              |
++-------------+--------------------------------------------------------------+
+| Benchmarks  | Benchmark suite to detect performance problems               |
++-------------+--------------------------------------------------------------+
+| C-Bridge    | Define a standard/easy way to use C libraries as bundles     |
++-------------+--------------------------------------------------------------+
+| Interfaces  | Provide more specification tools, to validate that a service |
+|             | implements the specifications it claims                      |
++-------------+--------------------------------------------------------------+

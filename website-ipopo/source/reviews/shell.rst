@@ -90,17 +90,14 @@ soon as their respective bundle is started.
    framework.start()
    context = framework.get_bundle_context()
    
-   # Install iPOPO
-   bid = context.install_bundle('pelix.ipopo.core')
-   context.get_bundle(bid).start()
+   # Install & start iPOPO
+   context.install_bundle('pelix.ipopo.core').start()
    
-   # Install the Pelix core shell
-   bid = context.install_bundle('pelix.shell.core')
-   context.get_bundle(bid).start()
+   # Install & start the Pelix core shell
+   context.install_bundle('pelix.shell.core').start()
    
-   # Install the iPOPO commands
-   bid = context.install_bundle('pelix.shell.ipopo')
-   context.get_bundle(bid).start()
+   # Install & start the iPOPO commands
+   context.install_bundle('pelix.shell.ipopo').start()
 
 
 The remote shell must be instantiated using iPOPO, using the
@@ -113,9 +110,8 @@ The remote shell must be instantiated using iPOPO, using the
    from pelix.ipopo.constants import get_ipopo_svc_ref
    ipopo = get_ipopo_svc_ref(context)[1]
    
-   # Install the remote shell bundle
-   bid = context.install_bundle('pelix.shell.remote')
-   context.get_bundle(bid).start()
+   # Install & start the remote shell bundle
+   context.install_bundle('pelix.shell.remote').start()
    
    # Instantiate a remote shell
    ipopo.instantiate('ipopo-remote-shell-factory', 'ipopo-remote-shell')

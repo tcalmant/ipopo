@@ -61,13 +61,11 @@ port 9000:
    framework.start()
    context = framework.get_bundle_context()
    
-   # Install iPOPO
-   bid = context.install_bundle('pelix.ipopo.core')
-   context.get_bundle(bid).start()
+   # Install & start iPOPO
+   context.install_bundle('pelix.ipopo.core').start()
    
-   # Install the basic HTTP service
-   bid = context.install_bundle('pelix.http.basic')
-   context.get_bundle(bid).start()
+   # Install & start the basic HTTP service
+   context.install_bundle('pelix.http.basic').start()
    
    # Instantiate a HTTP service component
    ipopo = get_ipopo_svc_ref(context)[1]

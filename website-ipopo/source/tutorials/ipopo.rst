@@ -65,26 +65,32 @@ A component can defined four callback methods, using decorators.
 The name of the methods can be anything but a *private* method (prefix with
 two underscores `__`)
 
-+-------------+------------------------+---------------------------------------+
-| Decorator   | Signature              | Description                           |
-+=============+========================+=======================================+
-| @Validate   | ``def validate(self,   | The component is validating: all its  |
-|             | context)``             | dependencies have been injected.      |
-|             |                        | The component will go in VALIDATED    |
-|             |                        | state if this method doesn't raise an |
-|             |                        | exception.                            |
-+-------------+------------------------+---------------------------------------+
-| @Invalidate | ``def invalidate(self, | The component is invalidating: its    |
-|             | context)``             | services are still there.             |
-|             |                        | The component will go in INVALIDATED  |
-|             |                        | state even if an exception is raised. |
-+-------------+------------------------+---------------------------------------+
-| @Bind       | ``def bind(self,       | This method is called after a         |
-|             | service, reference)``  | dependency has been injected.         |
-+-------------+------------------------+---------------------------------------+
-| @Unbind     | ``def unbind(self,     | This method is called before a        |
-|             | service,reference)``   | dependency is removed.                |
-+-------------+------------------------+---------------------------------------+
++--------------+------------------------------------------------------+----------------------------------------------------------------------------+
+| Decorator    | Signature                                            | Description                                                                |
++==============+======================================================+============================================================================+
+| @Validate    | ``def validate(self, context)``                      | The component is validating: all its dependencies have been injected.      |
+|              |                                                      | The component will go in VALIDATED state if this method doesn't raise an   |
+|              |                                                      | exception.                                                                 |
++--------------+------------------------------------------------------+----------------------------------------------------------------------------+
+| @Invalidate  | ``def invalidate(self, context)``                    | The component is invalidating: its services are still there.               |
+|              |                                                      | The component will go in INVALIDATED state even if an exception is raised. |
++--------------+------------------------------------------------------+----------------------------------------------------------------------------+
+| @Bind        | ``def bind(self, service, reference)``               | This method is called after a dependency has been injected.                |
++--------------+------------------------------------------------------+----------------------------------------------------------------------------+
+| @Update      | ``def update(self, service, reference)``             | This method is called after the properties of a dependency have changed.   |
++--------------+------------------------------------------------------+----------------------------------------------------------------------------+
+| @Unbind      | ``def unbind(self, service, reference)``             | This method is called before a dependency is removed.                      |
++--------------+------------------------------------------------------+----------------------------------------------------------------------------+
+| @BindField   | ``def bindfield(self, field, service, reference)``   | This method is called after a dependency has been injected in the          |
+|              |                                                      | given field.                                                               |
++--------------+------------------------------------------------------+----------------------------------------------------------------------------+
+| @UpdateField | ``def updatefield(self, field, service, reference)`` | This method is called after the properties of a dependency injected in     |
+|              |                                                      | the given field have changed.                                              |
++--------------+------------------------------------------------------+----------------------------------------------------------------------------+
+| @UnbindField | ``def unbindfield(self, field, service, reference)`` | This method is called before a injected in                                 |
+|              |                                                      | the given field  is removed.                                               |
++--------------+------------------------------------------------------+----------------------------------------------------------------------------+
+
 
 
 Install the iPOPO bundle
@@ -107,8 +113,7 @@ It needs to be installed in a Pelix framework instance, like any bundle.
    context = framework.get_bundle_context()
    
    # Install and iPOPO the bundle
-   bundle_id = context.install_bundle("pelix.ipopo.core")
-   bundle = context.get_bundle(bundle_id)
+   bundle = context.install_bundle("pelix.ipopo.core")
    bundle.start()
 
 
@@ -250,8 +255,7 @@ loaded and the indicated component will be instantiated, if possible.
 .. code-block:: python
    :linenos:
    
-   >>> bid = context.install_bundle("test_ipopo")
-   >>> bundle = context.get_bundle(bid)
+   >>> bundle = context.install_bundle("test_ipopo")
    >>> bundle.start()
    MyIncrementer: Ready...
 

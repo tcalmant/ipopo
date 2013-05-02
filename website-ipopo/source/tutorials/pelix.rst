@@ -289,11 +289,10 @@ Python path, then it can be loaded in Pelix with the following snippet:
    >>> # Get the bundle context of the framework
    >>> context = framework.get_bundle_context()
    >>> # Install our bundle
-   >>> bundle_id = context.install_bundle("simple")
+   >>> bundle = context.install_bundle("simple")
    Activator initialization
    
    >>> # Start the bundle
-   >>> bundle = context.get_bundle(bundle_id)
    >>> bundle.start()
    Bundle started
    
@@ -439,8 +438,7 @@ using the ``unget_service()`` method of its bundle context.
    >>> context = framework.get_bundle_context()
    
    >>> # Install the bundle
-   >>> bundle_id = context.install_bundle("service_provider")
-   >>> bundle = context.get_bundle(bundle_id)
+   >>> bundle = context.install_bundle("service_provider")
    >>> bundle.start()
    
    >>> # At this point, the services have been registered by the activator

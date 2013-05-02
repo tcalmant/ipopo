@@ -10,6 +10,7 @@ Its development is supported by `isandlaTech <http://www.isandlatech.com>`_.
 
 .. toctree::
    :maxdepth: 2
+   :numbered:
 
    content/install
    tutorials/index
