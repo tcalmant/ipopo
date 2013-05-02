@@ -32,8 +32,9 @@ Based on standard package xmlrpclib
 * "system" methods (list, help, ...)
 """
 
-# Version string
-__version__ = "0.1.0"
+# Module version
+__version_info__ = (0, 1, 0)
+__version__ = ".".join(map(str, __version_info__))
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"

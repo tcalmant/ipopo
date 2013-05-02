@@ -7,9 +7,9 @@ Provides an implementation of the Pelix HTTP service based on the standard
 Python library.
 
 :author: Thomas Calmant
-:copyright: Copyright 2012, isandlaTech
+:copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.1
+:version: 0.1.1
 :status: Alpha
 
 ..
@@ -30,7 +30,9 @@ Python library.
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
-__version__ = (0, 1, 0)
+# Module version
+__version_info__ = (0, 1, 1)
+__version__ = ".".join(map(str, __version_info__))
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
@@ -38,7 +40,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 from pelix.ipopo.decorators import ComponentFactory, Provides, Validate, \
-    Invalidate, Property, Instantiate, Requires, Bind, Unbind
+    Invalidate, Property, Requires, Bind, Unbind
 
 import pelix.ipopo.constants as constants
 import pelix.framework as pelix

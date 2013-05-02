@@ -7,9 +7,9 @@ Provides a remote interface for the Pelix shell that can be accessed using
 telnet or netcat.
 
 :author: Thomas Calmant
-:copyright: Copyright 2012, isandlaTech
+:copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.1
+:version: 0.1.1
 :status: Alpha
 
 ..
@@ -31,7 +31,8 @@ telnet or netcat.
 """
 
 # Module version
-__version__ = "0.1.1"
+__version_info__ = (0, 1, 0)
+__version__ = ".".join(map(str, __version_info__))
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
@@ -39,10 +40,8 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
-    Validate, Invalidate, Bind, Unbind, Instantiate
+    Validate, Invalidate
 from pelix.shell import SHELL_SERVICE_SPEC
-
-import pelix.framework as pelix
 
 # ------------------------------------------------------------------------------
 

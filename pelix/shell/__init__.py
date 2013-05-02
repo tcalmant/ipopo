@@ -4,7 +4,7 @@
 Pelix shell package
 
 :author: Thomas Calmant
-:copyright: Copyright 2012, isandlaTech
+:copyright: Copyright 2013, isandlaTech
 :license: GPLv3
 :version: 0.1
 :status: Alpha
@@ -27,11 +27,12 @@ Pelix shell package
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
-# ------------------------------------------------------------------------------
+# Module version
+__version_info__ = (0, 1, 0)
+__version__ = ".".join(map(str, __version_info__))
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-
 
 # ------------------------------------------------------------------------------
 

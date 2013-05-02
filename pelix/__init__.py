@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 Pelix root package
 
@@ -27,7 +27,7 @@ Pelix root package
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
-__version__ = (0, 4, 0)
+__version__ = "0.5.0"
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"

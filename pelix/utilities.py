@@ -4,9 +4,9 @@
 Utility methods and decorators
 
 :author: Thomas Calmant
-:copyright: Copyright 2012, isandlaTech
+:copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.3
+:version: 0.3.1
 :status: Alpha
 
     This file is part of iPOPO.
@@ -35,7 +35,9 @@ import traceback
 
 # ------------------------------------------------------------------------------
 
-__version__ = (0, 3, 0)
+# Module version
+__version_info__ = (0, 3, 1)
+__version__ = ".".join(map(str, __version_info__))
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
