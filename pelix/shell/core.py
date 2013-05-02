@@ -57,6 +57,7 @@ import traceback
 # ------------------------------------------------------------------------------
 
 DEFAULT_NAMESPACE = "default"
+""" Default command name space: default """
 
 _logger = logging.getLogger(__name__)
 

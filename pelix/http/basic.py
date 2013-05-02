@@ -72,6 +72,7 @@ else:
 import pelix.http as http
 
 HTTP_SERVICE_COMPONENT_FACTORY = "pelix.http.service.basic.factory"
+""" Name of the HTTP service component factory """
 
 # ------------------------------------------------------------------------------
 

@@ -36,22 +36,26 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-# iPOPO service specification string
 IPOPO_SERVICE_SPECIFICATION = "pelix.ipopo.core"
+""" iPOPO service specification string """
 
 # ------------------------------------------------------------------------------
 
 # Injected class fields
-# Contains a list of callback types
 IPOPO_METHOD_CALLBACKS = "__ipopo_callbacks__"
-# Contains a list of tuples (field, callback type)
+""" Contains the list of callback types this method is decorated for """
+
 IPOPO_METHOD_FIELD_CALLBACKS = "__ipopo_field_callbacks__"
-# FactoryContext object storage
+""" Contains a list of tuples (field, callback type) """
+
 IPOPO_FACTORY_CONTEXT = "__ipopo_factory_context__"
-# Dictionary form of the FactoryContext
+""" Storage of the FactoryContext object """
+
 IPOPO_FACTORY_CONTEXT_DATA = "__ipopo_factory_context_data__"
-# List of instantiations
+""" Storage of the dictionary form of the FactoryContext """
+
 IPOPO_INSTANCES = "__ipopo_instances__"
+""" List of configured instantiations """
 
 # Method called by the injected property (must be injected in the instance)
 IPOPO_GETTER_SUFFIX = "_getter"
@@ -63,13 +67,36 @@ IPOPO_CONTROLLER_PREFIX = "_ipopo_controller"
 
 # Callbacks
 IPOPO_CALLBACK_BIND = "BIND"
+""" Bind: called when a dependency is injected """
+
 IPOPO_CALLBACK_BIND_FIELD = "BIND_FIELD"
+""" BindField: called when a dependency is injected in the given field """
+
 IPOPO_CALLBACK_UPDATE = "UPDATE"
+"""
+Update: called when the properties of an injected dependency have been updated
+"""
+
 IPOPO_CALLBACK_UPDATE_FIELD = "UPDATE_FIELD"
+"""
+UpdateField: called when the properties of a dependency injected in the given
+field have been updated
+"""
+
 IPOPO_CALLBACK_UNBIND = "UNBIND"
+""" Unbind: called when a dependency is about to be removed """
+
 IPOPO_CALLBACK_UNBIND_FIELD = "UNBIND_FIELD"
+"""
+UnbindFielld: called when a dependency is about to be removed from the given
+field
+"""
+
 IPOPO_CALLBACK_VALIDATE = "VALIDATE"
+""" Validate: Called when all mandatory dependencies have been bound """
+
 IPOPO_CALLBACK_INVALIDATE = "INVALIDATE"
+""" Invalidate: Called when one the mandatory dependencies is unbound """
 
 # Properties
 IPOPO_INSTANCE_NAME = "instance.name"

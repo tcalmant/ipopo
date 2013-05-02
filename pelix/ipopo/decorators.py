@@ -36,13 +36,12 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+# Pelix modules
 from pelix.utilities import is_string
 from pelix.ipopo.core import FactoryContext, Requirement
-
 import pelix.ipopo.constants as constants
 
-# ------------------------------------------------------------------------------
-
+# Standard library
 import inspect
 import logging
 import threading
@@ -437,8 +436,11 @@ class ComponentFactory:
     Decorator that sets up a component factory class
     """
 
-    # Non inheritable fields, to clean up during manipulation if needed
     NON_INHERITABLE_FIELDS = (constants.IPOPO_INSTANCES,)
+    """
+    Non inheritable fields, i.e. to remove during the manipulation of child
+    classes, if needed
+    """
 
     def __init__(self, name=None):
         """
@@ -767,9 +769,6 @@ class BindField(object):
     The service reference can be stored *if its reference is deleted on unbind*.
     
     Exceptions raised by a bind callback are ignored.
-    
-    :param method: The decorated method
-    :raise TypeError: The decorated element is not a valid function
     """
     def __init__(self, field):
         """
@@ -786,6 +785,7 @@ class BindField(object):
         
         :param method: Method to decorate
         :return: Decorated method
+        :raise TypeError: The decorated element is not a valid function
         """
         if not inspect.isroutine(method):
             raise TypeError("@BindField can only be applied on functions")
@@ -818,9 +818,6 @@ class UpdateField(object):
            # ...
     
     Exceptions raised by an update callback are ignored.
-    
-    :param method: The decorated method
-    :raise TypeError: The decorated element is not a valid function
     """
     def __init__(self, field):
         """
@@ -837,6 +834,7 @@ class UpdateField(object):
         
         :param method: Method to decorate
         :return: Decorated method
+        :raise TypeError: The decorated element is not a valid function
         """
         if not inspect.isroutine(method):
             raise TypeError("@UnbindField can only be applied on functions")
@@ -874,9 +872,6 @@ class UnbindField(object):
     The unbind field callback is called **before** the global unbind method.
     
     Exceptions raised by an unbind callback are ignored.
-    
-    :param method: The decorated method
-    :raise TypeError: The decorated element is not a valid function
     """
     def __init__(self, field):
         """
@@ -893,6 +888,7 @@ class UnbindField(object):
         
         :param method: Method to decorate
         :return: Decorated method
+        :raise TypeError: The decorated element is not a valid function
         """
         if not inspect.isroutine(method):
             raise TypeError("@UnbindField can only be applied on functions")

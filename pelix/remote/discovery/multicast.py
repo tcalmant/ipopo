@@ -397,7 +397,6 @@ class MulticastDiscovery(object):
         Responds to a discovery request
         
         :param sender: The (address, port) tuple of the client
-        :param data: Decoded packet content
         """
         # Compute the list of end points
         endpoints = [self._make_endpoint_dict('add', endpoint)

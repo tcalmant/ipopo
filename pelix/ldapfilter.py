@@ -41,12 +41,15 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-# Escape character
 ESCAPE_CHARACTER = '\\'
+""" The LDAP escape character: \\"""
 
-# Escaped characters (do not insert the ESCAPE CHARACTER here)
-# See http://www.ldapexplorer.com/en/manual/109010000-ldap-filter-syntax.htm)
+# Do not insert the ESCAPE CHARACTER in this list
 ESCAPED_CHARACTERS = "()&|=<>~*+#,;'\""
+"""
+The characters to escape in an LDAP string.
+See http://www.ldapexplorer.com/en/manual/109010000-ldap-filter-syntax.htm
+"""
 
 # ------------------------------------------------------------------------------
 

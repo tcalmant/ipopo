@@ -71,7 +71,7 @@ class AbstractHTTPServletRequest(object):
     """
     def get_client_address(self):
         """
-        Retrieves the address of the client
+        Returns the address of the client
         
         :return: A (host, port) tuple
         """
@@ -80,7 +80,7 @@ class AbstractHTTPServletRequest(object):
 
     def get_header(self, name, default=None):
         """
-        Retrieves the value of a header
+        Returns the value of a header
         
         :param name: Header name
         :param default: Default value if the header doesn't exist
@@ -91,21 +91,27 @@ class AbstractHTTPServletRequest(object):
 
     def get_headers(self):
         """
-        Retrieves a copy all headers, with a dictionary interface
+        Returns a copy all headers, with a dictionary interface
+        
+        :return: A dictionary-like object
         """
         raise NotImplementedError("This method must be implemented by a child")
 
 
     def get_path(self):
         """
-        Retrieves the request full path
+        Returns the request full path
+        
+        :return: A request full path (string)
         """
         raise NotImplementedError("This method must be implemented by a child")
 
 
     def get_rfile(self):
         """
-        Retrieves the request input as a file stream
+        Returns the request input as a file stream
+        
+        :return: A file-like input stream
         """
         raise NotImplementedError("This method must be implemented by a child")
 
@@ -164,7 +170,7 @@ class AbstractHTTPServletResponse(object):
         ``end_headers()`` should have been called before, except if you want
         to write your own headers.
         
-        :return: The output file-like object
+        :return: A file-like output stream
         """
         raise NotImplementedError("This method must be implemented by a child")
 

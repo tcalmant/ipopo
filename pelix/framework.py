@@ -29,12 +29,20 @@ Pelix is a Python framework that aims to act as OSGi as much as possible
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from pelix.utilities import SynchronizedClassMethod, is_string, Deprecated
+# Module version
+__version_info__ = (0, 5, 0)
+__version__ = ".".join(map(str, __version_info__))
 
-import pelix.ldapfilter as ldapfilter
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+# Pelix utility modules
+from pelix.utilities import SynchronizedClassMethod, is_string, Deprecated
+import pelix.ldapfilter as ldapfilter
+
+# Standard library
 import imp
 import importlib
 import inspect
@@ -44,20 +52,33 @@ import pkgutil
 import sys
 import threading
 
-ACTIVATOR = "activator"
-
-OBJECTCLASS = "objectClass"
-SERVICE_ID = "service.id"
-SERVICE_RANKING = "service.ranking"
-
 # ------------------------------------------------------------------------------
 
-# Documentation strings format
-__docformat__ = "restructuredtext en"
+ACTIVATOR = "activator"
+"""
+Name of the module member that will be used as bundle activator.
+It must be an object with the following methods:
 
-# Module version
-__version_info__ = (0, 5, 0)
-__version__ = ".".join(map(str, __version_info__))
+* start(BundleContext)
+* stop(BundleContext)
+"""
+
+OBJECTCLASS = "objectClass"
+"""
+Property containing the list of specifications (strings) provided by a service
+"""
+
+SERVICE_ID = "service.id"
+"""
+Property containing the ID of a service.
+This ID is unique in a framework instance.
+"""
+
+SERVICE_RANKING = "service.ranking"
+"""
+Property that indicates the ranking of a service. It is used to sort the
+results of methods like get_service_references()
+"""
 
 # Prepare the module logger
 _logger = logging.getLogger("pelix.main")
@@ -628,7 +649,9 @@ class Framework(Bundle):
 
     def get_bundles(self):
         """
-        Returns a list of all installed bundles
+        Returns the list of all installed bundles
+        
+        :return: the list of all installed bundles
         """
         with self.__bundles_lock:
             return list(self.__bundles.values())
@@ -1776,7 +1799,9 @@ class BundleContext(object):
 
     def get_bundles(self):
         """
-        Returns a list of all installed bundles
+        Returns the list of all installed bundles
+        
+        :return: the list of all installed bundles
         """
         return self.__framework.get_bundles()
 
@@ -1794,6 +1819,9 @@ class BundleContext(object):
     def get_service(self, reference):
         """
         Returns the service described with the given reference
+        
+        :param reference: A ServiceReference object
+        :return: The service object itself
         """
         return self.__framework.get_service(self.__bundle, reference)
 
@@ -1820,6 +1848,8 @@ class BundleContext(object):
         the specified class by this bundle and matching the given filter
 
         :param ldap_filter: A filter on service properties
+        :return: The list of references to the services registered by the
+                 calling bundle and matching the filters.
         """
         refs = self.__framework.find_service_references(clazz, ldap_filter)
         for ref in refs:
@@ -1982,7 +2012,9 @@ class ServiceReference(object):
 
     def __hash__(self):
         """
-        Returns the service hash
+        Returns the service hash, i.e. its ID, unique in a framework instance.
+        
+        :return: The service ID
         """
         return self.__service_id
 
@@ -2074,21 +2106,27 @@ class ServiceReference(object):
 
     def get_bundle(self):
         """
-        Retrieves the bundle that registered this service
+        Returns the bundle that registered this service
+        
+        :return: the bundle that registered this service
         """
         return self.__bundle
 
 
     def get_using_bundles(self):
         """
-        Retrieves the bundles that use this service
+        Returns the list of bundles that use this service
+        
+        :return: A list of Bundle objects
         """
         return self.__using_bundles
 
 
     def get_properties(self):
         """
-        Retrieves a copy of the service properties
+        Returns a copy of the service properties
+        
+        :return: A copy of the service properties
         """
         with self._props_lock:
             return self.__properties.copy()
@@ -2117,7 +2155,8 @@ class ServiceReference(object):
     def unused_by(self, bundle):
         """
         Indicates that this reference is not being used anymore by the given
-        bundle
+        bundle.
+        This method should only be used by the framework.
 
         :param bundle: A bundle that used this reference
         """
@@ -2132,7 +2171,8 @@ class ServiceReference(object):
 
     def used_by(self, bundle):
         """
-        Indicates that this reference is being used by the given bundle
+        Indicates that this reference is being used by the given bundle.
+        This method should only be used by the framework.
 
         :param bundle: A bundle using this reference
         """
@@ -2173,7 +2213,9 @@ class ServiceRegistration(object):
 
     def get_reference(self):
         """
-        Retrieves the reference associated to this registration
+        Returns the reference associated to this registration
+        
+        :return: A ServiceReference object
         """
         return self.__reference
 
@@ -2348,22 +2390,28 @@ class ServiceEvent(object):
 
     def get_previous_properties(self):
         """
-        Previous service properties, meaningless if the the event is not
-        MODIFIED nor MODIFIED_ENDMATCH.
+        Returns the previous values of the service properties, meaningless if
+        the the event is not MODIFIED nor MODIFIED_ENDMATCH.
+        
+        :return: The previous properties of the service
         """
         return self.__previous_properties
 
 
     def get_service_reference(self):
         """
-        Retrieves the service reference
+        Returns the reference to the service associated to this event
+        
+        :return: A ServiceReference object
         """
         return self.__reference
 
 
     def get_kind(self):
         """
-        Retrieves the kind of service event
+        Returns the kind of service event (see the constants)
+        
+        :return: the kind of service event
         """
         return self.__kind
 
@@ -2371,7 +2419,9 @@ class ServiceEvent(object):
     @Deprecated("ServiceEvent: get_type() must be replaced by get_kind()")
     def get_type(self):
         """
-        Retrieves the kind of service event
+        **DEPRECATED:** Use get_kind() instead
+        
+        Retrieves the kind of service event.
         """
         return self.__kind
 

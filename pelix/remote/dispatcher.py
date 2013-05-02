@@ -150,7 +150,8 @@ class Dispatcher(object):
         
         :param kind: A kind of end point
         :param name: The name of the end point
-        :param new_properties: The new properties of the service
+        :param endpoint: The updated Endpoint object 
+        :param old_properties: The previous properties of the service
         :raise KeyError: Unknown end point
         :raise ValueError: Invalid end point object
         """
@@ -257,7 +258,7 @@ class Dispatcher(object):
         :param params: List of parameters
         :return: The result of the method
         :raise RemoteServiceError: Unknown end point / method
-        :raise: The exception raised by the method
+        :raise Exception: The exception raised by the method
         """
         # Get the service
         try:
