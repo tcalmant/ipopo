@@ -70,6 +70,43 @@ class BundlesTest(unittest.TestCase):
                           "//Invalid Name\\\\")
 
 
+    def testCompatibility(self, test_bundle_id=False):
+        """
+        Tests a bundle installation + start + stop
+
+        @param test_bundle_id: If True, also tests if the test bundle ID is 1
+        """
+        # Install the bundle
+        bundle_id = self.context.install_bundle(self.test_bundle_name)
+        bundle = self.context.get_bundle(bundle_id)
+        assert isinstance(bundle, Bundle)
+        if test_bundle_id:
+            self.assertEqual(bundle.get_bundle_id(), 1,
+                             "Not the first bundle in framework")
+
+        # Get the internal module
+        module = bundle.get_module()
+
+        # Assert initial state
+        self.assertFalse(module.started, "Bundle should not be started yet")
+        self.assertFalse(module.stopped, "Bundle should not be stopped yet")
+
+        # Activator
+        bundle.start()
+
+        self.assertTrue(module.started, "Bundle should be started now")
+        self.assertFalse(module.stopped, "Bundle should not be stopped yet")
+
+        # De-activate
+        bundle.stop()
+
+        self.assertTrue(module.started, "Bundle should be changed")
+        self.assertTrue(module.stopped, "Bundle should be stopped now")
+
+        # Uninstall (validated in another test)
+        bundle.uninstall()
+
+
     def testLifeCycle(self, test_bundle_id=False):
         """
         Tests a bundle installation + start + stop

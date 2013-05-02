@@ -6,9 +6,9 @@ Core module for Pelix.
 Pelix is a Python framework that aims to act as OSGi as much as possible
 
 :author: Thomas Calmant
-:copyright: Copyright 2012, isandlaTech
+:copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.4
+:version: 0.5
 :status: Alpha
 
 ..
@@ -56,7 +56,7 @@ SERVICE_RANKING = "service.ranking"
 __docformat__ = "restructuredtext en"
 
 # Module version
-__version_info__ = (0, 4, 9)
+__version_info__ = (0, 5, 0)
 __version__ = ".".join(map(str, __version_info__))
 
 # Prepare the module logger
@@ -1766,6 +1766,10 @@ class BundleContext(object):
         if bundle_id is None:
             # Current bundle
             return self.__bundle
+
+        elif type(bundle_id) is Bundle:
+            # Got a bundle (compatibility with older install_bundle())
+            bundle_id = bundle_id.get_bundle_id()
 
         return self.__framework.get_bundle_by_id(bundle_id)
 
