@@ -65,7 +65,10 @@ except ImportError:
 
 # Before Python 3, input() was raw_input()
 if sys.version_info[0] < 3:
-    input = raw_input
+    safe_input = raw_input
+
+else:
+    safe_input = input
 
 # ------------------------------------------------------------------------------
 
@@ -113,19 +116,25 @@ class InteractiveShell(object):
                 # Wait for the shell to be there
                 # Before Python 2.7, wait() doesn't return a result
                 if self._shell_event.wait(.2) or self._shell_event.is_set():
+                    # Shell present
+                    if first_prompt:
+                        # Show the banner on first prompt
+                        print(self._shell.get_banner())
+                        first_prompt = False
+
+                    # Read the line
+                    line = safe_input(self._shell.get_ps1())
+
                     with self._lock:
-                        # Shell present
-                        if first_prompt:
-                            # Show the banner on first prompt
-                            print(self._shell.get_banner())
-                            first_prompt = False
+                        if self._shell_event.is_set():
+                            # Execute it
+                            self._shell.execute(line, sys.stdin, sys.stdout)
 
-                        # Read the line
-                        line = input(self._shell.get_ps1())
-                        # Execute it
-                        self._shell.execute(line, sys.stdin, sys.stdout)
+                        elif not self._stop_event.is_set():
+                            # Shell service lost while not stopping
+                            print('Shell service lost.')
 
-        except (EOFError, KeyboardInterrupt):
+        except (EOFError, KeyboardInterrupt, SystemExit):
             # Input closed or keyboard interruption
             self._stop_event.set()
 
@@ -239,12 +248,12 @@ class InteractiveShell(object):
 
             # Clear the readline completer
             if readline is not None:
-               readline.set_completer(None)
-               del self._readline_matches[:]
+                readline.set_completer(None)
+                del self._readline_matches[:]
 
             if self._shell_ref is not None:
-               # Release the service
-               self._context.unget_service(self._shell_ref)
+                # Release the service
+                self._context.unget_service(self._shell_ref)
 
             self._shell_ref = None
             self._shell = None
@@ -255,16 +264,18 @@ class InteractiveShell(object):
         """
         Clears all members
         """
-        # Unregister from events
+        # Exit the loop
         with self._lock:
-            self._shell_event.clear()
             self._stop_event.set()
+            self._shell_event.clear()
 
-        self._context.remove_service_listener(self)
+        if self._context is not None:
+            # Unregister from events
+            self._context.remove_service_listener(self)
 
-        # Release the shell
-        self.clear_shell()
-        self._context = None
+            # Release the shell
+            self.clear_shell()
+            self._context = None
 
 # ------------------------------------------------------------------------------
 
@@ -291,6 +302,9 @@ class Activator(object):
         # Run the loop thread
         self._thread = threading.Thread(target=self._shell.loop_input,
                                         args=[self._quit])
+        # Set the thread as a daemon, to let it be killed by the interpreter
+        # once all other threads stopped.
+        self._thread.daemon = True
         self._thread.start()
 
 
@@ -319,12 +333,8 @@ class Activator(object):
         Cleans up the members
         """
         if self._shell is not None:
+            # Stop the shell
             self._shell.stop()
-
-        if self._thread is not None \
-        and self._thread is not threading.current_thread():
-            # Wait for the shell to stop
-            self._thread.join(1)
 
         self._thread = None
         self._shell = None

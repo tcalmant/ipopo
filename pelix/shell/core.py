@@ -548,6 +548,11 @@ class Shell(object):
             io_handler.write_line("Invalid method call: {0}", ex)
             return False
 
+        except Exception as ex:
+            # Error
+            io_handler.write_line("{0}: {1}", type(ex).__name__, str(ex))
+            return False
+
 
     def get_banner(self):
         """
