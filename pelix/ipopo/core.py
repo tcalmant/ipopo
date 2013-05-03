@@ -343,8 +343,11 @@ class _RuntimeDependency(object):
         """
         Called by the framework when a service event occurs
         """
-        if not self._ipopo_instance.check_event(event):
-            # We've been told to ignore this event
+        if self._ipopo_instance is None \
+        or not self._ipopo_instance.check_event(event):
+            # stop() and clean() may have been called after we have been put
+            # inside a listener list copy...
+            # or we've been told to ignore this event
             return
 
         # Call sub-methods
@@ -1261,7 +1264,8 @@ class _StoredInstance(object):
 
     def update(self, dependency, svc, svc_ref, old_properties):
         """
-        TODO: docstring
+        Called by a dependency manager when the properties of an injected
+        dependency have been updated.
         """
         with self._lock:
             self.__update_binding(dependency, svc, svc_ref, old_properties)
@@ -1783,7 +1787,13 @@ class _StoredInstance(object):
 
     def __update_binding(self, dependency, service, reference, old_properties):
         """
-        TODO: docstring
+        Calls back component binding and field binding methods when the
+        properties of an injected dependency have been updated.
+        
+        :param dependency: The dependency handler
+        :param service: The injected service
+        :param reference: The reference of the injected service
+        :param old_properties: Previous properties of the dependency
         """
         with self._lock:
             # Call the component back
