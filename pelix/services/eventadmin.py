@@ -98,15 +98,32 @@ class Event(object):
         return self.__topic
 
 
-    def get_property(self, name):
+    def get_topic(self):
+        """
+        The topic of the event
+        """
+        return self.__topic
+
+
+    def get_property(self, name, *args):
         """
         Retrieves the value of the given property
         
         :param name: Name of the property
+        :param args: A default return value can be given
         :return: The property value
         :raise KeyError: Unknown property 
         """
-        return self.__properties[name]
+        try:
+            return self.__properties[name]
+
+        except KeyError:
+            if args:
+                # Return the given default value, if any
+                return args[0]
+
+            else:
+                raise
 
 
     def get_property_names(self):
