@@ -426,6 +426,9 @@ class MulticastDiscovery(object):
             properties[pelix.remote.PROP_IMPORTED_CONFIGS] = \
                                 properties[pelix.remote.PROP_EXPORTED_CONFIGS]
 
+        # Add the dispatcher UID to the properties
+        properties[pelix.remote.PROP_DISPATCHER_UID] = data['sender']
+
         # Clear export properties
         for name in (pelix.remote.PROP_EXPORTED_CONFIGS,
                      pelix.remote.PROP_EXPORTED_INTERFACES):

@@ -168,7 +168,7 @@ class Dispatcher(object):
             raise KeyError("Unknown known end point: {0}".format(name))
 
         elif endpoint != kind_map[name]:
-            raise ValueError("Not the good end point: {0}".format(name))
+            raise ValueError("Not the right end point: {0}".format(name))
 
         # Call listeners
         if self._listeners:
