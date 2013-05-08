@@ -78,7 +78,7 @@ class ImportsRegistry(object):
         """
         self._registry[endpoint.uid] = endpoint
 
-        # Call listeners
+        # Notify listeners
         if self._listeners:
             for listener in self._listeners[:]:
                 try:
@@ -88,24 +88,27 @@ class ImportsRegistry(object):
                         _logger.exception("Error calling listener: %s", ex)
 
 
-    def update(self, endpoint, old_properties):
+    def update(self, uid, new_properties):
         """
         Updates an end point and notifies listeners
         
-        :param endpoint: An ImportedEndpoint object
-        :param old_properties: Previous properties
+        :param uid: The UID of the end point
+        :param old_properties: The new properties of the end point
         """
         try:
             # Update the stored end point
-            stored_endpoint = self._registry[endpoint.uid]
-            stored_endpoint.properties = endpoint.properties
+            stored_endpoint = self._registry[uid]
+
+            # Replace the stored properties
+            old_properties = stored_endpoint.properties.copy()
+            stored_endpoint.properties = new_properties.copy()
 
         except KeyError:
             # Unknown end point: ignore it
             return
 
         else:
-            # Call listeners
+            # Notify listeners
             if self._listeners:
                 for listener in self._listeners[:]:
                     try:
@@ -116,22 +119,21 @@ class ImportsRegistry(object):
                         _logger.exception("Error calling listener: %s", ex)
 
 
-
-    def remove(self, endpoint):
+    def remove(self, uid):
         """
         Unregisters an end point and notifies listeners
         
-        :param endpoint: An ImportedEndpoint object
+        :param uid: The UID of the end point to unregister
         """
         try:
-            endpoint = self._registry.pop(endpoint.uid)
+            endpoint = self._registry.pop(uid)
 
         except KeyError:
             # Unknown end point
             return
 
         else:
-            # Call listeners
+            # Notify listeners
             if self._listeners:
                 for listener in self._listeners[:]:
                     try:

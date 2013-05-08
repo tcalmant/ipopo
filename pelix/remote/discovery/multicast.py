@@ -1,7 +1,12 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-Pelix remote services: Multicast discovery
+Pelix remote services: Multicast discovery and event notification
+
+A discovery packet contains the access to the dispatcher servlet, which
+can be used to get the end points descriptions.
+An event notification packet contain an end point UID, a kind of event and the
+previous service properties (if the event is an update).
 
 **WARNING:** Do not forget to open the UDP ports used for the multicast, even
 when using remote services on the local host only.
@@ -56,7 +61,15 @@ import os
 import select
 import socket
 import struct
+import sys
 import threading
+
+if sys.version_info[0] < 3:
+    import httplib
+
+else:
+    import http.client as httplib
+
 
 # ------------------------------------------------------------------------------
 
@@ -266,6 +279,7 @@ def close_multicast_socket(sock, address):
 @ComponentFactory("pelix-remote-discovery-multicast-factory")
 @Provides(pelix.remote.SERVICE_ENDPOINT_LISTENER)
 @Requires("_dispatcher", pelix.remote.SERVICE_DISPATCHER)
+@Requires('_access', pelix.remote.SERVICE_DISPATCHER_SERVLET)
 @Requires("_registry", pelix.remote.SERVICE_REGISTRY)
 @Property("_group", "multicast.group", "239.0.0.1")
 @Property("_port", "multicast.port", 42000)
@@ -285,6 +299,9 @@ class MulticastDiscovery(object):
         self._dispatcher = None
         self._registry = None
 
+        # Dispatcher access
+        self._access = None
+
         # Socket
         self._group = "239.0.0.1"
         self._port = 42000
@@ -298,29 +315,87 @@ class MulticastDiscovery(object):
 
     def _make_endpoint_dict(self, event, endpoint):
         """
-        Converts the end point into a dictionary
+        Converts the end point into an event packet dictionary
+        
+        :param event: The kind of event: add, update, remove
+        :param endpoint: An end point description object
+        :return: A dictionary
         """
-        specs = endpoint.reference.get_property(pelix.framework.OBJECTCLASS)
+        # Get the dispatcher servlet access
+        access = self._access.get_access()
 
-        return {"sender": self._dispatcher.uid,
-                "event": event,
-                "uid": endpoint.uid,
-                "kind": endpoint.kind,
-                "name": endpoint.name,
-                "url": endpoint.url,
-                "properties": endpoint.reference.get_properties(),
-                "specifications": specs}
+        # Make the event packet content
+        packet = {"sender": self._dispatcher.uid,  # Dispatcher UID
+                  "event": event,  # Kind of event
+                  "uid": endpoint.uid,  # Endpoint UID
+                  "access": {"port": access[0],  # Access to the dispatcher
+                             "path": access[1]}  # servlet
+                  }
+
+        if event == "update":
+            # Give the new end point properties
+            packet["new_properties"] = endpoint.reference.get_properties()
+
+        return packet
+
+
+    def __send_packet(self, data, target=None):
+        """
+        Sends a UDP datagram to the given target, if given, or to the multicast
+        group.
+        
+        :param data: The content of the datagram
+        :param target: The packet target (can be None)
+        """
+        if target is None:
+            # Use the multicast target by default
+            target = self._target
+
+        # Converts data to bytes
+        data = to_bytes(data)
+
+        # Send the data
+        self._socket.sendto(data, 0, target)
 
 
     def _send_discovery(self):
         """
         Sends a discovery packet, requesting others to indicate their services
         """
+        # Get the dispatcher servlet access
+        access = self._access.get_access()
+
+        # Make the discovery packet content
+        data = {"event": "discovery",  # Discovery packet
+                "sender": self._dispatcher.uid,  # Dispatcher UID
+                "access": {"port": access[0],  # Access to the dispatcher
+                           "path": access[1]}  # servlet
+                }
+
         # Send a JSON request
-        data = json.dumps({"event": "discovery",
-                           "sender": self._dispatcher.uid})
-        data = to_bytes(data)
-        self._socket.sendto(data, 0, self._target)
+        data = json.dumps(data)
+        self.__send_packet(data)
+
+
+    def _send_discovered(self, sender):
+        """
+        Sends a "discovered" packet to the one that sent a "discovery" packet
+        
+        :param sender: An (address, port) tuple
+        """
+        # Get the dispatcher servlet access
+        access = self._access.get_access()
+
+        # Make the discovery packet content
+        data = {"event": "discovered",  # "Discovered" packet
+                "sender": self._dispatcher.uid,  # Dispatcher UID
+                "access": {"port": access[0],  # Access to the dispatcher
+                           "path": access[1]}  # servlet
+                }
+
+        # Send a JSON request
+        data = json.dumps(data)
+        self.__send_packet(data, sender)
 
 
     def endpoint_added(self, endpoint):
@@ -329,22 +404,17 @@ class MulticastDiscovery(object):
         """
         # Send a JSON event
         data = json.dumps(self._make_endpoint_dict("add", endpoint))
-        data = to_bytes(data)
-        self._socket.sendto(data, 0, self._target)
+        self.__send_packet(data)
 
 
     def endpoint_updated(self, endpoint, old_properties):
         """
         An end point is updated
         """
-        # Prepare the end point dictionary
-        endpoint_dict = self._make_endpoint_dict("update", endpoint)
-        endpoint_dict['old_properties'] = old_properties
-
         # Send a JSON event
-        data = json.dumps(endpoint_dict)
-        data = to_bytes(data)
-        self._socket.sendto(data, 0, self._target)
+        data = json.dumps(self._make_endpoint_dict("update", endpoint,
+                                                   old_properties))
+        self.__send_packet(data)
 
 
     def endpoint_removed(self, endpoint):
@@ -353,8 +423,7 @@ class MulticastDiscovery(object):
         """
         # Send a JSON event
         data = json.dumps(self._make_endpoint_dict("remove", endpoint))
-        data = to_bytes(data)
-        self._socket.sendto(data, 0, self._target)
+        self.__send_packet(data)
 
 
     def _handle_packet(self, sender, raw_data):
@@ -368,7 +437,7 @@ class MulticastDiscovery(object):
         # Decode content
         data = json.loads(raw_data)
 
-        # Avoid handling our own requests
+        # Avoid handling our own packets
         sender_uid = data['sender']
         if sender_uid == self._dispatcher.uid:
             return
@@ -377,57 +446,69 @@ class MulticastDiscovery(object):
         event = data['event']
         if event == "discovery":
             # Discovery request
-            self._handle_discovery(sender)
+            self._send_discovered(sender)
 
         elif event == "discovered":
             # Answer to a discovery request
-            for endpoint in data['endpoints']:
-                self._handle_endpoint_packet(sender, 'add', endpoint)
+            access = data['access']
+            endpoints = self.grab_endpoints(sender[0], access['port'],
+                                            access['path'])
+            for endpoint in endpoints:
+                self._register_endpoint(endpoint)
 
         elif event in ('add', 'update', 'remove'):
             # End point event
-            self._handle_endpoint_packet(sender, event, data)
+            self._handle_event_packet(sender, data)
 
         else:
-            _logger.warning("Unhandled event '%s' from %s", event, sender)
+            _logger.warning("Unknown event '%s' from %s", event, sender)
 
 
-    def _handle_discovery(self, sender):
-        """
-        Responds to a discovery request
-        
-        :param sender: The (address, port) tuple of the client
-        """
-        # Compute the list of end points
-        endpoints = [self._make_endpoint_dict('add', endpoint)
-                     for endpoint in self._dispatcher.get_endpoints()]
-        if endpoints:
-            # Only send a packet if necessary
-            data = json.dumps({"event": "discovered",
-                               "sender": self._dispatcher.uid,
-                               "endpoints": endpoints})
-            data = to_bytes(data)
-
-            # Send the packet to the sender only
-            self._socket.sendto(data, 0, sender)
-
-
-    def _handle_endpoint_packet(self, sender, event, data):
+    def _handle_event_packet(self, sender, data):
         """
         Handles an end point event packet
         
         :param sender: The (address, port) tuple of the client
         :param data: Decoded packet content
         """
-        # Update properties
-        properties = data['properties']
+        # Get the event
+        event = data['event']
+        endpoint_uid = data['uid']
+        dispatcher_uid = data['sender']
+
+        if event == 'add':
+            # Store it
+            access = data['access']
+            endpoint = self.grab_endpoint(sender[0], access['port'],
+                                          access['path'], endpoint_uid)
+            self._register_endpoint(endpoint)
+
+        elif event == 'remove':
+            # Remove it
+            self._registry.remove(endpoint_uid)
+
+        elif event == 'update':
+            # Update it
+            new_properties = data['new_properties']
+            self.__filter_properties(dispatcher_uid, new_properties)
+            self._registry.update(endpoint_uid, new_properties)
+
+
+    def __filter_properties(self, dispatcher_uid, properties):
+        """
+        Replaces in-place export properties by import ones
+        
+        :param dispatcher_uid: The UID of the dispatcher exporting the service
+        :param properties: End point properties
+        :return: The filtered dictionary.
+        """
+        # Add the "imported" property
         properties[pelix.remote.PROP_IMPORTED] = True
+
+        # Replace the "exported configs"
         if pelix.remote.PROP_EXPORTED_CONFIGS in properties:
             properties[pelix.remote.PROP_IMPORTED_CONFIGS] = \
                                 properties[pelix.remote.PROP_EXPORTED_CONFIGS]
-
-        # Add the dispatcher UID to the properties
-        properties[pelix.remote.PROP_DISPATCHER_UID] = data['sender']
 
         # Clear export properties
         for name in (pelix.remote.PROP_EXPORTED_CONFIGS,
@@ -435,25 +516,115 @@ class MulticastDiscovery(object):
             if name in properties:
                 del properties[name]
 
-        # Create the endpoint
-        endpoint = pelix.remote.ImportEndpoint(data['uid'],
-                                               data['kind'],
-                                               data['name'],
-                                               data['url'],
-                                               data['specifications'],
+        # Add the dispatcher UID to the properties
+        properties[pelix.remote.PROP_DISPATCHER_UID] = dispatcher_uid
+
+        return properties
+
+
+    def _register_endpoint(self, endpoint_dict):
+        """
+        Registers a new end point in the registry
+        
+        :param endpoint_dict: An end point description dictionary (result of 
+                              a request to the dispatcher servlet)
+        """
+        # Filter properties
+        properties = self.__filter_properties(endpoint_dict['sender'],
+                                              endpoint_dict['properties'])
+
+        # Create the end point object
+        endpoint = pelix.remote.ImportEndpoint(endpoint_dict['uid'],
+                                               endpoint_dict['kind'],
+                                               endpoint_dict['name'],
+                                               endpoint_dict['url'],
+                                               endpoint_dict['specifications'],
                                                properties)
 
-        if event == 'add':
-            # Store it
-            self._registry.add(endpoint)
+        # Register it
+        self._registry.add(endpoint)
 
-        elif event == 'remove':
-            # Remove it
-            self._registry.remove(endpoint)
 
-        elif event == 'update':
-            # Update it
-            self._registry.update(endpoint, data['old_properties'])
+    def grab_endpoint(self, host, port, path, uid):
+        """
+        Retrieves the description of the end point with the given UID at the
+        given dispatcher servlet.
+        Returns the end point description as a dictionary, or None in case of
+        error.
+        Does not register nor converts the end point.
+        
+        :param host: Dispatcher host address
+        :param port: Dispatcher HTTP service port
+        :param path: Path to the dispatcher servlet
+        :param uid: The UID of an end point
+        :return: An end point dictionary or None
+        """
+        # Setup the request URI
+        if path[-1] == '/':
+            path = path[:-1]
+
+        request_path = "{0}/endpoint/{1}".format(path, uid)
+
+        return self.__grab_data(host, port, request_path)
+
+
+    def grab_endpoints(self, host, port, path):
+        """
+        Retrieves all end points available in the dispatcher servlet at the
+        given path.
+        Returns the result of the dispatcher servlet (list of dictionaries), or
+        None in case of error.
+        Does not register nor converts the end points.
+
+        :param host: Dispatcher host address
+        :param port: Dispatcher HTTP service port
+        :param path: Path to the dispatcher servlet
+        :return: A list of dictionaries or None
+        """
+        # Setup the request URI
+        if path[-1] == '/':
+            path = path[:-1]
+
+        request_path = "{0}/endpoints".format(path)
+
+        return self.__grab_data(host, port, request_path)
+
+
+    def __grab_data(self, host, port, path):
+        """
+        Sends a HTTP request to the server at (host, port), on the given path.
+        Returns the parsed response.
+        Returns None if the HTTP result is not 200 or in case of error.
+
+        :param host: Dispatcher host address
+        :param port: Dispatcher HTTP service port
+        :param path: Request path
+        :return: The parsed response content, or None
+        """
+        # Request the end points
+        try:
+            conn = httplib.HTTPConnection(host, port)
+            conn.request("GET", path)
+            result = conn.getresponse()
+            data = result.read()
+            conn.close()
+
+        except Exception as ex:
+            _logger.error("Error accessing the dispatcher servlet: %s", ex)
+            return
+
+        if result.status != 200:
+            # Not a valid result
+            return
+
+        try:
+            # Parse the JSON result
+            return json.loads(data)
+
+        except ValueError as ex:
+            # Error parsing data
+            _logger.error("Error reading the response of the dispatcher: %s",
+                          ex)
 
 
     def _read_loop(self):
