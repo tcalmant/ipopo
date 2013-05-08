@@ -54,105 +54,6 @@ _logger = logging.getLogger(__name__)
 
 #-------------------------------------------------------------------------------
 
-class Event(object):
-    """
-    Represents an event for the EventAdmin
-    """
-    def __init__(self, topic="<none>", properties=None):
-        """
-        Sets up the event
-        
-        :param topic: Topic of event
-        :param properties: Associated properties
-        """
-        self.__topic = str(topic)
-        if isinstance(properties, dict):
-            self.__properties = properties.copy()
-
-        else:
-            self.__properties = {}
-
-        # Force the topic name property
-        self.__properties["event.topic"] = self.__topic
-
-
-    def __str__(self):
-        """
-        Returns the topic of the event
-        """
-        return self.__topic
-
-
-    def __repr__(self):
-        """
-        Representation of the event
-        """
-        return "Event('{0}', {1})".format(self.__topic, self.__properties)
-
-
-    @property
-    def topic(self):
-        """
-        The topic of the event
-        """
-        return self.__topic
-
-
-    def get_topic(self):
-        """
-        The topic of the event
-        """
-        return self.__topic
-
-
-    def get_property(self, name, *args):
-        """
-        Retrieves the value of the given property
-        
-        :param name: Name of the property
-        :param args: A default return value can be given
-        :return: The property value
-        :raise KeyError: Unknown property 
-        """
-        try:
-            return self.__properties[name]
-
-        except KeyError:
-            if args:
-                # Return the given default value, if any
-                return args[0]
-
-            else:
-                raise
-
-
-    def get_property_names(self):
-        """
-        Retrieves the names of the properties of this topic
-        
-        :return: A list of names (can be empty)
-        """
-        return list(self.__properties.keys())
-
-
-    def matches(self, ldap_filter):
-        """
-        Tests if the properties of this event match the given filter
-        
-        :param ldap_filter: An LDAP filter (string or object)
-        :return: True if the event properties match the filter
-        :raise ValueError: Invalid filter
-        """
-        if not ldap_filter:
-            # No filter
-            return True
-
-        # Normalize the filter
-        ldap_filter = pelix.ldapfilter.get_ldap_filter(ldap_filter)
-        return ldap_filter.matches(self.__properties)
-
-#-------------------------------------------------------------------------------
-
 @ComponentFactory("pelix-services-eventadmin-factory")
 @Provides(pelix.services.SERVICE_EVENT_ADMIN)
 @Requires("_handlers", pelix.services.SERVICE_EVENT_HANDLER, True, True)
@@ -178,20 +79,20 @@ class EventAdmin(object):
         self._pool = None
 
 
-    def _get_handlers(self, event):
+    def _get_handlers(self, topic, properties):
         """
         Retrieves the listeners that requested to handle such an event
         
-        :param event: An Event object
+        :param topic: Topic of the event
+        :param properties: Associated properties
         :return: The list of listeners for this event
         """
-        topic = event.topic
-
         handlers = []
+
         for svc_ref in self._handlers_refs.keys():
             # Check the LDAP filter
             ldap_filter = svc_ref.get_property(pelix.services.PROP_EVENT_FILTER)
-            if event.matches(ldap_filter):
+            if self.__match_filter(properties, ldap_filter):
                 # Filter matches the event, test the topic
                 topics = svc_ref.get_property(pelix.services.PROP_EVENT_TOPIC)
                 for handled_topic in topics:
@@ -203,19 +104,38 @@ class EventAdmin(object):
         return handlers
 
 
-    def __notify_handlers(self, event, handlers):
+    def __match_filter(self, properties, ldap_filter):
+        """
+        Tests if the given properties match the given filter
+        
+        :param properties: A set of properties
+        :param ldap_filter: An LDAP filter string, object or None
+        :return: True if the properties match the filter
+        """
+        if not ldap_filter:
+            # No filter
+            return True
+
+        # Normalize the filter
+        ldap_filter = pelix.ldapfilter.get_ldap_filter(ldap_filter)
+        return ldap_filter.matches(properties)
+
+
+    def __notify_handlers(self, topic, properties, handlers):
         """
         Notifies the handlers of an event
         
-        :param event: An Event object
+        :param topic: Topic of the event
+        :param properties: Associated properties
         :param handlers: A list of handlers
         """
         for handler in handlers:
             try:
-                handler.handle_event(event)
+                # Use a copy of the properties each time
+                handler.handle_event(topic, properties.copy())
 
             except Exception as ex:
-                _logger.exception("Error notifying an event handler: %s", ex)
+                _logger.error("Error notifying an event handler: %s", ex)
 
 
 
@@ -226,8 +146,11 @@ class EventAdmin(object):
         :param topic: Topic of event
         :param properties: Associated properties
         """
-        event = Event(topic, properties)
-        self.__notify_handlers(event, self._get_handlers(event))
+        # Get the currently available handlers
+        handlers = self._get_handlers(topic, properties)
+
+        # Notify them
+        self.__notify_handlers(topic, properties, handlers)
 
 
     def post(self, topic, properties=None):
@@ -237,10 +160,11 @@ class EventAdmin(object):
         :param topic: Topic of event
         :param properties: Associated properties
         """
+        # Get the currently available handlers
+        handlers = self._get_handlers(topic, properties)
+
         # Enqueue the task in the thread pool
-        event = Event(topic, properties)
-        self._pool.enqueue(self.__notify_handlers, event,
-                           self._get_handlers(event))
+        self._pool.enqueue(self.__notify_handlers, topic, properties, handlers)
 
 
     @Bind
