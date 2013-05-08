@@ -3,8 +3,8 @@
 """
 Pelix remote services: JSON-RPC implementation
 
-Based on 3rd-party package jsonrpclib.
-This package can be installed using pip or easy_install.
+Based on a modified version of the 3rd-party package jsonrpclib.
+A patched version of jsonrpclib will be released soon.
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
