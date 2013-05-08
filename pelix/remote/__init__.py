@@ -39,6 +39,9 @@ __docformat__ = "restructuredtext en"
 SERVICE_DISPATCHER = "pelix.remote.dispatcher"
 """ Remote call dispatcher """
 
+SERVICE_DISPATCHER_SERVLET = "pelix.remote.dispatcher.servlet"
+""" Servlet to access the content of the dispatcher """
+
 SERVICE_REGISTRY = "pelix.remote.registry"
 """ Registry of imported end points """
 

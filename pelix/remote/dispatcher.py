@@ -45,11 +45,15 @@ __docformat__ = "restructuredtext en"
 import pelix.remote
 from pelix.remote import RemoteServiceError
 
+# HTTP constants
+import pelix.http
+
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
     Bind, Property, Validate
 
 # Standard library
+import json
 import logging
 import uuid
 
@@ -193,6 +197,17 @@ class Dispatcher(object):
                 listener.endpoint_removed(endpoint)
 
 
+    def get_endpoint(self, uid):
+        """
+        Retrieves an end point description, selected by its UID.
+        Returns None if the UID is unknown.
+        
+        :param uid: UID of an end point
+        :return: The end point description
+        """
+        return self.__endpoints.get(uid)
+
+
     def get_endpoints(self, kind=None, name=None):
         """
         Retrieves all end points matching the given kind and/or name
@@ -284,3 +299,156 @@ class Dispatcher(object):
         if not self._uid:
             self._uid = str(uuid.uuid4())
         _logger.debug("Remote Services dispatcher validated: uid=%s", self._uid)
+
+# -----------------------------------------------------------------------------
+
+@ComponentFactory('pelix-remote-dispatcher-servlet-factory')
+@Provides(pelix.http.HTTP_SERVLET)
+@Provides(pelix.remote.SERVICE_DISPATCHER_SERVLET, "_controller")
+@Requires('_dispatcher', pelix.remote.SERVICE_DISPATCHER)
+@Property('_path', pelix.http.HTTP_SERVLET_PATH, "/pelix-dispatcher")
+class RegistryServlet(object):
+    """
+    Servlet to access the content of the registry
+    """
+    def __init__(self):
+        """
+        Sets up members
+        """
+        # The dispatcher
+        self._dispatcher = None
+
+        # Controller for the provided service:
+        # => activate only if bound to a server
+        self._controller = False
+
+        # Servlet path property
+        self._path = None
+
+        # Ports of exposing servers
+        self._ports = []
+
+
+    def bound_to(self, path, parameters):
+        """
+        This servlet has been bound to a server
+        
+        :param path: The servlet path in the server
+        :param parameters: The servlet/server parameters
+        """
+        port = parameters['http.port']
+        if port not in self._ports:
+            # Get its access port
+            self._ports.append(port)
+
+            # Activate the service, we're bound to a server
+            self._controller = True
+
+
+    def unbound_from(self, path, parameters):
+        """
+        This servlet has been unbound from a server
+        
+        :param path: The servlet path in the server
+        :param parameters: The servlet/server parameters
+        """
+        port = parameters['http.port']
+        if port in self._ports:
+            # Remove its access port
+            self._ports.remove(port)
+
+            # Deactivate the service if no more server available
+            if not self._ports:
+                self._controller = False
+
+
+    def do_GET(self, request, response):
+        """
+        Handles a GET request
+        
+        :param request: Request handler
+        :param response: Response handler
+        """
+        # Split the path
+        path_parts = request.get_path().split('/')
+
+        if path_parts[-2] == "endpoint":
+            # /endpoint/<uid>: specific end point
+            uid = path_parts[-1]
+            endpoint = self.get_endpoint(uid)
+            if endpoint is None:
+                response.send_content(404, "Unknown UID: {0}".format(uid),
+                                      "text/plain")
+                return
+
+            else:
+                data = self._make_endpoint_dict(endpoint)
+
+        elif path_parts[-1] == "endpoints":
+            # /endpoints: all end points
+            endpoints = self.get_endpoints()
+            if not endpoints:
+                data = []
+
+            else:
+                data = [self._make_endpoint_dict(endpoint)
+                        for endpoint in endpoints]
+
+        else:
+            # Unknown
+            response.send_content(404, "Unhandled path", "text/plain")
+            return
+
+        # Convert the result to JSON
+        data = json.dumps(data)
+
+        # Send the result
+        response.send_content(200, data, 'application/json')
+
+
+    def _make_endpoint_dict(self, endpoint):
+        """
+        Converts the end point into a dictionary
+        
+        :param endpoint: The end point to convert
+        :return: A dictionary
+        """
+        specs = endpoint.reference.get_property(pelix.framework.OBJECTCLASS)
+
+        return {"sender": self._dispatcher.uid,
+                "uid": endpoint.uid,
+                "kind": endpoint.kind,
+                "name": endpoint.name,
+                "url": endpoint.url,
+                "properties": endpoint.reference.get_properties(),
+                "specifications": specs}
+
+
+    def get_access(self):
+        """
+        Returns the port and path to access this servlet with the first
+        bound HTTP service.
+        Returns None if this servlet is still not bound to a server
+        
+        :return: A tuple: (port, path) or None
+        """
+        if self._ports:
+            return (self._ports[0], self._path)
+
+
+    def get_endpoints(self):
+        """
+        Returns the complete list of end points
+        
+        :return: The list of all known end points
+        """
+        return self._dispatcher.get_endpoints()
+
+
+    def get_endpoint(self, uid):
+        """
+        Returns the end point with the given UID or None.
+        
+        :return: The end point description or None
+        """
+        return self._dispatcher.get_endpoint(uid)
