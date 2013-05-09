@@ -413,15 +413,17 @@ class RegistryServlet(object):
         :param endpoint: The end point to convert
         :return: A dictionary
         """
-        specs = endpoint.reference.get_property(pelix.framework.OBJECTCLASS)
+        # Filter the ObjectClass property
+        properties = endpoint.reference.get_properties()
+        del properties[pelix.framework.OBJECTCLASS]
 
         return {"sender": self._dispatcher.uid,
                 "uid": endpoint.uid,
                 "kind": endpoint.kind,
                 "name": endpoint.name,
                 "url": endpoint.url,
-                "properties": endpoint.reference.get_properties(),
-                "specifications": specs}
+                "specifications": endpoint.specifications,
+                "properties": properties}
 
 
     def get_access(self):

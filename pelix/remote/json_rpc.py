@@ -193,6 +193,7 @@ class JsonRpcServiceExporter(object):
         Exports the given service
         
         :param reference: A ServiceReference object
+        :return: True if the service has been exported, else False
         """
         # Compute the end point name
         endpoint_name = self._compute_endpoint_name(reference)
@@ -200,7 +201,7 @@ class JsonRpcServiceExporter(object):
             # Already known end point
             _logger.error("Already known end point %s for JSON-RPC",
                           endpoint_name)
-            return
+            return False
 
         # Get the service
         try:
@@ -211,13 +212,18 @@ class JsonRpcServiceExporter(object):
 
         except pelix.framework.BundleException as ex:
             _logger.error("Error retrieving the service to export: %s", ex)
-            return
+            return False
 
-        # Create the registration information
-        endpoint = pelix.remote.ExportEndpoint(str(uuid.uuid4()),
-                                               self._kind, endpoint_name,
-                                               reference, service,
-                                               self.get_access())
+        try:
+            # Create the registration information
+            endpoint = pelix.remote.ExportEndpoint(str(uuid.uuid4()),
+                                                   self._kind, endpoint_name,
+                                                   reference, service,
+                                                   self.get_access())
+
+        except ValueError:
+            # Invalid end point
+            return False
 
         try:
             # Register the end point
@@ -230,6 +236,9 @@ class JsonRpcServiceExporter(object):
             # Store informations
             self.__endpoints[endpoint_name] = endpoint
             self.__registrations[reference] = endpoint
+            return True
+
+        return False
 
 
     def _update_service(self, reference, old_properties):

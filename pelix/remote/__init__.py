@@ -36,6 +36,11 @@ __docformat__ = "restructuredtext en"
 
 #-------------------------------------------------------------------------------
 
+# Pelix framework constants
+import pelix.framework
+
+#-------------------------------------------------------------------------------
+
 SERVICE_DISPATCHER = "pelix.remote.dispatcher"
 """ Remote call dispatcher """
 
@@ -71,7 +76,7 @@ PROP_EXPORTED_CONFIGS = "{0}configs".format(PREFIX_PROP_EXPORTED)
 """ Export configurations (xmlrpc, ...) (array of strings) """
 
 PROP_EXPORTED_INTERFACES = "{0}interfaces".format(PREFIX_PROP_EXPORTED)
-""" Exported specifications (array of strings) """
+""" Exported specifications: must be an array of strings """
 
 PROP_IMPORTED = "service.imported"
 """ Flag indicating that the service has been imported """
@@ -116,16 +121,26 @@ class ExportEndpoint(object):
         :param svc_ref: ServiceReference of the exported service
         :param service: Instance of the exported service
         :param url: URL to access to the end point
+        :raise ValueError: Invalid UID or the end point exports nothing
+                           (all specifications have been filtered) 
         """
         if not uid:
             raise ValueError("Invalid GUID")
 
+        # Given information
         self.__uid = uid
         self.__instance = service
         self.__reference = svc_ref
         self.__kind = kind
         self.__name = name
         self.__url = url
+
+        # Exported specifications
+        self.__exported_specs = []
+        self.__compute_specifications()
+        if not self.__exported_specs:
+            raise ValueError("End point %s, %s, exports nothing",
+                             self.__uid, self.__name)
 
 
     def __eq__(self, other):
@@ -140,6 +155,24 @@ class ExportEndpoint(object):
         Inequality checked by UID
         """
         return self.__uid != other.uid
+
+
+    def __compute_specifications(self):
+        """
+        Computes the list of exported specifications
+        """
+        specs = self.__reference.get_property(pelix.framework.OBJECTCLASS)
+        exported_specs = self.__reference.get_property(PROP_EXPORTED_INTERFACES)
+
+        if exported_specs and exported_specs != "*":
+            # A set of specifications is exported, replace "objectClass"
+            if isinstance(exported_specs, (list, tuple, set)):
+                self.__exported_specs = [spec for spec in specs
+                                         if spec in exported_specs]
+
+        else:
+            # Export everything
+            self.__exported_specs = specs
 
 
     # Access to the service
@@ -181,6 +214,13 @@ class ExportEndpoint(object):
         Name of the end point
         """
         return self.__name
+
+    @property
+    def specifications(self):
+        """
+        Returns the exported specifications
+        """
+        return self.__exported_specs
 
     @property
     def url(self):

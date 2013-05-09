@@ -45,7 +45,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Pelix utilities
-from pelix.utilities import to_bytes, to_str
+from pelix.utilities import to_bytes, to_str, is_string
 
 # Remote Services constants
 import pelix.remote

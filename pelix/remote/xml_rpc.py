@@ -201,6 +201,7 @@ class XmlRpcServiceExporter(object):
         Exports the given service
         
         :param reference: A ServiceReference object
+        :return: True if the service has been exported, else False
         """
         # Compute the end point name
         endpoint_name = self._compute_endpoint_name(reference)
@@ -208,7 +209,7 @@ class XmlRpcServiceExporter(object):
             # Already known end point
             _logger.error("Already known end point %s for XML-RPC",
                           endpoint_name)
-            return
+            return False
 
         # Get the service
         try:
@@ -219,13 +220,17 @@ class XmlRpcServiceExporter(object):
 
         except pelix.framework.BundleException as ex:
             _logger.error("Error retrieving the service to export: %s", ex)
-            return
+            return False
 
         # Create the registration information
-        endpoint = pelix.remote.ExportEndpoint(str(uuid.uuid4()),
-                                               self._kind, endpoint_name,
-                                               reference, service,
-                                               self.get_access())
+        try:
+            endpoint = pelix.remote.ExportEndpoint(str(uuid.uuid4()),
+                                                   self._kind, endpoint_name,
+                                                   reference, service,
+                                                   self.get_access())
+        except ValueError:
+            # Invalid end point
+            return False
 
         try:
             # Register the end point
@@ -238,6 +243,9 @@ class XmlRpcServiceExporter(object):
             # Store informations
             self.__endpoints[endpoint_name] = endpoint
             self.__registrations[reference] = endpoint
+            return True
+
+        return False
 
 
     def _update_service(self, reference, old_properties):
@@ -323,7 +331,9 @@ class XmlRpcServiceExporter(object):
         self._context = context
 
         # Prepare the service filter
-        ldapfilter = '({0}=xmlrpc)'.format(pelix.remote.PROP_EXPORTED_CONFIGS)
+        ldapfilter = '(|(|({0}=xmlrpc)({0}=\*))(&(!({0}=*))({1}=*)))' \
+                    .format(pelix.remote.PROP_EXPORTED_CONFIGS,
+                            pelix.remote.PROP_EXPORTED_INTERFACES)
 
         # Export existing services
         existing_ref = self._context.get_all_service_references(None,
