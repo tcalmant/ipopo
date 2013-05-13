@@ -129,10 +129,13 @@ class EventAdmin(object):
 
     def __get_service(self, service_id):
         """
-        Retrieves the service with the given ID, or None if it doesn't exist
+        Retrieves the reference and the service associated to the given ID,
+        or a (None, None) tuple if no service was found.
+        
+        The service must be freed with BundleContext.unget_service() after usage
         
         :param service_id: A service ID
-        :return: The service object or None
+        :return: A (reference, service) tuple or (None, None)
         """
         try:
             # Prepare the filter
@@ -143,10 +146,10 @@ class EventAdmin(object):
             ref = self._context.get_service_reference(None, ldap_filter)
             if ref is None:
                 # Unknown service
-                return None
+                return None, None
 
             # Get the service
-            return self._context.get_service(ref)
+            return ref, self._context.get_service(ref)
 
         except pelix.framework.BundleException:
             # Service disappeared
@@ -166,15 +169,22 @@ class EventAdmin(object):
             return
 
         for handler_id in handlers_ids:
+            # Define the "ref" variable name (and reset it on each loop)
+            ref = None
             try:
                 # Get the service
-                handler = self.__get_service(handler_id)
+                ref, handler = self.__get_service(handler_id)
                 if handler is not None:
                     # Use a copy of the properties each time
                     handler.handle_event(topic, properties.copy())
 
             except Exception as ex:
-                _logger.error("Error notifying an event handler: %s", ex)
+                _logger.error("Error notifying event handler %d: %s",
+                              handler_id, ex)
+
+            finally:
+                if ref is not None:
+                    self._context.unget_service(ref)
 
 
 
