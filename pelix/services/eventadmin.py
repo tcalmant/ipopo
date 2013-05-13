@@ -6,7 +6,7 @@ An EventAdmin-like implementation for Pelix: a publish-subscribe service
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.1
+:version: 0.2
 :status: Alpha
 
 ..
@@ -28,7 +28,7 @@ An EventAdmin-like implementation for Pelix: a publish-subscribe service
 """
 
 # Module version
-__version_info__ = (0, 1, 0)
+__version_info__ = (0, 2, 0)
 __version__ = ".".join(map(str, __version_info__))
 
 # Documentation strings format
@@ -37,8 +37,8 @@ __docformat__ = "restructuredtext en"
 #-------------------------------------------------------------------------------
 
 # Pelix
-from pelix.ipopo.decorators import ComponentFactory, Provides, Requires, \
-    Validate, Invalidate, Bind, Unbind, Property
+from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
+    Validate, Invalidate
 import pelix.framework
 import pelix.ldapfilter
 import pelix.services
@@ -56,7 +56,6 @@ _logger = logging.getLogger(__name__)
 
 @ComponentFactory("pelix-services-eventadmin-factory")
 @Provides(pelix.services.SERVICE_EVENT_ADMIN)
-@Requires("_handlers", pelix.services.SERVICE_EVENT_HANDLER, True, True)
 @Property("_nb_threads", "pool.threads", 10)
 class EventAdmin(object):
     """
@@ -66,30 +65,36 @@ class EventAdmin(object):
         """
         Sets up the members
         """
-        # Injected dependencies
-        self._handlers = []
+        # The bundle context
+        self._context = None
 
         # Number of threads in the pool
         self._nb_threads = 10
-
-        # Service reference -> handler
-        self._handlers_refs = {}
 
         # Thread pool
         self._pool = None
 
 
-    def _get_handlers(self, topic, properties):
+    def _get_handlers_ids(self, topic, properties):
         """
-        Retrieves the listeners that requested to handle such an event
+        Retrieves the IDs of the listeners that requested to handle this event
         
         :param topic: Topic of the event
         :param properties: Associated properties
-        :return: The list of listeners for this event
+        :return: The IDs of the services to call back for this event
         """
         handlers = []
 
-        for svc_ref in self._handlers_refs.keys():
+        # Get the handler service references
+        handlers_refs = self._context.get_all_service_references(\
+                                          pelix.services.SERVICE_EVENT_HANDLER,
+                                          None)
+
+        if handlers_refs is None:
+            # No service found
+            return
+
+        for svc_ref in handlers_refs:
             # Check the LDAP filter
             ldap_filter = svc_ref.get_property(pelix.services.PROP_EVENT_FILTER)
             if self.__match_filter(properties, ldap_filter):
@@ -97,8 +102,9 @@ class EventAdmin(object):
                 topics = svc_ref.get_property(pelix.services.PROP_EVENT_TOPIC)
                 for handled_topic in topics:
                     if fnmatch.fnmatch(topic, handled_topic):
-                        # Full match
-                        handlers.append(self._handlers_refs[svc_ref])
+                        # Full match, keep the service ID
+                        handlers.append(svc_ref.get_property(\
+                                                 pelix.framework.SERVICE_ID))
                         break
 
         return handlers
@@ -121,18 +127,51 @@ class EventAdmin(object):
         return ldap_filter.matches(properties)
 
 
-    def __notify_handlers(self, topic, properties, handlers):
+    def __get_service(self, service_id):
+        """
+        Retrieves the service with the given ID, or None if it doesn't exist
+        
+        :param service_id: A service ID
+        :return: The service object or None
+        """
+        try:
+            # Prepare the filter
+            ldap_filter = "({0}={1})".format(pelix.framework.SERVICE_ID,
+                                             service_id)
+
+            # Get the reference
+            ref = self._context.get_service_reference(None, ldap_filter)
+            if ref is None:
+                # Unknown service
+                return None
+
+            # Get the service
+            return self._context.get_service(ref)
+
+        except pelix.framework.BundleException:
+            # Service disappeared
+            return None
+
+
+    def __notify_handlers(self, topic, properties, handlers_ids):
         """
         Notifies the handlers of an event
         
         :param topic: Topic of the event
         :param properties: Associated properties
-        :param handlers: A list of handlers
+        :param handlers_ids: IDs of the services to notify
         """
-        for handler in handlers:
+        if self._context is None:
+            # No more context
+            return
+
+        for handler_id in handlers_ids:
             try:
-                # Use a copy of the properties each time
-                handler.handle_event(topic, properties.copy())
+                # Get the service
+                handler = self.__get_service(handler_id)
+                if handler is not None:
+                    # Use a copy of the properties each time
+                    handler.handle_event(topic, properties.copy())
 
             except Exception as ex:
                 _logger.error("Error notifying an event handler: %s", ex)
@@ -147,10 +186,10 @@ class EventAdmin(object):
         :param properties: Associated properties
         """
         # Get the currently available handlers
-        handlers = self._get_handlers(topic, properties)
-
-        # Notify them
-        self.__notify_handlers(topic, properties, handlers)
+        handlers_ids = self._get_handlers_ids(topic, properties)
+        if handlers_ids:
+            # Notify them
+            self.__notify_handlers(topic, properties, handlers_ids)
 
 
     def post(self, topic, properties=None):
@@ -161,38 +200,11 @@ class EventAdmin(object):
         :param properties: Associated properties
         """
         # Get the currently available handlers
-        handlers = self._get_handlers(topic, properties)
-
-        # Enqueue the task in the thread pool
-        self._pool.enqueue(self.__notify_handlers, topic, properties, handlers)
-
-
-    @Bind
-    def bind(self, service, reference):
-        """
-        A component dependency has been bound
-        
-        :param service: The bound service
-        :param reference: The service reference
-        """
-        specifications = reference.get_property(pelix.framework.OBJECTCLASS)
-        if pelix.services.SERVICE_EVENT_HANDLER in specifications:
-            # An event handler is bound
-            self._handlers_refs[reference] = service
-
-
-    @Unbind
-    def unbind(self, service, reference):
-        """
-        A component dependency has gone
-        
-        :param service: The unbound service
-        :param reference: The service reference
-        """
-        specifications = reference.get_property(pelix.framework.OBJECTCLASS)
-        if pelix.services.SERVICE_EVENT_HANDLER in specifications:
-            # An event handler is gone
-            del self._handlers_refs[reference]
+        handlers_ids = self._get_handlers_ids(topic, properties)
+        if handlers_ids:
+            # Enqueue the task in the thread pool
+            self._pool.enqueue(self.__notify_handlers, topic, properties,
+                               handlers_ids)
 
 
     @Validate
@@ -200,6 +212,9 @@ class EventAdmin(object):
         """
         Component validated
         """
+        # Store the bundle context
+        self._context = context
+
         # Normalize properties
         try:
             self._nb_threads = int(self._nb_threads)
@@ -225,3 +240,6 @@ class EventAdmin(object):
         # Stop the thread pool (empties its queue)
         self._pool.stop()
         self._pool = None
+
+        # Forget the bundle context
+        self._context = None
