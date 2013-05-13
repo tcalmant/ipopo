@@ -453,8 +453,9 @@ class MulticastDiscovery(object):
             access = data['access']
             endpoints = self.grab_endpoints(sender[0], access['port'],
                                             access['path'])
-            for endpoint in endpoints:
-                self._register_endpoint(sender[0], endpoint)
+            if endpoints:
+                for endpoint in endpoints:
+                    self._register_endpoint(sender[0], endpoint)
 
         elif event in ('add', 'update', 'remove'):
             # End point event
@@ -481,7 +482,8 @@ class MulticastDiscovery(object):
             access = data['access']
             endpoint = self.grab_endpoint(sender[0], access['port'],
                                           access['path'], endpoint_uid)
-            self._register_endpoint(sender[0], endpoint)
+            if endpoint is not None:
+                self._register_endpoint(sender[0], endpoint)
 
         elif event == 'remove':
             # Remove it
@@ -614,7 +616,7 @@ class MulticastDiscovery(object):
             conn.close()
 
         except Exception as ex:
-            _logger.error("Error accessing the dispatcher servlet: %s", ex)
+            _logger.exception("Error accessing the dispatcher servlet: %s", ex)
             return
 
         if result.status != 200:
