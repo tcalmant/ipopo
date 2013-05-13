@@ -103,14 +103,19 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
         :param request: The HTTP request bean
         :param request: The HTTP response handler
         """
-        # Get the request content
-        data = request.read_data()
+        try:
+            # Get the request content
+            data = request.read_data()
 
-        # Dispatch
-        result = self._marshaled_dispatch(data, self._simple_dispatch)
+            # Dispatch
+            result = self._marshaled_dispatch(data, self._simple_dispatch)
 
-        # Send the result
-        response.send_content(200, result, 'application/json-rpc')
+            # Send the result
+            response.send_content(200, result, 'application/json-rpc')
+
+        except Exception as ex:
+            response.send_content(500, "Internal error:\n{0}\n".format(ex),
+                                  'text/plain')
 
 # ------------------------------------------------------------------------------
 
@@ -311,12 +316,8 @@ class JsonRpcServiceExporter(object):
         """
         Retrieves the URL to access this component
         """
-        host, port = self._http.get_access()
-        if ':' in host:
-            # IPv6 address
-            host = '[{0}]'.format(host)
-
-        return "http://{0}:{1}{2}".format(host, port, self._path)
+        port = self._http.get_access()[1]
+        return "http://{{server}}:{0}{1}".format(port, self._path)
 
 
     @Validate

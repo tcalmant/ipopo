@@ -318,8 +318,8 @@ class XmlRpcServiceExporter(object):
         """
         Retrieves the URL to access this component
         """
-        host, port = self._http.get_access()
-        return "http://{0}:{1}{2}".format(host, port, self._path)
+        port = self._http.get_access()[1]
+        return "http://{{server}}:{0}{1}".format(port, self._path)
 
 
     @Validate

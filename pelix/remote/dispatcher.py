@@ -27,9 +27,6 @@ Calls services according to the given method name and parameters
     
     You should have received a copy of the GNU General Public License
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
-
-**TODO:**
-* "system" methods (list, help, ...) ?
 """
 
 # Module version

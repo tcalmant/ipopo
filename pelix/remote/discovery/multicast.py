@@ -45,7 +45,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Pelix utilities
-from pelix.utilities import to_bytes, to_str, is_string
+from pelix.utilities import to_bytes, to_str
 
 # Remote Services constants
 import pelix.remote
@@ -454,7 +454,7 @@ class MulticastDiscovery(object):
             endpoints = self.grab_endpoints(sender[0], access['port'],
                                             access['path'])
             for endpoint in endpoints:
-                self._register_endpoint(endpoint)
+                self._register_endpoint(sender[0], endpoint)
 
         elif event in ('add', 'update', 'remove'):
             # End point event
@@ -481,7 +481,7 @@ class MulticastDiscovery(object):
             access = data['access']
             endpoint = self.grab_endpoint(sender[0], access['port'],
                                           access['path'], endpoint_uid)
-            self._register_endpoint(endpoint)
+            self._register_endpoint(sender[0], endpoint)
 
         elif event == 'remove':
             # Remove it
@@ -522,10 +522,11 @@ class MulticastDiscovery(object):
         return properties
 
 
-    def _register_endpoint(self, endpoint_dict):
+    def _register_endpoint(self, host_address, endpoint_dict):
         """
         Registers a new end point in the registry
         
+        :param host_address: Address of the service exporter
         :param endpoint_dict: An end point description dictionary (result of 
                               a request to the dispatcher servlet)
         """
@@ -533,11 +534,14 @@ class MulticastDiscovery(object):
         properties = self.__filter_properties(endpoint_dict['sender'],
                                               endpoint_dict['properties'])
 
+        # Format the URL
+        url = endpoint_dict['url'].format(server=host_address)
+
         # Create the end point object
         endpoint = pelix.remote.ImportEndpoint(endpoint_dict['uid'],
                                                endpoint_dict['kind'],
                                                endpoint_dict['name'],
-                                               endpoint_dict['url'],
+                                               url,
                                                endpoint_dict['specifications'],
                                                properties)
 
