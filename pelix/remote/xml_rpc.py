@@ -379,22 +379,27 @@ class _ServiceCallProxy(object):
     """
     Service call proxy
     """
-    def __init__(self, proxy, name):
+    def __init__(self, name, url):
         """
         Sets up the call proxy
         
-        :param proxy: The XML-RPC proxy
         :param name: End point name
+        :param url: End point URL
         """
-        self._proxy = proxy
-        self._name = name
+        self.__name = name
+        self.__url = url
 
 
     def __getattr__(self, name):
         """
         Prefixes the requested attribute name by the endpoint name
         """
-        return getattr(self._proxy, "{0}.{1}".format(self._name, name))
+        # Make a proxy for this call
+        # This is an ugly trick to handle multithreaded calls, as the underlying
+        # proxy re-uses the same connection when possible: sometimes it means
+        # sending a request before retrieving a result
+        proxy = xmlrpclib.ServerProxy(self.__url, allow_none=True)
+        return getattr(proxy, "{0}.{1}".format(self.__name, name))
 
 
 @ComponentFactory("pelix-xmlrpc-importer-factory")
@@ -419,9 +424,6 @@ class XmlRpcServiceImporter(object):
         # Registered services (end point -> reference)
         self.__registrations = {}
 
-        # Access -> xmlrpclib proxy
-        self.__servers = {}
-
 
     def endpoint_added(self, endpoint):
         """
@@ -431,17 +433,13 @@ class XmlRpcServiceImporter(object):
             # Not for us
             return
 
-        # Make the XML-RPC proxy
-        proxy = xmlrpclib.ServerProxy(endpoint.url, allow_none=True)
-
         # Register the service
-        svc = _ServiceCallProxy(proxy, endpoint.name)
+        svc = _ServiceCallProxy(endpoint.name, endpoint.url)
         svc_reg = self._context.register_service(endpoint.specifications, svc,
                                                  endpoint.properties)
 
         # Store references
         self.__registrations[endpoint.uid] = svc_reg
-        self.__servers[endpoint.uid] = proxy
 
 
     def endpoint_updated(self, endpoint, old_properties):
@@ -466,14 +464,10 @@ class XmlRpcServiceImporter(object):
             return
 
         # Pop references
-        proxy = self.__servers.pop(endpoint.uid)
         svc_reg = self.__registrations.pop(endpoint.uid)
 
         # Unregister the service
         svc_reg.unregister()
-
-        # Close the proxy
-        proxy("close")
 
 
     @Validate
