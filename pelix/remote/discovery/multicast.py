@@ -478,7 +478,7 @@ class MulticastDiscovery(object):
         # Get the event
         event = data['event']
         endpoint_uid = data['uid']
-        dispatcher_uid = data['sender']
+        framework_uid = data['sender']
 
         if event == 'add':
             # Store it
@@ -495,15 +495,15 @@ class MulticastDiscovery(object):
         elif event == 'update':
             # Update it
             new_properties = data['new_properties']
-            self.__filter_properties(dispatcher_uid, new_properties)
+            self.__filter_properties(framework_uid, new_properties)
             self._registry.update(endpoint_uid, new_properties)
 
 
-    def __filter_properties(self, dispatcher_uid, properties):
+    def __filter_properties(self, framework_uid, properties):
         """
         Replaces in-place export properties by import ones
         
-        :param dispatcher_uid: The UID of the dispatcher exporting the service
+        :param framework_uid: The UID of the framework exporting the service
         :param properties: End point properties
         :return: The filtered dictionary.
         """
@@ -521,8 +521,8 @@ class MulticastDiscovery(object):
             if name in properties:
                 del properties[name]
 
-        # Add the dispatcher UID to the properties
-        properties[pelix.remote.PROP_DISPATCHER_UID] = dispatcher_uid
+        # Add the framework UID to the properties
+        properties[pelix.remote.PROP_FRAMEWORK_UID] = framework_uid
 
         return properties
 

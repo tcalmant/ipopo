@@ -56,14 +56,11 @@ End point creation/deletion listeners, with listen.exported and/or
 listen.imported properties.
 """
 
-PROP_DISPATCHER_UID = "pelix.remote.dispatcher.uid"
+PROP_FRAMEWORK_UID = "pelix.remote.framework.uid"
 """
-Identifier of the dispatcher that exports the service.
+The UID of the framework that exports the service.
 This service property is set by the discoverer, when it parses an end point
 event packet.
-
-This identifier must be unique. The default implementation uses the
-uuid standard package and its uuid4() method to generate one.
 """
 
 PROP_ENDPOINT_NAME = "endpoint.name"
