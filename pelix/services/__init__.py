@@ -47,3 +47,6 @@ PROP_EVENT_TOPIC = "event.topics"
 
 PROP_EVENT_FILTER = "event.filter"
 """ Filter on events properties for an event handler """
+
+EVENT_PROP_FRAMEWORK_UID = "event.sender.framework.uid"
+""" UID of the framework that emitted the event """

@@ -68,6 +68,9 @@ class EventAdmin(object):
         # The bundle context
         self._context = None
 
+        # The framework instance UID
+        self._fw_uid = None
+
         # Number of threads in the pool
         self._nb_threads = 10
 
@@ -93,6 +96,16 @@ class EventAdmin(object):
         if handlers_refs is None:
             # No service found
             return
+
+        # Normalize properties
+        if not isinstance(properties, dict):
+            properties = {}
+
+        else:
+            properties = properties.copy()
+
+        # Add EventAdmin properties
+        properties[pelix.services.EVENT_PROP_FRAMEWORK_UID] = self._fw_uid
 
         for svc_ref in handlers_refs:
             # Check the LDAP filter
@@ -179,8 +192,8 @@ class EventAdmin(object):
                     handler.handle_event(topic, properties.copy())
 
             except Exception as ex:
-                _logger.error("Error notifying event handler %d: %s",
-                              handler_id, ex)
+                _logger.exception("Error notifying event handler %d: %s (%s)",
+                                  handler_id, ex, type(ex).__name__)
 
             finally:
                 if ref is not None:
@@ -225,6 +238,9 @@ class EventAdmin(object):
         # Store the bundle context
         self._context = context
 
+        # Get the framework instance UID
+        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
+
         # Normalize properties
         try:
             self._nb_threads = int(self._nb_threads)
@@ -253,3 +269,4 @@ class EventAdmin(object):
 
         # Forget the bundle context
         self._context = None
+        self._fw_uid = None
