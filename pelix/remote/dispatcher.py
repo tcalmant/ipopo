@@ -47,12 +47,11 @@ import pelix.http
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Bind, Property, Validate
+    Bind, Property, Validate, Invalidate
 
 # Standard library
 import json
 import logging
-import uuid
 
 # ------------------------------------------------------------------------------
 
@@ -73,9 +72,6 @@ class Dispatcher(object):
         """
         Sets up the component
         """
-        # Dispatcher UID (to avoid importing its own services)
-        self._uid = None
-
         # Injected listeners
         self._listeners = []
 
@@ -101,14 +97,6 @@ class Dispatcher(object):
 
             except Exception as ex:
                 _logger.exception("Error notifying bound listener: %s", ex)
-
-
-    @property
-    def uid(self):
-        """
-        Returns the UID of this dispatcher
-        """
-        return self._uid
 
 
     def add_endpoint(self, kind, name, endpoint):
@@ -286,17 +274,6 @@ class Dispatcher(object):
         # Call it (let the errors be propagated)
         return method_ref(*params)
 
-
-    @Validate
-    def validate(self, context):
-        """
-        Component validated
-        """
-        # Generate a UID if necessary
-        if not self._uid:
-            self._uid = str(uuid.uuid4())
-        _logger.debug("Remote Services dispatcher validated: uid=%s", self._uid)
-
 # -----------------------------------------------------------------------------
 
 @ComponentFactory('pelix-remote-dispatcher-servlet-factory')
@@ -312,6 +289,9 @@ class RegistryServlet(object):
         """
         Sets up members
         """
+        # The framework UID
+        self._fw_uid = None
+
         # The dispatcher
         self._dispatcher = None
 
@@ -414,7 +394,7 @@ class RegistryServlet(object):
         properties = endpoint.reference.get_properties()
         del properties[pelix.framework.OBJECTCLASS]
 
-        return {"sender": self._dispatcher.uid,
+        return {"sender": self._fw_uid,
                 "uid": endpoint.uid,
                 "kind": endpoint.kind,
                 "name": endpoint.name,
@@ -451,3 +431,21 @@ class RegistryServlet(object):
         :return: The end point description or None
         """
         return self._dispatcher.get_endpoint(uid)
+
+
+    @Invalidate
+    def invalidate(self, context):
+        """
+        Component invalidated
+        """
+        # Clean up
+        self._fw_uid = None
+
+
+    @Validate
+    def validate(self, context):
+        """
+        Component validated
+        """
+        # Get the framework UID
+        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)

@@ -302,6 +302,9 @@ class MulticastDiscovery(object):
         # Dispatcher access
         self._access = None
 
+        # Framework UID
+        self._fw_uid = None
+
         # Socket
         self._group = "239.0.0.1"
         self._port = 42000
@@ -325,7 +328,7 @@ class MulticastDiscovery(object):
         access = self._access.get_access()
 
         # Make the event packet content
-        packet = {"sender": self._dispatcher.uid,  # Dispatcher UID
+        packet = {"sender": self._fw_uid,  # Framework UID
                   "event": event,  # Kind of event
                   "uid": endpoint.uid,  # Endpoint UID
                   "access": {"port": access[0],  # Access to the dispatcher
@@ -367,7 +370,7 @@ class MulticastDiscovery(object):
 
         # Make the discovery packet content
         data = {"event": "discovery",  # Discovery packet
-                "sender": self._dispatcher.uid,  # Dispatcher UID
+                "sender": self._fw_uid,  # Framework UID
                 "access": {"port": access[0],  # Access to the dispatcher
                            "path": access[1]}  # servlet
                 }
@@ -388,7 +391,7 @@ class MulticastDiscovery(object):
 
         # Make the discovery packet content
         data = {"event": "discovered",  # "Discovered" packet
-                "sender": self._dispatcher.uid,  # Dispatcher UID
+                "sender": self._fw_uid,  # Framework UID
                 "access": {"port": access[0],  # Access to the dispatcher
                            "path": access[1]}  # servlet
                 }
@@ -439,7 +442,7 @@ class MulticastDiscovery(object):
 
         # Avoid handling our own packets
         sender_uid = data['sender']
-        if sender_uid == self._dispatcher.uid:
+        if sender_uid == self._fw_uid:
             return
 
         # Dispatch the event
@@ -669,6 +672,7 @@ class MulticastDiscovery(object):
         self._thread = None
         self._socket = None
         self._target = None
+        self._fw_uid = None
 
         _logger.debug("Multicast discovery invalidated")
 
@@ -680,6 +684,9 @@ class MulticastDiscovery(object):
         """
         # Ensure we have a valid port
         self._port = int(self._port)
+
+        # Get the framework UID
+        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
 
         # Create the socket
         self._socket, address = create_multicast_socket(self._group, self._port)

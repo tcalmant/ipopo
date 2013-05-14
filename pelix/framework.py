@@ -51,6 +51,7 @@ import os
 import pkgutil
 import sys
 import threading
+import uuid
 
 # ------------------------------------------------------------------------------
 
@@ -78,6 +79,14 @@ SERVICE_RANKING = "service.ranking"
 """
 Property that indicates the ranking of a service. It is used to sort the
 results of methods like get_service_references()
+"""
+
+FRAMEWORK_UID = "framework.uid"
+"""
+Framework instance "unique" identifier. Used in Remote Services to identify
+a framework from another.
+It can be generated or be forced using the framework initialization properties.
+This property is constant during the life of a framework instance.
 """
 
 # Prepare the module logger
@@ -545,7 +554,16 @@ class Framework(Bundle):
         if not isinstance(properties, dict):
             self.__properties = {}
         else:
-            self.__properties = properties
+            # Use a copy of the properties, to avoid external changes
+            self.__properties = properties.copy()
+
+        # Generate a framework instance UUID, if needed
+        framework_uid = self.__properties.get(FRAMEWORK_UID)
+        if not framework_uid:
+            framework_uid = str(uuid.uuid4())
+
+        # Normalize the UID: it must be a string
+        self.__properties[FRAMEWORK_UID] = str(framework_uid)
 
         # Properties lock
         self.__properties_lock = threading.Lock()
