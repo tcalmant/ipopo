@@ -42,8 +42,8 @@ SERVICE_EVENT_ADMIN = "pelix.services.eventadmin"
 SERVICE_EVENT_HANDLER = "pelix.services.eventadmin.handler"
 """ Specification of an EventAdmin event handler """
 
-PROP_EVENT_TOPIC = "event.topics"
-""" *List* of the topics handled by an event handler """
+PROP_EVENT_TOPICS = "event.topics"
+""" **List** of the topics handled by an event handler """
 
 PROP_EVENT_FILTER = "event.filter"
 """ Filter on events properties for an event handler """

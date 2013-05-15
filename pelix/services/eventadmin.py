@@ -112,7 +112,7 @@ class EventAdmin(object):
             ldap_filter = svc_ref.get_property(pelix.services.PROP_EVENT_FILTER)
             if self.__match_filter(properties, ldap_filter):
                 # Filter matches the event, test the topic
-                topics = svc_ref.get_property(pelix.services.PROP_EVENT_TOPIC)
+                topics = svc_ref.get_property(pelix.services.PROP_EVENT_TOPICS)
                 for handled_topic in topics:
                     if fnmatch.fnmatch(topic, handled_topic):
                         # Full match, keep the service ID
