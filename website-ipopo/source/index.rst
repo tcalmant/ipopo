@@ -3,8 +3,8 @@
 iPOPO : A component model for Python
 ####################################
 
-iPOPO is a service-oriented component model framework for Python, inspired
-from the Java project
+iPOPO is a service-oriented component model (SOCM) framework for Python,
+inspired from the Java project
 `iPOJO <http://felix.apache.org/site/apache-felix-ipojo.html>`_.
 Its development is supported by `isandlaTech <http://www.isandlatech.com>`_.
 
@@ -13,10 +13,25 @@ Its development is supported by `isandlaTech <http://www.isandlatech.com>`_.
    :numbered:
 
    content/install
+   content/android
    tutorials/index
    reviews/index
+   content/release_notes
    content/roadmap
 
+
+News
+****
+
+* ?? may 2013: Release of :ref:`release_0.5` (**Warning:** API changes)
+
+* 17 may 2013: iPOPO has been presented at the
+  `OSGi User Group France meeting <http://france.osgiusers.org/Meeting/201305>`_
+  (`slides <_static/slides/osgi-20130517/index.html>`_)
+
+* 26 july 2012: iPOPO has been presented at
+  `CBSE'12 <http://comparch2012.dei.polimi.it/>`_
+  (`article <http://www.isandlatech.com/__FR/pdfs/20120429%20cbse30-calmant.pdf>`_)
 
 Download
 ********
