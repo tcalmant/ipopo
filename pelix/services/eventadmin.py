@@ -47,6 +47,7 @@ import pelix.threadpool
 # Standard library
 import fnmatch
 import logging
+import time
 
 #-------------------------------------------------------------------------------
 
@@ -96,16 +97,6 @@ class EventAdmin(object):
         if handlers_refs is None:
             # No service found
             return
-
-        # Normalize properties
-        if not isinstance(properties, dict):
-            properties = {}
-
-        else:
-            properties = properties.copy()
-
-        # Add EventAdmin properties
-        properties[pelix.services.EVENT_PROP_FRAMEWORK_UID] = self._fw_uid
 
         for svc_ref in handlers_refs:
             # Check the LDAP filter
@@ -200,6 +191,33 @@ class EventAdmin(object):
                     self._context.unget_service(ref)
 
 
+    def __setup_properties(self, properties):
+        """
+        Adds the EventAdmin specific properties to the event
+        
+        :param properties: The initial event properties
+        :return: A copy of the initial properties, or new ones, with the
+                 EventAdmin specific properties 
+        """
+        # Compute the event time stamp
+        timestamp = time.time()
+
+        if not isinstance(properties, dict):
+            # Create a new dictionary
+            props = {}
+
+        else:
+            # Copy the given one
+            props = properties.copy()
+
+        # ... event time stamp
+        props[pelix.services.EVENT_PROP_TIMESTAMP] = timestamp
+
+        # ... framework UID
+        props[pelix.services.EVENT_PROP_FRAMEWORK_UID] = self._fw_uid
+
+        return props
+
 
     def send(self, topic, properties=None):
         """
@@ -208,6 +226,9 @@ class EventAdmin(object):
         :param topic: Topic of event
         :param properties: Associated properties
         """
+        # Compute properties
+        properties = self.__setup_properties(properties)
+
         # Get the currently available handlers
         handlers_ids = self._get_handlers_ids(topic, properties)
         if handlers_ids:
@@ -222,6 +243,9 @@ class EventAdmin(object):
         :param topic: Topic of event
         :param properties: Associated properties
         """
+        # Compute properties
+        properties = self.__setup_properties(properties)
+
         # Get the currently available handlers
         handlers_ids = self._get_handlers_ids(topic, properties)
         if handlers_ids:

@@ -50,3 +50,6 @@ PROP_EVENT_FILTER = "event.filter"
 
 EVENT_PROP_FRAMEWORK_UID = "event.sender.framework.uid"
 """ UID of the framework that emitted the event """
+
+EVENT_PROP_TIMESTAMP = "event.timestamp"
+""" Time stamp of the event, compute during the call of send() or post() """
