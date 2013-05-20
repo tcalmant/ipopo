@@ -27,11 +27,22 @@ It allows to modify the service properties and to unregister the service.
 This object shall not be accessible by other bundles/services.
 All services must be unregistered when their bundle is stopped.
 
-
 A consumer can request a service from the framework that matches a specification
 and a set of properties. The framework will return a *service reference*, which
 provides a read-only access to the description of its associated service:
 properties, registering bundle, bundles using it...
+
+
+Each service has, at least, the following properties:
+
++-------------+-----------------+--------------------------------------------+
+| Name        | Type            | Description                                |
++=============+=================+============================================+
+| objectClass | List of strings | List of the specifications associated      |
++-------------+-----------------+--------------------------------------------+
+| service.id  | Integer         | Identifier of the service. Unique during a |
+|             |                 | a framework instance                       |
++-------------+-----------------+--------------------------------------------+
 
 
 Bundle
@@ -42,7 +53,7 @@ A bundle is a Python module installed using a Pelix Framework instance.
 All bundles have a unique symbolic name (their module name) and an integer
 identifier that is unique for a framework instance.
 
-.. note:: The framework itself is always the framework with ID 0.
+.. note:: The framework itself is always a bundle which ID is 0.
 
 
 Bundle life cycle
@@ -52,22 +63,23 @@ The bundle life cycle depends on framework's one, but must be handled
 programmatically.
 
 .. figure:: /_static/bundle_lifecycle.png
-   :scale: 50%
+   :scale: 40%
    :alt: Bundle life cycle
    :align: center
    
    Bundle life cycle
 
-+-------------+---------------------------------------------------------+
-| State       | Description                                             |
-+=============+=========================================================+
-| INSTALLED   | The module has been correctly imported.                 |
-|             | Its activator has not yet been called.                  |
-+-------------+---------------------------------------------------------+
-| ACTIVE      | The bundle has been called and didn't raised any error. |
-+-------------+---------------------------------------------------------+
-| UNINSTALLED | The bundle is being removed of the framework.           |
-+-------------+---------------------------------------------------------+
++-------------+-------------------------------------------------------+
+| State       | Description                                           |
++=============+=======================================================+
+| INSTALLED   | The module has been correctly imported.               |
+|             | Its activator has not yet been called.                |
++-------------+-------------------------------------------------------+
+| ACTIVE      | The bundle activator has been called and didn't raise |
+|             | any error.                                            |
++-------------+-------------------------------------------------------+
+| UNINSTALLED | The bundle is being removed of the framework.         |
++-------------+-------------------------------------------------------+
 
 
 Bundle activator
@@ -79,24 +91,27 @@ which are called by the framework according to the bundle life-cycle.
 The activator is always the variable ``activator`` at the module-level.
 It shall be the only instantiation done during the module loading.
 
+
 Bundle context
 --------------
 
-A context is associated to each bundle, to allow it to interact with the
+A context is associated to each bundle, and allows it to interact with the
 framework.
+It is unique for a bundle during its whole life-cycle, until its uninstallation.
 
-It must be used to register and request services, to request framework state,
-etc.
+It must be used to register and to look up services, to request framework
+information, etc.
 
 The API of the bundle context can found here:
 `BundleContext <http://ipopo.coderxpress.net/api/pelix.framework.BundleContext-class.html>`_.
+
 
 Start the framework
 *******************
 
 .. important:: Currently, it is not possible to run two Pelix frameworks in the
    same Python interpreter instance, as it would cause problems to manage
-   modules versionning.
+   modules versioning.
 
 
 Using the ``FrameworkFactory`` class
@@ -104,7 +119,7 @@ Using the ``FrameworkFactory`` class
 
 To create a Pelix instance, you need to use the ``FrameworkFactory`` class.
 A framework can be instantiated with a set of properties which will be
-then accessible by bundles and services.
+accessible by bundles and services.
 
 Be sure to destroy the framework before starting a new one. Calling
 ``get_framework()`` twice without calling ``delete_framework()`` will return the
@@ -114,19 +129,25 @@ same framework instance.
    :linenos:
    
    # Import the Pelix module
-   import pelix.framework as pelix
+   import pelix.framework
+   
    # Start the framework with the given properties
-   framework = pelix.FrameworkFactory.get_framework({'debug': True})
+   framework = pelix.framework.FrameworkFactory.get_framework({'debug': True})
+   
    # Start the framework
    framework.start()
+   
+   # ...
+   
    # Stop the framework
    framework.stop()
+   
    # Destroy it
-   pelix.FrameworkFactory.delete_framework(framework)
+   pelix.framework.FrameworkFactory.delete_framework(framework)
 
 
-The framework instance is considered as a bundle, with a context,
-life-cycle, ... and can be used as any other bundles by the framework starter.
+The framework instance is considered as a bundle, with a context, a life-cycle,
+etc, and can be used as any other bundles by the framework starter.
 
 
 Using the utility method
@@ -135,27 +156,28 @@ Using the utility method
 Since version 0.4, the ``pelix.framework`` module provides a utility method to
 start the framework: ``create_framework``.
 
-It takes five parameters:
+It takes up to five parameters:
 
-+---------------+---------+---------------------------------------------------+
-| Parameters    | Default | Description                                       |
-+===============+=========+===================================================+
-| bundles       | []      | A list of bundles to pre-install                  |
-+---------------+---------+---------------------------------------------------+
-| properties    | None    | A dictionary of framework properties              |
-+---------------+---------+---------------------------------------------------+
-| auto_start    | False   | If True, the framework and its bundles will be    |
-|               |         | automatically started                             |
-+---------------+---------+---------------------------------------------------+
-| wait_for_stop | False   | If True and if *auto_start* is True, the method   |
-|               |         | will return only after the framework has stopped, |
-|               |         | and will stop the framework on keyboard           |
-|               |         | interruption                                      |
-+---------------+---------+---------------------------------------------------+
-| auto_delete   | False   | If True and if *wait_for_stop* and *auto_start*   |
-|               |         | are True, the method will delete the framework    |
-|               |         | once it will have stopped                         |
-+---------------+---------+---------------------------------------------------+
++---------------+---------------+----------------------------------------------+
+| Parameters    | Default       | Description                                  |
++===============+===============+==============================================+
+| bundles       | **Mandatory** | A list of bundles to pre-install             |
++---------------+---------------+----------------------------------------------+
+| properties    | None          | A dictionary of framework properties         |
++---------------+---------------+----------------------------------------------+
+| auto_start    | False         | If True, the framework and the given bundles |
+|               |               | will be automatically started                |
++---------------+---------------+----------------------------------------------+
+| wait_for_stop | False         | If True and if *auto_start* is True, the     |
+|               |               | method will return only after the framework  |
+|               |               | has stopped, and will stop the framework on  |
+|               |               | keyboard interruption                        |
++---------------+---------------+----------------------------------------------+
+| auto_delete   | False         | If True and if both *wait_for_stop* and      |
+|               |               | *auto_start* are True, the method will       |
+|               |               | delete the framework once it will have       |
+|               |               | stopped                                      |
++---------------+---------------+----------------------------------------------+
 
 
 The snippet below shows how to use this utility method:
@@ -187,15 +209,17 @@ to completely stop using the ``Framework.wait_for_stop(timeout)`` method.
 
 The method will block until the framework has stopped or if the time out is
 reached.
-The time out is given in seconds, and None means that method will wait forever.
+The time out is given in seconds, and None means that the method will wait
+forever.
 
 .. code-block:: python
    :linenos:
    
    # Import the Pelix module
-   import pelix.framework as pelix
+   import pelix.framework
+   
    # Start the framework with the given properties
-   framework = pelix.FrameworkFactory.get_framework({'debug': True})
+   framework = pelix.framework.FrameworkFactory.get_framework({'debug': True})
    
    # [...] Start a thread / install bundles / ... [...]
     
@@ -208,8 +232,9 @@ The framework can be stopped in two ways:
 
 * By calling the ``stop()`` method of the framework
 
-* By raising a ``FrameworkException`` with the ``needs_stop`` flag set up
-  in a bundle activator, while the framework is calling it.
+* By raising a `FrameworkException <http://ipopo.coderxpress.net/api/pelix.framework.FrameworkException-class.html>`_
+  with the ``needs_stop`` flag set up in a bundle activator, while the framework
+  is calling it.
 
 
 Work with bundles
@@ -268,8 +293,8 @@ Here is a bundle with an activator:
    # stop the bundle.
    activator = Activator()
 
-.. note:: There should be no executable code at module-level except the creation
-   of the activator variable.
+.. important:: There should be no executable code at module-level except the
+   creation of the activator variable.
    Nothing should initiated before the start() method is called, and nothing
    should stay active after the stop() method has been called.
 
@@ -281,9 +306,9 @@ Python path, then it can be loaded in Pelix with the following snippet:
    :linenos:
 
    >>> # Import the Pelix module
-   >>> import pelix.framework as pelix
+   >>> import pelix.framework
    >>> # Start the framework with the given properties
-   >>> framework = pelix.FrameworkFactory.get_framework({'debug': True})
+   >>> framework = pelix.framework.FrameworkFactory.get_framework({'debug': True})
    >>> framework.start()
    
    >>> # Get the bundle context of the framework
@@ -316,7 +341,7 @@ Python path, then it can be loaded in Pelix with the following snippet:
    Bundle stopped
    
    >>> # Destroy the framework
-   >>> pelix.FrameworkFactory.delete_framework(framework)
+   >>> pelix.framework.FrameworkFactory.delete_framework(framework)
 
 
 Work with services
@@ -331,7 +356,7 @@ Register a service
 ==================
 
 A service is registered for one or more specifications and with some properties.
-The registrar stores a ServiceRegistration object, which will be used later for
+The registrar obtains a ServiceRegistration object, which will be used later for
 unregistration.
 
 .. code-block:: python
@@ -431,9 +456,9 @@ using the ``unget_service()`` method of its bundle context.
    :linenos:
 
    >>> # Import the Pelix module
-   >>> import pelix.framework as pelix
+   >>> import pelix.framework
    >>> # Start the framework
-   >>> framework = pelix.FrameworkFactory.get_framework()
+   >>> framework = pelix.framework.FrameworkFactory.get_framework()
    >>> framework.start()
    >>> context = framework.get_bundle_context()
    
@@ -467,14 +492,14 @@ using the ``unget_service()`` method of its bundle context.
    >>> svc = context.get_service(ref)
    >>> svc.increment()
    1
-   
+
    >>> # Get multiple references at once, matching the given filter
    >>> refs = context.get_all_service_references("my.incrementer",
-                                                 "(thread.safe=*)")
+                                                 "(thread.safe=True)")
    >>> [str(ref) for ref in refs]
    ["ServiceReference(2, 1, ['my.incrementer'])",
     "ServiceReference(1, 1, ['my.incrementer'])"]
-   
+
    >>> # References instances are unique in the framework
    >>> ref is refs[1]
    True
@@ -485,6 +510,63 @@ using the ``unget_service()`` method of its bundle context.
    >>> svc = context.get_service(refs[1])
    pelix.framework.BundleException: Service not found
    (reference: ServiceReference(1, 1, ['my.incrementer']))
+
+
+LDAP Filters
+============
+
+When looking for a service, it is possible to give a basic LDAP filter to the
+``BundleContext.get_*_reference()`` methods.
+
+The Pelix implementation of LDAP filters has been based on the following page:
+`LDAP Filter Syntax <http://www.ldapexplorer.com/en/manual/109010000-ldap-filter-syntax.htm>`_.
+It supports the **AND**, **OR** and **NOT** operators, nested operations, and
+all LDAP comparators.
+
+You can use the ``pelix.ldapfilter`` module to test your filters.
+Here as some examples of filters:
+
+.. code-block:: python
+ 
+   # Load the LDAP filter utility method
+   >>> from pelix.ldapfilter import get_ldap_filter
+   
+   # Test dictionary
+   >>> properties = {"foo": True, "bar": 42, "foobar": ["foo", "bar"]}
+   
+   # Make a filter that checks if "foo" is True
+   >>> f = get_ldap_filter('(foo=True)')
+   >>> f.matches(properties)
+   True
+   
+   # ... check if "foo" is False
+   >>> f = get_ldap_filter('(foo=False)')
+   >>> f.matches(properties)
+   False
+   
+   # ... check if "bar" exists and is not None
+   >>> f = get_ldap_filter('(bar=*)')
+   >>> f.matches(properties)
+   True
+   
+   # ... check if "foo" is in "foobar"
+   >>> f = get_ldap_filter('(foobar=foo)')
+   >>> f.matches(properties)
+   True
+   
+   # ... check if both "foo" and "bar" are in "foobar"
+   >>> f = get_ldap_filter('(&(foobar=foo)(foobar=bar))')
+   >>> f.matches(properties)
+   True
+   
+   # ... check if "foobar" contains "toto" or if "bar" is inside [0,50).
+   >>> f = get_ldap_filter('(|(foobar=toto)(&(bar>=0)(bar<50)))')
+   >>> f.matches(properties)
+   True
+   
+   # Faulty filter
+   >>> f = get_ldap_filter('foo=12')
+   ValueError: Invalid filter string
 
 
 Handle events
@@ -556,7 +638,7 @@ A ``ServiceEvent`` object provides the following methods:
 * ``get_previous_properties()``: retrieves the previous value of the service
   properties, if the event is MODIFIED or MODIFIED_ENDMATCH.
 
-* ``get_type()``: retrieves the kind of bundle event, one of the following:
+* ``get_kind()``: retrieves the kind of bundle event, one of the following:
 
   +-------------------+-----------------------------------------------+
   | Type              | Description                                   |

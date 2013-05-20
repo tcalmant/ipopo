@@ -37,6 +37,9 @@ Here are the field of a factory context:
 | callbacks         | A kind -> method dictionary,                            |
 |                   | see :ref:`decorator_callbacks`                          |
 +-------------------+---------------------------------------------------------+
+| field_callbacks   | A field -> {kind -> method} dictionary,                 |
+|                   | see :ref:`decorator_callbacks`                          |
++-------------------+---------------------------------------------------------+
 | name              | The name of the component factory                       |
 +-------------------+---------------------------------------------------------+
 | properties        | A name -> value dictionary that contains the default    |
@@ -144,21 +147,26 @@ This field is not inherited by child components.
 
 .. _decorator_callbacks:
 
-Callbacks (@Bind, @Unbind, @Validate, @Invalidate)
-==================================================
+Callbacks and Field callbacks
+=============================
 
 The callback decorators are way more simple, as they just inject a field,
 ``_ipopo_callbacks``, in the decorated method attribute, indicating the kind
 of callback that is handled.
+
+The field callback decorators act the same, injecting an
+``__ipopo_field_callbacks__`` field in the method, associating the injected
+field name to the kind of callback which is handled.
 
 The arity of the method is validated before the decoration, to avoid calling
 back methods with an invalid number of parameters.
 
 The ``@ComponentFactory`` decorator reads the injected field in all methods,
 and stores it in the factory context.
-It is not possible to register the callbacks directly in the factory context,
-as the class and therefore its context doesn't exist yet when the decorator is
-called.
+
+.. note:: It is not possible to register the callbacks directly in the factory
+   context, as the class and therefore its context doesn't exist yet when the
+   decorator is called.
 
 
 Injected fields
@@ -294,4 +302,4 @@ The injection of validation methods is optional, but might be useful to clean
 resources, etc.
 
 As always, the ``ComponentFactory`` decorator must be the last to be called as
-it will complete the manipulation with the final injections.
+it will apply the manipulation with the final injections.

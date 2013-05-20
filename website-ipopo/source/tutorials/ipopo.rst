@@ -39,7 +39,7 @@ declared.
 
 
 .. figure:: /_static/component_lifecycle.png
-   :scale: 50%
+   :scale: 40%
    :alt: Component life cycle
    :align: center
    
@@ -52,7 +52,8 @@ declared.
 |              | Its constructor has been called.                              |
 +--------------+---------------------------------------------------------------+
 | VALIDATED    | All required dependencies have been injected.                 |
-|              | All services provided by the component have been registered.  |
+|              | All services provided by the component will be registered     |
+|              | right after this method returned.                             |
 +--------------+---------------------------------------------------------------+
 | KILLED       | The component has been invalidated and won't be usable again. |
 +--------------+---------------------------------------------------------------+
@@ -61,9 +62,9 @@ declared.
 Callback methods
 ================
 
-A component can defined four callback methods, using decorators.
-The name of the methods can be anything but a *private* method (prefix with
-two underscores `__`)
+A component can define callback methods, by sing decorators.
+The name of the methods can be anything but a *private* method (prefixed with
+two underscores ``__``)
 
 +--------------+------------------------------------------------------+----------------------------------------------------------------------------+
 | Decorator    | Signature                                            | Description                                                                |
@@ -87,10 +88,9 @@ two underscores `__`)
 | @UpdateField | ``def updatefield(self, field, service, reference)`` | This method is called after the properties of a dependency injected in     |
 |              |                                                      | the given field have changed.                                              |
 +--------------+------------------------------------------------------+----------------------------------------------------------------------------+
-| @UnbindField | ``def unbindfield(self, field, service, reference)`` | This method is called before a injected in                                 |
-|              |                                                      | the given field  is removed.                                               |
+| @UnbindField | ``def unbindfield(self, field, service, reference)`` | This method is called before a dependency injected in the given field      |
+|              |                                                      | is removed.                                                                |
 +--------------+------------------------------------------------------+----------------------------------------------------------------------------+
-
 
 
 Install the iPOPO bundle
@@ -103,10 +103,10 @@ It needs to be installed in a Pelix framework instance, like any bundle.
    :linenos:
 
    # Import the Pelix module
-   import pelix.framework as pelix
+   import pelix.framework
    
    # Start the framework
-   framework = pelix.FrameworkFactory.get_framework()
+   framework = pelix.framework.FrameworkFactory.get_framework()
    framework.start()   
    
    # Get the bundle context
@@ -120,9 +120,8 @@ It needs to be installed in a Pelix framework instance, like any bundle.
 Get the iPOPO service
 *********************
 
-If you use the ``@Instantiate`` decorator to start all your components, you
-might not need to use the iPOPO service itself.
-
+.. note:: If you use the ``@Instantiate`` decorator to start all your
+   components, you might not need to use the iPOPO service itself.
 
 There are two equivalent ways to retrieve the iPOPO service:
 
@@ -158,9 +157,15 @@ There are two equivalent ways to retrieve the iPOPO service:
      from pelix.ipopo.constants import get_ipopo_svc_ref
 
      # Get the service (context is a BundleContext)
-     ipopo = get_ipopo_svc_ref(context)
-     if ipopo is None:
+     ref_svc = get_ipopo_svc_ref(context)
+     if ref_svc is None:
           print("iPOPO service not found")
+
+     else:
+          ipopo_ref, ipopo = ref_svc
+
+As always, do not forget to call the ``BundleContext.unget_service()`` method
+when you don't need the service anymore.
 
 
 .. _decorators:
@@ -184,47 +189,47 @@ Here is a sample factory class:
    import pelix.ipopo.constants as constants
 
    # The component manipulator
-   @ComponentFactory(name="MyIncrementerFactory")
+   @ComponentFactory("MyIncrementerFactory")
    # Tell we want an instance of this factory
    @Instantiate("MyIncrementer")
-   # An injected property field, here the component instance name
-   @Property("name", constants.IPOPO_INSTANCE_NAME)
-   # A component specific property, with a default value
-   @Property("thread_safe", "thread.safe", False)
-   @Property("usable", "usable", True)
-   @Provides(specifications="my.incrementer")
+   # Injects the component instance name in the "name" field
+   @Property("_name", constants.IPOPO_INSTANCE_NAME)
+   # Component specific, with a default value
+   @Property("_thread_safe", "thread.safe", False)
+   @Property("_flag", "usable", True)
+   @Provides("my.incrementer")
    class ComponentIncrementer(object):
        """
        Sample Incrementer
        """
-       def change(self, usable):
+       def change(self, flag):
            """
-           Changes the usable property
+           Changes the "usable" property
            """
-           self.usable = usable 
+           self._flag = flag 
 
        def increment(self):
            """
            Service implementation
            """
-           self.count += 1
-           return self.count
+           self._count += 1
+           return self._count
        
        @Validate
        def validate(self, context):
            """
            Component validated
            """
-           self.count = 0
-           print "%s: Ready..." % self.name
+           self._count = 0
+           print("%s: Ready..." % self._name)
          
        @Invalidate
        def invalidate(self, context):
            """
            Component invalidated
            """
-           self.count = 0
-           print "%s: Gone." % self.name
+           self._count = 0
+           print("%s: Gone." % self._name)
 
 
 * Lines 5-13: the decorators manipulates the class
@@ -232,7 +237,8 @@ Here is a sample factory class:
   +-------------------+---------------------------------------------------+
   | Decorator         | Description                                       |
   +===================+===================================================+
-  | @ComponentFactory | Finalizes the manipulation                        |
+  | @ComponentFactory | Finalizes the manipulation. It **must** be the    |
+  |                   | top-level decorator                               |
   +-------------------+---------------------------------------------------+
   | @Instantiate      | Tells iPOPO to instantiate the component          |
   |                   | "MyIncrementer" as soon as the factory is loaded  |
@@ -243,7 +249,7 @@ Here is a sample factory class:
   | @Provides         | Defines the service provided by the component     |
   +-------------------+---------------------------------------------------+
 
-* Lines 14-30: Implementation of the component
+* Lines 14-30: Implementation of the methods corresponding to the specification
 
 * Lines 31-45: Definition of callback methods, called when iPOPO validates or
   invalidates the component
@@ -286,6 +292,9 @@ The iPOPO service provides four important methods:
      >>> compo = ipopo.instantiate("MyIncrementerFactory", "incr2",
                                    {"usable": False})
      MyIncrementer: Ready...
+     >>> # Check the "usable" property value, injected in the '_flag' field
+     >>> compo._flag
+     False
      >>> compo.increment()
      1
 
@@ -343,7 +352,7 @@ A sample run, considering all bundles are started:
    :linenos:
 
    >>> # Remember, a component named "MyIncrementer" has automatically been
-   >>> # started by iPOPO (@Instantiate decorator on the factory)
+   ... # started by iPOPO (@Instantiate decorator on the factory)
    >>> consumer = ipopo.instantiate("ConsumerFactory", "consumer")
    Start: 1
    
@@ -353,8 +362,8 @@ A sample run, considering all bundles are started:
    incr2: Ready...
    
    >>> # Set the first incrementer unusable: the injection will be updated.
-   >>> # As the injection is not optional, the consumer will be invalidated
-   >>> # during the re-injection
+   ... # As the injection is not optional, the consumer will be invalidated
+   ... # during the re-injection
    >>> consumer.svc.change(False)
    Stopped: 2
    Start: 1
@@ -393,6 +402,8 @@ bound or unbound:
 
 .. code-block:: python
    :linenos:
+   
+   from pelix.ipopo.decorators import *
 
    @ComponentFactory("ConsumerFactory")
    @Requires("svc", "my.incrementer", spec_filter="(usable=True)")
@@ -400,19 +411,35 @@ bound or unbound:
    
       @Validate
       def validate(self, context):
-          print "Start:", self.svc.increment()
+          print("Start: %d" % self.svc.increment())
       
       @Invalidate
       def invalidate(self, context):
-          print "Stopped:", self.svc.increment()
+          print("Stopped: %d" % self.svc.increment())
       
       @Bind
       def bind(self, service, reference):
-          print "Bound to", reference.get_property("instance.name")
+          print("Bound to: %s" % reference.get_property("instance.name"))
+      
+      @Update
+      def update(self, service, reference, old_properties):
+          print("Updated: %s" % reference.get_property("instance.name"))
       
       @Unbind
       def unbind(self, service, reference):
-          print "Component lost", reference.get_property("instance.name")
+          print("Component lost: %s" % reference.get_property("instance.name"))
+      
+      @BindField('svc')
+      def bindfield(self, field, service, reference):
+          print("%s injected into %s" % (reference.get_property("instance.name"), field))
+      
+      @UpdateField('svc')
+      def updatefield(self, field, service, reference, old_properties):
+          print("%s updated in %s" % (reference.get_property("instance.name"), field))
+      
+      @UnbindField('svc')
+      def unbindfield(self, field, service, reference):
+          print("%s removed from %s" % (reference.get_property("instance.name"), field))
 
           
 Provided service
@@ -423,9 +450,13 @@ each.
 All component properties and all property changes are propagated to the
 properties of the provided services.
 
+.. note:: All services provided by iPOPO components have an **instance.name**
+   property that contains the name of their provider.
+
 iPOPO also allows to control if a service must be provided or not using a
 boolean controller field, which can be different or shared for every provided
 service.
+
 
 As always, a snippet is better than a long description:
 
