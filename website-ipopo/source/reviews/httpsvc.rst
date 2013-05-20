@@ -43,7 +43,8 @@ All HTTP services supports the following property:
 Instantiation
 =============
 
-The HTTP bundle defines a component factory depending on its implementation.
+The HTTP bundle defines a component factory which name is
+implementation-dependent.
 The basic HTTP service factory is ``pelix.http.service.basic.factory``.
 
 

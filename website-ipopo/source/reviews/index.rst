@@ -5,10 +5,11 @@
 Tools
 #####
 
-This section presents how to use and extend the tools featured by iPOPO.
+This section presents how to use and extend the tools featured by Pelix/iPOPO.
 
 .. toctree::
    :maxdepth: 2
 
    httpsvc
    shell
+   eventadmin

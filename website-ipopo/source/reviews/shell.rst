@@ -15,18 +15,21 @@ The name to use in a console to access a command is ``namespace.command``.
 
 Pelix/iPOPO distribution comes with four bundles:
 
-+---------------------+--------------------------------------------------------+
-| Bundle              | Description                                            |
-+=====================+========================================================+
-| pelix.shell.core    | Provides the core shell service, the commands registry |
-|                     | and the basic Pelix commands                           |
-+---------------------+--------------------------------------------------------+
-| pelix.shell.ipopo   | Provides iPOPO shell commands                          |
-+---------------------+--------------------------------------------------------+
-| pelix.shell.console | An interactive console based on *readline*             |
-+---------------------+--------------------------------------------------------+
-| pelix.shell.remote  | Provides a raw-TCP access to the shell                 |
-+---------------------+--------------------------------------------------------+
++------------------------+-----------------------------------------------+
+| Bundle                 | Description                                   |
++========================+===============================================+
+| pelix.shell.core       | Provides the core shell service, the commands |
+|                        | registry and the basic Pelix commands         |
++------------------------+-----------------------------------------------+
+| pelix.shell.ipopo      | Provides iPOPO shell commands                 |
++------------------------+-----------------------------------------------+
+| pelix.shell.console    | An interactive console based on *readline*    |
++------------------------+-----------------------------------------------+
+| pelix.shell.remote     | Provides a raw-TCP access to the shell        |
++------------------------+-----------------------------------------------+
+| pelix.shell.eventadmin | Provides commands to send or post events      |
+|                        | (see :ref:`eventadmin`)                       |
++------------------------+-----------------------------------------------+
 
 
 Usage
@@ -186,8 +189,8 @@ It provides the following methods:
 Command method
 --------------
 
-A command method must accept *stdin* and *stdout* as its first parameters and
-must use them to interact with the client.
+A command method must accept an ``IOHandler`` object as its first parameter and
+must use it to interact with the client.
 The remote shell is based on this behavior, given the client socket as the
 input and output of the commands to execute.
 
@@ -200,14 +203,14 @@ the given ID:
 .. code-block:: python
    :linenos:
    
-   def start(self, stdin, stdout, bundle_id):
+   def start(self, io_handler, bundle_id):
         """
         start <bundle_id> - Starts the given bundle ID
         """
         bundle_id = int(bundle_id)
         bundle = self._context.get_bundle(bundle_id)
         if bundle is None:
-            stdout.write("Unknown bundle: %d\n", bundle_id)
+            io_handler.write_line("Unknown bundle: {0}", bundle_id)
 
         bundle.start()
 
@@ -230,7 +233,7 @@ Those services must implement the following methods:
 | get_methods_names() | Retrieves the list of (command, method name) tuples |
 +---------------------+-----------------------------------------------------+
 
-The ``get_methods_names()`` method is there to prepare remote services tests,
+The ``get_methods_names()`` method is here to prepare remote services tests,
 and will allow to execute commands from a distant framework.
 
 
@@ -397,25 +400,25 @@ This snippet shows how to write a component providing the command service:
            return result
 
            
-       def increment(self, stdin, stdout, value=1):
+       def increment(self, io_handler, value=1):
            """
            Increments the counter of [value]
            """
            self.counter += value
        
        
-       def decrement(self, stdin, stdout, value=2):
+       def decrement(self, io_handler, value=2):
            """
            Decrements the counter of [value]
            """
            self.counter -= value
        
        
-       def print(self, stdin, stdout):
+       def print(self, io_handler):
            """
            Prints the value of the counter
            """
-           stdout.write('Counter = {0}'.format(self.counter))
+           io_handler.write_line('Counter = {0}', self.counter)
 
 
 Now you can install this bundle and use the commands *counter.more*,
