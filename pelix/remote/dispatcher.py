@@ -47,7 +47,7 @@ import pelix.http
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Bind, Property, Validate, Invalidate
+    Bind, Property, Validate, Invalidate, Instantiate
 
 # Standard library
 import json
@@ -63,7 +63,7 @@ _logger = logging.getLogger(__name__)
 @Provides(pelix.remote.SERVICE_DISPATCHER)
 @Requires('_listeners', pelix.remote.SERVICE_ENDPOINT_LISTENER, True, True,
           "(listen.exported=*)")
-@Property("_uid", "pelix.remote.dispatcher.uid")
+@Instantiate('pelix-remote-dispatcher')
 class Dispatcher(object):
     """
     Common dispatcher for all exporters

@@ -40,7 +40,8 @@ __docformat__ = "restructuredtext en"
 import pelix.remote
 
 # iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Provides
+from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
+    Instantiate
 
 # Standard library
 import logging
@@ -55,6 +56,7 @@ _logger = logging.getLogger(__name__)
 @Provides(pelix.remote.SERVICE_REGISTRY)
 @Requires('_listeners', pelix.remote.SERVICE_ENDPOINT_LISTENER, True, True,
           "({0}=*)".format(pelix.remote.PROP_LISTEN_IMPORTED))
+@Instantiate('pelix-remote-imports-registry')
 class ImportsRegistry(object):
     """
     Registry of discovered end points. End points are identified by their UID
