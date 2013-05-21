@@ -12,7 +12,6 @@ and of the Pelix shell bundles.
 You might want to look at the :ref:`unittests` to have more code examples.
 
 .. toctree::
-   :numbered:
    :maxdepth: 2
 
    pelix
