@@ -23,11 +23,11 @@ Its development is supported by `isandlaTech <http://www.isandlatech.com>`_.
 News
 ****
 
-* ?? may 2013: Release of :ref:`release_0.5` (**Warning:** API changes)
+* 21 may 2013: Release of :ref:`release_0.5` (**Warning:** API changes)
 
 * 17 may 2013: iPOPO 0.5 has been presented at the
   `OSGi User Group France meeting <http://france.osgiusers.org/Meeting/201305>`_
-  (`slides <_static/slides/osgi-20130517/index.html>`_ in french)
+  (`slides <_static/slides/osgi-20130517/index.html>`_ in French)
 
 * 26 july 2012: iPOPO 0.2 has been presented at
   `CBSE'12 <http://comparch2012.dei.polimi.it/>`_

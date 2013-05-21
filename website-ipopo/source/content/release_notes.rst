@@ -42,7 +42,7 @@ Additions
 Project
 -------
 
-* First version with release notes
+* Added this "release notes" page to the web site
 
 Framework
 ---------
@@ -75,3 +75,54 @@ Services
   * JSON-RPC transport (based on a patched version of jsonrpclib)
 
 * EventAdmin: send events (a)synchronously
+
+iPOPO 0.4
+*********
+
+Version 0.4 fixes many bugs and provides new features:
+
+Pelix
+=====
+
+* ``create_framework()`` utility method
+* The framework has been refactored, allowing more efficient services and
+  events handling
+
+iPOPO
+=====
+
+* A component can provide multiple services
+* A service controller can be injected for each provided service, to
+  activate or deactivate its registration
+* Dependency injection and service providing mechanisms have been refactored,
+  using a basic handler concept.
+
+Services
+========
+
+* Added a HTTP service component, using the concept of *servlet*
+* Added an extensible shell, interactive and remote, simplifying the usage
+  of a framework instance
+
+iPOPO 0.3
+*********
+
+Packages have been renamed. As the project goes public, it may not have
+relations to isandlaTech projects anymore.
+
++------------------------+------------------+
+| Previous name          | New name         |
++========================+==================+
+| psem2m                 | pelix            |
++------------------------+------------------+
+| psem2m.service.pelix   | pelix.framework  |
++------------------------+------------------+
+| psem2m.component       | pelix.ipopo      |
++------------------------+------------------+
+| psem2m.component.ipopo | pelix.ipopo.core |
++------------------------+------------------+
+
+iPOPO 0.2
+*********
+
+Version 0.2 is the first public release, under GPLv3 license (see LICENSE).
