@@ -1,7 +1,7 @@
 .. Shell Service tutorial
 
-Shell Service tutorial
-######################
+Shell Service
+#############
 
 Description
 ***********
