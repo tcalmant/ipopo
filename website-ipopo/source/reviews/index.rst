@@ -13,3 +13,4 @@ This section presents how to use and extend the tools featured by Pelix/iPOPO.
    httpsvc
    shell
    eventadmin
+   remote

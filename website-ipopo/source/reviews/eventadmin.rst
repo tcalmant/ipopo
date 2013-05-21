@@ -113,6 +113,14 @@ specification, which defines by the following method:
 | handle_event(topic, properties) | The handler is notified of an event |
 +---------------------------------+-------------------------------------+
 
+.. warning:: Events sent using the post() are delivered from another thread.
+   It is unlikely but possible that sometimes the handle_event() method may be
+   called whereas the handler service has been unregistered, for example after
+   the handler component has been invalidated.
+   
+   It is therefore recommended to check that the injected dependencies used in
+   this method are not None before handling the event.
+
 An event handler must associate at least one the following properties to its
 service:
 
