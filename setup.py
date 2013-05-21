@@ -22,14 +22,14 @@ def read(fname):
 # ------------------------------------------------------------------------------
 
 setup(name='iPOPO',
-      version='0.4',
+      version='0.5',
       license='GPLv3',
       description='A service-oriented component model framework',
       long_description=read('README.rst'),
       author='Thomas Calmant',
       author_email='thomas.calmant@gmail.com',
       url='http://ipopo.coderxpress.net/',
-      download_url='http://ipopo.coderxpress.net/ipopo-0.4.zip',
+      download_url='http://ipopo.coderxpress.net/ipopo-0.5.zip',
       packages=['pelix',
                 'pelix.ipopo',
                 'pelix.http',
