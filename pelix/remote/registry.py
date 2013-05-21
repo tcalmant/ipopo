@@ -95,7 +95,7 @@ class ImportsRegistry(object):
         Updates an end point and notifies listeners
         
         :param uid: The UID of the end point
-        :param old_properties: The new properties of the end point
+        :param new_properties: The new properties of the end point
         """
         try:
             # Update the stored end point
