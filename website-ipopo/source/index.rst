@@ -27,7 +27,7 @@ News
 
 * 17 may 2013: iPOPO 0.5 has been presented at the
   `OSGi User Group France meeting <http://france.osgiusers.org/Meeting/201305>`_
-  (`slides <_static/slides/osgi-20130517/index.html>`_)
+  (`slides <_static/slides/osgi-20130517/index.html>`_ in french)
 
 * 26 july 2012: iPOPO 0.2 has been presented at
   `CBSE'12 <http://comparch2012.dei.polimi.it/>`_
