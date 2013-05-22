@@ -116,6 +116,8 @@ XML-RPC
 -------
 
 .. important:: This implementations depends on the HTTP service
+.. note:: XML-RPC has several limitations due to the ``xmlrpclib``, especially
+   about nested dictionaries.
 
 The XML-RPC transport implementation, in the ``pelix.remote.xml_rpc`` bundle,
 is based on the ``xmlrpclib`` standard module.
@@ -135,19 +137,38 @@ automatically instantiated.
 * the import factory is ``pelix-xmlrpc-importer-factory``.
   It does not need configuration properties.
 
-.. note:: XML-RPC has several limitations due to the ``xmlrpclib``, especially
-   about nested dictionaries.
-
 
 JSON-RPC
 --------
 
 .. important:: This implementations depends on the HTTP service
+.. important:: The widely used ``jsonrpclib`` does not work with this
+   implementation, as it does not allow custom dispatch methods. As both the
+   original and the patched version use the same package name, ``jsonrpclib``,
+   it is necessary to remove the original version first.
 
 The JSON-RPC transport implementation, in the ``pelix.remote.json_rpc`` bundle,
-is based on a patched version of the ``jsonrpclib`` module.
-It defines two iPOPO components, the importer and the exporter, that are not
-automatically instantiated.
+is based on a patched version of the ``jsonrpclib`` package.
+
+You can use the following command to install this package:
+
+.. code-block:: console
+
+   easy_install -U jsonrpclib-pelix
+   # or
+   pip install jsonrpclib-pelix
+
+or you can download it from
+`github.com/tcalmant/jsonrpclib <https://github.com/tcalmant/jsonrpclib>`_,
+then using the command:
+
+.. code-block:: console
+
+   python setup.py install
+
+
+The ``pelix.remote.json_rpc`` bundle defines two iPOPO components, the importer
+and the exporter, that are not automatically instantiated.
 
 * the exporter factory is ``pelix-jsonrpc-exporter-factory``.
   It accepts the following configuration property:
@@ -162,9 +183,6 @@ automatically instantiated.
 * the import factory is ``pelix-jsonrpc-importer-factory``.
   It does not need configuration properties.
 
-.. note:: The widely used ``jsonrpclib`` does not work with this implementation,
-   as it does not allow custom dispatch methods. Use the modified version from
-   ``???`` instead. 
 
 Usage
 *****
