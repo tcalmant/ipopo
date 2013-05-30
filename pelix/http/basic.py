@@ -40,10 +40,9 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 from pelix.ipopo.decorators import ComponentFactory, Provides, Validate, \
-    Invalidate, Property, Requires, Bind, Unbind
+    Invalidate, Property, Requires, BindField, UnbindField
 
 import pelix.ipopo.constants as constants
-import pelix.framework as pelix
 import pelix.utilities as utilities
 
 import logging
@@ -355,6 +354,13 @@ class HttpService(object):
         self._logger_name = None
         self._logger_level = None
 
+        # Validation flag
+        self._validated = False
+
+        # Servlet waiting for a call "bound"
+        self._waiting_callback = {}
+        self._waiting_callback_lock = threading.Lock()
+
         # The logger
         self._logger = None
 
@@ -367,6 +373,7 @@ class HttpService(object):
         # Field injected by iPOPO
         self._servlets_services = None
 
+        # Server control
         self._server = None
         self._thread = None
 
@@ -413,34 +420,37 @@ class HttpService(object):
         return False
 
 
-    @Bind
-    def _bind(self, service, service_reference):
+    @BindField("_servlets_services")
+    def _bind(self, field, service, service_reference):
         """
         Called by iPOPO when a service is bound
         """
-        specifications = service_reference.get_property(pelix.OBJECTCLASS)
-        if http.HTTP_SERVLET in specifications:
-            # Servlet bound
-            paths = service_reference.get_property(http.HTTP_SERVLET_PATH)
-            if utilities.is_string(paths):
-                # Register the servlet to a single path
-                self.register_servlet(paths, service, None)
+        # Servlet bound
+        paths = service_reference.get_property(http.HTTP_SERVLET_PATH)
+        if utilities.is_string(paths):
+            # Register the servlet to a single path
+            self.register_servlet(paths, service, None)
 
-            elif isinstance(paths, (list, tuple)):
-                # Register the servlet to multiple paths
-                for path in paths:
-                    self.register_servlet(path, service, None)
+        elif isinstance(paths, (list, tuple)):
+            # Register the servlet to multiple paths
+            for path in paths:
+                self.register_servlet(path, service, None)
 
 
-    @Unbind
-    def _unbind(self, service, service_reference):
+    @UnbindField("_servlets_services")
+    def _unbind(self, field, service, service_reference):
         """
         Called by iPOPO when a service is gone
         """
-        specifications = service_reference.get_property(pelix.OBJECTCLASS)
-        if http.HTTP_SERVLET in specifications:
-            # Servlet gone: unregister all paths associated to this servlet
-            self.unregister(None, service)
+        try:
+            with self._waiting_callback_lock:
+                del self._waiting_callback[service]
+        except KeyError:
+            # Ignore
+            pass
+
+        # Servlet gone: unregister all paths associated to this servlet
+        self.unregister(None, service)
 
 
     def get_access(self):
@@ -521,9 +531,30 @@ class HttpService(object):
         if parameters is None:
             parameters = {}
 
-        parameters['http.address'] = self._address
-        parameters['http.port'] = self._port
+        if not self._validated:
+            with self._waiting_callback_lock:
+                # Not yet validated, we'll call it back later
+                path_params = (path, parameters)
+                self._waiting_callback.setdefault(servlet, []) \
+                    .append(path_params)
+                return True
 
+        else:
+            # Immediate notification
+            return self.__servlet_callback_bound(servlet, path, parameters)
+
+
+    def __servlet_callback_bound(self, servlet, path, parameters):
+        """
+        Calls back the "bound_to" method of registering servlet
+        
+        :param servlet: The servlet service
+        :param path: The registration path
+        :param parameters: The servlet initialization parameters
+                           (must be a dict)
+        :return: True if the servlet has been registered, False if it refused
+                 the binding.
+        """
         with self._lock:
             if path in self._servlets:
                 # Already registered path
@@ -534,6 +565,10 @@ class HttpService(object):
                 else:
                     raise ValueError("A servlet is already registered on {0}" \
                                      .format(path))
+
+            # Add server information in parameters
+            parameters['http.address'] = self._address
+            parameters['http.port'] = self._port
 
             # Call back the method
             if self.__safe_callback(servlet, "bound_to", path, parameters):
@@ -618,6 +653,8 @@ class HttpService(object):
         """
         Component validation
         """
+        self._validated = True
+
         if not self._address:
             # Local host by default
             self._address = "localhost"
@@ -660,6 +697,14 @@ class HttpService(object):
         self._thread.daemon = True
         self._thread.start()
 
+        # Callback known servlet
+        with self._waiting_callback_lock:
+            for servlet, path_params in self._waiting_callback.items():
+                for path, parameters in path_params:
+                    self.__servlet_callback_bound(servlet, path, parameters)
+
+            self._waiting_callback.clear()
+
         self.log(logging.INFO, "HTTP server started: [%s]:%d ...",
                  self._address, self._port)
 
@@ -669,6 +714,8 @@ class HttpService(object):
         """
         Component invalidation
         """
+        self._validated = False
+
         self.log(logging.INFO, "Shutting down HTTP server: [%s]:%d ...",
                  self._address, self._port)
 
