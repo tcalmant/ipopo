@@ -39,7 +39,7 @@ __docformat__ = "restructuredtext en"
 # -----------------------------------------------------------------------------
 
 # Shell constants
-from pelix.shell import SHELL_COMMAND_SPEC, SHELL_UTILS_SERVICE_SPEC
+from pelix.shell import SHELL_COMMAND_SPEC
 
 # iPOPO Decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
@@ -50,7 +50,6 @@ import pelix.services
 
 @ComponentFactory("eventadmin-shell-commands-factory")
 @Requires("_events", pelix.services.SERVICE_EVENT_ADMIN)
-@Requires("_utils", SHELL_UTILS_SERVICE_SPEC)
 @Provides(SHELL_COMMAND_SPEC)
 @Instantiate("eventadmin-shell-commands")
 class EventAdminCommands(object):
@@ -63,7 +62,6 @@ class EventAdminCommands(object):
         """
         # Injected services
         self._events = None
-        self._utils = None
 
 
     def get_namespace(self):
