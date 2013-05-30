@@ -113,7 +113,7 @@ def _make_args(args_list):
 
 def _split_ns_command(cmd_token):
     """
-    Extracts the name space and the command name of the given command token
+    Extracts the name space and the command name of the given command token.
 
     :param cmd_token: The command token
     :return: The extracted (name space, command) tuple
@@ -130,8 +130,8 @@ def _split_ns_command(cmd_token):
         command = cmd_split[1]
 
     if not namespace:
-        # No name space given or empty one
-        namespace = DEFAULT_NAMESPACE
+        # No name space given: given an empty one
+        namespace = ""
 
     # Use lower case values only
     return namespace.lower(), command.lower()
@@ -199,11 +199,30 @@ class IOHandler(io.RawIOBase):
 
         # Add the trailing new line
         if line[-1] != '\n':
-            line = line + '\n'
+            line += '\n'
 
         # Write it
         self.write(line)
 
+
+    def write_line_no_feed(self, line, *args, **kwargs):
+        """
+        Formats and writes a line to the output
+        """
+        if line is None:
+            # Empty line
+            line = ""
+
+        else:
+            # Format the line
+            line = line.format(*args, **kwargs)
+
+            # Remove the trailing line feed
+            if line[-1] == '\n':
+                line = line[:-1]
+
+        # Write it
+        self.write(line)
 
 # ------------------------------------------------------------------------------
 
@@ -502,6 +521,30 @@ class Shell(object):
         return True
 
 
+    def __find_command_ns(self, command):
+        """
+        Returns the name spaces where the given command named is registered.
+        If the command exists in the default name space, the returned list will
+        only contain the default name space.
+        Returns an empty list of the command is unknown
+        
+        :param command: A command name
+        :return: A list of name spaces
+        """
+        if command in self._commands[DEFAULT_NAMESPACE]:
+            # Command is in the default name space, use it directly
+            return [DEFAULT_NAMESPACE]
+
+        # Look for the spaces where the command name appears
+        namespaces = []
+        for namespace, commands in self._commands.items():
+            if command in commands:
+                namespaces.append(namespace)
+
+        namespaces.sort()
+        return namespaces
+
+
     def execute(self, cmdline, stdin=sys.stdin, stdout=sys.stdout):
         """
         Executes the command corresponding to the given line
@@ -517,12 +560,29 @@ class Shell(object):
         if not line_split:
             return False
 
-        namespace, command = _split_ns_command(line_split[0])
-
         # Prepare the I/O handler
         io_handler = IOHandler(stdin, stdout)
 
-        # Get the space
+        namespace, command = _split_ns_command(line_split[0])
+        if not namespace:
+            # Name space not given, look for the command
+            spaces = self.__find_command_ns(command)
+            if not spaces:
+                # Unknown command
+                _logger.warning("Unknown command: %s", command)
+                io_handler.write_line("Unknown command: {0}", command)
+                return False
+
+            elif len(spaces) > 1:
+                # Multiple possibilities
+                io_handler.write_line("Multiple definitions for {0}: {1}",
+                                      command, spaces)
+
+            else:
+                # Use the found name space
+                namespace = spaces[0]
+
+        # Get the content of the name space
         space = self._commands.get(namespace, None)
         if not space:
             _logger.warning("Unknown name space: %s", namespace)
@@ -546,7 +606,7 @@ class Shell(object):
 
         except TypeError as ex:
             # Invalid arguments...
-            _logger.error("Invalid method call: %s", ex)
+            _logger.exception("Error calling %s.%s: %s", namespace, command, ex)
             io_handler.write_line("Invalid method call: {0}", ex)
             return False
 
@@ -591,7 +651,7 @@ class Shell(object):
         :return: A list of commands names
         """
         if not namespace:
-            # Default namespace:
+            # Default name space:
             namespace = DEFAULT_NAMESPACE
 
         commands = list(self._commands[namespace].keys())
