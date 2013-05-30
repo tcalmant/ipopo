@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-iPOPO shell commands
+EventAdmin shell commands
 
 Provides commands to the Pelix shell to work with the EventAdmin service
 
