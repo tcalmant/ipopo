@@ -1,8 +1,6 @@
 #!/bin/bash
 # Utility script to call the Python tool "coverage" for all test modules
 
-export PYTHONPATH=$(pwd)
-
 # Interpreters to run the tests
 TEST_PYTHONS=("python" "python3" "pypy")
 
