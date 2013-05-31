@@ -41,7 +41,7 @@ __docformat__ = "restructuredtext en"
 
 from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
     Validate, Invalidate, Provides
-from pelix.shell import SHELL_SERVICE_SPEC
+from pelix.shell import SHELL_SERVICE_SPEC, REMOTE_SHELL_SPEC
 
 # ------------------------------------------------------------------------------
 
@@ -263,7 +263,7 @@ def _create_server(shell, server_address, port):
 # ------------------------------------------------------------------------------
 
 @ComponentFactory("ipopo-remote-shell-factory")
-@Provides('pelix.shell.remote')
+@Provides(REMOTE_SHELL_SPEC)
 @Property("_address", "pelix.shell.address", "localhost")
 @Property("_port", "pelix.shell.port", 9000)
 @Requires("_shell", SHELL_SERVICE_SPEC)
@@ -289,6 +289,8 @@ class IPopoRemoteShell(object):
     def get_access(self):
         """
         Implementation of the remote shell specification
+        
+        :return: A (host, port) tuple
         """
         return (self._address, self._port)
 
