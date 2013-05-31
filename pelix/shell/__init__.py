@@ -65,4 +65,12 @@ Shell utility service:
 * bundlestate_to_str(state): to get the string representation of a bundle state
 """
 
+REMOTE_SHELL_SPEC = "pelix.shell.remote"
+"""
+Remote shell service
+
+* get_access(): returns the (host, port) tuple where the remote shell is waiting
+  clients. 
+"""
+
 # ------------------------------------------------------------------------------
