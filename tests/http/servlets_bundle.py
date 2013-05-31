@@ -5,8 +5,7 @@ Bundle defining multiple classes and component factories for HTTP service tests
 
 :author: Thomas Calmant
 """
-from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
-    Requires, Validate, Invalidate, Unbind, Bind, Instantiate
+from pelix.ipopo.decorators import ComponentFactory, Property, Provides
 
 import pelix.http as http
 
@@ -108,3 +107,12 @@ class SimpleServletFactory(SimpleServlet):
         Set up the component
         """
         SimpleServlet.__init__(self, False)
+        self._path = None
+        self._raiser = False
+
+
+    def change(self, new_path):
+        """
+        Change the registration path
+        """
+        self._path = new_path

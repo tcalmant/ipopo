@@ -377,6 +377,73 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
             self.assertEqual(get_http_page(uri=path, only_code=True),
                                      404, "Servlet still registered")
 
+
+    def testWhiteboardPatternUpdate(self):
+        """
+        Tests the whiteboard pattern with a simple path, which path property
+        is updated
+        """
+        http_svc = instantiate_server(self.ipopo, self.http_bundle)
+
+        # Instantiate the servlet component
+        servlet_name = "test-whiteboard-simple"
+        servlet = self.ipopo.instantiate(self.servlets.SIMPLE_SERVLET_FACTORY,
+                                         servlet_name,
+                                         {http.HTTP_SERVLET_PATH: "/test",
+                                          "raiser": False})
+
+        # Test the call back
+        self.assertEqual(["/test"], servlet.bound, "bound_to not called")
+        self.assertEqual([], servlet.unbound, "unbound_from called")
+        servlet.reset()
+
+        # Test information
+        self.assertIs(http_svc.get_servlet("/test")[0], servlet,
+                      "get_servlet() didn't return the servlet")
+
+        # Test access to /test
+        self.assertEqual(get_http_page(uri="/test", method="GET",
+                                       only_code=True), 200,
+                         "Servlet not registered ?")
+        self.assertEqual(get_http_page(uri="/test-updated", method="GET",
+                                       only_code=True), 404,
+                         "Unwanted success")
+
+        # Update the service property
+        servlet.change('/test-updated')
+
+        # Test the call back
+        self.assertEqual(["/test-updated"], servlet.bound,
+                         "bound_to not called")
+        self.assertEqual(["/test"], servlet.unbound, "unbound_from not called")
+        servlet.reset()
+
+        # Test information
+        self.assertIs(http_svc.get_servlet("/test-updated")[0], servlet,
+                      "get_servlet() didn't return the servlet")
+
+        # Test access to /test-updated
+        self.assertEqual(get_http_page(uri="/test-updated", method="GET",
+                                       only_code=True), 200,
+                         "Servlet not registered ?")
+        self.assertEqual(get_http_page(uri="/test", method="GET",
+                                       only_code=True), 404,
+                         "Unwanted answer after update")
+
+        # Kill the component
+        self.ipopo.kill(servlet_name)
+
+        # Test the call back
+        self.assertEqual(["/test-updated"], servlet.unbound,
+                         "unbound_from not called")
+        self.assertEqual([], servlet.bound, "bound_to called")
+        servlet.reset()
+
+        # Test access to /test-updated
+        self.assertEqual(get_http_page(uri="/test-updated", method="GET",
+                                       only_code=True), 404,
+                         "Servlet still registered")
+
 # ------------------------------------------------------------------------------
 
 class BasicHTTPServiceMethodsTest(unittest.TestCase):
