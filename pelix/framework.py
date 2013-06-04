@@ -514,8 +514,13 @@ class Bundle(object):
             # underlying file system
             os.utime(module_file, (st.st_atime, st.st_mtime + 1))
 
-        # Reload the module
-        imp.reload(self.__module)
+        try:
+            # Reload the module
+            imp.reload(self.__module)
+
+        except SyntaxError as ex:
+            # Exception raised in Python 3
+            _logger.exception("Error updating %s: %s", self.__name, ex)
 
         if can_change:
             # Reset times
