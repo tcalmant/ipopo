@@ -1065,11 +1065,10 @@ class Framework(Bundle):
         # Notify listeners that the bundle is stopping
         self._dispatcher.fire_framework_stopping()
 
-        i = self.__next_bundle_id
-        while i > 0:
-
-            bundle = self.__bundles.get(i, None)
-            i -= 1
+        bid = self.__next_bundle_id - 1
+        while bid > 0:
+            bundle = self.__bundles.get(bid, None)
+            bid -= 1
 
             if bundle is None or bundle.get_state() != Bundle.ACTIVE:
                 # Ignore inactive bundle
