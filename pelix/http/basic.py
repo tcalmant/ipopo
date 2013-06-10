@@ -49,6 +49,7 @@ import logging
 import socket
 import sys
 import threading
+import traceback
 
 # Basic HTTP server
 if sys.version_info[0] == 3:
@@ -237,7 +238,13 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
                 # Create a wrapper to pass the handler to the servlet
                 def wrapper():
-                    return getattr(servlet, name)(request, response)
+                    try:
+                        # Handle the request
+                        return getattr(servlet, name)(request, response)
+
+                    except:
+                        # Send a 500 error page on error
+                        return self.send_exception(response)
 
                 # Return it
                 return wrapper
@@ -277,6 +284,34 @@ class _RequestHandler(BaseHTTPRequestHandler):
         # Use the helper to send the error page
         response = _HTTPServletResponse(self)
         response.send_content(404, page)
+
+
+    def send_exception(self, response):
+        """
+        Sends an exception page with a 500 error code.
+        Must be called from inside the exception handling block.
+        
+        :param response: The response handler
+        """
+        # Get a formatted stack trace
+        stack = traceback.format_exc()
+
+        # Prepare the page content
+        page = """<html>
+<head>
+<title>500 - Internal Server Error</title>
+</head>
+<body>
+<h1>Internal Server Error</h1>
+<p>Error hanling request upon: {0}</p>
+<pre>
+{1}
+</pre>
+</body>
+</html>""".format(self.path, stack)
+
+        # Send the page
+        response.send_content(500, page)
 
 # ------------------------------------------------------------------------------
 
