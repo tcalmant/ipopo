@@ -18,3 +18,4 @@ You might want to look at the :ref:`unittests` to have more code examples.
    ipopo
    manipulation
    qt
+   jpype

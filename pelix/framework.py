@@ -514,8 +514,13 @@ class Bundle(object):
             # underlying file system
             os.utime(module_file, (st.st_atime, st.st_mtime + 1))
 
-        # Reload the module
-        imp.reload(self.__module)
+        try:
+            # Reload the module
+            imp.reload(self.__module)
+
+        except SyntaxError as ex:
+            # Exception raised in Python 3
+            _logger.exception("Error updating %s: %s", self.__name, ex)
 
         if can_change:
             # Reset times
@@ -1065,11 +1070,10 @@ class Framework(Bundle):
         # Notify listeners that the bundle is stopping
         self._dispatcher.fire_framework_stopping()
 
-        i = self.__next_bundle_id
-        while i > 0:
-
-            bundle = self.__bundles.get(i, None)
-            i -= 1
+        bid = self.__next_bundle_id - 1
+        while bid > 0:
+            bundle = self.__bundles.get(bid, None)
+            bid -= 1
 
             if bundle is None or bundle.get_state() != Bundle.ACTIVE:
                 # Ignore inactive bundle
