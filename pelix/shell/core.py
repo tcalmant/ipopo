@@ -801,7 +801,7 @@ class Shell(object):
         """
         Prints the available methods and their documentation
         """
-        namespaces = [namespace for namespace in self._commands.keys()]
+        namespaces = list(self._commands.keys())
         namespaces.remove(DEFAULT_NAMESPACE)
         namespaces.sort()
         namespaces.insert(0, DEFAULT_NAMESPACE)
@@ -878,7 +878,7 @@ class Shell(object):
         frames = sys._current_frames()
 
         # Sort by thread ID
-        thread_ids = frames.keys()
+        thread_ids = list(frames.keys())
         thread_ids.sort()
 
         lines = []
