@@ -48,8 +48,8 @@ implementation-dependent.
 The basic HTTP service factory is ``pelix.http.service.basic.factory``.
 
 
-Here is a snippet that starts a HTTP service that accepts local clients only on
-port 9000:
+Here is a snippet that starts a HTTP server component, named *http-server*,
+that only accepts local clients on port 9000:
 
 .. code-block:: python
    :linenos:
@@ -71,6 +71,7 @@ port 9000:
    # Instantiate a HTTP service component
    ipopo = get_ipopo_svc_ref(context)[1]
    ipopo.instantiate('pelix.http.service.basic.factory',
+                     'http-server',
                      {
                          'pelix.http.address': 'localhost',
                          'pelix.http.port': 9000
