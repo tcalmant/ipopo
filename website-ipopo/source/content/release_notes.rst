@@ -3,6 +3,53 @@
 Release Notes
 #############
 
+.. _release_0.5.1:
+
+iPOPO 0.5.1
+***********
+
+Additions
+=========
+
+Shell
+-----
+
+* The remote shell now provides a service, ``pelix.shell.remote``, with a
+  ``get_access()`` method that returns the *(host, port)* tuple where the
+  remote shell is waiting for clients.
+
+
+HTTP Service
+------------
+
+* The HTTP service now supports the update of servlet services properties.
+  A servlet service can now update its registration path property after having
+  been bound to a HTTP service.
+* A *500 server error* page containing an exception trace is now generated when
+  a servlet fails.
+
+
+Bugs fixed
+==========
+
+Framework
+---------
+
+* Bundle.update() now logs the SyntaxError exception that be raised in Python 3.
+
+Shell
+-----
+
+* Fixed the ``threads`` command that wasn't working on Python 3.
+
+
+HTTP Service
+------------
+
+* The ``bound_to()`` method of a servlet is called only after the HTTP service
+  is ready to accept clients.
+
+
 .. _release_0.5:
 
 iPOPO 0.5

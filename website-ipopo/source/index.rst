@@ -23,6 +23,8 @@ Its development is supported by `isandlaTech <http://www.isandlatech.com>`_.
 News
 ****
 
+* 5 july 2013: Release of :ref:`release_0.5.1` (bug fixes)
+
 * 21 may 2013: Release of :ref:`release_0.5` (**Warning:** API changes)
 
 * 17 may 2013: iPOPO 0.5 has been presented at the
