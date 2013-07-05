@@ -22,7 +22,7 @@ def read(fname):
 # ------------------------------------------------------------------------------
 
 setup(name='iPOPO',
-      version='0.5',
+      version='0.5.1',
       license='GPLv3',
       description='A service-oriented component model framework',
       long_description=read('README.rst'),
