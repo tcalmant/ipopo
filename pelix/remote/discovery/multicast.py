@@ -48,7 +48,7 @@ __docformat__ = "restructuredtext en"
 from pelix.utilities import to_bytes, to_str
 
 # Remote Services constants
-import pelix.remote
+import pelix.remote.beans
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
@@ -69,7 +69,6 @@ if sys.version_info[0] < 3:
 
 else:
     import http.client as httplib
-
 
 # ------------------------------------------------------------------------------
 
@@ -415,8 +414,7 @@ class MulticastDiscovery(object):
         An end point is updated
         """
         # Send a JSON event
-        data = json.dumps(self._make_endpoint_dict("update", endpoint,
-                                                   old_properties))
+        data = json.dumps(self._make_endpoint_dict("update", endpoint))
         self.__send_packet(data)
 
 
@@ -535,20 +533,21 @@ class MulticastDiscovery(object):
         :param endpoint_dict: An end point description dictionary (result of 
                               a request to the dispatcher servlet)
         """
+        # Get the UID of the framework exporting the service
+        framework = endpoint_dict['sender']
+
         # Filter properties
-        properties = self.__filter_properties(endpoint_dict['sender'],
+        properties = self.__filter_properties(framework,
                                               endpoint_dict['properties'])
 
         # Format the URL
         url = endpoint_dict['url'].format(server=host_address)
 
         # Create the end point object
-        endpoint = pelix.remote.ImportEndpoint(endpoint_dict['uid'],
-                                               endpoint_dict['kind'],
-                                               endpoint_dict['name'],
-                                               url,
-                                               endpoint_dict['specifications'],
-                                               properties)
+        endpoint = pelix.remote.beans.ImportEndpoint(endpoint_dict['uid'], \
+                                 framework, endpoint_dict['kind'],
+                                 endpoint_dict['name'], url,
+                                 endpoint_dict['specifications'], properties)
 
         # Register it
         self._registry.add(endpoint)

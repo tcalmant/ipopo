@@ -221,10 +221,11 @@ class JsonRpcServiceExporter(object):
 
         try:
             # Create the registration information
-            endpoint = pelix.remote.ExportEndpoint(str(uuid.uuid4()),
-                                                   self._kind, endpoint_name,
-                                                   reference, service,
-                                                   self.get_access())
+            endpoint = pelix.remote.beans.ExportEndpoint(str(uuid.uuid4()),
+                                                         self._kind,
+                                                         endpoint_name,
+                                                         reference, service,
+                                                         self.get_access())
 
         except ValueError:
             # Invalid end point

@@ -41,7 +41,7 @@ import pelix.remote
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Instantiate
+    Instantiate, Invalidate
 
 # Standard library
 import logging
@@ -65,11 +65,14 @@ class ImportsRegistry(object):
         """
         Sets up the component
         """
-        # End point URL -> End point
-        self._registry = {}
-
-        # Listeners
+        # Listeners (injected)
         self._listeners = []
+
+        # Framework UID -> End point
+        self._frameworks = {}
+
+        # End point UID -> End point
+        self._registry = {}
 
 
     def add(self, endpoint):
@@ -78,7 +81,10 @@ class ImportsRegistry(object):
         
         :param endpoint: An ImportedEndpoint object
         """
+        # Store the end point
         self._registry[endpoint.uid] = endpoint
+        if endpoint.framework:
+            self._frameworks.setdefault(endpoint.framework, []).append(endpoint)
 
         # Notify listeners
         if self._listeners:
@@ -127,6 +133,7 @@ class ImportsRegistry(object):
         
         :param uid: The UID of the end point to unregister
         """
+        # Remove the end point from the individual storage
         try:
             endpoint = self._registry.pop(uid)
 
@@ -134,12 +141,50 @@ class ImportsRegistry(object):
             # Unknown end point
             return
 
-        else:
-            # Notify listeners
-            if self._listeners:
-                for listener in self._listeners[:]:
-                    try:
-                        listener.endpoint_removed(endpoint)
+        # Remove it from its framework storage, if any
+        try:
+            framework_endpoints = self._frameworks.get(endpoint.framework)
+            if endpoint in framework_endpoints:
+                framework_endpoints.remove(endpoint)
 
-                    except Exception as ex:
-                        _logger.exception("Error calling listener: %s", ex)
+        except (KeyError, ValueError):
+            # Ignore the absence of reference in the framework storage
+            pass
+
+        # Notify listeners
+        if self._listeners:
+            for listener in self._listeners[:]:
+                try:
+                    listener.endpoint_removed(endpoint)
+
+                except Exception as ex:
+                    _logger.exception("Error calling listener: %s", ex)
+
+
+    def lost_framework(self, uid):
+        """
+        Unregisters all the end points associated to the given framework UID
+        
+        :param uid: The UID of a framework
+        """
+        # Get the end points of this framework
+        endpoints = self._frameworks.pop(uid, None)
+        if endpoints:
+            for endpoint in endpoints:
+                # Notify listeners
+                if self._listeners:
+                    for listener in self._listeners[:]:
+                        try:
+                            listener.endpoint_removed(endpoint)
+
+                        except Exception as ex:
+                            _logger.exception("Error calling listener: %s", ex)
+
+
+    @Invalidate
+    def invalidate(self, context):
+        """
+        Component invalidated: clean up storage 
+        """
+        self._frameworks.clear()
+        self._registry.clear()

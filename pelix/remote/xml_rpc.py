@@ -47,7 +47,7 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Validate, \
 
 # Pelix constants
 import pelix.http
-import pelix.remote
+import pelix.remote.beans
 
 # Standard library
 import logging
@@ -224,10 +224,11 @@ class XmlRpcServiceExporter(object):
 
         # Create the registration information
         try:
-            endpoint = pelix.remote.ExportEndpoint(str(uuid.uuid4()),
-                                                   self._kind, endpoint_name,
-                                                   reference, service,
-                                                   self.get_access())
+            endpoint = pelix.remote.beans.ExportEndpoint(str(uuid.uuid4()),
+                                                         self._kind,
+                                                         endpoint_name,
+                                                         reference, service,
+                                                         self.get_access())
         except ValueError:
             # Invalid end point
             return False
