@@ -54,7 +54,7 @@ _logger = logging.getLogger("ipopo.decorators")
 
 # ------------------------------------------------------------------------------
 
-def is_from_parent(cls, attribute_name):
+def is_from_parent(cls, attribute_name, value=None):
     """
     Tests if the current attribute value is shared by a parent of the given
     class.
@@ -63,16 +63,22 @@ def is_from_parent(cls, attribute_name):
     
     :param cls: Child class with the requested attribute
     :param attribute_name: Name of the attribute to be tested
+    :param value: The exact value in the child class (optional)
     :return: True if the attribute value is shared with a parent class
     """
-    value = getattr(cls, attribute_name, None)
     if value is None:
-        # No need to go further
-        return False
+        # Get the current value
+        value = getattr(cls, attribute_name, None)
+        if value is None:
+            # No need to go further: the attribute does not exist
+            return False
 
     for base in cls.__bases__:
+        # Look for the value in each parent class
         base_value = getattr(base, attribute_name, None)
-        if base_value is value:
+        # Use '==' instead of 'is' to work in both
+        # Python 2 (==) and Python 3 (==, is)
+        if base_value == value:
             # Found !
             return True
 
@@ -197,7 +203,7 @@ def _ipopo_setup_callback(cls, context):
 
     functions = inspect.getmembers(cls, inspect.isroutine)
 
-    for name, function in functions:
+    for _, function in functions:
 
         if not hasattr(function, constants.IPOPO_METHOD_CALLBACKS):
             # No attribute, get the next member
@@ -207,8 +213,9 @@ def _ipopo_setup_callback(cls, context):
 
         if not isinstance(method_callbacks, list):
             # Invalid content
-            _logger.warning("Invalid attribute %s in %s", \
-                            constants.IPOPO_METHOD_CALLBACKS, name)
+            _logger.warning("Invalid callback information %s in %s", \
+                            constants.IPOPO_METHOD_CALLBACKS,
+                            get_method_description(function))
             continue
 
         # Keeping it allows inheritance : by removing it, only the first
@@ -217,12 +224,13 @@ def _ipopo_setup_callback(cls, context):
         # Store the call backs
         for _callback in method_callbacks:
             if _callback in callbacks and \
-            not is_from_parent(cls, callbacks[_callback].__name__):
-                _logger.warning("Redefining the callback %s in '%s'. " \
-                                "Previous callback : '%s' (%s). " \
-                                "New callback : %s", _callback, name,
-                                callbacks[_callback].__name__,
-                                callbacks[_callback], function)
+            not is_from_parent(cls, callbacks[_callback].__name__,
+                               callbacks[_callback]):
+                _logger.warning("Redefining the callback %s in class '%s'.\n" \
+                                "\tPrevious callback : %s\n" \
+                                "\tNew callback : %s", _callback, cls.__name__,
+                                get_method_description(callbacks[_callback]),
+                                get_method_description(function))
 
             callbacks[_callback] = function
 
