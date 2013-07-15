@@ -176,6 +176,9 @@ def _get_factory_context(cls):
             # * Provided services
             del context.provides[:]
 
+            # * Manipulation has not been applied yet
+            context.completed = False
+
         # We have a context of our own, make sure we have a FactoryContext
         if isinstance(context, dict):
             # Already manipulated and stored class
@@ -474,36 +477,46 @@ class ComponentFactory:
         # Get the factory context
         context = _get_factory_context(factory_class)
 
-        # Set the factory name
-        if not self.__factory_name:
-            self.__factory_name = factory_class.__name__ + "Factory"
+        # Test if a manipulation has already been applied
+        if not context.completed:
+            # Set up the factory name
+            if not self.__factory_name:
+                self.__factory_name = factory_class.__name__ + "Factory"
 
-        context.name = self.__factory_name
+            # Manipulate the class...
+            context.name = self.__factory_name
+            context.completed = True
 
-        # Find callbacks
-        _ipopo_setup_callback(factory_class, context)
-        _ipopo_setup_field_callback(factory_class, context)
+            # Find callbacks
+            _ipopo_setup_callback(factory_class, context)
+            _ipopo_setup_field_callback(factory_class, context)
 
-        # Clean up inherited fields, to avoid weird behavior
-        for field in ComponentFactory.NON_INHERITABLE_FIELDS:
-            if is_from_parent(factory_class, field):
-                # Set inherited fields to None
-                setattr(factory_class, field, None)
+            # Clean up inherited fields, to avoid weird behavior
+            for field in ComponentFactory.NON_INHERITABLE_FIELDS:
+                if is_from_parent(factory_class, field):
+                    # Set inherited fields to None
+                    setattr(factory_class, field, None)
 
-        # Add the factory context field (set it to None)
-        setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT, None)
+            # Add the factory context field (set it to None)
+            setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT, None)
+
+            # Inject the properties getter and setter if needed
+            if len(context.properties_fields) > 0:
+                setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX \
+                        + constants.IPOPO_GETTER_SUFFIX, None)
+                setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX \
+                        + constants.IPOPO_SETTER_SUFFIX, None)
+
+        else:
+            # Manipulation already applied: do nothing more
+            _logger.error("%s has already been manipulated with the name '%s'. "
+                          "Keeping the old name.",
+                          get_method_description(factory_class), context.name)
 
         # Store a dictionary form of the factory context in the class
         # -> Avoids "class version" problems
         setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT_DATA, \
                 context.to_dictionary_form())
-
-        # Inject the properties getter and setter if needed
-        if len(context.properties_fields) > 0:
-            setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX \
-                    + constants.IPOPO_GETTER_SUFFIX, None)
-            setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX \
-                    + constants.IPOPO_SETTER_SUFFIX, None)
 
         return factory_class
 
@@ -565,6 +578,11 @@ class Property:
 
         # Get the factory context
         context = _get_factory_context(clazz)
+        if context.completed:
+            # Do nothing if the class has already been manipulated
+            _logger.warning("@Property: Already manipulated class: %s",
+                            get_method_description(clazz))
+            return clazz
 
         # Set up the property in the class
         context.properties[self.__name] = self.__value
@@ -667,6 +685,11 @@ class Provides:
 
         # Get the factory context
         context = _get_factory_context(clazz)
+        if context.completed:
+            # Do nothing if the class has already been manipulated
+            _logger.warning("@Provides: Already manipulated class: %s",
+                            get_method_description(clazz))
+            return clazz
 
         # Avoid duplicates (but keep the order)
         filtered_specs = []
@@ -743,6 +766,12 @@ class Requires:
 
         # Set up the property in the class
         context = _get_factory_context(clazz)
+        if context.completed:
+            # Do nothing if the class has already been manipulated
+            _logger.warning("@Requires: Already manipulated class: %s",
+                            get_method_description(clazz))
+            return clazz
+
         context.requirements[self.__field] = self.__requirement
 
         # Inject the field

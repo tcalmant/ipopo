@@ -857,7 +857,7 @@ class FactoryContext(object):
     """
 
     __basic_fields = ('callbacks', 'field_callbacks', 'name', 'properties',
-                      'properties_fields', 'provides')
+                      'properties_fields', 'provides', 'completed')
 
     def __init__(self):
         """
@@ -887,6 +887,9 @@ class FactoryContext(object):
 
         # Requirements : Field name -> Requirement object
         self.requirements = {}
+
+        # The factory manipulation has been completed
+        self.completed = False
 
 
     def __eq__(self, other):
@@ -932,7 +935,7 @@ class FactoryContext(object):
         """
         context = FactoryContext()
 
-        direct = ("bundle_context", "name")
+        direct = ("bundle_context", "name", "completed")
         copied = ("callbacks", "field_callbacks", "properties",
                   "properties_fields", "requirements")
         lists = ("provides",)
