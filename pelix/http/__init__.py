@@ -65,6 +65,34 @@ HTTP_SERVLET_PATH = "pelix.http.path"
 
 # ------------------------------------------------------------------------------
 
+PARAM_NAME = "http.name"
+"""
+Entry in the parameters dictionary of ``bound_to`` and ``unbound_from``.
+Contains the name of the server.
+If the HTTP service is implemented with iPOPO, it might be the instance name.
+"""
+
+PARAM_EXTRA = "http.extra"
+"""
+Entry in the parameters dictionary of ``bound_to`` and ``unbound_from``.
+Contains a copy of extra properties of the HTTP service implementation.
+Its content is implementation dependent.
+"""
+
+PARAM_ADDRESS = "http.address"
+"""
+Entry in the parameters dictionary of ``bound_to`` and ``unbound_from``.
+Contains the socket binding address of the HTTP server binding the servlet
+"""
+
+PARAM_PORT = "http.port"
+"""
+Entry in the parameters dictionary of ``bound_to`` and ``unbound_from``.
+Contains the listening port of the HTTP server binding the servlet
+"""
+
+# ------------------------------------------------------------------------------
+
 class AbstractHTTPServletRequest(object):
     """
     Abstract HTTP Servlet request helper
@@ -187,7 +215,7 @@ class AbstractHTTPServletResponse(object):
 
 
     def send_content(self, http_code, content, mime_type="text/html",
-                      http_message=None, content_length= -1):
+                      http_message=None, content_length=-1):
         """
         Utility method to send the given content as an answer.
         You can still use get_wfile or write afterwards, if you forced the

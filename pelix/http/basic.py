@@ -74,6 +74,9 @@ import pelix.http as http
 HTTP_SERVICE_COMPONENT_FACTORY = "pelix.http.service.basic.factory"
 """ Name of the HTTP service component factory """
 
+HTTP_SERVICE_EXTRA = "http.extra"
+""" HTTP service extra properties (dictionary) """
+
 # ------------------------------------------------------------------------------
 
 class _HTTPServletRequest(http.AbstractHTTPServletRequest):
@@ -371,6 +374,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 @Requires("_servlets_services", http.HTTP_SERVLET, True, True)
 @Property("_address", http.HTTP_SERVICE_ADDRESS, "0.0.0.0")
 @Property("_port", http.HTTP_SERVICE_PORT, 8080)
+@Property('_extra', HTTP_SERVICE_EXTRA, None)
 @Property("_instance_name", constants.IPOPO_INSTANCE_NAME)
 @Property("_logger_name", "pelix.http.logger.name", "")
 @Property("_logger_level", "pelix.http.logger.level", None)
@@ -385,6 +389,7 @@ class HttpService(object):
         # Properties
         self._address = "0.0.0.0"
         self._port = 8080
+        self._extra = None
         self._instance_name = None
         self._logger_name = None
         self._logger_level = None
@@ -621,8 +626,10 @@ class HttpService(object):
                                      .format(path))
 
             # Add server information in parameters
-            parameters['http.address'] = self._address
-            parameters['http.port'] = self._port
+            parameters[http.PARAM_ADDRESS] = self._address
+            parameters[http.PARAM_PORT] = self._port
+            parameters[http.PARAM_NAME] = self._instance_name
+            parameters[http.PARAM_EXTRA] = self._extra.copy()
 
             # Call back the method
             if self.__safe_callback(servlet, "bound_to", path, parameters):
@@ -718,6 +725,10 @@ class HttpService(object):
         else:
             # Ensure we have an integer
             self._port = int(self._port)
+
+        # Normalize the extra properties
+        if not isinstance(self._extra, dict):
+            self._extra = {}
 
         # Set up the logger
         if self._logger_name is not None:
