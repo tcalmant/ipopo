@@ -545,6 +545,36 @@ class Shell(object):
         return namespaces
 
 
+    def get_ns_command(self, cmd_name):
+        """
+        Retrieves the name space and the command associated to the given
+        command name.
+        
+        :param cmd_name: The given command name
+        :return: A 2-tuple (name space, command)
+        :raise ValueError: Unknown command name
+        """
+        namespace, command = _split_ns_command(cmd_name)
+        if not namespace:
+            # Name space not given, look for the command
+            spaces = self.__find_command_ns(command)
+            if not spaces:
+                # Unknown command
+                raise ValueError("Unknown command {0}".format(command))
+
+            elif len(spaces) > 1:
+                # Multiple possibilities
+                raise ValueError("Multiple name spaces for {0}: {1}" \
+                                 .format(command, spaces))
+
+            else:
+                # Use the found name space
+                namespace = spaces[0]
+
+        # Command found
+        return namespace, command
+
+
     def execute(self, cmdline, stdin=sys.stdin, stdout=sys.stdout):
         """
         Executes the command corresponding to the given line
@@ -563,36 +593,24 @@ class Shell(object):
         # Prepare the I/O handler
         io_handler = IOHandler(stdin, stdout)
 
-        namespace, command = _split_ns_command(line_split[0])
-        if not namespace:
-            # Name space not given, look for the command
-            spaces = self.__find_command_ns(command)
-            if not spaces:
-                # Unknown command
-                _logger.warning("Unknown command: %s", command)
-                io_handler.write_line("Unknown command: {0}", command)
-                return False
+        try:
+            # Extract command information
+            namespace, command = self.get_ns_command(line_split[0])
 
-            elif len(spaces) > 1:
-                # Multiple possibilities
-                io_handler.write_line("Multiple definitions for {0}: {1}",
-                                      command, spaces)
-
-            else:
-                # Use the found name space
-                namespace = spaces[0]
+        except ValueError as ex:
+            # Unknown command
+            io_handler.write_line(ex.message)
+            return False
 
         # Get the content of the name space
         space = self._commands.get(namespace, None)
         if not space:
-            _logger.warning("Unknown name space: %s", namespace)
             io_handler.write_line("Unknown name space {0}", namespace)
             return False
 
-        # Get the method
+        # Get the method object
         method = space.get(command, None)
         if method is None:
-            _logger.warning("Unknown command: %s.%s", namespace, command)
             io_handler.write_line("Unknown command: {0}.{1}", namespace,
                                   command)
             return False
@@ -797,25 +815,56 @@ class Shell(object):
         io_handler.write(self._utils.make_table(headers, lines))
 
 
-    def print_help(self, io_handler):
+    def __extract_help(self, method):
+        """
+        Extract the help string from the given method
+        """
+        if method is None:
+            return "(No associated method)"
+
+        return getattr(method, '__doc__', None) or "(Documentation missing)"
+
+
+    def print_help(self, io_handler, command=None):
         """
         Prints the available methods and their documentation
         """
-        namespaces = list(self._commands.keys())
-        namespaces.remove(DEFAULT_NAMESPACE)
-        namespaces.sort()
-        namespaces.insert(0, DEFAULT_NAMESPACE)
+        if command:
+            # Single command mode
+            try:
+                # Extract command name space and name
+                namespace, cmd_name = self.get_ns_command(command)
 
-        for namespace in namespaces:
-            io_handler.write_line("* Namespace '{0}':", namespace)
-            names = [command for command in self._commands[namespace]]
-            names.sort()
+            except ValueError as ex:
+                # Unknown command
+                io_handler.write_line(ex.message)
+                return False
 
-            for name in names:
-                io_handler.write_line("- {0}", name)
-                doc = getattr(self._commands[namespace][name], '__doc__', \
-                              None) or "(Documentation missing)"
+            else:
+                # Print the help
+                io_handler.write_line("* Name space '{0}':", namespace)
+                io_handler.write_line("- {0}", cmd_name)
+                doc = self.__extract_help(self._commands[namespace][cmd_name])
                 io_handler.write_line("\t\t{0}", ' '.join(doc.split()))
+
+        else:
+            # Get all name spaces
+            namespaces = list(self._commands.keys())
+            namespaces.remove(DEFAULT_NAMESPACE)
+            namespaces.sort()
+            namespaces.insert(0, DEFAULT_NAMESPACE)
+
+            for namespace in namespaces:
+                io_handler.write_line("* Name space '{0}':", namespace)
+
+                # Get all commands in this name space
+                names = [command for command in self._commands[namespace]]
+                names.sort()
+
+                for name in names:
+                    io_handler.write_line("- {0}", name)
+                    doc = self.__extract_help(self._commands[namespace][name])
+                    io_handler.write_line("\t\t{0}", ' '.join(doc.split()))
 
 
     def properties_list(self, io_handler):
