@@ -283,6 +283,58 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
                          "Servlet still registered")
 
 
+    def testAcceptBinding(self):
+        """
+        Tests the behavior of the HTTP service when a bound_to() method raises
+        an exception
+        """
+        http_svc = instantiate_server(self.ipopo, self.http_bundle)
+
+        # Make the first servlet
+        servlet = self.servlets.SimpleServlet(False)
+
+        # Make the second servlet
+        servlet_2 = self.servlets.SimpleServlet(False)
+
+        # Register the first servlet
+        self.assertTrue(http_svc.register_servlet("/test", servlet),
+                        "Servlet not registered")
+        self.assertEqual(get_http_page(uri="/test", only_code=True), 200,
+                         "Servlet not registered ?")
+
+        # Second registration must work
+        self.assertTrue(http_svc.register_servlet("/test", servlet),
+                        "Servlet not registered")
+
+        # Try to register the second servlet, accepting the server
+        servlet_2.accept = True
+        self.assertRaises(ValueError, http_svc.register_servlet,
+                          "/test", servlet_2)
+
+        # Ensure that our first servlet is still there
+        self.assertEqual(get_http_page(uri="/test", only_code=True), 200,
+                         "Servlet not registered ?")
+
+        # Try to register the second servlet, rejecting the server
+        servlet_2.accept = False
+        self.assertFalse(http_svc.register_servlet("/test", servlet_2),
+                         "Non-accepted server -> must return False")
+
+        # Ensure that our first servlet is still there
+        self.assertEqual(get_http_page(uri="/test", only_code=True), 200,
+                         "Servlet not registered ?")
+
+        # Unregister it (no exception should be propagated)
+        log_off()
+        http_svc.unregister("/test")
+        log_on()
+
+        # The servlet must have been unregistered
+        self.assertEqual(get_http_page(uri="/test", only_code=True), 404,
+                         "Servlet still registered")
+
+
+
     def testWhiteboardPatternSimple(self):
         """
         Tests the whiteboard pattern with a simple path
@@ -551,7 +603,6 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         for path in ("/test/sub", "/test/sub/", "/test/sub/1"):
             self.assertIs(self.http_svc.get_servlet(path)[0],
                           servlet_2, "Servlet 2 should handle {0}".format(path))
-
 
 
     def testRegisterServlet(self):

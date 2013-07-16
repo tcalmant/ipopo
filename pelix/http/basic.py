@@ -618,12 +618,16 @@ class HttpService(object):
             if path in self._servlets:
                 # Already registered path
                 if self._servlets[path][0] is servlet:
-                    # Nothing to do
+                    # Double-registration: Nothing to do
                     return True
 
                 else:
-                    raise ValueError("A servlet is already registered on {0}" \
-                                     .format(path))
+                    # Path is already taken by another servlet
+                    already_taken = True
+
+            else:
+                # Path is available
+                already_taken = False
 
             # Add server information in parameters
             parameters[http.PARAM_ADDRESS] = self._address
@@ -631,12 +635,25 @@ class HttpService(object):
             parameters[http.PARAM_NAME] = self._instance_name
             parameters[http.PARAM_EXTRA] = self._extra.copy()
 
-            # Call back the method
+            # The servlet might refuse to be bound to this server
+            if not self.__safe_callback(servlet, "accept_binding",
+                                        path, parameters):
+                # Server refused: stop right there
+                # => No need to raise the "already taken path" exception
+                return False
+
+            if already_taken:
+                # The path is already taken by another servlet
+                raise ValueError("A servlet is already registered on {0}" \
+                                 .format(path))
+
+            # Tell the servlet it can be bound to the path
             if self.__safe_callback(servlet, "bound_to", path, parameters):
                 # Store the servlet
                 self._servlets[path] = (servlet, parameters)
                 return True
 
+            # The servlet refused the binding
             return False
 
 

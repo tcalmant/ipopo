@@ -27,6 +27,7 @@ class SimpleServlet(object):
         :param raiser: If True, the servlet will raise an exception on bound_to
         """
         self.raiser = raiser
+        self.accept = True
         self.bound = []
         self.unbound = []
 
@@ -37,6 +38,13 @@ class SimpleServlet(object):
         """
         del self.bound[:]
         del self.unbound[:]
+
+
+    def accept_binding(self, path, params):
+        """
+        Tests if the HTTP server can be accepted
+        """
+        return self.accept
 
 
     def bound_to(self, path, params):
