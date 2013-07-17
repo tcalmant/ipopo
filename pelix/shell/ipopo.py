@@ -128,6 +128,7 @@ class IPopoCommands(object):
         lines = [(name, self._ipopo.get_factory_bundle(name))
                  for name in self._ipopo.get_factories()]
         io_handler.write(self._utils.make_table(header, lines))
+        io_handler.write_line("{0} factories available", len(lines))
 
 
     def list_instances(self, io_handler):
@@ -139,6 +140,7 @@ class IPopoCommands(object):
                  for name, factory, state in self._ipopo.get_instances()]
 
         io_handler.write(self._utils.make_table(headers, lines))
+        io_handler.write_line("{0} components instantiated", len(lines))
 
 
     def instance_details(self, io_handler, name):
