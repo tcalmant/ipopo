@@ -364,7 +364,7 @@ def _format_specification(language, specification):
     Formats a "language://interface" string
     
     :param language: Specification language
-    :param interface: Specification name
+    :param specification: Specification name
     :return: A formatted string
     """
     return "{0}:/{1}".format(language, _escape_specification(specification))
