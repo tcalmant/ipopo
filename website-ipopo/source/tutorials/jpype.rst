@@ -11,20 +11,28 @@ process using jPype.
 Then, it shows how to run an OSGi framework inside the loaded JVM and how to
 share services between Pelix and OSGi, and vice versa.
 
+.. important:: Do not mess with threads ! It seems that jPype or JNI has some
+   trouble being called from a thread different than the one used to load it.
+   
+   In this tutorial, we will load the and use the JVM from the shell console
+   thread.
+
 .. note:: This is not an OSGi tutorial, you might take a look on
    `Felix OSGi tutorials <http://felix.apache.org/site/apache-felix-osgi-tutorial.html>`_
    before following this tutorial.
 
+
 Requirements
 ************
 
-This tutorial has been written on a Fedora 18 machine, using Java OpenJDK 1.7.0.
+This tutorial has been written on Fedora 18 and Ubuntu 12.04, both using Java
+OpenJDK 7.
 
 As it is a compiled extension, you also need to have installed:
 
 * a C++ compiler (*gcc-c++*)
 * the Java development files (JDK packages should have the required files)
-  
+
   * a well defined ``JAVA_HOME`` environment property
 
 * the Python development files (*python-dev*)
@@ -51,13 +59,13 @@ the Python process.
 #. Update your JAVA_HOME environment property
 
    .. code-block:: console
-   
+
       $ export JAVA_HOME=/usr/lib/jvm/java-1.7.0-openjdk.x86_64
 
 #. Compile and install the module:
 
    .. code-block:: console
-   
+
       $ python setup.py build
       $ su -c 'python setup.py install'
 
@@ -79,7 +87,7 @@ Run a JVM with jPype
 
       # java and javax have an alias in the jPype module
       jpype.java.lang.System.out.prinln("Hi !")
-   
+
       # or use the class loader
       HashMap = jpype._jclass.JClass("java.util.HashMap")
       javaMap = HashMap()
@@ -112,7 +120,7 @@ Start a OSGi framework
 
 In this example, we will use the
 `Felix OSGi framework <http://felix.apache.org/>`_.
-To simplify, we will direcly use the Felix framework factory class name, 
+To simplify, we will direcly use the Felix framework factory class name,
 ``org.apache.felix.framework.FrameworkFactory``, instead of reading it from the
 ``/META-INF/services/org.osgi.framework.launch.FrameworkFactory`` file inside
 OSGi framework JAR file.
@@ -244,7 +252,7 @@ Class path hell
 As Java is a typed language, it is necessary to declare the interface of the
 shared Python objects through interfaces.
 These interfaces must be available by jPype, i.e. by the top-level class loader.
-   
+
 This means that the API bundle must be added to the JVM class path:
 
 .. code-block:: python
