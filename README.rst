@@ -1,5 +1,5 @@
-README
-######
+iPOPO : A component model for Python
+####################################
 
 This is iPOPO, a component model framework for Python based on SOA principles.
 It is based on Pelix, an SOA framework.
@@ -17,8 +17,124 @@ lists :
 
 More information at http://ipopo.coderxpress.net/
 
+
+Compatibility
+#############
+
+The package has been tested with:
+
+* Python 2.6, 2.7, 3.1 and 3.2
+* Pypy 1.8, 1.9
+
+To work with Python 2.6, the *importlib* module back-port must be installed.
+It is available on PyPI.
+
+
 Release notes
 #############
+
+iPOPO 0.5.2
+***********
+
+Additions
+=========
+
+iPOPO Decorators
+----------------
+
+* An error is now logged if a class is manipulated twice. Decorators executed
+  after the first manipulation, i.e. upon ``@ComponentFactory()``, are ignored.
+
+
+HTTP Service
+------------
+
+* New servlet binding parameters:
+
+  * http.name : Name of HTTP service. The name of component instance in the case
+    of the basic implementation.
+
+  * http.extra : Extra properties of the HTTP service. In the basic
+    implementation, this the content of the *http.extra* property of the
+    HTTP server component
+
+* New method ``accept_binding(path, params)`` in servlets.
+  This allows to refuse the binding with a server before to test the
+  availability of the registration path, thus to avoid raising a meaningless
+  exception.
+
+
+Remote Services
+---------------
+
+* End points are stored according to their framework
+
+* Added a method ``lost_framework(uid)`` in the registry of imported services,
+  which unregisters all the services provided by the given framework.
+
+
+Shell
+-----
+
+* Shell *help* command now accepts a command name to print a specific
+  documentation
+
+
+Bugs fixed
+==========
+
+iPOPO Decorators
+----------------
+
+* Better handling of inherited and overridden methods: a decorated method can
+  now be overridden in a child class, with the name, without warnings.
+
+* Better error logs, with indication of the error source file and line
+
+
+iPOPO 0.5.1
+***********
+
+Additions
+=========
+
+Shell
+-----
+
+* The remote shell now provides a service, ``pelix.shell.remote``, with a
+  ``get_access()`` method that returns the *(host, port)* tuple where the
+  remote shell is waiting for clients.
+
+
+HTTP Service
+------------
+
+* The HTTP service now supports the update of servlet services properties.
+  A servlet service can now update its registration path property after having
+  been bound to a HTTP service.
+* A *500 server error* page containing an exception trace is now generated when
+  a servlet fails.
+
+
+Bugs fixed
+==========
+
+Framework
+---------
+
+* Bundle.update() now logs the SyntaxError exception that be raised in Python 3.
+
+Shell
+-----
+
+* Fixed the ``threads`` command that wasn't working on Python 3.
+
+
+HTTP Service
+------------
+
+* The ``bound_to()`` method of a servlet is called only after the HTTP service
+  is ready to accept clients.
 
 iPOPO 0.5
 *********
@@ -141,14 +257,3 @@ iPOPO 0.2
 *********
 
 Version 0.2 is the first public release, under GPLv3 license (see LICENSE).
-
-Compatibility
-#############
-
-The package has been tested with:
-
-* Python 2.6, 2.7, 3.1 and 3.2
-* Pypy 1.8, 1.9
-
-To work with Python 2.6, the *importlib* module back-port must be installed.
-It is available on PyPI.

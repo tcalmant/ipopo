@@ -3,6 +3,67 @@
 Release Notes
 #############
 
+.. _release_0.5.2:
+
+iPOPO 0.5.2
+***********
+
+Additions
+=========
+
+iPOPO Decorators
+----------------
+
+* An error is now logged if a class is manipulated twice. Decorators executed
+  after the first manipulation, i.e. upon ``@ComponentFactory()``, are ignored.
+
+
+HTTP Service
+------------
+
+* New servlet binding parameters:
+
+  * http.name : Name of HTTP service. The name of component instance in the case
+    of the basic implementation.
+
+  * http.extra : Extra properties of the HTTP service. In the basic
+    implementation, this the content of the *http.extra* property of the
+    HTTP server component
+
+* New method ``accept_binding(path, params)`` in servlets.
+  This allows to refuse the binding with a server before to test the
+  availability of the registration path, thus to avoid raising a meaningless
+  exception.
+
+
+Remote Services
+---------------
+
+* End points are stored according to their framework
+
+* Added a method ``lost_framework(uid)`` in the registry of imported services,
+  which unregisters all the services provided by the given framework.
+
+
+Shell
+-----
+
+* Shell *help* command now accepts a command name to print a specific
+  documentation
+
+
+Bugs fixed
+==========
+
+iPOPO Decorators
+----------------
+
+* Better handling of inherited and overridden methods: a decorated method can
+  now be overridden in a child class, with the name, without warnings.
+
+* Better error logs, with indication of the error source file and line
+
+
 .. _release_0.5.1:
 
 iPOPO 0.5.1

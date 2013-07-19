@@ -23,6 +23,8 @@ Its development is supported by `isandlaTech <http://www.isandlatech.com>`_.
 News
 ****
 
+* 19 july 2013: Release of :ref:`release_0.5.2` (small additions and bug fixes)
+
 * 5 july 2013: Release of :ref:`release_0.5.1` (bug fixes)
 
 * 21 may 2013: Release of :ref:`release_0.5` (**Warning:** API changes)
