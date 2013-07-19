@@ -7,7 +7,7 @@ SERVER="coderxpress.net"
 REMOTE_DIR=www-ipopo
 
 # iPOPO Version
-VERSION="0.5.1"
+VERSION="0.5.2"
 
 # Directories
 API_HTML="api"
@@ -93,7 +93,7 @@ echo "put '$REMOTE_SHELL'" >> $BATCH_FILE
 echo "Creating remote script..."
 cat > "$REMOTE_SHELL" <<END
 echo "Moving files..."
-mkdir $REMOTE_DIR/dl
+mkdir -p $REMOTE_DIR/dl
 mv "$DIST_ZIP" "$REMOTE_DIR/dl/"
 mv "$TEST_ZIP" "$REMOTE_DIR/dl/"
 mv "$HTML_ZIP" "$REMOTE_DIR/dl/"
