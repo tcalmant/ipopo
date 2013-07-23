@@ -599,7 +599,7 @@ class Shell(object):
 
         except ValueError as ex:
             # Unknown command
-            io_handler.write_line(ex.message)
+            io_handler.write_line(str(ex))
             return False
 
         # Get the content of the name space
@@ -837,7 +837,7 @@ class Shell(object):
 
             except ValueError as ex:
                 # Unknown command
-                io_handler.write_line(ex.message)
+                io_handler.write_line(str(ex))
                 return False
 
             else:
@@ -892,7 +892,7 @@ class Shell(object):
         property <name> - Prints the value of the given property, looking into
         framework properties then environment variables.
         """
-        io_handler.write_line(self._context.get_property(name))
+        io_handler.write_line(str(self._context.get_property(name)))
 
 
     def environment_list(self, io_handler):
