@@ -299,6 +299,10 @@ class _RequestHandler(BaseHTTPRequestHandler):
         # Get a formatted stack trace
         stack = traceback.format_exc()
 
+        # Log the error
+        self.log_error("Error handling request upon: %s\n%s\n",
+                       self.path, stack)
+
         # Prepare the page content
         page = """<html>
 <head>
@@ -306,7 +310,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
 </head>
 <body>
 <h1>Internal Server Error</h1>
-<p>Error hanling request upon: {0}</p>
+<p>Error handling request upon: {0}</p>
 <pre>
 {1}
 </pre>
@@ -785,7 +789,7 @@ class HttpService(object):
             for service, svc_ref in self._servlets_refs.items():
                 self.__register_servlet_service(service, svc_ref)
 
-        self.log(logging.INFO, "HTTP server started: [%s]:%d ...",
+        self.log(logging.INFO, "HTTP server started: [%s]:%d",
                  self._address, self._port)
 
 
