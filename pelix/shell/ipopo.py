@@ -101,6 +101,7 @@ class IPopoCommands(object):
         Retrieves the list of tuples (command, method) for this command handler
         """
         return [("factories", self.list_factories),
+                ("factory", self.factory_details),
                 ("instances", self.list_instances),
                 ("instance", self.instance_details),
                 ("instantiate", self.instantiate),
@@ -143,19 +144,63 @@ class IPopoCommands(object):
         io_handler.write_line("{0} components instantiated", len(lines))
 
 
+    def factory_details(self, io_handler, name):
+        """
+        factory <name> - Prints the details of the given component factory
+        """
+        try:
+            details = self._ipopo.get_factory_details(name)
+
+        except ValueError as ex:
+            io_handler.write_line("Error getting details about '{0}': {1}",
+                                  name, ex)
+            return
+
+        lines = []
+        lines.append("Name  : {0}".format(details["name"]))
+        lines.append("Bundle: {0}".format(details["bundle"]))
+
+        properties = details.get('properties', None)
+        if properties:
+            lines.append("Properties:")
+            prop_headers = ('Key', 'Default value')
+            prop_lines = [(str(key), str(value))
+                          for key, value in properties.items()]
+            lines.append(self._utils.make_table(prop_headers, prop_lines))
+
+        services = details.get('services', None)
+        if services:
+            lines.append("Provided services:")
+            lines.extend("\t{0}".format(spec) for spec in services)
+            lines.append('')
+
+        requirements = details.get('requirements', None)
+        if requirements:
+            lines.append("Requirements:")
+            req_headers = ('ID', 'Specifications', 'Filter', 'Aggregate',
+                           'Optional')
+            req_lines = [(item['id'], item['specifications'], item['filter'],
+                          item['aggregate'], item['optional'])
+                         for item in requirements]
+
+            lines.append(self._utils.make_table(req_headers, req_lines))
+
+        io_handler.write('\n'.join(lines))
+
+
     def instance_details(self, io_handler, name):
         """
         instance <name> - Prints the details of the given component instance
         """
-        lines = []
-
         try:
             details = self._ipopo.get_instance_details(name)
 
         except ValueError as ex:
-            io_handler.write_line("Error getting instance details: {0}", ex)
+            io_handler.write_line("Error getting details about '{0}': {1}",
+                                  name, ex)
             return
 
+        lines = []
         lines.append("Name   : {0}".format(details["name"]))
         lines.append("Factory: {0}".format(details["factory"]))
         lines.append("State  : {0}".format(ipopo_state_to_str(

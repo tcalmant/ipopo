@@ -177,6 +177,17 @@ class Requirement(object):
         return self.filter.matches(properties)
 
 
+    @property
+    def original_filter(self):
+        """
+        The original requirement filter string, not the computed one
+        """
+        if not self.__original_filter:
+            return ""
+
+        return str(self.__original_filter)
+
+
     def set_filter(self, spec_filter):
         """
         Changes the current filter for the given one
@@ -2622,6 +2633,58 @@ class _IPopoService(object):
             # Bundle Context is stored in the Factory Context
             factory_context = getattr(factory, constants.IPOPO_FACTORY_CONTEXT)
             return factory_context.bundle_context.get_bundle()
+
+
+    def get_factory_details(self, name):
+        """
+        Retrieves details about the given factory
+        
+        :param name: The name of a factory
+        :return: A dictionary describing the factory
+        :raise ValueError: Invalid factory 
+        """
+        with self.__factories_lock:
+            if name not in self.__factories:
+                raise ValueError("Unknown factory '{0}'".format(name))
+
+            factory = self.__factories[name]
+            context = getattr(factory, constants.IPOPO_FACTORY_CONTEXT)
+            assert isinstance(context, FactoryContext)
+
+            result = {}
+            # Factory name & bundle
+            result["name"] = context.name
+            result["bundle"] = context.bundle_context.get_bundle()
+
+            # Configurable properties
+            props = result["properties"] = {}
+            for prop_name in context.properties_fields.values():
+                # Name -> Default value
+                props[prop_name] = context.properties.get(prop_name, None)
+
+            # Requirements (list of dictionaries)
+            reqs = result["requirements"] = []
+            for field, requirement in context.requirements.items():
+                req = {}
+                # ID = Field name
+                req["id"] = field
+                req["aggregate"] = requirement.aggregate
+                req["optional"] = requirement.optional
+
+                # Give a copy of the required specifications
+                req["specifications"] = requirement.specifications[:]
+
+                # Give the string representation of the original LDAP filter
+                req["filter"] = requirement.original_filter
+
+                reqs.append(req)
+
+            # Provided services (list of list of specifications)
+            svc = result["services"] = []
+            for specs_controller in context.provides:
+                svc.append(specs_controller[0])
+
+            return result
 
 # ------------------------------------------------------------------------------
 
