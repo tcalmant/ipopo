@@ -49,6 +49,7 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Validate, \
 # Pelix constants
 import pelix.http
 import pelix.remote
+from pelix.utilities import to_str
 
 # Standard library
 import logging
@@ -105,7 +106,7 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
         """
         try:
             # Get the request content
-            data = request.read_data()
+            data = to_str(request.read_data())
 
             # Dispatch
             result = self._marshaled_dispatch(data, self._simple_dispatch)

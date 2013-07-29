@@ -626,6 +626,9 @@ class MulticastDiscovery(object):
             return
 
         try:
+            # Convert the response to a string
+            data = to_str(data)
+
             # Parse the JSON result
             return json.loads(data)
 
