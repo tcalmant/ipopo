@@ -203,6 +203,7 @@ class IOHandler(io.RawIOBase):
 
         # Write it
         self.write(line)
+        self.flush()
 
 
     def write_line_no_feed(self, line, *args, **kwargs):
@@ -223,6 +224,7 @@ class IOHandler(io.RawIOBase):
 
         # Write it
         self.write(line)
+        self.flush()
 
 # ------------------------------------------------------------------------------
 
@@ -638,7 +640,7 @@ class Shell(object):
         """
         Returns the Shell banner
         """
-        return "** Pelix Shell prompt **"
+        return "** Pelix Shell prompt **\n"
 
 
     def get_ps1(self):

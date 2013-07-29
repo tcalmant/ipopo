@@ -120,11 +120,15 @@ class InteractiveShell(object):
                     # Shell present
                     if first_prompt:
                         # Show the banner on first prompt
-                        print(self._shell.get_banner())
+                        sys.stdout.write(self._shell.get_banner())
                         first_prompt = False
 
-                    # Read the line
-                    line = safe_input(self._shell.get_ps1())
+                    # Print the prompt
+                    sys.stdout.write(self._shell.get_ps1())
+                    sys.stdout.flush()
+
+                    # Read the next line
+                    line = safe_input()
 
                     with self._lock:
                         if self._shell_event.is_set():
@@ -133,13 +137,15 @@ class InteractiveShell(object):
 
                         elif not self._stop_event.is_set():
                             # Shell service lost while not stopping
-                            print('Shell service lost.')
+                            sys.stdout.write('Shell service lost.')
+                            sys.stdout.flush()
 
         except (EOFError, KeyboardInterrupt, SystemExit):
             # Input closed or keyboard interruption
             self._stop_event.set()
 
-        print('Bye !')
+        sys.stdout.write('Bye !')
+        sys.stdout.flush()
         if on_quit is not None:
             # Call a handler if needed
             on_quit()
