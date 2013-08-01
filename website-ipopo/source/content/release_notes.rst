@@ -3,6 +3,49 @@
 Release Notes
 #############
 
+.. _release_0.5.3:
+
+iPOPO 0.5.3
+***********
+
+Additions
+=========
+
+iPOPO
+-----
+
+* New ``get_factory_details(name)`` method in the iPOPO service, acting like
+  ``get_instance_details(name)`` but for factories.
+  It returns a dictionary describing the given factory.
+
+* New ``factory`` shell command, which describes a component factory:
+  properties, requirements, provided services, ...
+
+HTTP Service
+------------
+
+* Servlet exceptions are now both sent to the client and logged locally
+
+Bugs fixed
+==========
+
+Remote Services
+---------------
+
+* Data read from the servlets or sockets are now properly converted from bytes
+  to string before being parsed (Python 3 compatibility).
+
+Shell
+-----
+
+* Exceptions are now printed using ``str(ex)`` instead of ``ex.message``
+  (Python 3 compatibility).
+
+* The shell output is now flushed, both by the shell I/O handler and the
+  text console. The remote console was already flushing its output.
+  This allows to run the Pelix shell correctly inside Eclipse.
+
+
 .. _release_0.5.2:
 
 iPOPO 0.5.2
