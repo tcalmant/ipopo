@@ -53,6 +53,7 @@ import os
 import shlex
 import sys
 import traceback
+import threading
 
 # ------------------------------------------------------------------------------
 
@@ -928,6 +929,9 @@ class Shell(object):
         # Extract frames
         frames = sys._current_frames()
 
+        # Get the thread ID -> Thread mapping
+        names = threading._active.copy()
+
         # Sort by thread ID
         thread_ids = list(frames.keys())
         thread_ids.sort()
@@ -937,11 +941,18 @@ class Shell(object):
             # Get the corresponding stack
             stack = frames[thread_id]
 
+            # Try to get the thread name
+            try:
+                name = names[thread_id].name
+
+            except KeyError:
+                name = "<unknown>"
+
             # Construct the code position
-            lines.append('Thread ID: {0}'.format(thread_id))
-            lines.append('Stack trace:')
+            lines.append('Thread ID: {0} - Name: {1}'.format(thread_id, name))
+            lines.append('Line:')
             lines.extend((line.rstrip()
-                          for line in traceback.format_stack(stack, 8)))
+                          for line in traceback.format_stack(stack, 1)))
             lines.append('')
 
         lines.append('')
@@ -955,7 +966,9 @@ class Shell(object):
         thread <id> - Prints details about the given thread
         """
         try:
-            stack = sys._current_frames()[int(thread_id)]
+            # Get the stack
+            thread_id = int(thread_id)
+            stack = sys._current_frames()[thread_id]
 
         except KeyError:
             io_handler.write_line("Unknown thread ID: {0}", thread_id)
@@ -964,8 +977,15 @@ class Shell(object):
             io_handler.write_line("Invalid thread ID: {0}", thread_id)
 
         else:
+            # Get the name
+            try:
+                name = threading._active[thread_id].name
+
+            except KeyError:
+                name = "<unknown>"
+
             lines = []
-            lines.append('Thread ID: {0}'.format(thread_id))
+            lines.append('Thread ID: {0} - Name: {1}'.format(thread_id, name))
             lines.append('Stack trace:')
             lines.extend((line.rstrip()
                           for line in traceback.format_stack(stack)))
