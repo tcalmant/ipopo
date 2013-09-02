@@ -52,6 +52,7 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
 # Standard library
 import json
 import logging
+import threading
 
 # ------------------------------------------------------------------------------
 
@@ -80,6 +81,9 @@ class Dispatcher(object):
 
         # UID -> Endpoint
         self.__endpoints = {}
+
+        # Lock
+        self.__lock = threading.Lock()
 
 
     @Bind
@@ -116,16 +120,17 @@ class Dispatcher(object):
         elif endpoint is None:
             raise ValueError("No end point given")
 
-        # Get or set the map for the given kind
-        kind_map = self.__kind_endpoints.setdefault(kind, {})
-        if name in kind_map:
-            raise KeyError("Already known end point: {0}".format(name))
+        with self.__lock:
+            # Get or set the map for the given kind
+            kind_map = self.__kind_endpoints.setdefault(kind, {})
+            if name in kind_map:
+                raise KeyError("Already known end point: {0}".format(name))
 
-        # Store the end point
-        kind_map[name] = endpoint
-        self.__endpoints[endpoint.uid] = endpoint
+            # Store the end point
+            kind_map[name] = endpoint
+            self.__endpoints[endpoint.uid] = endpoint
 
-        # Call listeners
+        # Call listeners (out of the lock)
         if self._listeners:
             for listener in self._listeners[:]:
                 listener.endpoint_added(endpoint)
@@ -151,15 +156,16 @@ class Dispatcher(object):
         elif endpoint is None:
             raise ValueError("No end point given")
 
-        # Get or set the map for the given kind
-        kind_map = self.__kind_endpoints.setdefault(kind, {})
-        if name not in kind_map:
-            raise KeyError("Unknown known end point: {0}".format(name))
+        with self.__lock:
+            # Get or set the map for the given kind
+            kind_map = self.__kind_endpoints.setdefault(kind, {})
+            if name not in kind_map:
+                raise KeyError("Unknown known end point: {0}".format(name))
 
-        elif endpoint != kind_map[name]:
-            raise ValueError("Not the right end point: {0}".format(name))
+            elif endpoint != kind_map[name]:
+                raise ValueError("Not the right end point: {0}".format(name))
 
-        # Call listeners
+        # Call listeners (out of the lock)
         if self._listeners:
             for listener in self._listeners:
                 listener.endpoint_updated(endpoint, old_properties)
@@ -173,10 +179,11 @@ class Dispatcher(object):
         :param name: The name of the end point
         :raise KeyError: Unknown end point
         """
-        endpoint = self.__kind_endpoints[kind].pop(name)
-        del self.__endpoints[endpoint.uid]
+        with self.__lock:
+            endpoint = self.__kind_endpoints[kind].pop(name)
+            del self.__endpoints[endpoint.uid]
 
-        # Call listeners
+        # Call listeners (out of the lock)
         if self._listeners:
             for listener in self._listeners[:]:
                 listener.endpoint_removed(endpoint)
@@ -201,35 +208,36 @@ class Dispatcher(object):
         :param name: The name of the end point
         :return: A list of end point matching the parameters
         """
-        if kind:
-            # Filter by kind
-            kind_map = self.__kind_endpoints.get(kind)
-            if kind_map:
-                # Get the found kind
-                kind_maps = [kind_map]
+        with self.__lock:
+            if kind:
+                # Filter by kind
+                kind_map = self.__kind_endpoints.get(kind)
+                if kind_map:
+                    # Get the found kind
+                    kind_maps = [kind_map]
+
+                else:
+                    # Unknown kind
+                    return []
 
             else:
-                # Unknown kind
-                return []
+                # Get all kinds
+                kind_maps = self.__kind_endpoints.values()
 
-        else:
-            # Get all kinds
-            kind_maps = self.__kind_endpoints.values()
+            results = []
+            if name:
+                # Filter by name
+                for kind_map in kind_maps:
+                    endpoint = kind_map.get(name)
+                    if endpoint is not None:
+                        results.append(endpoint)
 
-        results = []
-        if name:
-            # Filter by name
-            for kind_map in kind_maps:
-                endpoint = kind_map.get(name)
-                if endpoint is not None:
-                    results.append(endpoint)
+            else:
+                # No filter
+                for kind_map in kind_maps:
+                    results.extend(kind_map.values())
 
-        else:
-            # No filter
-            for kind_map in kind_maps:
-                results.extend(kind_map.values())
-
-        return results
+            return results
 
 
     def get_service(self, kind, name):

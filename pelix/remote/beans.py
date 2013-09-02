@@ -104,6 +104,14 @@ class ExportEndpoint(object):
         return self.__uid != other.uid
 
 
+    def __str__(self):
+        """
+        String representation
+        """
+        return "ExportEndpoint(uid={0}, kind={1}, specs={2})" \
+            .format(self.__uid, self.__kind, self.__compute_specifications())
+
+
     def __compute_specifications(self):
         """
         Computes the list of exported specifications
@@ -209,6 +217,15 @@ class ImportEndpoint(object):
 
         # Extract the language prefix in specifications
         self.__specifications = extract_specifications(specifications)
+
+
+    def __str__(self):
+        """
+        String representation of the end point
+        """
+        return "ImportEndpoint(uid={0}, framework={1}, kind={2}, specs={3})" \
+            .format(self.__uid, self.__fw_uid, self.__kind,
+                    self.__specifications)
 
 
     # Access to the service informations

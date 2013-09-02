@@ -45,6 +45,7 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
 
 # Standard library
 import logging
+import threading
 
 # ------------------------------------------------------------------------------
 
@@ -74,19 +75,31 @@ class ImportsRegistry(object):
         # End point UID -> End point
         self._registry = {}
 
+        # Lock
+        self.__lock = threading.Lock()
+
 
     def add(self, endpoint):
         """
-        Registers an end point and notifies listeners
+        Registers an end point and notifies listeners. Does nothing if the
+        endpoint UID was already known.
         
         :param endpoint: An ImportedEndpoint object
+        :return: True if the end point has been added
         """
-        # Store the end point
-        self._registry[endpoint.uid] = endpoint
-        if endpoint.framework:
-            self._frameworks.setdefault(endpoint.framework, []).append(endpoint)
+        with self.__lock:
+            # Check if the end point already exist
+            if endpoint.uid in self._registry:
+                # Already known end point: do nothing
+                return False
 
-        # Notify listeners
+            # Store the end point
+            self._registry[endpoint.uid] = endpoint
+            if endpoint.framework:
+                self._frameworks.setdefault(endpoint.framework, []) \
+                                                            .append(endpoint)
+
+        # Notify listeners (out of lock)
         if self._listeners:
             for listener in self._listeners[:]:
                 try:
@@ -94,6 +107,8 @@ class ImportsRegistry(object):
 
                 except Exception as ex:
                         _logger.exception("Error calling listener: %s", ex)
+
+        return True
 
 
     def update(self, uid, new_properties):
@@ -104,12 +119,13 @@ class ImportsRegistry(object):
         :param new_properties: The new properties of the end point
         """
         try:
-            # Update the stored end point
-            stored_endpoint = self._registry[uid]
+            with self.__lock:
+                # Update the stored end point
+                stored_endpoint = self._registry[uid]
 
-            # Replace the stored properties
-            old_properties = stored_endpoint.properties.copy()
-            stored_endpoint.properties = new_properties.copy()
+                # Replace the stored properties
+                old_properties = stored_endpoint.properties.copy()
+                stored_endpoint.properties = new_properties.copy()
 
         except KeyError:
             # Unknown end point: ignore it
