@@ -6,7 +6,7 @@ Pelix Utilities: Task pool
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.5.0
+:version: 0.5.4
 :status: Alpha
 
     This file is part of iPOPO.
@@ -29,7 +29,7 @@ Pelix Utilities: Task pool
 __docformat__ = "restructuredtext en"
 
 # Module version
-__version_info__ = (0, 5, 0)
+__version_info__ = (0, 5, 4)
 __version__ = ".".join(map(str, __version_info__))
 
 # ------------------------------------------------------------------------------
@@ -39,13 +39,13 @@ import logging
 import threading
 import sys
 
-if sys.version_info[0] == 3:
-    # Python 3
-    import queue
-
-else:
+if sys.version_info[0] < 3:
     # Python 2
     import Queue as queue
+
+else:
+    # Python 3
+    import queue
 
 # ------------------------------------------------------------------------------
 
@@ -110,8 +110,8 @@ class ThreadPool(object):
 
         # The task queue
         self._queue = queue.Queue(queue_size)
-        self._queue_size = queue_size
         self._timeout = timeout
+        self.__lock = threading.Lock()
 
         # The thread pool
         self._nb_threads = nb_threads
@@ -152,22 +152,23 @@ class ThreadPool(object):
         # Set the stop event
         self._done_event.set()
 
-        # Add something in the queue (to unlock the join())
-        try:
-            for _ in self._threads:
-                self._queue.put(self._done_event, True, self._timeout)
+        with self.__lock:
+            # Add something in the queue (to unlock the join())
+            try:
+                for _ in self._threads:
+                    self._queue.put(self._done_event, True, self._timeout)
 
-        except queue.Full:
-            # There is already something in the queue
-            pass
+            except queue.Full:
+                # There is already something in the queue
+                pass
 
-        # Join threads
-        for thread in self._threads:
-            thread.join()
+            # Join threads
+            for thread in self._threads:
+                thread.join()
 
         # Clear storage
         del self._threads[:]
-        self.reset_queue()
+        self.clear()
 
 
     def enqueue(self, method, *args, **kwargs):
@@ -186,16 +187,55 @@ class ThreadPool(object):
         # Prepare the future result object
         future = FutureResult()
 
-        # Add the task to the queue
-        self._queue.put((method, args, kwargs, future), True, self._timeout)
+        # Use a lock, as we might be "resetting" the queue
+        with self.__lock:
+            # Add the task to the queue
+            self._queue.put((method, args, kwargs, future), True, self._timeout)
+
         return future
 
 
-    def reset_queue(self):
+    def clear(self):
         """
-        Creates a new queue (deletes references to the old one)
+        Empties the current queue content.
+        Returns once the queue have been emptied.
         """
-        self._queue = queue.Queue(self._queue_size)
+        with self.__lock:
+            # Empty the current queue
+            try:
+                while True:
+                    self._queue.get_nowait()
+                    self._queue.task_done()
+
+            except queue.Empty:
+                # Queue is now empty
+                pass
+
+            # Wait for the tasks currently executed
+            self.join()
+
+
+    def join(self, timeout=None):
+        """
+        Waits for all the tasks to be executed
+        
+        :param timeout: Maximum time to wait (in seconds)
+        :return: True if the queue has been emptied, else False
+        """
+        if self._queue.empty():
+            # Nothing to wait for...
+            return True
+
+        elif timeout is None:
+            # Use the original join
+            self._queue.join()
+            return True
+
+        else:
+            # Wait for the condition
+            with self._queue.all_tasks_done:
+                self._queue.all_tasks_done.wait(timeout)
+                return self._queue.empty()
 
 
     def __run(self):
@@ -222,8 +262,8 @@ class ThreadPool(object):
                     future._result = method(*args, **kwargs)
 
                 except Exception as ex:
-                    logging.exception("Error executing %s: %s",
-                                      method.__name__, ex)
+                    self._logger.exception("Error executing %s: %s",
+                                           method.__name__, ex)
 
                 finally:
                     # Mark the action as executed
