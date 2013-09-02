@@ -102,7 +102,8 @@ class ThreadPool(object):
             raise ValueError("Invalid pool size: {0}".format(nb_threads))
 
         # The logger
-        self._logger = logging.getLogger(logname or __name__)
+        self.__name = logname or __name__
+        self._logger = logging.getLogger(self.__name)
 
         # The loop control event
         self._done_event = threading.Event()
@@ -133,7 +134,8 @@ class ThreadPool(object):
         i = 0
         while i < self._nb_threads:
             i += 1
-            thread = threading.Thread(target=self.__run)
+            thread = threading.Thread(target=self.__run,
+                                      name="{0}-{1}".format(self.__name, i))
             self._threads.append(thread)
 
         # Start'em
