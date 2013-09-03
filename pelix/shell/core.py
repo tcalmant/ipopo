@@ -745,18 +745,16 @@ class Shell(object):
         bundles.insert(0, self._context.get_bundle(0))
 
         # Make the entries
-        lines = []
-        for bundle in bundles:
-            # Make the line
-            line = [str(entry) for entry in
-                    (bundle.get_bundle_id(), bundle.get_symbolic_name(),
-                    self._utils.bundlestate_to_str(bundle.get_state()),
-                    bundle.get_version())]
-
-            lines.append(line)
+        lines = [[str(entry) for entry in
+                        (bundle.get_bundle_id(),
+                         bundle.get_symbolic_name(),
+                         self._utils.bundlestate_to_str(bundle.get_state()),
+                         bundle.get_version())]
+                 for bundle in bundles]
 
         # Print'em all
         io_handler.write(self._utils.make_table(headers, lines))
+        io_handler.write_line("{0} bundles installed", len(lines))
 
 
     def service_details(self, io_handler, service_id):
@@ -803,19 +801,17 @@ class Shell(object):
         # Use the reverse order (ascending service IDs instead of descending)
         references.reverse()
 
-        lines = []
-        for ref in references:
-            # Make the line
-            line = [str(entry) for entry in
-                    (ref.get_property(pelix.SERVICE_ID),
-                     ref.get_property(pelix.OBJECTCLASS),
-                     ref.get_bundle(),
-                     ref.get_property(pelix.SERVICE_RANKING))]
-
-            lines.append(line)
+        # Construct the list of services
+        lines = [[str(entry) for entry in
+                        (ref.get_property(pelix.SERVICE_ID),
+                         ref.get_property(pelix.OBJECTCLASS),
+                         ref.get_bundle(),
+                         ref.get_property(pelix.SERVICE_RANKING))]
+                 for ref in references]
 
         # Print'em all
         io_handler.write(self._utils.make_table(headers, lines))
+        io_handler.write_line("{0} services registered", len(lines))
 
 
     def __extract_help(self, method):
