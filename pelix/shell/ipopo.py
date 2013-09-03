@@ -31,7 +31,7 @@ Provides commands to the Pelix shell to get the state of iPOPO instances.
 
 # Module version
 __version_info__ = (0, 2, 1)
-__version__ = ".".join(map(str, __version_info__))
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"

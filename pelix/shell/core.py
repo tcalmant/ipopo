@@ -31,7 +31,7 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 
 # Module version
 __version_info__ = (0, 2, 2)
-__version__ = ".".join(map(str, __version_info__))
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
