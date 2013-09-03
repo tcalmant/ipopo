@@ -37,15 +37,14 @@ __version__ = ".".join(map(str, __version_info__))
 # Standard library
 import logging
 import threading
-import sys
 
-if sys.version_info[0] < 3:
-    # Python 2
-    import Queue as queue
-
-else:
+try:
     # Python 3
     import queue
+
+except ImportError:
+    # Python 2
+    import Queue as queue
 
 # ------------------------------------------------------------------------------
 

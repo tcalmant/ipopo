@@ -61,14 +61,15 @@ import os
 import select
 import socket
 import struct
-import sys
 import threading
 
-if sys.version_info[0] < 3:
-    import httplib
-
-else:
+try:
+    # Python 3
     import http.client as httplib
+
+except ImportError:
+    # Python 2
+    import httplib
 
 # ------------------------------------------------------------------------------
 

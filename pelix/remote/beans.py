@@ -40,12 +40,14 @@ __docformat__ = "restructuredtext en"
 import pelix.remote
 
 # Standard library
-import sys
-if sys.version_info[0] < 3:
+try:
+    # Python 3
+    from urllib.parse import urlparse
+
+except ImportError:
+    # Python 2
     from urlparse import urlparse
 
-else:
-    from urllib.parse import urlparse
 
 # ------------------------------------------------------------------------------
 

@@ -48,13 +48,15 @@ from pelix.shell import SHELL_SERVICE_SPEC, REMOTE_SHELL_SPEC
 from select import select
 
 import logging
-import sys
 import threading
 import socket
 
-if sys.version_info[0] >= 3:
+try:
+    # Python 3
     import socketserver
-else:
+
+except ImportError:
+    # Python 2
     import SocketServer as socketserver
 
 # ------------------------------------------------------------------------------

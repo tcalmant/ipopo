@@ -47,19 +47,18 @@ import pelix.utilities as utilities
 
 import logging
 import socket
-import sys
 import threading
 import traceback
 
 # Basic HTTP server
-if sys.version_info[0] == 3:
+try:
     # Python 3
     import urllib.parse as urlparse
     from http.server import HTTPServer
     from http.server import BaseHTTPRequestHandler
     from socketserver import ThreadingMixIn
 
-else:
+except ImportError:
     # Python 2
     import urlparse
     from BaseHTTPServer import HTTPServer

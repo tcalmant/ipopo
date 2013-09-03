@@ -52,16 +52,15 @@ from pelix.utilities import to_str
 
 # Standard library
 import logging
-import sys
 import uuid
 
 # XML RPC modules
-if sys.version_info[0] == 3:
+try:
     # Python 3
     from xmlrpc.server import SimpleXMLRPCDispatcher
     import xmlrpc.client as xmlrpclib
 
-else:
+except ImportError:
     # Python 2
     from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
     import xmlrpclib

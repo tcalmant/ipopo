@@ -10,7 +10,6 @@ from tests import log_on, log_off
 
 import pelix.ipopo.constants as constants
 import logging
-import sys
 
 try:
     import unittest2 as unittest
@@ -21,10 +20,12 @@ except ImportError:
     tests.inject_unittest_methods()
 
 
-if sys.version_info[0] == 3:
+try:
+    # Python 3
     import http.client as httplib
 
-else:
+except ImportError:
+    # Python 2
     import httplib
 
 # HTTP service constants
