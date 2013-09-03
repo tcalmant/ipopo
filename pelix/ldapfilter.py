@@ -129,9 +129,9 @@ class LDAPFilter(object):
 
     def append(self, ldap_filter):
         """
-        Appends a filter or a criteria to this filter
+        Appends a filter or a criterion to this filter
 
-        :param ldap_filter: An LDAP filter or criteria
+        :param ldap_filter: An LDAP filter or criterion
         :raise TypeError: If the parameter is not of a known type
         :raise ValueError: If the more than one filter is associated to a
                            NOT operator
@@ -155,10 +155,10 @@ class LDAPFilter(object):
         """
         result = False
 
-        for criteria in self.subfilters:
-            if not criteria.matches(properties):
+        for criterion in self.subfilters:
+            if not criterion.matches(properties):
                 if self.operator == AND:
-                    # A criteria doesn't match in an "AND" test : short cut
+                    # A criterion doesn't match in an "AND" test : short cut
                     result = False
                     break
 
@@ -211,17 +211,17 @@ class LDAPFilter(object):
 
 class LDAPCriteria(object):
     """
-    Represents an LDAP criteria
+    Represents an LDAP criterion
     """
     def __init__(self, name, value, comparator):
         """
-        Sets up the criteria
+        Sets up the criterion
 
         :raise ValueError: If one of the parameters is empty
         """
         if not name or not value or not comparator:
             # Refuse empty values
-            raise ValueError("Invalid criteria parameter ({0}, {1}, {2})"\
+            raise ValueError("Invalid criterion parameter ({0}, {1}, {2})"\
                              .format(name, value, comparator))
 
         if not inspect.isroutine(comparator):
@@ -281,10 +281,10 @@ class LDAPCriteria(object):
 
     def matches(self, properties):
         """
-        Tests if the given criteria matches this LDAP criteria
+        Tests if the given criterion matches this LDAP criterion
 
         :param properties: A dictionary of properties
-        :return: True if the properties matches this criteria, else False
+        :return: True if the properties matches this criterion, else False
         """
         if self.name not in properties:
             # Property is not even is the property
@@ -296,7 +296,7 @@ class LDAPCriteria(object):
 
     def normalize(self):
         """
-        Returns this criteria
+        Returns this criterion
         """
         return self
 
@@ -717,9 +717,9 @@ def _skip_spaces(string, idx):
     return -1
 
 
-def _parse_LDAP_criteria(ldap_filter, startidx=0, endidx= -1):
+def _parse_LDAP_criteria(ldap_filter, startidx=0, endidx=-1):
     """
-    Parses an LDAP sub filter (criteria)
+    Parses an LDAP sub filter (criterion)
 
     :param ldap_filter: An LDAP filter string
     :param startidx: Sub-filter start index
@@ -843,19 +843,19 @@ def _parse_LDAP(ldap_filter):
                 # Ending filter : store it in its parent
 
                 if len(subfilter_stack) != 0:
-                    # Criteria finished
+                    # criterion finished
                     startidx = subfilter_stack.pop()
-                    criteria = _parse_LDAP_criteria(ldap_filter, startidx, idx)
+                    criterion = _parse_LDAP_criteria(ldap_filter, startidx, idx)
 
                     if len(stack) != 0:
                         top = stack.pop()
-                        top.append(criteria)
+                        top.append(criterion)
                         stack.append(top)
                     else:
-                        # No parent : filter contains only one criteria
+                        # No parent : filter contains only one criterion
                         # Make a parent to stay homogeneous
                         root = LDAPFilter(AND)
-                        root.append(criteria)
+                        root.append(criterion)
 
                 elif len(stack) != 0:
                     # Sub filter finished
