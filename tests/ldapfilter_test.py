@@ -254,8 +254,6 @@ class LDAPUtilitiesTest(unittest.TestCase):
                               "Can't combine an empty list of filters")
 
         # Empty sub filters
-        ldap_filter_1 = get_ldap_filter("(test=True)")
-        ldap_filter_2 = pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.AND)
         self.assertIsNone(pelix.ldapfilter.combine_filters(empty),
                           "Empty sub filters: return None")
 
@@ -264,8 +262,15 @@ class LDAPUtilitiesTest(unittest.TestCase):
             self.assertRaises(TypeError, pelix.ldapfilter.combine_filters,
                               invalid)
 
+        ldap_filter_1 = get_ldap_filter("(test=True)")
+        ldap_filter_2 = pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.AND)
+
         # Unique filter in result
         self.assertIs(pelix.ldapfilter.combine_filters((None, ldap_filter_1)),
+                      ldap_filter_1, "The result of combine must be minimal")
+
+        self.assertIs(pelix.ldapfilter.combine_filters((ldap_filter_1,
+                                                        ldap_filter_2)),
                       ldap_filter_1, "The result of combine must be minimal")
 
 
@@ -378,18 +383,28 @@ class LDAPCriteriaTest(unittest.TestCase):
         # Inequality check
         self.assertNotEqual(ldap_filter, get_ldap_filter("(test2=true)"),
                             "Invalid equality (type)")
+        self.assertNotEqual(get_ldap_filter("(test2=true)"), ldap_filter,
+                            "Invalid equality (type, reverse)")
 
         self.assertNotEqual(ldap_filter,
                         get_ldap_filter("(&(test=False)(test2=True)(test3=1))"),
                         "Invalid equality (size)")
+        self.assertNotEqual(
+                        get_ldap_filter("(&(test=False)(test2=True)(test3=1))"),
+                        ldap_filter, "Invalid equality (size, reverse)")
 
         self.assertNotEqual(ldap_filter,
                             get_ldap_filter("(&(test1=False)(test2=True))"),
                             "Invalid equality (sub-filter)")
+        self.assertNotEqual(get_ldap_filter("(&(test1=False)(test2=True))"),
+                            ldap_filter,
+                            "Invalid equality (sub-filter, reverse)")
 
         self.assertNotEqual(ldap_filter,
                             get_ldap_filter("(|(test=False)(test2=True))"),
                             "Invalid equality (operator)")
+        self.assertNotEqual(get_ldap_filter("(|(test=False)(test2=True))"),
+                            ldap_filter, "Invalid equality (operator, reverse)")
 
 
     def testNormalize(self):
