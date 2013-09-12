@@ -362,7 +362,7 @@ class JsonRpcServiceExporter(object):
         self._http.unregister(None, self._servlet)
 
         # Remove all exports
-        for reference in self.__registrations.keys():
+        for reference in list(self.__registrations.keys()):
             self._unexport_service(reference)
 
         # Clean up the storage
