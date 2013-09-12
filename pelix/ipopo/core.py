@@ -855,7 +855,8 @@ class _ServiceRegistrationHandler(object):
 
             except BundleException as ex:
                 # Only log the error at this level
-                _logger.error("Error unregistering a component service: %s", ex)
+                _logger.error("Error unregistering a service of '%s': %s",
+                              self._ipopo_instance.name, ex)
 
             self._registration = None
             self._svc_reference = None
@@ -2261,14 +2262,19 @@ class _IPopoService(object):
             # Find out which factories must be removed
             to_remove = []
 
-            for name in self.__factories:
-                if self.get_factory_bundle(name) is bundle:
-                    # Found
-                    to_remove.append(name)
+            for factory_name in self.__factories:
+                if self.get_factory_bundle(factory_name) is bundle:
+                    # Found a factory provided by the given bundle
+                    to_remove.append(factory_name)
 
             # Remove all of them
-            for factory in to_remove:
-                self.unregister_factory(factory)
+            for factory_name in to_remove:
+                try:
+                    self.unregister_factory(factory_name)
+
+                except ValueError as ex:
+                    _logger.warning("Error unregistering factory '%s': %s",
+                                    factory_name, ex)
 
 
     def instantiate(self, factory_name, name, properties=None):
