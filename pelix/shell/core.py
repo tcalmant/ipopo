@@ -250,17 +250,21 @@ class ShellUtils(object):
         return states.get(state, "Unknown state (%d)".format(state))
 
 
-    def make_table(self, headers, lines):
+    def make_table(self, headers, lines, prefix=None):
         """
         Generates an ASCII table according to the given headers and lines
 
         :param headers: List of table headers (N-tuple)
-        :param lines: List of table lines (N-tuples).
+        :param lines: List of table lines (N-tuples)
+        :param prefix: Optional prefix for each line
         :return: The ASCII representation of the table
         :raise ValueError: Different number of columns between headers and lines
         """
         if lines and len(headers) != len(lines[0]):
             raise ValueError("Different sizes for header and lines")
+
+        # Normalize the prefix
+        prefix = str(prefix or "")
 
         # Maximum lengths
         lengths = [len(title) for title in headers]
@@ -269,28 +273,24 @@ class ShellUtils(object):
         str_lines = []
         for line in lines:
             # Recompute lengths
-            i = 0
             str_line = []
             str_lines.append(str_line)
-            for entry in line:
+            for column, entry in enumerate(line):
                 str_entry = str(entry)
                 str_line.append(str_entry)
 
-                if len(str_entry) > lengths[i]:
-                    lengths[i] = len(str_entry)
-                i += 1
+                if len(str_entry) > lengths[column]:
+                    lengths[column] = len(str_entry)
 
         # Prepare the head (centered text)
-        format_str = "|"
-        i = 0
-        for length in lengths:
-            format_str += " {%d:^%d} |" % (i, length)
-            i += 1
+        format_str = "{0}|".format(prefix)
+        for column, length in enumerate(lengths):
+            format_str += " {%d:^%d} |" % (column, length)
 
         head_str = format_str.format(*headers)
 
         # Prepare the separator, according the length of the headers string
-        separator = '-' * len(head_str)
+        separator = '{0}{1}'.format(prefix, '-' * (len(head_str) - len(prefix)))
         idx = head_str.find('|')
         while idx != -1:
             separator = '+'.join((separator[:idx], separator[idx + 1:]))
