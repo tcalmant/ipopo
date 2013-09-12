@@ -260,18 +260,18 @@ class ShellUtils(object):
         :return: The ASCII representation of the table
         :raise ValueError: Different number of columns between headers and lines
         """
-        if lines and len(headers) != len(lines[0]):
-            raise ValueError("Different sizes for header and lines")
-
         # Normalize the prefix
         prefix = str(prefix or "")
 
         # Maximum lengths
         lengths = [len(title) for title in headers]
 
+        # Store the number of columns (0-based)
+        nb_columns = len(lengths) - 1
+
         # Lines
         str_lines = []
-        for line in lines:
+        for idx, line in enumerate(lines):
             # Recompute lengths
             str_line = []
             str_lines.append(str_line)
@@ -281,6 +281,11 @@ class ShellUtils(object):
 
                 if len(str_entry) > lengths[column]:
                     lengths[column] = len(str_entry)
+
+            if column != nb_columns:
+                # Check if all lines have the same number of columns
+                raise ValueError("Different sizes for header and lines "
+                                 "(line {0})".format(idx + 1))
 
         # Prepare the head (centered text)
         format_str = "{0}|".format(prefix)
