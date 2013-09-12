@@ -1459,9 +1459,6 @@ class _StoredInstance(object):
             if self.state == _StoredInstance.KILLED:
                 return
 
-            # Unregister from service events
-            self.bundle_context.remove_service_listener(self)
-
             try:
                 self.invalidate(True)
 
@@ -2478,7 +2475,15 @@ class _IPopoService(object):
                 # Remove instances from the registry: avoids dependencies \
                 # update to link against a component from this factory again.
                 for instance in to_remove:
-                    self.kill(instance.name)
+                    try:
+                        # Kill the instance
+                        self.kill(instance.name)
+
+                    except ValueError as ex:
+                        # Unknown instance: already killed by the invalidation
+                        # callback of a component killed in this loop
+                        # => ignore
+                        pass
 
             # Remove the factory from the registry
             del self.__factories[factory_name]
