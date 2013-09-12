@@ -2479,7 +2479,7 @@ class _IPopoService(object):
                         # Kill the instance
                         self.kill(instance.name)
 
-                    except ValueError as ex:
+                    except ValueError:
                         # Unknown instance: already killed by the invalidation
                         # callback of a component killed in this loop
                         # => ignore
