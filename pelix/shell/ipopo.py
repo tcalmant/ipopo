@@ -200,14 +200,20 @@ class IPopoCommands(object):
                                   name, ex)
             return
 
+        # Basic information
         lines = []
-        lines.append("Name   : {0}".format(details["name"]))
-        lines.append("Factory: {0}".format(details["factory"]))
-        lines.append("State  : {0}".format(ipopo_state_to_str(
-                                                        details["state"])))
-        if "service" in details:
-            lines.append("Service: {0}".format(details["service"]))
+        lines.append("Name     : {0}".format(details["name"]))
+        lines.append("Factory  : {0}".format(details["factory"]))
+        lines.append("Bundle ID: {0}".format(details["bundle_id"]))
+        lines.append("State    : {0}".format(
+                                         ipopo_state_to_str(details["state"])))
 
+        # Provided services
+        lines.append("Services :")
+        lines.extend("\t{0}".format(svc_reference)
+                     for svc_reference in details["services"].values())
+
+        # Requirements
         lines.append("Dependencies:")
         for field, infos in details["dependencies"].items():
             lines.append("\tField: {0}".format(field))
@@ -220,6 +226,12 @@ class IPopoCommands(object):
             lines.append("\t\tBindings :")
             for ref in infos["bindings"]:
                 lines.append('\t\t\t{0}'.format(ref))
+
+        # Properties
+        lines.append("Properties:")
+        lines.append(self._utils.make_table(("Key", "Value"),
+                                            details['properties'].items(),
+                                            "\t"))
 
         lines.append("")
         io_handler.write('\n'.join(lines))

@@ -2535,9 +2535,10 @@ class _IPopoService(object):
         
         * name: The component name
         * factory: The name of the component factory
+        * bundle_id: The ID of the bundle providing the component factory
         * state: The current component state
-        * service (optional): The reference of the service provided by the
-          component
+        * services: A {Service ID -> Service reference} dictionary, with all
+          services provided by the component
         * dependencies: A dictionary associating field names with the following
           dictionary:
         
@@ -2548,6 +2549,10 @@ class _IPopoService(object):
           * aggregate: A flag indicating whether the requirement is a set of
             services or not
           * binding: A list of the ServiceReference the component is bound to
+
+        * properties: A dictionary key -> value, with all properties of the
+          component. The value is converted to its string representation, to
+          avoid unexcepted behaviors.
         
         :param name: The name of a component instance
         :return: A dictionary of details
@@ -2568,6 +2573,10 @@ class _IPopoService(object):
 
                 # Factory name
                 result["factory"] = stored_instance.factory_name
+
+                # Factory bundle
+                result["bundle_id"] = stored_instance.bundle_context \
+                                                .get_bundle().get_bundle_id()
 
                 # Component state
                 result["state"] = stored_instance.state
@@ -2599,6 +2608,12 @@ class _IPopoService(object):
 
                     # Bindings
                     info["bindings"] = dependency.get_bindings()
+
+                # Properties
+                properties = stored_instance.context.properties.items()
+                result["properties"] = {str(key): str(value)
+                                        for key, value in properties}
+
 
                 # All done
                 return result
