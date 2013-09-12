@@ -146,7 +146,7 @@ class IPopoCommands(object):
 
     def factory_details(self, io_handler, name):
         """
-        factory <name> - Prints the details of the given component factory
+        Prints the details of the given component factory
         """
         try:
             details = self._ipopo.get_factory_details(name)
@@ -190,7 +190,7 @@ class IPopoCommands(object):
 
     def instance_details(self, io_handler, name):
         """
-        instance <name> - Prints the details of the given component instance
+        Prints the details of the given component instance
         """
         try:
             details = self._ipopo.get_instance_details(name)
@@ -227,8 +227,8 @@ class IPopoCommands(object):
 
     def instantiate(self, io_handler, factory, name, **kwargs):
         """
-        instantiate <factory> <name> [<property=value> ...] - Instantiate a
-        component of the given factory with the given name and properties
+        Instantiates a component of the given factory with the given name and
+        properties
         """
         try:
             self._ipopo.instantiate(factory, name, kwargs)
@@ -246,7 +246,7 @@ class IPopoCommands(object):
 
     def kill(self, io_handler, name):
         """
-        kill <name> - Kills the given component instance
+        Kills the given component instance
         """
         try:
             self._ipopo.kill(name)

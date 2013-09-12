@@ -90,13 +90,13 @@ class EventAdminCommands(object):
 
     def send(self, io_handler, topic, **kwargs):
         """
-        send <topic> [<property=value>] - Sends an event (blocking)
+        Sends an event (blocking)
         """
         self._events.send(topic, kwargs)
 
 
     def post(self, io_handler, topic, **kwargs):
         """
-        post <topic> [<property=value>] - Posts an event (asynchronous)
+        Posts an event (asynchronous)
         """
         self._events.post(topic, kwargs)

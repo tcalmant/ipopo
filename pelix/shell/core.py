@@ -47,6 +47,7 @@ from pelix.utilities import to_str
 import pelix.framework as pelix
 
 # Standard library
+import inspect
 import io
 import logging
 import os
@@ -680,15 +681,32 @@ class Shell(object):
         return commands
 
 
-    def bundle_details(self, io_handler, bundle_id):
+    def bundle_details(self, io_handler, bundle_id=0):
         """
-        Prints the details of the given bundle
+        Prints the details of the bundle with the given ID or name
         """
-        try:
-            bundle_id = int(bundle_id)
-            bundle = self._context.get_bundle(bundle_id)
+        bundle = None
 
-        except pelix.BundleException:
+        try:
+            # Convert the given ID into an integer
+            bundle_id = int(bundle_id)
+
+        except ValueError:
+            # Not an integer, suppose it's a bundle name
+            for bundle in self._context.get_bundles():
+                if bundle.get_symbolic_name() == bundle_id:
+                    break
+
+        else:
+            # Integer ID: direct access
+            try:
+                bundle = self._context.get_bundle(bundle_id)
+
+            except pelix.BundleException:
+                pass
+
+        if bundle is None:
+            # No matching bundle
             io_handler.write_line("Unknown bundle ID: {0}", bundle_id)
             return
 
@@ -759,7 +777,7 @@ class Shell(object):
 
     def service_details(self, io_handler, service_id):
         """
-        Prints the details of the given service
+        Prints the details of the service with the given ID
         """
         svc_ref = self._context.get_service_reference(None,
                                 '({0}={1})'.format(pelix.SERVICE_ID,
@@ -816,17 +834,75 @@ class Shell(object):
 
     def __extract_help(self, method):
         """
-        Extract the help string from the given method
+        Formats the help string for the given method
+        
+        :param method: The method to document
+        :return: A tuple: (arguments list, documentation line)
         """
         if method is None:
             return "(No associated method)"
 
-        return getattr(method, '__doc__', None) or "(Documentation missing)"
+        # Get the arguments
+        argspec = inspect.getargspec(method)
+
+        # Compute the number of arguments with default value
+        if argspec.defaults is not None:
+            nb_optional = len(argspec.defaults)
+
+            # Let the mandatory arguments as they are
+            args = ["<{0}>".format(arg) for arg in argspec.args[2:-nb_optional]]
+
+            # Add the other arguments
+            for name, value in zip(argspec.args[-nb_optional:],
+                                   argspec.defaults[-nb_optional:]):
+                if value is not None:
+                    args.append('[<{0}>={1}]'.format(name, value))
+
+                else:
+                    args.append('[<{0}>]'.format(name))
+
+        else:
+            # All arguments are mandatory
+            args = ["<{0}>".format(arg) for arg in argspec.args[2:]]
+
+        # Extra arguments
+        if argspec.keywords:
+            args.append('[<property=value> ...]')
+
+        if argspec.varargs:
+            args.append("...")
+
+        # Get the documentation string
+        doc = inspect.getdoc(method) or "(Documentation missing)"
+
+        return ', '.join(args), ' '.join(doc.split())
+
+
+    def __print_command_help(self, io_handler, namespace, cmd_name):
+        """
+        Prints the documentation of the given command
+        
+        :param io_handler: I/O handler
+        :param namespace: Name space of the command
+        :param cmd_name: Name of the command
+        """
+        # Extract documentation
+        args, doc = self.__extract_help(self._commands[namespace][cmd_name])
+
+        # Print the command name, and its arguments
+        if args:
+            io_handler.write_line("- {0} {1}", cmd_name, args)
+        else:
+            io_handler.write_line("- {0}", cmd_name)
+
+        # Print the documentation line
+        io_handler.write_line("\t\t{0}", doc)
 
 
     def print_help(self, io_handler, command=None):
         """
-        Prints the available methods and their documentation
+        Prints the available methods and their documentation, or the
+        documentation of the given command.
         """
         if command:
             # Single command mode
@@ -842,9 +918,7 @@ class Shell(object):
             else:
                 # Print the help
                 io_handler.write_line("* Name space '{0}':", namespace)
-                io_handler.write_line("- {0}", cmd_name)
-                doc = self.__extract_help(self._commands[namespace][cmd_name])
-                io_handler.write_line("\t\t{0}", ' '.join(doc.split()))
+                self.__print_command_help(io_handler, namespace, cmd_name)
 
         else:
             # Get all name spaces
@@ -860,10 +934,8 @@ class Shell(object):
                 names = [command for command in self._commands[namespace]]
                 names.sort()
 
-                for name in names:
-                    io_handler.write_line("- {0}", name)
-                    doc = self.__extract_help(self._commands[namespace][name])
-                    io_handler.write_line("\t\t{0}", ' '.join(doc.split()))
+                for cmd_name in names:
+                    self.__print_command_help(io_handler, namespace, cmd_name)
 
 
     def properties_list(self, io_handler):
@@ -888,7 +960,7 @@ class Shell(object):
 
     def property_value(self, io_handler, name):
         """
-        property <name> - Prints the value of the given property, looking into
+        Prints the value of the given property, looking into
         framework properties then environment variables.
         """
         io_handler.write_line(str(self._context.get_property(name)))
@@ -913,7 +985,7 @@ class Shell(object):
 
     def environment_value(self, io_handler, name):
         """
-        sysprop <name> - Prints the value of the given environment variable
+        Prints the value of the given environment variable
         """
         io_handler.write_line(os.getenv(name))
 
@@ -959,7 +1031,7 @@ class Shell(object):
 
     def thread_details(self, io_handler, thread_id):
         """
-        thread <id> - Prints details about the given thread
+        Prints details about the thread with the given ID (not its name)
         """
         try:
             # Get the stack
@@ -999,7 +1071,7 @@ class Shell(object):
 
     def start(self, io_handler, bundle_id):
         """
-        start <bundle_id> - Starts the given bundle ID
+        Starts the bundle with the given ID
         """
         bundle_id = int(bundle_id)
         bundle = self._context.get_bundle(bundle_id)
@@ -1011,7 +1083,7 @@ class Shell(object):
 
     def stop(self, io_handler, bundle_id):
         """
-        stop <bundle_id> - Stops the given bundle
+        Stops the bundle with the given ID
         """
         bundle_id = int(bundle_id)
         bundle = self._context.get_bundle(bundle_id)
@@ -1023,7 +1095,7 @@ class Shell(object):
 
     def update(self, io_handler, bundle_id):
         """
-        update <bundle_id> - Updates the given bundle ID
+        Updates the bundle with the given ID
         """
         bundle_id = int(bundle_id)
         bundle = self._context.get_bundle(bundle_id)
@@ -1033,17 +1105,17 @@ class Shell(object):
         bundle.update()
 
 
-    def install(self, io_handler, location):
+    def install(self, io_handler, module_name):
         """
-        install <bundle_id> - Installs the given bundle
+        Installs the bundle with the given module name
         """
-        bundle = self._context.install_bundle(location)
+        bundle = self._context.install_bundle(module_name)
         io_handler.write_line("Bundle ID: {0}", bundle.get_bundle_id())
 
 
     def uninstall(self, io_handler, bundle_id):
         """
-        uninstall <bundle_id> - Uninstalls the given bundle
+        Uninstalls the bundle with the given ID
         """
         bundle_id = int(bundle_id)
         bundle = self._context.get_bundle(bundle_id)
