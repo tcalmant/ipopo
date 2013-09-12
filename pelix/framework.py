@@ -505,14 +505,22 @@ class Bundle(object):
             raise
 
         # Change the source file age
+        time_changed = False
         module_file = getattr(self.__module, "__file__", None)
-        can_change = module_file is not None and os.path.isfile(module_file)
-        if can_change:
-            st = os.stat(module_file)
+        if module_file is not None and os.path.isfile(module_file):
+            try:
+                st = os.stat(module_file)
 
-            # Change modification time to bypass weak time resolution of the
-            # underlying file system
-            os.utime(module_file, (st.st_atime, st.st_mtime + 1))
+                # Change modification time to bypass weak time resolution of the
+                # underlying file system
+                os.utime(module_file, (st.st_atime, st.st_mtime + 1))
+                time_changed = True
+
+            except OSError:
+                # Can't touch the file
+                _logger.warning("Failed to update the modification time of "
+                                "'%s'. The bundle update might not reflect the "
+                                "latest changes.", module_file)
 
         try:
             # Reload the module
@@ -522,9 +530,15 @@ class Bundle(object):
             # Exception raised in Python 3
             _logger.exception("Error updating %s: %s", self.__name, ex)
 
-        if can_change:
-            # Reset times
-            os.utime(module_file, (st.st_atime, st.st_mtime))
+        if time_changed:
+            try:
+                # Reset times
+                os.utime(module_file, (st.st_atime, st.st_mtime))
+
+            except OSError:
+                # Shouldn't occur, since we succeeded before the update
+                _logger.debug("Failed to reset the modification time of '%s'",
+                              module_file)
 
         if restart:
             try:
