@@ -40,8 +40,7 @@ source_encoding = u'utf-8-sig'
 
 
 # The master toctree document.
-master_doc = u'index'
-
+master_doc = u'index-static'
 
 # General information about the project.
 project = u'iPOPO'

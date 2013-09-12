@@ -8,6 +8,9 @@ inspired from the Java project
 `iPOJO <http://felix.apache.org/site/apache-felix-ipojo.html>`_.
 Its development is supported by `isandlaTech <http://www.isandlatech.com>`_.
 
+.. important:: This static web site won't be updated anymore, take a look at
+   the `official wiki <./wiki/doku.php>`_
+
 .. toctree::
    :maxdepth: 2
    :numbered:
@@ -23,20 +26,23 @@ Its development is supported by `isandlaTech <http://www.isandlatech.com>`_.
 News
 ****
 
-* 1st august 2013: Release of :ref:`release_0.5.3` (small additions and bug
+* 05 September 2013: iPOPO static web site replaced by a
+  `wiki <./wiki/doku.php>`_
+
+* 1st August 2013: Release of :ref:`release_0.5.3` (small additions and bug
   fixes)
 
-* 19 july 2013: Release of :ref:`release_0.5.2` (small additions and bug fixes)
+* 19 July 2013: Release of :ref:`release_0.5.2` (small additions and bug fixes)
 
-* 5 july 2013: Release of :ref:`release_0.5.1` (bug fixes)
+* 5 July 2013: Release of :ref:`release_0.5.1` (bug fixes)
 
-* 21 may 2013: Release of :ref:`release_0.5` (**Warning:** API changes)
+* 21 May 2013: Release of :ref:`release_0.5` (**Warning:** API changes)
 
-* 17 may 2013: iPOPO 0.5 has been presented at the
+* 17 May 2013: iPOPO 0.5 has been presented at the
   `OSGi User Group France meeting <http://france.osgiusers.org/Meeting/201305>`_
   (`slides <_static/slides/osgi-20130517/index.html>`_ in French)
 
-* 26 july 2012: iPOPO 0.2 has been presented at
+* 26 July 2012: iPOPO 0.2 has been presented at
   `CBSE'12 <http://comparch2012.dei.polimi.it/>`_
   (`article <http://www.isandlatech.com/__FR/pdfs/20120429%20cbse30-calmant.pdf>`_)
 
