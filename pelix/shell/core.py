@@ -686,7 +686,7 @@ class Shell(object):
         return commands
 
 
-    def bundle_details(self, io_handler, bundle_id=0):
+    def bundle_details(self, io_handler, bundle_id):
         """
         Prints the details of the bundle with the given ID or name
         """
