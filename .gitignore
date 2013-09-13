@@ -15,7 +15,8 @@ generated_bundle.py
 *.tar.gz
 *.zip
 
-# Coverage
+# Tests and coverage
+.tox/
 .coverage*
 htmlcov/
 
