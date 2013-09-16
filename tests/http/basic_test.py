@@ -84,7 +84,7 @@ def instantiate_server(ipopo_svc, module,
     """
     Instantiates a basic server component
     """
-    return ipopo_svc.instantiate(module.HTTP_SERVICE_COMPONENT_FACTORY,
+    return ipopo_svc.instantiate(http.FACTORY_HTTP_BASIC,
                                  "test-http-service",
                                  {http.HTTP_SERVICE_ADDRESS: address,
                                   http.HTTP_SERVICE_PORT: port})
