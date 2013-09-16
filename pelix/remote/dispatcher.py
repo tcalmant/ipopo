@@ -48,11 +48,20 @@ import pelix.http
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
     Bind, Property, Validate, Invalidate, Instantiate
+from pelix.utilities import to_str
 
 # Standard library
 import json
 import logging
 import threading
+
+try:
+    # Python 3
+    import http.client as httplib
+
+except ImportError:
+    # Python 2
+    import httplib
 
 # ------------------------------------------------------------------------------
 
@@ -288,6 +297,7 @@ class Dispatcher(object):
 @Provides(pelix.http.HTTP_SERVLET)
 @Provides(pelix.remote.SERVICE_DISPATCHER_SERVLET, "_controller")
 @Requires('_dispatcher', pelix.remote.SERVICE_DISPATCHER)
+@Requires("_registry", pelix.remote.SERVICE_REGISTRY)
 @Property('_path', pelix.http.HTTP_SERVLET_PATH, "/pelix-dispatcher")
 class RegistryServlet(object):
     """
@@ -391,6 +401,25 @@ class RegistryServlet(object):
         response.send_content(200, data, 'application/json')
 
 
+    def do_POST(self, request, response):
+        """
+        Handles a POST request
+        
+        :param request: Request handler
+        :param response: Response handler
+        """
+        # Read the content
+        endpoints = json.loads(to_str(request.read_data()))
+        if endpoints:
+            # Got something
+            sender = request.get_client_address()[0]
+            for endpoint in endpoints:
+                self.register_endpoint(sender, endpoint)
+
+        # We got the end points
+        response.send_content(200, 'OK', 'text/plain')
+
+
     def _make_endpoint_dict(self, endpoint):
         """
         Converts the end point into a dictionary
@@ -409,6 +438,62 @@ class RegistryServlet(object):
                 "url": endpoint.url,
                 "specifications": endpoint.specifications,
                 "properties": properties}
+
+
+    def filter_properties(self, framework_uid, properties):
+        """
+        Replaces in-place export properties by import ones
+        
+        :param framework_uid: The UID of the framework exporting the service
+        :param properties: End point properties
+        :return: The filtered dictionary.
+        """
+        # Add the "imported" property
+        properties[pelix.remote.PROP_IMPORTED] = True
+
+        # Replace the "exported configs"
+        if pelix.remote.PROP_EXPORTED_CONFIGS in properties:
+            properties[pelix.remote.PROP_IMPORTED_CONFIGS] = \
+                                properties[pelix.remote.PROP_EXPORTED_CONFIGS]
+
+        # Clear export properties
+        for name in (pelix.remote.PROP_EXPORTED_CONFIGS,
+                     pelix.remote.PROP_EXPORTED_INTERFACES):
+            if name in properties:
+                del properties[name]
+
+        # Add the framework UID to the properties
+        properties[pelix.remote.PROP_FRAMEWORK_UID] = framework_uid
+
+        return properties
+
+
+    def register_endpoint(self, host_address, endpoint_dict):
+        """
+        Registers a new end point in the registry
+        
+        :param host_address: Address of the service exporter
+        :param endpoint_dict: An end point description dictionary (result of 
+                              a request to the dispatcher servlet)
+        """
+        # Get the UID of the framework exporting the service
+        framework = endpoint_dict['sender']
+
+        # Filter properties
+        properties = self.filter_properties(framework,
+                                            endpoint_dict['properties'])
+
+        # Format the URL
+        url = endpoint_dict['url'].format(server=host_address)
+
+        # Create the end point object
+        endpoint = pelix.remote.beans.ImportEndpoint(endpoint_dict['uid'], \
+                                 framework, endpoint_dict['kind'],
+                                 endpoint_dict['name'], url,
+                                 endpoint_dict['specifications'], properties)
+
+        # Register it
+        self._registry.add(endpoint)
 
 
     def get_access(self):
@@ -441,6 +526,41 @@ class RegistryServlet(object):
         return self._dispatcher.get_endpoint(uid)
 
 
+    def send_discovered(self, host, port, path):
+        """
+        Sends a "discovered" HTTP POST request to the dispatcher servlet of the
+        framework that has been discovered
+        
+        :param host: The address of the sender
+        :param port: Port of the HTTP server of the sender
+        :param path: Path of the dispatcher servlet
+        """
+        # Get the end points from the dispatcher
+        endpoints = [self._make_endpoint_dict(endpoint)
+                     for endpoint in self._dispatcher.get_endpoints()]
+
+        # Request the end points
+        try:
+            conn = httplib.HTTPConnection(host, port)
+            conn.request("POST", path,
+                         json.dumps(endpoints),
+                         {"Content-Type": "application/json"})
+
+            result = conn.getresponse()
+            data = result.read()
+            conn.close()
+
+        except Exception as ex:
+            _logger.exception("Error accessing a discovered framework: %s", ex)
+
+        else:
+            if result.status != 200:
+                # Not a valid result
+                _logger.warning("Got an HTTP code %d when contacting a "
+                                "discovered framework: %s",
+                                result.status, data)
+
+
     @Invalidate
     def invalidate(self, context):
         """
@@ -457,3 +577,6 @@ class RegistryServlet(object):
         """
         # Get the framework UID
         self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
+
+        _logger.debug("Dispatcher servlet for %s on %s", self._fw_uid,
+                      self._path)

@@ -47,8 +47,8 @@ __docformat__ = "restructuredtext en"
 # Pelix utilities
 from pelix.utilities import to_bytes, to_str
 
-# Remote Services constants
-import pelix.remote.beans
+# Remote services
+import pelix.remote
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
@@ -380,27 +380,6 @@ class MulticastDiscovery(object):
         self.__send_packet(data)
 
 
-    def _send_discovered(self, sender):
-        """
-        Sends a "discovered" packet to the one that sent a "discovery" packet
-        
-        :param sender: An (address, port) tuple
-        """
-        # Get the dispatcher servlet access
-        access = self._access.get_access()
-
-        # Make the discovery packet content
-        data = {"event": "discovered",  # "Discovered" packet
-                "sender": self._fw_uid,  # Framework UID
-                "access": {"port": access[0],  # Access to the dispatcher
-                           "path": access[1]}  # servlet
-                }
-
-        # Send a JSON request
-        data = json.dumps(data)
-        self.__send_packet(data, sender)
-
-
     def endpoint_added(self, endpoint):
         """
         A new service is exported
@@ -448,16 +427,9 @@ class MulticastDiscovery(object):
         event = data['event']
         if event == "discovery":
             # Discovery request
-            self._send_discovered(sender)
-
-        elif event == "discovered":
-            # Answer to a discovery request
             access = data['access']
-            endpoints = self.grab_endpoints(sender[0], access['port'],
-                                            access['path'])
-            if endpoints:
-                for endpoint in endpoints:
-                    self._register_endpoint(sender[0], endpoint)
+            self._access.send_discovered(sender[0], access['port'],
+                                         access['path'])
 
         elif event in ('add', 'update', 'remove'):
             # End point event
@@ -485,7 +457,7 @@ class MulticastDiscovery(object):
             endpoint = self.grab_endpoint(sender[0], access['port'],
                                           access['path'], endpoint_uid)
             if endpoint is not None:
-                self._register_endpoint(sender[0], endpoint)
+                self._access.register_endpoint(sender[0], endpoint)
 
         elif event == 'remove':
             # Remove it
@@ -494,64 +466,8 @@ class MulticastDiscovery(object):
         elif event == 'update':
             # Update it
             new_properties = data['new_properties']
-            self.__filter_properties(framework_uid, new_properties)
+            self._access.filter_properties(framework_uid, new_properties)
             self._registry.update(endpoint_uid, new_properties)
-
-
-    def __filter_properties(self, framework_uid, properties):
-        """
-        Replaces in-place export properties by import ones
-        
-        :param framework_uid: The UID of the framework exporting the service
-        :param properties: End point properties
-        :return: The filtered dictionary.
-        """
-        # Add the "imported" property
-        properties[pelix.remote.PROP_IMPORTED] = True
-
-        # Replace the "exported configs"
-        if pelix.remote.PROP_EXPORTED_CONFIGS in properties:
-            properties[pelix.remote.PROP_IMPORTED_CONFIGS] = \
-                                properties[pelix.remote.PROP_EXPORTED_CONFIGS]
-
-        # Clear export properties
-        for name in (pelix.remote.PROP_EXPORTED_CONFIGS,
-                     pelix.remote.PROP_EXPORTED_INTERFACES):
-            if name in properties:
-                del properties[name]
-
-        # Add the framework UID to the properties
-        properties[pelix.remote.PROP_FRAMEWORK_UID] = framework_uid
-
-        return properties
-
-
-    def _register_endpoint(self, host_address, endpoint_dict):
-        """
-        Registers a new end point in the registry
-        
-        :param host_address: Address of the service exporter
-        :param endpoint_dict: An end point description dictionary (result of 
-                              a request to the dispatcher servlet)
-        """
-        # Get the UID of the framework exporting the service
-        framework = endpoint_dict['sender']
-
-        # Filter properties
-        properties = self.__filter_properties(framework,
-                                              endpoint_dict['properties'])
-
-        # Format the URL
-        url = endpoint_dict['url'].format(server=host_address)
-
-        # Create the end point object
-        endpoint = pelix.remote.beans.ImportEndpoint(endpoint_dict['uid'], \
-                                 framework, endpoint_dict['kind'],
-                                 endpoint_dict['name'], url,
-                                 endpoint_dict['specifications'], properties)
-
-        # Register it
-        self._registry.add(endpoint)
 
 
     def grab_endpoint(self, host, port, path, uid):
@@ -672,6 +588,7 @@ class MulticastDiscovery(object):
         close_multicast_socket(self._socket, self._target[0])
 
         # Clean up
+        self._servlet = None
         self._thread = None
         self._socket = None
         self._target = None
