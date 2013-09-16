@@ -293,11 +293,11 @@ class Dispatcher(object):
 
 # -----------------------------------------------------------------------------
 
-@ComponentFactory('pelix-remote-dispatcher-servlet-factory')
+@ComponentFactory(pelix.remote.FACTORY_REGISTRY_SERVLET)
 @Provides(pelix.http.HTTP_SERVLET)
 @Provides(pelix.remote.SERVICE_DISPATCHER_SERVLET, "_controller")
 @Requires('_dispatcher', pelix.remote.SERVICE_DISPATCHER)
-@Requires("_registry", pelix.remote.SERVICE_REGISTRY)
+@Requires('_registry', pelix.remote.SERVICE_REGISTRY)
 @Property('_path', pelix.http.HTTP_SERVLET_PATH, "/pelix-dispatcher")
 class RegistryServlet(object):
     """

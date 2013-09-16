@@ -6,7 +6,7 @@ Pelix remote services package
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.1
+:version: 0.1.1
 :status: Alpha
 
 ..
@@ -28,11 +28,29 @@ Pelix remote services package
 """
 
 # Module version
-__version_info__ = (0, 1, 0)
+__version_info__ = (0, 1, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
+
+#-------------------------------------------------------------------------------
+
+FACTORY_REGISTRY_SERVLET = "pelix-remote-dispatcher-servlet-factory"
+""" Name of the factory of the Servlet component giving access to registries """
+
+FACTORY_DISCOVERY_MULTICAST = "pelix-remote-discovery-multicast-factory"
+""" Name of the Multicast discovery component factory """
+
+FACTORY_TRANSPORT_JSONRPC_EXPORTER = "pelix-jsonrpc-exporter-factory"
+""" Name of the JSON-RPC exporter component factory """
+FACTORY_TRANSPORT_JSONRPC_IMPORTER = "pelix-jsonrpc-importer-factory"
+""" Name of the JSON-RPC importer component factory """
+
+FACTORY_TRANSPORT_XMLRPC_EXPORTER = "pelix-xmlrpc-exporter-factory"
+""" Name of the XML-RPC exporter component factory """
+FACTORY_TRANSPORT_XMLRPC_IMPORTER = "pelix-xmlrpc-importer-factory"
+""" Name of the XML-RPC importer component factory """
 
 #-------------------------------------------------------------------------------
 

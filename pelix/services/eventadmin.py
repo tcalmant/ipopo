@@ -55,7 +55,7 @@ _logger = logging.getLogger(__name__)
 
 #-------------------------------------------------------------------------------
 
-@ComponentFactory("pelix-services-eventadmin-factory")
+@ComponentFactory(pelix.services.FACTORY_EVENT_ADMIN)
 @Provides(pelix.services.SERVICE_EVENT_ADMIN)
 @Property("_nb_threads", "pool.threads", 10)
 class EventAdmin(object):

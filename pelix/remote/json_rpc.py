@@ -120,7 +120,7 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
 
 # ------------------------------------------------------------------------------
 
-@ComponentFactory("pelix-jsonrpc-exporter-factory")
+@ComponentFactory(pelix.remote.FACTORY_TRANSPORT_JSONRPC_EXPORTER)
 @Requires('_dispatcher', pelix.remote.SERVICE_DISPATCHER)
 @Requires('_http', pelix.http.HTTP_SERVICE)
 @Property('_path', pelix.http.HTTP_SERVLET_PATH, '/JSON-RPC')
@@ -402,7 +402,7 @@ class _ServiceCallProxy(object):
         return getattr(proxy, "{0}.{1}".format(self.__name, name))
 
 
-@ComponentFactory("pelix-jsonrpc-importer-factory")
+@ComponentFactory(pelix.remote.FACTORY_TRANSPORT_JSONRPC_IMPORTER)
 @Provides(pelix.remote.SERVICE_ENDPOINT_LISTENER)
 @Property('_kind', 'endpoints.kind', 'jsonrpc')
 @Property('_listener_flag', pelix.remote.PROP_LISTEN_IMPORTED, True)

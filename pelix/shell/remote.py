@@ -39,14 +39,15 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+# iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
     Validate, Invalidate, Provides
-from pelix.shell import SHELL_SERVICE_SPEC, REMOTE_SHELL_SPEC
 
-# ------------------------------------------------------------------------------
+# Shell constants
+import pelix.shell
 
+# Standard library
 from select import select
-
 import logging
 import threading
 import socket
@@ -264,11 +265,11 @@ def _create_server(shell, server_address, port):
 
 # ------------------------------------------------------------------------------
 
-@ComponentFactory("ipopo-remote-shell-factory")
-@Provides(REMOTE_SHELL_SPEC)
+@ComponentFactory(pelix.shell.FACTORY_REMOTE_SHELL)
+@Provides(pelix.shell.REMOTE_SHELL_SPEC)
 @Property("_address", "pelix.shell.address", "localhost")
 @Property("_port", "pelix.shell.port", 9000)
-@Requires("_shell", SHELL_SERVICE_SPEC)
+@Requires("_shell", pelix.shell.SHELL_SERVICE_SPEC)
 class IPopoRemoteShell(object):
     """
     The iPOPO Remote Shell, based on the Pelix Shell

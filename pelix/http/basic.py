@@ -39,12 +39,14 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+# iPOPO
 from pelix.ipopo.decorators import ComponentFactory, Provides, Validate, \
     Invalidate, Property, Requires, BindField, UnbindField, UpdateField
 
 import pelix.ipopo.constants as constants
 import pelix.utilities as utilities
 
+# Standard library
 import logging
 import socket
 import threading
@@ -69,9 +71,6 @@ except ImportError:
 
 # HTTP service constants
 import pelix.http as http
-
-HTTP_SERVICE_COMPONENT_FACTORY = "pelix.http.service.basic.factory"
-""" Name of the HTTP service component factory """
 
 HTTP_SERVICE_EXTRA = "http.extra"
 """ HTTP service extra properties (dictionary) """
@@ -372,8 +371,8 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 
 # ------------------------------------------------------------------------------
 
-@ComponentFactory(name=HTTP_SERVICE_COMPONENT_FACTORY)
-@Provides(specifications=http.HTTP_SERVICE)
+@ComponentFactory(http.FACTORY_HTTP_BASIC)
+@Provides(http.HTTP_SERVICE)
 @Requires("_servlets_services", http.HTTP_SERVLET, True, True)
 @Property("_address", http.HTTP_SERVICE_ADDRESS, "0.0.0.0")
 @Property("_port", http.HTTP_SERVICE_PORT, 8080)

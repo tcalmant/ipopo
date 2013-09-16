@@ -122,7 +122,7 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher):
 
 # ------------------------------------------------------------------------------
 
-@ComponentFactory("pelix-xmlrpc-exporter-factory")
+@ComponentFactory(pelix.remote.FACTORY_TRANSPORT_XMLRPC_EXPORTER)
 @Requires('_dispatcher', pelix.remote.SERVICE_DISPATCHER)
 @Requires('_http', pelix.http.HTTP_SERVICE)
 @Property('_path', pelix.http.HTTP_SERVLET_PATH, '/XML-RPC')
@@ -403,7 +403,7 @@ class _ServiceCallProxy(object):
         return getattr(proxy, "{0}.{1}".format(self.__name, name))
 
 
-@ComponentFactory("pelix-xmlrpc-importer-factory")
+@ComponentFactory(pelix.remote.FACTORY_TRANSPORT_XMLRPC_IMPORTER)
 @Provides(pelix.remote.SERVICE_ENDPOINT_LISTENER)
 @Property('_kind', 'endpoints.kind', 'xmlrpc')
 @Property('_listener_flag', pelix.remote.PROP_LISTEN_IMPORTED, True)

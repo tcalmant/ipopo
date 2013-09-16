@@ -65,6 +65,11 @@ HTTP_SERVLET_PATH = "pelix.http.path"
 
 # ------------------------------------------------------------------------------
 
+FACTORY_HTTP_BASIC = "pelix.http.service.basic.factory"
+""" Name of the HTTP service component factory """
+
+# ------------------------------------------------------------------------------
+
 PARAM_NAME = "http.name"
 """
 Entry in the parameters dictionary of ``bound_to`` and ``unbound_from``.

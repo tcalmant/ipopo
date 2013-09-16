@@ -74,3 +74,6 @@ Remote shell service
 """
 
 # ------------------------------------------------------------------------------
+
+FACTORY_REMOTE_SHELL = "ipopo-remote-shell-factory"
+""" Name of remote shell component factory """

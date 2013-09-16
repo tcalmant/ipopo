@@ -276,7 +276,7 @@ def close_multicast_socket(sock, address):
 
 # ------------------------------------------------------------------------------
 
-@ComponentFactory("pelix-remote-discovery-multicast-factory")
+@ComponentFactory(pelix.remote.FACTORY_DISCOVERY_MULTICAST)
 @Provides(pelix.remote.SERVICE_ENDPOINT_LISTENER)
 @Requires("_dispatcher", pelix.remote.SERVICE_DISPATCHER)
 @Requires('_access', pelix.remote.SERVICE_DISPATCHER_SERVLET)

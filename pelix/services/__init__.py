@@ -53,3 +53,8 @@ EVENT_PROP_FRAMEWORK_UID = "event.sender.framework.uid"
 
 EVENT_PROP_TIMESTAMP = "event.timestamp"
 """ Time stamp of the event, compute during the call of send() or post() """
+
+#-------------------------------------------------------------------------------
+
+FACTORY_EVENT_ADMIN = "pelix-services-eventadmin-factory"
+""" Name of the EventAdmin component factory """
