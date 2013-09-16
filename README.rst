@@ -68,6 +68,9 @@ Remote Services
 
 * Protection of the unregistration loop during the invalidation of JSON-RPC and
   XML-RPC exporters.
+* The *Dispatcher Servlet* now handles the *discovered* part of the discovery
+  process. This simplifies the Multicast Discovery component and supresses a
+  socket bug/feature on BSD (including Mac OS).
 
 Shell
 -----
