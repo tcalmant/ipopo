@@ -153,24 +153,20 @@ class LDAPFilter(object):
         :param properties: A dictionary of properties
         :return: True if the properties matches this filter, else False
         """
-        result = False
+        # Use a generator, and declare it outside of the method call
+        # => seems to be quite a speed up trick
+        generator = (criterion.matches(properties)
+                     for criterion in self.subfilters)
 
-        for criterion in self.subfilters:
-            if not criterion.matches(properties):
-                if self.operator == AND:
-                    # A criterion doesn't match in an "AND" test : short cut
-                    result = False
-                    break
+        # Extract "if" from loops and use built-in methods
+        if self.operator == OR:
+            result = any(generator)
 
-            else:
-                result = True
-                if self.operator == OR:
-                    # At least one match in a "OR" test : short cut
-                    break
-
-        if self.operator == NOT:
-            # Revert result
-            return not result
+        else:
+            result = all(generator)
+            if self.operator == NOT:
+                # Revert result
+                return not result
 
         return result
 
@@ -286,12 +282,13 @@ class LDAPCriteria(object):
         :param properties: A dictionary of properties
         :return: True if the properties matches this criterion, else False
         """
-        if self.name not in properties:
-            # Property is not even is the property
-            return False
+        try:
+            # Use the comparator
+            return self.comparator(self.value, properties[self.name])
 
-        # Use the comparator
-        return self.comparator(self.value, properties[self.name])
+        except KeyError:
+            # Criterion key is not in the properties
+            return False
 
 
     def normalize(self):
@@ -468,7 +465,7 @@ def _comparator_eq(filter_value, tested_value):
     """
     Tests if the filter value is equal to the tested value
     """
-    if isinstance(tested_value, (list, tuple)):
+    if isinstance(tested_value, (list, tuple, set)):
         # Special case : lists
         if '*' in filter_value:
             # Special case : jokers (stars) in the filter
@@ -479,7 +476,6 @@ def _comparator_eq(filter_value, tested_value):
 
         # Convert the list items to strings
         for value in tested_value:
-
             # Try with the string conversion
             if not is_string(value):
                 value_str = repr(value)
