@@ -21,13 +21,24 @@ More information at http://ipopo.coderxpress.net/
 Compatibility
 #############
 
-Pelix and iPOPO have been tested with:
+Pelix and iPOPO are tested using `Tox <http://testrun.org/tox/latest/>`_ and
+`Travis-CI <https://travis-ci.org/tcalmant/ipopo>`_ with:
 
-* Python 2.6, 2.7, 3.1, 3.2 and 3.3
-* Pypy 1.8, 1.9
+* Python 2.6, 2.7, 3.2 and 3.3
 
-To work with Python 2.6, the *importlib* module back-port must be installed.
-It is available on PyPI.
+  .. image:: https://travis-ci.org/tcalmant/ipopo.png?branch=dev
+     :target: https://travis-ci.org/tcalmant/ipopo
+
+It is also manually tested with:
+
+* Pypy 1.9
+
+To use iPOPO on Python 2.6, it is necessary to install the *importlib* module
+back-port, using ``pip install importlib``.
+To execute iPOPO tests on this version, you also need to install the *unittest2*
+module.
+
+iPOPO is available on `PyPI <http://pypi.python.org/pypi/iPOPO>`_.
 
 
 Release notes
