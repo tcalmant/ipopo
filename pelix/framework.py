@@ -628,16 +628,19 @@ class Framework(Bundle):
             return True
 
 
-    def find_service_references(self, clazz=None, ldap_filter=None):
+    def find_service_references(self, clazz=None, ldap_filter=None,
+                                only_one=False):
         """
         Finds all services references matching the given filter.
 
         :param clazz: Class implemented by the service
         :param ldap_filter: Service filter
+        :param only_one: Return the first matching service reference only
         :return: A list of found reference, or None
         :raise BundleException: An error occurred looking for service references
         """
-        return self._registry.find_service_references(clazz, ldap_filter)
+        return self._registry.find_service_references(clazz, ldap_filter,
+                                                      only_one)
 
 
     def get_bundle_by_id(self, bundle_id):
@@ -1481,6 +1484,9 @@ class _ServiceRegistry(object):
         # Service reference -> Service instance
         self.__svc_registry = {}
 
+        # Specification -> Service references[]
+        self.__svc_specs = {}
+
         # Service reference -> Bundle
         self.__svc_bundle = {}
 
@@ -1500,6 +1506,7 @@ class _ServiceRegistry(object):
         """
         with self.__svc_lock:
             self.__svc_registry.clear()
+            self.__svc_specs.clear()
             self.__svc_bundle.clear()
             self.__bundle_svc.clear()
             self.__bundle_imports.clear()
@@ -1533,6 +1540,12 @@ class _ServiceRegistry(object):
             self.__svc_registry[svc_ref] = svc_instance
             self.__svc_bundle[svc_ref] = bundle
 
+            for spec in classes:
+                spec_refs = self.__svc_specs.setdefault(spec, [])
+                spec_refs.append(svc_ref)
+                # Keep the list sorted
+                spec_refs.sort()
+
             # Reverse map, to ease bundle/service association
             self.__bundle_svc.setdefault(bundle, []).append(svc_ref)
 
@@ -1552,30 +1565,35 @@ class _ServiceRegistry(object):
                 raise BundleException("Unknown service: {0}".format(svc_ref))
 
             # Get the owner
-            bundle = self.__svc_bundle[svc_ref]
+            bundle = self.__svc_bundle.pop(svc_ref)
 
             # Get the service instance
-            service = self.__svc_registry[svc_ref]
+            service = self.__svc_registry.pop(svc_ref)
+
+            for spec in svc_ref.get_property(OBJECTCLASS):
+                spec_services = self.__svc_specs[spec]
+                spec_services.remove(svc_ref)
+                if len(spec_services) == 0:
+                    del self.__svc_specs[spec]
 
             # Delete bundle association
-            self.__bundle_svc[bundle].remove(svc_ref)
-            if len(self.__bundle_svc[bundle]) == 0:
+            bundle_services = self.__bundle_svc[bundle]
+            bundle_services.remove(svc_ref)
+            if len(bundle_services) == 0:
                 # Don't keep empty lists
                 del self.__bundle_svc[bundle]
-
-            # Delete service information
-            del self.__svc_registry[svc_ref]
-            del self.__svc_bundle[svc_ref]
 
             return service
 
 
-    def find_service_references(self, clazz=None, ldap_filter=None):
+    def find_service_references(self, clazz=None, ldap_filter=None,
+                                only_one=False):
         """
         Finds all services references matching the given filter.
 
         :param clazz: Class implemented by the service
         :param ldap_filter: Service filter
+        :param only_one: Return the first matching service reference only
         :return: A list of found reference, or None
         :raise BundleException: An error occurred looking for service references
         """
@@ -1596,41 +1614,43 @@ class _ServiceRegistry(object):
 
             if clazz is None:
                 # Directly use the given filter
-                new_filter = ldap_filter
-
-            elif ldap_filter is None:
-                # Make a filter for the object class
-                new_filter = "({0}={1})".format(OBJECTCLASS, clazz)
+                refs_set = self.__svc_registry.keys()
 
             else:
-                # Combine filter with a AND operator
-                new_filter = ldapfilter.combine_filters(\
-                                        ["({0}={1})".format(OBJECTCLASS, clazz),
-                                         ldap_filter])
+                try:
+                    # Only for references with the given specification
+                    refs_set = iter(self.__svc_specs[clazz])
+
+                except KeyError:
+                    # No matching specification
+                    return None
 
             # Parse the filter
             try:
-                new_filter = ldapfilter.get_ldap_filter(new_filter)
+                new_filter = ldapfilter.get_ldap_filter(ldap_filter)
 
             except ValueError as ex:
                 raise BundleException(ex)
 
-            if new_filter is None:
-                # Normalized filter is None : return everything
-                result = list(self.__svc_registry.keys())
+            if new_filter is not None:
+                # Prepare a generator, as we might not need a complete
+                # walk-through
+                refs_set = (ref for ref in refs_set
+                            if new_filter.matches(ref.get_properties()))
 
-            else:
-                # Find a reference that matches
-                result = [ref for ref in self.__svc_registry
-                          if new_filter.matches(ref.get_properties())]
+            if only_one:
+                # Return the first element in the list/generator
+                try:
+                    return next(refs_set)
 
-            if not result:
-                # No result found
-                return None
+                except StopIteration:
+                    # No match
+                    return None
 
-            # Sort the results
+            # Get all the matching references
+            result = list(refs_set)
             result.sort()
-            return result
+            return result or None
 
 
     def get_bundle_imported_services(self, bundle):
@@ -1871,11 +1891,8 @@ class BundleContext(object):
         :param ldap_filter: A filter on service properties
         :return: A service reference, None if not found
         """
-        refs = self.__framework.find_service_references(clazz, ldap_filter)
-        if refs is not None and len(refs) > 0:
-            return refs[0]
-
-        return None
+        return self.__framework.find_service_references(clazz, ldap_filter,
+                                                        True)
 
 
     def get_service_references(self, clazz, ldap_filter):
