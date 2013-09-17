@@ -1695,17 +1695,16 @@ class _ServiceRegistry(object):
         """
         with self.__svc_lock:
             # Be sure to have the instance
-            if reference in self.__svc_registry:
+            try:
                 service = self.__svc_registry[reference]
 
                 # Indicate the dependency
-                imports = self.__bundle_imports.setdefault(bundle, [])
-                imports.append(reference)
+                self.__bundle_imports.setdefault(bundle, []).append(reference)
                 reference.used_by(bundle)
 
                 return service
 
-            else:
+            except KeyError:
                 # Not found
                 raise BundleException("Service not found (reference: {0})" \
                                       .format(reference))
