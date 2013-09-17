@@ -13,12 +13,8 @@ import logging
 
 try:
     import unittest2 as unittest
-
 except ImportError:
     import unittest
-    import tests
-    tests.inject_unittest_methods()
-
 
 try:
     # Python 3

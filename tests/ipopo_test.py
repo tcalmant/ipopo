@@ -21,11 +21,8 @@ import os
 
 try:
     import unittest2 as unittest
-
 except ImportError:
     import unittest
-    import tests
-    tests.inject_unittest_methods()
 
 # ------------------------------------------------------------------------------
 
