@@ -1594,7 +1594,7 @@ class _ServiceRegistry(object):
         :param clazz: Class implemented by the service
         :param ldap_filter: Service filter
         :param only_one: Return the first matching service reference only
-        :return: A list of found reference, or None
+        :return: A list of found references, or None
         :raise BundleException: An error occurred looking for service references
         """
         with self.__svc_lock:
@@ -1602,6 +1602,7 @@ class _ServiceRegistry(object):
                 # Return a sorted copy of the keys list
                 result = list(self.__svc_registry.keys())
                 result.sort()
+                # Do not return None if the whole content was required
                 return result
 
             if hasattr(clazz, '__name__'):
