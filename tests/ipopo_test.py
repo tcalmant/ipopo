@@ -1394,22 +1394,21 @@ class SimpleCoreTests(unittest.TestCase):
         """
         Requirement = self.ipopo_bundle.Requirement
 
-        # Invalid type
-        for invalid in (None, "specification", 1234):
+        # Invalid specification type
+        for invalid in (None, ["specification"], 1234):
             self.assertRaises(TypeError, Requirement, invalid)
 
         # Empty content
-        for empty in ([], tuple()):
-            self.assertRaises(ValueError, Requirement, empty)
+        self.assertRaises(ValueError, Requirement, "")
 
         # Invalid filter type
         for invalid in (123, ["a", "b"]):
-            self.assertRaises(TypeError, Requirement, ["spec"],
+            self.assertRaises(TypeError, Requirement, "spec",
                               spec_filter=invalid)
 
         # Valid values
-        without_filter = Requirement(["spec"])
-        with_filter = Requirement(["spec"], spec_filter="(test=True)")
+        without_filter = Requirement("spec")
+        with_filter = Requirement("spec", spec_filter="(test=True)")
 
         # Match test
         self.assertFalse(without_filter.matches(None),
@@ -1438,16 +1437,15 @@ class SimpleCoreTests(unittest.TestCase):
         """
         Requirement = self.ipopo_bundle.Requirement
 
-        req_1 = Requirement(["spec_1", "spec_2"], True, True,
-                            spec_filter="(test=True)")
+        req_1 = Requirement("spec_1", True, True, spec_filter="(test=True)")
 
         # Identity
         self.assertEqual(req_1, req_1, "Requirement is not equal to itself")
 
         # Different types
-        for req_2 in (None, "test", [], {}, req_1.to_dictionary_form()):
+        for req_2 in (None, "spec_1", [], {}, req_1.to_dictionary_form()):
             self.assertNotEqual(req_1, req_2,
-                                "Requirement should be equal to {0}" \
+                                "Requirement should not be equal to {0}" \
                                 .format(req_1))
 
         # Copy
@@ -1490,32 +1488,31 @@ class SimpleCoreTests(unittest.TestCase):
             self.assertRaises(ValueError, Requirement.from_dictionary_form,
                               invalid)
 
-        # A dictionary should be accepted with only specifications
-        Requirement.from_dictionary_form({"specifications": ["spec"]})
+        # A dictionary should be accepted with only the specification
+        Requirement.from_dictionary_form({"specification": "spec"})
         self.assertRaises(TypeError, Requirement.from_dictionary_form,
-                          {"specifications": "spec"})
+                          {"specification": ["spec"]})
 
-        for specifications in (["spec_1"], ["spec_1", "spec_2"]):
-            for aggregate in (True, False):
-                for optional in (True, False):
-                    for spec_filter in (None, "(test=True)"):
-                        # Requirement
-                        req = Requirement(specifications, aggregate, optional,
-                                          spec_filter)
+        for aggregate in (True, False):
+            for optional in (True, False):
+                for spec_filter in (None, "(test=True)"):
+                    # Requirement
+                    req = Requirement("spec_2", aggregate, optional,
+                                      spec_filter)
 
-                        # Dictionary form
-                        dict_form = req.to_dictionary_form()
-                        self.assertIs(type(dict_form), dict,
-                                      "to_dict: not a dictionary")
+                    # Dictionary form
+                    dict_form = req.to_dictionary_form()
+                    self.assertIs(type(dict_form), dict,
+                                  "to_dict: not a dictionary")
 
-                        # Conversion
-                        req_2 = Requirement.from_dictionary_form(dict_form)
-                        self.assertIs(type(req_2), Requirement,
-                                      "from_dict: not a Requirement")
+                    # Conversion
+                    req_2 = Requirement.from_dictionary_form(dict_form)
+                    self.assertIs(type(req_2), Requirement,
+                                  "from_dict: not a Requirement")
 
-                        # Assert equality
-                        self.assertEqual(req, req_2,
-                                         "Invalid serialization result")
+                    # Assert equality
+                    self.assertEqual(req, req_2,
+                                     "Invalid serialization result")
 
 
     def testFactoryContext(self):
@@ -1526,7 +1523,7 @@ class SimpleCoreTests(unittest.TestCase):
         Requirement = self.ipopo_bundle.Requirement
 
         # Prepare a requirement
-        req_1 = Requirement(["spec_1", "spec_2"], True, True,
+        req_1 = Requirement("spec_1", True, True,
                             spec_filter="(test=True)")
 
         # Prepare a context (content type is not tested)

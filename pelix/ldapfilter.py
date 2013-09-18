@@ -883,7 +883,7 @@ def _parse_LDAP(ldap_filter):
 
     # No root : invalid content
     if root is None:
-        raise ValueError("Invalid filter string")
+        raise ValueError("Invalid filter string: {0}".format(ldap_filter))
 
     # Return the root of the filter
     return root.normalize()

@@ -749,7 +749,13 @@ class Requires:
             raise ValueError("Field name can't contain spaces.")
 
         self.__field = field
-        self.__requirement = Requirement(_get_specifications(specification),
+
+        # Be sure that there is only one required specification
+        specifications = _get_specifications(specification)
+        self.__multi_specs = len(specifications) > 1
+
+        # Construct the requirement object
+        self.__requirement = Requirement(specifications[0],
                                          aggregate, optional, spec_filter)
 
     def __call__(self, clazz):
@@ -761,8 +767,12 @@ class Requires:
         :raise TypeError: If *clazz* is not a type
         """
         if not inspect.isclass(clazz):
-            raise TypeError("@Provides can decorate only classes, not '{0}'" \
+            raise TypeError("@Requires can decorate only classes, not '{0}'" \
                             .format(type(clazz).__name__))
+
+        if self.__multi_specs:
+            _logger.warning("Only one specification can be required: %s -> %s",
+                            clazz.__name__, self.__field)
 
         # Set up the property in the class
         context = _get_factory_context(clazz)

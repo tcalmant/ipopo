@@ -62,14 +62,15 @@ class Requirement(object):
     Represents a component requirement
     """
     # The dictionary form fields (filter is a special case)
-    __stored_fields__ = ('specifications', 'aggregate', 'optional')
+    __stored_fields__ = ('specification', 'aggregate', 'optional')
 
-    def __init__(self, specifications, aggregate=False, optional=False,
+    def __init__(self, specification, aggregate=False, optional=False,
                  spec_filter=None):
         """
         Sets up the requirement
 
-        :param specifications: The requirement specification (can't be None)
+        :param specification: The requirement specification, which must be
+                              unique and can't be None
         :param aggregate: If true, this requirement represents a list
         :param optional: If true, this requirement is optional
         :param spec_filter: A filter to select dependencies
@@ -77,18 +78,21 @@ class Requirement(object):
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter
         """
-        if not isinstance(specifications, (list, tuple)):
-            raise TypeError("Specifications must be a list/tuple of strings")
+        if not is_string(specification):
+            raise TypeError("A Requirement specification must be a string")
 
-        if not specifications:
-            raise ValueError("A specification must be given")
+        if not specification:
+            raise ValueError("No specification given")
 
         self.aggregate = aggregate
         self.optional = optional
-        self.specifications = specifications
+        self.specification = specification
 
         # Original filter keeper
         self.__original_filter = None
+
+        # Full filter (with the specification test)
+        self.__full_filter = None
 
         # Set up the requirement filter (after setting up self.specification)
         self.filter = None
@@ -111,6 +115,10 @@ class Requirement(object):
             # Different flags
             return False
 
+        if self.specification != other.specification:
+            # Different specifications
+            return False
+
         if self.filter != other.filter:
             # Different filters (therefore different specifications)
             return False
@@ -131,7 +139,7 @@ class Requirement(object):
 
         :return: A copy of this instance
         """
-        return Requirement(self.specifications, self.aggregate, self.optional,
+        return Requirement(self.specification, self.aggregate, self.optional,
                            self.__original_filter)
 
 
@@ -149,21 +157,21 @@ class Requirement(object):
             raise TypeError("Invalid form type '{0}'".format(
                                                      type(dictionary).__name__))
 
-        if not "specifications" in dictionary:
-            raise ValueError("Missing specifications in the dictionary form")
+        if not "specification" in dictionary:
+            raise ValueError("Missing specification in the dictionary form")
 
-        specs = dictionary["specifications"]
+        specification = dictionary["specification"]
         aggregate = dictionary.get("aggregate", False)
         optional = dictionary.get("optional", False)
         spec_filter = ldapfilter.get_ldap_filter(dictionary.get("filter", None))
 
-        return cls(specs, aggregate, optional, spec_filter)
+        return cls(specification, aggregate, optional, spec_filter)
 
 
     def matches(self, properties):
         """
         Tests if the given _StoredInstance matches this requirement
-
+        
         :param properties: Service properties
         :return: True if the instance matches this requirement
         """
@@ -171,10 +179,16 @@ class Requirement(object):
             # No properties : invalid service
             return False
 
-        assert isinstance(properties, dict)
-
         # Properties filter test
-        return self.filter.matches(properties)
+        return self.__full_filter.matches(properties)
+
+
+    @property
+    def full_filter(self):
+        """
+        The filter that tests both specification and properties
+        """
+        return self.__full_filter
 
 
     @property
@@ -182,45 +196,41 @@ class Requirement(object):
         """
         The original requirement filter string, not the computed one
         """
-        if not self.__original_filter:
+        if self.__original_filter is None:
             return ""
 
         return str(self.__original_filter)
 
 
-    def set_filter(self, spec_filter):
+    def set_filter(self, props_filter):
         """
         Changes the current filter for the given one
 
-        :param spec_filter: The new requirement filter
+        :param props_filter: The new requirement filter on service properties
         :raise TypeError: Unknown filter type
         """
-        if spec_filter is not None and not is_string(spec_filter) \
-        and not isinstance(spec_filter,
-                           (ldapfilter.LDAPFilter, ldapfilter.LDAPCriteria)):
+        if props_filter is not None \
+        and not (is_string(props_filter) \
+                 or isinstance(props_filter, (ldapfilter.LDAPFilter,
+                                              ldapfilter.LDAPCriteria))):
             # Unknown type
-            raise TypeError("Invalid filter type {0}".format(
-                                                    type(spec_filter).__name__))
+            raise TypeError("Invalid filter type {0}" \
+                            .format(type(props_filter).__name__))
 
-        ldap_criteria = []
-        for spec in self.specifications:
-            ldap_criteria.append("({0}={1})".format(pelix.OBJECTCLASS,
-                                                ldapfilter.escape_LDAP(spec)))
-
-        # Make the filter, escaping the specification name
-        ldap_filter = "(|{0})".format("".join(ldap_criteria))
-
-        if spec_filter is not None:
+        if props_filter is not None:
             # Filter given, keep its string form
-            self.__original_filter = str(spec_filter)
-            ldap_filter = ldapfilter.combine_filters([ldap_filter, spec_filter])
-
+            self.__original_filter = str(props_filter)
         else:
             # No filter
             self.__original_filter = None
 
         # Parse the filter
-        self.filter = ldapfilter.get_ldap_filter(ldap_filter)
+        self.filter = ldapfilter.get_ldap_filter(props_filter)
+
+        # Prepare the full filter
+        spec_filter = "({0}={1})".format(pelix.OBJECTCLASS, self.specification)
+        self.__full_filter = ldapfilter.combine_filters((spec_filter,
+                                                         self.filter))
 
 
     def to_dictionary_form(self):
@@ -383,7 +393,7 @@ class _RuntimeDependency(object):
         """
         Starts the dependency manager
         """
-        self._context.add_service_listener(self, self.requirement.filter)
+        self._context.add_service_listener(self, self.requirement.full_filter)
 
 
     def stop(self):
@@ -512,8 +522,9 @@ class _SimpleDependency(_RuntimeDependency):
                 return
 
             # Get all matching services
-            ref = self._context.get_service_reference(None,
-                                                      self.requirement.filter)
+            ref = self._context \
+                        .get_service_reference(self.requirement.specification,
+                                               self.requirement.filter)
             if ref is not None:
                 # Found a service
                 self.on_service_arrival(ref)
@@ -680,8 +691,9 @@ class _AggregateDependency(_RuntimeDependency):
         """
         with self._lock:
             # Get all matching services
-            refs = self._context.get_all_service_references(None,
-                                                        self.requirement.filter)
+            refs = self._context \
+                    .get_all_service_references(self.requirement.specification,
+                                                self.requirement.filter)
             if not refs:
                 # No match found
                 return
