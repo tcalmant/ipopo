@@ -48,7 +48,7 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Validate, \
 
 # Pelix constants
 import pelix.http
-import pelix.remote
+import pelix.remote.beans
 from pelix.utilities import to_str
 
 # Standard library
