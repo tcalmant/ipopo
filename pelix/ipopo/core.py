@@ -1764,8 +1764,14 @@ class _StoredInstance(object):
             result = True
             for handler in self.get_handlers():
                 # Get the method for each handler
-                method = getattr(handler, method_name, None)
-                if method is not None:
+                try:
+                    method = getattr(handler, method_name)
+
+                except AttributeError:
+                    # Ignore missing methods
+                    pass
+
+                else:
                     try:
                         # Call it
                         res = method(*args, **kwargs)
@@ -2286,6 +2292,18 @@ class _IPopoService(object):
                                     factory_name, ex)
 
 
+    def framework_stopping(self):
+        """
+        Called by the framework when it is about to stop
+        """
+        self.stopping = True
+
+        # Stop the handlers
+        with self.__instances_lock:
+            for stored_instance in self.__instances.values():
+                stored_instance.stop()
+
+
     def instantiate(self, factory_name, name, properties=None):
         """
         Instantiates a component from the given factory, with the given name
@@ -2304,6 +2322,10 @@ class _IPopoService(object):
 
         if not name or not is_string(name):
             raise ValueError("Invalid component name")
+
+        if not self.running:
+            # Stop working if the framework is stopping
+            raise ValueError("Framework is stopping")
 
         with self.__instances_lock:
             if name in self.__instances:
@@ -2756,8 +2778,8 @@ class _IPopoActivator(object):
         # Register as a bundle listener
         context.add_bundle_listener(self)
 
-        # Register as a framework stop listener
-        context.add_framework_stop_listener(self)
+        # Register the service as a framework stop listener
+        context.add_framework_stop_listener(self.service)
 
         # Service enters in "run" mode
         self.service.running = True
@@ -2784,13 +2806,17 @@ class _IPopoActivator(object):
         context.remove_bundle_listener(self)
 
         # Unregister the framework stop listener
-        context.remove_framework_stop_listener(self)
+        context.remove_framework_stop_listener(self.service)
 
         # Unregister the iPOPO service
         self._registration.unregister()
 
         # Clean up the service
         self.service._unregister_all_factories()
+
+        # Clean up references
+        self._registration = None
+        self.service = None
 
 
     def bundle_changed(self, event):
@@ -2828,14 +2854,6 @@ class _IPopoActivator(object):
         elif kind == BundleEvent.UPDATE_FAILED:
             # Update failed, clean the stored components
             self.service._autorestart_clear_components(bundle)
-
-
-    def framework_stopping(self):
-        """
-        Called when the framework is stopping
-        """
-        # Avoid new injections, as all bundles will be stopped
-        self.service.running = False
 
 # ------------------------------------------------------------------------------
 
