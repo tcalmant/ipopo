@@ -474,17 +474,16 @@ def _comparator_eq(filter_value, tested_value):
                     # One match
                     return True
 
-        # Convert the list items to strings
-        for value in tested_value:
-            # Try with the string conversion
-            if not is_string(value):
-                value_str = repr(value)
-            else:
-                value_str = value
+        else:
+            # Convert the list items to strings
+            for value in tested_value:
+                # Try with the string conversion
+                if not is_string(value):
+                    value = repr(value)
 
-            if filter_value == value_str:
-                # Match !
-                return True
+                if filter_value == value:
+                    # Match !
+                    return True
 
         # Value not found
         return False
