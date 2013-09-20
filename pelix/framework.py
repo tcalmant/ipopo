@@ -43,6 +43,7 @@ from pelix.utilities import SynchronizedClassMethod, is_string, Deprecated
 import pelix.ldapfilter as ldapfilter
 
 # Standard library
+import functools
 import imp
 import importlib
 import inspect
@@ -1449,12 +1450,12 @@ class _EventDispatcher(object):
 
         # Call'em all
         for listener, (specification, ldap_filter) in listeners.items():
-            # Default event to send : the one we received
-            sent_event = event
-
             # Test the specification
             if specification is not None and specification not in svc_specs:
                 continue
+
+            # Default event to send : the one we received
+            sent_event = event
 
             # Test if the service properties matches the filter
             if ldap_filter is not None \
@@ -1662,9 +1663,7 @@ class _ServiceRegistry(object):
                     return None
 
             # Get all the matching references
-            result = list(refs_set)
-            result.sort()
-            return result or None
+            return list(refs_set) or None
 
 
     def get_bundle_imported_services(self, bundle):
@@ -2040,6 +2039,7 @@ class BundleContext(object):
 
 # ------------------------------------------------------------------------------
 
+@functools.total_ordering
 class ServiceReference(object):
     """
     Represents a reference to a service
@@ -2090,89 +2090,29 @@ class ServiceReference(object):
         return self.__service_id
 
 
-    def __cmp__(self, other):
-        """
-        ServiceReference comparison
-
-        See: http://www.osgi.org/javadoc/r4v43/org/osgi/framework/ServiceReference.html#compareTo%28java.lang.Object%29
-        """
-        if self is other:
-            return 0
-
-        if not isinstance(other, ServiceReference):
-            # Not comparable => lesser
-            return -1
-
-        if self.__service_id == other.__service_id:
-            # Same ID, same service
-            return 0
-
-        service_rank = int(self.__properties.get(SERVICE_RANKING, 65535))
-        other_rank = int(other.__properties.get(SERVICE_RANKING, 65535))
-
-        if service_rank == other_rank:
-            # Same rank, ID discriminates (greater ID, lesser reference)
-            if self.__service_id > other.__service_id:
-                return -1
-            else:
-                return 1
-
-        elif service_rank < other_rank:
-            # Lesser rank value, lesser reference
-            return -1
-
-        else:
-            return 1
-
-
     def __eq__(self, other):
         """
-        Equal to other
+        Two references are equal if they have the same service ID
         """
-        if self is other:
-            # Same object
-            return True
-
-        if not isinstance(other, ServiceReference):
-            # Not a service reference
-            return False
-
         return self.__service_id == other.__service_id
-
-
-    def __ne__(self, other):
-        """
-        Inequal to other
-        """
-        return not self.__eq__(other)
-
-
-    def __ge__(self, other):
-        """
-        Greater or equal
-        """
-        return self.__cmp__(other) >= 0
-
-
-    def __gt__(self, other):
-        """
-        Greater than other
-        """
-        return self.__cmp__(other) > 0
-
-
-    def __le__(self, other):
-        """
-        Lesser or equal
-        """
-        return self.__cmp__(other) <= 0
 
 
     def __lt__(self, other):
         """
         Lesser than other
+
+        See: http://www.osgi.org/javadoc/r4v43/org/osgi/framework/ServiceReference.html#compareTo%28java.lang.Object%29
         """
-        return self.__cmp__(other) < 0
+        service_rank = int(self.__properties.get(SERVICE_RANKING, 65535))
+        other_rank = int(other.__properties.get(SERVICE_RANKING, 65535))
+
+        if service_rank == other_rank:
+            # Same rank, ID discriminates (greater ID, lesser reference)
+            return self.__service_id > other.__service_id
+
+        else:
+            # Rank order
+            return service_rank < other_rank
 
 
     def get_bundle(self):

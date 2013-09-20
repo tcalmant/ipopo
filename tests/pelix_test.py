@@ -1303,13 +1303,7 @@ class ServicesTest(unittest.TestCase):
 
         # Tests
         self.assertEqual(ref1, ref1, "ID1 == ID1")
-        self.assertEqual(ref1.__cmp__(ref1), 0, "Equality per __cmp__()")
-
-        self.assertEqual(ref1.__cmp__("titi"), -1,
-                         "Lesser than unknown with  __cmp__()")
-        self.assertNotEqual(ref1, "titi", "Not equal to unknown with __eq__()")
-        self.assertLess(ref1, "titi", "Lesser than unknown with  __lt__()")
-        self.assertLessEqual(ref1, "titi", "Lesser than unknown with  __le__()")
+        self.assertLessEqual(ref1, ref1, "ID1 == ID1")
 
         self.assertEqual(ref1, ref1b, "ID1 == ID1.0")
         self.assertGreaterEqual(ref1, ref1b, "ID1 >= ID1.0")
