@@ -408,6 +408,9 @@ def unescape_LDAP(ldap_string):
 
 # ------------------------------------------------------------------------------
 
+ITERABLES = (list, tuple, set)
+""" The types that are considered iterable in comparators """
+
 def _comparator_presence(_, tested_value):
     """
     Tests a filter which simply a joker, i.e. a value presence test
@@ -428,7 +431,7 @@ def _comparator_star(filter_value, tested_value):
     """
     Tests a filter containing a joker
     """
-    if isinstance(tested_value, (list, tuple, set)):
+    if isinstance(tested_value, ITERABLES):
         for value in tested_value:
             if _star_comparison(filter_value, value):
                 return True
@@ -481,7 +484,7 @@ def _comparator_eq(filter_value, tested_value):
     """
     Tests if the filter value is equal to the tested value
     """
-    if isinstance(tested_value, (list, tuple, set)):
+    if isinstance(tested_value, ITERABLES):
         # Convert the list items to strings
         for value in tested_value:
             # Try with the string conversion
