@@ -492,22 +492,17 @@ class LDAPCriteriaTest(unittest.TestCase):
                         "Filter '{0}' should match {1}" \
                         .format(ldap_filter, props))
 
-        # Empty string
-        props["valid"] = ""
-        self.assertFalse(ldap_filter.matches(props),
-                         "Filter '{0}' should not match {1}" \
-                         .format(ldap_filter, props))
-
-        # Empty list
-        props["valid"] = []
-        self.assertFalse(ldap_filter.matches(props),
-                         "Filter '{0}' should not match {1}" \
-                         .format(ldap_filter, props))
+        # Empty values
+        for empty in ('', [], tuple()):
+            props["valid"] = empty
+            self.assertFalse(ldap_filter.matches(props),
+                             "Filter '{0}' should not match {1}" \
+                             .format(ldap_filter, props))
 
 
     def testStarCriteria(self):
         """
-        Tests the start filter on strings
+        Tests the star/joker filter on strings
         """
         filters = {}
         # Simple string test
@@ -531,16 +526,6 @@ class LDAPCriteriaTest(unittest.TestCase):
         applyTest(self, filters, "string")
 
         # Direct call test
-        self.assertFalse(pelix.ldapfilter._comparator_star('*', None),
-                         "None value is an absence")
-
-        for empty in ('', [], tuple()):
-            self.assertFalse(pelix.ldapfilter._comparator_star('*', empty),
-                             "Empty value is an absence")
-
-        self.assertTrue(pelix.ldapfilter._comparator_star('*', False),
-                         "False value is a presence")
-
         self.assertFalse(pelix.ldapfilter._comparator_star('T*ue', True),
                          "String star can't be compared to other values")
 

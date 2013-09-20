@@ -303,10 +303,10 @@ def comparator2str(comparator):
     """
     Converts an operator method to a string
     """
-    if comparator == _comparator_approximate:
+    if comparator in (_comparator_approximate, _comparator_approximate_star):
         return "~="
 
-    elif comparator == _comparator_eq:
+    elif comparator in (_comparator_eq, _comparator_star):
         return "="
 
     elif comparator == _comparator_le:
@@ -408,24 +408,40 @@ def unescape_LDAP(ldap_string):
 
 # ------------------------------------------------------------------------------
 
+def _comparator_presence(_, tested_value):
+    """
+    Tests a filter which simply a joker, i.e. a value presence test
+    """
+    # The filter value is a joker : simple presence test
+    if tested_value is None:
+        return False
+
+    elif hasattr(tested_value, "__len__"):
+        # Refuse empty values
+        return len(tested_value) != 0
+
+    # Presence validated
+    return True
+
+
 def _comparator_star(filter_value, tested_value):
     """
-    Tests a filter with a joker
+    Tests a filter containing a joker
     """
-    if filter_value == '*':
-        # The filter value is a joker : simple presence test
-        if tested_value is None:
-            return False
+    if isinstance(tested_value, (list, tuple, set)):
+        for value in tested_value:
+            if _star_comparison(filter_value, value):
+                return True
 
-        elif hasattr(tested_value, "__len__"):
-            # Refuse empty values
-            return len(tested_value) != 0
+    else:
+        return _star_comparison(filter_value, tested_value)
 
-        else:
-            # Presence validated
-            return True
 
-    elif not is_string(tested_value):
+def _star_comparison(filter_value, tested_value):
+    """
+    Tests a filter containing a joker
+    """
+    if not is_string(tested_value):
         # Unhandled value type...
         return False
 
@@ -466,37 +482,26 @@ def _comparator_eq(filter_value, tested_value):
     Tests if the filter value is equal to the tested value
     """
     if isinstance(tested_value, (list, tuple, set)):
-        # Special case : lists
-        if '*' in filter_value:
-            # Special case : jokers (stars) in the filter
-            for value in tested_value:
-                if _comparator_star(filter_value, value):
-                    # One match
-                    return True
+        # Convert the list items to strings
+        for value in tested_value:
+            # Try with the string conversion
+            if not is_string(value):
+                value = repr(value)
 
-        else:
-            # Convert the list items to strings
-            for value in tested_value:
-                # Try with the string conversion
-                if not is_string(value):
-                    value = repr(value)
-
-                if filter_value == value:
-                    # Match !
-                    return True
-
-        # Value not found
-        return False
-
-    elif '*' in filter_value:
-        # Special case : jokers (stars) in the filter
-        return _comparator_star(filter_value, tested_value)
+            if filter_value == value:
+                # Match !
+                return True
 
     # Standard comparison
-    if not is_string(tested_value):
+    elif not is_string(tested_value):
+        # String vs string representation
         return filter_value == repr(tested_value)
 
-    return filter_value == tested_value
+    else:
+        # String vs string
+        return filter_value == tested_value
+
+    return False
 
 
 def _comparator_approximate(filter_value, tested_value):
@@ -524,6 +529,34 @@ def _comparator_approximate(filter_value, tested_value):
     # Compare the raw values
     return _comparator_eq(filter_value, tested_value) \
         or _comparator_eq(lower_filter_value, tested_value)
+
+
+def _comparator_approximate_star(filter_value, tested_value):
+    """
+    Tests if the filter value, which contains a joker, is nearly equal to the
+    tested value.
+
+    If the tested value is a string or an array of string, it compares their
+    lower case forms
+    """
+    lower_filter_value = filter_value.lower()
+
+    if is_string(tested_value):
+        # Lower case comparison
+        return _comparator_star(lower_filter_value, tested_value.lower())
+
+    elif hasattr(tested_value, '__iter__'):
+        # Extract a list of strings
+        new_tested = [value.lower() for value in tested_value \
+                      if is_string(value)]
+
+        if _comparator_star(lower_filter_value, new_tested):
+            # Value found in the strings
+            return True
+
+    # Compare the raw values
+    return _comparator_star(filter_value, tested_value) \
+        or _comparator_star(lower_filter_value, tested_value)
 
 
 def _comparator_le(filter_value, tested_value):
@@ -782,8 +815,21 @@ def _parse_LDAP_criteria(ldap_filter, startidx=0, endidx=-1):
     # Skip spaces
     i = _skip_spaces(ldap_filter, i)
 
-    # Extract the value name
+    # Extract the value
     value = ldap_filter[i:endidx].strip()
+
+    # Use the appropriate comparator if a joker is found in the filter value
+    if value == '*':
+        # Presence comparator
+        comparator = _comparator_presence
+
+    elif '*' in value:
+        # Joker
+        if comparator == _comparator_eq:
+            comparator = _comparator_star
+
+        elif comparator == _comparator_approximate:
+            comparator = _comparator_approximate_star
 
     return LDAPCriteria(unescape_LDAP(attribute_name), unescape_LDAP(value),
                         comparator)
