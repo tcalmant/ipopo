@@ -2298,11 +2298,6 @@ class _IPopoService(object):
         """
         self.stopping = True
 
-        # Stop the handlers
-        with self.__instances_lock:
-            for stored_instance in self.__instances.values():
-                stored_instance.stop()
-
 
     def instantiate(self, factory_name, name, properties=None):
         """
