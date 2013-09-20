@@ -99,8 +99,7 @@ class InteractiveShell(object):
         self.search_shell()
 
         # Register as a service listener
-        ldap_filter = '({0}={1})'.format(pelix.OBJECTCLASS, SHELL_SERVICE_SPEC)
-        self._context.add_service_listener(self, ldap_filter)
+        self._context.add_service_listener(self, None, SHELL_SERVICE_SPEC)
 
 
     def loop_input(self, on_quit=None):

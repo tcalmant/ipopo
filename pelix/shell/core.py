@@ -1180,9 +1180,7 @@ class PelixActivator(object):
                                                        utils, {})
 
             # Register the service listener
-            spec_filter = '({0}={1})'.format(pelix.OBJECTCLASS,
-                                             SHELL_COMMAND_SPEC)
-            context.add_service_listener(self, spec_filter)
+            context.add_service_listener(self, None, SHELL_COMMAND_SPEC)
 
             # Register existing command services
             refs = context.get_all_service_references(SHELL_COMMAND_SPEC,

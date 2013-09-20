@@ -393,7 +393,9 @@ class _RuntimeDependency(object):
         """
         Starts the dependency manager
         """
-        self._context.add_service_listener(self, self.requirement.full_filter)
+        self._context.add_service_listener(self,
+                                           self.requirement.filter,
+                                           self.requirement.specification)
 
 
     def stop(self):

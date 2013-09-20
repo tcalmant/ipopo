@@ -1239,7 +1239,7 @@ class _EventDispatcher(object):
         self.__bnd_listeners = []
         self.__bnd_lock = threading.Lock()
 
-        # Service listeners (listener -> filter)
+        # Service listeners (listener -> (spec, filter))
         self.__svc_listeners = {}
         self.__svc_lock = threading.Lock()
 
@@ -1307,12 +1307,19 @@ class _EventDispatcher(object):
             return True
 
 
-    def add_service_listener(self, listener, ldap_filter=None):
+    def add_service_listener(self, listener, specification=None,
+                             ldap_filter=None):
         """
         Registers a service listener
+        
+        TODO: A listener could be registered multiple times, for different
+        specifications and/or filters
 
         :param listener: The service listener
-        :param ldap_filter: Listener
+        :param specification: The specification that must provide the service
+                              (optional, None to accept all services)
+        :param ldap_filter: Filter that must match the service properties
+                            (optional, None to accept all services)
         :return: True if the listener has been registered, False if it was
                  already known
         :raise BundleException: An invalid listener has been given
@@ -1331,7 +1338,7 @@ class _EventDispatcher(object):
             except ValueError as ex:
                 raise BundleException("Invalid service filter: {0}".format(ex))
 
-            self.__svc_listeners[listener] = ldap_filter
+            self.__svc_listeners[listener] = (specification, ldap_filter)
             return True
 
 
@@ -1428,6 +1435,7 @@ class _EventDispatcher(object):
 
         # Get the service properties
         properties = event.get_service_reference().get_properties()
+        svc_specs = properties[OBJECTCLASS]
         previous = None
         endmatch_event = None
         svc_modified = (event.get_kind() == ServiceEvent.MODIFIED)
@@ -1440,12 +1448,17 @@ class _EventDispatcher(object):
                                           previous)
 
         # Call'em all
-        for listener, ldap_filter in listeners.items():
+        for listener, (specification, ldap_filter) in listeners.items():
             # Default event to send : the one we received
             sent_event = event
 
+            # Test the specification
+            if specification is not None and specification not in svc_specs:
+                continue
+
             # Test if the service properties matches the filter
-            if ldap_filter is not None and not ldap_filter.matches(properties):
+            if ldap_filter is not None \
+            and not ldap_filter.matches(properties):
                 # Event doesn't match listener filter...
                 if svc_modified and previous is not None \
                 and ldap_filter.matches(previous):
@@ -1800,7 +1813,8 @@ class BundleContext(object):
         return self.__framework._dispatcher.add_framework_listener(listener)
 
 
-    def add_service_listener(self, listener, ldap_filter=None):
+    def add_service_listener(self, listener, ldap_filter=None,
+                             specification=None):
         """
         Registers a service listener
 
@@ -1817,11 +1831,15 @@ class BundleContext(object):
                # ...
 
         :param listener: The listener to register
-        :param ldap_filter: An LDAP filter on the service properties
+        :param ldap_filter: Filter that must match the service properties
+                            (optional, None to accept all services)
+        :param specification: The specification that must provide the service
+                              (optional, None to accept all services)
         :return: True if the listener has been successfully registered
         """
         return self.__framework._dispatcher.add_service_listener(listener,
-                                                                ldap_filter)
+                                                                 specification,
+                                                                 ldap_filter)
 
 
     def get_all_service_references(self, clazz, ldap_filter):
