@@ -1237,15 +1237,15 @@ class _EventDispatcher(object):
         """
         # Bundle listeners
         self.__bnd_listeners = []
-        self.__bnd_lock = threading.RLock()
+        self.__bnd_lock = threading.Lock()
 
         # Service listeners (listener -> filter)
         self.__svc_listeners = {}
-        self.__svc_lock = threading.RLock()
+        self.__svc_lock = threading.Lock()
 
         # Framework stop listeners
         self.__fw_listeners = []
-        self.__fw_lock = threading.RLock()
+        self.__fw_lock = threading.Lock()
 
 
     def clear(self):
