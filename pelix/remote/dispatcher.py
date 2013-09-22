@@ -19,12 +19,12 @@ Calls services according to the given method name and parameters
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
-    
+
     iPOPO is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-    
+
     You should have received a copy of the GNU General Public License
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
@@ -115,7 +115,7 @@ class Dispatcher(object):
     def add_endpoint(self, kind, name, endpoint):
         """
         Adds an end point to the dispatcher
-        
+
         :param kind: A kind of end point
         :param name: The name of the end point
         :param endpoint: The description of the end point (Endpoint object)
@@ -150,10 +150,10 @@ class Dispatcher(object):
     def update_endpoint(self, kind, name, endpoint, old_properties):
         """
         Adds an end point to the dispatcher
-        
+
         :param kind: A kind of end point
         :param name: The name of the end point
-        :param endpoint: The updated Endpoint object 
+        :param endpoint: The updated Endpoint object
         :param old_properties: The previous properties of the service
         :raise KeyError: Unknown end point
         :raise ValueError: Invalid end point object
@@ -183,7 +183,7 @@ class Dispatcher(object):
     def remove_endpoint(self, kind, name):
         """
         Removes the end point
-        
+
         :param kind: A kind of end point
         :param name: The name of the end point
         :raise KeyError: Unknown end point
@@ -202,7 +202,7 @@ class Dispatcher(object):
         """
         Retrieves an end point description, selected by its UID.
         Returns None if the UID is unknown.
-        
+
         :param uid: UID of an end point
         :return: The end point description
         """
@@ -212,7 +212,7 @@ class Dispatcher(object):
     def get_endpoints(self, kind=None, name=None):
         """
         Retrieves all end points matching the given kind and/or name
-        
+
         :param kind: A kind of end point
         :param name: The name of the end point
         :return: A list of end point matching the parameters
@@ -253,7 +253,7 @@ class Dispatcher(object):
         """
         Retrieves the instance of the service at the given end point for the
         given kind.
-        
+
         :param kind: A kind of end point
         :param name: The name of the end point
         :return: The service corresponding to the given end point, or None
@@ -268,7 +268,7 @@ class Dispatcher(object):
     def dispatch(self, kind, name, method, params):
         """
         Calls the service for the given kind with the name
-        
+
         :param kind: A kind of end point
         :param name: The name of the end point
         :param method: Method to call
@@ -313,6 +313,9 @@ class RegistryServlet(object):
         # The dispatcher
         self._dispatcher = None
 
+        # The imported services registry
+        self._registry = None
+
         # Controller for the provided service:
         # => activate only if bound to a server
         self._controller = False
@@ -327,7 +330,7 @@ class RegistryServlet(object):
     def bound_to(self, path, parameters):
         """
         This servlet has been bound to a server
-        
+
         :param path: The servlet path in the server
         :param parameters: The servlet/server parameters
         """
@@ -343,7 +346,7 @@ class RegistryServlet(object):
     def unbound_from(self, path, parameters):
         """
         This servlet has been unbound from a server
-        
+
         :param path: The servlet path in the server
         :param parameters: The servlet/server parameters
         """
@@ -360,7 +363,7 @@ class RegistryServlet(object):
     def do_GET(self, request, response):
         """
         Handles a GET request
-        
+
         :param request: Request handler
         :param response: Response handler
         """
@@ -404,7 +407,7 @@ class RegistryServlet(object):
     def do_POST(self, request, response):
         """
         Handles a POST request
-        
+
         :param request: Request handler
         :param response: Response handler
         """
@@ -423,7 +426,7 @@ class RegistryServlet(object):
     def _make_endpoint_dict(self, endpoint):
         """
         Converts the end point into a dictionary
-        
+
         :param endpoint: The end point to convert
         :return: A dictionary
         """
@@ -443,7 +446,7 @@ class RegistryServlet(object):
     def filter_properties(self, framework_uid, properties):
         """
         Replaces in-place export properties by import ones
-        
+
         :param framework_uid: The UID of the framework exporting the service
         :param properties: End point properties
         :return: The filtered dictionary.
@@ -471,9 +474,9 @@ class RegistryServlet(object):
     def register_endpoint(self, host_address, endpoint_dict):
         """
         Registers a new end point in the registry
-        
+
         :param host_address: Address of the service exporter
-        :param endpoint_dict: An end point description dictionary (result of 
+        :param endpoint_dict: An end point description dictionary (result of
                               a request to the dispatcher servlet)
         """
         # Get the UID of the framework exporting the service
@@ -501,7 +504,7 @@ class RegistryServlet(object):
         Returns the port and path to access this servlet with the first
         bound HTTP service.
         Returns None if this servlet is still not bound to a server
-        
+
         :return: A tuple: (port, path) or None
         """
         if self._ports:
@@ -511,7 +514,7 @@ class RegistryServlet(object):
     def get_endpoints(self):
         """
         Returns the complete list of end points
-        
+
         :return: The list of all known end points
         """
         return self._dispatcher.get_endpoints()
@@ -520,7 +523,7 @@ class RegistryServlet(object):
     def get_endpoint(self, uid):
         """
         Returns the end point with the given UID or None.
-        
+
         :return: The end point description or None
         """
         return self._dispatcher.get_endpoint(uid)
@@ -530,7 +533,7 @@ class RegistryServlet(object):
         """
         Sends a "discovered" HTTP POST request to the dispatcher servlet of the
         framework that has been discovered
-        
+
         :param host: The address of the sender
         :param port: Port of the HTTP server of the sender
         :param path: Path of the dispatcher servlet

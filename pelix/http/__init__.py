@@ -19,12 +19,12 @@ Defines the interfaces that must respect HTTP service implementations.
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
-    
+
     iPOPO is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-    
+
     You should have received a copy of the GNU General Public License
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
@@ -105,7 +105,7 @@ class AbstractHTTPServletRequest(object):
     def get_client_address(self):
         """
         Returns the address of the client
-        
+
         :return: A (host, port) tuple
         """
         raise NotImplementedError("This method must be implemented by a child")
@@ -114,7 +114,7 @@ class AbstractHTTPServletRequest(object):
     def get_header(self, name, default=None):
         """
         Returns the value of a header
-        
+
         :param name: Header name
         :param default: Default value if the header doesn't exist
         :return: The header value or the default one
@@ -125,7 +125,7 @@ class AbstractHTTPServletRequest(object):
     def get_headers(self):
         """
         Returns a copy all headers, with a dictionary interface
-        
+
         :return: A dictionary-like object
         """
         raise NotImplementedError("This method must be implemented by a child")
@@ -134,7 +134,7 @@ class AbstractHTTPServletRequest(object):
     def get_path(self):
         """
         Returns the request full path
-        
+
         :return: A request full path (string)
         """
         raise NotImplementedError("This method must be implemented by a child")
@@ -143,7 +143,7 @@ class AbstractHTTPServletRequest(object):
     def get_rfile(self):
         """
         Returns the request input as a file stream
-        
+
         :return: A file-like input stream
         """
         raise NotImplementedError("This method must be implemented by a child")
@@ -152,7 +152,7 @@ class AbstractHTTPServletRequest(object):
     def read_data(self):
         """
         Reads all the data in the input stream
-        
+
         :return: The read data
         """
         try:
@@ -172,7 +172,7 @@ class AbstractHTTPServletResponse(object):
         """
         Sets the response line.
         This method should be the first called when sending an answer.
-        
+
         :param code: HTTP result code
         :param message: Associated message
         """
@@ -183,7 +183,7 @@ class AbstractHTTPServletResponse(object):
         """
         Sets the value of a header.
         This method should not be called after ``end_headers()``.
-        
+
         :param name: Header name
         :param value: Header value
         """
@@ -202,7 +202,7 @@ class AbstractHTTPServletResponse(object):
         Retrieves the output as a file stream.
         ``end_headers()`` should have been called before, except if you want
         to write your own headers.
-        
+
         :return: A file-like output stream
         """
         raise NotImplementedError("This method must be implemented by a child")
@@ -213,7 +213,7 @@ class AbstractHTTPServletResponse(object):
         Writes the given data.
         ``end_headers()`` should have been called before, except if you want
         to write your own headers.
-        
+
         :param data: Data to be written
         """
         raise NotImplementedError("This method must be implemented by a child")
@@ -225,12 +225,12 @@ class AbstractHTTPServletResponse(object):
         Utility method to send the given content as an answer.
         You can still use get_wfile or write afterwards, if you forced the
         content length.
-        
+
         If content_length is negative (default), it will be computed as the
         length of the content;
         if it is positive, the given value will be used;
         if it is None, the content-length header won't be sent.
-        
+
         :param http_code: HTTP result code
         :param content: Data to be sent (must be a string)
         :param mime_type: Content MIME type (content-type)

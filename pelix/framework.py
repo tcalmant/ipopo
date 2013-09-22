@@ -137,7 +137,7 @@ class Bundle(object):
         """
         Bundle is notified by the framework that a service has been registered
         in the name of this bundle.
-        
+
         :param registration: The service registration object
         """
         with self.__registration_lock:
@@ -148,7 +148,7 @@ class Bundle(object):
         """
         Bundle is notified by the framework that a service has been unregistered
         in the name of this bundle.
-        
+
         :param registration: The service registration object
         """
         with self.__registration_lock:
@@ -200,7 +200,7 @@ class Bundle(object):
         The list is valid at the time of the call to this method, however, as
         the Framework is a very dynamic environment, services can be modified or
         unregistered at any time.
-        
+
         :return: An array of ServiceReference objects or None.
         :raise BundleException: If the bundle has been uninstalled
         """
@@ -217,11 +217,11 @@ class Bundle(object):
         or returns None if this bundle is not using any services.
         A bundle is considered to be using a service if its use count for that
         service is greater than zero.
-        
+
         The list is valid at the time of the call to this method, however, as
         the Framework is a very dynamic environment, services can be modified
         or unregistered at any time.
-        
+
         :return: An array of ServiceReference objects or None.
         :raise BundleException: If the bundle has been uninstalled
         """
@@ -265,7 +265,7 @@ class Bundle(object):
         # Convert the __version_info__ entry
         info = getattr(self.__module, "__version_info__", None)
         if info:
-            return ".".join(map(str, __version_info__))
+            return ".".join(str(part) for part in __version_info__)
 
         # No version
         return "0.0.0"
@@ -450,11 +450,11 @@ class Bundle(object):
         module_file = getattr(self.__module, "__file__", None)
         if module_file is not None and os.path.isfile(module_file):
             try:
-                st = os.stat(module_file)
+                stat = os.stat(module_file)
 
                 # Change modification time to bypass weak time resolution of the
                 # underlying file system
-                os.utime(module_file, (st.st_atime, st.st_mtime + 1))
+                os.utime(module_file, (stat.st_atime, stat.st_mtime + 1))
                 time_changed = True
 
             except OSError:
@@ -474,7 +474,7 @@ class Bundle(object):
         if time_changed:
             try:
                 # Reset times
-                os.utime(module_file, (st.st_atime, st.st_mtime))
+                os.utime(module_file, (stat.st_atime, stat.st_mtime))
 
             except OSError:
                 # Shouldn't occur, since we succeeded before the update
@@ -631,7 +631,7 @@ class Framework(Bundle):
     def get_bundles(self):
         """
         Returns the list of all installed bundles
-        
+
         :return: the list of all installed bundles
         """
         with self.__bundles_lock:
@@ -702,10 +702,10 @@ class Framework(Bundle):
     def install_bundle(self, name, path=None):
         """
         Installs the bundle with the given name
-        
+
         *Note:* Before Pelix 0.5.0, this method returned the ID of the installed
-        bundle, instead of the Bundle object. 
-        
+        bundle, instead of the Bundle object.
+
         **WARNING:** The behavior of the loading process is subject to changes,
         as it does not allow to safely run multiple frameworks in the same
         Python interpreter, as they might share global module values.
@@ -775,7 +775,7 @@ class Framework(Bundle):
     def install_package(self, path, recursive=False, prefix=None):
         """
         Installs all the modules found in the given package
-        
+
         :param path: Path of the package (folder)
         :param recursive: If True, install the sub-packages too
         :param prefix: (**internal**) Prefix for all found modules
@@ -831,13 +831,13 @@ class Framework(Bundle):
         """
         Installs all the modules found in the given path if they are accepted
         by the visitor.
-        
+
         The visitor must be a callable accepting 3 parameters:
-        
+
            * fullname: The full name of the module
            * is_package: If True, the module is a package
            * module_path: The path to the module file
-        
+
         :param path: Root search path
         :param visitor: The visiting callable
         :param prefix: (**internal**) Prefix for all found modules
@@ -1137,8 +1137,8 @@ class Framework(Bundle):
     def update(self):
         """
         Stops and starts the framework, if the framework is active.
-        
-        :raise BundleException: Something wrong occurred while stopping or 
+
+        :raise BundleException: Something wrong occurred while stopping or
                                 starting the framework.
         """
         with self._lock:
@@ -1293,7 +1293,7 @@ class BundleContext(object):
     def get_bundles(self):
         """
         Returns the list of all installed bundles
-        
+
         :return: the list of all installed bundles
         """
         return self.__framework.get_bundles()
@@ -1312,7 +1312,7 @@ class BundleContext(object):
     def get_service(self, reference):
         """
         Returns the service described with the given reference
-        
+
         :param reference: A ServiceReference object
         :return: The service object itself
         """
@@ -1352,10 +1352,10 @@ class BundleContext(object):
     def install_bundle(self, name, path=None):
         """
         Installs the bundle with the given name
-        
+
         *Note:* Before Pelix 0.5.0, this method returned the ID of the installed
-        bundle, instead of the Bundle object. 
-        
+        bundle, instead of the Bundle object.
+
         **WARNING:** The behavior of the loading process is subject to changes,
         as it does not allow to safely run multiple frameworks in the same
         Python interpreter, as they might share global module values.
@@ -1371,7 +1371,7 @@ class BundleContext(object):
     def install_package(self, path, recursive=False):
         """
         Installs all the modules found in the given package
-        
+
         :param path: Path of the package (folder)
         :param recursive: If True, install the sub-packages too
         :return: A 2-tuple, with the list of installed bundles and the list
@@ -1385,13 +1385,13 @@ class BundleContext(object):
         """
         Installs all the modules found in the given path if they are accepted
         by the visitor.
-        
+
         The visitor must be a callable accepting 3 parameters:
-        
+
            * fullname: The full name of the module
            * is_package: If True, the module is a package
            * module_path: The path to the module file
-        
+
         :param path: Root search path
         :param visitor: The visiting callable
         :return: A 2-tuple, with the list of installed bundles and the list
@@ -1449,7 +1449,7 @@ class BundleContext(object):
     def unget_service(self, reference):
         """
         Disables a reference to the service
-        
+
         :return: True if the bundle was using this reference, else False
         """
         # Lose the dependency
@@ -1486,7 +1486,7 @@ class FrameworkFactory(object):
         Tests if the given framework has been constructed and not deleted.
         If *framework* is None, then the methods returns if at least one
         framework is running.
-        
+
         :param framework: The framework instance to be tested
         :return: True if the framework is running
         """
@@ -1538,13 +1538,13 @@ def create_framework(bundles, properties=None,
     Creates a Pelix framework, installs the given bundles and returns its
     instance reference.
     If *auto_start* is True, the framework will be started once all bundles
-    will have been installed 
+    will have been installed
     If *wait_for_stop* is True, the method will return only when the framework
     will have stopped. This requires *auto_start* to be True.
     If *auto_delete* is True, the framework will be deleted once it has stopped,
     and the method will return None.
     This requires *wait_for_stop* and *auto_start* to be True.
-    
+
     :param bundles: Bundles to initially install (shouldn't be empty if
                     *wait_for_stop* is True)
     :param properties: Optional framework properties

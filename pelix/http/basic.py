@@ -84,7 +84,7 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
     def __init__(self, request_handler):
         """
         Sets up the request helper
-        
+
         :param request_handler: The basic request handler
         """
         self._handler = request_handler
@@ -93,7 +93,7 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
     def get_client_address(self):
         """
         Retrieves the address of the client
-        
+
         :return: A (host, port) tuple
         """
         return self._handler.client_address
@@ -134,7 +134,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
     def __init__(self, request_handler):
         """
         Sets up the response helper
-        
+
         :param request_handler: The basic request handler
         """
         self._handler = request_handler
@@ -144,7 +144,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         """
         Sets the response line.
         This method should be the first called when sending an answer.
-        
+
         :param code: HTTP result code
         :param message: Associated message
         """
@@ -155,7 +155,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         """
         Sets the value of a header.
         This method should not be called after ``end_headers()``.
-        
+
         :param name: Header name
         :param value: Header value
         """
@@ -174,7 +174,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         Retrieves the output as a file stream.
         ``end_headers()`` should have been called before, except if you want
         to write your own headers.
-        
+
         :return: The output file-like object
         """
         return self._handler.wfile
@@ -185,7 +185,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         Writes the given data.
         ``end_headers()`` should have been called before, except if you want
         to write your own headers.
-        
+
         :param data: Data to be written
         """
         self._handler.wfile.write(data)
@@ -202,7 +202,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
     def __init__(self, http_svc, *args, **kwargs):
         """
         Sets up the request handler (called for each request)
-        
+
         :param http_svc: The associated HTTP service
         """
         self._service = http_svc
@@ -215,7 +215,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
         """
         Retrieves the do_* in the servlet corresponding to the request path.
         If the name is not a "do_*", returns the normal result of __getattr__.
-        
+
         :param name: Name of the attribute
         :return: The found attribute
         :raise AttributeError: Attribute not found
@@ -239,6 +239,9 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
                 # Create a wrapper to pass the handler to the servlet
                 def wrapper():
+                    """
+                    Wrapped servlet call
+                    """
                     try:
                         # Handle the request
                         return getattr(servlet, name)(request, response)
@@ -291,7 +294,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
         """
         Sends an exception page with a 500 error code.
         Must be called from inside the exception handling block.
-        
+
         :param response: The response handler
         """
         # Get a formatted stack trace
@@ -324,14 +327,14 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
     """
     A small modification to have a threaded HTTP Server with a custom address
     family
-    
+
     Inspired from:
     http://www.arcfn.com/2011/02/ipv6-web-serving-with-arc-or-python.html
     """
     def __init__(self, server_address, request_handler_class, logger=None):
         """
         Proxy constructor
-        
+
         :param server_address: The server address
         :param request_handler_class: The request handler class
         :param logger: An optional logger, in case of ignored error
@@ -354,10 +357,10 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
             # Explicitly ask to be accessible both by IPv4 and IPv6
             # Some versions of Python don't have V6ONLY.
             # On Linux, IPC6_V6ONLY = 26
-            IPV6_V6ONLY = getattr(socket, "IPV6_V6ONLY", 26)
+            opt_ipv6_only = getattr(socket, "IPV6_V6ONLY", 26)
 
             try:
-                self.socket.setsockopt(socket.IPPROTO_IPV6, IPV6_V6ONLY, 0)
+                self.socket.setsockopt(socket.IPPROTO_IPV6, opt_ipv6_only, 0)
 
             except socket.error as ex:
                 # Ignore the error, but log it if possible
@@ -433,7 +436,7 @@ class HttpService(object):
         Returns True on method absence.
         Returns False on error.
         Returns the method result if found.
-        
+
         :param instance: The instance to call
         :param method: The method to call in the instance
         :return: The method result or True on method absence or False on error
@@ -457,7 +460,7 @@ class HttpService(object):
             return result
 
         except Exception as ex:
-                self.log_exception("Error calling back an instance: %s", ex)
+            self.log_exception("Error calling back an instance: %s", ex)
 
         return False
 
@@ -465,7 +468,7 @@ class HttpService(object):
     def __register_servlet_service(self, service, service_reference):
         """
         Registers a servlet according to its service properties
-        
+
         :param service: A servlet service
         :param service_reference: The associated ServiceReference
         """
@@ -541,7 +544,7 @@ class HttpService(object):
     def get_hostname(self):
         """
         Retrieves the server host name
-        
+
         :return: The server host name
         """
         return socket.gethostname()
@@ -551,7 +554,7 @@ class HttpService(object):
         """
         Retrieves the servlet matching the given path and its parameters.
         Returns None if no servlet matches the given path.
-        
+
         :param path: A request URI
         :return: A tuple (servlet, parameters) or None
         """
@@ -594,7 +597,7 @@ class HttpService(object):
     def register_servlet(self, path, servlet, parameters=None):
         """
         Registers a servlet
-        
+
         :param path: Path handled by this servlet
         :param servlet: The servlet instance
         :param parameters: The parameters associated to this path
@@ -662,11 +665,11 @@ class HttpService(object):
     def unregister(self, path, servlet=None):
         """
         Unregisters the servlet for the given path
-        
+
         :param path: The path to a servlet
         :param servlet: If given, unregisters all the paths handled by this
                         servlet
-        
+
         :return: True if at least one path as been unregistered, else False
         """
         if servlet is not None:
@@ -708,7 +711,7 @@ class HttpService(object):
     def log(self, level, message, *args, **kwargs):
         """
         Logs the given message
-        
+
         :param level: Log entry level
         :param message: Log message (Python logging format)
         """
@@ -720,7 +723,7 @@ class HttpService(object):
     def log_exception(self, message, *args, **kwargs):
         """
         Logs an exception
-        
+
         :param message: Log message (Python logging format)
         """
         if self._logger is not None:

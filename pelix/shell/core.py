@@ -149,7 +149,7 @@ class IOHandler(io.RawIOBase):
     def __init__(self, instream, out_stream, encoding='UTF-8'):
         """
         Sets up the printer
-        
+
         :param instream: Input stream
         :param out_stream: Output stream
         :param encoding: Output encoding
@@ -168,20 +168,20 @@ class IOHandler(io.RawIOBase):
             self.write = self.output.write
 
 
-    def _read_python3(self, n):
+    def _read_python3(self, size):
         """
         Reads the input stream
-        
-        :param n: Maximum bytes to read
+
+        :param size: Maximum bytes to read
         :return: The result of ``self.input.read()``
         """
-        return to_str(self.input.read(n), self.encoding)
+        return to_str(self.input.read(size), self.encoding)
 
 
     def _write_python3(self, data):
         """
         Converts the given data then writes it
-        
+
         :param data: Data to be written
         :return: The result of ``self.output.write()``
         """
@@ -194,18 +194,18 @@ class IOHandler(io.RawIOBase):
         """
         if line is None:
             # Empty line
-            line = '\n'
+            self.write('\n')
 
         else:
             # Format the line
             line = line.format(*args, **kwargs)
 
-        # Add the trailing new line
-        if line[-1] != '\n':
-            line += '\n'
+            # Write it
+            self.write(line)
+            if line[-1] != '\n':
+                # Add the trailing new line
+                self.write('\n')
 
-        # Write it
-        self.write(line)
         self.flush()
 
 
@@ -276,6 +276,7 @@ class ShellUtils(object):
             # Recompute lengths
             str_line = []
             str_lines.append(str_line)
+            column = -1
             for column, entry in enumerate(line):
                 str_entry = str(entry)
                 str_line.append(str_entry)
@@ -378,7 +379,7 @@ class Shell(object):
         """
         Called if a command service has been found.
         Registers the methods of this service.
-        
+
         :param svc_ref: A reference to the found service
         :return: True if the commands have been registered
         """
@@ -433,7 +434,7 @@ class Shell(object):
         """
         Called if a command service is gone.
         Unregisters its commands.
-        
+
         :param svc_ref: A reference to the unbound service
         :return: True if the commands have been unregistered
         """
@@ -537,7 +538,7 @@ class Shell(object):
         If the command exists in the default name space, the returned list will
         only contain the default name space.
         Returns an empty list of the command is unknown
-        
+
         :param command: A command name
         :return: A list of name spaces
         """
@@ -559,7 +560,7 @@ class Shell(object):
         """
         Retrieves the name space and the command associated to the given
         command name.
-        
+
         :param cmd_name: The given command name
         :return: A 2-tuple (name space, command)
         :raise ValueError: Unknown command name
@@ -661,7 +662,7 @@ class Shell(object):
     def get_namespaces(self):
         """
         Retrieves the list of known name spaces (without the default one)
-        
+
         :return: The list of known name spaces
         """
         namespaces = list(self._commands.keys())
@@ -674,7 +675,7 @@ class Shell(object):
         """
         Retrieves the commands of the given name space. If *namespace* is None
         or empty, it retrieves the commands of the default name space
-        
+
         :param namespace: The commands name space
         :return: A list of commands names
         """
@@ -841,7 +842,7 @@ class Shell(object):
     def __extract_help(self, method):
         """
         Formats the help string for the given method
-        
+
         :param method: The method to document
         :return: A tuple: (arguments list, documentation line)
         """
@@ -887,7 +888,7 @@ class Shell(object):
     def __print_command_help(self, io_handler, namespace, cmd_name):
         """
         Prints the documentation of the given command
-        
+
         :param io_handler: I/O handler
         :param namespace: Name space of the command
         :param cmd_name: Name of the command

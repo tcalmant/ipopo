@@ -57,7 +57,7 @@ class Deprecated(object):
         instead.
         If a logger is given, its 'warning' method will be called to print the
         message; else the standard 'print' method will be used.
-        
+
         :param message: Message to be printed
         :param logger: The name of the logger to use, or None.
         """
@@ -68,8 +68,8 @@ class Deprecated(object):
 
     def __log(self, method_name):
         """
-        Logs the deprecation message on first call, does nothing after 
-        
+        Logs the deprecation message on first call, does nothing after
+
         :param method_name: Name of the deprecated method
         """
         if not self.__already_logged:
@@ -86,13 +86,16 @@ class Deprecated(object):
     def __call__(self, method):
         """
         Applies the modifications
-        
+
         :param method: The decorated method
         :return: The wrapped method
         """
         # Prepare the wrapped call
         @wraps(method)
         def wrapped(*args, **kwargs):
+            """
+            Wrapped deprecated method
+            """
             self.__log(method.__name__)
             return method(*args, **kwargs)
 
@@ -142,7 +145,7 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
     """
     A synchronizer decorator for class methods. An AttributeError can be raised
     at runtime if the given lock attribute doesn't exist or if it is None.
-    
+
     If a parameter ``sorted`` is found in ``kwargs`` and its value is True,
     then the list of locks names will be sorted before locking.
 
@@ -290,7 +293,7 @@ if PYTHON_3:
         """
         Utility method to test if the given parameter is a string
         (Python 2.x, 3.x) or a unicode (Python 2.x) object
-    
+
         :param string: A potential string object
         :return: True if the given object is a string object or a Python 2.6
                  unicode object
@@ -302,7 +305,7 @@ if PYTHON_3:
         """
         Converts the given string to an array of bytes.
         Returns the first parameter if it is already an array of bytes.
-        
+
         :param data: A unicode string
         :param encoding: The encoding of data
         :return: The corresponding array of bytes
@@ -318,7 +321,7 @@ if PYTHON_3:
         """
         Converts the given parameter to a string.
         Returns the first parameter if it is already an instance of ``str``.
-        
+
         :param data: A string
         :param encoding: The encoding of data
         :return: The corresponding string
@@ -338,7 +341,7 @@ else:
         """
         Utility method to test if the given parameter is a string
         (Python 2.x, 3.x) or a unicode (Python 2.x) object
-    
+
         :param string: A potential string object
         :return: True if the given object is a string object or a Python 2.6
                  unicode object
@@ -351,7 +354,7 @@ else:
         """
         Converts the given parameter to a string.
         Returns the first parameter if it is already an instance of ``str``.
-        
+
         :param data: A string
         :param encoding: The encoding of data
         :return: The corresponding string
@@ -371,7 +374,7 @@ else:
         """
         Converts the given string to an unicode string using ``str.decode()``.
         Returns the first parameter if it is already an instance of ``unicode``.
-        
+
         :param data: A string
         :param encoding: The encoding of data
         :return: The corresponding ``unicode`` string

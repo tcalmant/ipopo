@@ -102,7 +102,7 @@ class RemoteConsole(socketserver.StreamRequestHandler):
     def __init__(self, shell_svc, active_flag, *args):
         """
         Sets up members
-        
+
         :param shell_svc: The underlying Pelix shell service
         :param active_flag: Common flag for stopping the client communication
         """
@@ -114,7 +114,7 @@ class RemoteConsole(socketserver.StreamRequestHandler):
     def send(self, data):
         """
         Tries to send data to the client.
-        
+
         :param data: Data to be sent
         :return: True if the data was sent, False on error
         """
@@ -222,10 +222,10 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
             # Explicitly ask to be accessible both by IPv4 and IPv6
             # Some versions of Python don't have V6ONLY.
             # On Linux, IPC6_V6ONLY = 26
-            IPV6_V6ONLY = getattr(socket, "IPV6_V6ONLY", 26)
+            opt_ipv6_only = getattr(socket, "IPV6_V6ONLY", 26)
 
             try:
-                self.socket.setsockopt(socket.IPPROTO_IPV6, IPV6_V6ONLY, 0)
+                self.socket.setsockopt(socket.IPPROTO_IPV6, opt_ipv6_only, 0)
 
             except socket.error as ex:
                 # Log the error
@@ -235,7 +235,7 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
 def _create_server(shell, server_address, port):
     """
     Creates the TCP console on the given address and port
-    
+
     :param shell: The remote shell handler
     :param server_address: Server bound address
     :param port: Server port
@@ -292,7 +292,7 @@ class IPopoRemoteShell(object):
     def get_access(self):
         """
         Implementation of the remote shell specification
-        
+
         :return: A (host, port) tuple
         """
         return (self._address, self._port)
@@ -301,7 +301,7 @@ class IPopoRemoteShell(object):
     def get_banner(self):
         """
         Retrieves the shell banner
-        
+
         :return: The shell banner
         """
         line = '-' * 72
@@ -314,7 +314,7 @@ class IPopoRemoteShell(object):
     def get_ps1(self):
         """
         Returns the shell prompt
-        
+
         :return: The shell prompt
         """
         return self._shell.get_ps1()
@@ -323,9 +323,9 @@ class IPopoRemoteShell(object):
     def handle_line(self, rfile, wfile, line):
         """
         Handles the command line.
-        
+
         **Does not catch exceptions !**
-        
+
         :param rfile: Input file-like object
         :param wfile: Output file-like object
         :param line: The command line
