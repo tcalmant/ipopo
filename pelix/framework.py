@@ -43,7 +43,6 @@ from pelix.utilities import SynchronizedClassMethod, is_string, Deprecated
 import pelix.ldapfilter as ldapfilter
 
 # Standard library
-import functools
 import imp
 import importlib
 import inspect
@@ -2039,7 +2038,6 @@ class BundleContext(object):
 
 # ------------------------------------------------------------------------------
 
-@functools.total_ordering
 class ServiceReference(object):
     """
     Represents a reference to a service
@@ -2113,6 +2111,19 @@ class ServiceReference(object):
         else:
             # Rank order
             return service_rank < other_rank
+
+
+    def __gt__(self, other):
+        return not (self == other or self < other)
+
+    def __le__(self, other):
+        return self == other or self < other
+
+    def __ge__(self, other):
+        return not self < other
+
+    def __ne__(self, other):
+        return not self == other
 
 
     def get_bundle(self):
