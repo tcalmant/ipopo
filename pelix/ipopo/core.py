@@ -840,6 +840,7 @@ class _IPopoService(object):
 
                     # Requirement
                     req = dependency.requirement
+                    info["specification"] = req.specification
                     if req.filter:
                         info["filter"] = str(req.filter)
 

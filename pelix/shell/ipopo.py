@@ -217,10 +217,12 @@ class IPopoCommands(object):
         lines.append("Dependencies:")
         for field, infos in details["dependencies"].items():
             lines.append("\tField: {0}".format(field))
-            lines.append("\t\tOptional : {0}".format(infos["optional"]))
-            lines.append("\t\tAggregate: {0}".format(infos["aggregate"]))
+            lines.append("\t\tSpecification: {0}"\
+                         .format(infos['specification']))
             if "filter" in infos:
                 lines.append("\t\tFilter   : {0}".format(infos["filter"]))
+            lines.append("\t\tOptional : {0}".format(infos["optional"]))
+            lines.append("\t\tAggregate: {0}".format(infos["aggregate"]))
 
             lines.append("\t\tHandler  : {0}".format(infos["handler"]))
             lines.append("\t\tBindings :")
