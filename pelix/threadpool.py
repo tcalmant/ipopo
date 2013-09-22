@@ -60,6 +60,25 @@ class FutureResult(object):
         self._result = None
 
 
+    def execute(self, method, args, kwargs):
+        """
+        Execute the given method and stores its result.
+        The result is considered "done" even if the method raises an exception
+
+        :param method: The method to execute
+        :param args: Method positional arguments
+        :param kwargs: Method keyword arguments
+        :raise: The exception raised by the method
+        """
+        try:
+            # Call the method
+            self._result = method(*args, **kwargs)
+
+        finally:
+            # Mark the action as executed
+            self._done_event.set()
+
+
     def done(self):
         """
         Returns True if the job has finished, else False
@@ -71,7 +90,7 @@ class FutureResult(object):
         """
         Waits up to timeout for the result the threaded job.
         Returns immediately the result if the job has already been done.
-        
+
         :param timeout: The maximum time to wait for a result (in seconds)
         :raise OSError: The timeout raised before the job finished
         """
@@ -89,7 +108,7 @@ class ThreadPool(object):
     def __init__(self, nb_threads, queue_size=0, timeout=5, logname=None):
         """
         Sets up the task executor
-        
+
         :param nb_threads: Size of the thread pool
         :param queue_size: Size of the task queue (0 for infinite)
         :param timeout: Queue timeout (in seconds)
@@ -175,7 +194,7 @@ class ThreadPool(object):
     def enqueue(self, method, *args, **kwargs):
         """
         Enqueues a task in the pool
-        
+
         :param method: Method to call
         :return: A FutureResult object, to get the result of the task
         :raise ValueError: Invalid method
@@ -219,7 +238,7 @@ class ThreadPool(object):
     def join(self, timeout=None):
         """
         Waits for all the tasks to be executed
-        
+
         :param timeout: Maximum time to wait (in seconds)
         :return: True if the queue has been emptied, else False
         """
@@ -260,7 +279,7 @@ class ThreadPool(object):
                 method, args, kwargs, future = task
                 try:
                     # Call the method
-                    future._result = method(*args, **kwargs)
+                    future.execute(method, args, kwargs)
 
                 except Exception as ex:
                     self._logger.exception("Error executing %s: %s",
@@ -268,5 +287,4 @@ class ThreadPool(object):
 
                 finally:
                     # Mark the action as executed
-                    future._done_event.set()
                     self._queue.task_done()
