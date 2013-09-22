@@ -1,0 +1,754 @@
+#!/usr/bin/env python
+# -- Content-Encoding: UTF-8 --
+"""
+Instance manager class definition
+
+:author: Thomas Calmant
+:copyright: Copyright 2013, isandlaTech
+:license: GPLv3
+:version: 0.5.4
+:status: Alpha
+
+..
+
+    This file is part of iPOPO.
+
+    iPOPO is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    iPOPO is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
+"""
+
+# Module version
+__version_info__ = (0, 5, 4)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
+# ------------------------------------------------------------------------------
+
+# Pelix
+from pelix.internals.exceptions import FrameworkException
+
+# iPOPO constants
+import pelix.ipopo.constants as constants
+
+# iPOPO beans
+from pelix.ipopo.contexts import ComponentContext
+
+# iPOPO featured handlers (imports will be replaced by services, in the future)
+import pelix.ipopo.handlers.requires as hdlr_requires
+import pelix.ipopo.handlers.provides as hdlr_provides
+
+# Standard library
+import logging
+import threading
+
+# ------------------------------------------------------------------------------
+
+class StoredInstance(object):
+    """
+    Represents a component instance
+    """
+    # Try to reduce memory footprint (stored instances)
+    __slots__ = ('bundle_context', 'context', 'factory_name', 'instance',
+                 'name', 'state', '_controllers_state', '_handlers',
+                 '_ipopo_service', '_lock', '_logger')
+
+    INVALID = 0
+    """ This component has been invalidated """
+
+    VALID = 1
+    """ This component has been validated """
+
+    KILLED = 2
+    """ This component has been killed """
+
+    VALIDATING = 3
+    """ This component is currently validating """
+
+    def __init__(self, ipopo_service, context, instance):
+        """
+        Sets up the instance object
+
+        :param ipopo_service: The iPOPO service that instantiated this component
+        :param context: The component context
+        :param instance: The component instance
+        """
+        assert isinstance(context, ComponentContext)
+
+        # The logger
+        self._logger = logging.getLogger('-'.join(("InstanceManager",
+                                                   context.name)))
+
+        # The lock
+        self._lock = threading.RLock()
+
+        # The iPOPO service
+        self._ipopo_service = ipopo_service
+
+        # Component context
+        self.context = context
+
+        # The instance name
+        self.name = self.context.name
+
+        # Factory name
+        self.factory_name = self.context.get_factory_name()
+
+        # Component instance
+        self.instance = instance
+
+        # Set the instance state
+        self.state = StoredInstance.INVALID
+
+        # Store the bundle context
+        self.bundle_context = self.context.get_bundle_context()
+
+        # The controllers state dictionary
+        self._controllers_state = {}
+
+        # Handlers...
+        self._handlers = {}
+
+        # The provided services handlers
+        for specs, controller in self.context.get_provides():
+            handler = hdlr_provides.ServiceRegistrationHandler(specs,
+                                                               controller, self)
+
+            for kind in handler.get_kinds():
+                self._handlers.setdefault(kind, []).append(handler)
+
+        # The runtime dependency handlers
+        for field, requirement in context.requirements.items():
+            if requirement.aggregate:
+                handler = hdlr_requires.AggregateDependency(self,
+                                                            field, requirement)
+            else:
+                handler = hdlr_requires.SimpleDependency(self,
+                                                         field, requirement)
+
+            for kind in handler.get_kinds():
+                self._handlers.setdefault(kind, []).append(handler)
+
+
+    def __repr__(self):
+        """
+        String representation
+        """
+        return self.__str__()
+
+
+    def __str__(self):
+        """
+        String representation
+        """
+        return "StoredInstance(Name={0}, State={1})".format(self.name,
+                                                            self.state)
+
+
+    def check_event(self, event):
+        """
+        Tests if the given service event must be handled or ignored, based
+        on the state of the iPOPO service and on the content of the event.
+        
+        :param event: A service event
+        :return: True if the event can be handled, False if it must be ignored
+        """
+        with self._lock:
+            if self.state == StoredInstance.KILLED:
+                # This call may have been blocked by the internal state lock,
+                # ignore it
+                return False
+
+            return self.__safe_handlers_callback('check_event', event)
+
+
+    def bind(self, dependency, svc, svc_ref):
+        """
+        Called by a dependency manager to inject a new service and update the
+        component life cycle.
+        """
+        with self._lock:
+            self.__set_binding(dependency, svc, svc_ref)
+            self.check_lifecycle()
+
+
+    def update(self, dependency, svc, svc_ref, old_properties):
+        """
+        Called by a dependency manager when the properties of an injected
+        dependency have been updated.
+        """
+        with self._lock:
+            self.__update_binding(dependency, svc, svc_ref, old_properties)
+            self.check_lifecycle()
+
+
+    def unbind(self, dependency, svc, svc_ref):
+        """
+        Called by a dependency manager to remove an injected service and to
+        update the component life cycle.
+        """
+        with self._lock:
+            # Invalidate first (if needed)
+            self.check_lifecycle()
+
+            # Call unbind() and remove the injection
+            self.__unset_binding(dependency, svc, svc_ref)
+
+            # Try a new configuration
+            if self.update_bindings():
+                self.check_lifecycle()
+
+
+    def get_controller_state(self, name):
+        """
+        Retrieves the state of the controller with the given name
+        
+        :param name: The name of the controller
+        :return: The value of the controller
+        :raise KeyError: No value associated to this controller
+        """
+        return self._controllers_state[name]
+
+
+    def set_controller_state(self, name, value):
+        """
+        Sets the state of the controller with the given name
+        
+        :param name: The name of the controller
+        :param value: The new value of the controller
+        """
+        with self._lock:
+            self._controllers_state[name] = value
+            self.__safe_handlers_callback('on_controller_change', name, value)
+
+
+    def update_property(self, name, old_value, new_value):
+        """
+        Handles a property changed event
+
+        :param name: The changed property name
+        :param old_value: The previous property value
+        :param new_value: The new property value
+        """
+        with self._lock:
+            self.__safe_handlers_callback('on_property_change', name, old_value,
+                                          new_value)
+
+
+    def get_handlers(self, kind=None):
+        """
+        Retrieves the handlers of the given kind. If kind is None, all handlers
+        are returned.
+        
+        :param kind: The kind of the handlers to return
+        :return: A list of handlers, or an empty list
+        """
+        with self._lock:
+            if kind is not None:
+                return self._handlers.get(kind, [])
+
+            # Prepare the list of handlers to call
+            result = []
+            for handlers_list in self._handlers.values():
+                for handler in handlers_list:
+                    if handler not in result:
+                        result.append(handler)
+
+            return result
+
+
+    def check_lifecycle(self):
+        """
+        Tests if the state of the component must be updated, based on its own
+        state and on the state of its dependencies
+        """
+        with self._lock:
+            # Validation flags
+            was_valid = (self.state == StoredInstance.VALID)
+            can_validate = self.state not in (StoredInstance.VALIDATING,
+                                              StoredInstance.VALID)
+
+            # Test the validity of all handlers
+            handlers_valid = self.__safe_handlers_callback('is_valid',
+                                                           break_on_false=True)
+
+            # A dependency is missing
+            if was_valid and not handlers_valid:
+                self.invalidate(True)
+
+            # We're all good
+            elif can_validate and handlers_valid \
+            and self._ipopo_service.running:
+                self.validate(True)
+
+
+    def update_bindings(self):
+        """
+        Updates the bindings of the given component
+
+        :return: True if the component can be validated
+        """
+        with self._lock:
+            all_valid = True
+            for handler in self._handlers.get(constants.HANDLER_DEPENDENCY, []):
+                # Try to bind
+                self.__safe_handler_callback(handler, 'try_binding')
+
+                # Update the validity flag
+                all_valid &= self.__safe_handler_callback(handler, 'is_valid',
+                                                          only_boolean=True,
+                                                          none_as_true=True)
+
+            return all_valid
+
+
+    def start(self):
+        """
+        Starts the handlers
+        """
+        with self._lock:
+            self.__safe_handlers_callback('start')
+
+
+    def invalidate(self, callback=True):
+        """
+        Applies the component invalidation.
+
+        :param callback: If True, call back the component before the
+                         invalidation
+        """
+        with self._lock:
+            if self.state != StoredInstance.VALID:
+                # Instance is not running...
+                return
+
+            # Change the state
+            self.state = StoredInstance.INVALID
+
+            # Call the handlers
+            self.__safe_handlers_callback('pre_invalidate')
+
+            # Call the component
+            if callback:
+                self.__safe_callback(constants.IPOPO_CALLBACK_INVALIDATE,
+                                   self.bundle_context)
+
+                # Trigger an "Invalidated" event
+                self._ipopo_service._fire_ipopo_event(
+                                              constants.IPopoEvent.INVALIDATED,
+                                              self.factory_name, self.name)
+
+            # Call the handlers
+            self.__safe_handlers_callback('post_invalidate')
+
+
+    def kill(self):
+        """
+        This instance is killed : invalidate it if needed, clean up all members
+
+        When this method is called, this StoredInstance object must have
+        been removed from the registry
+        """
+        with self._lock:
+            # Already dead...
+            if self.state == StoredInstance.KILLED:
+                return
+
+            try:
+                self.invalidate(True)
+
+            except:
+                self._logger.exception("%s: Error invalidating the instance",
+                                       self.name)
+
+            # Now that we are nearly clean, be sure we were in a good registry
+            # state
+            assert not self._ipopo_service.is_registered_instance(self.name)
+
+            # Stop all handlers (can tell to unset a binding)
+            for handler in self.get_handlers():
+                results = self.__safe_handler_callback(handler, 'stop')
+                if results:
+                    try:
+                        for binding in results:
+                            self.__unset_binding(handler, binding[0],
+                                                 binding[1])
+
+                    except Exception as ex:
+                        self._logger.exception("Error stopping handler '%s': "
+                                               "%s", handler, ex)
+
+            # Call the handlers
+            self.__safe_handlers_callback('clear')
+
+            # Change the state
+            self.state = StoredInstance.KILLED
+
+            # Trigger the event
+            self._ipopo_service._fire_ipopo_event(constants.IPopoEvent.KILLED,
+                                                  self.factory_name, self.name)
+
+            # Clean up members
+            self._handlers.clear()
+            self._handlers = None
+            self.context = None
+            self.instance = None
+            self._ipopo_service = None
+
+
+    def validate(self, safe_callback=True):
+        """
+        Ends the component validation, registering services
+
+        :param safe_callback: If True, calls the component validation callback
+        :raise RuntimeError: You try to awake a dead component
+        """
+        with self._lock:
+            if self.state in (StoredInstance.VALID,
+                              StoredInstance.VALIDATING):
+                # No work to do (yet)
+                return
+
+            if self.state == StoredInstance.KILLED:
+                raise RuntimeError("{0}: Zombies !".format(self.name))
+
+            # Call the handlers
+            self.__safe_handlers_callback('pre_validate')
+
+            if safe_callback:
+                # Safe call back needed and not yet passed
+                self.state = StoredInstance.VALIDATING
+                if not self.__safe_callback(constants.IPOPO_CALLBACK_VALIDATE,
+                                            self.bundle_context):
+                    # Stop there if the callback failed
+                    self.invalidate(True)
+                    return
+
+            # All good
+            self.state = StoredInstance.VALID
+
+            # Call the handlers
+            self.__safe_handlers_callback('post_validate')
+
+            # We may have caused a framework error, so check if iPOPO is active
+            if self._ipopo_service is not None:
+                # Trigger the iPOPO event (after the service _registration)
+                self._ipopo_service._fire_ipopo_event(
+                                              constants.IPopoEvent.VALIDATED,
+                                              self.factory_name, self.name)
+
+
+    def __callback(self, event, *args, **kwargs):
+        """
+        Calls the registered method in the component for the given event
+
+        :param event: An event (IPOPO_CALLBACK_VALIDATE, ...)
+        :return: The callback result, or None
+        :raise Exception: Something went wrong
+        """
+        with self._lock:
+            comp_callback = self.context.get_callback(event)
+            if not comp_callback:
+                # No registered callback
+                return True
+
+            # Call it
+            result = comp_callback(self.instance, *args, **kwargs)
+            if result is None:
+                # Special case, if the call back returns nothing
+                return True
+
+            return result
+
+
+    def __field_callback(self, field, event, *args, **kwargs):
+        """
+        Calls the registered method in the component for the given field event
+
+        :param field: A field name
+        :param event: An event (IPOPO_CALLBACK_VALIDATE, ...)
+        :return: The callback result, or None
+        :raise Exception: Something went wrong
+        """
+        with self._lock:
+            comp_callback = self.context.get_field_callback(field, event)
+            if not comp_callback:
+                # No registered callback
+                return True
+
+            # Call it
+            result = comp_callback(self.instance, field, *args, **kwargs)
+            if result is None:
+                # Special case, if the call back returns nothing
+                return True
+
+            return result
+
+
+    def __safe_callback(self, event, *args, **kwargs):
+        """
+        Calls the registered method in the component for the given event,
+        ignoring raised exceptions
+
+        :param event: An event (IPOPO_CALLBACK_VALIDATE, ...)
+        :return: The callback result, or None
+        """
+        with self._lock:
+            if self.state == StoredInstance.KILLED:
+                # Invalid state
+                return None
+
+            try:
+                return self.__callback(event, *args, **kwargs)
+
+            except FrameworkException as ex:
+                # Important error
+                self._logger.exception("Critical error calling back %s: %s",
+                                       self.name, ex)
+
+                # Kill the component
+                self._ipopo_service.kill(self.name)
+
+                if ex.needs_stop:
+                    # Framework must be stopped...
+                    self._logger.error("%s said that the Framework must be "
+                                       "stopped.", self.name)
+                    self.bundle_context.get_bundle(0).stop()
+                return False
+
+            except:
+                self._logger.exception("Component '%s' : error calling "
+                                       "callback method for event %s",
+                                       self.name, event)
+                return False
+
+
+    def __safe_field_callback(self, field, event, *args, **kwargs):
+        """
+        Calls the registered method in the component for the given event,
+        ignoring raised exceptions
+
+        :param field: Name of the modified field
+        :param event: A field event (IPOPO_CALLBACK_BIND_FIELD, ...)
+        :return: The callback result, or None
+        """
+        with self._lock:
+            if self.state == StoredInstance.KILLED:
+                # Invalid state
+                return None
+
+            try:
+                return self.__field_callback(field, event, *args, **kwargs)
+
+            except FrameworkException as ex:
+                # Important error
+                self._logger.exception("Critical error calling back %s: %s",
+                                       self.name, ex)
+
+                # Kill the component
+                self._ipopo_service.kill(self.name)
+
+                if ex.needs_stop:
+                    # Framework must be stopped...
+                    self._logger.error("%s said that the Framework must be "
+                                       "stopped.", self.name)
+                    self.bundle_context.get_bundle(0).stop()
+                return False
+
+            except:
+                self._logger.exception("Component '%s' : error calling "
+                                       "callback method for event %s",
+                                       self.name, event)
+                return False
+
+
+    def __safe_handler_callback(self, handler, method_name, *args, **kwargs):
+        """
+        Calls the given method with the given arguments in the given handler.
+        Logs exceptions, but doesn't propagate them.
+        
+        Special arguments can be given in kwargs:
+        
+        * 'none_as_true': If set to True and the method returned None or doesn't
+                          exist, the result is considered as True.
+                          If set to False, None result is kept as is.
+                          Default is False.
+        * 'only_boolean': If True, the result can only be True or False, else
+                          the result is the value returned by the method.
+                          Default is False.
+        
+        :param handler: The handler to call
+        :param method_name: The name of the method to call
+        :param args: List of arguments for the method to call
+        :param kwargs: Dictionary of arguments for the method to call and to
+                       control the call
+        :return: The method result, or None on error
+        """
+        if handler is None or method_name is None:
+            return None
+
+        # Behavior flags
+        only_boolean = kwargs.pop('only_boolean', False)
+        none_as_true = kwargs.pop('none_as_true', False)
+
+        # Get the method for each handler
+        result = None
+        method = getattr(handler, method_name, None)
+        if method is not None:
+            try:
+                # Call it
+                result = method(*args, **kwargs)
+
+            except Exception as ex:
+                # Log errors
+                self._logger.exception("Error calling handler '%s': %s",
+                                       handler, ex)
+
+        if result is None and none_as_true:
+            # Consider None (nothing returned) as True
+            result = True
+
+        if only_boolean:
+            # Convert to a boolean result
+            result = only_boolean and result
+
+        return result
+
+
+    def __safe_handlers_callback(self, method_name, *args, **kwargs):
+        """
+        Calls the given method with the given arguments in all handlers.
+        Logs exceptions, but doesn't propagate them.
+        Methods called in handlers must return None, True or False.
+        
+        Special parameters can be given in kwargs:
+        
+        * 'exception_as_error': if it is set to True and an exception is raised
+          by a handler, then this method will return False. By default, this
+          flag is set to False and exceptions are ignored.
+        * 'break_on_false': if it set to True, the loop calling the handler
+          will stop after an handler returned False. By default, this flag
+          is set to False, and all handlers are called.
+        
+        :param method_name: Name of the method to call
+        :param args: List of arguments for the method to call
+        :param kwargs: Dictionary of arguments for the method to call and the
+                       behavior of the call
+        :return: True if all handlers returned True (or None), else False
+        """
+        with self._lock:
+            if self.state == StoredInstance.KILLED:
+                # Nothing to do
+                return False
+
+            # Behavior flags
+            exception_as_error = kwargs.pop('exception_as_error', False)
+            break_on_false = kwargs.pop('break_on_false', False)
+
+            result = True
+            for handler in self.get_handlers():
+                # Get the method for each handler
+                try:
+                    method = getattr(handler, method_name)
+
+                except AttributeError:
+                    # Ignore missing methods
+                    pass
+
+                else:
+                    try:
+                        # Call it
+                        res = method(*args, **kwargs)
+                        if res is not None and not res:
+                            # Ignore 'None' results
+                            result = False
+
+                    except Exception as ex:
+                        # Log errors
+                        self._logger.exception("Error calling handler '%s': %s",
+                                               handler, ex)
+
+                        # We can consider exceptions as errors or ignore them
+                        result &= not exception_as_error
+
+                    if not handler and break_on_false:
+                        # The loop can stop here
+                        break
+
+            return result
+
+
+    def __set_binding(self, dependency, service, reference):
+        """
+        Injects a service in the component
+
+        :param dependency: The dependency handler
+        :param service: The injected service
+        :param reference: The reference of the injected service
+        """
+        with self._lock:
+            # Set the value
+            setattr(self.instance, dependency.field, dependency.get_value())
+
+            # Call the component back
+            self.__safe_callback(constants.IPOPO_CALLBACK_BIND,
+                                 service, reference)
+
+            self.__safe_field_callback(dependency.field,
+                                       constants.IPOPO_CALLBACK_BIND_FIELD,
+                                       service, reference)
+
+
+    def __update_binding(self, dependency, service, reference, old_properties):
+        """
+        Calls back component binding and field binding methods when the
+        properties of an injected dependency have been updated.
+        
+        :param dependency: The dependency handler
+        :param service: The injected service
+        :param reference: The reference of the injected service
+        :param old_properties: Previous properties of the dependency
+        """
+        with self._lock:
+            # Call the component back
+            self.__safe_field_callback(dependency.field,
+                                       constants.IPOPO_CALLBACK_UPDATE_FIELD,
+                                       service, reference, old_properties)
+
+            self.__safe_callback(constants.IPOPO_CALLBACK_UPDATE,
+                                 service, reference, old_properties)
+
+
+    def __unset_binding(self, dependency, service, reference):
+        """
+        Removes a service from the component
+
+        :param dependency: The dependency handler
+        :param service: The injected service
+        :param reference: The reference of the injected service
+        """
+        with self._lock:
+            # Call the component back
+            self.__safe_field_callback(dependency.field,
+                                       constants.IPOPO_CALLBACK_UNBIND_FIELD,
+                                       service, reference)
+
+            self.__safe_callback(constants.IPOPO_CALLBACK_UNBIND,
+                                 service, reference)
+
+            # Update the injected field
+            setattr(self.instance, dependency.field, dependency.get_value())
+
+            # Unget the service
+            self.bundle_context.unget_service(reference)

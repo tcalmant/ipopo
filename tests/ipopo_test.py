@@ -14,6 +14,7 @@ from tests.interfaces import IEchoService
 
 import pelix.ipopo.constants as constants
 import pelix.ipopo.decorators as decorators
+import pelix.ipopo.contexts as contexts
 import pelix.framework as pelix
 
 import logging
@@ -1392,7 +1393,7 @@ class SimpleCoreTests(unittest.TestCase):
         """
         Tests the Requirement class type checking
         """
-        Requirement = self.ipopo_bundle.Requirement
+        Requirement = contexts.Requirement
 
         # Invalid specification type
         for invalid in (None, ["specification"], 1234):
@@ -1435,7 +1436,7 @@ class SimpleCoreTests(unittest.TestCase):
         """
         Tests Requirement equality test
         """
-        Requirement = self.ipopo_bundle.Requirement
+        Requirement = contexts.Requirement
 
         req_1 = Requirement("spec_1", True, True, spec_filter="(test=True)")
 
@@ -1476,7 +1477,7 @@ class SimpleCoreTests(unittest.TestCase):
         """
         Tests the dictionary form serialization of Requirement
         """
-        Requirement = self.ipopo_bundle.Requirement
+        Requirement = contexts.Requirement
 
         # Invalid type
         for invalid in (None, [], "test"):
@@ -1519,8 +1520,8 @@ class SimpleCoreTests(unittest.TestCase):
         """
         Tests the dictionary form serialization of FactoryContext
         """
-        FactoryContext = self.ipopo_bundle.FactoryContext
-        Requirement = self.ipopo_bundle.Requirement
+        FactoryContext = contexts.FactoryContext
+        Requirement = contexts.Requirement
 
         # Prepare a requirement
         req_1 = Requirement("spec_1", True, True,

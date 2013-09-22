@@ -38,7 +38,7 @@ __docformat__ = "restructuredtext en"
 
 # Pelix modules
 from pelix.utilities import is_string
-from pelix.ipopo.core import FactoryContext, Requirement
+from pelix.ipopo.contexts import FactoryContext, Requirement
 import pelix.ipopo.constants as constants
 
 # Standard library
