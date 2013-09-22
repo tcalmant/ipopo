@@ -39,10 +39,9 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Wild import of constants (to stay compatible with previous version)
-from pelix.internals.constants import *
+from pelix.constants import *
 
 # Pelix beans
-from pelix.internals.exceptions import BundleException, FrameworkException
 from pelix.internals.events import BundleEvent, ServiceEvent
 from pelix.internals.registry import EventDispatcher, ServiceRegistry, \
     ServiceReference, ServiceRegistration

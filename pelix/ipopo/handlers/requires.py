@@ -37,8 +37,8 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Pelix beans
+from pelix.constants import BundleException
 from pelix.internals.events import ServiceEvent
-from pelix.internals.exceptions import BundleException
 
 # iPOPO constants
 import pelix.ipopo.constants as constants

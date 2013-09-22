@@ -37,8 +37,8 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Pelix beans
-from pelix.internals.exceptions  import BundleException
-from pelix.internals.constants import OBJECTCLASS, SERVICE_ID, SERVICE_RANKING
+from pelix.constants import OBJECTCLASS, SERVICE_ID, SERVICE_RANKING, \
+    BundleException
 from pelix.internals.events import ServiceEvent
 
 # Pelix utility modules

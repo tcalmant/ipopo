@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-Constants for Pelix.
+Constants and exceptions for Pelix.
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
@@ -69,3 +69,35 @@ a framework from another.
 It can be generated or be forced using the framework initialization properties.
 This property is constant during the life of a framework instance.
 """
+
+# ------------------------------------------------------------------------------
+
+class BundleException(Exception):
+    """
+    The base of all framework exceptions
+    """
+    def __init__(self, content):
+        """
+        Sets up the exception
+        """
+        if isinstance(content, Exception):
+            Exception.__init__(self, str(content))
+
+        else:
+            Exception.__init__(self, content)
+
+
+class FrameworkException(Exception):
+    """
+    A framework exception is raised when an error can force the framework to
+    stop.
+    """
+    def __init__(self, message, needs_stop=False):
+        """
+        Sets up the exception
+
+        :param message: A description of the exception
+        :param needs_stop: If True, the framework must be stopped
+        """
+        Exception.__init__(self, message)
+        self.needs_stop = needs_stop

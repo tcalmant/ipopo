@@ -37,7 +37,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Pelix
-from pelix.internals.exceptions import FrameworkException
+from pelix.constants import FrameworkException
 
 # iPOPO constants
 import pelix.ipopo.constants as constants

@@ -40,7 +40,7 @@ __docformat__ = "restructuredtext en"
 from pelix.framework import BundleContext
 
 # Pelix utilities
-from pelix.internals.constants import OBJECTCLASS
+from pelix.constants import OBJECTCLASS
 from pelix.utilities import is_string
 import pelix.ldapfilter as ldapfilter
 

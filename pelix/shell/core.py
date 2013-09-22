@@ -44,6 +44,7 @@ from pelix.shell import SHELL_SERVICE_SPEC, SHELL_COMMAND_SPEC, \
 
 # Pelix modules
 from pelix.utilities import to_str
+import pelix.constants as constants
 import pelix.framework as pelix
 
 # Standard library
@@ -707,7 +708,7 @@ class Shell(object):
             try:
                 bundle = self._context.get_bundle(bundle_id)
 
-            except pelix.BundleException:
+            except constants.BundleException:
                 pass
 
         if bundle is None:
@@ -732,7 +733,7 @@ class Shell(object):
             else:
                 lines.append("\tn/a")
 
-        except pelix.BundleException as ex:
+        except constants.BundleException as ex:
             # Bundle in a invalid state
             lines.append("\tError: {0}".format(ex))
 
@@ -746,7 +747,7 @@ class Shell(object):
             else:
                 lines.append("\tn/a")
 
-        except pelix.BundleException as ex:
+        except constants.BundleException as ex:
             # Bundle in a invalid state
             lines.append("\tError: {0}".format(ex))
 
@@ -785,7 +786,7 @@ class Shell(object):
         Prints the details of the service with the given ID
         """
         svc_ref = self._context.get_service_reference(None,
-                                '({0}={1})'.format(pelix.SERVICE_ID,
+                                '({0}={1})'.format(constants.SERVICE_ID,
                                                    service_id))
         if svc_ref is None:
             io_handler.write_line('Service not found: {0}', service_id)
@@ -793,11 +794,11 @@ class Shell(object):
 
         lines = []
         lines.append("ID    : {0}".format(svc_ref.get_property(
-                                            pelix.SERVICE_ID)))
+                                            constants.SERVICE_ID)))
         lines.append("Rank  : {0}".format(svc_ref.get_property(
-                                            pelix.SERVICE_RANKING)))
+                                            constants.SERVICE_RANKING)))
         lines.append("Specs : {0}".format(svc_ref.get_property(
-                                            pelix.OBJECTCLASS)))
+                                            constants.OBJECTCLASS)))
         lines.append("Bundle: {0}".format(svc_ref.get_bundle()))
         lines.append("Properties:")
         for key, value in svc_ref.get_properties().items():
@@ -826,10 +827,10 @@ class Shell(object):
 
         # Construct the list of services
         lines = [[str(entry) for entry in
-                        (ref.get_property(pelix.SERVICE_ID),
-                         ref.get_property(pelix.OBJECTCLASS),
+                        (ref.get_property(constants.SERVICE_ID),
+                         ref.get_property(constants.OBJECTCLASS),
                          ref.get_bundle(),
-                         ref.get_property(pelix.SERVICE_RANKING))]
+                         ref.get_property(constants.SERVICE_RANKING))]
                  for ref in references]
 
         # Print'em all
@@ -1191,7 +1192,7 @@ class PelixActivator(object):
 
             _logger.info("Shell services registered")
 
-        except pelix.BundleException as ex:
+        except constants.BundleException as ex:
             _logger.exception("Error registering the shell service: %s", ex)
 
 
