@@ -327,6 +327,26 @@ class ServiceRegistration(object):
 
 # ------------------------------------------------------------------------------
 
+class _Listener(object):
+    """
+    Keeps information about a listener
+    """
+    # Try to reduce memory footprint (stored instances)
+    __slots__ = ('listener', 'specification', 'ldap_filter')
+
+    def __init__(self, listener, specification, ldap_filter):
+        """
+        Sets up members
+
+        :param listener: Listener instance
+        :param specification: Specification to listen to
+        :param ldap_filter: LDAP filter on service properties
+        """
+        self.listener = listener
+        self.specification = specification
+        self.ldap_filter = ldap_filter
+
+
 class EventDispatcher(object):
     """
     Simple event dispatcher
@@ -344,8 +364,10 @@ class EventDispatcher(object):
         self.__bnd_listeners = []
         self.__bnd_lock = threading.Lock()
 
-        # Service listeners (listener -> (spec, filter))
+        # Service listeners (specification -> listener bean)
         self.__svc_listeners = {}
+        # listener instance -> listener bean
+        self.__listeners_data = {}
         self.__svc_lock = threading.Lock()
 
         # Framework stop listeners
@@ -417,9 +439,6 @@ class EventDispatcher(object):
         """
         Registers a service listener
 
-        TODO: A listener could be registered multiple times, for different
-        specifications and/or filters
-
         :param listener: The service listener
         :param specification: The specification that must provide the service
                               (optional, None to accept all services)
@@ -433,18 +452,21 @@ class EventDispatcher(object):
             raise BundleException("Invalid service listener given")
 
         with self.__svc_lock:
-            if listener in self.__svc_listeners:
+            if listener in self.__listeners_data:
                 self._logger.warning("Already known service listener '%s'",
                                 listener)
                 return False
 
             try:
                 ldap_filter = ldapfilter.get_ldap_filter(ldap_filter)
+
             except ValueError as ex:
                 raise BundleException("Invalid service filter: {0}" \
                                                  .format(ex))
 
-            self.__svc_listeners[listener] = (specification, ldap_filter)
+            stored = _Listener(listener, specification, ldap_filter)
+            self.__listeners_data[listener] = stored
+            self.__svc_listeners.setdefault(specification, []).append(stored)
             return True
 
 
@@ -486,11 +508,16 @@ class EventDispatcher(object):
         :return: True if the listener has been unregistered
         """
         with self.__svc_lock:
-            if listener not in self.__svc_listeners:
-                return False
+            try:
+                data = self.__listeners_data.pop(listener)
+                spec_listeners = self.__svc_listeners[data.specification]
+                spec_listeners.remove(data)
+                if len(spec_listeners) == 0:
+                    del self.__svc_listeners[data.specification]
+                return True
 
-            del self.__svc_listeners[listener]
-            return True
+            except KeyError:
+                return False
 
 
     def fire_bundle_event(self, event):
@@ -526,7 +553,7 @@ class EventDispatcher(object):
 
             except:
                 self._logger.exception("An error occurred calling one of the " \
-                                  "framework stop listeners")
+                                       "framework stop listeners")
 
 
     def fire_service_event(self, event):
@@ -535,10 +562,6 @@ class EventDispatcher(object):
 
         :param event: The service event
         """
-        with self.__svc_lock:
-            # Copy the list of listeners
-            listeners = self.__svc_listeners.copy()
-
         # Get the service properties
         properties = event.get_service_reference().get_properties()
         svc_specs = properties[OBJECTCLASS]
@@ -553,16 +576,28 @@ class EventDispatcher(object):
                                           event.get_service_reference(),
                                           previous)
 
-        # Call'em all
-        for listener, (specification, ldap_filter) in listeners.items():
-            # Test the specification
-            if specification is not None and specification not in svc_specs:
-                continue
+        with self.__svc_lock:
+            # Get the listeners for this specification
+            listeners = set()
+            for spec in svc_specs:
+                try:
+                    listeners.update(self.__svc_listeners[spec])
+                except KeyError:
+                    pass
 
+            # Add those which listen to any specification
+            try:
+                listeners.update(self.__svc_listeners[None])
+            except KeyError:
+                pass
+
+        # Get the listeners for this specification
+        for data in listeners:
             # Default event to send : the one we received
             sent_event = event
 
             # Test if the service properties matches the filter
+            ldap_filter = data.ldap_filter
             if ldap_filter is not None \
             and not ldap_filter.matches(properties):
                 # Event doesn't match listener filter...
@@ -570,14 +605,13 @@ class EventDispatcher(object):
                 and ldap_filter.matches(previous):
                     # ... but previous properties did match
                     sent_event = endmatch_event
-
                 else:
                     # Didn't match before either, ignore it
                     continue
 
             # Call'em
             try:
-                listener.service_changed(sent_event)
+                data.listener.service_changed(sent_event)
 
             except:
                 self._logger.exception("Error calling a service listener")
@@ -685,8 +719,7 @@ class ServiceRegistry(object):
         """
         with self.__svc_lock:
             if svc_ref not in self.__svc_registry:
-                raise BundleException("Unknown service: {0}" \
-                                                 .format(svc_ref))
+                raise BundleException("Unknown service: {0}".format(svc_ref))
 
             # Get the owner
             bundle = self.__svc_bundle.pop(svc_ref)
@@ -696,7 +729,9 @@ class ServiceRegistry(object):
 
             for spec in svc_ref.get_property(OBJECTCLASS):
                 spec_services = self.__svc_specs[spec]
-                spec_services.remove(svc_ref)
+                # Use bisect to remove the reference (faster)
+                idx = bisect.bisect_left(spec_services, svc_ref)
+                del spec_services[idx]
                 if len(spec_services) == 0:
                     del self.__svc_specs[spec]
 
