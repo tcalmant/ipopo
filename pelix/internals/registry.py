@@ -101,7 +101,7 @@ class ServiceReference(object):
     def __hash__(self):
         """
         Returns the service hash, i.e. its ID, unique in a framework instance.
-        
+
         :return: The service ID
         """
         return self.__service_id
@@ -148,7 +148,7 @@ class ServiceReference(object):
     def get_bundle(self):
         """
         Returns the bundle that registered this service
-        
+
         :return: the bundle that registered this service
         """
         return self.__bundle
@@ -157,7 +157,7 @@ class ServiceReference(object):
     def get_using_bundles(self):
         """
         Returns the list of bundles that use this service
-        
+
         :return: A list of Bundle objects
         """
         return self.__using_bundles
@@ -166,7 +166,7 @@ class ServiceReference(object):
     def get_properties(self):
         """
         Returns a copy of the service properties
-        
+
         :return: A copy of the service properties
         """
         with self._props_lock:
@@ -229,7 +229,7 @@ class ServiceReference(object):
     def update_sort_key(self):
         """
         Recomputes the sort key, based on the service ranking and ID
-        
+
         See: http://www.osgi.org/javadoc/r4v43/org/osgi/framework/ServiceReference.html#compareTo%28java.lang.Object%29
         """
         self.__sort_key = (int(self.__properties.get(SERVICE_RANKING, 0)),
@@ -265,7 +265,7 @@ class ServiceRegistration(object):
     def get_reference(self):
         """
         Returns the reference associated to this registration
-        
+
         :return: A ServiceReference object
         """
         return self.__reference
@@ -334,7 +334,7 @@ class EventDispatcher(object):
     def __init__(self, logger=None):
         """
         Sets up the dispatcher
-        
+
         :param logger: The logger to be used
         """
         # Logger
@@ -370,7 +370,7 @@ class EventDispatcher(object):
     def add_bundle_listener(self, listener):
         """
         Adds a bundle listener
-        
+
         :param listener: The bundle listener to register
         :return: True if the listener has been registered, False if it was
                  already known
@@ -393,7 +393,7 @@ class EventDispatcher(object):
         """
         Registers a listener that will be called back right before the framework
         stops.
-        
+
         :param listener: The framework stop listener
         :return: True if the listener has been registered, False if it was
                  already known
@@ -416,7 +416,7 @@ class EventDispatcher(object):
                              ldap_filter=None):
         """
         Registers a service listener
-        
+
         TODO: A listener could be registered multiple times, for different
         specifications and/or filters
 
@@ -451,7 +451,7 @@ class EventDispatcher(object):
     def remove_bundle_listener(self, listener):
         """
         Unregisters a bundle listener
-        
+
         :param listener: The bundle listener to unregister
         :return: True if the listener has been unregistered, else False
         """
@@ -466,7 +466,7 @@ class EventDispatcher(object):
     def remove_framework_listener(self, listener):
         """
         Unregisters a framework stop listener
-        
+
         :param listener: The framework listener to unregister
         :return: True if the listener has been unregistered, else False
         """
@@ -496,7 +496,7 @@ class EventDispatcher(object):
     def fire_bundle_event(self, event):
         """
         Notifies bundle events listeners of a new event in the calling thread.
-        
+
         :param event: The bundle event
         """
         with self.__bnd_lock:
@@ -532,7 +532,7 @@ class EventDispatcher(object):
     def fire_service_event(self, event):
         """
         Notifies service events listeners of a new event in the calling thread.
-        
+
         :param event: The service event
         """
         with self.__svc_lock:
@@ -587,13 +587,13 @@ class EventDispatcher(object):
 class ServiceRegistry(object):
     """
     Service registry for Pelix.
-    
+
     Associates service references to instances and bundles.
     """
     def __init__(self, framework, logger=None):
         """
         Sets up the registry
-        
+
         :param framework: Associated framework
         :param logger: Logger to use
         """
@@ -640,7 +640,7 @@ class ServiceRegistry(object):
     def register(self, bundle, classes, properties, svc_instance):
         """
         Registers a service.
-        
+
         :param bundle: The bundle that registers the service
         :param classes: The classes implemented by the service
         :param properties: The properties associated to the service
@@ -678,7 +678,7 @@ class ServiceRegistry(object):
     def unregister(self, svc_ref):
         """
         Unregisters a service
-        
+
         :param svc_ref: A service reference
         :return: The unregistered service instance
         :raise BundleException: Unknown service reference
@@ -724,10 +724,8 @@ class ServiceRegistry(object):
         with self.__svc_lock:
             if clazz is None and ldap_filter is None:
                 # Return a sorted copy of the keys list
-                result = list(self.__svc_registry.keys())
-                result.sort()
-                # Do not return None if the whole content was required
-                return result
+                # Do not return None, as the whole content was required
+                return sorted(self.__svc_registry.keys())
 
             if hasattr(clazz, '__name__'):
                 # Escape the type name
@@ -739,7 +737,7 @@ class ServiceRegistry(object):
 
             if clazz is None:
                 # Directly use the given filter
-                refs_set = self.__svc_registry.keys()
+                refs_set = sorted(self.__svc_registry.keys())
 
             else:
                 try:
@@ -782,11 +780,11 @@ class ServiceRegistry(object):
         or returns None if this bundle is not using any services.
         A bundle is considered to be using a service if its use count for that
         service is greater than zero.
-        
+
         The list is valid at the time of the call to this method, however, as
         the Framework is a very dynamic environment, services can be modified
         or unregistered at any time.
-        
+
         :param bundle: The bundle to look into
         :return: An array of ServiceReference objects or None.
         :raise BundleException: If the bundle has been uninstalled
@@ -799,7 +797,7 @@ class ServiceRegistry(object):
         """
         Retrieves the services registered by the given bundle. Returns None
         if the bundle didn't register any service.
-        
+
         :param bundle: The bundle to look into
         :return: The services registered by the bundle, or None
         """
