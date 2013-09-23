@@ -46,6 +46,7 @@ from pelix.utilities import is_string
 import pelix.ldapfilter as ldapfilter
 
 # Standard library
+import bisect
 import logging
 import threading
 
@@ -76,10 +77,15 @@ class ServiceReference(object):
         # Usage lock
         self.__usage_lock = threading.Lock()
 
+        # Service details
         self.__bundle = bundle
         self.__properties = properties
         self.__using_bundles = []
         self.__service_id = properties[SERVICE_ID]
+
+        # Compute the sort key
+        self.__sort_key = None
+        self.update_sort_key()
 
 
     def __str__(self):
@@ -111,32 +117,32 @@ class ServiceReference(object):
     def __lt__(self, other):
         """
         Lesser than other
-
-        See: http://www.osgi.org/javadoc/r4v43/org/osgi/framework/ServiceReference.html#compareTo%28java.lang.Object%29
         """
-        service_rank = int(self.__properties.get(SERVICE_RANKING, 65535))
-        other_rank = int(other.__properties.get(SERVICE_RANKING, 65535))
-
-        if service_rank == other_rank:
-            # Same rank, ID discriminates (greater ID, lesser reference)
-            return self.__service_id > other.__service_id
-
-        else:
-            # Rank order
-            return service_rank < other_rank
-
+        return self.__sort_key < other.__sort_key
 
     def __gt__(self, other):
-        return not (self == other or self < other)
+        """
+        Greater than other
+        """
+        return self.__sort_key > other.__sort_key
 
     def __le__(self, other):
-        return self == other or self < other
+        """
+        Lesser than or equal to other"
+        """
+        return self.__sort_key <= other.__sort_key
 
     def __ge__(self, other):
-        return not self < other
+        """
+        Greater than or equal to other
+        """
+        return self.__sort_key >= other.__sort_key
 
     def __ne__(self, other):
-        return not self == other
+        """
+        Two references are different if they have different service IDs
+        """
+        return self.__service_id != other.__service_id
 
 
     def get_bundle(self):
@@ -219,6 +225,16 @@ class ServiceReference(object):
             if bundle not in self.__using_bundles:
                 self.__using_bundles.append(bundle)
 
+
+    def update_sort_key(self):
+        """
+        Recomputes the sort key, based on the service ranking and ID
+        
+        See: http://www.osgi.org/javadoc/r4v43/org/osgi/framework/ServiceReference.html#compareTo%28java.lang.Object%29
+        """
+        self.__sort_key = (int(self.__properties.get(SERVICE_RANKING, 0)),
+                           (-self.__service_id))
+
 # ------------------------------------------------------------------------------
 
 class ServiceRegistration(object):
@@ -290,6 +306,10 @@ class ServiceRegistration(object):
             # Update the properties
             previous = self.__properties.copy()
             self.__properties.update(properties)
+
+            if SERVICE_RANKING in properties:
+                # Sort key updated
+                self.__reference.update_sort_key()
 
             # Trigger a new computation in the framework
             event = ServiceEvent(ServiceEvent.MODIFIED, self.__reference,
@@ -647,9 +667,7 @@ class ServiceRegistry(object):
 
             for spec in classes:
                 spec_refs = self.__svc_specs.setdefault(spec, [])
-                spec_refs.append(svc_ref)
-                # Keep the list sorted
-                spec_refs.sort()
+                bisect.insort_left(spec_refs, svc_ref)
 
             # Reverse map, to ease bundle/service association
             self.__bundle_svc.setdefault(bundle, []).append(svc_ref)
