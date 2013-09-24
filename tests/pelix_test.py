@@ -1240,9 +1240,7 @@ class ServicesTest(unittest.TestCase):
         # Get the reference
         ref = context.get_service_reference(IEchoService)
         self.assertIsNotNone(ref, "get_service_reference found nothing")
-
-        registered_svcs = bundle.get_registered_services()
-        self.assertIn(ref, registered_svcs,
+        self.assertIn(ref, bundle.get_registered_services(),
                       "Reference not in registered services")
 
         # Get the service
@@ -1251,6 +1249,7 @@ class ServicesTest(unittest.TestCase):
         self.assertIn(ref, self.framework.get_services_in_use(),
                       "Reference usage not indicated")
 
+        # Release the service
         context.unget_service(ref)
         self.assertNotIn(ref, self.framework.get_services_in_use(),
                          "Reference usage not removed")
