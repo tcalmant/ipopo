@@ -195,13 +195,13 @@ class Bundle(object):
     def get_registered_services(self):
         """
         Returns this bundle's ServiceReference list for all services it has
-        registered or None if this bundle has no registered services.
+        registered or an empty list
 
         The list is valid at the time of the call to this method, however, as
         the Framework is a very dynamic environment, services can be modified or
         unregistered at any time.
 
-        :return: An array of ServiceReference objects or None.
+        :return: An array of ServiceReference objects
         :raise BundleException: If the bundle has been uninstalled
         """
         if self._state == Bundle.UNINSTALLED:
@@ -214,7 +214,7 @@ class Bundle(object):
     def get_services_in_use(self):
         """
         Returns this bundle's ServiceReference list for all services it is using
-        or returns None if this bundle is not using any services.
+        or an empty list.
         A bundle is considered to be using a service if its use count for that
         service is greater than zero.
 
@@ -222,7 +222,7 @@ class Bundle(object):
         the Framework is a very dynamic environment, services can be modified
         or unregistered at any time.
 
-        :return: An array of ServiceReference objects or None.
+        :return: An array of ServiceReference objects
         :raise BundleException: If the bundle has been uninstalled
         """
         if self._state == Bundle.UNINSTALLED:

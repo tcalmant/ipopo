@@ -704,7 +704,8 @@ class ServiceRegistry(object):
                 bisect.insort_left(spec_refs, svc_ref)
 
             # Reverse map, to ease bundle/service association
-            self.__bundle_svc.setdefault(bundle, []).append(svc_ref)
+            bundle_services = self.__bundle_svc.setdefault(bundle, [])
+            bisect.insort_left(bundle_services, svc_ref)
 
             return svc_registration
 
@@ -737,7 +738,8 @@ class ServiceRegistry(object):
 
             # Delete bundle association
             bundle_services = self.__bundle_svc[bundle]
-            bundle_services.remove(svc_ref)
+            idx = bisect.bisect_left(bundle_services, svc_ref)
+            del bundle_services[idx]
             if len(bundle_services) == 0:
                 # Don't keep empty lists
                 del self.__bundle_svc[bundle]
@@ -821,11 +823,10 @@ class ServiceRegistry(object):
         or unregistered at any time.
 
         :param bundle: The bundle to look into
-        :return: An array of ServiceReference objects or None.
-        :raise BundleException: If the bundle has been uninstalled
+        :return: The references of the services used by this bundle
         """
         with self.__svc_lock:
-            return self.__bundle_imports.get(bundle, None)
+            return self.__bundle_imports.get(bundle, [])
 
 
     def get_bundle_registered_services(self, bundle):
@@ -834,10 +835,10 @@ class ServiceRegistry(object):
         if the bundle didn't register any service.
 
         :param bundle: The bundle to look into
-        :return: The services registered by the bundle, or None
+        :return: The references to the services registered by the bundle
         """
         with self.__svc_lock:
-            return self.__bundle_svc.get(bundle, None)
+            return self.__bundle_svc.get(bundle, [])
 
 
     def get_service(self, bundle, reference):
@@ -855,7 +856,8 @@ class ServiceRegistry(object):
                 service = self.__svc_registry[reference]
 
                 # Indicate the dependency
-                self.__bundle_imports.setdefault(bundle, []).append(reference)
+                imports = self.__bundle_imports.setdefault(bundle, [])
+                bisect.insort(imports, reference)
                 reference.used_by(bundle)
 
                 return service
@@ -875,16 +877,24 @@ class ServiceRegistry(object):
         :return: True if the bundle usage has been removed
         """
         with self.__svc_lock:
-            if bundle not in self.__bundle_imports:
+            try:
+                # Remove the service reference from the bundle
+                imports = self.__bundle_imports[bundle]
+
+                idx = bisect.bisect_left(imports, reference)
+                if imports[idx] == reference:
+                    del imports[idx]
+
+                    if not imports:
+                        del self.__bundle_imports[bundle]
+
+                    # Update the service reference
+                    reference.unused_by(bundle)
+                    return True
+
+                # Unknown reference
+                return False
+
+            except KeyError:
                 # Unknown bundle
                 return False
-
-            imports = self.__bundle_imports[bundle]
-            if reference not in imports:
-                # Unused reference
-                return False
-
-            # Clean up
-            imports.remove(reference)
-            reference.unused_by(bundle)
-            return True
