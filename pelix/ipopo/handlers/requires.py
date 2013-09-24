@@ -491,19 +491,17 @@ class AggregateDependency(_RuntimeDependency):
         :raise BundleException: Invalid ServiceReference found
         """
         with self._lock:
+            if self.services:
+                # We already are alive (not our first call)
+                # => we are updated through service events
+                return
+
             # Get all matching services
             refs = self._context \
                     .get_all_service_references(self.requirement.specification,
                                                 self.requirement.filter)
             if not refs:
                 # No match found
-                return
-
-            # Filter found references
-            refs = [reference for reference in refs
-                    if reference not in self.services]
-            if not refs:
-                # No new match found
                 return
 
             results = []
