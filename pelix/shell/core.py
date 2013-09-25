@@ -43,19 +43,25 @@ from pelix.shell import SHELL_SERVICE_SPEC, SHELL_COMMAND_SPEC, \
     SHELL_UTILS_SERVICE_SPEC
 
 # Pelix modules
-from pelix.utilities import to_str
+from pelix.utilities import to_str, to_bytes
 import pelix.constants as constants
 import pelix.framework as pelix
 
 # Standard library
 import inspect
-import io
 import logging
 import os
 import shlex
 import sys
 import traceback
 import threading
+
+# Before Python 3, input() was raw_input()
+if sys.version_info[0] < 3:
+    safe_input = raw_input
+
+else:
+    safe_input = input
 
 # ------------------------------------------------------------------------------
 
@@ -141,44 +147,69 @@ def _split_ns_command(cmd_token):
 
 # ------------------------------------------------------------------------------
 
-class IOHandler(io.RawIOBase):
+class IOHandler(object):
     """
     Handles I/O operations between the command handler and the client
     It automatically converts the given data to bytes in Python 3.
     """
-    def __init__(self, instream, out_stream, encoding='UTF-8'):
+    def __init__(self, in_stream, out_stream, encoding='UTF-8'):
         """
         Sets up the printer
 
-        :param instream: Input stream
+        :param in_stream: Input stream
         :param out_stream: Output stream
         :param encoding: Output encoding
         """
-        self.input = instream
+        self.input = in_stream
         self.output = out_stream
         self.encoding = encoding
 
-        # Set up class methods
-        if sys.version_info[0] == 3:
-            self.read = self._read_python3
-            self.write = self._write_python3
+        # Standard behavior
+        self.flush = self.output.flush
+        self.write = self.output.write
 
-        else:
-            self.read = self.input.read
-            self.write = self.output.write
+        # Specific behavior
+        if sys.version_info[0] >= 3:
+            if 'b' in getattr(out_stream, 'mode', ''):
+                # Bytes conversion
+                self.write = self._write_bytes
+            else:
+                # Strings accepted
+                self.write = self._write_str
+
+        # Very specific
+        if in_stream is sys.stdin:
+            # Warning: conflicts with the console
+            self.prompt = safe_input
 
 
-    def _read_python3(self, size):
+    def prompt(self, prompt=None):
         """
-        Reads the input stream
-
-        :param size: Maximum bytes to read
-        :return: The result of ``self.input.read()``
+        Reads a line written by the user
+        
+        :param prompt: An optional prompt message
+        :return: The read line, after a conversion to str
         """
-        return to_str(self.input.read(size), self.encoding)
+        if prompt:
+            # Print the prompt
+            self.write(prompt)
+            self.output.flush()
+
+        # Read the line
+        return to_str(self.input.readline())
 
 
-    def _write_python3(self, data):
+    def _write_bytes(self, data):
+        """
+        Converts the given data then writes it
+
+        :param data: Data to be written
+        :return: The result of ``self.output.write()``
+        """
+        self.output.write(to_bytes(data, self.encoding))
+
+
+    def _write_str(self, data):
         """
         Converts the given data then writes it
 
