@@ -588,7 +588,6 @@ class MulticastDiscovery(object):
         close_multicast_socket(self._socket, self._target[0])
 
         # Clean up
-        self._servlet = None
         self._thread = None
         self._socket = None
         self._target = None
