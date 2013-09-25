@@ -496,7 +496,7 @@ class _IPopoService(object):
         """
         Called by the framework when it is about to stop
         """
-        self.stopping = True
+        self.running = False
 
 
     def instantiate(self, factory_name, name, properties=None):
