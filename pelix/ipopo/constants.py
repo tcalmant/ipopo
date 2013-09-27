@@ -26,13 +26,20 @@ Defines some iPOPO constants
     You should have received a copy of the GNU General Public License
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
-
 # Module version
 __version_info__ = (0, 5, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
+
+# ------------------------------------------------------------------------------
+
+# Pelix
+from pelix.constants import BundleException
+
+# Standard library
+import contextlib
 
 # ------------------------------------------------------------------------------
 
@@ -149,21 +156,51 @@ def get_ipopo_svc_ref(bundle_context):
     :return: The reference to the iPOPO service and the service itself,
              None if not available
     """
-    # Late import
-    import pelix.framework
-
+    # Look after the service
     ref = bundle_context.get_service_reference(IPOPO_SERVICE_SPECIFICATION)
     if ref is None:
         return None
 
     try:
+        # Get it
         svc = bundle_context.get_service(ref)
 
-    except pelix.framework.BundleException:
+    except BundleException:
         # Service reference has been invalidated
         return None
 
+    # Return both the reference (to call unget_service()) and the service
     return (ref, svc)
+
+
+@contextlib.contextmanager
+def use_ipopo(bundle_context):
+    """
+    Utility context to use the iPOPO service safely in a "with" block.
+    It looks after the the iPOPO service and releases its reference when exiting
+    the context.
+    
+    :param bundle_context: The calling bundle context
+    :return: The iPOPO service
+    :raise BundleException: Service not found
+    """
+    # Get the service and its reference
+    ref_svc = get_ipopo_svc_ref(bundle_context)
+    if ref_svc is None:
+        raise BundleException("iPOPO service not available")
+
+    try:
+        # Give the service
+        yield ref_svc[1]
+
+    finally:
+        try:
+            # Release it
+            bundle_context.unget_service(ref_svc[0])
+
+        except BundleException:
+            # Service might have already been unregistered
+            pass
 
 # ------------------------------------------------------------------------------
 

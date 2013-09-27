@@ -1231,9 +1231,9 @@ class RequirementTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
-class SimpleDecoratorsTests(unittest.TestCase):
+class UtilitiesTest(unittest.TestCase):
     """
-    Tests the decorators utility methods
+    Tests the utility methods
     """
     def setUp(self):
         """
@@ -1250,6 +1250,8 @@ class SimpleDecoratorsTests(unittest.TestCase):
         """
         self.framework.stop()
         FrameworkFactory.delete_framework(self.framework)
+        self.framework = None
+        self.context = None
 
 
     def testConstantGetReference(self):
@@ -1281,6 +1283,86 @@ class SimpleDecoratorsTests(unittest.TestCase):
         # Ensure the service is not accessible anymore
         self.assertIsNone(constants.get_ipopo_svc_ref(self.context),
                           "iPOPO service found while stopped.")
+
+
+    def testConstantContext(self):
+        """
+        Tests ipopo.constants.ipopo_context()
+        """
+        # Try without the bundle
+        self.assertRaises(pelix.BundleException,
+                          constants.use_ipopo(self.context).__enter__)
+
+        # Start the iPOPO bundle
+        bundle = self.context.install_bundle("pelix.ipopo.core")
+        bundle.start()
+
+        # Get the iPOPO service reference
+        # (the only one registered in this bundle)
+        ipopo_ref = bundle.get_registered_services()[0]
+
+        # Use it
+        with constants.use_ipopo(self.context) as ipopo:
+            # Test the usage information
+            self.assertIn(self.context.get_bundle(),
+                          ipopo_ref.get_using_bundles(),
+                          "Bundles using iPOPO not updated")
+
+            # Get the service the Pelix way
+            ipopo_svc = self.context.get_service(ipopo_ref)
+
+            # Test the service object
+            self.assertIs(ipopo, ipopo_svc, "Found a different service.")
+
+            # Clean up the test usage
+            self.context.unget_service(ipopo_ref)
+            ipopo_svc = None
+
+            # Re-test the usage information
+            self.assertIn(self.context.get_bundle(),
+                          ipopo_ref.get_using_bundles(),
+                          "Bundles using iPOPO not kept")
+
+        # Test the usage information
+        self.assertNotIn(self.context.get_bundle(),
+                         ipopo_ref.get_using_bundles(),
+                         "Bundles using iPOPO kept after block")
+
+        # Stop the iPOPO bundle
+        bundle.stop()
+
+        # Ensure the service is not accessible anymore
+        self.assertRaises(pelix.BundleException,
+                          constants.use_ipopo(self.context).__enter__)
+
+        # Uninstall the bundle
+        bundle.uninstall()
+
+        # Ensure the service is not accessible anymore
+        self.assertRaises(pelix.BundleException,
+                          constants.use_ipopo(self.context).__enter__)
+
+# ------------------------------------------------------------------------------
+
+class SimpleDecoratorsTests(unittest.TestCase):
+    """
+    Tests the decorators utility methods
+    """
+    def setUp(self):
+        """
+        Called before each test. Initiates a framework.
+        """
+        self.framework = FrameworkFactory.get_framework()
+        self.framework.start()
+        self.context = self.framework.get_bundle_context()
+
+
+    def tearDown(self):
+        """
+        Called after each test
+        """
+        self.framework.stop()
+        FrameworkFactory.delete_framework(self.framework)
 
 
     def testGetFactoryContext(self):
