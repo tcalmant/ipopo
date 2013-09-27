@@ -52,6 +52,44 @@ import threading
 
 # ------------------------------------------------------------------------------
 
+class _UsageCounter(object):
+    """
+    Simple reference usage counter
+    """
+    def __init__(self):
+        """
+        Sets up the counter
+        """
+        self.__count = 0
+
+
+    def inc(self):
+        """
+        Counter is incremented
+        """
+        self.__count += 1
+
+
+    def dec(self):
+        """
+        Counter is decremented
+        
+        :return: True if the counter is still greater than 0
+        """
+        self.__count -= 1
+        return self.__count > 0
+
+
+    def is_used(self):
+        """
+        Tests if the reference is still used
+        
+        :return: True if the counter is still greater than 0
+        """
+        return self.__count > 0
+
+# ------------------------------------------------------------------------------
+
 class ServiceReference(object):
     """
     Represents a reference to a service
@@ -80,8 +118,10 @@ class ServiceReference(object):
         # Service details
         self.__bundle = bundle
         self.__properties = properties
-        self.__using_bundles = []
         self.__service_id = properties[SERVICE_ID]
+
+        # Bundle object -> Usage Counter object
+        self.__using_bundles = {}
 
         # Compute the sort key
         self.__sort_key = None
@@ -160,7 +200,7 @@ class ServiceReference(object):
 
         :return: A list of Bundle objects
         """
-        return self.__using_bundles
+        return list(self.__using_bundles.keys())
 
 
     def get_properties(self):
@@ -206,8 +246,15 @@ class ServiceReference(object):
             return
 
         with self.__usage_lock:
-            if bundle in self.__using_bundles:
-                self.__using_bundles.remove(bundle)
+            try:
+                if not self.__using_bundles[bundle].dec():
+                    # This bundle has cleaner all of its usages of this
+                    # reference
+                    del self.__using_bundles[bundle]
+
+            except KeyError:
+                # Ignore error
+                pass
 
 
     def used_by(self, bundle):
@@ -222,8 +269,7 @@ class ServiceReference(object):
             return
 
         with self.__usage_lock:
-            if bundle not in self.__using_bundles:
-                self.__using_bundles.append(bundle)
+            self.__using_bundles.setdefault(bundle, _UsageCounter()).inc()
 
 
     def update_sort_key(self):
