@@ -186,7 +186,7 @@ class IOHandler(object):
     def prompt(self, prompt=None):
         """
         Reads a line written by the user
-        
+
         :param prompt: An optional prompt message
         :return: The read line, after a conversion to str
         """
@@ -913,7 +913,7 @@ class Shell(object):
         # Get the documentation string
         doc = inspect.getdoc(method) or "(Documentation missing)"
 
-        return ', '.join(args), ' '.join(doc.split())
+        return ' '.join(args), ' '.join(doc.split())
 
 
     def __print_command_help(self, io_handler, namespace, cmd_name):
