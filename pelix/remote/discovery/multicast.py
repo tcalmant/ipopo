@@ -493,28 +493,6 @@ class MulticastDiscovery(object):
         return self.__grab_data(host, port, request_path)
 
 
-    def grab_endpoints(self, host, port, path):
-        """
-        Retrieves all end points available in the dispatcher servlet at the
-        given path.
-        Returns the result of the dispatcher servlet (list of dictionaries), or
-        None in case of error.
-        Does not register nor converts the end points.
-
-        :param host: Dispatcher host address
-        :param port: Dispatcher HTTP service port
-        :param path: Path to the dispatcher servlet
-        :return: A list of dictionaries or None
-        """
-        # Setup the request URI
-        if path[-1] == '/':
-            path = path[:-1]
-
-        request_path = "{0}/endpoints".format(path)
-
-        return self.__grab_data(host, port, request_path)
-
-
     def __grab_data(self, host, port, path):
         """
         Sends a HTTP request to the server at (host, port), on the given path.
