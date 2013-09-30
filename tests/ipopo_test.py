@@ -519,6 +519,39 @@ class LifeCycleTest(unittest.TestCase):
         self.assertFalse(self.ipopo.is_registered_instance(NAME_A),
                         "Instance is still in the registry")
 
+
+    def testAutoRestart(self):
+        """
+        Tests the automatic re-instantiation of a component on bundle update
+        """
+        # Instantiate both kinds of components
+        self.ipopo.instantiate(self.module.FACTORY_A, NAME_A,
+                               {constants.IPOPO_AUTO_RESTART: True})
+
+        self.ipopo.instantiate(self.module.FACTORY_B, NAME_B,
+                               {constants.IPOPO_AUTO_RESTART: False})
+
+        # Assert it is in the registry
+        self.assertTrue(self.ipopo.is_registered_instance(NAME_A),
+                        "Instance A is not in the registry")
+        self.assertTrue(self.ipopo.is_registered_instance(NAME_B),
+                        "Instance B is not in the registry")
+
+        # Update its bundle
+        bundle = self.framework.get_bundle_by_name("tests.ipopo_bundle")
+        bundle.update()
+
+        # Assert the auto-restart component is still in the registry
+        self.assertTrue(self.ipopo.is_registered_instance(NAME_A),
+                        "Instance A is not in the registry after update")
+
+        # Assert the other one has been removed of the registry
+        self.assertFalse(self.ipopo.is_registered_instance(NAME_B),
+                         "Instance B is still in the registry")
+
+        # Clean up
+        self.ipopo.kill(NAME_A)
+
 # ------------------------------------------------------------------------------
 
 class FieldCallbackTest(unittest.TestCase):
@@ -625,6 +658,10 @@ class InstantiateTest(unittest.TestCase):
         self.framework.stop()
         FrameworkFactory.delete_framework(self.framework)
 
+        # Clean up
+        self.ipopo = None
+        self.framework = None
+
 
     def testInstantiate(self):
         """
@@ -633,7 +670,6 @@ class InstantiateTest(unittest.TestCase):
         factory = "basic-component-factory"
         name = "basic-component"
         svc_spec = "basic-component-svc"
-        bundle_name = "tests.ipopo_bundle"
 
         # Assert the framework is clean
         self.assertFalse(self.ipopo.is_registered_factory(factory),
@@ -644,7 +680,7 @@ class InstantiateTest(unittest.TestCase):
 
         # Install the bundle
         context = self.framework.get_bundle_context()
-        bundle = context.install_bundle(bundle_name)
+        bundle = context.install_bundle("tests.ipopo_bundle")
 
         # Bundle is installed, assert that the framework is still clean
         self.assertFalse(self.ipopo.is_registered_factory(factory),
@@ -693,6 +729,18 @@ class InstantiateTest(unittest.TestCase):
         # Ensure the service has been unregistered properly
         self.assertIsNone(context.get_service_reference(svc_spec),
                           "@Instantiate service is still there")
+
+
+    def testNotRunning(self):
+        """
+        Checks that the instantiation is refused when iPOPO is stopped
+        """
+        # Stop the framework
+        self.framework.stop()
+
+        # iPOPO shouldn't be accessible, it must raise an exception
+        self.assertRaises(ValueError, self.ipopo.instantiate,
+                          'dummy', 'dummy', {})
 
 # ------------------------------------------------------------------------------
 
