@@ -425,9 +425,6 @@ class ShellCommandTest(unittest.TestCase):
             def get_methods(self):
                 return [("command", self._command)]
 
-            def get_methods_names(self):
-                return [("command", "_command")]
-
             def _command(self, io_handler):
                 self.flag = True
 

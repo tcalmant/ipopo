@@ -17,12 +17,12 @@ Pelix shell package
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
-    
+
     iPOPO is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-    
+
     You should have received a copy of the GNU General Public License
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
@@ -54,7 +54,6 @@ Shell commands service, for auto-registration (white board pattern).
 
 * get_namespace(): returns the name space of the handler
 * get_methods(): returns a command name -> method dictionary
-* get_methods_names(): returns a command name -> method name dictionary
 """
 
 SHELL_UTILS_SERVICE_SPEC = "pelix.shell.utilities"
@@ -70,7 +69,7 @@ REMOTE_SHELL_SPEC = "pelix.shell.remote"
 Remote shell service
 
 * get_access(): returns the (host, port) tuple where the remote shell is waiting
-  clients. 
+  clients.
 """
 
 # ------------------------------------------------------------------------------

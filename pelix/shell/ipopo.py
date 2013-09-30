@@ -58,7 +58,7 @@ _logger = logging.getLogger(__name__)
 def ipopo_state_to_str(state):
     """
     Converts the state of a component instance to its string representation
-    
+
     :param state: The state of an iPOPO component
     :return: A string representation of the state
     """
@@ -107,18 +107,6 @@ class IPopoCommands(object):
                 ("instantiate", self.instantiate),
                 ("kill", self.kill),
                 ]
-
-
-    def get_methods_names(self):
-        """
-        Retrieves the list of tuples (command, method name) for this command
-        handler.
-        """
-        result = []
-        for command, method in self.get_methods():
-            result.append((command, method.__name__))
-
-        return result
 
 
     def list_factories(self, io_handler):

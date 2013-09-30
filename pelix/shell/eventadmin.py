@@ -79,15 +79,6 @@ class EventAdminCommands(object):
                 ("post", self.post)]
 
 
-    def get_methods_names(self):
-        """
-        Retrieves the list of tuples (command, method name) for this command
-        handler.
-        """
-        return [(command, method.__name__)
-                for command, method in self.get_methods()]
-
-
     def send(self, io_handler, topic, **kwargs):
         """
         Sends an event (blocking)

@@ -438,35 +438,10 @@ class Shell(object):
         namespace = handler.get_namespace()
         commands = []
 
-        # Get the host exporting the service, if any
-        remote_host = None
-        if svc_ref.get_property("service.imported"):
-            # Imported service: store its host
-            remote_host = svc_ref.get_property("service.imported.from")
-
-        if not remote_host:
-            # Local service: register all its methods directly
-            for command, method in handler.get_methods():
-                self.register_command(namespace, command, method)
-                commands.append(command)
-
-        else:
-            # Imported service
-            _logger.info("Bound to a remote command handler from %s",
-                         remote_host)
-
-            # Prefix its name space
-            namespace = ".".join((remote_host, namespace))
-            for command, method_name in handler.get_methods_names():
-                # Use a proxy to call the methods
-                def proxy(*args, **kwargs):
-                    """
-                    Remote command proxy
-                    """
-                    return getattr(handler, method_name)(*args, **kwargs)
-
-                self.register_command(namespace, command, proxy)
-                commands.append(command)
+        # Register all service methods directly
+        for command, method in handler.get_methods():
+            self.register_command(namespace, command, method)
+            commands.append(command)
 
         # Store the reference
         self._bound_references[svc_ref] = handler
