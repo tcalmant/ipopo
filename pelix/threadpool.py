@@ -101,7 +101,7 @@ class FutureResult(object):
         :param timeout: The maximum time to wait for a result (in seconds)
         :raise OSError: The timeout raised before the job finished
         """
-        if self._done_event.wait(timeout):
+        if self._done_event.wait(timeout) or self._done_event.is_set():
             return self._result
 
         raise OSError("Timeout raised")
