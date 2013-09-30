@@ -70,6 +70,13 @@ class FutureResult(object):
         :param kwargs: Method keyword arguments
         :raise: The exception raised by the method
         """
+        # Normalize arguments
+        if args is None:
+            args = []
+
+        if kwargs is None:
+            kwargs = {}
+
         try:
             # Call the method
             self._result = method(*args, **kwargs)
