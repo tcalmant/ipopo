@@ -308,17 +308,30 @@ class ShellUtils(object):
             str_line = []
             str_lines.append(str_line)
             column = -1
-            for column, entry in enumerate(line):
-                str_entry = str(entry)
-                str_line.append(str_entry)
 
-                if len(str_entry) > lengths[column]:
-                    lengths[column] = len(str_entry)
+            try:
+                for column, entry in enumerate(line):
+                    str_entry = str(entry)
+                    str_line.append(str_entry)
 
-            if column != nb_columns:
-                # Check if all lines have the same number of columns
+                    if len(str_entry) > lengths[column]:
+                        lengths[column] = len(str_entry)
+
+            except IndexError:
+                # Line too small/big
                 raise ValueError("Different sizes for header and lines "
                                  "(line {0})".format(idx + 1))
+
+            except (TypeError, AttributeError):
+                # Invalid type of line
+                raise ValueError("Invalid type of line: %s",
+                                 type(line).__name__)
+
+            else:
+                if column != nb_columns:
+                    # Check if all lines have the same number of columns
+                    raise ValueError("Different sizes for header and lines "
+                                     "(line {0})".format(idx + 1))
 
         # Prepare the head (centered text)
         format_str = "{0}|".format(prefix)
@@ -497,20 +510,20 @@ class Shell(object):
         :return: True if the method has been registered, False if it was already
                  known or invalid
         """
+        if method is None:
+            _logger.error("No method given for %s.%s", namespace, command)
+            return False
+
+        # Store everything in lower case
+        namespace = (namespace or "").strip().lower()
+        command = (command or "").strip().lower()
+
         if not namespace:
             namespace = DEFAULT_NAMESPACE
 
         if not command:
             _logger.error("No command name given")
             return False
-
-        if method is None:
-            _logger.error("No method given for %s.%s", namespace, command)
-            return False
-
-        # Store everything in lower case
-        namespace = namespace.lower()
-        command = command.lower()
 
         if namespace not in self._commands:
             space = self._commands[namespace] = {}
@@ -538,7 +551,7 @@ class Shell(object):
         if not namespace:
             namespace = DEFAULT_NAMESPACE
 
-        namespace = namespace.lower()
+        namespace = namespace.strip().lower()
 
         if namespace not in self._commands:
             _logger.warning("Unknown name space: %s", namespace)
@@ -546,6 +559,7 @@ class Shell(object):
 
         if command is not None:
             # Remove the command
+            command = command.strip().lower()
             if command not in self._commands[namespace]:
                 _logger.warning("Unknown command: %s.%s", namespace, command)
                 return False
@@ -662,7 +676,9 @@ class Shell(object):
 
         # Execute it
         try:
-            return method(io_handler, *args, **kwargs)
+            result = method(io_handler, *args, **kwargs)
+            # None is considered as a success
+            return result is None or result
 
         except TypeError as ex:
             # Invalid arguments...
@@ -714,9 +730,15 @@ class Shell(object):
             # Default name space:
             namespace = DEFAULT_NAMESPACE
 
-        commands = list(self._commands[namespace].keys())
-        commands.sort()
-        return commands
+        try:
+            namespace.strip().lower()
+            commands = list(self._commands[namespace].keys())
+            commands.sort()
+            return commands
+
+        except KeyError:
+            # Unknown name space
+            return []
 
 
     def bundle_details(self, io_handler, bundle_id):
