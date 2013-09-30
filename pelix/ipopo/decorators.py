@@ -435,8 +435,8 @@ class Instantiate(object):
             instances[self.__name] = self.__properties
 
         else:
-            _logger.warn("Component '%s' defined twice, new definition ignored",
-                         self.__name)
+            _logger.warning("Component '%s' defined twice, new definition "
+                            "ignored", self.__name)
 
         return factory_class
 
