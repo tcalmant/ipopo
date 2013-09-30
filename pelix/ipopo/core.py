@@ -315,7 +315,7 @@ class _IPopoService(object):
     def _autorestart_store_components(self, bundle):
         """
         Stores the components of the given bundle with the auto-restart property
-        
+
         :param bundle: A Bundle object
         """
         with self.__instances_lock:
@@ -340,7 +340,7 @@ class _IPopoService(object):
     def _autorestart_components(self, bundle):
         """
         Restart the components of the given bundle
-        
+
         :param bundle: A Bundle object
         """
         with self.__instances_lock:
@@ -366,7 +366,7 @@ class _IPopoService(object):
     def _autorestart_clear_components(self, bundle):
         """
         Clear the list of auto-restart components of the given bundle
-        
+
         :param bundle: A Bundle object
         """
         with self.__instances_lock:
@@ -497,6 +497,43 @@ class _IPopoService(object):
         Called by the framework when it is about to stop
         """
         self.running = False
+
+
+    def bundle_changed(self, event):
+        """
+        A bundle event has been triggered
+
+        :param event: The bundle event
+        """
+        assert isinstance(event, BundleEvent)
+
+        kind = event.get_kind()
+        bundle = event.get_bundle()
+
+        if kind == BundleEvent.STOPPING_PRECLEAN:
+            # A bundle is gone, remove its factories after the deactivator has
+            # been called. That way, the deactivator can kill manually started
+            # components.
+            self._unregister_bundle_factories(bundle)
+
+        elif kind == BundleEvent.STARTING:
+            # A bundle is staring, register its factories before its activator
+            # is called. That way, the activator can use the registered
+            # factories.
+            self._register_bundle_factories(bundle)
+
+        elif kind == BundleEvent.UPDATE_BEGIN:
+            # A bundle will be updated, store its auto-restart component
+            self._autorestart_store_components(bundle)
+
+        elif kind == BundleEvent.UPDATED:
+            # Update has finished, restart stored components
+            self._autorestart_components(bundle)
+            self._autorestart_clear_components(bundle)
+
+        elif kind == BundleEvent.UPDATE_FAILED:
+            # Update failed, clean the stored components
+            self._autorestart_clear_components(bundle)
 
 
     def instantiate(self, factory_name, name, properties=None):
@@ -755,7 +792,7 @@ class _IPopoService(object):
     def get_instances(self):
         """
         Retrieves the list of the currently registered component instances
-        
+
         :return: A list of (name, factory name, state) tuples.
         """
         with self.__instances_lock:
@@ -772,7 +809,7 @@ class _IPopoService(object):
         """
         Retrieves a snapshot of the given component instance.
         The result dictionary has the following keys:
-        
+
         * name: The component name
         * factory: The name of the component factory
         * bundle_id: The ID of the bundle providing the component factory
@@ -781,7 +818,7 @@ class _IPopoService(object):
           services provided by the component
         * dependencies: A dictionary associating field names with the following
           dictionary:
-        
+
           * handler: The name of the type of the dependency handler
           * filter (optional): The requirement LDAP filter
           * optional: A flag indicating whether the requirement is optional or
@@ -793,7 +830,7 @@ class _IPopoService(object):
         * properties: A dictionary key -> value, with all properties of the
           component. The value is converted to its string representation, to
           avoid unexcepted behaviors.
-        
+
         :param name: The name of a component instance
         :return: A dictionary of details
         :raise ValueError: Invalid component name
@@ -874,7 +911,7 @@ class _IPopoService(object):
     def get_factory_bundle(self, name):
         """
         Retrieves the Pelix Bundle object that registered the given factory
-        
+
         :param name: The name of a factory
         :return: The Bundle that registered the given factory
         :raise ValueError: Invalid factory
@@ -893,10 +930,10 @@ class _IPopoService(object):
     def get_factory_details(self, name):
         """
         Retrieves details about the given factory
-        
+
         :param name: The name of a factory
         :return: A dictionary describing the factory
-        :raise ValueError: Invalid factory 
+        :raise ValueError: Invalid factory
         """
         with self.__factories_lock:
             if name not in self.__factories:
@@ -953,7 +990,7 @@ class _IPopoActivator(object):
         Sets up the activator
         """
         self._registration = None
-        self.service = None
+        self._service = None
 
 
     def start(self, context):
@@ -965,25 +1002,25 @@ class _IPopoActivator(object):
         assert isinstance(context, BundleContext)
 
         # Register the iPOPO service
-        self.service = _IPopoService(context)
+        self._service = _IPopoService(context)
         self._registration = context.register_service(\
                                         constants.IPOPO_SERVICE_SPECIFICATION, \
-                                        self.service, {})
+                                        self._service, {})
 
         # Register as a bundle listener
-        context.add_bundle_listener(self)
+        context.add_bundle_listener(self._service)
 
         # Register the service as a framework stop listener
-        context.add_framework_stop_listener(self.service)
+        context.add_framework_stop_listener(self._service)
 
         # Service enters in "run" mode
-        self.service.running = True
+        self._service.running = True
 
         # Get all factories
         for bundle in context.get_bundles():
             if bundle.get_state() == Bundle.ACTIVE:
                 # Bundle is active, register its factories
-                self.service._register_bundle_factories(bundle)
+                self._service._register_bundle_factories(bundle)
 
 
     def stop(self, context):
@@ -995,60 +1032,23 @@ class _IPopoActivator(object):
         assert isinstance(context, BundleContext)
 
         # The service is not in the "run" mode anymore
-        self.service.running = False
+        self._service.running = False
 
         # Unregister the listener
-        context.remove_bundle_listener(self)
+        context.remove_bundle_listener(self._service)
 
         # Unregister the framework stop listener
-        context.remove_framework_stop_listener(self.service)
+        context.remove_framework_stop_listener(self._service)
 
         # Unregister the iPOPO service
         self._registration.unregister()
 
         # Clean up the service
-        self.service._unregister_all_factories()
+        self._service._unregister_all_factories()
 
         # Clean up references
         self._registration = None
-        self.service = None
-
-
-    def bundle_changed(self, event):
-        """
-        A bundle event has been triggered
-
-        :param event: The bundle event
-        """
-        assert isinstance(event, BundleEvent)
-
-        kind = event.get_kind()
-        bundle = event.get_bundle()
-
-        if kind == BundleEvent.STOPPING_PRECLEAN:
-            # A bundle is gone, remove its factories after the deactivator has
-            # been called. That way, the deactivator can kill manually started
-            # components.
-            self.service._unregister_bundle_factories(bundle)
-
-        elif kind == BundleEvent.STARTING:
-            # A bundle is staring, register its factories before its activator
-            # is called. That way, the activator can use the registered
-            # factories.
-            self.service._register_bundle_factories(bundle)
-
-        elif kind == BundleEvent.UPDATE_BEGIN:
-            # A bundle will be updated, store its auto-restart component
-            self.service._autorestart_store_components(bundle)
-
-        elif kind == BundleEvent.UPDATED:
-            # Update has finished, restart stored components
-            self.service._autorestart_components(bundle)
-            self.service._autorestart_clear_components(bundle)
-
-        elif kind == BundleEvent.UPDATE_FAILED:
-            # Update failed, clean the stored components
-            self.service._autorestart_clear_components(bundle)
+        self._service = None
 
 # ------------------------------------------------------------------------------
 
