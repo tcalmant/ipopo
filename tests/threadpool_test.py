@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-Tests the utility module
+Tests the thread pool module
 
 :author: Thomas Calmant
 """
