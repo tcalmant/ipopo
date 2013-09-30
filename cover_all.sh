@@ -5,7 +5,7 @@
 TEST_PYTHONS=("python" "python3" "pypy")
 
 # Modules to test
-TEST_MODULES=("utilities" "ldapfilter" "pelix" "ipopo" "http/basic")
+TEST_MODULES=("utilities" "ldapfilter" "pelix" "ipopo" "http/basic" "threadpool" "shell/core")
 
 # Interpreter to use to combine files, etc
 DEFAULT_PYTHON="python"
