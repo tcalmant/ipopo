@@ -8,9 +8,6 @@ inspired from the Java project
 `iPOJO <http://felix.apache.org/site/apache-felix-ipojo.html>`_.
 Its development is supported by `isandlaTech <http://www.isandlatech.com>`_.
 
-.. important:: This static web site won't be updated anymore, take a look at
-   the `official wiki <./wiki/doku.php>`_
-
 .. toctree::
    :maxdepth: 2
    :numbered:

@@ -13,6 +13,14 @@
     ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
     var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
   })();
-
 </script>
+{% endblock %}
+
+{% block document %}
+<div class="admonition important" style="width: 50%; margin : auto">
+<p class="first admonition-title">Important</p>
+<p class="last">This static web site won't be updated anymore, take a look at
+the <a class="reference external" href="/wiki/doku.php">official wiki</a></p>
+</div>
+{{ super() }}
 {% endblock %}
