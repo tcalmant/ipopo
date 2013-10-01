@@ -26,7 +26,7 @@ Pelix and iPOPO are tested using `Tox <http://testrun.org/tox/latest/>`_ and
 
 * Python 2.6, 2.7, 3.2 and 3.3
 
-  .. image:: https://travis-ci.org/tcalmant/ipopo.png?branch=dev
+  .. image:: https://travis-ci.org/tcalmant/ipopo.png?branch=master
      :target: https://travis-ci.org/tcalmant/ipopo
 
 It is also manually tested with:
