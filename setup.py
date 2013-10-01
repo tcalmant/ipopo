@@ -61,8 +61,8 @@ setup(name='iPOPO',
       long_description=read('README.rst'),
       author='Thomas Calmant',
       author_email='thomas.calmant@gmail.com',
-      url='http://ipopo.coderxpress.net/',
-      download_url='http://ipopo.coderxpress.net/ipopo-{0}.zip'\
+      url='https://ipopo.coderxpress.net/',
+      download_url='https://ipopo.coderxpress.net/dl/ipopo-{0}.zip'\
                    .format(__version__),
       packages=['pelix',
                 'pelix.http',
