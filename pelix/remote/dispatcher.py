@@ -8,7 +8,7 @@ Calls services according to the given method name and parameters
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.1
+:version: 0.2
 :status: Alpha
 
 ..
@@ -30,7 +30,7 @@ Calls services according to the given method name and parameters
 """
 
 # Module version
-__version_info__ = (0, 1, 0)
+__version_info__ = (0, 2, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

@@ -8,7 +8,7 @@ Defines the interfaces that must respect HTTP service implementations.
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.1
+:version: 0.1.1
 :status: Alpha
 
 ..
@@ -30,7 +30,7 @@ Defines the interfaces that must respect HTTP service implementations.
 """
 
 # Module version
-__version_info__ = (0, 1, 0)
+__version_info__ = (0, 1, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

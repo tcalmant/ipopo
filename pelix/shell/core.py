@@ -8,7 +8,7 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.2
+:version: 0.2.3
 :status: Alpha
 
 ..
@@ -30,7 +30,7 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 """
 
 # Module version
-__version_info__ = (0, 2, 2)
+__version_info__ = (0, 2, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

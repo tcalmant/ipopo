@@ -9,7 +9,7 @@ available.
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.1.1
+:version: 0.1.3
 :status: Alpha
 
 ..
@@ -31,7 +31,7 @@ available.
 """
 
 # Module version
-__version_info__ = (0, 1, 2)
+__version_info__ = (0, 1, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

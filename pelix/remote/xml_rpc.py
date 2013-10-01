@@ -8,7 +8,7 @@ Based on standard package xmlrpclib
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.1
+:version: 0.1.2
 :status: Alpha
 
 ..
@@ -33,7 +33,7 @@ Based on standard package xmlrpclib
 """
 
 # Module version
-__version_info__ = (0, 1, 1)
+__version_info__ = (0, 1, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

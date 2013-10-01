@@ -6,7 +6,7 @@ Defines some iPOPO constants
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.5
+:version: 0.5.4
 :status: Alpha
 
 ..
@@ -27,7 +27,7 @@ Defines some iPOPO constants
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 # Module version
-__version_info__ = (0, 5, 2)
+__version_info__ = (0, 5, 4)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

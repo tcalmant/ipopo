@@ -6,7 +6,7 @@ Dependency-less LDAP filter parser for Python
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.3.1
+:version: 0.4
 :status: Alpha
 
 ..
@@ -33,7 +33,7 @@ import inspect
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 3, 1)
+__version_info__ = (0, 4, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
