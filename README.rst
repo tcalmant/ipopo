@@ -65,7 +65,7 @@ iPOPO
 
 * ``@Requires`` accepts only one specification
 * Added a context ``use_ipopo(bundle_context)``, to simplify the usage of the
-  iPOPO service, using the keyworkd ``with``.
+  iPOPO service, using the keyword ``with``.
 * ``get_factory_details(name)`` method now also returns the ID of the bundle
   provided the component factory, and the component instance properties.
 
@@ -98,7 +98,7 @@ Remote Services
 * Protection of the unregistration loop during the invalidation of JSON-RPC and
   XML-RPC exporters.
 * The *Dispatcher Servlet* now handles the *discovered* part of the discovery
-  process. This simplifies the Multicast Discovery component and supresses a
+  process. This simplifies the Multicast Discovery component and suppresses a
   socket bug/feature on BSD (including Mac OS).
 
 Shell
