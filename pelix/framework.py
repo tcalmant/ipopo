@@ -1261,12 +1261,16 @@ class BundleContext(object):
                                                                  ldap_filter)
 
 
-    def get_all_service_references(self, clazz, ldap_filter):
+    def get_all_service_references(self, clazz, ldap_filter=None):
         """
         Returns an array of ServiceReference objects.
         The returned array of ServiceReference objects contains services that
         were registered under the specified class and match the specified filter
         expression.
+
+        :param clazz: Class implemented by the service
+        :param ldap_filter: Service filter
+        :return: The sorted list of all matching service references, or None
         """
         return self.__framework.find_service_references(clazz, ldap_filter)
 
@@ -1332,11 +1336,12 @@ class BundleContext(object):
                                                         True)
 
 
-    def get_service_references(self, clazz, ldap_filter):
+    def get_service_references(self, clazz, ldap_filter=None):
         """
         Returns the service references for services that were registered under
         the specified class by this bundle and matching the given filter
 
+        :param clazz: The class name with which the service was registered.
         :param ldap_filter: A filter on service properties
         :return: The list of references to the services registered by the
                  calling bundle and matching the filters.
