@@ -1335,7 +1335,7 @@ class UtilitiesTest(unittest.TestCase):
 
     def testConstantContext(self):
         """
-        Tests ipopo.constants.ipopo_context()
+        Tests ipopo.constants.use_ipopo()
         """
         # Try without the bundle
         self.assertRaises(pelix.BundleException,
