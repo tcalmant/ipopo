@@ -663,6 +663,7 @@ class Shell(object):
 
         except Exception as ex:
             # Error
+            _logger.exception("Error calling %s.%s: %s", namespace, command, ex)
             io_handler.write_line("{0}: {1}", type(ex).__name__, str(ex))
             return False
 
