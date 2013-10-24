@@ -80,7 +80,7 @@ class InteractiveShell(object):
     def __init__(self, context):
         """
         Sets up the members
-        
+
         :param context: The bundle context
         """
         self._context = context
@@ -105,7 +105,7 @@ class InteractiveShell(object):
     def loop_input(self, on_quit=None):
         """
         Reads the standard input until the shell session is stopped
-        
+
         :param on_quit: A call back method, called without argument when the
                         shell session has ended
         """
@@ -143,7 +143,7 @@ class InteractiveShell(object):
             # Input closed or keyboard interruption
             self._stop_event.set()
 
-        sys.stdout.write('Bye !')
+        sys.stdout.write('Bye !\n')
         sys.stdout.flush()
         if on_quit is not None:
             # Call a handler if needed
@@ -225,7 +225,7 @@ class InteractiveShell(object):
     def set_shell(self, svc_ref):
         """
         Binds the given shell service.
-        
+
         :param svc_ref: A service reference
         """
         if svc_ref is None:
