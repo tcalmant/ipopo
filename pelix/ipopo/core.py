@@ -37,10 +37,9 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Pelix
-from pelix.internals.events import BundleEvent
+from pelix.internals.events import BundleEvent, ServiceEvent
 from pelix.framework import BundleContext, Bundle
-from pelix.utilities import add_listener, remove_listener, is_string, \
-    use_service
+from pelix.utilities import add_listener, remove_listener, is_string
 import pelix.framework as pelix
 
 # iPOPO constants
@@ -173,6 +172,68 @@ class _IPopoService(object):
         self.__instances_lock = threading.RLock()
         self.__listeners_lock = threading.RLock()
 
+        # Handlers factories
+        self._handlers_refs = set()
+        self._handlers = {}
+
+        # Register the service listener
+        bundle_context.add_service_listener(self, None,
+                                handlers_const.SERVICE_IPOPO_HANDLER_FACTORY)
+        self.__find_handler_factories()
+
+
+    def __find_handler_factories(self):
+        """
+        Finds all registered handler factories and stores them
+        """
+        # Get the references
+        svc_refs = self.__context.get_all_service_references(
+                                 handlers_const.SERVICE_IPOPO_HANDLER_FACTORY)
+        if svc_refs:
+            for svc_ref in svc_refs:
+                # Store each handler factory
+                self.__add_handler_factory(svc_ref)
+
+
+    def __add_handler_factory(self, svc_ref):
+        """
+        Stores a new handler factory
+
+        :param svc_ref: ServiceReference of the new handler factory
+        """
+        # Get the handler ID
+        handler_id = svc_ref.get_property(handlers_const.PROP_HANDLER_ID)
+
+        if handler_id in self._handlers:
+            # Duplicated ID
+            _logger.warning("Already registered handler ID: %s",
+                            handler_id)
+
+        else:
+            # Store the service
+            self._handlers_refs.add(svc_ref)
+            self._handlers[handler_id] = self.__context.get_service(svc_ref)
+
+
+    def __remove_handler_factory(self, svc_ref):
+        """
+        Removes an handler factory
+
+        :param svc_ref: ServiceReference of the handler factory to remove
+        """
+        # Get the handler ID
+        handler_id = svc_ref.get_property(handlers_const.PROP_HANDLER_ID)
+
+        try:
+            # Clean up
+            self.__context.unget_service(svc_ref)
+            self._handlers_refs.remove(svc_ref)
+            del self._handlers[handler_id]
+
+        except KeyError:
+            # We weren't using this handler
+            pass
+
 
     def __get_stored_instances_by_factory(self, factory_name):
         """
@@ -274,6 +335,32 @@ class _IPopoService(object):
                     _logger.exception("Error calling an iPOPO event handler")
 
 
+    def _prepare_instance_properties(self, properties, factory_properties):
+        """
+        Prepares the properties of a component instance, based on its
+        configuration, factory and framework properties
+
+        :param properties: Component instance properties
+        :param factory_properties: Component factory "default" properties
+        :return: The merged properties
+        """
+        # Normalize given properties
+        if properties is None or not isinstance(properties, dict):
+            properties = {}
+
+        # Use framework properties to fill missing ones
+        framework = self.__context.get_bundle(0)
+        for property_name in factory_properties:
+            if property_name not in properties:
+                # Missing property
+                value = framework.get_property(property_name)
+                if value is not None:
+                    # Set the property value
+                    properties[property_name] = value
+
+        return properties
+
+
     def _register_bundle_factories(self, bundle):
         """
         Registers all factories found in the given bundle
@@ -368,11 +455,30 @@ class _IPopoService(object):
                                     factory_name, ex)
 
 
+    def _stop(self):
+        """
+        iPOPO is stopping: clean everything up
+        """
+        # Running flag down
+        self.running = False
+
+        # Unregister the service listener
+        self.__context.remove_service_listener(self)
+
+        # Clean up handler factories usages
+        with self.__instances_lock:
+            for svc_ref in self._handlers_refs:
+                self.__context.unget_service(svc_ref)
+
+            self._handlers.clear()
+            self._handlers_refs.clear()
+
+
     def framework_stopping(self):
         """
         Called by the framework when it is about to stop
         """
-        self.running = False
+        self._stop()
 
 
     def bundle_changed(self, event):
@@ -410,6 +516,25 @@ class _IPopoService(object):
         elif kind == BundleEvent.UPDATE_FAILED:
             # Update failed, clean the stored components
             self._autorestart_clear_components(bundle)
+
+
+    def service_changed(self, event):
+        """
+        Called when a handler factory service is un/registered
+        """
+        # Call sub-methods
+        kind = event.get_kind()
+        svc_ref = event.get_service_reference()
+
+        if kind == ServiceEvent.REGISTERED:
+            # Service coming
+            with self.__instances_lock:
+                self.__add_handler_factory(svc_ref)
+
+        elif kind == ServiceEvent.UNREGISTERING:
+            # Service gone
+            with self.__instances_lock:
+                self.__remove_handler_factory(svc_ref)
 
 
     def instantiate(self, factory_name, name, properties=None):
@@ -454,39 +579,16 @@ class _IPopoService(object):
                     raise TypeError("Factory context missing in '{0}'" \
                                     .format(factory_name))
 
-            # Normalize given properties
-            if properties is None or not isinstance(properties, dict):
-                properties = {}
-
-            # Use framework properties to fill missing ones
-            framework = self.__context.get_bundle(0)
-            for property_name in factory_context.properties:
-                if property_name not in properties:
-                    # Missing property
-                    value = framework.get_property(property_name)
-                    if value is not None:
-                        # Set the property value
-                        properties[property_name] = value
-
-            # Set up the component instance context
-            component_context = ComponentContext(factory_context, name, \
-                                                 properties)
-
             # Look for the required handlers
-            handlers_refs = []
-            handler_filter = "({0}={{0}})" \
-                                    .format(handlers_const.PROP_HANDLER_ID)
-            for handler_id in factory_context.get_handlers_ids():
-                svc_ref = self.__context.get_service_reference(
-                                   handlers_const.SERVICE_IPOPO_HANDLER_FACTORY,
-                                   handler_filter.format(handler_id))
-                if svc_ref is None:
-                    # Handler is missing
-                    raise TypeError("Missing handler '{0}' for factory '{1}', "
-                                    "component '{2}'" \
-                                    .format(handler_id, factory_name, name))
-                else:
-                    handlers_refs.append(svc_ref)
+            try:
+                handler_factories = {self._handlers[handler_id]
+                                     for handler_id
+                                     in factory_context.get_handlers_ids()}
+
+            except KeyError:
+                raise TypeError("Missing handler '{0}' for factory '{1}', "
+                                "component '{2}'" \
+                                .format(handler_id, factory_name, name))
 
             # Create component instance
             try:
@@ -499,13 +601,19 @@ class _IPopoService(object):
                 raise TypeError("Factory '{0}' failed to create '{1}'" \
                                 .format(factory_name, name))
 
+            # Normalize the given properties
+            properties = self._prepare_instance_properties(properties,
+                                                   factory_context.properties)
+
+            # Set up the component instance context
+            component_context = ComponentContext(factory_context, name, \
+                                                 properties)
+
             # Instantiate the handlers
             all_handlers = set()
-            for svc_ref in handlers_refs:
-                with use_service(self.__context, svc_ref) as handler_factory:
-                    handlers = handler_factory.get_handlers(component_context,
-                                                            instance)
-
+            for handler_factory in handler_factories:
+                handlers = handler_factory.get_handlers(component_context,
+                                                        instance)
                 if handlers:
                     all_handlers.update(handlers)
 
@@ -947,7 +1055,7 @@ class _IPopoActivator(object):
         assert isinstance(context, BundleContext)
 
         # The service is not in the "run" mode anymore
-        self._service.running = False
+        self._service._stop()
 
         # Unregister the listener
         context.remove_bundle_listener(self._service)
