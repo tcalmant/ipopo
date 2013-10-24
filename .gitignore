@@ -20,6 +20,9 @@ generated_bundle.py
 .coverage*
 htmlcov/
 
+# Profiling
+*.lprof
+
 # Epydoc Help
 html/
 
