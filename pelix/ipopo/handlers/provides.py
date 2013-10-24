@@ -174,31 +174,29 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         # Store the stored instance
         self._ipopo_instance = stored_instance
 
-        # Inject controllers
+        if self.__controller is None:
+            # No controller: do nothing
+            return
 
-        # Avoid injection of unused instance fields...
-        provides_tuples = stored_instance.context.factory_context.provides
-        controllers = set([value[1] for value in provides_tuples if value[1]])
-        if controllers:
-            # Controllers are valid by default
-            for name in controllers:
-                # Get the current value of the member (True by default)
-                controller_value = getattr(component_instance, name, True)
-                # Store the controller value
-                stored_instance.set_controller_state(name, controller_value)
+        # Get the current value of the member (True by default)
+        controller_value = getattr(component_instance, self.__controller, True)
 
-            # Prepare the methods names
-            getter_name = "{0}{1}" \
-                          .format(ipopo_constants.IPOPO_CONTROLLER_PREFIX,
-                                  ipopo_constants.IPOPO_GETTER_SUFFIX)
-            setter_name = "{0}{1}" \
-                          .format(ipopo_constants.IPOPO_CONTROLLER_PREFIX,
-                                  ipopo_constants.IPOPO_SETTER_SUFFIX)
+        # Store the controller value
+        stored_instance.set_controller_state(self.__controller,
+                                             controller_value)
 
-            # Inject the getter and setter at the instance level
-            getter, setter = self._field_controller_generator()
-            setattr(component_instance, getter_name, getter)
-            setattr(component_instance, setter_name, setter)
+        # Prepare the methods names
+        getter_name = "{0}{1}" \
+                      .format(ipopo_constants.IPOPO_CONTROLLER_PREFIX,
+                              ipopo_constants.IPOPO_GETTER_SUFFIX)
+        setter_name = "{0}{1}" \
+                      .format(ipopo_constants.IPOPO_CONTROLLER_PREFIX,
+                              ipopo_constants.IPOPO_SETTER_SUFFIX)
+
+        # Inject the getter and setter at the instance level
+        getter, setter = self._field_controller_generator()
+        setattr(component_instance, getter_name, getter)
+        setattr(component_instance, setter_name, setter)
 
 
     def check_event(self, svc_event):
