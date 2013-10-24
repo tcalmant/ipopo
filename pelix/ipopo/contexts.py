@@ -163,7 +163,7 @@ class Requirement(object):
     def matches(self, properties):
         """
         Tests if the given _StoredInstance matches this requirement
-        
+
         :param properties: Service properties
         :return: True if the instance matches this requirement
         """
@@ -318,6 +318,26 @@ class FactoryContext(object):
         Inequality test
         """
         return not self.__eq__(other)
+
+
+    def get_handlers_ids(self):
+        """
+        Retrieves the IDs of the handlers to instantiate for this component
+        """
+        ids = []
+        if self.properties_fields:
+            # @Property
+            ids.append(constants.HANDLER_PROPERTY)
+
+        if self.provides:
+            # @Provides
+            ids.append(constants.HANDLER_PROVIDES)
+
+        if self.requirements:
+            # @Requires
+            ids.append(constants.HANDLER_REQUIRES)
+
+        return ids
 
 
     def copy(self):

@@ -6,7 +6,7 @@ Core iPOPO implementation
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.5.4
+:version: 0.5.5
 :status: Alpha
 
 ..
@@ -28,7 +28,7 @@ Core iPOPO implementation
 """
 
 # Module version
-__version_info__ = (0, 5, 4)
+__version_info__ = (0, 5, 5)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -39,11 +39,13 @@ __docformat__ = "restructuredtext en"
 # Pelix
 from pelix.internals.events import BundleEvent
 from pelix.framework import BundleContext, Bundle
-from pelix.utilities import add_listener, remove_listener, is_string
+from pelix.utilities import add_listener, remove_listener, is_string, \
+    use_service
 import pelix.framework as pelix
 
 # iPOPO constants
 import pelix.ipopo.constants as constants
+import pelix.ipopo.handlers.constants as handlers_const
 
 # iPOPO beans
 from pelix.ipopo.contexts import FactoryContext, ComponentContext
@@ -58,6 +60,11 @@ import threading
 
 # Prepare the module logger
 _logger = logging.getLogger("ipopo.core")
+
+# Built-in handlers, automatically installed
+BUILTIN_HANDLERS = ('pelix.ipopo.handlers.properties',
+                    'pelix.ipopo.handlers.provides',
+                    'pelix.ipopo.handlers.requires')
 
 # ------------------------------------------------------------------------------
 
@@ -129,137 +136,6 @@ def _load_bundle_factories(bundle):
         result.append((context, factory_class))
 
     return result
-
-# ------------------------------------------------------------------------------
-
-def _field_property_generator(stored_instance):
-    """
-    Generates the methods called by the injected class properties
-
-    :param stored_instance: A stored component instance
-    """
-    def get_value(self, name):
-        """
-        Retrieves the property value, from the iPOPO dictionaries
-
-        :param name: The property name
-        :return: The property value
-        """
-        assert stored_instance.context is not None
-        return stored_instance.context.properties.get(name, None)
-
-
-    def set_value(self, name, new_value):
-        """
-        Sets the property value and trigger an update event
-
-        :param name: The property name
-        :param new_value: The new property value
-        """
-        assert stored_instance.context is not None
-
-        # Get the previous value
-        old_value = stored_instance.context.properties.get(name, None)
-        if new_value != old_value:
-            # Change the property
-            stored_instance.context.properties[name] = new_value
-
-            # New value is different of the old one, trigger an event
-            stored_instance.update_property(name, old_value, new_value)
-
-        return new_value
-
-    return (get_value, set_value)
-
-
-def _field_controller_generator(stored_instance):
-    """
-    Generates the methods called by the injected controller
-
-    :param stored_instance: A stored component instance
-    """
-    def get_value(self, name):
-        """
-        Retrieves the controller value, from the iPOPO dictionaries
-
-        :param name: The property name
-        :return: The property value
-        """
-        assert stored_instance.context is not None
-        return stored_instance.get_controller_state(name)
-
-
-    def set_value(self, name, new_value):
-        """
-        Sets the property value and trigger an update event
-
-        :param name: The property name
-        :param new_value: The new property value
-        """
-        assert stored_instance.context is not None
-
-        # Get the previous value
-        old_value = stored_instance.get_controller_state(name)
-        if new_value != old_value:
-            # Update the controller state
-            stored_instance.set_controller_state(name, new_value)
-
-        return new_value
-
-    return (get_value, set_value)
-
-
-def _manipulate_component(instance, stored_instance):
-    """
-    Manipulates the component instance to inject missing elements.
-
-    Injects the properties handling
-    """
-    assert instance is not None
-    assert isinstance(stored_instance, StoredInstance)
-
-    # Inject properties
-    if stored_instance.context.factory_context.properties_fields:
-        # Avoid injection of unused instance fields, avoiding more differences
-        # between the class definition and the instance fields
-        # -> Removes the overhead if the manipulated class has no __slots__ or
-        #    when running in Pypy.
-        getter, setter = _field_property_generator(stored_instance)
-
-        # Prepare the methods names
-        getter_name = "{0}{1}".format(constants.IPOPO_PROPERTY_PREFIX,
-                                      constants.IPOPO_GETTER_SUFFIX)
-        setter_name = "{0}{1}".format(constants.IPOPO_PROPERTY_PREFIX,
-                                      constants.IPOPO_SETTER_SUFFIX)
-
-        # Inject the getter and setter at the instance level
-        setattr(instance, getter_name, getter)
-        setattr(instance, setter_name, setter)
-
-    # Inject controllers
-    provides_tuples = stored_instance.context.factory_context.provides
-    if provides_tuples:
-        # Avoid injection of unused instance fields...
-        controllers = set([value[1] for value in provides_tuples if value[1]])
-        if controllers:
-            # Controllers are valid by default
-            for name in controllers:
-                # Get the current value of the member (True by default)
-                controller_value = getattr(instance, name, True)
-                # Store the controller value
-                stored_instance.set_controller_state(name, controller_value)
-
-            # Prepare the methods names
-            getter_name = "{0}{1}".format(constants.IPOPO_CONTROLLER_PREFIX,
-                                          constants.IPOPO_GETTER_SUFFIX)
-            setter_name = "{0}{1}".format(constants.IPOPO_CONTROLLER_PREFIX,
-                                          constants.IPOPO_SETTER_SUFFIX)
-
-            # Inject the getter and setter at the instance level
-            getter, setter = _field_controller_generator(stored_instance)
-            setattr(instance, getter_name, getter)
-            setattr(instance, setter_name, setter)
-
 
 # ------------------------------------------------------------------------------
 
@@ -578,21 +454,9 @@ class _IPopoService(object):
                     raise TypeError("Factory context missing in '{0}'" \
                                     .format(factory_name))
 
-            # Create component instance
-            try:
-                instance = factory()
-
-            except:
-                _logger.exception("Error creating the instance '%s' " \
-                                  "from factory '%s'", name, factory_name)
-
-                raise TypeError("Factory '{0}' failed to create '{1}'" \
-                                .format(factory_name, name))
-
             # Normalize given properties
             if properties is None or not isinstance(properties, dict):
                 properties = {}
-
 
             # Use framework properties to fill missing ones
             framework = self.__context.get_bundle(0)
@@ -604,15 +468,54 @@ class _IPopoService(object):
                         # Set the property value
                         properties[property_name] = value
 
-            # Set the instance context
+            # Set up the component instance context
             component_context = ComponentContext(factory_context, name, \
                                                  properties)
 
+            # Look for the required handlers
+            handlers_refs = []
+            handler_filter = "({0}={{0}})" \
+                                    .format(handlers_const.PROP_HANDLER_ID)
+            for handler_id in factory_context.get_handlers_ids():
+                svc_ref = self.__context.get_service_reference(
+                                   handlers_const.SERVICE_IPOPO_HANDLER_FACTORY,
+                                   handler_filter.format(handler_id))
+                if svc_ref is None:
+                    # Handler is missing
+                    raise TypeError("Missing handler '{0}' for factory '{1}', "
+                                    "component '{2}'" \
+                                    .format(handler_id, factory_name, name))
+                else:
+                    handlers_refs.append(svc_ref)
+
+            # Create component instance
+            try:
+                instance = factory()
+
+            except:
+                _logger.exception("Error creating the instance '%s' " \
+                                  "from factory '%s'", name, factory_name)
+
+                raise TypeError("Factory '{0}' failed to create '{1}'" \
+                                .format(factory_name, name))
+
+            # Instantiate the handlers
+            all_handlers = set()
+            for svc_ref in handlers_refs:
+                with use_service(self.__context, svc_ref) as handler_factory:
+                    handlers = handler_factory.get_handlers(component_context,
+                                                            instance)
+
+                if handlers:
+                    all_handlers.update(handlers)
+
             # Prepare the stored instance
-            stored_instance = StoredInstance(self, component_context, instance)
+            stored_instance = StoredInstance(self, component_context, instance,
+                                             all_handlers)
 
             # Manipulate the properties
-            _manipulate_component(instance, stored_instance)
+            for handler in all_handlers:
+                handler.manipulate(stored_instance, instance)
 
             # Store the instance
             self.__instances[name] = stored_instance
@@ -861,7 +764,7 @@ class _IPopoService(object):
                 # Provided service
                 result["services"] = {}
                 for handler in stored_instance.get_handlers(
-                                            constants.HANDLER_SERVICE_PROVIDER):
+                                        handlers_const.KIND_SERVICE_PROVIDER):
                     svc_ref = handler.get_service_reference()
                     if svc_ref is not None:
                         svc_id = svc_ref.get_property(pelix.SERVICE_ID)
@@ -870,9 +773,9 @@ class _IPopoService(object):
                 # Dependencies
                 result["dependencies"] = {}
                 for dependency in stored_instance.get_handlers(
-                                            constants.HANDLER_DEPENDENCY):
+                                        handlers_const.KIND_DEPENDENCY):
                     # Dependency
-                    info = result["dependencies"][dependency.field] = {}
+                    info = result["dependencies"][dependency.get_field()] = {}
                     info["handler"] = type(dependency).__name__
 
                     # Requirement
@@ -991,6 +894,7 @@ class _IPopoActivator(object):
         """
         self._registration = None
         self._service = None
+        self._bundles = []
 
 
     def start(self, context):
@@ -1000,6 +904,17 @@ class _IPopoActivator(object):
         :param context: The bundle context
         """
         assert isinstance(context, BundleContext)
+
+        # Automatically install handlers bundles
+        for handler in BUILTIN_HANDLERS:
+            try:
+                bundle = context.install_bundle(handler)
+                bundle.start()
+                self._bundles.append(bundle)
+
+            except pelix.BundleException as ex:
+                _logger.error("Error installing handler %s: %s", handler, ex)
+
 
         # Register the iPOPO service
         self._service = _IPopoService(context)
@@ -1045,6 +960,11 @@ class _IPopoActivator(object):
 
         # Clean up the service
         self._service._unregister_all_factories()
+
+        # Remove handler bundles
+        for bundle in self._bundles:
+            bundle.uninstall()
+        del self._bundles[:]
 
         # Clean up references
         self._registration = None
