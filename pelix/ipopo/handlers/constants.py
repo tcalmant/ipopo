@@ -105,9 +105,9 @@ class Handler(object):
         """
         Returns the kinds of this handler
 
-        :return: A tuple of the kinds of this handler
+        :return: A tuple of the kinds of this handler, or None
         """
-        return tuple()
+        return None
 
     def manipulate(self):
         """

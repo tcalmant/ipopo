@@ -108,13 +108,6 @@ class PropertiesHandler(constants.Handler):
         pass
 
 
-    def get_kinds(self):
-        """
-        Simple kind
-        """
-        return [constants.KIND_PROPERTIES]
-
-
     def _field_property_generator(self):
         """
         Generates the methods called by the injected class properties

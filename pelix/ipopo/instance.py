@@ -118,8 +118,10 @@ class StoredInstance(object):
         # Handlers: kind -> [handlers]
         self._handlers = {}
         for handler in handlers:
-            for kind in handler.get_kinds():
-                self._handlers.setdefault(kind, []).append(handler)
+            kinds = handler.get_kinds()
+            if kinds:
+                for kind in kinds:
+                    self._handlers.setdefault(kind, []).append(handler)
 
 
     def __repr__(self):
@@ -240,11 +242,9 @@ class StoredInstance(object):
                 return self._handlers.get(kind, [])
 
             # Prepare the list of handlers to call
-            result = []
+            result = set()
             for handlers_list in self._handlers.values():
-                for handler in handlers_list:
-                    if handler not in result:
-                        result.append(handler)
+                result.update(handlers_list)
 
             return result
 
