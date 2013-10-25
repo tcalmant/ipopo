@@ -581,8 +581,9 @@ class _IPopoService(object):
 
             # Look for the required handlers
             try:
-                handler_factories = {self._handlers[handler_id]
-                         for handler_id in factory_context.get_handlers_ids()}
+                handler_factories = set(self._handlers[handler_id]
+                                        for handler_id
+                                        in factory_context.get_handlers_ids())
 
             except KeyError:
                 raise TypeError("Missing handler '{0}' for factory '{1}', "
