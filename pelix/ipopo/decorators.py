@@ -157,35 +157,30 @@ def _get_factory_context(cls):
     :param cls: The factory class
     :return: The factory class context
     """
-    context = getattr(cls, constants.IPOPO_FACTORY_CONTEXT_DATA, None)
+    context = getattr(cls, constants.IPOPO_FACTORY_CONTEXT, None)
 
     if context is None:
         # Class not yet manipulated
         context = FactoryContext()
 
+    elif is_from_parent(cls, constants.IPOPO_FACTORY_CONTEXT):
+        # Create a copy the context
+        context = context.copy()
+
+        # Clear the values that must not be inherited:
+        # * Provided services
+        # FIXME: do it in a better/generic way
+        context.set_handler(constants.HANDLER_PROVIDES, [])
+
+        # * Manipulation has not been applied yet
+        context.completed = False
+
     else:
-        if is_from_parent(cls, constants.IPOPO_FACTORY_CONTEXT_DATA):
-            # The context comes from a parent, copy it using a temporary
-            # dictionary form
-            if isinstance(context, dict):
-                context = FactoryContext.from_dictionary_form(context)
+        # Nothing special to do
+        return context
 
-            context = context.copy()
-
-            # Clear the values that must not be inherited:
-            # * Provided services
-            # FIXME: do it in a better way
-            context.set_handler(constants.HANDLER_PROVIDES, [])
-
-            # * Manipulation has not been applied yet
-            context.completed = False
-
-        # We have a context of our own, make sure we have a FactoryContext
-        elif isinstance(context, dict):
-            # Already manipulated and stored class
-            context = FactoryContext.from_dictionary_form(context)
-
-    setattr(cls, constants.IPOPO_FACTORY_CONTEXT_DATA, context)
+    # Context has been created or copied, inject the new bean
+    setattr(cls, constants.IPOPO_FACTORY_CONTEXT, context)
     return context
 
 
@@ -498,11 +493,11 @@ class ComponentFactory(object):
                     # Set inherited fields to None
                     setattr(factory_class, field, None)
 
-            # Add the factory context field (set it to None)
-            setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT, None)
+            # Store the factory context in its field
+            setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT, context)
 
             # Inject the properties getter and setter if needed
-            if len(context.properties_fields) > 0:
+            if context.properties_fields:
                 setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX \
                         + constants.IPOPO_GETTER_SUFFIX, None)
                 setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX \
@@ -513,11 +508,6 @@ class ComponentFactory(object):
             _logger.error("%s has already been manipulated with the name '%s'. "
                           "Keeping the old name.",
                           get_method_description(factory_class), context.name)
-
-        # Store a dictionary form of the factory context in the class
-        # -> Avoids "class version" problems
-#         setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT_DATA, \
-#                 context.to_dictionary_form())
 
         return factory_class
 

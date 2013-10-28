@@ -76,33 +76,20 @@ def _set_factory_context(factory_class, bundle_context):
     :param bundle_context: The class bundle context
     :return: The factory context, None on error
     """
-    if not hasattr(factory_class, constants.IPOPO_FACTORY_CONTEXT_DATA):
+    if not hasattr(factory_class, constants.IPOPO_FACTORY_CONTEXT):
         # The class has not been manipulated, or too badly
         return None
 
-    # Try to get the context dictionary (built using decorators)
-    context_dict = getattr(factory_class, constants.IPOPO_FACTORY_CONTEXT_DATA)
+    try:
+        # Try to get the factory context (built using decorators)
+        context = getattr(factory_class, constants.IPOPO_FACTORY_CONTEXT)
 
-    if isinstance(context_dict, dict):
-        # Try to load the stored data
-        try:
-            context = FactoryContext.from_dictionary_form(context_dict)
+    except AttributeError:
+        # Context not found
+        return None
 
-        except (TypeError, ValueError):
-            _logger.exception("Invalid data in manipulated class '%s'",
-                              factory_class.__name__)
-            # Work on the next class
-            return None
-
-    else:
-        # Already a bean
-        context = context_dict
-
-    # Setup the context
+    # Associate the factory to the bundle context
     context.set_bundle_context(bundle_context)
-
-    # Inject the constructed object
-    setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT, context)
     return context
 
 

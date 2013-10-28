@@ -69,9 +69,6 @@ IPOPO_METHOD_FIELD_CALLBACKS = "__ipopo_field_callbacks__"
 IPOPO_FACTORY_CONTEXT = "__ipopo_factory_context__"
 """ Storage of the FactoryContext object """
 
-IPOPO_FACTORY_CONTEXT_DATA = "__ipopo_factory_context_data__"
-""" Storage of the dictionary form of the FactoryContext """
-
 IPOPO_INSTANCES = "__ipopo_instances__"
 """ List of configured instantiations """
 
