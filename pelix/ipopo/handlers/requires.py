@@ -77,6 +77,8 @@ class _HandlerFactory(constants.HandlerFactory):
                 # keep the factory requirement
                 new_requirements[field] = requirement
 
+        return new_requirements
+
 
     def get_handlers(self, component_context, instance):
         """
