@@ -1425,7 +1425,7 @@ class SimpleDecoratorsTests(unittest.TestCase):
 
         # Assert the field doesn't exist yet
         self.assertRaises(AttributeError, getattr, DummyClass,
-                          constants.IPOPO_FACTORY_CONTEXT_DATA)
+                          constants.IPOPO_FACTORY_CONTEXT)
 
         # Convert the parent into a component
         DummyClass = decorators.ComponentFactory("dummy-factory") \
@@ -1574,7 +1574,7 @@ class SimpleCoreTests(unittest.TestCase):
         self.assertEqual(req_1, req_1, "Requirement is not equal to itself")
 
         # Different types
-        for req_2 in (None, "spec_1", [], {}, req_1.to_dictionary_form()):
+        for req_2 in (None, "spec_1", [], {}):
             self.assertNotEqual(req_1, req_2,
                                 "Requirement should not be equal to {0}" \
                                 .format(req_1))
@@ -1603,52 +1603,9 @@ class SimpleCoreTests(unittest.TestCase):
                         "Requirements are equal with different aggregate flags")
 
 
-    def testRequirementDictForm(self):
+    def testCopyFactoryContext(self):
         """
-        Tests the dictionary form serialization of Requirement
-        """
-        Requirement = contexts.Requirement
-
-        # Invalid type
-        for invalid in (None, [], "test"):
-            self.assertRaises(TypeError, Requirement.from_dictionary_form,
-                              invalid)
-
-        # Invalid content
-        for invalid in ({}, {"spec": 0}, {"aggregate": False}):
-            self.assertRaises(ValueError, Requirement.from_dictionary_form,
-                              invalid)
-
-        # A dictionary should be accepted with only the specification
-        Requirement.from_dictionary_form({"specification": "spec"})
-        self.assertRaises(TypeError, Requirement.from_dictionary_form,
-                          {"specification": ["spec"]})
-
-        for aggregate in (True, False):
-            for optional in (True, False):
-                for spec_filter in (None, "(test=True)"):
-                    # Requirement
-                    req = Requirement("spec_2", aggregate, optional,
-                                      spec_filter)
-
-                    # Dictionary form
-                    dict_form = req.to_dictionary_form()
-                    self.assertIs(type(dict_form), dict,
-                                  "to_dict: not a dictionary")
-
-                    # Conversion
-                    req_2 = Requirement.from_dictionary_form(dict_form)
-                    self.assertIs(type(req_2), Requirement,
-                                  "from_dict: not a Requirement")
-
-                    # Assert equality
-                    self.assertEqual(req, req_2,
-                                     "Invalid serialization result")
-
-
-    def testFactoryContext(self):
-        """
-        Tests the dictionary form serialization of FactoryContext
+        Tests the copy of a FactoryContext bean
         """
         FactoryContext = contexts.FactoryContext
         Requirement = contexts.Requirement
@@ -1664,8 +1621,10 @@ class SimpleCoreTests(unittest.TestCase):
         context.name = 'name'
         context.properties['prop'] = 42
         context.properties_fields['field_prop'] = 'prop'
-        context.provides.append('provides')
-        context.requirements['field_req'] = req_1
+
+        context.set_handler(constants.HANDLER_PROVIDES, ('provides', None))
+        context.set_handler(constants.HANDLER_REQUIRES,
+                            {'field_req': req_1})
 
         # Identity test
         self.assertEqual(context, context, "Identity error")
@@ -1674,35 +1633,6 @@ class SimpleCoreTests(unittest.TestCase):
         context_2 = context.copy()
         self.assertEqual(context, context_2, "Copy equality error")
         self.assertIsNot(req_1, context_2, "Requirements must be copied")
-
-        # To dictionary
-        dict_form = context.to_dictionary_form()
-        self.assertIs(type(dict_form), dict, "Not a dictionary form")
-
-        # From dictionary
-        context_2 = FactoryContext.from_dictionary_form(dict_form)
-        self.assertIs(type(context_2), FactoryContext,
-                      "Not a FactoryContext form")
-        self.assertEqual(context, context_2, "Copy equality error")
-        self.assertIsNot(req_1, context_2, "Requirements must be copied")
-
-        # Invalid parameters types
-        for invalid in (None, "", "aaa", ["a"], 10):
-            self.assertRaises(TypeError, FactoryContext.from_dictionary_form,
-                              invalid)
-
-        # Invalid content
-        dict_copy = dict_form.copy()
-        for key, value in dict_form.items():
-            del dict_copy[key]
-            self.assertRaises(ValueError, FactoryContext.from_dictionary_form,
-                              dict_copy)
-            dict_copy[key] = value
-
-        for invalid in (None, "", ['aa'], 123):
-            dict_copy['requirements'] = invalid
-            self.assertRaises(TypeError, FactoryContext.from_dictionary_form,
-                              dict_copy)
 
 # ------------------------------------------------------------------------------
 
