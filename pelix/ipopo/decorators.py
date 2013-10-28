@@ -67,18 +67,17 @@ def is_from_parent(cls, attribute_name, value=None):
     :return: True if the attribute value is shared with a parent class
     """
     if value is None:
-        # Get the current value
-        value = getattr(cls, attribute_name, None)
-        if value is None:
+        try:
+            # Get the current value
+            value = getattr(cls, attribute_name)
+
+        except AttributeError:
             # No need to go further: the attribute does not exist
             return False
 
     for base in cls.__bases__:
         # Look for the value in each parent class
-        base_value = getattr(base, attribute_name, None)
-        # Use '==' instead of 'is' to work in both
-        # Python 2 (==) and Python 3 (==, is)
-        if base_value == value:
+        if getattr(base, attribute_name, None) is value:
             # Found !
             return True
 
