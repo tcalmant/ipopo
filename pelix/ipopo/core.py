@@ -76,16 +76,16 @@ def _set_factory_context(factory_class, bundle_context):
     :param bundle_context: The class bundle context
     :return: The factory context, None on error
     """
-    if not hasattr(factory_class, constants.IPOPO_FACTORY_CONTEXT):
-        # The class has not been manipulated, or too badly
-        return None
-
     try:
         # Try to get the factory context (built using decorators)
         context = getattr(factory_class, constants.IPOPO_FACTORY_CONTEXT)
 
     except AttributeError:
-        # Context not found
+        # The class has not been manipulated, or too badly
+        return None
+
+    if not context.completed:
+        # Partial context (class not manipulated)
         return None
 
     # Associate the factory to the bundle context
