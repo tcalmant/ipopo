@@ -54,6 +54,30 @@ class _HandlerFactory(constants.HandlerFactory):
     """
     Factory service for service registration handlers
     """
+    def _prepare_requirements(self, requirements, requires_filters):
+        """
+        """
+        if not requires_filters or not isinstance(requires_filters, dict):
+            # No explicit filter configured
+            return requirements
+
+        # We need to change a part of the requirements
+        new_requirements = {}
+        for field, requirement in requirements.items():
+            try:
+                explicit_filter = requires_filters[field]
+
+                # Store an updated copy of the requirement
+                requirement_copy = requirement.copy()
+                requirement_copy.set_filter(explicit_filter)
+                new_requirements[field] = requirement_copy
+
+            except (KeyError, TypeError, ValueError):
+                # No information for this one, or invalid filter:
+                # keep the factory requirement
+                new_requirements[field] = requirement
+
+
     def get_handlers(self, component_context, instance):
         """
         Sets up service providers for the given component
@@ -62,9 +86,21 @@ class _HandlerFactory(constants.HandlerFactory):
         :param instance: The component instance
         :return: The list of handlers associated to the given component
         """
-        # The runtime dependency handlers
+        # Extract information from the context
+        requirements = component_context.get_handler(
+                                         ipopo_constants.HANDLER_REQUIRES)
+        requires_filters = component_context.properties.get(
+                                         ipopo_constants.IPOPO_REQUIRES_FILTERS,
+                                         None)
+
+        # Prepare requirements
+        requirements = self._prepare_requirements(requirements,
+                                                  requires_filters)
+
+        # Set up the runtime dependency handlers
         handlers = []
-        for field, requirement in component_context.requirements.items():
+        for field, requirement in requirements.items():
+            # Construct the handler
             if requirement.aggregate:
                 handlers.append(AggregateDependency(field, requirement))
             else:

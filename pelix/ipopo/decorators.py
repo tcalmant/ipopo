@@ -6,7 +6,7 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.5.4
+:version: 0.5.5
 :status: Alpha
 
 ..
@@ -28,7 +28,7 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 """
 
 # Module version
-__version_info__ = (0, 5, 4)
+__version_info__ = (0, 5, 5)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -174,13 +174,14 @@ def _get_factory_context(cls):
 
             # Clear the values that must not be inherited:
             # * Provided services
-            del context.provides[:]
+            # FIXME: do it in a better way
+            context.set_handler(constants.HANDLER_PROVIDES, [])
 
             # * Manipulation has not been applied yet
             context.completed = False
 
         # We have a context of our own, make sure we have a FactoryContext
-        if isinstance(context, dict):
+        elif isinstance(context, dict):
             # Already manipulated and stored class
             context = FactoryContext.from_dictionary_form(context)
 
@@ -515,8 +516,8 @@ class ComponentFactory(object):
 
         # Store a dictionary form of the factory context in the class
         # -> Avoids "class version" problems
-        setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT_DATA, \
-                context.to_dictionary_form())
+#         setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT_DATA, \
+#                 context.to_dictionary_form())
 
         return factory_class
 
@@ -589,6 +590,9 @@ class Property(object):
 
         # Associate the field to the property name
         context.properties_fields[self.__field] = self.__name
+
+        # Mark the handler in the factory context
+        context.set_handler(constants.HANDLER_PROPERTY, None)
 
         # Inject a property in the class. The property will call an instance
         # level getter / setter, injected by iPOPO after the instance creation
@@ -698,7 +702,8 @@ class Provides(object):
                 filtered_specs.append(spec)
 
         # Store the service information
-        context.provides.append((filtered_specs, self.__controller))
+        config = context.get_handler(constants.HANDLER_PROVIDES, [])
+        config.append((filtered_specs, self.__controller))
 
         if self.__controller:
             # Inject a property in the class. The property will call an instance
@@ -783,7 +788,9 @@ class Requires(object):
                             get_method_description(clazz))
             return clazz
 
-        context.requirements[self.__field] = self.__requirement
+        # Store the requirement information
+        config = context.get_handler(constants.HANDLER_REQUIRES, {})
+        config[self.__field] = self.__requirement
 
         # Inject the field
         setattr(clazz, self.__field, None)

@@ -6,7 +6,7 @@ Definition of Factory and Component context classes
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: GPLv3
-:version: 0.5.4
+:version: 0.5.5
 :status: Alpha
 
 ..
@@ -28,7 +28,7 @@ Definition of Factory and Component context classes
 """
 
 # Module version
-__version_info__ = (0, 5, 4)
+__version_info__ = (0, 5, 5)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -46,6 +46,9 @@ import pelix.ldapfilter as ldapfilter
 
 # iPOPO constants
 import pelix.ipopo.constants as constants
+
+# Standard library
+import copy
 
 # ------------------------------------------------------------------------------
 
@@ -282,6 +285,9 @@ class FactoryContext(object):
         # The factory manipulation has been completed
         self.completed = False
 
+        # Handler ID -> configuration
+        self.__handlers = {}
+
 
     def __eq__(self, other):
         """
@@ -324,54 +330,64 @@ class FactoryContext(object):
         """
         Retrieves the IDs of the handlers to instantiate for this component
         """
-        ids = []
-        if self.properties_fields:
-            # @Property
-            ids.append(constants.HANDLER_PROPERTY)
-
-        if self.provides:
-            # @Provides
-            ids.append(constants.HANDLER_PROVIDES)
-
-        if self.requirements:
-            # @Requires
-            ids.append(constants.HANDLER_REQUIRES)
-
-        return ids
+        return list(self.__handlers.keys())
 
 
     def copy(self):
         """
         Returns a copy of the current FactoryContext instance
         """
-        context = FactoryContext()
+        return copy.deepcopy(self)
+#
+#         context = FactoryContext()
+#
+#         direct = ("bundle_context", "name", "completed")
+#         copied = ("callbacks", "field_callbacks", "properties",
+#                   "properties_fields", "requirements")
+#         lists = ("provides",)
+#
+#         # Direct copy of primitive values
+#         for entry in direct:
+#             setattr(context, entry, getattr(self, entry))
+#
+#         # Copy "complex" values
+#         for entry in copied:
+#             value = getattr(self, entry)
+#             if value is not None:
+#                 value = value.copy()
+#
+#             setattr(context, entry, value)
+#
+#         # Copy lists
+#         for entry in lists:
+#             value = getattr(self, entry)
+#             if value is not None:
+#                 value = value[:]
+#
+#             setattr(context, entry, value)
+#
+#         return context
 
-        direct = ("bundle_context", "name", "completed")
-        copied = ("callbacks", "field_callbacks", "properties",
-                  "properties_fields", "requirements")
-        lists = ("provides",)
 
-        # Direct copy of primitive values
-        for entry in direct:
-            setattr(context, entry, getattr(self, entry))
+    def get_handler(self, handler_id, default=None):
+        """
+        Retrieves the configuration associated to the given handler
 
-        # Copy "complex" values
-        for entry in copied:
-            value = getattr(self, entry)
-            if value is not None:
-                value = value.copy()
+        :param handler_id: The ID of the configured handler
+        :param default: The default configuration value
+        :return: The existing configuration or the given default
+        """
+        return self.__handlers.setdefault(handler_id, default)
 
-            setattr(context, entry, value)
 
-        # Copy lists
-        for entry in lists:
-            value = getattr(self, entry)
-            if value is not None:
-                value = value[:]
+    def set_handler(self, handler_id, configuration):
+        """
+        Stores the configuration of the given handler
 
-            setattr(context, entry, value)
-
-        return context
+        :param handler_id: The ID of the configured handler
+        :param configuration: The complete configuration of the handler
+        """
+        self.__handlers[handler_id] = configuration
 
 
     @classmethod
@@ -453,7 +469,7 @@ class ComponentContext(object):
     """
 
     # Try to reduce memory footprint (stored __instances)
-    __slots__ = ('factory_context', 'name', 'properties', 'requirements')
+    __slots__ = ('factory_context', 'name', 'properties')
 
     def __init__(self, factory_context, name, properties):
         """
@@ -473,34 +489,6 @@ class ComponentContext(object):
 
         self.properties = factory_context.properties.copy()
         self.properties.update(properties)
-
-        requires_filters = self.properties.get(\
-                                        constants.IPOPO_REQUIRES_FILTERS, None)
-
-        if not requires_filters or not isinstance(requires_filters, dict):
-            # No explicit filter configured
-            self.requirements = factory_context.requirements
-
-        else:
-            # We need to change a part of the requirements
-            self.requirements = {}
-            for field, requirement in factory_context.requirements.items():
-
-                if field not in requires_filters:
-                    # No information for this one, keep the factory requirement
-                    self.requirements[field] = requirement
-
-                else:
-                    try:
-                        # Use a copy of the requirement
-                        requirement_copy = requirement.copy()
-                        requirement_copy.set_filter(requires_filters[field])
-
-                        self.requirements[field] = requirement_copy
-
-                    except (TypeError, ValueError):
-                        # Invalid filter, use the factory requirement
-                        self.requirements[field] = requirement
 
 
     def get_bundle_context(self):
@@ -543,6 +531,17 @@ class ComponentContext(object):
         :return: The component factory name
         """
         return self.factory_context.name
+
+
+    def get_handler(self, handler_id):
+        """
+        Retrieves the configuration for the given handler from the factory
+        context
+
+        :param handler_id: The ID of the configured handler
+        :return: The handler configuration, or None
+        """
+        return self.factory_context.get_handler(handler_id, None)
 
 
     def get_provides(self):

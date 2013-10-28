@@ -60,9 +60,16 @@ class _HandlerFactory(constants.HandlerFactory):
         :param instance: The component instance
         :return: The list of handlers associated to the given component
         """
+        # Retrieve the handler configuration
+        provides = component_context.get_handler(
+                                             ipopo_constants.HANDLER_PROVIDES)
+        if not provides:
+            # Nothing to do
+            return tuple()
+
         # 1 handler per provided service
         return [ServiceRegistrationHandler(specs, controller)
-                for specs, controller in component_context.get_provides()]
+                for specs, controller in provides]
 
 
 class _Activator(object):

@@ -51,6 +51,7 @@ from pelix.ipopo.contexts import FactoryContext, ComponentContext
 from pelix.ipopo.instance import StoredInstance
 
 # Standard library
+import copy
 import inspect
 import logging
 import threading
@@ -82,19 +83,20 @@ def _set_factory_context(factory_class, bundle_context):
     # Try to get the context dictionary (built using decorators)
     context_dict = getattr(factory_class, constants.IPOPO_FACTORY_CONTEXT_DATA)
 
-    if not isinstance(context_dict, dict):
-        # We got another form of context
-        return None
+    if isinstance(context_dict, dict):
+        # Try to load the stored data
+        try:
+            context = FactoryContext.from_dictionary_form(context_dict)
 
-    # Try to load the stored data
-    try:
-        context = FactoryContext.from_dictionary_form(context_dict)
+        except (TypeError, ValueError):
+            _logger.exception("Invalid data in manipulated class '%s'",
+                              factory_class.__name__)
+            # Work on the next class
+            return None
 
-    except (TypeError, ValueError):
-        _logger.exception("Invalid data in manipulated class '%s'",
-                          factory_class.__name__)
-        # Work on the next class
-        return None
+    else:
+        # Already a bean
+        context = context_dict
 
     # Setup the context
     context.set_bundle_context(bundle_context)
@@ -967,7 +969,8 @@ class _IPopoService(object):
 
             # Requirements (list of dictionaries)
             reqs = result["requirements"] = []
-            for field, requirement in context.requirements.items():
+            for field, requirement \
+            in context.get_handler(constants.HANDLER_REQUIRES).items():
                 req = {}
                 # ID = Field name
                 req["id"] = field
@@ -984,8 +987,21 @@ class _IPopoService(object):
 
             # Provided services (list of list of specifications)
             svc = result["services"] = []
-            for specs_controller in context.provides:
+            for specs_controller \
+            in context.get_handler(constants.HANDLER_PROVIDES):
                 svc.append(specs_controller[0])
+
+            # Other handlers
+            handlers = sorted(context.get_handlers_ids())
+            for builtin_id in (constants.HANDLER_PROPERTY,
+                               constants.HANDLER_PROVIDES,
+                               constants.HANDLER_REQUIRES):
+                # Ignore built-in handlers (already given)
+                handlers.remove(builtin_id)
+
+            if handlers:
+                result["handlers"] = {copy.deepcopy(handler)
+                                      for handler in handlers}
 
             return result
 
