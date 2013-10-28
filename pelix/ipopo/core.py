@@ -961,11 +961,9 @@ class _IPopoService(object):
                 req = {}
                 # ID = Field name
                 req["id"] = field
+                req["specification"] = requirement.specification
                 req["aggregate"] = requirement.aggregate
                 req["optional"] = requirement.optional
-
-                # Give a copy of the required specifications
-                req["specifications"] = requirement.specifications[:]
 
                 # Give the string representation of the original LDAP filter
                 req["filter"] = requirement.original_filter
@@ -979,16 +977,16 @@ class _IPopoService(object):
                 svc.append(specs_controller[0])
 
             # Other handlers
-            handlers = sorted(context.get_handlers_ids())
-            for builtin_id in (constants.HANDLER_PROPERTY,
-                               constants.HANDLER_PROVIDES,
-                               constants.HANDLER_REQUIRES):
-                # Ignore built-in handlers (already given)
-                handlers.remove(builtin_id)
+            handlers = set(context.get_handlers_ids())
+            handlers.difference_update((constants.HANDLER_PROPERTY,
+                                        constants.HANDLER_PROVIDES,
+                                        constants.HANDLER_REQUIRES))
 
             if handlers:
-                result["handlers"] = {copy.deepcopy(handler)
-                                      for handler in handlers}
+                result["handlers"] = dict((handler,
+                                           copy.deepcopy(
+                                                 context.get_handler(handler)))
+                                          for handler in handlers)
 
             return result
 
