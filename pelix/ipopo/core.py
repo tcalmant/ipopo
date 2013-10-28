@@ -568,11 +568,12 @@ class _IPopoService(object):
                     raise TypeError("Factory context missing in '{0}'" \
                                     .format(factory_name))
 
-            # Look for the required handlers
             try:
-                handler_factories = set(self._handlers[handler_id]
-                                        for handler_id
-                                        in factory_context.get_handlers_ids())
+                # Look for the required handlers
+                handler_factories = set()
+                for handler_id in factory_context.get_handlers_ids():
+                    # Not a 'set-comprehension': handler_id must be visible
+                    handler_factories.add(self._handlers[handler_id])
 
             except KeyError:
                 raise TypeError("Missing handler '{0}' for factory '{1}', "
