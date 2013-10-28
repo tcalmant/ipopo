@@ -165,13 +165,22 @@ class IPopoCommands(object):
         requirements = details.get('requirements', None)
         if requirements:
             lines.append("Requirements:")
-            req_headers = ('ID', 'Specifications', 'Filter', 'Aggregate',
+            req_headers = ('ID', 'Specification', 'Filter', 'Aggregate',
                            'Optional')
-            req_lines = [(item['id'], item['specifications'], item['filter'],
+            req_lines = [(item['id'], item['specification'], item['filter'],
                           item['aggregate'], item['optional'])
                          for item in requirements]
 
-            lines.append(self._utils.make_table(req_headers, req_lines))
+            lines.append(self._utils.make_table(req_headers, req_lines, '\t'))
+
+
+        handlers = details.get('handlers', None)
+        if handlers:
+            lines.append("Handlers:")
+            handlers_headers = ('ID', 'Configuration')
+            handlers_lines = [(key, handlers[key]) for key in sorted(handlers)]
+            lines.append(self._utils.make_table(handlers_headers,
+                                                handlers_lines, '\t'))
 
         io_handler.write('\n'.join(lines))
 
