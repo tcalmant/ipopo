@@ -194,6 +194,7 @@ class RemoteConsole(socketserver.StreamRequestHandler):
 
             # Be polite
             self.send("\nSession closed. Good bye.\n")
+            self.finish()
 
 # ------------------------------------------------------------------------------
 
