@@ -79,9 +79,9 @@ class Requirement(object):
         if not specification:
             raise ValueError("No specification given")
 
+        self.specification = specification
         self.aggregate = aggregate
         self.optional = optional
-        self.specification = specification
 
         # Original filter keeper
         self.__original_filter = None
@@ -128,6 +128,13 @@ class Requirement(object):
         return not self.__eq__(other)
 
 
+    def __deepcopy__(self, memo):
+        """
+        Called by copy.deepcopy()
+        """
+        return self.copy()
+
+
     def copy(self):
         """
         Returns a copy of this instance
@@ -136,31 +143,6 @@ class Requirement(object):
         """
         return Requirement(self.specification, self.aggregate, self.optional,
                            self.__original_filter)
-
-
-    @classmethod
-    def from_dictionary_form(cls, dictionary):
-        """
-        Sets up an instance with the given dictionary form
-
-        :param dictionary: The dictionary form
-        :return: A configured requirement instance
-        :raise ValueError: An attribute is missing in the dictionary form
-        :raise TypeError: Invalid form type (only dictionaries are accepted)
-        """
-        if not isinstance(dictionary, dict):
-            raise TypeError("Invalid form type '{0}'".format(
-                                                     type(dictionary).__name__))
-
-        if not "specification" in dictionary:
-            raise ValueError("Missing specification in the dictionary form")
-
-        specification = dictionary["specification"]
-        aggregate = dictionary.get("aggregate", False)
-        optional = dictionary.get("optional", False)
-        spec_filter = ldapfilter.get_ldap_filter(dictionary.get("filter", None))
-
-        return cls(specification, aggregate, optional, spec_filter)
 
 
     def matches(self, properties):
@@ -227,32 +209,12 @@ class Requirement(object):
         self.__full_filter = ldapfilter.combine_filters((spec_filter,
                                                          self.filter))
 
-
-    def to_dictionary_form(self):
-        """
-        Returns a dictionary form of the current object
-
-        :raise AttributeError: A field to store is missing in the instance
-        """
-        result = {}
-        for field in self.__stored_fields__:
-            result[field] = getattr(self, field)
-
-        # Special case: store the original filter
-        result['filter'] = self.__original_filter
-
-        return result
-
 # ------------------------------------------------------------------------------
 
 class FactoryContext(object):
     """
     Represents the data stored in a component factory (class)
     """
-
-    __basic_fields = ('callbacks', 'field_callbacks', 'name', 'properties',
-                      'properties_fields', 'provides', 'completed')
-
     def __init__(self):
         """
         Sets up the factory context
@@ -275,13 +237,6 @@ class FactoryContext(object):
         # Properties fields : Field name -> Property name
         self.properties_fields = {}
 
-        # Provided specifications:
-        # Array of tuples (specifications(arrays of strings), controller name)
-        self.provides = []
-
-        # Requirements : Field name -> Requirement object
-        self.requirements = {}
-
         # The factory manipulation has been completed
         self.completed = False
 
@@ -301,23 +256,9 @@ class FactoryContext(object):
             # Different types
             return False
 
-        # Do not compare the bundle context, as it must not be stored
-        for field in ('name', 'callbacks', 'field_callbacks', 'properties',
-                      'properties_fields', 'requirements'):
-            # Comparable fields
-            if getattr(self, field, None) != getattr(other, field, None):
-                return False
+        # Name-based equality
+        return self.name == other.name
 
-        # Treat the list differently
-        if len(self.provides) != len(other.provides):
-            return False
-
-        for provided in self.provides:
-            if provided not in other.provides:
-                # Missing a provided service
-                return False
-
-        return True
 
     def __ne__(self, other):
         """
@@ -335,38 +276,9 @@ class FactoryContext(object):
 
     def copy(self):
         """
-        Returns a copy of the current FactoryContext instance
+        Returns a deep copy of the current FactoryContext instance
         """
         return copy.deepcopy(self)
-#
-#         context = FactoryContext()
-#
-#         direct = ("bundle_context", "name", "completed")
-#         copied = ("callbacks", "field_callbacks", "properties",
-#                   "properties_fields", "requirements")
-#         lists = ("provides",)
-#
-#         # Direct copy of primitive values
-#         for entry in direct:
-#             setattr(context, entry, getattr(self, entry))
-#
-#         # Copy "complex" values
-#         for entry in copied:
-#             value = getattr(self, entry)
-#             if value is not None:
-#                 value = value.copy()
-#
-#             setattr(context, entry, value)
-#
-#         # Copy lists
-#         for entry in lists:
-#             value = getattr(self, entry)
-#             if value is not None:
-#                 value = value[:]
-#
-#             setattr(context, entry, value)
-#
-#         return context
 
 
     def get_handler(self, handler_id, default=None):
@@ -390,46 +302,6 @@ class FactoryContext(object):
         self.__handlers[handler_id] = configuration
 
 
-    @classmethod
-    def from_dictionary_form(cls, dictionary):
-        """
-        Sets up this instance with the given dictionary form
-
-        :param dictionary: The dictionary form
-        :raise ValueError: An attribute is missing in the dictionary form
-        :raise TypeError: Invalid form type (only dictionaries are accepted)
-        """
-        if not isinstance(dictionary, dict):
-            raise TypeError("Invalid form type '{0}'".format(
-                                                    type(dictionary).__name__))
-
-        # Prepare the instance, initializing it
-        instance = cls()
-
-        # Basic fields
-        for field in cls.__basic_fields:
-            if field not in dictionary:
-                raise ValueError("Incomplete dictionary form: missing {0}" \
-                                 .format(field))
-
-            setattr(instance, field, dictionary[field])
-
-        # Requirements field
-        if 'requirements' not in dictionary:
-            raise ValueError("Incomplete dictionary form: missing " \
-                             "'requirements'")
-
-        requirements = dictionary['requirements']
-        if not isinstance(requirements, dict):
-            raise TypeError("Only dictionaries are handled for 'requirements'")
-
-        for field, requirement_dict in requirements.items():
-            instance.requirements[field] = Requirement.from_dictionary_form(\
-                                                            requirement_dict)
-
-        return instance
-
-
     def set_bundle_context(self, bundle_context):
         """
         Sets up the bundle context associated to this factory context
@@ -440,35 +312,13 @@ class FactoryContext(object):
             assert isinstance(bundle_context, BundleContext)
             self.bundle_context = bundle_context
 
-
-    def to_dictionary_form(self):
-        """
-        Returns a dictionary form of the current object
-
-        :raise AttributeError: A field to store in missing in the instance
-        """
-        result = {}
-
-        # Fields with standard Python types (no conversion needed)
-        for entry in self.__basic_fields:
-            result[entry] = getattr(self, entry)
-
-        # Requirements field
-        requirements = {}
-        for field, requirement in self.requirements.items():
-            requirements[field] = requirement.to_dictionary_form()
-
-        result['requirements'] = requirements
-        return result
-
 # ------------------------------------------------------------------------------
 
 class ComponentContext(object):
     """
     Represents the data stored in a component instance
     """
-
-    # Try to reduce memory footprint (stored __instances)
+    # Try to reduce memory footprint (many instances)
     __slots__ = ('factory_context', 'name', 'properties')
 
     def __init__(self, factory_context, name, properties):
@@ -542,13 +392,3 @@ class ComponentContext(object):
         :return: The handler configuration, or None
         """
         return self.factory_context.get_handler(handler_id, None)
-
-
-    def get_provides(self):
-        """
-        Retrieves the services provided by this component.
-        Returns an array containing arrays of specifications.
-
-        :return: An array of tuples (specifications, controller)
-        """
-        return self.factory_context.provides
