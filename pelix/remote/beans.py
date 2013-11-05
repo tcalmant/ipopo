@@ -5,26 +5,25 @@ Pelix remote services: Specifications handling utility methods
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
+:license: Apache License 2.0
 :version: 0.1.1
-:status: Alpha
+:status: Beta
 
 ..
 
-    This file is part of iPOPO.
+    Copyright 2013 isandlaTech
 
-    iPOPO is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    
-    iPOPO is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    
-    You should have received a copy of the GNU General Public License
-    along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 
 # Module version
@@ -63,7 +62,7 @@ class ExportEndpoint(object):
     def __init__(self, uid, kind, name, svc_ref, service, url):
         """
         Sets up the members
-        
+
         :param uid: Unique identified of the end point
         :param kind: Kind of end point (xmlrpc, ...)
         :param name: Name of the end point
@@ -71,7 +70,7 @@ class ExportEndpoint(object):
         :param service: Instance of the exported service
         :param url: URL to access to the end point
         :raise ValueError: Invalid UID or the end point exports nothing
-                           (all specifications have been filtered) 
+                           (all specifications have been filtered)
         """
         if not uid:
             raise ValueError("Invalid GUID")
@@ -200,7 +199,7 @@ class ImportEndpoint(object):
                  properties):
         """
         Sets up the members
-        
+
         :param uid: Unique identified of the end point
         :param framework: UID of the framework exporting the end point
                           (can be None)
@@ -298,7 +297,7 @@ def extract_specifications(specifications):
     """
     Converts "python:/name" specifications to "name". Keeps the other
     specifications as is.
-    
+
     :param specifications: The specifications found in a remote registration
     :return: The filtered specifications (as a set)
     """
@@ -327,7 +326,7 @@ def format_specifications(specifications):
     """
     Transforms the interfaces names into a URI string, with the interface
     implementation language as a scheme.
-    
+
     :param specifications: Specifications to transform
     :return: The transformed names
     """
@@ -349,7 +348,7 @@ def _extract_specifications_parts(specification):
     """
     Extract the language and the interface from a "language:/interface"
     interface name
-    
+
     :param specification: The formatted interface name
     :return: A (language, interface name) tuple
     :raise ValueError: Invalid specification content
@@ -381,7 +380,7 @@ def _extract_specifications_parts(specification):
 def _format_specification(language, specification):
     """
     Formats a "language://interface" string
-    
+
     :param language: Specification language
     :param specification: Specification name
     :return: A formatted string
@@ -392,7 +391,7 @@ def _format_specification(language, specification):
 def _escape_specification(specification):
     """
     Escapes the interface string: replaces slashes '/' by '%2F'
-    
+
     :param specification: Specification name
     :return: The escaped name
     """
@@ -402,7 +401,7 @@ def _escape_specification(specification):
 def _unescape_specification(specification):
     """
     Unescapes the interface string: replaces '%2F' by slashes '/'
-    
+
     :param specification: Specification name
     :return: The escaped name
     """

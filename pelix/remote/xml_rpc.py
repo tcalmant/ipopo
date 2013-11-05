@@ -7,26 +7,25 @@ Based on standard package xmlrpclib
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
+:license: Apache License 2.0
 :version: 0.1.2
-:status: Alpha
+:status: Beta
 
 ..
 
-    This file is part of iPOPO.
+    Copyright 2013 isandlaTech
 
-    iPOPO is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    
-    iPOPO is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    
-    You should have received a copy of the GNU General Public License
-    along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 
 **TODO:**
 * "system" methods (list, help, ...)
@@ -74,7 +73,7 @@ _logger = logging.getLogger(__name__)
 class _XmlRpcServlet(SimpleXMLRPCDispatcher):
     """
     A XML-RPC servlet that can be registered in the Pelix HTTP service
-    
+
     Calls the dispatch method given in the constructor
     """
     def __init__(self, dispatch_method, encoding=None):
@@ -107,7 +106,7 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher):
     def do_POST(self, request, response):
         """
         Handles a HTTP POST request
-        
+
         :param request: The HTTP request bean
         :param request: The HTTP response handler
         """
@@ -184,7 +183,7 @@ class XmlRpcServiceExporter(object):
     def _compute_endpoint_name(self, reference):
         """
         Computes the end point name according to service properties
-        
+
         :param reference: A ServiceReference object
         :return: The computed end point name
         """
@@ -199,7 +198,7 @@ class XmlRpcServiceExporter(object):
     def _export_service(self, reference):
         """
         Exports the given service
-        
+
         :param reference: A ServiceReference object
         :return: True if the service has been exported, else False
         """
@@ -272,7 +271,7 @@ class XmlRpcServiceExporter(object):
     def _unexport_service(self, reference):
         """
         Stops the export of the given service
-        
+
         :param reference: A ServiceReference object
         """
         # Find the corresponding end point
@@ -383,7 +382,7 @@ class _ServiceCallProxy(object):
     def __init__(self, name, url):
         """
         Sets up the call proxy
-        
+
         :param name: End point name
         :param url: End point URL
         """

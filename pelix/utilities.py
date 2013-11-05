@@ -5,9 +5,11 @@ Utility methods and decorators
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
+:license: Apache License 2.0
 :version: 0.5.5
 :status: Beta
+
+..
 
     This file is part of iPOPO.
 
