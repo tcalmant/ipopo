@@ -232,8 +232,14 @@ class IOHandler(object):
 
             # Write it
             self.write(line)
-            if line[-1] != '\n':
-                # Add the trailing new line
+
+            try:
+                if line[-1] != '\n':
+                    # Add the trailing new line
+                    self.write('\n')
+
+            except IndexError:
+                # Got an empty string
                 self.write('\n')
 
         self.flush()
