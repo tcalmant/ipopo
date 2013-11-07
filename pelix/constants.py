@@ -55,6 +55,15 @@ Property containing the ID of a service.
 This ID is unique in a framework instance.
 """
 
+SERVICE_PID = 'service.pid'
+"""
+Property containing the Persistent ID of a service, i.e. a string identifier
+that will always be the same for a (kind of) service, even after restarting
+the framework.
+This is used by the Configuration Admin to bind managed services and
+configurations.
+"""
+
 SERVICE_RANKING = "service.ranking"
 """
 Property that indicates the ranking of a service. It is used to sort the

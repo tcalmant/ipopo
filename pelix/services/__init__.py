@@ -55,5 +55,30 @@ EVENT_PROP_TIMESTAMP = "event.timestamp"
 
 #-------------------------------------------------------------------------------
 
+SERVICE_CONFIGURATION_ADMIN = "pelix.services.configadmin"
+""" Specification of the ConfigurationAdmin service """
+
+SERVICE_CONFIGADMIN_MANAGED = "pelix.services.configadmin.managed"
+""" Specification of a service managed by ConfigurationAdmin """
+
+SERVICE_CONFIGADMIN_PERSISTENCE = "pelix.services.configadmin.persistence"
+""" Specification of a ConfigurationAdmin storage service """
+
+CONFIG_PROP_PID = 'service.pid'
+""" Configuration property: the configuration PID """
+
+CONFIG_PROP_FACTORY_PID = 'service.factoryPid'
+""" Configuration property: factory PID (not used yet) """
+
+CONFIG_PROP_BUNDLE_LOCATION = 'service.bundleLocation'
+""" Configuration property: bound location (not used yet) """
+
+#-------------------------------------------------------------------------------
+
 FACTORY_EVENT_ADMIN = "pelix-services-eventadmin-factory"
 """ Name of the EventAdmin component factory """
+
+#-------------------------------------------------------------------------------
+
+FACTORY_CONFIGADMIN_JSON = "pelix-configadmin-persistence-json-factory"
+""" Name of the JSON ConfigurationAdmin storage component factory """
