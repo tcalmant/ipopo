@@ -26,9 +26,6 @@ ConfigurationAdmin implementation
     limitations under the License.
 
 TODO:
-- listen to services to configure those registered after having updated their
-  configuration
-- load existing configurations at start up
 - look for configuration files updates
 - create ConfigurationListeners (shell cache update...)
 """
@@ -48,6 +45,7 @@ from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
 import pelix.constants
 import pelix.ldapfilter as ldapfilter
 import pelix.services as services
+import pelix.threadpool
 
 # Standard library
 import json
@@ -80,16 +78,33 @@ class Configuration(object):
         self.__factory_pid = factory_pid
 
         # Properties
-        self.__properties = properties
+        self.__properties = None
 
         # Associated services
         self.__config_admin = config_admin
         self.__persistence = persistence
 
         # Configuration state
-        self.__location = None
         self.__updated = False
         self.__deleted = False
+        self.__location = None
+
+        # Update using given properties, if any
+        self.__properties_update(properties)
+
+
+    def __str__(self):
+        """
+        String representation
+        """
+        if self.__factory_pid:
+            kind = "FactoryConfiguration({0}, ".format(self.__factory_pid)
+        else:
+            kind = "Configuration("
+
+        return "{0}pid={1}, updated={2}, deleted={3})".format(kind, self.__pid,
+                                                              self.__updated,
+                                                              self.__deleted)
 
 
     def get_bundle_location(self):
@@ -170,6 +185,50 @@ class Configuration(object):
         return props
 
 
+    def is_valid(self):
+        """
+        Checks if this configuration has been updated at least once and has not
+        been deleted.
+
+        :return: True if the configuration has properties and has not been
+                 deleted
+        """
+        return self.__updated and not self.__deleted
+
+
+    def __properties_update(self, properties):
+        """
+        Internal update of configuration properties. Does not notifies the
+        ConfigurationAdmin of this modification.
+
+        :param properties: the new set of properties for this configuration
+        :return: True if the properties have been updated, else False
+        """
+        if not properties:
+            # Nothing to do
+            return False
+
+        # Make a copy of the properties
+        properties = properties.copy()
+
+        # Override properties
+        properties[services.CONFIG_PROP_PID] = self.__pid
+
+        if self.__location:
+            properties[services.CONFIG_PROP_BUNDLE_LOCATION] = self.__location
+
+        if self.__factory_pid:
+            properties[services.CONFIG_PROP_FACTORY_PID] = self.__factory_pid
+
+        # Try to store the data
+        self.__persistence.store(self.__pid, properties)
+
+        # Store the copy
+        self.__properties = properties
+        self.__updated = True
+        return True
+
+
     def update(self, properties=None):
         """
         If called without properties, only notifies listeners
@@ -194,22 +253,8 @@ class Configuration(object):
         :param properties: the new set of properties for this configuration
         :raise IOError: Error storing the configuration
         """
-        if properties:
-            # Make a copy of the properties
-            properties = properties.copy()
-
-            # Override properties
-            properties[services.CONFIG_PROP_PID] = self.__pid
-            properties[services.CONFIG_PROP_BUNDLE_LOCATION] = self.__location
-            if self.__factory_pid:
-                properties[services.CONFIG_PROP_FACTORY_PID] = self.__factory_pid
-
-            # Try to store the data
-            self.__persistence.store(self.__pid, properties)
-
-            # Store the copy
-            self.__properties = properties
-            self.__updated = True
+        # Update properties
+        self.__properties_update(properties)
 
         # Update configurations
         self.__config_admin._update(self)
@@ -273,6 +318,57 @@ class ConfigurationAdmin(object):
         # Loaded configurations: PID -> Configuration
         self._configs = {}
 
+        # Update thread pool
+        self._pool = None
+
+        # Validation flag
+        self.__validated = False
+
+
+    @Validate
+    def _validate(self, context):
+        """
+        Component validated
+        """
+        with self.__lock:
+            # Create the update thread pool
+            self._pool = pelix.threadpool.ThreadPool(2, logname="ConfigAdmin")
+            self._pool.start()
+
+            # Validation flag
+            self.__validated = True
+
+            # Get existing PIDs
+            pids = set()
+            for persistence in self._persistences:
+                pids.update(persistence.get_pids())
+
+            for pid in pids:
+                try:
+                    # Load the configuration
+                    config = self.get_configuration(pid)
+                    if config.is_valid():
+                        # Notify corresponding service
+                        self._update(config)
+
+                except (IOError, ValueError) as ex:
+                    _logger.error("Error loading configuration %s: %s", pid, ex)
+
+
+
+    @Invalidate
+    def _invalidate(self, context):
+        """
+        Component invalidated
+        """
+        with self.__lock:
+            # Validation flag
+            self.__validated = False
+
+            # Stop the pool
+            self._pool.stop()
+            self._pool = None
+
 
     @BindField('_managed')
     def _bind_managed(self, _, svc, svc_ref):
@@ -280,7 +376,13 @@ class ConfigurationAdmin(object):
         A managed service has been bound
         """
         with self.__lock:
+            # Store the service reference
             self._managed_refs[svc_ref] = svc
+
+            if self.__validated:
+                # Update with the associated configuration, if active
+                pid = svc_ref.get_property(pelix.constants.SERVICE_PID)
+                self.__notify_single(pid, svc)
 
 
     @UnbindField('_managed')
@@ -289,11 +391,83 @@ class ConfigurationAdmin(object):
         A managed service has gone
         """
         with self.__lock:
-            try:
-                del self._managed_refs[svc_ref]
+            # Forget the reference
+            del self._managed_refs[svc_ref]
 
-            except KeyError:
-                pass
+
+    def __get_matching_services(self, pid):
+        """
+        Returns the list of services that matches the given PID
+
+        :return: The list of services matching the PID
+        """
+        # Make the list of managed services
+        return [svc for svc_ref, svc in self._managed_refs.items()
+                if svc_ref.get_property(pelix.constants.SERVICE_PID) == pid]
+
+
+    def __notify_single(self, pid, svc):
+        """
+        Adds a call to the updated() method of the given managed service in the
+        pool, if a valid configuration has been found for it.
+
+        :param pid: Service Persistent ID
+        :param svc: Managed service
+        """
+        configuration = self.get_configuration(pid)
+        properties = configuration.get_properties()
+        if properties is not None:
+            # Valid configuration found, update the service
+            self._pool.enqueue(svc.updated, properties)
+
+
+    def __notify_services(self, services, properties):
+        """
+        Calls the updated() method of managed services.
+        Logs errors if necessary.
+
+        :param services: Services to be notified
+        :param properties: New services properties
+        """
+        for svc in services:
+            try:
+                # Only give the properties to the service
+                svc.updated(properties)
+
+            except Exception as ex:
+                _logger.exception("Error updating service: %s", ex)
+
+
+    def _update(self, configuration):
+        """
+        A configuration has been updated
+
+        :param configuration: The updated configuration
+        """
+        with self.__lock:
+            managed = self.__get_matching_services(configuration.get_pid())
+            if managed:
+                # Call them from the pool
+                properties = configuration.get_properties()
+                self._pool.enqueue(self.__notify_services, managed, properties)
+
+
+    def _delete(self, configuration):
+        """
+        A configuration is about to be deleted
+
+        :param configuration: The deleted configuration
+        """
+        with self.__lock:
+            pid = configuration.get_pid()
+
+            # Clean up before notifying
+            del self._configs[pid]
+
+            managed = self.__get_matching_services(pid)
+            if managed:
+                # Call them from the pool
+                self._pool.enqueue(self.__notify_services, managed, None)
 
 
     def create_factory_configuration(self, factory_pid):
@@ -312,7 +486,7 @@ class ConfigurationAdmin(object):
         pid = "{0}-{1}".format(factory_pid, str(uuid.uuid4()))
 
         # Create a new factory configuration
-        config = self._configs[pid] = Configuration(pid, {}, self,
+        config = self._configs[pid] = Configuration(pid, None, self,
                                                     self._persistences[0],
                                                     factory_pid)
         return config
@@ -326,21 +500,22 @@ class ConfigurationAdmin(object):
         :param pid: PID of the factory
         :raise IOError: File not found/readable
         """
-        for persistence in self._persistences[:]:
-            if persistence.exists(pid):
-                # Load first existing one
-                config = persistence.load(pid)
-                break
+        with self.__lock:
+            for persistence in self._persistences[:]:
+                if persistence.exists(pid):
+                    # Load first existing one
+                    properties = persistence.load(pid)
+                    break
 
-        else:
-            # New configuration, with the best ranked persistence
-            config = {}
-            persistence = self._persistences[0]
+            else:
+                # New configuration, with the best ranked persistence
+                properties = {}
+                persistence = self._persistences[0]
 
-        # Return a configuration object, linked to the best persistence
-        config = self._configs[pid] = Configuration(pid, config,
-                                                    self, persistence)
-        return config
+            # Return a configuration object, linked to the best persistence
+            config = self._configs[pid] = Configuration(pid, properties,
+                                                        self, persistence)
+            return config
 
 
     def list_configurations(self, ldap_filter=None):
@@ -371,70 +546,6 @@ class ConfigurationAdmin(object):
             ldap_filter = ldapfilter.get_ldap_filter(ldap_filter)
             return [config for config in self._configs.values()
                     if config.matches(ldap_filter)]
-
-
-    def __get_matching_services(self, pid):
-        """
-        Returns the list of services that matches the given PID
-
-        :return: The list of services matching the PID
-        """
-        with self.__lock:
-            # Make the list of managed services
-            return [svc for svc_ref, svc in self._managed_refs.items()
-                    if svc_ref.get_property(pelix.constants.SERVICE_PID) == pid]
-
-
-    def __notify_services(self, services, properties):
-        """
-        Calls the updated() method of managed services.
-        Logs errors if necessary.
-
-        :param services: Services to be notified
-        :param properties: New services properties
-        """
-        for svc in services:
-            try:
-                # Only give the properties to the service
-                svc.updated(properties)
-
-            except Exception as ex:
-                _logger.exception("Error updating service: %s", ex)
-
-
-    def _update(self, configuration):
-        """
-        A configuration has been updated
-        """
-        managed = self.__get_matching_services(configuration.get_pid())
-        if managed:
-            # Call them in a new thread
-            properties = configuration.get_properties()
-            thread = threading.Thread(target=self.__notify_services,
-                                      args=(managed, properties),
-                                      name="ConfigAdmin Update")
-            thread.daemon = True
-            thread.start()
-
-
-    def _delete(self, configuration):
-        """
-        A configuration is about to be deleted
-        """
-        pid = configuration.get_pid()
-
-        # Clean up before notifying
-        del self._configs[pid]
-
-        managed = self.__get_matching_services(pid)
-        if managed:
-            # Call them in a new thread
-            thread = threading.Thread(target=self.__notify_services,
-                                      args=(managed, None),
-                                      name="ConfigAdmin Delete")
-            thread.daemon = True
-            thread.start()
-
 
 #-------------------------------------------------------------------------------
 
@@ -584,8 +695,11 @@ class JsonPersistence(object):
         """
         Returns the list of PIDs this storage could read
         """
-        return [filename
-                for filename in os.listdir(self._conf_folder)
-                if os.path.isfile(os.path.join(self._conf_folder, filename))
-                and self._get_pid(filename)]
+        pids = set()
+        for filename in os.listdir(self._conf_folder):
+            if os.path.isfile(os.path.join(self._conf_folder, filename)):
+                pid = self._get_pid(filename)
+                if pid:
+                    pids.add(pid)
 
+        return pids
