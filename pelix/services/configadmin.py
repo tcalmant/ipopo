@@ -26,8 +26,7 @@ ConfigurationAdmin implementation
     limitations under the License.
 
 TODO:
-- look for configuration files updates
-- create ConfigurationListeners (shell cache update...)
+- handle new configurations found by the folder watcher
 """
 
 # Module version
@@ -91,6 +90,9 @@ class Configuration(object):
 
         # Update using given properties, if any
         self.__properties_update(properties)
+
+        # Register to the persistence handler events
+        self.__persistence.add_configuration(self)
 
 
     def __str__(self):
@@ -267,6 +269,9 @@ class Configuration(object):
         # Update status
         self.__deleted = True
 
+        # Unregister from the persistence handler events
+        self.__persistence.remove_configuration(self)
+
         # Notify the configuration admin
         self.__config_admin._delete(self)
 
@@ -299,7 +304,7 @@ class Configuration(object):
 @Instantiate('pelix-services-configuration-admin')
 class ConfigurationAdmin(object):
     """
-    Configuration basic implementation
+    ConfigurationAdmin basic implementation
     """
     def __init__(self):
         """
@@ -579,8 +584,10 @@ class ConfigurationAdmin(object):
 #-------------------------------------------------------------------------------
 
 @ComponentFactory(services.FACTORY_CONFIGADMIN_JSON)
-@Provides(services.SERVICE_CONFIGADMIN_PERSISTENCE)
+@Provides([services.SERVICE_CONFIGADMIN_PERSISTENCE,
+           services.SERVICE_FILEINSTALL_LISTENERS])
 @Property('_conf_folder', 'configuration.folder')
+@Property('_watched_folder', services.PROP_FILEINSTALL_FOLDER)
 @Instantiate('configadmin-json-default',  # Low ranking default storage
              {pelix.constants.SERVICE_RANKING:-1000})
 class JsonPersistence(object):
@@ -593,8 +600,9 @@ class JsonPersistence(object):
         """
         # Configuration folder
         self._conf_folder = None
+        self._watched_folder = None
 
-        # Loaded configurations: PID -> dictionary
+        # Loaded configurations: PID -> Configuration bean
         self._configs = {}
 
 
@@ -640,6 +648,9 @@ class JsonPersistence(object):
         if not os.path.exists(self._conf_folder):
             os.makedirs(self._conf_folder)
 
+        # Set the folder watcher property
+        self._watched_folder = self._conf_folder
+
 
     @Invalidate
     def invalidate(self, context):
@@ -648,6 +659,7 @@ class JsonPersistence(object):
         """
         # Clear the cache
         self._configs.clear()
+        self._watched_folder = None
         self._conf_folder = None
 
 
@@ -660,20 +672,11 @@ class JsonPersistence(object):
         :raise IOError: File not found/readable
         :raise ValueError: Invalid file content
         """
-        try:
-            # Read from cache
-            return self._configs[pid]
-
-        except KeyError:
-            # Need to load the file
-            pass
-
         with open(self._get_file(pid), 'r') as fp:
             data = fp.read()
 
         # Store the configuration
-        content = self._configs[pid] = json.loads(data)
-        return content
+        return json.loads(data)
 
 
     def exists(self, pid):
@@ -683,7 +686,7 @@ class JsonPersistence(object):
         :param pid: PID of a configuration
         :return: True if a readable configuration exists
         """
-        return pid in self._configs or os.path.isfile(self._get_file(pid))
+        return os.path.isfile(self._get_file(pid))
 
 
     def store(self, pid, properties):
@@ -699,9 +702,6 @@ class JsonPersistence(object):
         with open(self._get_file(pid), 'w') as fp:
             fp.write(json.dumps(properties, sort_keys=True,
                                 indent=4, separators=(',', ': ')))
-
-        # Update the cache
-        self._configs[pid] = properties
 
 
     def delete(self, pid):
@@ -732,3 +732,77 @@ class JsonPersistence(object):
                     pids.add(pid)
 
         return pids
+
+
+    def add_configuration(self, configuration):
+        """
+        Configuration bean bound to this persistence handler
+
+        :param configuration: A configuration bean
+        :return: True if the configuration has been changed
+        """
+        pid = configuration.get_pid()
+        return self._configs.setdefault(pid, configuration) is configuration
+
+
+    def remove_configuration(self, configuration):
+        """
+        Unbinds a configuration from this persistence handler
+
+        :param configuration: A configuration bean
+        :return: True if the configuration has been unbound
+        """
+        pid = configuration.get_pid()
+        try:
+            if self._configs[pid] is configuration:
+                del self._configs[pid]
+                return True
+
+            else:
+                return False
+
+        except KeyError:
+            return False
+
+
+    def folder_change(self, folder, added, updated, deleted):
+        """
+        The configuration folder has been modified
+        """
+        # Handle deleted configurations first
+        for filename in deleted:
+            pid = self._get_pid(filename)
+            try:
+                # Delete the configuration
+                self._configs.pop(pid).delete()
+
+            except KeyError:
+                # Ignore unknown configuration
+                pass
+
+        # Handle updated configurations
+        for filename in updated:
+            pid = self._get_pid(filename)
+            if not pid:
+                # Not a configuration file
+                continue
+
+            try:
+                # Get the matching property configuration
+                config = self._configs[pid]
+
+            except KeyError:
+                # Unknown configuration...
+                continue
+
+            # Load the properties
+            try:
+                properties = self.load(pid)
+
+            except IOError as ex:
+                _logger.error("Error parsing %s: %s", filename, ex)
+
+            # Update it
+            config.update(properties)
+
+        # TODO: create new configurations...
