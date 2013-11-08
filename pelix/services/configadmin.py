@@ -343,17 +343,8 @@ class ConfigurationAdmin(object):
             for persistence in self._persistences:
                 pids.update(persistence.get_pids())
 
-            for pid in pids:
-                try:
-                    # Load the configuration
-                    config = self.get_configuration(pid)
-                    if config.is_valid():
-                        # Notify corresponding service
-                        self._update(config)
-
-                except (IOError, ValueError) as ex:
-                    _logger.error("Error loading configuration %s: %s", pid, ex)
-
+            # Notify services
+            self.__notify_pids(pids)
 
 
     @Invalidate
@@ -393,6 +384,44 @@ class ConfigurationAdmin(object):
         with self.__lock:
             # Forget the reference
             del self._managed_refs[svc_ref]
+
+
+    @BindField('_persistences')
+    def _bind_persistence(self, _, svc, svc_ref):
+        """
+        New persistence service bound
+        """
+        with self.__lock:
+            if not self.__validated:
+                # Do nothing while not validated
+                return
+
+            # Get the new PIDs only
+            new_pids = set(svc.get_pids())
+            new_pids.difference_update(self._configs.keys())
+
+            # Update services
+            self.__notify_pids(new_pids)
+
+
+    def __notify_pids(self, pids):
+        """
+        Updates the managed services for the given PIDs.
+
+        This method should be called inside a locked block.
+
+        :param pids: List of PIDs of configurations to load & update
+        """
+        for pid in pids:
+            try:
+                # Load the configuration
+                config = self.get_configuration(pid)
+                if config.is_valid():
+                    # Notify corresponding service
+                    self._update(config)
+
+            except (IOError, ValueError) as ex:
+                _logger.error("Error loading configuration %s: %s", pid, ex)
 
 
     def __get_matching_services(self, pid):
