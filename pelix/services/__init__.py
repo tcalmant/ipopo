@@ -35,6 +35,9 @@ __docformat__ = "restructuredtext en"
 
 #-------------------------------------------------------------------------------
 
+FACTORY_EVENT_ADMIN = "pelix-services-eventadmin-factory"
+""" Name of the EventAdmin component factory """
+
 SERVICE_EVENT_ADMIN = "pelix.services.eventadmin"
 """ Specification of the EventAdmin service """
 
@@ -64,6 +67,9 @@ SERVICE_CONFIGADMIN_MANAGED = "pelix.services.configadmin.managed"
 SERVICE_CONFIGADMIN_PERSISTENCE = "pelix.services.configadmin.persistence"
 """ Specification of a ConfigurationAdmin storage service """
 
+FACTORY_CONFIGADMIN_JSON = "pelix-configadmin-persistence-json-factory"
+""" Name of the JSON ConfigurationAdmin storage component factory """
+
 CONFIG_PROP_PID = 'service.pid'
 """ Configuration property: the configuration PID """
 
@@ -75,10 +81,11 @@ CONFIG_PROP_BUNDLE_LOCATION = 'service.bundleLocation'
 
 #-------------------------------------------------------------------------------
 
-FACTORY_EVENT_ADMIN = "pelix-services-eventadmin-factory"
-""" Name of the EventAdmin component factory """
+SERVICE_FILEINSTALL = 'pelix.services.fileinstall'
+""" Specification of the File Install service """
 
-#-------------------------------------------------------------------------------
+SERVICE_FILEINSTALL_LISTENERS = 'pelix.services.fileinstall.listener'
+""" Specification of a listener of the File Install service """
 
-FACTORY_CONFIGADMIN_JSON = "pelix-configadmin-persistence-json-factory"
-""" Name of the JSON ConfigurationAdmin storage component factory """
+PROP_FILEINSTALL_FOLDER = 'fileinstall.folder'
+""" Path to the folder to look after, in white board pattern """
