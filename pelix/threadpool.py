@@ -136,6 +136,13 @@ class ThreadPool(object):
         self._done_event.set()
 
         # The task queue
+        try:
+            queue_size = int(queue_size)
+
+        except (TypeError, ValueError):
+            # Not a valid integer
+            queue_size = 0
+
         self._queue = queue.Queue(queue_size)
         self._timeout = timeout
         self.__lock = threading.Lock()
