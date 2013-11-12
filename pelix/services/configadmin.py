@@ -296,6 +296,10 @@ class Configuration(object):
         :param ldap_filter: A parsed LDAP filter object
         :return: True if the properties of this configuration matches the filter
         """
+        if not self.is_valid():
+            # Do not test invalid configurations
+            return False
+
         return ldap_filter.matches(self.__properties)
 
 #-------------------------------------------------------------------------------
