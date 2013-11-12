@@ -225,12 +225,14 @@ class Configuration(object):
         if self.__factory_pid:
             properties[services.CONFIG_PROP_FACTORY_PID] = self.__factory_pid
 
-        # Try to store the data
-        self.__persistence.store(self.__pid, properties)
-
-        # Store the copy
+        # Store the copy (before storing data)
         self.__properties = properties
         self.__updated = True
+
+        # Store the data
+        # it will cause FolderWatcher to update this configuration again, but
+        # this will ignored because self.__properties has already been saved
+        self.__persistence.store(self.__pid, properties)
         return True
 
 
