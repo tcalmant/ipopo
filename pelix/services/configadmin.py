@@ -210,6 +210,9 @@ class Configuration(object):
             # Nothing to do
             return False
 
+        if properties == self.__properties:
+            return False
+
         # Make a copy of the properties
         properties = properties.copy()
 
@@ -256,10 +259,9 @@ class Configuration(object):
         :raise IOError: Error storing the configuration
         """
         # Update properties
-        self.__properties_update(properties)
-
-        # Update configurations
-        self.__config_admin._update(self)
+        if self.__properties_update(properties):
+            # Update configurations, if something changed
+            self.__config_admin._update(self)
 
 
     def delete(self):
