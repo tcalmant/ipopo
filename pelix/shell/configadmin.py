@@ -132,11 +132,16 @@ class ConfigAdminCommands(object):
         # Update properties
         new_properties.update(kwargs)
 
+        # Remove properties which value is now None
+        for key, value in kwargs.items():
+            if value == "None":
+                del new_properties[key]
+
         # Update configuration
         config.update(new_properties)
 
 
-    def delete(self, io_handler, pid, **kwargs):
+    def delete(self, io_handler, pid):
         """
         Deletes a configuration
         """
@@ -158,6 +163,7 @@ class ConfigAdminCommands(object):
             io_handler.write_line("No configuration.")
             return
 
+        # Filter with PID
         if pid is not None:
             for config in configs:
                 if config.get_pid() == pid:
