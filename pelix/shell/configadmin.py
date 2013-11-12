@@ -149,7 +149,7 @@ class ConfigAdminCommands(object):
             pass
 
 
-    def list(self, io_handler):
+    def list(self, io_handler, pid=None):
         """
         Lists known configurations
         """
@@ -157,6 +157,16 @@ class ConfigAdminCommands(object):
         if not configs:
             io_handler.write_line("No configuration.")
             return
+
+        if pid is not None:
+            for config in configs:
+                if config.get_pid() == pid:
+                    configs = [config]
+                    break
+
+            else:
+                io_handler.write_line("No configuration with PID {0}.", pid)
+                return
 
         lines = []
         for config in configs:
