@@ -133,7 +133,7 @@ class ConfigAdminCommands(object):
         new_properties.update(kwargs)
 
         # Update configuration
-        config.update(kwargs)
+        config.update(new_properties)
 
 
     def delete(self, io_handler, pid, **kwargs):
