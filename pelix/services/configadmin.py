@@ -210,9 +210,6 @@ class Configuration(object):
             # Nothing to do
             return False
 
-        if properties == self.__properties:
-            return False
-
         # Make a copy of the properties
         properties = properties.copy()
 
@@ -224,6 +221,10 @@ class Configuration(object):
 
         if self.__factory_pid:
             properties[services.CONFIG_PROP_FACTORY_PID] = self.__factory_pid
+
+        # See if new properties are different
+        if properties == self.__properties:
+            return False
 
         # Store the copy (before storing data)
         self.__properties = properties
