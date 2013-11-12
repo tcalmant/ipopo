@@ -57,6 +57,14 @@ import uuid
 
 _logger = logging.getLogger(__name__)
 
+SERVICE_CONFIGADMIN_DIRECTORY = "pelix.services.configadmin.directory"
+""" Configurations directory service specification """
+
+SERVICE_CONFIGURATION_ADMIN_PRIVATE = "pelix.services.configadmin.private"
+"""
+Private version of ConfigAdmin, to handle loop-requirements ("that will do")
+"""
+
 #-------------------------------------------------------------------------------
 
 class Configuration(object):
@@ -90,9 +98,6 @@ class Configuration(object):
 
         # Update using given properties, if any
         self.__properties_update(properties)
-
-        # Register to the persistence handler events
-        self.__persistence.add_configuration(self)
 
 
     def __str__(self):
@@ -274,9 +279,6 @@ class Configuration(object):
         # Update status
         self.__deleted = True
 
-        # Unregister from the persistence handler events
-        self.__persistence.remove_configuration(self)
-
         # Notify the configuration admin
         self.__config_admin._delete(self)
 
@@ -305,9 +307,129 @@ class Configuration(object):
 #-------------------------------------------------------------------------------
 
 @ComponentFactory()
-@Provides(services.SERVICE_CONFIGURATION_ADMIN)
+@Provides(SERVICE_CONFIGADMIN_DIRECTORY)
+@Requires('_admin', SERVICE_CONFIGURATION_ADMIN_PRIVATE)
+@Instantiate('pelix-services-configuration-directory')
+class _ConfigurationDirectory(object):
+    """
+    A configuration directory
+    """
+    def __init__(self):
+        """
+        Sets up members
+        """
+        # ConfigurationAdmin
+        self._admin = None
+
+        # PID -> Configuration
+        self.__configurations = {}
+
+        # Lock
+        self.__lock = threading.Lock()
+
+
+    def exists(self, pid):
+        """
+        Checks if the given PID exists in the directory
+
+        :param pid: A configuration PID
+        :return: True if the PID already exists
+        """
+        return pid in self.__configurations
+
+
+    def get_configuration(self, pid):
+        """
+        Retrieves the configuration with the given PID
+
+        :param pid: PID of the configuration
+        :return: The configuration with the given PID
+        :raise KeyError: Unknown PID
+        """
+        return self.__configurations[pid]
+
+
+    def list_configurations(self, ldap_filter=None):
+        """
+        Returns the list of stored configurations
+
+        :param ldap_filter: Optional LDAP filter
+        :return: The list of matching configurations
+        :raise ValueError: Invalid LDAP filter
+        """
+        if not ldap_filter:
+            return set(self.__configurations.values())
+
+        else:
+            # Using an LDAP filter
+            ldap_filter = ldapfilter.get_ldap_filter(ldap_filter)
+            return set(config for config in self.__configurations.values()
+                       if config.matches(ldap_filter))
+
+
+    def add(self, pid, properties, loader, factory_pid=None):
+        """
+        Creates a new configuration bean
+
+        :param pid: PID of the configuration
+        :param properties: Initial properties (can be None)
+        :param loader: Persistence service associated to the configuration
+        :param factory_id: Set if the configuration is a factory (not used)
+        :return: The new configuration bean
+        :raise KeyError: PID already used
+        :raise ValueError: Invalid PID or loader
+        """
+        with self.__lock:
+            if pid in self.__configurations:
+                raise KeyError("Already known configuration: {0}".format(pid))
+
+            elif not pid:
+                raise ValueError("Configuration with an empty PID")
+
+            elif loader is None:
+                raise ValueError("No persistence service associated to {0}" \
+                                 .format(pid))
+
+            # Make the configuration bean
+            configuration = Configuration(pid, properties, self._admin,
+                                          loader, factory_pid)
+            self.__configurations[pid] = configuration
+            return configuration
+
+
+    def update(self, pid, properties):
+        """
+        Updates the properties of an existing configuration
+
+        :param pid: PID of a configuration
+        :param properties: New properties (replace old dictionary)
+        :raise: KeyError: Unknown configuration
+        :raise IOError: Error writing down the configuration
+        """
+        with self.__lock:
+            # Update properties directly
+            self.__configurations[pid].update(properties)
+
+
+    def delete(self, pid):
+        """
+        Deletes the configuration with the given PID
+
+        :param pid: PID of a configuration
+        :raise: KeyError: Unknown configuration
+        :raise IOError: Error deleting the configuration file
+        """
+        with self.__lock:
+            self.__configurations.pop(pid).delete()
+
+#-------------------------------------------------------------------------------
+
+@ComponentFactory()
+@Provides(services.SERVICE_CONFIGURATION_ADMIN, controller='_controller')
+@Provides(SERVICE_CONFIGURATION_ADMIN_PRIVATE)
+@Requires('_directory', SERVICE_CONFIGADMIN_DIRECTORY, optional=True)
 @Requires('_persistences', services.SERVICE_CONFIGADMIN_PERSISTENCE,
-          aggregate=True)
+          aggregate=True, optional=True)
 @Requires('_managed', services.SERVICE_CONFIGADMIN_MANAGED,
           aggregate=True, optional=True)
 @Instantiate('pelix-services-configuration-admin')
@@ -319,18 +441,21 @@ class ConfigurationAdmin(object):
         """
         Sets up members
         """
+        # Service controller
+        self._controller = False
+
         # Persistence services
         self._persistences = []
 
         # Managed services
         self._managed = []
 
+        # Configurations directory
+        self._directory = None
+
         # Service reference -> Managed Service
         self._managed_refs = {}
         self.__lock = threading.RLock()
-
-        # Loaded configurations: PID -> Configuration
-        self._configs = {}
 
         # Update thread pool
         self._pool = None
@@ -375,6 +500,32 @@ class ConfigurationAdmin(object):
             self._pool = None
 
 
+    @BindField('_directory')
+    def _bind_directory(self, _, svc, svc_ref):
+        """
+        The configurations directory has been bound
+        """
+        # Provide the ConfigurationAdmin service, if a controller is there
+        self._controller = bool(self._persistences)
+
+    @BindField('_persistences')
+    def _bind_persistence(self, _, svc, svc_ref):
+        """
+        A persistence came in
+        """
+        self._controller = self._directory is not None
+
+
+    @UnbindField('_persistences')
+    @UnbindField('_directory')
+    def _unbind_directory(self, _, svc, svc_ref):
+        """
+        The configurations directory has gone
+        """
+        # Remove the ConfigurationAdmin service
+        self._controller = False
+
+
     @BindField('_managed')
     def _bind_managed(self, _, svc, svc_ref):
         """
@@ -398,24 +549,6 @@ class ConfigurationAdmin(object):
         with self.__lock:
             # Forget the reference
             del self._managed_refs[svc_ref]
-
-
-    @BindField('_persistences')
-    def _bind_persistence(self, _, svc, svc_ref):
-        """
-        New persistence service bound
-        """
-        with self.__lock:
-            if not self.__validated:
-                # Do nothing while not validated
-                return
-
-            # Get the new PIDs only
-            new_pids = set(svc.get_pids())
-            new_pids.difference_update(self._configs.keys())
-
-            # Update services
-            self.__notify_pids(new_pids)
 
 
     def __notify_pids(self, pids):
@@ -504,9 +637,6 @@ class ConfigurationAdmin(object):
         with self.__lock:
             pid = configuration.get_pid()
 
-            # Clean up before notifying
-            del self._configs[pid]
-
             managed = self.__get_matching_services(pid)
             if managed:
                 # Call them from the pool
@@ -523,16 +653,18 @@ class ConfigurationAdmin(object):
         :raise ValueError: Invalid PID
         """
         if not factory_pid:
-            raise ValueError("Empty PID")
+            raise ValueError("Empty factory PID")
 
-        # Generate a PID
+        if self._directory.exists(factory_pid):
+            raise ValueError("Factory PID already exists as "
+                             "a configuration PID")
+
+        # Generate a configuration PID
         pid = "{0}-{1}".format(factory_pid, str(uuid.uuid4()))
 
-        # Create a new factory configuration
-        config = self._configs[pid] = Configuration(pid, None, self,
-                                                    self._persistences[0],
-                                                    factory_pid)
-        return config
+        # Create the new factory configuration
+        return self._directory.add(pid, None, self._persistences[0],
+                                   factory_pid)
 
 
     def get_configuration(self, pid):
@@ -543,22 +675,25 @@ class ConfigurationAdmin(object):
         :param pid: PID of the factory
         :raise IOError: File not found/readable
         """
-        with self.__lock:
-            for persistence in self._persistences[:]:
-                if persistence.exists(pid):
-                    # Load first existing one
-                    properties = persistence.load(pid)
-                    break
+        try:
+            return self._directory.get_configuration(pid)
 
-            else:
-                # New configuration, with the best ranked persistence
-                properties = {}
-                persistence = self._persistences[0]
+        except KeyError:
+            # Unknown configuration, look for it (outside the exception block)
+            pass
 
-            # Return a configuration object, linked to the best persistence
-            config = self._configs[pid] = Configuration(pid, properties,
-                                                        self, persistence)
-            return config
+        for persistence in self._persistences[:]:
+            if persistence.exists(pid):
+                # Load first existing one
+                properties = persistence.load(pid)
+                break
+
+        else:
+            # New configuration, with the best ranked persistence
+            properties = {}
+            persistence = self._persistences[0]
+
+        return self._directory.add(pid, properties, persistence)
 
 
     def list_configurations(self, ldap_filter=None):
@@ -581,24 +716,17 @@ class ConfigurationAdmin(object):
         The filter can also be null, meaning that all Configuration objects
         should be returned.
         """
-        if not ldap_filter:
-            return list(self._configs.values())
-
-        else:
-            # Using an LDAP filter
-            ldap_filter = ldapfilter.get_ldap_filter(ldap_filter)
-            return [config for config in self._configs.values()
-                    if config.matches(ldap_filter)]
+        return self._directory.list_configurations(ldap_filter)
 
 #-------------------------------------------------------------------------------
 
 @ComponentFactory(services.FACTORY_CONFIGADMIN_JSON)
 @Provides([services.SERVICE_CONFIGADMIN_PERSISTENCE,
            services.SERVICE_FILEINSTALL_LISTENERS])
+@Requires('_directory', SERVICE_CONFIGADMIN_DIRECTORY)
 @Property('_conf_folder', 'configuration.folder')
 @Property('_watched_folder', services.PROP_FILEINSTALL_FOLDER)
-@Instantiate('configadmin-json-default',  # Low ranking default storage
-             {pelix.constants.SERVICE_RANKING:-1000})
+@Instantiate('pelix-services-configuration-json-default')
 class JsonPersistence(object):
     """
     JSON configuration persistence
@@ -607,12 +735,12 @@ class JsonPersistence(object):
         """
         Sets up members
         """
+        # Configurations directory
+        self._directory = None
+
         # Configuration folder
         self._conf_folder = None
         self._watched_folder = None
-
-        # Loaded configurations: PID -> Configuration bean
-        self._configs = {}
 
 
     def _get_file(self, pid):
@@ -667,9 +795,37 @@ class JsonPersistence(object):
         Component invalidated
         """
         # Clear the cache
-        self._configs.clear()
         self._watched_folder = None
         self._conf_folder = None
+
+
+    def __load_file(self, filename):
+        """
+        Loads the configuration file with the given name
+
+        :param filename: A simple file name
+        :return: A tuple (PID, properties) or None
+        """
+        pid = self._get_pid(filename)
+        if not pid:
+            # Not a configuration file
+            return
+
+        try:
+            # Load the properties
+            properties = self.load(pid)
+
+        except IOError as ex:
+            # Can't read file
+            _logger.error("Error reading %s: %s", filename, ex)
+            return
+
+        except ValueError as ex:
+            # Bad JSON file
+            _logger.error("Error parsing %s: %s", filename, ex)
+            return
+
+        return (pid, properties)
 
 
     def load(self, pid):
@@ -743,37 +899,6 @@ class JsonPersistence(object):
         return pids
 
 
-    def add_configuration(self, configuration):
-        """
-        Configuration bean bound to this persistence handler
-
-        :param configuration: A configuration bean
-        :return: True if the configuration has been changed
-        """
-        pid = configuration.get_pid()
-        return self._configs.setdefault(pid, configuration) is configuration
-
-
-    def remove_configuration(self, configuration):
-        """
-        Unbinds a configuration from this persistence handler
-
-        :param configuration: A configuration bean
-        :return: True if the configuration has been unbound
-        """
-        pid = configuration.get_pid()
-        try:
-            if self._configs[pid] is configuration:
-                del self._configs[pid]
-                return True
-
-            else:
-                return False
-
-        except KeyError:
-            return False
-
-
     def folder_change(self, folder, added, updated, deleted):
         """
         The configuration folder has been modified
@@ -783,35 +908,30 @@ class JsonPersistence(object):
             pid = self._get_pid(filename)
             try:
                 # Delete the configuration
-                self._configs.pop(pid).delete()
+                self._directory.delete(pid)
 
             except KeyError:
                 # Ignore unknown configuration
                 pass
 
         # Handle updated configurations
-        for filename in updated:
-            pid = self._get_pid(filename)
-            if not pid:
-                # Not a configuration file
-                continue
+        for filenames in (added, updated):
+            for filename in filenames:
+                pid_props = self.__load_file(filename)
+                if pid_props is None:
+                    # File not readable
+                    continue
 
-            try:
-                # Get the matching property configuration
-                config = self._configs[pid]
+                pid, properties = pid_props
+                try:
+                    try:
+                        # Update the configuration
+                        self._directory.update(pid, properties)
 
-            except KeyError:
-                # Unknown configuration...
-                continue
+                    except KeyError:
+                        # Configuration does not exist yet, create it
+                        self._directory.add(pid, properties, self)
 
-            # Load the properties
-            try:
-                properties = self.load(pid)
-
-            except IOError as ex:
-                _logger.error("Error parsing %s: %s", filename, ex)
-
-            # Update it
-            config.update(properties)
-
-        # TODO: create new configurations...
+                except Exception as ex:
+                    # Log other errors
+                    _logger.error("Error updating %s: %s", pid, ex)
