@@ -100,15 +100,8 @@ class ConfigAdminCommands(object):
         :param pid: A configuration PID
         :return: The retrieved configuration
         """
-        try:
-            # Grab from cache
-            config = self._configs[pid]
-
-        except KeyError:
-            # Not yet in cache
-            self._configs[pid] = config = self._config_admin. \
-                                                        get_configuration(pid)
-
+        # Erase cache in all cases
+        config = self._configs[pid] = self._config_admin.get_configuration(pid)
         return config
 
 
@@ -126,15 +119,34 @@ class ConfigAdminCommands(object):
         """
         Updates a configuration
         """
-        self._get_configuration(pid).update(kwargs)
+        # Get the configuration with given PID
+        config = self._configs[pid] = self._config_admin.get_configuration(pid)
+
+        # Get previous values
+        old_properties = config.get_properties()
+        if old_properties is None:
+            new_properties = {}
+        else:
+            new_properties = old_properties.copy()
+
+        # Update properties
+        new_properties.update(kwargs)
+
+        # Update configuration
+        config.update(kwargs)
 
 
     def delete(self, io_handler, pid, **kwargs):
         """
         Deletes a configuration
         """
-        self._get_configuration(pid).delete()
-        del self._configs[pid]
+        self._config_admin.get_configuration(pid).delete()
+
+        try:
+            del self._configs[pid]
+        except KeyError:
+            # Configuration was unknown
+            pass
 
 
     def list(self, io_handler):
