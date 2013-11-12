@@ -168,4 +168,4 @@ class ConfigAdminCommands(object):
                 lines.append("\t** Deleted **")
 
         lines.append('')
-        io_handler.write_line('\n'.join(lines))
+        io_handler.write_line('{0}', '\n'.join(lines))
