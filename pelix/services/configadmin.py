@@ -24,9 +24,6 @@ ConfigurationAdmin implementation
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-
-TODO:
-- handle new configurations found by the folder watcher
 """
 
 # Module version
@@ -597,15 +594,15 @@ class ConfigurationAdmin(object):
             self._pool.enqueue(svc.updated, properties)
 
 
-    def __notify_services(self, services, properties):
+    def __notify_services(self, managed_services, properties):
         """
         Calls the updated() method of managed services.
         Logs errors if necessary.
 
-        :param services: Services to be notified
+        :param managed_services: Services to be notified
         :param properties: New services properties
         """
-        for svc in services:
+        for svc in managed_services:
             try:
                 # Only give the properties to the service
                 svc.updated(properties)
@@ -828,6 +825,16 @@ class JsonPersistence(object):
         return (pid, properties)
 
 
+    def exists(self, pid):
+        """
+        Returns True if a configuration with the given PID exists
+
+        :param pid: PID of a configuration
+        :return: True if a readable configuration exists
+        """
+        return os.path.isfile(self._get_file(pid))
+
+
     def load(self, pid):
         """
         Loads the configuration file for the given PID
@@ -837,21 +844,11 @@ class JsonPersistence(object):
         :raise IOError: File not found/readable
         :raise ValueError: Invalid file content
         """
-        with open(self._get_file(pid), 'r') as fp:
-            data = fp.read()
+        with open(self._get_file(pid), 'r') as filep:
+            data = filep.read()
 
         # Store the configuration
         return json.loads(data)
-
-
-    def exists(self, pid):
-        """
-        Returns True if a configuration with the given PID exists
-
-        :param pid: PID of a configuration
-        :return: True if a readable configuration exists
-        """
-        return os.path.isfile(self._get_file(pid))
 
 
     def store(self, pid, properties):
@@ -864,9 +861,13 @@ class JsonPersistence(object):
         :raise IOError: File not writable
         """
         # Write to the file
-        with open(self._get_file(pid), 'w') as fp:
-            fp.write(json.dumps(properties, sort_keys=True,
-                                indent=4, separators=(',', ': ')))
+        with open(self._get_file(pid), 'w') as filep:
+            # Write the JSON data
+            filep.write(json.dumps(properties, sort_keys=True,
+                                   indent=4, separators=(',', ': ')))
+
+            # Be nice, add a line feed
+            filep.write('\n')
 
 
     def delete(self, pid):
@@ -902,7 +903,16 @@ class JsonPersistence(object):
     def folder_change(self, folder, added, updated, deleted):
         """
         The configuration folder has been modified
+
+        :param folder: Modified folder
+        :param added: List of added files
+        :param updated: List of modified files
+        :param deleted: List of deleted files
         """
+        # Check that the folder is really ours
+        if folder != self._conf_folder:
+            return
+
         # Handle deleted configurations first
         for filename in deleted:
             pid = self._get_pid(filename)
@@ -932,6 +942,6 @@ class JsonPersistence(object):
                         # Configuration does not exist yet, create it
                         self._directory.add(pid, properties, self)
 
-                except Exception as ex:
+                except (KeyError, ValueError, IOError) as ex:
                     # Log other errors
                     _logger.error("Error updating %s: %s", pid, ex)
