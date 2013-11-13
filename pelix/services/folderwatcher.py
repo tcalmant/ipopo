@@ -76,7 +76,8 @@ class FolderWatcher(object):
         self.__lock = threading.RLock()
 
         # Single thread task pool to notify listeners
-        self.__pool = pelix.threadpool.ThreadPool(1, "FileInstallNotification")
+        self.__pool = pelix.threadpool.ThreadPool(1,
+                                                  logname="FileInstallNotifier")
 
         # 1 thread per watched folder (folder -> Thread)
         self.__threads = {}
@@ -169,6 +170,8 @@ class FolderWatcher(object):
         """
         Manual registration of a folder listener
 
+        :param folder: Path to the folder to watch
+        :param listener: Listener to register
         :return: True if the listener has been registered
         """
         with self.__lock:
@@ -199,7 +202,11 @@ class FolderWatcher(object):
 
     def remove_listener(self, folder, listener):
         """
-        Manual unregistration of a folder listener
+        Manual unregistration of a folder listener.
+
+        :param folder: Path to the folder the listener watched
+        :param listener: Listener to unregister
+        :raise ValueError: The listener wasn't watching this folder
         """
         with self.__lock:
             # Remove the listener
@@ -215,7 +222,7 @@ class FolderWatcher(object):
                     pass
 
                 else:
-                    # Normal behavior
+                    # Wait for the thread to stop
                     self.__threads.pop(folder).join()
 
                     # No more listener for this folder
@@ -225,6 +232,11 @@ class FolderWatcher(object):
     def __notify(self, folder, added, updated, deleted):
         """
         Notifies listeners that files of a folder has been modified
+
+        :param folder: Folder where changes occurred
+        :param added: Names of added files
+        :param updated: Names of modified files
+        :param deleted: Names of removed files
         """
         with self.__lock:
             try:
@@ -243,12 +255,84 @@ class FolderWatcher(object):
                 _logger.exception("Error notifying a folder listener: %s", ex)
 
 
+    def __get_checksum(self, filepath):
+        """
+        Returns the checksum (Adler32) of the given file
+
+        :param filepath: Path to the file
+        :return: The checksum (int) of the given file
+        :raise OSError: File not accessible
+        :raise IOError: File not readable
+        """
+        # Don't forget to open the file in binary mode
+        with open(filepath, 'rb') as filep:
+            # Return the checksum of the given file
+            return zlib.adler32(filep.read())
+
+
+    def __get_file_info(self, folder, filename):
+        """
+        Returns the (mtime, checksum) tuple for the given file
+
+        :param folder: Path to the parent folder
+        :param filename: Base name of the file
+        :return: A tuple containing file information
+        :raise OSError: File not accessible
+        :raise IOError: File not readable
+        """
+        filepath = os.path.join(folder, filename)
+        return (os.path.getmtime(filepath), self.__get_checksum(filepath))
+
+
+    def __check_different(self, folder, filename, file_info, updated):
+        """
+        Checks if the given file has changed since the previous check
+
+        :param folder: Path to the parent folder
+        :param filename: Base name of the file
+        :param file_info: Current information about the file
+        :param updated: Set of updated files, where the file name might be added
+        :return: The (updated) file information tuple
+        :raise OSError: File not accessible
+        :raise IOError: File not readable
+        """
+        # Compute the file path
+        filepath = os.path.join(folder, filename)
+
+        # Get the previous modification time
+        previous_mtime = file_info[0]
+
+        # Get the new modification time
+        mtime = os.path.getmtime(filepath)
+
+        if previous_mtime == mtime:
+            # No modification (no need to compute the checksum)
+            return file_info
+
+        # Get the previous checksum
+        previous_checksum = file_info[1]
+
+        # Compute the new one
+        checksum = self.__get_checksum(filepath)
+
+        if previous_checksum == checksum:
+            # No real modification, update file info
+            return (mtime, checksum)
+
+        # File modified
+        updated.add(filename)
+        return (mtime, checksum)
+
+
     def __watch(self, folder, stopper):
         """
         Loop that looks for changes in the given folder
+
+        :param folder: Folder to watch
+        :param stopper: An Event object that will stop the loop once set
         """
-        # File name -> Checksum
-        previous_checksum = {}
+        # File name -> (modification time, checksum)
+        previous_info = {}
 
         while not stopper.wait(1) and not stopper.is_set():
             if not os.path.exists(folder):
@@ -256,48 +340,43 @@ class FolderWatcher(object):
                 continue
 
             # Look for files
-            filenames = [filename for filename in os.listdir(folder)
-                         if os.path.isfile(os.path.join(folder, filename))]
+            filenames = set(filename for filename in os.listdir(folder)
+                            if os.path.isfile(os.path.join(folder, filename)))
 
-            # Compute the differences
+            # Prepare the sets
             added = set()
             updated = set()
-            deleted = set(previous_checksum.keys()).difference(filenames)
+            deleted = set(previous_info.keys()).difference(filenames)
 
+            # Compute differences
             for filename in filenames:
-                # Get the current time stamp
                 try:
-                    with open(os.path.join(folder, filename), 'rb') as fp:
-                        new_checksum = zlib.adler32(fp.read())
-
-                except IOError:
-                    # File unreadable, ignore
-                    continue
-
-                try:
-                    # Get the previous checksum
-                    old_checksum = previous_checksum[filename]
+                    # Get previous information
+                    file_info = previous_info[filename]
 
                 except KeyError:
-                    # File wasn't previously known
+                    # Unknown file: added one
                     added.add(filename)
-                    previous_checksum[filename] = new_checksum
+                    previous_info[filename] = self.__get_file_info(folder,
+                                                                   filename)
 
                 else:
-                    # Compute the current checksum
-                    if old_checksum != new_checksum:
-                        # File changed
-                        updated.add(filename)
-                        previous_checksum[filename] = new_checksum
+                    try:
+                        # Known file name
+                        new_info = self.__check_different(folder, filename,
+                                                          file_info, updated)
+                        # Store new information
+                        previous_info[filename] = new_info
 
-            # Remove deleted files checksum
+                    except (IOError, OSError):
+                        # Error reading file, do nothing
+                        pass
+
+            # Remove information about deleted files
             for filename in deleted:
-                try:
-                    del previous_checksum[filename]
-                except KeyError:
-                    pass
+                del previous_info[filename]
 
             if added or updated or deleted:
-                # Notify listeners
+                # Something changed: notify listeners
                 self.__pool.enqueue(self.__notify, folder, added, updated,
                                     deleted)
