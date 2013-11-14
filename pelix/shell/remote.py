@@ -257,7 +257,8 @@ def _create_server(shell, server_address, port):
     server.server_activate()
 
     # Serve clients
-    server_thread = threading.Thread(target=server.serve_forever)
+    server_thread = threading.Thread(target=server.serve_forever,
+                                     name="RemoteShell-{0}".format(port))
     server_thread.daemon = True
     server_thread.start()
 
