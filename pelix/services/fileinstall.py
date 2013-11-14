@@ -191,10 +191,10 @@ class FileInstall(object):
 
                     # Start a new thread
                     event = self.__stoppers[folder] = threading.Event()
-                    thread = threading.Thread(target=self.__watch,
-                                              args=(folder, event),
-                                              name="FolderWatcher-{0}" \
-                                                   .format(folder))
+                    thread = threading.Thread(
+                                          target=self.__watch,
+                                          args=(folder, event),
+                                          name="FileInstall-{0}".format(folder))
                     thread.daemon = True
                     self.__threads[folder] = thread
                     thread.start()

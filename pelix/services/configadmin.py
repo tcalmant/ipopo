@@ -233,7 +233,7 @@ class Configuration(object):
         self.__updated = True
 
         # Store the data
-        # it will cause FolderWatcher to update this configuration again, but
+        # it will cause FileInstall to update this configuration again, but
         # this will ignored because self.__properties has already been saved
         self.__persistence.store(self.__pid, properties)
         return True

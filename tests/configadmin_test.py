@@ -456,7 +456,7 @@ class FileInstallTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
 
         # Start FileInstall
-        context.install_bundle('pelix.services.folderwatcher').start()
+        context.install_bundle('pelix.services.fileinstall').start()
 
         # Speed it up
         fileinstall_ref = context.get_service_reference(
