@@ -20,6 +20,9 @@ generated_bundle.py
 .coverage*
 htmlcov/
 
+# ConfigurationAdmin folder
+conf/
+
 # Profiling
 *.lprof
 
