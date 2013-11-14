@@ -10,6 +10,8 @@ import pelix.framework
 import pelix.services as services
 from pelix.utilities import use_service
 
+import json
+import os
 import time
 
 try:
@@ -218,6 +220,37 @@ class ConfigurationAdminTest(unittest.TestCase):
         self.assertSetEqual(configs, set(), "Non-empty result set")
 
 
+    def testPersistence(self):
+        """
+        Tests configuration reload
+        """
+        pid = "test.ca.persistence"
+        props = {"zaphod": "beeblebrox"}
+
+        # Create a configuration
+        config = self.config.get_configuration(pid)
+        config.update(props)
+
+        # Forget it locally
+        config = None
+
+        # Stop the framework
+        self.tearDown()
+
+        # Restart it
+        self.setUp()
+
+        # Reload the configuration
+        config = self.config.get_configuration(pid)
+
+        # Compare properties
+        self.assertDictContainsSubset(props, config.get_properties(),
+                                      "Properties lost with framework restart")
+
+        # Delete the configuration
+        config.delete()
+
+
 # ------------------------------------------------------------------------------
 
 class ManagedServiceTest(unittest.TestCase):
@@ -408,6 +441,146 @@ class ManagedServiceTest(unittest.TestCase):
 
             # The flag must have been set
             self.assertTrue(svc.deleted, "Configuration considered as deleted")
+
+# ------------------------------------------------------------------------------
+
+class FileInstallTest(unittest.TestCase):
+    """
+    Tests the behavior of FileInstall with ConfigurationAdmin
+    """
+    def setUp(self):
+        """
+        Sets up the test
+        """
+        self.framework = create_framework()
+        context = self.framework.get_bundle_context()
+
+        # Start FileInstall
+        context.install_bundle('pelix.services.folderwatcher').start()
+
+        # Speed it up
+        fileinstall_ref = context.get_service_reference(
+                                                services.SERVICE_FILEINSTALL)
+        with use_service(context, fileinstall_ref) as svc:
+            # Speed up poll time
+            svc._poll_time = .1
+            time.sleep(1)
+
+        # Get the ConfigAdmin service
+        self.config_ref = context.get_service_reference(
+                                        services.SERVICE_CONFIGURATION_ADMIN)
+        self.config = context.get_service(self.config_ref)
+
+        # Install the test bundle (don't start it)
+        self.bundle = context.install_bundle('tests.configadmin_bundle')
+        self.pid = self.bundle.get_module().CONFIG_PID
+
+
+    def tearDown(self):
+        """
+        Cleans up for next test
+        """
+        # Release the service
+        self.framework.get_bundle_context().unget_service(self.config_ref)
+        self.config = None
+        self.config_ref = None
+
+        pelix.framework.FrameworkFactory.delete_framework(self.framework)
+
+
+    def get_ref(self):
+        """
+        Retrieves the reference to the managed service provided by the test
+        bundle
+        """
+        return self.bundle.get_registered_services()[0]
+
+
+    def touch(self, filepath):
+        """
+        Updates the modification time of the given file
+        """
+        with open(filepath, "r"):
+            os.utime(filepath, None)
+
+
+    def write(self, filepath, value):
+        """
+        Writes the property dictionary in JSON
+        """
+        props = {'config.value': value}
+        with open(filepath, "w") as filep:
+            filep.write(json.dumps(props))
+
+
+    def testAddUpdateDelete(self):
+        """
+        Tests a whole file life cycle
+        """
+        context = self.framework.get_bundle_context()
+
+        # Start the test bundle
+        self.bundle.start()
+        ref = self.get_ref()
+
+        # Wait a little
+        time.sleep(.4)
+
+        with use_service(context, ref) as svc:
+            self.assertIsNone(svc.value, "Value has been set")
+
+        # Get the watched folder
+        persistence_ref = context.get_service_reference(\
+                                     services.SERVICE_CONFIGADMIN_PERSISTENCE)
+        folder = persistence_ref.get_property(services.PROP_FILEINSTALL_FOLDER)
+
+        # JSON persistence file name
+        filepath = os.path.join(folder, self.pid + '.config.js')
+
+        # Create the empty configuration
+        value = 'Ni !'
+        self.write(filepath, value)
+
+        # Wait a little
+        time.sleep(.4)
+
+        # Check if the service has been updated
+        with use_service(context, ref) as svc:
+            self.assertEqual(svc.value, value, "Incorrect value")
+
+        # Update the properties
+        value = 'Ecky-ecky-ecky-ecky-pikang-zoom-boing'
+        self.write(filepath, value)
+
+        # Wait a little
+        time.sleep(.4)
+
+        # Check if the service has been updated
+        with use_service(context, ref) as svc:
+            self.assertEqual(svc.value, value, "Incorrect value")
+
+            # Reset the flags
+            svc.reset()
+
+        # Touch the file
+        self.touch(filepath)
+
+        # Wait a little
+        time.sleep(.4)
+
+        # Check if the service has been updated
+        with use_service(context, ref) as svc:
+            self.assertIsNone(svc.value, "File updated after simple touch")
+            self.assertFalse(svc.deleted, "Configuration considered deleted")
+
+        # Delete the file
+        os.remove(filepath)
+
+        # Wait a little
+        time.sleep(.4)
+
+        with use_service(context, ref) as svc:
+            self.assertTrue(svc.deleted, "Configuration not deleted")
 
 # ------------------------------------------------------------------------------
 
