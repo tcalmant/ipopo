@@ -273,17 +273,24 @@ class Configuration(object):
         """
         Delete this configuration
         """
+        if self.__deleted:
+            # Nothing to do
+            return
+
         # Update status
         self.__deleted = True
 
-        # Notify the configuration admin
-        self.__config_admin._delete(self)
+        # Notify ConfigurationAdmin, notify services only if the configuration
+        # had been updated before
+        self.__config_admin._delete(self, self.__updated)
 
         # Remove the file
         self.__persistence.delete(self.__pid)
 
         # Clean up
-        self.__properties.clear()
+        if self.__properties:
+            self.__properties.clear()
+
         self.__persistence = None
         self.__pid = None
 
@@ -321,6 +328,9 @@ class _ConfigurationDirectory(object):
         # PID -> Configuration
         self.__configurations = {}
 
+        # Factory PIDs (reserved)
+        self.__factories = set()
+
         # Lock
         self.__lock = threading.Lock()
 
@@ -332,7 +342,7 @@ class _ConfigurationDirectory(object):
         :param pid: A configuration PID
         :return: True if the PID already exists
         """
-        return pid in self.__configurations
+        return pid in self.__configurations or pid in self.__factories
 
 
     def get_configuration(self, pid):
@@ -383,6 +393,9 @@ class _ConfigurationDirectory(object):
             elif not pid:
                 raise ValueError("Configuration with an empty PID")
 
+            elif pid in self.__factories:
+                raise KeyError("PID already used as a factory PID")
+
             elif loader is None:
                 raise ValueError("No persistence service associated to {0}" \
                                  .format(pid))
@@ -390,7 +403,12 @@ class _ConfigurationDirectory(object):
             # Make the configuration bean
             configuration = Configuration(pid, properties, self._admin,
                                           loader, factory_pid)
+
+            # Store the factory according to the PID
             self.__configurations[pid] = configuration
+
+            # Store the factory PID too
+            self.__factories.add(factory_pid)
             return configuration
 
 
@@ -417,7 +435,16 @@ class _ConfigurationDirectory(object):
         :raise IOError: Error deleting the configuration file
         """
         with self.__lock:
-            self.__configurations.pop(pid).delete()
+            # Remove from the configuration dictionary
+            config = self.__configurations.pop(pid)
+
+            # Remove from the factory PIDs set
+            factory_pid = config.get_factory_pid()
+            if factory_pid is not None:
+                self.__factories.remove(factory_pid)
+
+            # Delete the configuration object
+            config.delete()
 
 #-------------------------------------------------------------------------------
 
@@ -613,31 +640,54 @@ class ConfigurationAdmin(object):
 
     def _update(self, configuration):
         """
-        A configuration has been updated
+        A configuration has been updated.
+
+        Returns once managed services have been notified.
 
         :param configuration: The updated configuration
         """
         with self.__lock:
+            future = None
+
             managed = self.__get_matching_services(configuration.get_pid())
             if managed:
                 # Call them from the pool
                 properties = configuration.get_properties()
-                self._pool.enqueue(self.__notify_services, managed, properties)
+                future = self._pool.enqueue(self.__notify_services,
+                                            managed, properties)
+
+        if future is not None:
+            # Wait for the end of the notification, outside the lock
+            future.result()
 
 
-    def _delete(self, configuration):
+    def _delete(self, configuration, notify_services):
         """
-        A configuration is about to be deleted
+        A configuration is about to be deleted.
+
+        Returns once managed services have been notified.
 
         :param configuration: The deleted configuration
+        :param notify_services: If True, notify services of the deletion
         """
         with self.__lock:
+            future = None
             pid = configuration.get_pid()
 
-            managed = self.__get_matching_services(pid)
-            if managed:
-                # Call them from the pool
-                self._pool.enqueue(self.__notify_services, managed, None)
+            # Remove the configuration from the directory
+            self._directory.delete(pid)
+
+            if notify_services:
+                # Prepare the notification of managed services
+                managed = self.__get_matching_services(pid)
+                if managed:
+                    # Call them from the pool
+                    future = self._pool.enqueue(self.__notify_services,
+                                                managed, None)
+
+        if future is not None:
+            # Wait for the end of the notification, outside the lock
+            future.result()
 
 
     def create_factory_configuration(self, factory_pid):
@@ -649,8 +699,19 @@ class ConfigurationAdmin(object):
         :param pid: PID of the factory
         :raise ValueError: Invalid PID
         """
-        if not factory_pid:
-            raise ValueError("Empty factory PID")
+        if factory_pid is None:
+            raise ValueError("No factory PID given")
+
+        try:
+            # Remove leading-trailing spaces
+            factory_pid = factory_pid.strip()
+            if not factory_pid:
+                raise ValueError("Empty factory PID")
+
+        except AttributeError:
+            # .strip() doesn't exist
+            raise ValueError("Invalid type of PID: {0}"\
+                             .format(type(factory_pid).__name__))
 
         if self._directory.exists(factory_pid):
             raise ValueError("Factory PID already exists as "
