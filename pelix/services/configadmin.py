@@ -94,7 +94,7 @@ class Configuration(object):
         self.__location = None
 
         # Update using given properties, if any
-        self.__properties_update(properties)
+        self.update(properties)
 
 
     def __str__(self):
@@ -269,9 +269,13 @@ class Configuration(object):
             self.__config_admin._update(self)
 
 
-    def delete(self):
+    def delete(self, directory_updated=False):
         """
         Delete this configuration
+
+        :param directory_updated: If True, tell ConfigurationAdmin to not
+                                  recall the directory of this deletion
+                                  (internal use only)
         """
         if self.__deleted:
             # Nothing to do
@@ -282,7 +286,7 @@ class Configuration(object):
 
         # Notify ConfigurationAdmin, notify services only if the configuration
         # had been updated before
-        self.__config_admin._delete(self, self.__updated)
+        self.__config_admin._delete(self, self.__updated, directory_updated)
 
         # Remove the file
         self.__persistence.delete(self.__pid)
@@ -444,7 +448,7 @@ class _ConfigurationDirectory(object):
                 self.__factories.remove(factory_pid)
 
             # Delete the configuration object
-            config.delete()
+            config.delete(True)
 
 #-------------------------------------------------------------------------------
 
@@ -661,7 +665,7 @@ class ConfigurationAdmin(object):
             future.result()
 
 
-    def _delete(self, configuration, notify_services):
+    def _delete(self, configuration, notify_services, directory_updated):
         """
         A configuration is about to be deleted.
 
@@ -669,13 +673,15 @@ class ConfigurationAdmin(object):
 
         :param configuration: The deleted configuration
         :param notify_services: If True, notify services of the deletion
+        :param directory_updated: If True, do not update the directory
         """
         with self.__lock:
             future = None
             pid = configuration.get_pid()
 
             # Remove the configuration from the directory
-            self._directory.delete(pid)
+            if not directory_updated:
+                self._directory.delete(pid)
 
             if notify_services:
                 # Prepare the notification of managed services
