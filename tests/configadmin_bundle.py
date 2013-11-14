@@ -14,9 +14,13 @@ import pelix.services as services
 
 # ------------------------------------------------------------------------------
 
+CONFIG_PID = 'test.ca.bundle'
+
+# ------------------------------------------------------------------------------
+
 @ComponentFactory()
 @Provides(services.SERVICE_CONFIGADMIN_MANAGED)
-@Property('_config_pid', constants.SERVICE_PID, 'configadmin-test-pid')
+@Property('_config_pid', constants.SERVICE_PID, CONFIG_PID)
 @Instantiate("configadmin-test")
 class Configurable(object):
     """
@@ -24,6 +28,15 @@ class Configurable(object):
     """
     def __init__(self):
         """
+        Sets up members
+        """
+        self.value = None
+        self.deleted = False
+
+
+    def reset(self):
+        """
+        Resets the flags
         """
         self.value = None
         self.deleted = False
@@ -31,11 +44,14 @@ class Configurable(object):
 
     def updated(self, properties):
         """
+        Called by the ConfigurationAdmin service
         """
         if properties is None:
+            # Deleted
+            self.value = None
             self.deleted = True
-            print('Config deleted')
             return
 
-        self.value = properties.get('config.value', '<not set>')
-        print('Config updated:', self.value)
+        else:
+            # Updated
+            self.value = properties.get('config.value', '<not set>')
