@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-Folder Watcher: Polls for changes on files in a directory
+FileInstall: Polls for changes on files in a directory and notifies listeners
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
@@ -37,7 +37,8 @@ __docformat__ = "restructuredtext en"
 
 # Pelix
 from pelix.ipopo.decorators import ComponentFactory, Provides, Requires, \
-    Validate, Invalidate, Instantiate, BindField, UnbindField, UpdateField
+    Validate, Invalidate, Instantiate, BindField, UnbindField, UpdateField, \
+    Property
 import pelix.services as services
 import pelix.threadpool
 
@@ -57,8 +58,9 @@ _logger = logging.getLogger(__name__)
 @Provides(services.SERVICE_FILEINSTALL)
 @Requires('_listeners', services.SERVICE_FILEINSTALL_LISTENERS,
           aggregate=True, optional=True)
+@Property('_poll_time', 'poll.time', 1)
 @Instantiate('pelix-services-file-install')
-class FolderWatcher(object):
+class FileInstall(object):
     """
     Polls folders to look for files modifications
     """
@@ -71,6 +73,9 @@ class FolderWatcher(object):
 
         # Folder -> [listeners] (computed)
         self._folder_listeners = {}
+
+        # Polling delta time (1 second by default)
+        self._poll_time = 1
 
         # Lock
         self.__lock = threading.RLock()
@@ -334,7 +339,7 @@ class FolderWatcher(object):
         # File name -> (modification time, checksum)
         previous_info = {}
 
-        while not stopper.wait(1) and not stopper.is_set():
+        while not stopper.wait(self._poll_time) and not stopper.is_set():
             if not os.path.exists(folder):
                 # Nothing to do yet
                 continue
