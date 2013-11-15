@@ -29,7 +29,7 @@ Pelix and iPOPO are tested using `Tox <http://testrun.org/tox/latest/>`_ and
 
 * Python 2.6, 2.7, 3.2 and 3.3
 
-  .. image:: https://travis-ci.org/tcalmant/ipopo.png?branch=master
+  .. image:: https://travis-ci.org/tcalmant/ipopo.png?branch=dev
      :target: https://travis-ci.org/tcalmant/ipopo
 
 It is also manually tested with:
@@ -49,56 +49,7 @@ Release notes
 
 See the CHANGELOG.rst file to see what changed in previous releases.
 
-iPOPO 0.5.5
+iPOPO 0.5.6
 ***********
 
-Project
-=======
-
-The license of the iPOPO project is now an Apache License 2.0.
-
-
-Framework
-=========
-
-* ``get_*_service_reference*()`` methods have a default LDAP filter set to
-  ``None``. Only the service specification is required, event if set to
-  ``None``.
-
-* Added a context ``use_service(context, svc_ref)``, that allows to consume a
-  service in a ``with`` block:
-
-  .. code-block:: python
-
-     from pelix.utilities import use_service
-     with use_service(bundle_context, svc_ref) as svc:
-        svc.foo()
-
-  Service will be released automatically.
-
-
-iPOPO
-=====
-
-* Added the *Handler Factory* pattern : all instance handlers are created by
-  their factory, called by iPOPO according to the handler IDs found in the
-  factory context.
-  This will simplify the creation of new handlers.
-
-* Added a context ``use_ipopo(context)``, that allows to use the iPOPO service
-  in a ``with`` block:
-
-  .. code-block:: python
-
-     from pelix.ipopo.constants import use_ipopo
-     with use_ipopo(bundle_context) as ipopo:
-        ipopo.instantiate('my.factory', 'my.instance', {})
-
-  The iPOPO service will be released automatically.
-
-
-Services
-========
-
-* Added the ConfigurationAdmin service
-* Added the FileInstall service
+Work in progress
