@@ -402,7 +402,7 @@ class _ConfigurationDirectory(object):
         :param pid: PID of the configuration
         :param properties: Initial properties (can be None)
         :param loader: Persistence service associated to the configuration
-        :param factory_id: Set if the configuration is a factory (not used)
+        :param factory_pid: Set if the configuration is a factory (not used)
         :return: The new configuration bean
         :raise KeyError: PID already used
         :raise ValueError: Invalid PID or loader
@@ -439,7 +439,7 @@ class _ConfigurationDirectory(object):
 
         :param pid: PID of a configuration
         :param properties: New properties (replace old dictionary)
-        :raise: KeyError: Unknown configuration
+        :raise KeyError: Unknown configuration
         :raise IOError: Error writing down the configuration
         """
         with self.__lock:
@@ -452,7 +452,7 @@ class _ConfigurationDirectory(object):
         Deletes the configuration with the given PID
 
         :param pid: PID of a configuration
-        :raise: KeyError: Unknown configuration
+        :raise KeyError: Unknown configuration
         :raise IOError: Error deleting the configuration file
         """
         with self.__lock:
@@ -719,7 +719,7 @@ class ConfigurationAdmin(object):
         The properties of the new Configuration object are null until the
         first time that its update() method is called.
 
-        :param pid: PID of the factory
+        :param factory_pid: PID of the factory
         :raise ValueError: Invalid PID
         """
         if factory_pid is None:

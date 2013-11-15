@@ -69,7 +69,7 @@ class FutureResult(object):
         :param method: The method to execute
         :param args: Method positional arguments
         :param kwargs: Method keyword arguments
-        :raise: The exception raised by the method
+        :raise Exception: The exception raised by the method
         """
         # Normalize arguments
         if args is None:
