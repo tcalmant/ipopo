@@ -6,6 +6,7 @@ __pycache__/
 .settings
 
 # When installed in develop mode
+dist/
 iPOPO.egg-info/
 
 # Module generated during tests
@@ -27,6 +28,7 @@ conf/
 *.lprof
 
 # Epydoc Help
+api/
 html/
 
 # Sphinx build
