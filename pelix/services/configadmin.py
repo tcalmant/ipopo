@@ -244,6 +244,16 @@ class Configuration(object):
             return True
 
 
+    def reload(self):
+        """
+        Reloads the configuration file using the persistence service
+
+        :raise IOError: File not found/readable
+        :raise ValueError: Invalid file content
+        """
+        self.update(self.__persistence.load(self.__pid))
+
+
     def update(self, properties=None):
         """
         If called without properties, only notifies listeners
@@ -914,7 +924,7 @@ class JsonPersistence(object):
         Loads the configuration file for the given PID
 
         :param pid: A configuration PID
-        :return: The content of the PID
+        :return: The properties in the configuration file
         :raise IOError: File not found/readable
         :raise ValueError: Invalid file content
         """
