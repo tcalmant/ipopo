@@ -5,26 +5,25 @@ An EventAdmin-like implementation for Pelix: a publish-subscribe service
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
+:license: Apache License 2.0
 :version: 0.2
-:status: Alpha
+:status: Beta
 
 ..
 
-    This file is part of iPOPO.
+    Copyright 2013 isandlaTech
 
-    iPOPO is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    
-    iPOPO is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    
-    You should have received a copy of the GNU General Public License
-    along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 
 # Module version
@@ -82,7 +81,7 @@ class EventAdmin(object):
     def _get_handlers_ids(self, topic, properties):
         """
         Retrieves the IDs of the listeners that requested to handle this event
-        
+
         :param topic: Topic of the event
         :param properties: Associated properties
         :return: The IDs of the services to call back for this event
@@ -117,7 +116,7 @@ class EventAdmin(object):
     def __match_filter(self, properties, ldap_filter):
         """
         Tests if the given properties match the given filter
-        
+
         :param properties: A set of properties
         :param ldap_filter: An LDAP filter string, object or None
         :return: True if the properties match the filter
@@ -135,9 +134,9 @@ class EventAdmin(object):
         """
         Retrieves the reference and the service associated to the given ID,
         or a (None, None) tuple if no service was found.
-        
+
         The service must be freed with BundleContext.unget_service() after usage
-        
+
         :param service_id: A service ID
         :return: A (reference, service) tuple or (None, None)
         """
@@ -163,7 +162,7 @@ class EventAdmin(object):
     def __notify_handlers(self, topic, properties, handlers_ids):
         """
         Notifies the handlers of an event
-        
+
         :param topic: Topic of the event
         :param properties: Associated properties
         :param handlers_ids: IDs of the services to notify
@@ -194,10 +193,10 @@ class EventAdmin(object):
     def __setup_properties(self, properties):
         """
         Adds the EventAdmin specific properties to the event
-        
+
         :param properties: The initial event properties
         :return: A copy of the initial properties, or new ones, with the
-                 EventAdmin specific properties 
+                 EventAdmin specific properties
         """
         # Compute the event time stamp
         timestamp = time.time()
@@ -222,7 +221,7 @@ class EventAdmin(object):
     def send(self, topic, properties=None):
         """
         Sends synchronously the given event
-        
+
         :param topic: Topic of event
         :param properties: Associated properties
         """
@@ -239,7 +238,7 @@ class EventAdmin(object):
     def post(self, topic, properties=None):
         """
         Sends asynchronously the given event
-        
+
         :param topic: Topic of event
         :param properties: Associated properties
         """

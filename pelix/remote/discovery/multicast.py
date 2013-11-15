@@ -13,26 +13,25 @@ when using remote services on the local host only.
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
+:license: Apache License 2.0
 :version: 0.2
-:status: Alpha
+:status: Beta
 
 ..
 
-    This file is part of iPOPO.
+    Copyright 2013 isandlaTech
 
-    iPOPO is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    
-    iPOPO is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    
-    You should have received a copy of the GNU General Public License
-    along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 
 # Module version
@@ -82,7 +81,7 @@ if os.name == "nt":
     def pton(family, address):
         """
         Calls inet_pton
-        
+
         :param family: Socket family
         :param address: A string address
         :return: The binary form of the given address
@@ -129,7 +128,7 @@ else:
     def pton(family, address):
         """
         Calls inet_pton
-        
+
         :param family: Socket family
         :param address: A string address
         :return: The binary form of the given address
@@ -141,7 +140,7 @@ else:
 def make_mreq(family, address):
     """
     Makes a mreq structure object for the given address and socket family.
-    
+
     :param family: A socket family (AF_INET or AF_INET6)
     :param address: A multicast address (group)
     :raise ValueError: Invalid family or address
@@ -179,7 +178,7 @@ def create_multicast_socket(address, port):
     """
     Creates a multicast socket according to the given address and port.
     Handles both IPv4 and IPv6 addresses.
-    
+
     :param address: Multicast address/group
     :param port: Socket port
     :return: A tuple (socket, listening address)
@@ -249,9 +248,9 @@ def close_multicast_socket(sock, address):
     """
     Cleans up the given multicast socket.
     Unregisters it of the multicast group.
-    
+
     Parameters should be the result of create_multicast_socket
-    
+
     :param sock: A multicast socket
     :param address: The multicast address used by the socket
     """
@@ -319,7 +318,7 @@ class MulticastDiscovery(object):
     def _make_endpoint_dict(self, event, endpoint):
         """
         Converts the end point into an event packet dictionary
-        
+
         :param event: The kind of event: add, update, remove
         :param endpoint: An end point description object
         :return: A dictionary
@@ -346,7 +345,7 @@ class MulticastDiscovery(object):
         """
         Sends a UDP datagram to the given target, if given, or to the multicast
         group.
-        
+
         :param data: The content of the datagram
         :param target: The packet target (can be None)
         """
@@ -411,7 +410,7 @@ class MulticastDiscovery(object):
         """
         Calls the method associated to the kind of event indicated in the given
         packet.
-        
+
         :param sender: The (address, port) tuple of the client
         :param raw_data: Raw packet content
         """
@@ -442,7 +441,7 @@ class MulticastDiscovery(object):
     def _handle_event_packet(self, sender, data):
         """
         Handles an end point event packet
-        
+
         :param sender: The (address, port) tuple of the client
         :param data: Decoded packet content
         """
@@ -477,7 +476,7 @@ class MulticastDiscovery(object):
         Returns the end point description as a dictionary, or None in case of
         error.
         Does not register nor converts the end point.
-        
+
         :param host: Dispatcher host address
         :param port: Dispatcher HTTP service port
         :param path: Path to the dispatcher servlet

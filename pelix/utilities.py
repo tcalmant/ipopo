@@ -5,9 +5,11 @@ Utility methods and decorators
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
-:version: 0.3.1
-:status: Alpha
+:license: Apache License 2.0
+:version: 0.5.5
+:status: Beta
+
+..
 
     This file is part of iPOPO.
 
@@ -25,9 +27,13 @@ Utility methods and decorators
     along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from functools import wraps
-from collections import deque
+# Pelix constants
+import pelix.constants
 
+# Standard library
+import collections
+import contextlib
+import functools
 import logging
 import sys
 import threading
@@ -36,7 +42,7 @@ import traceback
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 3, 1)
+__version_info__ = (0, 5, 5)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -44,6 +50,34 @@ __docformat__ = "restructuredtext en"
 
 # Using Python 3
 PYTHON_3 = (sys.version_info[0] == 3)
+
+# ------------------------------------------------------------------------------
+
+@contextlib.contextmanager
+def use_service(bundle_context, svc_reference):
+    """
+    Utility context to safely use a service in a "with" block.
+    It looks after the the given service and releases its reference when exiting
+    the context.
+
+    :param bundle_context: The calling bundle context
+    :param svc_reference: The reference of the service to use
+    :return: The requested service
+    :raise BundleException: Service not found
+    :raise TypeError: Invalid service reference
+    """
+    try:
+        # Give the service
+        yield bundle_context.get_service(svc_reference)
+
+    finally:
+        try:
+            # Release it
+            bundle_context.unget_service(svc_reference)
+
+        except pelix.constants.BundleException:
+            # Service might have already been unregistered
+            pass
 
 # ------------------------------------------------------------------------------
 
@@ -91,7 +125,7 @@ class Deprecated(object):
         :return: The wrapped method
         """
         # Prepare the wrapped call
-        @wraps(method)
+        @functools.wraps(method)
         def wrapped(*args, **kwargs):
             """
             Wrapped deprecated method
@@ -130,7 +164,7 @@ class Synchronized(object):
         :return: The wrapped method
         """
 
-        @wraps(method)
+        @functools.wraps(method)
         def wrapped(*args, **kwargs):
             """
             The wrapping method
@@ -175,14 +209,14 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
         :return: The wrapped method
         :raise AttributeError: The given attribute name doesn't exist
         """
-        @wraps(method)
+        @functools.wraps(method)
         def synchronized(self, *args, **kwargs):
             """
             Calls the wrapped method with a lock
             """
             # Raises an AttributeError if needed
             locks = [getattr(self, attr_name) for attr_name in locks_attr_names]
-            locked = deque()
+            locked = collections.deque()
             i = 0
 
             try:

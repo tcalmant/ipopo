@@ -5,26 +5,25 @@ Pelix OSGi-like services packages
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
+:license: Apache License 2.0
 :version: 0.1
-:status: Alpha
+:status: Beta
 
 ..
 
-    This file is part of iPOPO.
+    Copyright 2013 isandlaTech
 
-    iPOPO is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    
-    iPOPO is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    
-    You should have received a copy of the GNU General Public License
-    along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 
 # Module version
@@ -35,6 +34,9 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 #-------------------------------------------------------------------------------
+
+FACTORY_EVENT_ADMIN = "pelix-services-eventadmin-factory"
+""" Name of the EventAdmin component factory """
 
 SERVICE_EVENT_ADMIN = "pelix.services.eventadmin"
 """ Specification of the EventAdmin service """
@@ -56,5 +58,34 @@ EVENT_PROP_TIMESTAMP = "event.timestamp"
 
 #-------------------------------------------------------------------------------
 
-FACTORY_EVENT_ADMIN = "pelix-services-eventadmin-factory"
-""" Name of the EventAdmin component factory """
+SERVICE_CONFIGURATION_ADMIN = "pelix.services.configadmin"
+""" Specification of the ConfigurationAdmin service """
+
+SERVICE_CONFIGADMIN_MANAGED = "pelix.services.configadmin.managed"
+""" Specification of a service managed by ConfigurationAdmin """
+
+SERVICE_CONFIGADMIN_PERSISTENCE = "pelix.services.configadmin.persistence"
+""" Specification of a ConfigurationAdmin storage service """
+
+FACTORY_CONFIGADMIN_JSON = "pelix-configadmin-persistence-json-factory"
+""" Name of the JSON ConfigurationAdmin storage component factory """
+
+CONFIG_PROP_PID = 'service.pid'
+""" Configuration property: the configuration PID """
+
+CONFIG_PROP_FACTORY_PID = 'service.factoryPid'
+""" Configuration property: factory PID (not used yet) """
+
+CONFIG_PROP_BUNDLE_LOCATION = 'service.bundleLocation'
+""" Configuration property: bound location (not used yet) """
+
+#-------------------------------------------------------------------------------
+
+SERVICE_FILEINSTALL = 'pelix.services.fileinstall'
+""" Specification of the File Install service """
+
+SERVICE_FILEINSTALL_LISTENERS = 'pelix.services.fileinstall.listener'
+""" Specification of a listener of the File Install service """
+
+PROP_FILEINSTALL_FOLDER = 'fileinstall.folder'
+""" Path to the folder to look after, in white board pattern """

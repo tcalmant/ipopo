@@ -6,16 +6,19 @@ It is based on Pelix, an SOA framework.
 
 See http://ipopo.coderxpress.net for documentation and more information.
 
+iPOPO is released under the Apache License 2.0.
+
+
 Feedback
 ########
 
 Feel free to send feedback on your experience of Pelix/iPOPO, via the mailing
 lists :
 
-* User list:        http://groups.google.com/group/ipopo-users
+* User list:        http://groups.google.com/group/ipopo-users (don't be shy)
 * Development list: http://groups.google.com/group/ipopo-dev
 
-More information at http://ipopo.coderxpress.net/
+More information at https://ipopo.coderxpress.net/
 
 
 Compatibility
@@ -46,63 +49,56 @@ Release notes
 
 See the CHANGELOG.rst file to see what changed in previous releases.
 
-iPOPO 0.5.4
+iPOPO 0.5.5
 ***********
 
-Additions
+Project
+=======
+
+The license of the iPOPO project is now an Apache License 2.0.
+
+
+Framework
 =========
 
-Global
-------
+* ``get_*_service_reference*()`` methods have a default LDAP filter set to
+  ``None``. Only the service specification is required, event if set to
+  ``None``.
 
-* Global speedup replacing ``list.append()`` by ``bisect.insort()``.
-* Optimizations in handling services, components and LDAP filters.
-* Some classes of Pelix framework and iPOPO core modules extracted to new
-  modules.
+* Added a context ``use_service(context, svc_ref)``, that allows to consume a
+  service in a ``with`` block:
 
-iPOPO
------
+  .. code-block:: python
 
-* ``@Requires`` accepts only one specification
-* Added a context ``use_ipopo(bundle_context)``, to simplify the usage of the
-  iPOPO service, using the keyword ``with``.
-* ``get_factory_details(name)`` method now also returns the ID of the bundle
-  provided the component factory, and the component instance properties.
+     from pelix.utilities import use_service
+     with use_service(bundle_context, svc_ref) as svc:
+        svc.foo()
 
-Shell
------
+  Service will be released automatically.
 
-* The help command now uses the *inspect* module to list the required and
-  optional parameters.
-* ``IOHandler`` now has a ``prompt()`` method to ask the user to enter a line.
-  It replaces the ``read()`` method, which was to buggy.
-
-Bugs fixed
-==========
-
-Global
-------
-
-* Fixed support of Python 2.6.
-* Replaced Python 3 imports conditions by ``try-except`` blocks.
 
 iPOPO
------
+=====
 
-* Protection of the unregistration of factories, as a component can kill
-  another one of the factory during its invalidation.
+* Added the *Handler Factory* pattern : all instance handlers are created by
+  their factory, called by iPOPO according to the handler IDs found in the
+  factory context.
+  This will simplify the creation of new handlers.
 
-Remote Services
----------------
+* Added a context ``use_ipopo(context)``, that allows to use the iPOPO service
+  in a ``with`` block:
 
-* Protection of the unregistration loop during the invalidation of JSON-RPC and
-  XML-RPC exporters.
-* The *Dispatcher Servlet* now handles the *discovered* part of the discovery
-  process. This simplifies the Multicast Discovery component and suppresses a
-  socket bug/feature on BSD (including Mac OS).
+  .. code-block:: python
 
-Shell
------
+     from pelix.ipopo.constants import use_ipopo
+     with use_ipopo(bundle_context) as ipopo:
+        ipopo.instantiate('my.factory', 'my.instance', {})
 
-* The ``make_table()`` method now accepts generators as parameters.
-* Remote commands handling removed: ``get_methods_names()`` is not used anymore.
+  The iPOPO service will be released automatically.
+
+
+Services
+========
+
+* Added the ConfigurationAdmin service
+* Added the FileInstall service

@@ -8,26 +8,25 @@ available.
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
+:license: Apache License 2.0
 :version: 0.1.3
-:status: Alpha
+:status: Beta
 
 ..
 
-    This file is part of iPOPO.
+    Copyright 2013 isandlaTech
 
-    iPOPO is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    iPOPO is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+        http://www.apache.org/licenses/LICENSE-2.0
 
-    You should have received a copy of the GNU General Public License
-    along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 
 # Module version
@@ -80,7 +79,7 @@ class InteractiveShell(object):
     def __init__(self, context):
         """
         Sets up the members
-        
+
         :param context: The bundle context
         """
         self._context = context
@@ -105,7 +104,7 @@ class InteractiveShell(object):
     def loop_input(self, on_quit=None):
         """
         Reads the standard input until the shell session is stopped
-        
+
         :param on_quit: A call back method, called without argument when the
                         shell session has ended
         """
@@ -143,7 +142,7 @@ class InteractiveShell(object):
             # Input closed or keyboard interruption
             self._stop_event.set()
 
-        sys.stdout.write('Bye !')
+        sys.stdout.write('Bye !\n')
         sys.stdout.flush()
         if on_quit is not None:
             # Call a handler if needed
@@ -225,7 +224,7 @@ class InteractiveShell(object):
     def set_shell(self, svc_ref):
         """
         Binds the given shell service.
-        
+
         :param svc_ref: A service reference
         """
         if svc_ref is None:

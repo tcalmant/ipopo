@@ -1,30 +1,29 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-Pelix remote services: Imported end points registry 
+Pelix remote services: Imported end points registry
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
+:license: Apache License 2.0
 :version: 0.1.1
-:status: Alpha
+:status: Beta
 
 ..
 
-    This file is part of iPOPO.
+    Copyright 2013 isandlaTech
 
-    iPOPO is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    
-    iPOPO is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    
-    You should have received a copy of the GNU General Public License
-    along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 
 # Module version
@@ -83,7 +82,7 @@ class ImportsRegistry(object):
         """
         Registers an end point and notifies listeners. Does nothing if the
         endpoint UID was already known.
-        
+
         :param endpoint: An ImportedEndpoint object
         :return: True if the end point has been added
         """
@@ -114,7 +113,7 @@ class ImportsRegistry(object):
     def update(self, uid, new_properties):
         """
         Updates an end point and notifies listeners
-        
+
         :param uid: The UID of the end point
         :param new_properties: The new properties of the end point
         """
@@ -146,7 +145,7 @@ class ImportsRegistry(object):
     def remove(self, uid):
         """
         Unregisters an end point and notifies listeners
-        
+
         :param uid: The UID of the end point to unregister
         """
         # Remove the end point from the individual storage
@@ -180,7 +179,7 @@ class ImportsRegistry(object):
     def lost_framework(self, uid):
         """
         Unregisters all the end points associated to the given framework UID
-        
+
         :param uid: The UID of a framework
         """
         # Get the end points of this framework
@@ -200,7 +199,7 @@ class ImportsRegistry(object):
     @Invalidate
     def invalidate(self, context):
         """
-        Component invalidated: clean up storage 
+        Component invalidated: clean up storage
         """
         self._frameworks.clear()
         self._registry.clear()

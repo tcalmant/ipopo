@@ -5,30 +5,29 @@ Definition of Factory and Component context classes
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
-:version: 0.5.4
-:status: Alpha
+:license: Apache License 2.0
+:version: 0.5.5
+:status: Beta
 
 ..
 
-    This file is part of iPOPO.
+    Copyright 2013 isandlaTech
 
-    iPOPO is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    iPOPO is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+        http://www.apache.org/licenses/LICENSE-2.0
 
-    You should have received a copy of the GNU General Public License
-    along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 
 # Module version
-__version_info__ = (0, 5, 4)
+__version_info__ = (0, 5, 5)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -46,6 +45,9 @@ import pelix.ldapfilter as ldapfilter
 
 # iPOPO constants
 import pelix.ipopo.constants as constants
+
+# Standard library
+import copy
 
 # ------------------------------------------------------------------------------
 
@@ -76,9 +78,9 @@ class Requirement(object):
         if not specification:
             raise ValueError("No specification given")
 
+        self.specification = specification
         self.aggregate = aggregate
         self.optional = optional
-        self.specification = specification
 
         # Original filter keeper
         self.__original_filter = None
@@ -125,6 +127,13 @@ class Requirement(object):
         return not self.__eq__(other)
 
 
+    def __deepcopy__(self, memo):
+        """
+        Called by copy.deepcopy()
+        """
+        return self.copy()
+
+
     def copy(self):
         """
         Returns a copy of this instance
@@ -135,35 +144,10 @@ class Requirement(object):
                            self.__original_filter)
 
 
-    @classmethod
-    def from_dictionary_form(cls, dictionary):
-        """
-        Sets up an instance with the given dictionary form
-
-        :param dictionary: The dictionary form
-        :return: A configured requirement instance
-        :raise ValueError: An attribute is missing in the dictionary form
-        :raise TypeError: Invalid form type (only dictionaries are accepted)
-        """
-        if not isinstance(dictionary, dict):
-            raise TypeError("Invalid form type '{0}'".format(
-                                                     type(dictionary).__name__))
-
-        if not "specification" in dictionary:
-            raise ValueError("Missing specification in the dictionary form")
-
-        specification = dictionary["specification"]
-        aggregate = dictionary.get("aggregate", False)
-        optional = dictionary.get("optional", False)
-        spec_filter = ldapfilter.get_ldap_filter(dictionary.get("filter", None))
-
-        return cls(specification, aggregate, optional, spec_filter)
-
-
     def matches(self, properties):
         """
         Tests if the given _StoredInstance matches this requirement
-        
+
         :param properties: Service properties
         :return: True if the instance matches this requirement
         """
@@ -224,32 +208,12 @@ class Requirement(object):
         self.__full_filter = ldapfilter.combine_filters((spec_filter,
                                                          self.filter))
 
-
-    def to_dictionary_form(self):
-        """
-        Returns a dictionary form of the current object
-
-        :raise AttributeError: A field to store is missing in the instance
-        """
-        result = {}
-        for field in self.__stored_fields__:
-            result[field] = getattr(self, field)
-
-        # Special case: store the original filter
-        result['filter'] = self.__original_filter
-
-        return result
-
 # ------------------------------------------------------------------------------
 
 class FactoryContext(object):
     """
     Represents the data stored in a component factory (class)
     """
-
-    __basic_fields = ('callbacks', 'field_callbacks', 'name', 'properties',
-                      'properties_fields', 'provides', 'completed')
-
     def __init__(self):
         """
         Sets up the factory context
@@ -272,15 +236,11 @@ class FactoryContext(object):
         # Properties fields : Field name -> Property name
         self.properties_fields = {}
 
-        # Provided specifications:
-        # Array of tuples (specifications(arrays of strings), controller name)
-        self.provides = []
-
-        # Requirements : Field name -> Requirement object
-        self.requirements = {}
-
         # The factory manipulation has been completed
         self.completed = False
+
+        # Handler ID -> configuration
+        self.__handlers = {}
 
 
     def __eq__(self, other):
@@ -295,23 +255,9 @@ class FactoryContext(object):
             # Different types
             return False
 
-        # Do not compare the bundle context, as it must not be stored
-        for field in ('name', 'callbacks', 'field_callbacks', 'properties',
-                      'properties_fields', 'requirements'):
-            # Comparable fields
-            if getattr(self, field, None) != getattr(other, field, None):
-                return False
+        # Name-based equality
+        return self.name == other.name
 
-        # Treat the list differently
-        if len(self.provides) != len(other.provides):
-            return False
-
-        for provided in self.provides:
-            if provided not in other.provides:
-                # Missing a provided service
-                return False
-
-        return True
 
     def __ne__(self, other):
         """
@@ -320,78 +266,39 @@ class FactoryContext(object):
         return not self.__eq__(other)
 
 
+    def get_handlers_ids(self):
+        """
+        Retrieves the IDs of the handlers to instantiate for this component
+        """
+        return list(self.__handlers.keys())
+
+
     def copy(self):
         """
-        Returns a copy of the current FactoryContext instance
+        Returns a deep copy of the current FactoryContext instance
         """
-        context = FactoryContext()
-
-        direct = ("bundle_context", "name", "completed")
-        copied = ("callbacks", "field_callbacks", "properties",
-                  "properties_fields", "requirements")
-        lists = ("provides",)
-
-        # Direct copy of primitive values
-        for entry in direct:
-            setattr(context, entry, getattr(self, entry))
-
-        # Copy "complex" values
-        for entry in copied:
-            value = getattr(self, entry)
-            if value is not None:
-                value = value.copy()
-
-            setattr(context, entry, value)
-
-        # Copy lists
-        for entry in lists:
-            value = getattr(self, entry)
-            if value is not None:
-                value = value[:]
-
-            setattr(context, entry, value)
-
-        return context
+        return copy.deepcopy(self)
 
 
-    @classmethod
-    def from_dictionary_form(cls, dictionary):
+    def get_handler(self, handler_id, default=None):
         """
-        Sets up this instance with the given dictionary form
+        Retrieves the configuration associated to the given handler
 
-        :param dictionary: The dictionary form
-        :raise ValueError: An attribute is missing in the dictionary form
-        :raise TypeError: Invalid form type (only dictionaries are accepted)
+        :param handler_id: The ID of the configured handler
+        :param default: The default configuration value
+        :return: The existing configuration or the given default
         """
-        if not isinstance(dictionary, dict):
-            raise TypeError("Invalid form type '{0}'".format(
-                                                    type(dictionary).__name__))
+        return self.__handlers.setdefault(handler_id, default)
 
-        # Prepare the instance, initializing it
-        instance = cls()
 
-        # Basic fields
-        for field in cls.__basic_fields:
-            if field not in dictionary:
-                raise ValueError("Incomplete dictionary form: missing {0}" \
-                                 .format(field))
+    def set_handler(self, handler_id, configuration):
+        """
+        Stores the configuration of the given handler
 
-            setattr(instance, field, dictionary[field])
-
-        # Requirements field
-        if 'requirements' not in dictionary:
-            raise ValueError("Incomplete dictionary form: missing " \
-                             "'requirements'")
-
-        requirements = dictionary['requirements']
-        if not isinstance(requirements, dict):
-            raise TypeError("Only dictionaries are handled for 'requirements'")
-
-        for field, requirement_dict in requirements.items():
-            instance.requirements[field] = Requirement.from_dictionary_form(\
-                                                            requirement_dict)
-
-        return instance
+        :param handler_id: The ID of the configured handler
+        :param configuration: The complete configuration of the handler
+        """
+        self.__handlers[handler_id] = configuration
 
 
     def set_bundle_context(self, bundle_context):
@@ -404,36 +311,14 @@ class FactoryContext(object):
             assert isinstance(bundle_context, BundleContext)
             self.bundle_context = bundle_context
 
-
-    def to_dictionary_form(self):
-        """
-        Returns a dictionary form of the current object
-
-        :raise AttributeError: A field to store in missing in the instance
-        """
-        result = {}
-
-        # Fields with standard Python types (no conversion needed)
-        for entry in self.__basic_fields:
-            result[entry] = getattr(self, entry)
-
-        # Requirements field
-        requirements = {}
-        for field, requirement in self.requirements.items():
-            requirements[field] = requirement.to_dictionary_form()
-
-        result['requirements'] = requirements
-        return result
-
 # ------------------------------------------------------------------------------
 
 class ComponentContext(object):
     """
     Represents the data stored in a component instance
     """
-
-    # Try to reduce memory footprint (stored __instances)
-    __slots__ = ('factory_context', 'name', 'properties', 'requirements')
+    # Try to reduce memory footprint (many instances)
+    __slots__ = ('factory_context', 'name', 'properties')
 
     def __init__(self, factory_context, name, properties):
         """
@@ -453,34 +338,6 @@ class ComponentContext(object):
 
         self.properties = factory_context.properties.copy()
         self.properties.update(properties)
-
-        requires_filters = self.properties.get(\
-                                        constants.IPOPO_REQUIRES_FILTERS, None)
-
-        if not requires_filters or not isinstance(requires_filters, dict):
-            # No explicit filter configured
-            self.requirements = factory_context.requirements
-
-        else:
-            # We need to change a part of the requirements
-            self.requirements = {}
-            for field, requirement in factory_context.requirements.items():
-
-                if field not in requires_filters:
-                    # No information for this one, keep the factory requirement
-                    self.requirements[field] = requirement
-
-                else:
-                    try:
-                        # Use a copy of the requirement
-                        requirement_copy = requirement.copy()
-                        requirement_copy.set_filter(requires_filters[field])
-
-                        self.requirements[field] = requirement_copy
-
-                    except (TypeError, ValueError):
-                        # Invalid filter, use the factory requirement
-                        self.requirements[field] = requirement
 
 
     def get_bundle_context(self):
@@ -525,11 +382,12 @@ class ComponentContext(object):
         return self.factory_context.name
 
 
-    def get_provides(self):
+    def get_handler(self, handler_id):
         """
-        Retrieves the services provided by this component.
-        Returns an array containing arrays of specifications.
+        Retrieves the configuration for the given handler from the factory
+        context
 
-        :return: An array of tuples (specifications, controller)
+        :param handler_id: The ID of the configured handler
+        :return: The handler configuration, or None
         """
-        return self.factory_context.provides
+        return self.factory_context.get_handler(handler_id, None)

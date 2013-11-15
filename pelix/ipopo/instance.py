@@ -5,30 +5,29 @@ Instance manager class definition
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
-:version: 0.5.4
-:status: Alpha
+:license: Apache License 2.0
+:version: 0.5.5
+:status: Beta
 
 ..
 
-    This file is part of iPOPO.
+    Copyright 2013 isandlaTech
 
-    iPOPO is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    iPOPO is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+        http://www.apache.org/licenses/LICENSE-2.0
 
-    You should have received a copy of the GNU General Public License
-    along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 
 # Module version
-__version_info__ = (0, 5, 4)
+__version_info__ = (0, 5, 5)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -41,13 +40,10 @@ from pelix.constants import FrameworkException
 
 # iPOPO constants
 import pelix.ipopo.constants as constants
+import pelix.ipopo.handlers.constants as handlers_const
 
 # iPOPO beans
 from pelix.ipopo.contexts import ComponentContext
-
-# iPOPO featured handlers (imports will be replaced by services, in the future)
-import pelix.ipopo.handlers.requires as hdlr_requires
-import pelix.ipopo.handlers.provides as hdlr_provides
 
 # Standard library
 import logging
@@ -76,13 +72,14 @@ class StoredInstance(object):
     VALIDATING = 3
     """ This component is currently validating """
 
-    def __init__(self, ipopo_service, context, instance):
+    def __init__(self, ipopo_service, context, instance, handlers):
         """
         Sets up the instance object
 
         :param ipopo_service: The iPOPO service that instantiated this component
         :param context: The component context
         :param instance: The component instance
+        :param handlers: The list of handlers associated to this component
         """
         assert isinstance(context, ComponentContext)
 
@@ -117,28 +114,13 @@ class StoredInstance(object):
         # The controllers state dictionary
         self._controllers_state = {}
 
-        # Handlers...
+        # Handlers: kind -> [handlers]
         self._handlers = {}
-
-        # The provided services handlers
-        for specs, controller in self.context.get_provides():
-            handler = hdlr_provides.ServiceRegistrationHandler(specs,
-                                                               controller, self)
-
-            for kind in handler.get_kinds():
-                self._handlers.setdefault(kind, []).append(handler)
-
-        # The runtime dependency handlers
-        for field, requirement in context.requirements.items():
-            if requirement.aggregate:
-                handler = hdlr_requires.AggregateDependency(self,
-                                                            field, requirement)
-            else:
-                handler = hdlr_requires.SimpleDependency(self,
-                                                         field, requirement)
-
-            for kind in handler.get_kinds():
-                self._handlers.setdefault(kind, []).append(handler)
+        for handler in handlers:
+            kinds = handler.get_kinds()
+            if kinds:
+                for kind in kinds:
+                    self._handlers.setdefault(kind, []).append(handler)
 
 
     def __repr__(self):
@@ -160,7 +142,7 @@ class StoredInstance(object):
         """
         Tests if the given service event must be handled or ignored, based
         on the state of the iPOPO service and on the content of the event.
-        
+
         :param event: A service event
         :return: True if the event can be handled, False if it must be ignored
         """
@@ -213,7 +195,7 @@ class StoredInstance(object):
     def get_controller_state(self, name):
         """
         Retrieves the state of the controller with the given name
-        
+
         :param name: The name of the controller
         :return: The value of the controller
         :raise KeyError: No value associated to this controller
@@ -224,7 +206,7 @@ class StoredInstance(object):
     def set_controller_state(self, name, value):
         """
         Sets the state of the controller with the given name
-        
+
         :param name: The name of the controller
         :param value: The new value of the controller
         """
@@ -250,7 +232,7 @@ class StoredInstance(object):
         """
         Retrieves the handlers of the given kind. If kind is None, all handlers
         are returned.
-        
+
         :param kind: The kind of the handlers to return
         :return: A list of handlers, or an empty list
         """
@@ -259,11 +241,9 @@ class StoredInstance(object):
                 return self._handlers.get(kind, [])
 
             # Prepare the list of handlers to call
-            result = []
+            result = set()
             for handlers_list in self._handlers.values():
-                for handler in handlers_list:
-                    if handler not in result:
-                        result.append(handler)
+                result.update(handlers_list)
 
             return result
 
@@ -301,7 +281,8 @@ class StoredInstance(object):
         """
         with self._lock:
             all_valid = True
-            for handler in self._handlers.get(constants.HANDLER_DEPENDENCY, []):
+            for handler in self._handlers.get(handlers_const.KIND_DEPENDENCY,
+                                              tuple()):
                 # Try to bind
                 self.__safe_handler_callback(handler, 'try_binding')
 
@@ -577,9 +558,9 @@ class StoredInstance(object):
         """
         Calls the given method with the given arguments in the given handler.
         Logs exceptions, but doesn't propagate them.
-        
+
         Special arguments can be given in kwargs:
-        
+
         * 'none_as_true': If set to True and the method returned None or doesn't
                           exist, the result is considered as True.
                           If set to False, None result is kept as is.
@@ -587,7 +568,7 @@ class StoredInstance(object):
         * 'only_boolean': If True, the result can only be True or False, else
                           the result is the value returned by the method.
                           Default is False.
-        
+
         :param handler: The handler to call
         :param method_name: The name of the method to call
         :param args: List of arguments for the method to call
@@ -631,16 +612,16 @@ class StoredInstance(object):
         Calls the given method with the given arguments in all handlers.
         Logs exceptions, but doesn't propagate them.
         Methods called in handlers must return None, True or False.
-        
+
         Special parameters can be given in kwargs:
-        
+
         * 'exception_as_error': if it is set to True and an exception is raised
           by a handler, then this method will return False. By default, this
           flag is set to False and exceptions are ignored.
         * 'break_on_false': if it set to True, the loop calling the handler
           will stop after an handler returned False. By default, this flag
           is set to False, and all handlers are called.
-        
+
         :param method_name: Name of the method to call
         :param args: List of arguments for the method to call
         :param kwargs: Dictionary of arguments for the method to call and the
@@ -699,13 +680,14 @@ class StoredInstance(object):
         """
         with self._lock:
             # Set the value
-            setattr(self.instance, dependency.field, dependency.get_value())
+            setattr(self.instance, dependency.get_field(),
+                    dependency.get_value())
 
             # Call the component back
             self.__safe_callback(constants.IPOPO_CALLBACK_BIND,
                                  service, reference)
 
-            self.__safe_field_callback(dependency.field,
+            self.__safe_field_callback(dependency.get_field(),
                                        constants.IPOPO_CALLBACK_BIND_FIELD,
                                        service, reference)
 
@@ -714,7 +696,7 @@ class StoredInstance(object):
         """
         Calls back component binding and field binding methods when the
         properties of an injected dependency have been updated.
-        
+
         :param dependency: The dependency handler
         :param service: The injected service
         :param reference: The reference of the injected service
@@ -722,7 +704,7 @@ class StoredInstance(object):
         """
         with self._lock:
             # Call the component back
-            self.__safe_field_callback(dependency.field,
+            self.__safe_field_callback(dependency.get_field(),
                                        constants.IPOPO_CALLBACK_UPDATE_FIELD,
                                        service, reference, old_properties)
 
@@ -740,7 +722,7 @@ class StoredInstance(object):
         """
         with self._lock:
             # Call the component back
-            self.__safe_field_callback(dependency.field,
+            self.__safe_field_callback(dependency.get_field(),
                                        constants.IPOPO_CALLBACK_UNBIND_FIELD,
                                        service, reference)
 
@@ -748,7 +730,8 @@ class StoredInstance(object):
                                  service, reference)
 
             # Update the injected field
-            setattr(self.instance, dependency.field, dependency.get_value())
+            setattr(self.instance, dependency.get_field(),
+                    dependency.get_value())
 
             # Unget the service
             self.bundle_context.unget_service(reference)

@@ -7,26 +7,25 @@ Provides commands to the Pelix shell to get the state of iPOPO instances.
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
+:license: Apache License 2.0
 :version: 0.2.2
-:status: Alpha
+:status: Beta
 
 ..
 
-    This file is part of iPOPO.
+    Copyright 2013 isandlaTech
 
-    iPOPO is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    iPOPO is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+        http://www.apache.org/licenses/LICENSE-2.0
 
-    You should have received a copy of the GNU General Public License
-    along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 
 # Module version
@@ -165,13 +164,22 @@ class IPopoCommands(object):
         requirements = details.get('requirements', None)
         if requirements:
             lines.append("Requirements:")
-            req_headers = ('ID', 'Specifications', 'Filter', 'Aggregate',
+            req_headers = ('ID', 'Specification', 'Filter', 'Aggregate',
                            'Optional')
-            req_lines = [(item['id'], item['specifications'], item['filter'],
+            req_lines = [(item['id'], item['specification'], item['filter'],
                           item['aggregate'], item['optional'])
                          for item in requirements]
 
-            lines.append(self._utils.make_table(req_headers, req_lines))
+            lines.append(self._utils.make_table(req_headers, req_lines, '\t'))
+
+
+        handlers = details.get('handlers', None)
+        if handlers:
+            lines.append("Handlers:")
+            handlers_headers = ('ID', 'Configuration')
+            handlers_lines = [(key, handlers[key]) for key in sorted(handlers)]
+            lines.append(self._utils.make_table(handlers_headers,
+                                                handlers_lines, '\t'))
 
         io_handler.write('\n'.join(lines))
 

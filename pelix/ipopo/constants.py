@@ -5,29 +5,28 @@ Defines some iPOPO constants
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
-:version: 0.5.4
-:status: Alpha
+:license: Apache License 2.0
+:version: 0.5.5
+:status: Beta
 
 ..
 
-    This file is part of iPOPO.
-    
-    iPOPO is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    
-    iPOPO is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    
-    You should have received a copy of the GNU General Public License
-    along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
+    Copyright 2013 isandlaTech
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 # Module version
-__version_info__ = (0, 5, 4)
+__version_info__ = (0, 5, 5)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -48,6 +47,17 @@ IPOPO_SERVICE_SPECIFICATION = "pelix.ipopo.core"
 
 # ------------------------------------------------------------------------------
 
+HANDLER_REQUIRES = 'ipopo.requires'
+""" The @Requires handler ID """
+
+HANDLER_PROVIDES = 'ipopo.provides'
+""" The @Provides handler ID """
+
+HANDLER_PROPERTY = 'ipopo.properties'
+""" The @Property handler ID """
+
+# ------------------------------------------------------------------------------
+
 # Injected class fields
 IPOPO_METHOD_CALLBACKS = "__ipopo_callbacks__"
 """ Contains the list of callback types this method is decorated for """
@@ -57,9 +67,6 @@ IPOPO_METHOD_FIELD_CALLBACKS = "__ipopo_field_callbacks__"
 
 IPOPO_FACTORY_CONTEXT = "__ipopo_factory_context__"
 """ Storage of the FactoryContext object """
-
-IPOPO_FACTORY_CONTEXT_DATA = "__ipopo_factory_context_data__"
-""" Storage of the dictionary form of the FactoryContext """
 
 IPOPO_INSTANCES = "__ipopo_instances__"
 """ List of configured instantiations """
@@ -119,39 +126,11 @@ If True, the component will be re-instantiated after its bundle has been updated
 
 # ------------------------------------------------------------------------------
 
-HANDLER_DEPENDENCY = 'dependency'
-"""
-Represents the 'dependency' kind of handler.
-Those handlers must implement the following methods:
-
-* get_bindings(): Retrieves the list of bound service references
-* is_valid(): Returns True if the dependency is in a valid state
-"""
-
-HANDLER_SERVICE_PROVIDER = 'service_provider'
-"""
-Represents the 'service_provider' kind of handler.
-Those handlers must implement the following method:
-
-* get_service_reference(): Retrieves the reference of the provided service
-  (a ServiceReference object).
-
-It should also implement the following ones:
-
-* on_controller_changer(): Called when a component controller has been modified.
-  The publication of a service might be stopped if its controller is set to
-  False.
-* on_property_change(): Called when a component property has been modified.
-  The provided service properties should be modified accordingly.
-"""
-
-# ------------------------------------------------------------------------------
-
 def get_ipopo_svc_ref(bundle_context):
     """
     Retrieves a tuple containing the service reference to iPOPO and the service
     itself
-    
+
     :param bundle_context: The calling bundle context
     :return: The reference to the iPOPO service and the service itself,
              None if not available
@@ -179,7 +158,7 @@ def use_ipopo(bundle_context):
     Utility context to use the iPOPO service safely in a "with" block.
     It looks after the the iPOPO service and releases its reference when exiting
     the context.
-    
+
     :param bundle_context: The calling bundle context
     :return: The iPOPO service
     :raise BundleException: Service not found

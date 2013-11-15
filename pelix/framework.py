@@ -7,30 +7,29 @@ Pelix is a Python framework that aims to act as OSGi as much as possible
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
-:version: 0.5.4
-:status: Alpha
+:license: Apache License 2.0
+:version: 0.5.5
+:status: Beta
 
 ..
 
-    This file is part of iPOPO.
+    Copyright 2013 isandlaTech
 
-    iPOPO is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    iPOPO is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+        http://www.apache.org/licenses/LICENSE-2.0
 
-    You should have received a copy of the GNU General Public License
-    along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 
 # Module version
-__version_info__ = (0, 5, 4)
+__version_info__ = (0, 5, 5)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -1261,12 +1260,16 @@ class BundleContext(object):
                                                                  ldap_filter)
 
 
-    def get_all_service_references(self, clazz, ldap_filter):
+    def get_all_service_references(self, clazz, ldap_filter=None):
         """
         Returns an array of ServiceReference objects.
         The returned array of ServiceReference objects contains services that
         were registered under the specified class and match the specified filter
         expression.
+
+        :param clazz: Class implemented by the service
+        :param ldap_filter: Service filter
+        :return: The sorted list of all matching service references, or None
         """
         return self.__framework.find_service_references(clazz, ldap_filter)
 
@@ -1332,11 +1335,12 @@ class BundleContext(object):
                                                         True)
 
 
-    def get_service_references(self, clazz, ldap_filter):
+    def get_service_references(self, clazz, ldap_filter=None):
         """
         Returns the service references for services that were registered under
         the specified class by this bundle and matching the given filter
 
+        :param clazz: The class name with which the service was registered.
         :param ldap_filter: A filter on service properties
         :return: The list of references to the services registered by the
                  calling bundle and matching the filters.

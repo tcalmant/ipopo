@@ -5,30 +5,29 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
-:license: GPLv3
-:version: 0.5.4
-:status: Alpha
+:license: Apache License 2.0
+:version: 0.5.5
+:status: Beta
 
 ..
 
-    This file is part of iPOPO.
+    Copyright 2013 isandlaTech
 
-    iPOPO is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    iPOPO is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+        http://www.apache.org/licenses/LICENSE-2.0
 
-    You should have received a copy of the GNU General Public License
-    along with iPOPO. If not, see <http://www.gnu.org/licenses/>.
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 
 # Module version
-__version_info__ = (0, 5, 4)
+__version_info__ = (0, 5, 5)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -67,18 +66,17 @@ def is_from_parent(cls, attribute_name, value=None):
     :return: True if the attribute value is shared with a parent class
     """
     if value is None:
-        # Get the current value
-        value = getattr(cls, attribute_name, None)
-        if value is None:
+        try:
+            # Get the current value
+            value = getattr(cls, attribute_name)
+
+        except AttributeError:
             # No need to go further: the attribute does not exist
             return False
 
     for base in cls.__bases__:
         # Look for the value in each parent class
-        base_value = getattr(base, attribute_name, None)
-        # Use '==' instead of 'is' to work in both
-        # Python 2 (==) and Python 3 (==, is)
-        if base_value == value:
+        if getattr(base, attribute_name, None) is value:
             # Found !
             return True
 
@@ -157,34 +155,30 @@ def _get_factory_context(cls):
     :param cls: The factory class
     :return: The factory class context
     """
-    context = getattr(cls, constants.IPOPO_FACTORY_CONTEXT_DATA, None)
+    context = getattr(cls, constants.IPOPO_FACTORY_CONTEXT, None)
 
     if context is None:
         # Class not yet manipulated
         context = FactoryContext()
 
+    elif is_from_parent(cls, constants.IPOPO_FACTORY_CONTEXT):
+        # Create a copy the context
+        context = context.copy()
+
+        # Clear the values that must not be inherited:
+        # * Provided services
+        # FIXME: do it in a better/generic way
+        context.set_handler(constants.HANDLER_PROVIDES, [])
+
+        # * Manipulation has not been applied yet
+        context.completed = False
+
     else:
-        if is_from_parent(cls, constants.IPOPO_FACTORY_CONTEXT_DATA):
-            # The context comes from a parent, copy it using a temporary
-            # dictionary form
-            if isinstance(context, dict):
-                context = FactoryContext.from_dictionary_form(context)
+        # Nothing special to do
+        return context
 
-            context = context.copy()
-
-            # Clear the values that must not be inherited:
-            # * Provided services
-            del context.provides[:]
-
-            # * Manipulation has not been applied yet
-            context.completed = False
-
-        # We have a context of our own, make sure we have a FactoryContext
-        if isinstance(context, dict):
-            # Already manipulated and stored class
-            context = FactoryContext.from_dictionary_form(context)
-
-    setattr(cls, constants.IPOPO_FACTORY_CONTEXT_DATA, context)
+    # Context has been created or copied, inject the new bean
+    setattr(cls, constants.IPOPO_FACTORY_CONTEXT, context)
     return context
 
 
@@ -497,11 +491,11 @@ class ComponentFactory(object):
                     # Set inherited fields to None
                     setattr(factory_class, field, None)
 
-            # Add the factory context field (set it to None)
-            setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT, None)
+            # Store the factory context in its field
+            setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT, context)
 
             # Inject the properties getter and setter if needed
-            if len(context.properties_fields) > 0:
+            if context.properties_fields:
                 setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX \
                         + constants.IPOPO_GETTER_SUFFIX, None)
                 setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX \
@@ -512,11 +506,6 @@ class ComponentFactory(object):
             _logger.error("%s has already been manipulated with the name '%s'. "
                           "Keeping the old name.",
                           get_method_description(factory_class), context.name)
-
-        # Store a dictionary form of the factory context in the class
-        # -> Avoids "class version" problems
-        setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT_DATA, \
-                context.to_dictionary_form())
 
         return factory_class
 
@@ -589,6 +578,9 @@ class Property(object):
 
         # Associate the field to the property name
         context.properties_fields[self.__field] = self.__name
+
+        # Mark the handler in the factory context
+        context.set_handler(constants.HANDLER_PROPERTY, None)
 
         # Inject a property in the class. The property will call an instance
         # level getter / setter, injected by iPOPO after the instance creation
@@ -698,7 +690,8 @@ class Provides(object):
                 filtered_specs.append(spec)
 
         # Store the service information
-        context.provides.append((filtered_specs, self.__controller))
+        config = context.get_handler(constants.HANDLER_PROVIDES, [])
+        config.append((filtered_specs, self.__controller))
 
         if self.__controller:
             # Inject a property in the class. The property will call an instance
@@ -783,7 +776,9 @@ class Requires(object):
                             get_method_description(clazz))
             return clazz
 
-        context.requirements[self.__field] = self.__requirement
+        # Store the requirement information
+        config = context.get_handler(constants.HANDLER_REQUIRES, {})
+        config[self.__field] = self.__requirement
 
         # Inject the field
         setattr(clazz, self.__field, None)
