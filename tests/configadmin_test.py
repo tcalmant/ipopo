@@ -250,7 +250,6 @@ class ConfigurationAdminTest(unittest.TestCase):
         # Delete the configuration
         config.delete()
 
-
 # ------------------------------------------------------------------------------
 
 class ManagedServiceTest(unittest.TestCase):
@@ -299,6 +298,16 @@ class ManagedServiceTest(unittest.TestCase):
         Small pause to let the task pool notify the services
         """
         time.sleep(.2)
+
+
+    def check_call_count(self, test_svc, expected_count):
+        """
+        Checks if the given test service has been called X times
+        """
+        self.assertEqual(test_svc.call_count, expected_count,
+                         "updated() called more than {0} times"\
+                         .format(expected_count))
+        test_svc.call_count = 0
 
 
     def testNoConfigDelete(self):
@@ -420,6 +429,7 @@ class ManagedServiceTest(unittest.TestCase):
             self.pause()
 
             # Nothing should have happened yet
+            self.check_call_count(svc, 0)
             self.assertIsNone(svc.value, "Value has been set")
             self.assertFalse(svc.deleted, "Configuration considered as deleted")
 
@@ -430,6 +440,7 @@ class ManagedServiceTest(unittest.TestCase):
             self.pause()
 
             # The service should have been configured
+            self.check_call_count(svc, 1)
             self.assertEqual(svc.value, 42, "Value hasn't been set")
             self.assertFalse(svc.deleted, "Configuration considered as deleted")
 
@@ -440,6 +451,7 @@ class ManagedServiceTest(unittest.TestCase):
             self.pause()
 
             # The flag must have been set
+            self.check_call_count(svc, 1)
             self.assertTrue(svc.deleted, "Configuration considered as deleted")
 
 # ------------------------------------------------------------------------------
@@ -455,16 +467,9 @@ class FileInstallTest(unittest.TestCase):
         self.framework = create_framework()
         context = self.framework.get_bundle_context()
 
-        # Start FileInstall
-        context.install_bundle('pelix.services.fileinstall').start()
-
-        # Speed it up
-        fileinstall_ref = context.get_service_reference(
-                                                services.SERVICE_FILEINSTALL)
-        with use_service(context, fileinstall_ref) as svc:
-            # Speed up poll time
-            svc._poll_time = .1
-            time.sleep(1)
+        # in FileInstall
+        self.bnd_fileinstall = context.install_bundle(\
+                                                   'pelix.services.fileinstall')
 
         # Get the ConfigAdmin service
         self.config_ref = context.get_service_reference(
@@ -474,6 +479,22 @@ class FileInstallTest(unittest.TestCase):
         # Install the test bundle (don't start it)
         self.bundle = context.install_bundle('tests.configadmin_bundle')
         self.pid = self.bundle.get_module().CONFIG_PID
+
+
+    def start_fileinstall(self):
+        """
+        Starts the file install bundle and tweaks its service
+        """
+        # Start the bundle
+        self.bnd_fileinstall.start()
+
+        # Speed up the poll time
+        context = self.framework.get_bundle_context()
+        fileinstall_ref = context.get_service_reference(
+                                                services.SERVICE_FILEINSTALL)
+        with use_service(context, fileinstall_ref) as svc:
+            svc._poll_time = .1
+            time.sleep(1)
 
 
     def tearDown(self):
@@ -494,6 +515,14 @@ class FileInstallTest(unittest.TestCase):
         bundle
         """
         return self.bundle.get_registered_services()[0]
+
+
+    def check_call_count(self, test_svc, expected_count):
+        """
+        Checks if the given test service has been called X times
+        """
+        self.assertEqual(test_svc.call_count, expected_count)
+        test_svc.call_count = 0
 
 
     def touch(self, filepath):
@@ -517,6 +546,9 @@ class FileInstallTest(unittest.TestCase):
         """
         Tests a whole file life cycle
         """
+        # Start file install
+        self.start_fileinstall()
+
         context = self.framework.get_bundle_context()
 
         # Start the test bundle
@@ -527,6 +559,7 @@ class FileInstallTest(unittest.TestCase):
         time.sleep(.4)
 
         with use_service(context, ref) as svc:
+            self.check_call_count(svc, 0)
             self.assertIsNone(svc.value, "Value has been set")
 
         # Get the watched folder
@@ -547,6 +580,7 @@ class FileInstallTest(unittest.TestCase):
         # Check if the service has been updated
         with use_service(context, ref) as svc:
             self.assertEqual(svc.value, value, "Incorrect value")
+            self.check_call_count(svc, 1)
 
         # Update the properties
         value = 'Ecky-ecky-ecky-ecky-pikang-zoom-boing'
@@ -558,6 +592,7 @@ class FileInstallTest(unittest.TestCase):
         # Check if the service has been updated
         with use_service(context, ref) as svc:
             self.assertEqual(svc.value, value, "Incorrect value")
+            self.check_call_count(svc, 1)
 
             # Reset the flags
             svc.reset()
@@ -570,6 +605,7 @@ class FileInstallTest(unittest.TestCase):
 
         # Check if the service has been updated
         with use_service(context, ref) as svc:
+            self.check_call_count(svc, 0)
             self.assertIsNone(svc.value, "File updated after simple touch")
             self.assertFalse(svc.deleted, "Configuration considered deleted")
 
@@ -580,6 +616,7 @@ class FileInstallTest(unittest.TestCase):
         time.sleep(.4)
 
         with use_service(context, ref) as svc:
+            self.check_call_count(svc, 1)
             self.assertTrue(svc.deleted, "Configuration not deleted")
 
 # ------------------------------------------------------------------------------

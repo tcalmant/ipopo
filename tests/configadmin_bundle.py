@@ -32,6 +32,7 @@ class Configurable(object):
         """
         self.value = None
         self.deleted = False
+        self.call_count = 0
 
 
     def reset(self):
@@ -40,12 +41,15 @@ class Configurable(object):
         """
         self.value = None
         self.deleted = False
+        self.call_count = 0
 
 
     def updated(self, properties):
         """
         Called by the ConfigurationAdmin service
         """
+        self.call_count += 1
+
         if properties is None:
             # Deleted
             self.value = None
