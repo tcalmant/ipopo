@@ -83,6 +83,7 @@ class Configuration(object):
 
         # Properties
         self.__properties = None
+        self.__lock = threading.RLock()
 
         # Associated services
         self.__config_admin = config_admin
@@ -94,7 +95,7 @@ class Configuration(object):
         self.__location = None
 
         # Update using given properties, if any
-        self.update(properties)
+        self.__properties_update(properties)
 
 
     def __str__(self):
@@ -170,23 +171,24 @@ class Configuration(object):
                  property. The value of this property may be obtained from the
                  get_bundle_location() method.
         """
-        if self.__deleted:
-            raise ValueError("{0} has been deleted".format(self.__pid))
+        with self.__lock:
+            if self.__deleted:
+                raise ValueError("{0} has been deleted".format(self.__pid))
 
-        elif not self.__updated:
-            # Fresh configuration
-            return None
+            elif not self.__updated:
+                # Fresh configuration
+                return None
 
-        # Filter a copy of the properties
-        props = self.__properties.copy()
+            # Filter a copy of the properties
+            props = self.__properties.copy()
 
-        try:
-            del props[services.CONFIG_PROP_BUNDLE_LOCATION]
-        except KeyError:
-            # Ignore
-            pass
+            try:
+                del props[services.CONFIG_PROP_BUNDLE_LOCATION]
+            except KeyError:
+                # Ignore
+                pass
 
-        return props
+            return props
 
 
     def is_valid(self):
@@ -212,31 +214,34 @@ class Configuration(object):
             # Nothing to do
             return False
 
-        # Make a copy of the properties
-        properties = properties.copy()
+        with self.__lock:
+            # Make a copy of the properties
+            properties = properties.copy()
 
-        # Override properties
-        properties[services.CONFIG_PROP_PID] = self.__pid
+            # Override properties
+            properties[services.CONFIG_PROP_PID] = self.__pid
 
-        if self.__location:
-            properties[services.CONFIG_PROP_BUNDLE_LOCATION] = self.__location
+            if self.__location:
+                properties[services.CONFIG_PROP_BUNDLE_LOCATION] = \
+                                                            self.__location
 
-        if self.__factory_pid:
-            properties[services.CONFIG_PROP_FACTORY_PID] = self.__factory_pid
+            if self.__factory_pid:
+                properties[services.CONFIG_PROP_FACTORY_PID] = \
+                                                            self.__factory_pid
 
-        # See if new properties are different
-        if properties == self.__properties:
-            return False
+            # See if new properties are different
+            if properties == self.__properties:
+                return False
 
-        # Store the copy (before storing data)
-        self.__properties = properties
-        self.__updated = True
+            # Store the copy (before storing data)
+            self.__properties = properties
+            self.__updated = True
 
-        # Store the data
-        # it will cause FileInstall to update this configuration again, but
-        # this will ignored because self.__properties has already been saved
-        self.__persistence.store(self.__pid, properties)
-        return True
+            # Store the data
+            # it will cause FileInstall to update this configuration again, but
+            # this will ignored because self.__properties has already been saved
+            self.__persistence.store(self.__pid, properties)
+            return True
 
 
     def update(self, properties=None):
@@ -263,10 +268,11 @@ class Configuration(object):
         :param properties: the new set of properties for this configuration
         :raise IOError: Error storing the configuration
         """
-        # Update properties
-        if self.__properties_update(properties):
-            # Update configurations, if something changed
-            self.__config_admin._update(self)
+        with self.__lock:
+            # Update properties
+            if self.__properties_update(properties):
+                # Update configurations, if something changed
+                self.__config_admin._update(self)
 
 
     def delete(self, directory_updated=False):
@@ -277,26 +283,27 @@ class Configuration(object):
                                   recall the directory of this deletion
                                   (internal use only)
         """
-        if self.__deleted:
-            # Nothing to do
-            return
+        with self.__lock:
+            if self.__deleted:
+                # Nothing to do
+                return
 
-        # Update status
-        self.__deleted = True
+            # Update status
+            self.__deleted = True
 
-        # Notify ConfigurationAdmin, notify services only if the configuration
-        # had been updated before
-        self.__config_admin._delete(self, self.__updated, directory_updated)
+            # Notify ConfigurationAdmin, notify services only if the configuration
+            # had been updated before
+            self.__config_admin._delete(self, self.__updated, directory_updated)
 
-        # Remove the file
-        self.__persistence.delete(self.__pid)
+            # Remove the file
+            self.__persistence.delete(self.__pid)
 
-        # Clean up
-        if self.__properties:
-            self.__properties.clear()
+            # Clean up
+            if self.__properties:
+                self.__properties.clear()
 
-        self.__persistence = None
-        self.__pid = None
+            self.__persistence = None
+            self.__pid = None
 
 
     def matches(self, ldap_filter):
