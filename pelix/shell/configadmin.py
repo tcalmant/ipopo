@@ -88,6 +88,7 @@ class ConfigAdminCommands(object):
         """
         return [("create", self.create),
                 ("update", self.update),
+                ("reload", self.reload),
                 ("delete", self.delete),
                 ("list", self.list)]
 
@@ -120,7 +121,7 @@ class ConfigAdminCommands(object):
         Updates a configuration
         """
         # Get the configuration with given PID
-        config = self._configs[pid] = self._config_admin.get_configuration(pid)
+        self._configs[pid] = config = self._config_admin.get_configuration(pid)
 
         # Get previous values
         old_properties = config.get_properties()
@@ -139,6 +140,17 @@ class ConfigAdminCommands(object):
 
         # Update configuration
         config.update(new_properties)
+
+
+    def reload(self, io_handler, pid):
+        """
+        Reloads the configuration with the given PID from the persistence
+        """
+        # Get the configuration with given PID
+        self._configs[pid] = config = self._config_admin.get_configuration(pid)
+
+        # Reload the file
+        config.reload()
 
 
     def delete(self, io_handler, pid):
