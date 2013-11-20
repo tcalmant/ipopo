@@ -165,13 +165,20 @@ class StoredInstance(object):
             self.check_lifecycle()
 
 
-    def update(self, dependency, svc, svc_ref, old_properties):
+    def update(self, dependency, svc, svc_ref, old_properties, new_value=False):
         """
         Called by a dependency manager when the properties of an injected
         dependency have been updated.
+
+        :param dependency: The dependency handler
+        :param svc: The injected service
+        :param svc_ref: The reference of the injected service
+        :param old_properties: Previous properties of the dependency
+        :param new_value: If True, inject the new value of the handler
         """
         with self._lock:
-            self.__update_binding(dependency, svc, svc_ref, old_properties)
+            self.__update_binding(dependency, svc, svc_ref, old_properties,
+                                  new_value)
             self.check_lifecycle()
 
 
@@ -692,7 +699,8 @@ class StoredInstance(object):
                                        service, reference)
 
 
-    def __update_binding(self, dependency, service, reference, old_properties):
+    def __update_binding(self, dependency, service, reference, old_properties,
+                         new_value):
         """
         Calls back component binding and field binding methods when the
         properties of an injected dependency have been updated.
@@ -701,8 +709,14 @@ class StoredInstance(object):
         :param service: The injected service
         :param reference: The reference of the injected service
         :param old_properties: Previous properties of the dependency
+        :param new_value: If True, inject the new value of the handler
         """
         with self._lock:
+            if new_value:
+                # Set the value
+                setattr(self.instance, dependency.get_field(),
+                        dependency.get_value())
+
             # Call the component back
             self.__safe_field_callback(dependency.get_field(),
                                        constants.IPOPO_CALLBACK_UPDATE_FIELD,

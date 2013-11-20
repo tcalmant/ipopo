@@ -6,7 +6,7 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: Apache License 2.0
-:version: 0.5.5
+:version: 0.5.6
 :status: Beta
 
 ..
@@ -27,7 +27,7 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 """
 
 # Module version
-__version_info__ = (0, 5, 5)
+__version_info__ = (0, 5, 6)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -634,7 +634,7 @@ class Provides(object):
 
     Defines an interface exported by a component.
     """
-    def __init__(self, specifications=None, controller=None):
+    def __init__(self, specifications, controller=None):
         """
         Sets up a provided service.
         A service controller can be defined to enable or disable the service.
@@ -715,10 +715,10 @@ class Requires(object):
     """
     @Requires decorator
 
-    Defines a required component
+    Defines a required service
     """
-    def __init__(self, field="", specification="", aggregate=False, \
-                 optional=False, spec_filter=None):
+    def __init__(self, field, specification, aggregate=False, optional=False, \
+                 spec_filter=None):
         """
         Sets up the requirement
 
@@ -779,6 +779,94 @@ class Requires(object):
         # Store the requirement information
         config = context.get_handler(constants.HANDLER_REQUIRES, {})
         config[self.__field] = self.__requirement
+
+        # Inject the field
+        setattr(clazz, self.__field, None)
+
+        return clazz
+
+# ------------------------------------------------------------------------------
+
+class RequiresMap(object):
+    """
+    @RequiresMap decorator
+
+    Defines a required service, injected in a dictionary
+    """
+    def __init__(self, field, specification, key, allow_none=False,
+                 aggregate=False, optional=False, spec_filter=None):
+        """
+        Sets up the requirement
+
+        :param field: The injected field
+        :param specification: The injected service specification
+        :param key: Name of the service property to use as a dictionary key
+        :param all_none: If True, inject services with a None property value
+        :param aggregate: If true, injects a list
+        :param optional: If true, this injection is optional
+        :param spec_filter: An LDAP query to filter injected services upon their
+                            properties
+        :raise TypeError: A parameter has an invalid type
+        :raise ValueError: An error occurred while parsing the filter or an
+                           argument is incorrect
+        """
+        # Check if field is valid
+        if not field:
+            raise ValueError("Empty field name.")
+
+        if not is_string(field):
+            raise TypeError("The field name must be a string, not {0}" \
+                            .format(type(field).__name__))
+
+        if ' ' in field:
+            raise ValueError("Field name can't contain spaces.")
+
+        self.__field = field
+
+        # Be sure that there is only one required specification
+        specifications = _get_specifications(specification)
+        self.__multi_specs = len(specifications) > 1
+
+        # Check if key is valid
+        if not key:
+            raise ValueError("No property key given")
+
+        # Store the flags
+        self.__key = key
+        self.__allow_none = allow_none
+
+        # Construct the requirement object
+        self.__requirement = Requirement(specifications[0],
+                                         aggregate, optional, spec_filter)
+
+    def __call__(self, clazz):
+        """
+        Adds the requirement to the class iPOPO field
+
+        :param clazz: The class to decorate
+        :return: The decorated class
+        :raise TypeError: If *clazz* is not a type
+        """
+        if not inspect.isclass(clazz):
+            raise TypeError("@RequiresMap can decorate only classes, not '{0}'"\
+                            .format(type(clazz).__name__))
+
+        if self.__multi_specs:
+            _logger.warning("Only one specification can be required: %s -> %s",
+                            get_method_description(clazz), self.__field)
+
+        # Set up the property in the class
+        context = _get_factory_context(clazz)
+        if context.completed:
+            # Do nothing if the class has already been manipulated
+            _logger.warning("@RequiresMap: Already manipulated class: %s",
+                            get_method_description(clazz))
+            return clazz
+
+        # Store the requirement information
+        config = context.get_handler(constants.HANDLER_REQUIRES_MAP, {})
+        config[self.__field] = (self.__requirement,
+                                self.__key, self.__allow_none)
 
         # Inject the field
         setattr(clazz, self.__field, None)

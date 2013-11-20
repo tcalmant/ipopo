@@ -63,7 +63,8 @@ _logger = logging.getLogger("ipopo.core")
 # Built-in handlers, automatically installed
 BUILTIN_HANDLERS = ('pelix.ipopo.handlers.properties',
                     'pelix.ipopo.handlers.provides',
-                    'pelix.ipopo.handlers.requires')
+                    'pelix.ipopo.handlers.requires',
+                    'pelix.ipopo.handlers.requiresmap')
 
 # ------------------------------------------------------------------------------
 

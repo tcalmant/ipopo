@@ -6,7 +6,7 @@ Defines some iPOPO constants
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: Apache License 2.0
-:version: 0.5.5
+:version: 0.5.6
 :status: Beta
 
 ..
@@ -26,7 +26,7 @@ Defines some iPOPO constants
     limitations under the License.
 """
 # Module version
-__version_info__ = (0, 5, 5)
+__version_info__ = (0, 5, 6)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -49,6 +49,9 @@ IPOPO_SERVICE_SPECIFICATION = "pelix.ipopo.core"
 
 HANDLER_REQUIRES = 'ipopo.requires'
 """ The @Requires handler ID """
+
+HANDLER_REQUIRES_MAP = 'ipopo.requires.map'
+""" The @RequiresMap handler ID """
 
 HANDLER_PROVIDES = 'ipopo.provides'
 """ The @Provides handler ID """
