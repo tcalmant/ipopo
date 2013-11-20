@@ -55,6 +55,12 @@ class _HandlerFactory(constants.HandlerFactory):
     """
     def _prepare_requirements(self, requirements, requires_filters):
         """
+        Overrides the filters specified in the decorator with the given ones
+
+        :param requirements: Dictionary of requirements (field -> Requirement)
+        :param requires_filters: Content of the 'requires.filter' component
+                                 property (field -> string)
+        :return: The new requirements
         """
         if not requires_filters or not isinstance(requires_filters, dict):
             # No explicit filter configured
@@ -197,8 +203,6 @@ class _RuntimeDependency(constants.DependencyHandler):
         """
         Cleans up the manager. The manager can't be used after this method has
         been called
-
-        :return: The removed bindings (list) or None
         """
         self._lock = None
         self._ipopo_instance = None
@@ -320,6 +324,8 @@ class _RuntimeDependency(constants.DependencyHandler):
     def stop(self):
         """
         Stops the dependency manager (must be called before clear())
+
+        :return: The removed bindings (list) or None
         """
         self._context.remove_service_listener(self)
 
@@ -342,8 +348,6 @@ class SimpleDependency(_RuntimeDependency):
         """
         Cleans up the manager. The manager can't be used after this method has
         been called
-
-        :return: The removed bindings (list) or None
         """
         self.reference = None
         super(SimpleDependency, self).clear()
@@ -355,12 +359,12 @@ class SimpleDependency(_RuntimeDependency):
 
         :return: A list of ServiceReferences objects
         """
-        result = []
         with self._lock:
             if self.reference:
-                result.append(self.reference)
+                return [self.reference]
 
-        return result
+            else:
+                return []
 
 
     def on_service_arrival(self, svc_ref):
@@ -387,14 +391,13 @@ class SimpleDependency(_RuntimeDependency):
         """
         with self._lock:
             if svc_ref is self.reference:
-                # Store the current values
-                service, reference = self._value, self.reference
+                service = self._value
 
                 # Clean the instance values
                 self._value = None
                 self.reference = None
 
-                self._ipopo_instance.unbind(self, service, reference)
+                self._ipopo_instance.unbind(self, service, svc_ref)
                 return True
 
 
@@ -412,22 +415,20 @@ class SimpleDependency(_RuntimeDependency):
 
             else:
                 # Notify the property modification
-                self._ipopo_instance.update(self, self._value, self.reference,
+                self._ipopo_instance.update(self, self._value, svc_ref,
                                             old_properties)
 
 
     def stop(self):
         """
         Stops the dependency manager (must be called before clear())
+
+        :return: The removed bindings (list) or None
         """
         super(SimpleDependency, self).stop()
         if self.reference is not None:
-            # Use a list
-            result = [(self._value, self.reference)]
-        else:
-            result = None
-
-        return result
+            # Return a list
+            return [(self._value, self.reference)]
 
 
     def try_binding(self):
@@ -471,8 +472,6 @@ class AggregateDependency(_RuntimeDependency):
         """
         Cleans up the manager. The manager can't be used after this method has
         been called
-
-        :return: The removed bindings (list) or None
         """
         self.services.clear()
         self.services = None
@@ -496,19 +495,16 @@ class AggregateDependency(_RuntimeDependency):
 
     def get_value(self):
         """
-        Retrieves the value to inject in the component (can be different of
-        self._value)
+        Retrieves the value to inject in the component
 
         :return: The value to inject
         """
         with self._lock:
             # The value field must be a copy of our list
             if self._future_value is not None:
-                self._value = self._future_value[:]
+                return self._future_value[:]
             else:
-                self._value = None
-
-            return self._value
+                return None
 
 
     def is_valid(self):
@@ -590,6 +586,8 @@ class AggregateDependency(_RuntimeDependency):
     def stop(self):
         """
         Stops the dependency manager (must be called before clear())
+
+        :return: The removed bindings (list) or None
         """
         super(AggregateDependency, self).stop()
 
