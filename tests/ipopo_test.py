@@ -318,8 +318,40 @@ class DecoratorsTest(unittest.TestCase):
 
         # Empty field or specification
         for empty in (None, "", "   "):
-            self.assertRaises(ValueError, decorators.Requires, empty)
+            self.assertRaises(ValueError, decorators.Requires, empty, "spec")
             self.assertRaises(ValueError, decorators.Requires, "field", empty)
+
+        # Invalid field or specification type
+        for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
+            self.assertRaises(TypeError, decorators.Requires, invalid)
+            self.assertRaises(ValueError, decorators.Requires, "field", invalid)
+
+        # Invalid target
+        for invalid in (None, method, 123):
+            self.assertRaises(TypeError, decorators.Requires("field", "spec"),
+                              invalid)
+
+    def testRequiresMap(self):
+        """
+        Tests the @RequiresMap decorator
+        """
+        class DummyClass(object):
+            pass
+
+        def method():
+            pass
+
+        # Empty field or specification
+        for empty in (None, "", "   "):
+            self.assertRaises(ValueError, decorators.RequiresMap,
+                              empty, "spec", "key")
+            self.assertRaises(ValueError, decorators.RequiresMap,
+                              "field", empty, "key")
+
+        # Empty key
+        for empty in (None, ""):
+            self.assertRaises(ValueError, decorators.RequiresMap,
+                              "field", "spec", empty)
 
         # Invalid field or specification type
         for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
@@ -1276,6 +1308,133 @@ class RequirementTest(unittest.TestCase):
         # Framework must have stopped now
         self.assertEqual(self.framework.get_state(), Bundle.RESOLVED,
                          "Framework hasn't stopped")
+
+
+    def testRequiresMap(self):
+        """
+        Tests the behavior of RequiresMap
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+
+        # Instantiate "map" component
+        compo = self.ipopo.instantiate(module.FACTORY_MAP, "map.component")
+        self.assertListEqual([IPopoEvent.INSTANTIATED], compo.states,
+                             "Component not instantiated...")
+        compo.reset()
+
+        # Add a service, with no property
+        svc1 = object()
+        reg1 = context.register_service(module.MAP_SPEC_TEST, svc1, {})
+
+        # Check insertion in dictionaries accepting None
+        self.assertDictEqual({}, compo.single, "Injected in single")
+        self.assertDictEqual({}, compo.multiple, "Injected in multiple")
+        self.assertDictEqual({None: svc1}, compo.single_none,
+                             "Not injected in single_none")
+        self.assertDictEqual({None: [svc1]}, compo.multiple_none,
+                             "Not injected in multiple_none")
+
+        # Check state
+        self.assertListEqual([], compo.states, "Component validated...")
+        compo.reset()
+
+        # Add a service, with property for "single"
+        svc2 = object()
+        value2 = 42
+        reg2 = context.register_service(module.MAP_SPEC_TEST, svc2,
+                                        {"single.key": value2})
+
+        # Check state
+        self.assertListEqual([IPopoEvent.VALIDATED], compo.states,
+                             "Component not validated...")
+        compo.reset()
+
+        # Check insertion in dictionaries "single"
+        self.assertDictEqual({value2: svc2}, compo.single,
+                             "Not injected in single")
+        self.assertDictEqual({}, compo.multiple, "Injected in multiple")
+        self.assertDictEqual({None: svc1, value2: svc2}, compo.single_none,
+                             "Not injected in single_none")
+        self.assertDictEqual({None: [svc1, svc2]}, compo.multiple_none,
+                             "Not injected in multiple_none")
+
+        # Update the service to be injected in both single and multiple
+        value2b = "some test value"
+        reg2.set_properties({"single.key": value2, "other.key": value2b})
+
+        # Check insertion in both dictionaries
+        self.assertDictEqual({value2: svc2}, compo.single,
+                             "Not injected in single")
+        self.assertDictEqual({value2b: [svc2]}, compo.multiple,
+                             "Not injected in multiple")
+        self.assertDictEqual({None: svc1, value2: svc2}, compo.single_none,
+                             "Not injected in single_none")
+        self.assertDictEqual({None: [svc1], value2b: [svc2]},
+                             compo.multiple_none,
+                             "Not injected in multiple_none")
+
+        # Remove the "other key"
+        reg2.set_properties({"other.key": None})
+
+        # Check removal in dictionaries "multiple"
+        self.assertDictEqual({value2: svc2}, compo.single,
+                             "Not injected in single")
+        self.assertDictEqual({}, compo.multiple, "Injected in multiple")
+        self.assertDictEqual({None: svc1, value2: svc2}, compo.single_none,
+                             "Not injected in single_none")
+        self.assertDictEqual({None: [svc1, svc2]}, compo.multiple_none,
+                             "Injected in multiple_none")
+
+        # Remove the "single key"
+        reg2.set_properties({"single.key": None})
+
+        # Check state
+        self.assertListEqual([IPopoEvent.INVALIDATED], compo.states,
+                             "Component not invalidated...")
+        compo.reset()
+
+        self.assertDictEqual({}, compo.single, "Injected in single")
+        self.assertDictEqual({}, compo.multiple, "Injected in multiple")
+        self.assertDictEqual({None: svc1}, compo.single_none,
+                             "Replacement in single_none")
+        self.assertDictEqual({None: [svc1, svc2]}, compo.multiple_none,
+                             "Not injected in multiple_none")
+
+        # Unregister service
+        reg2.unregister()
+
+        self.assertDictEqual({}, compo.single, "Injected in single")
+        self.assertDictEqual({}, compo.multiple, "Injected in multiple")
+        self.assertDictEqual({None: svc1}, compo.single_none,
+                             "Not injected in single_none")
+        self.assertDictEqual({None: [svc1]}, compo.multiple_none,
+                             "Not injected in multiple_none")
+
+        # Update service 1 properties
+        value1 = ("why", "not", "use", "tuple")
+        reg1.set_properties({"single.key": value1})
+
+        # Check state
+        self.assertListEqual([IPopoEvent.VALIDATED], compo.states,
+                             "Component not validated...")
+        compo.reset()
+
+        self.assertDictEqual({value1: svc1}, compo.single,
+                             "Not injected in single")
+        self.assertDictEqual({}, compo.multiple, "Injected in multiple")
+        self.assertDictEqual({value1: svc1}, compo.single_none,
+                             "Not injected in single_none")
+        self.assertDictEqual({None: [svc1]}, compo.multiple_none,
+                             "Injected in multiple_none")
+
+        # Remove components
+        reg1.unregister()
+
+        # Check state
+        self.assertListEqual([IPopoEvent.INVALIDATED], compo.states,
+                             "Component not invalidated...")
+        compo.reset()
 
 # ------------------------------------------------------------------------------
 

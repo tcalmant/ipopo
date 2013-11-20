@@ -6,7 +6,7 @@ Bundle defining multiple component factories for iPOPO tests
 :author: Thomas Calmant
 """
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
-    Requires, Validate, Invalidate, Unbind, Bind, Instantiate
+    Requires, Validate, Invalidate, Unbind, Bind, Instantiate, RequiresMap
 
 from pelix.ipopo.constants import IPOPO_INSTANCE_NAME, IPopoEvent
 
@@ -19,6 +19,9 @@ __version__ = (1, 0, 0)
 
 BASIC_FACTORY = "basic-component-factory"
 BASIC_INSTANCE = "basic-component"
+
+MAP_SPEC_TEST = "map.spec.test"
+FACTORY_MAP = "ipopo.tests.map"
 
 FACTORY_A = "ipopo.tests.a"
 FACTORY_B = "ipopo.tests.b"
@@ -223,6 +226,31 @@ class ComponentFactoryC(TestComponentFactory):
 
         # Assert that the service has been removed
         assert svc in self.services
+
+# ------------------------------------------------------------------------------
+
+@ComponentFactory(FACTORY_MAP)
+@RequiresMap('single', MAP_SPEC_TEST, 'single.key', False)
+@RequiresMap('multiple', MAP_SPEC_TEST, 'other.key', False,
+             aggregate=True, optional=True)
+@RequiresMap('single_none', MAP_SPEC_TEST, 'single.key', True)
+@RequiresMap('multiple_none', MAP_SPEC_TEST, 'other.key', True,
+             aggregate=True, optional=True)
+class MapComponentFactory(TestComponentFactory):
+    """
+    Sample RequiresMap component
+    """
+    def __init__(self):
+        """
+        Sets up members
+        """
+        super(MapComponentFactory, self).__init__()
+
+        self.single = None
+        self.multiple = None
+
+        self.single_none = None
+        self.multiple_none = None
 
 # ------------------------------------------------------------------------------
 
