@@ -281,7 +281,7 @@ class _RuntimeDependency(constants.DependencyHandler):
         Tests if the dependency is in a valid state
         """
         return (self.requirement is not None and self.requirement.optional) \
-            or not (not self._future_value)
+            or bool(self._future_value)
 
 
     def on_service_arrival(self, svc_ref):
