@@ -227,8 +227,9 @@ class IOHandler(object):
             self.write('\n')
 
         else:
-            # Format the line
-            line = line.format(*args, **kwargs)
+            # Format the line, if arguments have been given
+            if args or kwargs:
+                line = line.format(*args, **kwargs)
 
             # Write it
             self.write(line)
@@ -254,8 +255,9 @@ class IOHandler(object):
             line = ""
 
         else:
-            # Format the line
-            line = line.format(*args, **kwargs)
+            # Format the line, if arguments have been given
+            if args or kwargs:
+                line = line.format(*args, **kwargs)
 
             # Remove the trailing line feed
             if line[-1] == '\n':
