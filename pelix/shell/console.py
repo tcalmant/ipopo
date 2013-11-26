@@ -101,6 +101,27 @@ class InteractiveShell(object):
         self._context.add_service_listener(self, None, SHELL_SERVICE_SPEC)
 
 
+    def _readline_prompt(self):
+        """
+        Prompt using the readline module (no pre-flush)
+
+        :return: The command line
+        """
+        sys.stdout.flush()
+        return safe_input(self._shell.get_ps1())
+
+
+    def _normal_prompt(self):
+        """
+        Flushes the prompt before requesting the input
+
+        :return: The command line
+        """
+        sys.stdout.write(self._shell.get_ps1())
+        sys.stdout.flush()
+        return safe_input()
+
+
     def loop_input(self, on_quit=None):
         """
         Reads the standard input until the shell session is stopped
@@ -110,6 +131,10 @@ class InteractiveShell(object):
         """
         try:
             first_prompt = True
+
+            # Set up the prompt
+            prompt = self._readline_prompt if readline is not None \
+                        else self._normal_prompt
 
             while not self._stop_event.is_set():
                 # Wait for the shell to be there
@@ -121,12 +146,8 @@ class InteractiveShell(object):
                         sys.stdout.write(self._shell.get_banner())
                         first_prompt = False
 
-                    # Print the prompt
-                    sys.stdout.write(self._shell.get_ps1())
-                    sys.stdout.flush()
-
                     # Read the next line
-                    line = safe_input()
+                    line = prompt()
 
                     with self._lock:
                         if self._shell_event.is_set():
@@ -140,7 +161,9 @@ class InteractiveShell(object):
 
         except (EOFError, KeyboardInterrupt, SystemExit):
             # Input closed or keyboard interruption
-            self._stop_event.set()
+            pass
+
+        self._stop_event.set()
 
         sys.stdout.write('Bye !\n')
         sys.stdout.flush()
