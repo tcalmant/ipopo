@@ -154,6 +154,7 @@ class ImportsRegistry(object):
 
         except KeyError:
             # Unknown end point
+            _logger.warning("Unknown end point UID: %s", uid)
             return
 
         # Remove it from its framework storage, if any
