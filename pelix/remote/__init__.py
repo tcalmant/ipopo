@@ -68,6 +68,9 @@ End point creation/deletion listeners, with listen.exported and/or
 listen.imported properties.
 """
 
+#-------------------------------------------------------------------------------
+# Properties used by Pelix
+
 PROP_FRAMEWORK_UID = "pelix.remote.framework.uid"
 """
 The UID of the framework that exports the service.
@@ -81,18 +84,6 @@ PROP_ENDPOINT_NAME = "endpoint.name"
 PREFIX_PROP_EXPORTED = "service.exported."
 """ Prefix common to all export properties (for filtering) """
 
-PROP_EXPORTED_CONFIGS = "{0}configs".format(PREFIX_PROP_EXPORTED)
-""" Export configurations (xmlrpc, ...) (array of strings) """
-
-PROP_EXPORTED_INTERFACES = "{0}interfaces".format(PREFIX_PROP_EXPORTED)
-""" Exported specifications: must be an array of strings """
-
-PROP_IMPORTED = "service.imported"
-""" Flag indicating that the service has been imported """
-
-PROP_IMPORTED_CONFIGS = "service.imported.configs"
-""" Configurations of the imported service (mirror of PROP_EXPORTED_CONFIGS) """
-
 PROP_IMPORTED_INTERFACES = "service.imported.interfaces"
 """ Imported specifications (mirror of PROP_EXPORTED_INTERFACES) """
 
@@ -104,6 +95,89 @@ If set to True, the end point listener will be notified of imported end points
 PROP_LISTEN_EXPORTED = "listen.exported"
 """
 If set to True, the end point listener will be notified of exported end points
+"""
+
+#-------------------------------------------------------------------------------
+# Properties declared in RSA specifications
+
+# Already known
+
+PROP_EXPORTED_CONFIGS = "service.exported.configs"
+""" Export configurations (xmlrpc, ...) (str or array of str) """
+
+PROP_EXPORTED_INTERFACES = "service.exported.interfaces"
+""" Exported specifications (str or array of str) """
+
+PROP_IMPORTED = "service.imported"
+""" Flag indicating that the service has been imported """
+
+PROP_IMPORTED_CONFIGS = "service.imported.configs"
+""" Configurations of the imported service (array of str) """
+
+# New ones
+
+PROP_EXPORTED_INTENTS = "service.exported.intents"
+"""
+Service property identifying the intents that the distribution provider must
+implement to distribute the service. Intents listed in this property are
+reserved for intents that are critical for the code to function correctly,
+for example, ordering of messages.
+These intents should not be configurable. (str or array of str)
+"""
+
+PROP_EXPORTED_INTENTS_EXTRA = "service.exported.intents.extra"
+"""
+Service property identifying the extra intents that the distribution provider
+must implement to distribute the service.
+This property is merged with the ``service.exported.intents`` property before
+the distribution provider interprets the listed intents; it has therefore the
+same semantics but the property should be configurable so the administrator can
+choose the intents based on the topology.
+Bundles should therefore make this property configurable, for example through
+the Configuration Admin service. (str or array of str)
+"""
+
+PROP_INTENTS = "service.intents"
+"""
+Service property identifying the intents that this service implement
+(array of str)
+"""
+
+PROP_ENDPOINT_FRAMEWORK_UUID = "endpoint.framework.uuid"
+""" UUID of the framework exporting the service (str) """
+
+PROP_ENDPOINT_ID = "endpoint.id"
+""" ID of the endpoint (str) """
+
+PROP_ENDPOINT_PACKAGE_VERSION_ = "endpoint.package.version."
+"""
+Prefix for an endpoint property identifying the package version for a
+specification.
+For example, the property ``endpoint.package.version.com.acme=1.3`` describes
+the version of the package for the ``com.acme.Foo`` specification.
+This endpoint property for an interface package does not have to be set.
+If not set, the value must be assumed to be 0. (str)
+"""
+
+PROP_ENDPOINT_SERVICE_ID = "endpoint.service.id"
+"""
+The service id of the exported service. Can be absent or 0 if the corresponding
+endpoint is not for an OSGi service. (int)
+"""
+
+PROP_REMOTE_CONFIGS_SUPPORTED = "remote.configs.supported"
+"""
+Service property identifying the configuration types supported by a distribution
+provider.
+Registered by the distribution provider on one of its services to indicate the
+supported configuration types. (str or array of str)
+"""
+
+PROP_REMOTE_INTENTS_SUPPORTED = "remote.intents.supported"
+"""
+Service property identifying the intents supported by a distribution provider.
+Registered by the distribution provider on one of its services to indicate the
+vocabulary of implemented intents. (str or array of str)
 """
 
 #-------------------------------------------------------------------------------
