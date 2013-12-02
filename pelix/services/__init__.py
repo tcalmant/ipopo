@@ -58,13 +58,16 @@ EVENT_PROP_TIMESTAMP = "event.timestamp"
 
 #-------------------------------------------------------------------------------
 
-SERVICE_CONFIGURATION_ADMIN = "pelix.services.configadmin"
+SERVICE_CONFIGURATION_ADMIN = "pelix.configadmin"
 """ Specification of the ConfigurationAdmin service """
 
-SERVICE_CONFIGADMIN_MANAGED = "pelix.services.configadmin.managed"
+SERVICE_CONFIGADMIN_MANAGED = "pelix.configadmin.managed"
 """ Specification of a service managed by ConfigurationAdmin """
 
-SERVICE_CONFIGADMIN_PERSISTENCE = "pelix.services.configadmin.persistence"
+SERVICE_CONFIGADMIN_MANAGED_FACTORY = "pelix.configadmin.managed.factory"
+""" Specification of a factory managed by ConfigurationAdmin """
+
+SERVICE_CONFIGADMIN_PERSISTENCE = "pelix.configadmin.persistence"
 """ Specification of a ConfigurationAdmin storage service """
 
 FACTORY_CONFIGADMIN_JSON = "pelix-configadmin-persistence-json-factory"

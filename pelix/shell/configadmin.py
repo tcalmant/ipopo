@@ -106,11 +106,16 @@ class ConfigAdminCommands(object):
         return config
 
 
-    def create(self, io_handler, pid, **kwargs):
+    def create(self, io_handler, factory_pid, **kwargs):
         """
-        Creates a configuration
+        Creates a factory configuration
         """
-        self._configs[pid] = config = self._config_admin.get_configuration(pid)
+        config = self._config_admin.create_factory_configuration(factory_pid)
+
+        # Print the configuration PID
+        pid = config.get_pid()
+        io_handler.write_line("New configuration: {0}", pid)
+
         if kwargs:
             # Update it immediately if some properties are already set
             config.update(kwargs)
