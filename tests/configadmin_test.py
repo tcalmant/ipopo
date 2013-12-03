@@ -97,9 +97,8 @@ class ConfigurationAdminTest(unittest.TestCase):
         self.assertIsNone(config.get_properties(),
                           "Fresh factory configuration has properties")
 
-        # Check double names
-        self.assertRaises(ValueError,
-                          self.config.create_factory_configuration, factory_pid)
+        # Check Factory/Configuration PIDs
+        self.assertRaises(KeyError, self.config.get_configuration, factory_pid)
 
         # Delete the configuration
         config.delete()
