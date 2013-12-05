@@ -8,7 +8,7 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: Apache License 2.0
-:version: 0.2.3
+:version: 0.2.4
 :status: Beta
 
 ..
@@ -29,7 +29,7 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 """
 
 # Module version
-__version_info__ = (0, 2, 3)
+__version_info__ = (0, 2, 4)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -569,18 +569,50 @@ class Shell(object):
         :param command: A command name
         :return: A list of name spaces
         """
-        if command in self._commands[DEFAULT_NAMESPACE]:
-            # Command is in the default name space, use it directly
-            return [DEFAULT_NAMESPACE]
-
         # Look for the spaces where the command name appears
         namespaces = []
         for namespace, commands in self._commands.items():
             if command in commands:
                 namespaces.append(namespace)
 
+        # Sort name spaces
         namespaces.sort()
+
+        # Default name space must always come first
+        try:
+            namespaces.remove(DEFAULT_NAMESPACE)
+            namespaces.insert(0, DEFAULT_NAMESPACE)
+
+        except ValueError:
+            # Default name space wasn't present
+            pass
+
         return namespaces
+
+
+    def get_ns_commands(self, cmd_name):
+        """
+        Retrieves the possible name spaces and commands associated to the given
+        command name.
+
+        :param cmd_name: The given command name
+        :return: A list of 2-tuples (name space, command)
+        :raise ValueError: Unknown command name
+        """
+        namespace, command = _split_ns_command(cmd_name)
+        if not namespace:
+            # Name space not given, look for the commands
+            spaces = self.__find_command_ns(command)
+            if not spaces:
+                # Unknown command
+                raise ValueError("Unknown command {0}".format(command))
+
+            else:
+                # Return a sorted list of tuples
+                return sorted((namespace, command) for namespace in spaces)
+
+        # Single match
+        return [(namespace, command)]
 
 
     def get_ns_command(self, cmd_name):
@@ -602,8 +634,14 @@ class Shell(object):
 
             elif len(spaces) > 1:
                 # Multiple possibilities
-                raise ValueError("Multiple name spaces for {0}: {1}" \
-                                 .format(command, spaces))
+                if spaces[0] == DEFAULT_NAMESPACE:
+                    # Default name space has priority
+                    namespace = DEFAULT_NAMESPACE
+
+                else:
+                    # Ambiguous name
+                    raise ValueError("Multiple name spaces for {0}: {1}" \
+                                     .format(command, ', '.join(spaces)))
 
             else:
                 # Use the found name space
@@ -942,6 +980,35 @@ class Shell(object):
         io_handler.write_line("\t\t{0}", doc)
 
 
+    def __print_namespace_help(self, io_handler, namespace, cmd_name=None):
+        """
+        Prints the documentation of all the commands in the given name space,
+        or only of the given command
+
+        :parma io_handler: I/O Handler
+        :param namespace: Name space of the command
+        :param cmd_name: Name of the command to show, None to show them all
+        """
+        io_handler.write_line("=== Name space '{0}' ===", namespace)
+
+        # Get all commands in this name space
+        if cmd_name is None:
+            names = [command for command in self._commands[namespace]]
+            names.sort()
+
+        else:
+            names = [cmd_name]
+
+        first_cmd = True
+        for command in names:
+            if not first_cmd:
+                # Print an empty line
+                io_handler.write_line('\n')
+
+            self.__print_command_help(io_handler, namespace, command)
+            first_cmd = False
+
+
     def print_help(self, io_handler, command=None):
         """
         Prints the available methods and their documentation, or the
@@ -949,19 +1016,33 @@ class Shell(object):
         """
         if command:
             # Single command mode
+            if command in self._commands:
+                # Argument is a name space
+                self.__print_namespace_help(io_handler, command)
+                was_namespace = True
+            else:
+                was_namespace = False
+
+            # Also print the name of matching commands
             try:
                 # Extract command name space and name
-                namespace, cmd_name = self.get_ns_command(command)
+                possibilities = self.get_ns_commands(command)
 
             except ValueError as ex:
                 # Unknown command
-                io_handler.write_line(str(ex))
-                return False
+                if not was_namespace:
+                    # ... and no name space were matching either -> error
+                    io_handler.write_line(str(ex))
+                    return False
 
             else:
-                # Print the help
-                io_handler.write_line("* Name space '{0}':", namespace)
-                self.__print_command_help(io_handler, namespace, cmd_name)
+                # Print the help of the found command
+                if was_namespace:
+                    # Give some space
+                    io_handler.write_line('\n\n')
+
+                for namespace, cmd_name in possibilities:
+                    self.__print_namespace_help(io_handler, namespace, cmd_name)
 
         else:
             # Get all name spaces
@@ -970,15 +1051,15 @@ class Shell(object):
             namespaces.sort()
             namespaces.insert(0, DEFAULT_NAMESPACE)
 
+            first_ns = True
             for namespace in namespaces:
-                io_handler.write_line("* Name space '{0}':", namespace)
+                if not first_ns:
+                    # Add empty lines
+                    io_handler.write_line('\n\n')
 
-                # Get all commands in this name space
-                names = [command for command in self._commands[namespace]]
-                names.sort()
-
-                for cmd_name in names:
-                    self.__print_command_help(io_handler, namespace, cmd_name)
+                # Print the help of all commands
+                self.__print_namespace_help(io_handler, namespace)
+                first_ns = False
 
 
     def properties_list(self, io_handler):
