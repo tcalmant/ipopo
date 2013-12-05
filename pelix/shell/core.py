@@ -792,10 +792,10 @@ class Shell(object):
             return
 
         lines = []
-        lines.append("ID      : {0}".format(bundle.get_bundle_id()))
-        lines.append("Name    : {0}".format(bundle.get_symbolic_name()))
-        lines.append("Version : {0}".format(bundle.get_version()))
-        lines.append("State   : {0}".format(self._utils.bundlestate_to_str(
+        lines.append("ID......: {0}".format(bundle.get_bundle_id()))
+        lines.append("Name....: {0}".format(bundle.get_symbolic_name()))
+        lines.append("Version.: {0}".format(bundle.get_version()))
+        lines.append("State...: {0}".format(self._utils.bundlestate_to_str(
                                                         bundle.get_state())))
         lines.append("Location: {0}".format(bundle.get_location()))
         lines.append("Published services:")
@@ -830,9 +830,10 @@ class Shell(object):
         io_handler.write('\n'.join(lines))
 
 
-    def bundles_list(self, io_handler):
+    def bundles_list(self, io_handler, name=None):
         """
-        Lists the bundles in the framework and their state
+        Lists the bundles in the framework and their state. Possibility to
+        filter on the bundle name.
         """
         # Head of the table
         headers = ('ID', 'Name', 'State', 'Version')
@@ -842,6 +843,11 @@ class Shell(object):
 
         # The framework is not in the result of get_bundles()
         bundles.insert(0, self._context.get_bundle(0))
+
+        if name is not None:
+            # Filter the list
+            bundles = [bundle for bundle in bundles
+                       if name in bundle.get_symbolic_name()]
 
         # Make the entries
         lines = [[str(entry) for entry in
@@ -853,7 +859,12 @@ class Shell(object):
 
         # Print'em all
         io_handler.write(self._utils.make_table(headers, lines))
-        io_handler.write_line("{0} bundles installed", len(lines))
+
+        if name is None:
+            io_handler.write_line("{0} bundles installed", len(lines))
+
+        else:
+            io_handler.write_line("{0} filtered bundles", len(lines))
 
 
     def service_details(self, io_handler, service_id):
@@ -868,14 +879,14 @@ class Shell(object):
             return
 
         lines = []
-        lines.append("ID    : {0}".format(svc_ref.get_property(
+        lines.append("ID............: {0}".format(svc_ref.get_property(
                                             constants.SERVICE_ID)))
-        lines.append("Rank  : {0}".format(svc_ref.get_property(
+        lines.append("Rank..........: {0}".format(svc_ref.get_property(
                                             constants.SERVICE_RANKING)))
-        lines.append("Specs : {0}".format(svc_ref.get_property(
+        lines.append("Specifications: {0}".format(svc_ref.get_property(
                                             constants.OBJECTCLASS)))
-        lines.append("Bundle: {0}".format(svc_ref.get_bundle()))
-        lines.append("Properties:")
+        lines.append("Bundle........: {0}".format(svc_ref.get_bundle()))
+        lines.append("Properties....:")
         for key, value in svc_ref.get_properties().items():
             lines.append("\t{0} = {1}".format(key, value))
 
@@ -887,9 +898,10 @@ class Shell(object):
         io_handler.write('\n'.join(lines))
 
 
-    def services_list(self, io_handler):
+    def services_list(self, io_handler, specification=None):
         """
-        Lists the services in the framework
+        Lists the services in the framework. Possibility to filter on an exact
+        specification.
         """
         # Head of the table
         headers = ('ID', 'Specifications', 'Bundle', 'Ranking')
@@ -899,6 +911,11 @@ class Shell(object):
 
         # Use the reverse order (ascending service IDs instead of descending)
         references.reverse()
+
+        if specification is not None:
+            # Filter on specifications
+            references = [ref for ref in references if specification
+                          in ref.get_property(constants.OBJECTCLASS)]
 
         # Construct the list of services
         lines = [[str(entry) for entry in
