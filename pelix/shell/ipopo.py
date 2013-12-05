@@ -218,14 +218,14 @@ class IPopoCommands(object):
 
         # Basic information
         lines = []
-        lines.append("Name     : {0}".format(details["name"]))
-        lines.append("Factory  : {0}".format(details["factory"]))
+        lines.append("Name.....: {0}".format(details["name"]))
+        lines.append("Factory..: {0}".format(details["factory"]))
         lines.append("Bundle ID: {0}".format(details["bundle_id"]))
-        lines.append("State    : {0}".format(
+        lines.append("State....: {0}".format(
                                          ipopo_state_to_str(details["state"])))
 
         # Provided services
-        lines.append("Services :")
+        lines.append("Services.:")
         lines.extend("\t{0}".format(svc_reference)
                      for svc_reference in details["services"].values())
 
@@ -236,12 +236,12 @@ class IPopoCommands(object):
             lines.append("\t\tSpecification: {0}"\
                          .format(infos['specification']))
             if "filter" in infos:
-                lines.append("\t\tFilter   : {0}".format(infos["filter"]))
-            lines.append("\t\tOptional : {0}".format(infos["optional"]))
-            lines.append("\t\tAggregate: {0}".format(infos["aggregate"]))
+                lines.append("\t\tFilter......: {0}".format(infos["filter"]))
+            lines.append("\t\tOptional.....: {0}".format(infos["optional"]))
+            lines.append("\t\tAggregate....: {0}".format(infos["aggregate"]))
 
-            lines.append("\t\tHandler  : {0}".format(infos["handler"]))
-            lines.append("\t\tBindings :")
+            lines.append("\t\tHandler......: {0}".format(infos["handler"]))
+            lines.append("\t\tBindings:")
             for ref in infos["bindings"]:
                 lines.append('\t\t\t{0}'.format(ref))
 
