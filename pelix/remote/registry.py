@@ -159,7 +159,7 @@ class ImportsRegistry(object):
 
         # Remove it from its framework storage, if any
         try:
-            framework_endpoints = self._frameworks.get(endpoint.framework)
+            framework_endpoints = self._frameworks[endpoint.framework]
             if endpoint in framework_endpoints:
                 framework_endpoints.remove(endpoint)
 
