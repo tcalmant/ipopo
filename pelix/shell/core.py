@@ -702,8 +702,9 @@ class Shell(object):
 
         except TypeError as ex:
             # Invalid arguments...
-            _logger.exception("Error calling %s.%s: %s", namespace, command, ex)
+            _logger.error("Error calling %s.%s: %s", namespace, command, ex)
             io_handler.write_line("Invalid method call: {0}", ex)
+            self.__print_namespace_help(io_handler, namespace, command)
             return False
 
         except Exception as ex:
