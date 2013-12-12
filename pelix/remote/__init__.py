@@ -81,6 +81,9 @@ event packet.
 PROP_ENDPOINT_NAME = "endpoint.name"
 """ Name of the end point of an exported service """
 
+PROP_ENDPOINT_UID = "pelix.endpoint.uid"
+""" UID of the end point of an exported service """
+
 PREFIX_PROP_EXPORTED = "service.exported."
 """ Prefix common to all export properties (for filtering) """
 

@@ -35,8 +35,12 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+# Endpoint description bean
+from pelix.remote.edef import EndpointDescription
+
 # Pelix
 import pelix.remote
+from pelix.utilities import is_string
 
 # Standard library
 try:
@@ -57,18 +61,18 @@ PYTHON_LANGUAGE = "python"
 
 class ExportEndpoint(object):
     """
-    Represents an end point to access an exported service
+    Represents an export end point (one per group of configuration types)
     """
-    def __init__(self, uid, kind, name, svc_ref, service, url):
+    def __init__(self, uid, configurations, name, svc_ref, service, properties):
         """
         Sets up the members
 
         :param uid: Unique identified of the end point
-        :param kind: Kind of end point (xmlrpc, ...)
+        :param configurations: Kinds of end point (xmlrpc, ...)
         :param name: Name of the end point
         :param svc_ref: ServiceReference of the exported service
         :param service: Instance of the exported service
-        :param url: URL to access to the end point
+        :param properties: Extra properties
         :raise ValueError: Invalid UID or the end point exports nothing
                            (all specifications have been filtered)
         """
@@ -79,9 +83,20 @@ class ExportEndpoint(object):
         self.__uid = uid
         self.__instance = service
         self.__reference = svc_ref
-        self.__kind = kind
+        self.__configurations = configurations
         self.__name = name
-        self.__url = url
+
+        # Normalize extra properties
+        if not isinstance(properties, dict):
+            self.__properties = {}
+        else:
+            self.__properties = properties
+
+        # Normalize list of configurations
+        if is_string(configurations):
+            self.__configurations = (configurations,)
+        else:
+            self.__configurations = tuple(configurations)
 
         # Exported specifications
         self.__exported_specs = []
@@ -109,8 +124,9 @@ class ExportEndpoint(object):
         """
         String representation
         """
-        return "ExportEndpoint(uid={0}, kind={1}, specs={2})" \
-            .format(self.__uid, self.__kind, self.__compute_specifications())
+        return "ExportEndpoint(uid={0}, types={1}, specs={2})" \
+            .format(self.__uid, self.__configurations,
+                    self.__compute_specifications())
 
 
     def __compute_specifications(self):
@@ -133,6 +149,25 @@ class ExportEndpoint(object):
 
         # Transform the specifications for export (add the language prefix)
         self.__exported_specs = format_specifications(filtered_specs)
+
+
+    def get_properties(self):
+        """
+        Returns merged properties
+
+        :return: Endpoint merged properties
+        """
+        # Get service properties
+        properties = self.__reference.get_properties()
+
+        # Merge with local properties
+        properties.update(self.__properties)
+
+        # Some properties can't be merged
+        for key in (pelix.constants.OBJECTCLASS, pelix.constants.SERVICE_ID):
+            properties[key] = self.__reference.get_property(key)
+
+        return properties
 
 
     # Access to the service
@@ -162,11 +197,11 @@ class ExportEndpoint(object):
 
 
     @property
-    def kind(self):
+    def configurations(self):
         """
-        Kind of end point
+        Configurations of this end point
         """
-        return self.__kind
+        return self.__configurations
 
     @property
     def name(self):
@@ -182,20 +217,13 @@ class ExportEndpoint(object):
         """
         return self.__exported_specs
 
-    @property
-    def url(self):
-        """
-        URL to access the end point
-        """
-        return self.__url
-
 #-------------------------------------------------------------------------------
 
 class ImportEndpoint(object):
     """
     Represents an end point to access an imported service
     """
-    def __init__(self, uid, framework, kind, name, url, specifications,
+    def __init__(self, uid, framework, configurations, name, specifications,
                  properties):
         """
         Sets up the members
@@ -205,28 +233,35 @@ class ImportEndpoint(object):
                           (can be None)
         :param kind: Kind of end point (xmlrpc, ...)
         :param name: Name of the end point
-        :param url: URL to access to the end point
         :param specifications: Specifications of the exported service
         :param properties: Properties of the service
         """
         self.__uid = uid
         self.__fw_uid = framework or None
-        self.__kind = kind
         self.__name = name
-        self.__url = url
         self.__properties = properties.copy() if properties else {}
+
+        # Normalize list of configurations
+        if is_string(configurations):
+            self.__configurations = (configurations,)
+        else:
+            self.__configurations = tuple(configurations)
 
         # Extract the language prefix in specifications
         self.__specifications = extract_specifications(specifications)
+
+        # Public variable: the source server,
+        # set up by a Pelix discovery service
+        self.server = None
 
 
     def __str__(self):
         """
         String representation of the end point
         """
-        return "ImportEndpoint(uid={0}, framework={1}, kind={2}, specs={3})" \
-            .format(self.__uid, self.__fw_uid, self.__kind,
-                    self.__specifications)
+        return "ImportEndpoint(uid={0}, framework={1}, configurations={2}, " \
+            "specs={3})".format(self.__uid, self.__fw_uid,
+                                self.__configurations, self.__specifications)
 
 
     # Access to the service informations
@@ -270,11 +305,11 @@ class ImportEndpoint(object):
         return self.__fw_uid
 
     @property
-    def kind(self):
+    def configurations(self):
         """
         Kind of end point
         """
-        return self.__kind
+        return self.__configurations
 
     @property
     def name(self):
@@ -283,13 +318,76 @@ class ImportEndpoint(object):
         """
         return self.__name
 
-    @property
-    def url(self):
-        """
-        URL to access the end point
-        """
-        return self.__url
+# ------------------------------------------------------------------------------
 
+def to_import(endpoint_descr):
+    """
+    Converts an EndpointDescription bean to an ImportEndpoint
+
+    :param endpoint: An EndpointDescription bean
+    :return: An ImportEndpoint bean
+    """
+    assert isinstance(endpoint_descr, EndpointDescription)
+
+    # Properties
+    properties = endpoint_descr.get_properties()
+
+    # Endpoint name = ID
+    endpoint_id = endpoint_descr.get_id()
+
+    # Framework UUID
+    fw_uid = endpoint_descr.get_framework_uuid()
+
+    # Endpoint UID
+    try:
+        # From Pelix UID
+        uid = properties[pelix.remote.PROP_ENDPOINT_UID]
+    except KeyError:
+        # Generated
+        uid = '{0}.{1}'.format(fw_uid, endpoint_id)
+
+    # Configuration / kind
+    configurations = endpoint_descr.get_configuration_types()
+
+    # Interfaces
+    specifications = endpoint_descr.get_interfaces()
+
+    return ImportEndpoint(uid, fw_uid, configurations, endpoint_id,
+                          specifications, properties)
+
+
+def from_export(exp_endpoint):
+    """
+    Converts an ExportEndpoint bean to an EndpointDescription
+
+    :param endpoint: An ExportEndpoint bean
+    :return: An EndpointDescription bean
+    """
+    assert isinstance(exp_endpoint, ExportEndpoint)
+
+    # Service properties
+    properties = exp_endpoint.get_properties()
+
+    # Set import keys
+    properties[pelix.remote.PROP_ENDPOINT_ID] = exp_endpoint.name
+    properties[pelix.remote.PROP_IMPORTED_CONFIGS] = exp_endpoint.configurations
+    properties[pelix.remote.PROP_EXPORTED_INTERFACES] = \
+                                                     exp_endpoint.specifications
+
+    # Remove export keys
+    for key in (pelix.remote.PROP_EXPORTED_CONFIGS,
+                pelix.remote.PROP_EXPORTED_INTERFACES,
+                pelix.remote.PROP_EXPORTED_INTENTS,
+                pelix.remote.PROP_EXPORTED_INTENTS_EXTRA):
+        try:
+            del properties[key]
+        except KeyError:
+            pass
+
+    # Pelix information
+    properties[pelix.remote.PROP_ENDPOINT_UID] = exp_endpoint.uid
+
+    return EndpointDescription(None, properties)
 
 # ------------------------------------------------------------------------------
 

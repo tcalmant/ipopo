@@ -430,14 +430,12 @@ class RegistryServlet(object):
         :return: A dictionary
         """
         # Filter the ObjectClass property
-        properties = endpoint.reference.get_properties()
-        del properties[pelix.framework.OBJECTCLASS]
+        properties = endpoint.get_properties()
 
         return {"sender": self._fw_uid,
                 "uid": endpoint.uid,
-                "kind": endpoint.kind,
+                "configurations": endpoint.configurations,
                 "name": endpoint.name,
-                "url": endpoint.url,
                 "specifications": endpoint.specifications,
                 "properties": properties}
 
@@ -485,14 +483,16 @@ class RegistryServlet(object):
         properties = self.filter_properties(framework,
                                             endpoint_dict['properties'])
 
-        # Format the URL
-        url = endpoint_dict['url'].format(server=host_address)
-
         # Create the end point object
-        endpoint = pelix.remote.beans.ImportEndpoint(endpoint_dict['uid'], \
-                                 framework, endpoint_dict['kind'],
-                                 endpoint_dict['name'], url,
-                                 endpoint_dict['specifications'], properties)
+        endpoint = pelix.remote.beans.ImportEndpoint(endpoint_dict['uid'],
+                                                framework,
+                                                endpoint_dict['configurations'],
+                                                endpoint_dict['name'],
+                                                endpoint_dict['specifications'],
+                                                properties)
+
+        # Set the host address
+        endpoint.server = host_address
 
         # Register it
         self._registry.add(endpoint)

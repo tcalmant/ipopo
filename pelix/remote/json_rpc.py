@@ -60,6 +60,12 @@ from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCDispatcher
 
 # ------------------------------------------------------------------------------
 
+JSONRPC_CONFIGURATION = 'jsonrpc'
+""" Remote Service configuration constant """
+
+PROP_JSONRPC_URL = '{0}.url'.format(JSONRPC_CONFIGURATION)
+""" JSON-RPC servlet URL """
+
 _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
@@ -123,7 +129,8 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
 @Requires('_dispatcher', pelix.remote.SERVICE_DISPATCHER)
 @Requires('_http', pelix.http.HTTP_SERVICE)
 @Property('_path', pelix.http.HTTP_SERVLET_PATH, '/JSON-RPC')
-@Property('_kind', 'endpoints.kind', 'jsonrpc')
+@Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
+          (JSONRPC_CONFIGURATION,))
 class JsonRpcServiceExporter(object):
     """
     JSON-RPC Remote Services exporter
@@ -137,7 +144,7 @@ class JsonRpcServiceExporter(object):
 
         # Dispatcher
         self._dispatcher = None
-        self._kind = None
+        self._kinds = None
 
         # HTTP Service
         self._http = None
@@ -174,7 +181,7 @@ class JsonRpcServiceExporter(object):
         method_name = method[len_found + 1:]
 
         # Call the dispatcher
-        return self._dispatcher.dispatch(self._kind, matching,
+        return self._dispatcher.dispatch(self._kinds, matching,
                                          method_name, params)
 
 
@@ -186,7 +193,13 @@ class JsonRpcServiceExporter(object):
         :return: The computed end point name
         """
         service_id = reference.get_property(pelix.framework.SERVICE_ID)
-        endpoint_name = reference.get_property(pelix.remote.PROP_ENDPOINT_NAME)
+        endpoint_name = reference.get_property(pelix.remote.PROP_ENDPOINT_ID)
+
+        # FIXME: Pelix compatibility
+        if not endpoint_name:
+            endpoint_name = reference.get_property(
+                                                pelix.remote.PROP_ENDPOINT_NAME)
+
         if not endpoint_name:
             endpoint_name = 'service_{0}'.format(service_id)
 
@@ -220,12 +233,15 @@ class JsonRpcServiceExporter(object):
             return False
 
         try:
+            # Prepare properties
+            properties = {PROP_JSONRPC_URL: self.get_access()}
+
             # Create the registration information
             endpoint = pelix.remote.beans.ExportEndpoint(str(uuid.uuid4()),
-                                                         self._kind,
+                                                         self._kinds,
                                                          endpoint_name,
                                                          reference, service,
-                                                         self.get_access())
+                                                         properties)
 
         except ValueError:
             # Invalid end point
@@ -233,7 +249,7 @@ class JsonRpcServiceExporter(object):
 
         try:
             # Register the end point
-            self._dispatcher.add_endpoint(self._kind, endpoint_name, endpoint)
+            self._dispatcher.add_endpoint(self._kinds, endpoint_name, endpoint)
 
         except KeyError as ex:
             _logger.error("Error registering end point: %s", ex)
@@ -263,7 +279,7 @@ class JsonRpcServiceExporter(object):
 
         else:
             # Notify the dispatcher
-            self._dispatcher.update_endpoint(self._kind, endpoint.name,
+            self._dispatcher.update_endpoint(self._kinds, endpoint.name,
                                              endpoint, old_properties)
 
 
@@ -281,7 +297,7 @@ class JsonRpcServiceExporter(object):
             del self.__endpoints[endpoint.name]
 
             # Unregister the service from the dispatcher
-            self._dispatcher.remove_endpoint(self._kind, endpoint.name)
+            self._dispatcher.remove_endpoint(self._kinds, endpoint.name)
 
 
     def service_changed(self, event):
@@ -330,9 +346,10 @@ class JsonRpcServiceExporter(object):
         self._context = context
 
         # Prepare the service filter
-        ldapfilter = '(|(|({0}=jsonrpc)({0}=\*))(&(!({0}=*))({1}=*)))' \
+        ldapfilter = '(|(|({0}={2})({0}=\*))(&(!({0}=*))({1}=*)))' \
                     .format(pelix.remote.PROP_EXPORTED_CONFIGS,
-                            pelix.remote.PROP_EXPORTED_INTERFACES)
+                            pelix.remote.PROP_EXPORTED_INTERFACES,
+                            JSONRPC_CONFIGURATION)
 
         # Export existing services
         existing_ref = self._context.get_all_service_references(None,
@@ -394,16 +411,17 @@ class _ServiceCallProxy(object):
         Prefixes the requested attribute name by the endpoint name
         """
         # Make a proxy for this call
-        # This is an ugly trick to handle multithreaded calls, as the underlying
-        # proxy re-uses the same connection when possible: sometimes it means
-        # sending a request before retrieving a result
+        # This is an ugly trick to handle multi-threaded calls, as the
+        # underlying proxy re-uses the same connection when possible: sometimes
+        # it means sending a request before retrieving a result
         proxy = jsonrpclib.jsonrpc.ServerProxy(self.__url)
         return getattr(proxy, "{0}.{1}".format(self.__name, name))
 
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_JSONRPC_IMPORTER)
 @Provides(pelix.remote.SERVICE_ENDPOINT_LISTENER)
-@Property('_kind', 'endpoints.kind', 'jsonrpc')
+@Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
+          (JSONRPC_CONFIGURATION,))
 @Property('_listener_flag', pelix.remote.PROP_LISTEN_IMPORTED, True)
 class JsonRpcServiceImporter(object):
     """
@@ -417,7 +435,7 @@ class JsonRpcServiceImporter(object):
         self._context = None
 
         # Component properties
-        self._kind = None
+        self._kinds = None
         self._listener_flag = True
 
         # Registered services (end point -> reference)
@@ -428,12 +446,24 @@ class JsonRpcServiceImporter(object):
         """
         An end point has been imported
         """
-        if endpoint.kind != self._kind and endpoint.kind != '*':
+        configs = set(endpoint.configurations)
+        if '*' not in configs and not configs.intersection(self._kinds):
             # Not for us
             return
 
+        # Get the access URL
+        access_url = endpoint.properties.get(PROP_JSONRPC_URL)
+        if not access_url:
+            # No URL information
+            _logger.warning("No access URL given: %s", endpoint)
+            return
+
+        if endpoint.server is not None:
+            # Server information given
+            access_url = access_url.format(server=endpoint.server)
+
         # Register the service
-        svc = _ServiceCallProxy(endpoint.name, endpoint.url)
+        svc = _ServiceCallProxy(endpoint.name, access_url)
         svc_reg = self._context.register_service(endpoint.specifications, svc,
                                                  endpoint.properties)
 
