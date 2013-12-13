@@ -48,6 +48,7 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Validate, \
 # Pelix constants
 import pelix.http
 import pelix.remote.beans
+from pelix.remote import RemoteServiceError
 from pelix.utilities import to_str
 
 # Standard library
@@ -126,7 +127,7 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
 # ------------------------------------------------------------------------------
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_JSONRPC_EXPORTER)
-@Requires('_dispatcher', pelix.remote.SERVICE_DISPATCHER)
+@Provides(pelix.remote.SERVICE_EXPORT_PROVIDER)
 @Requires('_http', pelix.http.HTTP_SERVICE)
 @Property('_path', pelix.http.HTTP_SERVLET_PATH, '/JSON-RPC')
 @Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
@@ -145,8 +146,7 @@ class JsonRpcServiceExporter(object):
         # Framework UID
         self._fw_uid = None
 
-        # Dispatcher
-        self._dispatcher = None
+        # Handled configurations
         self._kinds = None
 
         # HTTP Service
@@ -158,9 +158,6 @@ class JsonRpcServiceExporter(object):
 
         # Exported services: Name -> ExportEndpoint
         self.__endpoints = {}
-
-        # Service Reference -> ExportEndpoint
-        self.__registrations = {}
 
 
     def _dispatch(self, method, params):
@@ -183,154 +180,102 @@ class JsonRpcServiceExporter(object):
         # Extract the method name. (+1 for the trailing dot)
         method_name = method[len_found + 1:]
 
-        # Call the dispatcher
-        return self._dispatcher.dispatch(self._kinds, matching,
-                                         method_name, params)
-
-
-    def _compute_endpoint_name(self, reference):
-        """
-        Computes the end point name according to service properties
-
-        :param reference: A ServiceReference object
-        :return: The computed end point name
-        """
-        service_id = reference.get_property(pelix.framework.SERVICE_ID)
-        endpoint_name = reference.get_property(pelix.remote.PROP_ENDPOINT_ID)
-
-        # FIXME: Pelix compatibility
-        if not endpoint_name:
-            endpoint_name = reference.get_property(
-                                                pelix.remote.PROP_ENDPOINT_NAME)
-
-        if not endpoint_name:
-            endpoint_name = 'service_{0}'.format(service_id)
-
-        return endpoint_name
-
-
-    def _export_service(self, reference):
-        """
-        Exports the given service
-
-        :param reference: A ServiceReference object
-        :return: True if the service has been exported, else False
-        """
-        # Compute the end point name
-        endpoint_name = self._compute_endpoint_name(reference)
-        if endpoint_name in self.__endpoints:
-            # Already known end point
-            _logger.error("Already known end point %s for JSON-RPC",
-                          endpoint_name)
-            return False
-
         # Get the service
         try:
-            service = self._context.get_service(reference)
-            if service is None:
-                _logger.error("Invalid service for reference %s",
-                              str(reference))
+            service = self.__endpoints[name].instance
+        except KeyError:
+            raise RemoteServiceError("Unknown endpoint: {0}".format(name))
 
-        except pelix.framework.BundleException as ex:
-            _logger.error("Error retrieving the service to export: %s", ex)
-            return False
+        # Get the method
+        method_ref = getattr(service, method_name, None)
+        if method_ref is None:
+            raise RemoteServiceError("Unknown method {0}".format(method))
 
-        try:
-            # Prepare properties
-            properties = {PROP_JSONRPC_URL: self.get_access()}
+        # Call it (let the errors be propagated)
+        return method_ref(*params)
 
-            # Create the registration information
-            endpoint = pelix.remote.beans.ExportEndpoint(str(uuid.uuid4()),
-                                                         self._fw_uid,
-                                                         self._kinds,
-                                                         endpoint_name,
-                                                         reference, service,
-                                                         properties)
 
-        except ValueError:
-            # Invalid end point
-            return False
+    def handles(self, configurations):
+        """
+        Checks if this provider handles the given configuration types
 
-        try:
-            # Register the end point
-            self._dispatcher.add_endpoint(self._kinds, endpoint_name, endpoint)
-
-        except KeyError as ex:
-            _logger.error("Error registering end point: %s", ex)
-
-        else:
-            # Store informations
-            self.__endpoints[endpoint_name] = endpoint
-            self.__registrations[reference] = endpoint
+        :param configurations: Configuration types
+        """
+        if configurations is None or configurations == '*':
+            # 'Matches all'
             return True
 
-        return False
+        return bool(set(configurations).intersection(self._kinds))
 
 
-    def _update_service(self, reference, old_properties):
+    def export_service(self, svc_ref, name, fw_uid):
         """
-        Service properties updated
+        Prepares an export endpoint
+
+        :param svc_ref: Service reference
+        :param name: Endpoint name
+        :param fw_uid: Framework UID
+        :return: An ExportEndpoint bean
+        :raise NameError: Already known name
+        :raise BundleException: Error getting the service
         """
-        # Compute the new end point name
-        new_name = self._compute_endpoint_name(reference)
+        if name in self.__endpoints:
+            # Already known end point
+            raise NameError("Already known end point %s for JSON-RPC", name)
 
-        # Get the end point
-        endpoint = self.__registrations[reference]
-        if endpoint.name != new_name:
-            # Name changed -> re-export the service
-            self._unexport_service(reference)
-            self._export_service(reference)
+        # Get the service (let it raise a BundleException if any
+        service = self._context.get_service(svc_ref)
 
-        else:
-            # Notify the dispatcher
-            self._dispatcher.update_endpoint(self._kinds, endpoint.name,
-                                             endpoint, old_properties)
+        # Prepare extra properties
+        properties = {PROP_JSONRPC_URL: self.get_access()}
+
+        # Prepare the export endpoint
+        endpoint = pelix.remote.beans.ExportEndpoint(str(uuid.uuid4()),
+                                                     fw_uid, self._kinds, name,
+                                                     svc_ref, service,
+                                                     properties)
+
+        # Store information
+        self.__endpoints[name] = endpoint
+
+        # Return the endpoint bean
+        return endpoint
 
 
-    def _unexport_service(self, reference):
+    def update_export(self, endpoint, new_name, old_properties):
         """
-        Stops the export of the given service
+        Updates an export endpoint
 
-        :param reference: A ServiceReference object
+        :param endpoint: An ExportEndpoint bean
+        :param new_name: Future endpoint name
+        :param old_properties: Previous properties
+        :raise NameError: Rename refused
         """
-        # Find the corresponding end point
-        endpoint = self.__registrations.get(reference)
-        if endpoint is not None:
-            # Delete the registration
-            del self.__registrations[reference]
-            del self.__endpoints[endpoint.name]
+        if new_name in self.__endpoints:
+            # Reject the new name
+            raise NameError("New name of %s already used: %s",
+                            endpoint.name, new_name)
 
-            # Unregister the service from the dispatcher
-            self._dispatcher.remove_endpoint(self._kinds, endpoint.name)
+        # Update storage
+        del self.__endpoints[endpoint.name]
+        self.__endpoints[new_name] = endpoint
+
+        # Update the endpoint
+        endpoint.name = new_name
 
 
-    def service_changed(self, event):
+    def unexport_service(self, endpoint):
         """
-        Called when a service event is triggered
+        Deletes an export endpoint
+
+        :param endpoint: An ExportEndpoint bean
         """
-        kind = event.get_kind()
-        svcref = event.get_service_reference()
+        # Clean up storage
+        del self.__endpoints[endpoint.name]
 
-        if kind == pelix.framework.ServiceEvent.REGISTERED:
-            # Simply export the service
-            self._export_service(svcref)
-
-        elif kind == pelix.framework.ServiceEvent.MODIFIED:
-            # Matching registering or updated service
-            if svcref not in self.__registrations:
-                # New match
-                self._export_service(svcref)
-
-            else:
-                # Properties modification:
-                # Re-export if endpoint.name has changed
-                self._update_service(svcref, event.get_previous_properties())
-
-        elif svcref in self.__registrations and \
-                (kind == pelix.framework.ServiceEvent.UNREGISTERING or \
-                 kind == pelix.framework.ServiceEvent.MODIFIED_ENDMATCH):
-            # Service is updated or unregistering
-            self._unexport_service(svcref)
+        # Release the service
+        svc_ref = endpoint.reference
+        self._context.unget_service(svc_ref)
 
 
     def get_access(self):
@@ -349,25 +294,6 @@ class JsonRpcServiceExporter(object):
         # Store the context
         self._context = context
 
-        # Get the framework UID
-        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
-
-        # Prepare the service filter
-        ldapfilter = '(|(|({0}={2})({0}=\*))(&(!({0}=*))({1}=*)))' \
-                    .format(pelix.remote.PROP_EXPORTED_CONFIGS,
-                            pelix.remote.PROP_EXPORTED_INTERFACES,
-                            JSONRPC_CONFIGURATION)
-
-        # Export existing services
-        existing_ref = self._context.get_all_service_references(None,
-                                                                ldapfilter)
-        if existing_ref is not None:
-            for reference in existing_ref:
-                self._export_service(reference)
-
-        # Register a service listener, to update the exported services state
-        self._context.add_service_listener(self, ldapfilter)
-
         # Create/register the servlet
         self._servlet = _JsonRpcServlet(self._dispatch)
         self._http.register_servlet(self._path, self._servlet)
@@ -378,23 +304,13 @@ class JsonRpcServiceExporter(object):
         """
         Component invalidated
         """
-        # Unregister the service listener
-        context.remove_service_listener(self)
-
         # Unregister the servlet
         self._http.unregister(None, self._servlet)
 
-        # Remove all exports
-        for reference in list(self.__registrations.keys()):
-            self._unexport_service(reference)
-
         # Clean up the storage
         self.__endpoints.clear()
-        self.__registrations.clear()
 
         # Clean up members
-        self._servlet = None
-        self._fw_uid = None
         self._context = None
 
 # ------------------------------------------------------------------------------

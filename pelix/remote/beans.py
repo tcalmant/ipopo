@@ -343,19 +343,19 @@ def to_import(endpoint_descr):
     # Properties
     properties = endpoint_descr.get_properties()
 
-    # Endpoint name = ID
-    endpoint_id = endpoint_descr.get_id()
+    # Endpoint ID
+    uid = endpoint_descr.get_id()
 
     # Framework UUID
     fw_uid = endpoint_descr.get_framework_uuid()
 
-    # Endpoint UID
+    # Endpoint name
     try:
         # From Pelix UID
-        uid = properties[pelix.remote.PROP_ENDPOINT_UID]
+        name = properties[pelix.remote.PROP_ENDPOINT_NAME]
     except KeyError:
         # Generated
-        uid = '{0}.{1}'.format(fw_uid, endpoint_id)
+        name = '{0}.{1}'.format(fw_uid, endpoint_descr.get_service_id())
 
     # Configuration / kind
     configurations = endpoint_descr.get_configuration_types()
@@ -363,8 +363,8 @@ def to_import(endpoint_descr):
     # Interfaces
     specifications = endpoint_descr.get_interfaces()
 
-    return ImportEndpoint(uid, fw_uid, configurations, endpoint_id,
-                          specifications, properties)
+    return ImportEndpoint(uid, fw_uid, configurations, name, specifications,
+                          properties)
 
 
 def from_export(exp_endpoint):
@@ -380,7 +380,7 @@ def from_export(exp_endpoint):
     properties = exp_endpoint.get_properties()
 
     # Set import keys
-    properties[pelix.remote.PROP_ENDPOINT_ID] = exp_endpoint.name
+    properties[pelix.remote.PROP_ENDPOINT_ID] = exp_endpoint.uid
     properties[pelix.remote.PROP_IMPORTED_CONFIGS] = exp_endpoint.configurations
     properties[pelix.remote.PROP_EXPORTED_INTERFACES] = \
                                                      exp_endpoint.specifications
@@ -396,7 +396,7 @@ def from_export(exp_endpoint):
             pass
 
     # Other information
-    properties[pelix.remote.PROP_ENDPOINT_UID] = exp_endpoint.uid
+    properties[pelix.remote.PROP_ENDPOINT_NAME] = exp_endpoint.name
     properties[pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID] = \
                                                         exp_endpoint.framework
 

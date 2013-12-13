@@ -46,7 +46,7 @@ import pelix.http
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Bind, Property, Validate, Invalidate, Instantiate
+    BindField, Property, Validate, Invalidate, Instantiate, UnbindField
 from pelix.utilities import to_str
 
 # Standard library
@@ -70,6 +70,8 @@ _logger = logging.getLogger(__name__)
 
 @ComponentFactory('pelix-remote-dispatcher-factory')
 @Provides(pelix.remote.SERVICE_DISPATCHER)
+@Requires('_exporters', pelix.remote.SERVICE_EXPORT_PROVIDER, True, True)
+@Requires('_importers', pelix.remote.SERVICE_IMPORT_PROVIDER, True, True)
 @Requires('_listeners', pelix.remote.SERVICE_ENDPOINT_LISTENER, True, True,
           "(listen.exported=*)")
 @Instantiate('pelix-remote-dispatcher')
@@ -81,8 +83,15 @@ class Dispatcher(object):
         """
         Sets up the component
         """
+        # Remote Service providers
+        self._exporters = []
+        self._importers = []
+
         # Injected listeners
         self._listeners = []
+
+        # Framework UID
+        self._fw_uid = None
 
         # Kind -> {Name -> Endpoint}
         self.__kind_endpoints = {}
@@ -90,111 +99,298 @@ class Dispatcher(object):
         # UID -> Endpoint
         self.__endpoints = {}
 
+        # UID -> Exporter
+        self.__uid_exporter = {}
+
+        # Service Reference -> set(UID)
+        self.__service_uids = {}
+
         # Lock
         self.__lock = threading.Lock()
 
+        # Validation flag
+        self.__validated = False
 
-    @Bind
-    def bind(self, svc, svc_ref):
+
+    @Validate
+    def validate(self, context):
         """
-        Service bound to the component
+        Component validated
         """
-        specs = svc_ref.get_property(pelix.framework.OBJECTCLASS)
-        if pelix.remote.SERVICE_ENDPOINT_LISTENER in specs \
-        and svc_ref.get_property(pelix.remote.PROP_LISTEN_EXPORTED):
-            # Exported services listener
+        # Get the framework UID
+        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
+        self._context = context
+        self.__validated = True
+
+        # Prepare the export LDAP filter
+        ldapfilter = '(|({0}=*)({1}=*))' \
+                            .format(pelix.remote.PROP_EXPORTED_CONFIGS,
+                                    pelix.remote.PROP_EXPORTED_INTERFACES)
+
+        # Export existing services
+        existing_ref = context.get_all_service_references(None, ldapfilter)
+        if existing_ref is not None:
+            for reference in existing_ref:
+                self.__export_service(reference)
+
+        # Register a service listener, to update the exported services state
+        context.add_service_listener(self, ldapfilter)
+
+
+    @Invalidate
+    def invalidate(self, context):
+        """
+        Component invalidated: clean up storage
+        """
+        # Unregister the service listener
+        context.remove_service_listener(self)
+
+        self.__validated = False
+        self._context = None
+        self._fw_uid = None
+
+
+    def _compute_endpoint_name(self, properties):
+        """
+        Computes the end point name according to service properties
+
+        :param properties: Service properties
+        :return: The computed end point name
+        """
+        name = properties.get(pelix.remote.PROP_ENDPOINT_NAME)
+        if not name:
+            name = "service_{0}".format(properties[pelix.constants.SERVICE_ID])
+
+        return name
+
+
+    def service_changed(self, event):
+        """
+        Called when a service event is triggered
+        """
+        kind = event.get_kind()
+        svc_ref = event.get_service_reference()
+
+        if kind == pelix.framework.ServiceEvent.REGISTERED:
+            # Simply export the service
+            self.__export_service(svc_ref)
+
+        elif kind == pelix.framework.ServiceEvent.MODIFIED:
+            # Matching registering or updated service
+            if svc_ref not in self.__service_uids:
+                # New match
+                self.__export_service(svc_ref)
+
+            else:
+                # Properties modification:
+                # Re-export if endpoint.name has changed
+                self.__update_service(svc_ref, event.get_previous_properties())
+
+        elif svc_ref in self.__service_uids and \
+                (kind == pelix.framework.ServiceEvent.UNREGISTERING or \
+                 kind == pelix.framework.ServiceEvent.MODIFIED_ENDMATCH):
+            # Service is updated or unregistering
+            self.__unexport_service(svc_ref)
+
+
+    def __export_service(self, svc_ref):
+        """
+        Exports the given service using all available matching providers
+
+        :param svc_ref: A service reference
+        """
+        # Service can be exported
+        service_uids = self.__service_uids.setdefault(svc_ref, set())
+
+        if not self._exporters:
+            _logger.warning("No exporters yet.")
+            return
+
+        configs = svc_ref.get_property(pelix.remote.PROP_EXPORTED_CONFIGS)
+        if not configs or configs == '*':
+            # Export with all providers
+            exporters = self._exporters[:]
+
+        else:
+            # Filter exporters
+            exporters = [exporter for exporter in self._exporters[:]
+                         if exporter.handles(configs)]
+
+        if not exporters:
+            _logger.warning("No exporter for %s", configs)
+            return
+
+        # Get common values
+        name = self._compute_endpoint_name(svc_ref.get_properties())
+
+        # Create endpoints
+        endpoints = []
+        for exporter in exporters:
             try:
-                for endpoint in self.__endpoints.values():
-                    svc.endpoint_added(endpoint)
+                # Create the endpoint
+                endpoint = exporter.export_service(svc_ref, name, self._fw_uid)
 
-            except Exception as ex:
-                _logger.exception("Error notifying bound listener: %s", ex)
+                # Store it
+                uid = endpoint.uid
+                self.__endpoints[uid] = endpoint
+                self.__uid_exporter[uid] = exporter
+                service_uids.add(endpoint)
 
+            except (NameError, pelix.constants.BundleException) as ex:
+                _logger.error("Error exporting service: %s", ex)
 
-    def add_endpoint(self, kind, name, endpoint):
-        """
-        Adds an end point to the dispatcher
-
-        :param kind: A kind of end point
-        :param name: The name of the end point
-        :param endpoint: The description of the end point (Endpoint object)
-        :raise KeyError: Already known end point
-        :raise ValueError: Invalid end point object
-        """
-        if not kind:
-            raise ValueError("Empty kind given")
-        elif not name:
-            raise ValueError("Empty name given")
-        elif endpoint is None:
-            raise ValueError("No end point given")
-
-        with self.__lock:
-            # Get or set the map for the given kind
-            kind_map = self.__kind_endpoints.setdefault(kind, {})
-            if name in kind_map:
-                raise KeyError("Already known end point: {0}".format(name))
-
-            # Store the end point
-            kind_map[name] = endpoint
-            self.__endpoints[endpoint.uid] = endpoint
+        if not endpoints:
+            _logger.warning("No endpoint created for %s", svc_ref)
+            return
 
         # Call listeners (out of the lock)
         if self._listeners:
             for listener in self._listeners[:]:
-                listener.endpoint_added(endpoint)
-
-        return True
+                listener.endpoints_added(endpoints)
 
 
-    def update_endpoint(self, kind, name, endpoint, old_properties):
+    def __update_service(self, svc_ref, old_properties):
         """
-        Adds an end point to the dispatcher
-
-        :param kind: A kind of end point
-        :param name: The name of the end point
-        :param endpoint: The updated Endpoint object
-        :param old_properties: The previous properties of the service
-        :raise KeyError: Unknown end point
-        :raise ValueError: Invalid end point object
+        Service updated, notify exporters
         """
-        if not kind:
-            raise ValueError("Empty kind given")
-        elif not name:
-            raise ValueError("Empty name given")
-        elif endpoint is None:
-            raise ValueError("No end point given")
+        try:
+            # Get the UIDs of its endpoints
+            uids = self.__service_uids[svc_ref].copy()
 
-        with self.__lock:
-            # Get or set the map for the given kind
-            kind_map = self.__kind_endpoints.setdefault(kind, {})
-            if name not in kind_map:
-                raise KeyError("Unknown known end point: {0}".format(name))
+        except KeyError:
+            # No known UID
+            return
 
-            elif endpoint != kind_map[name]:
-                raise ValueError("Not the right end point: {0}".format(name))
+        for uid in uids:
+            try:
+                # Get its exporter and bean
+                exporter = self.__uid_exporter[uid]
+                endpoint = self.__endpoints[uid]
 
-        # Call listeners (out of the lock)
-        if self._listeners:
-            for listener in self._listeners:
-                listener.endpoint_updated(endpoint, old_properties)
+            except KeyError:
+                # No exporter
+                _logger.warning("No exporter for endpoint %s", uid)
+
+                # Remove the UID from the storage
+                self.__service_uids[svc_ref].retain(uid)
+
+            else:
+                # TODO: check configuration change (can be an unexport)
+
+                # Compute the previous name
+                new_name = self._compute_endpoint_name(svc_ref.get_properties())
+
+                try:
+                    exporter.update_export(endpoint, new_name, old_properties)
+
+                except NameError as ex:
+                    _logger.error("Error updating service properties: %s", ex)
+                    exporter.unexport_service(endpoint)
+                    # Call listeners (out of the lock)
+                    if self._listeners:
+                        for listener in self._listeners:
+                            listener.endpoint_removed(endpoint, old_properties)
+
+                else:
+                    # Call listeners (out of the lock)
+                    if self._listeners:
+                        for listener in self._listeners:
+                            listener.endpoint_updated(endpoint, old_properties)
 
 
-    def remove_endpoint(self, kind, name):
+    def __unexport_service(self, svc_ref):
         """
-        Removes the end point
+        Deletes all endpoints for the given service
 
-        :param kind: A kind of end point
-        :param name: The name of the end point
-        :raise KeyError: Unknown end point
+        :param svc_ref: A service reference
         """
-        with self.__lock:
-            endpoint = self.__kind_endpoints[kind].pop(name)
-            del self.__endpoints[endpoint.uid]
+        try:
+            # Get the UIDs of its endpoints
+            uids = self.__service_uids.pop(svc_ref)
 
-        # Call listeners (out of the lock)
-        if self._listeners:
-            for listener in self._listeners[:]:
-                listener.endpoint_removed(endpoint)
+        except KeyError:
+            # No known UID
+            return
+
+        for uid in uids:
+            try:
+                # Remove from storage
+                endpoint = self.__endpoints.pop(uid)
+                exporter = self.__uid_exporter.pop(uid)
+
+            except KeyError:
+                # Oops
+                _logger.warning("Trying to remove a lost endpoint (%s)", uid)
+
+            else:
+                # Delete endpoint
+                exporter.unexport_service(endpoint)
+
+                # Call listeners
+                if self._listeners:
+                    for listener in self._listeners[:]:
+                        try:
+                            listener.endpoint_removed(endpoint)
+
+                        except Exception as ex:
+                            _logger.error("Error notifying listener: %s", ex)
+
+
+
+    @BindField('_listeners')
+    def _bind_listener(self, svc, svc_ref):
+        """
+        Listener bound to the component
+        """
+        # Exported services listener
+        try:
+            svc.endpoints_added(list(self.__endpoints.values()))
+
+        except Exception as ex:
+            _logger.exception("Error notifying newly bound listener: %s", ex)
+
+
+    @BindField('_exporters')
+    def _bind_exporter(self, exporter, svc_ref):
+        """
+        Exporter bound
+        """
+        # Do nothing if no yet validated
+        if not self.__validated:
+            return
+
+        # Tell the exporter to export already known services
+        for svc_ref in self.__service_uids:
+            # Compute the endpoint name
+            name = self._compute_endpoint_name(svc_ref)
+
+            try:
+                # Create the endpoint
+                endpoint = exporter.export_service(svc_ref, name, self._fw_uid)
+
+                # Store it
+                uid = endpoint.uid
+                self.__endpoints[uid] = endpoint
+                self.__uid_exporter[uid] = exporter
+                self.__service_uids.setdefault(svc_ref, set()).add(endpoint)
+
+            except (NameError, pelix.constants.BundleException) as ex:
+                _logger.error("Error exporting service: %s", ex)
+
+            else:
+                # Call listeners (out of the lock)
+                if self._listeners:
+                    for listener in self._listeners[:]:
+                        listener.endpoints_added([endpoint])
+
+
+    @UnbindField('_exporters')
+    def _unbind_exporter(self, exporter, svc_ref):
+        """
+        Exporter gone
+        """
+        # TODO: delete all endpoints from this provider
+        pass
 
 
     def get_endpoint(self, uid):

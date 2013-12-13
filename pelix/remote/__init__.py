@@ -62,6 +62,12 @@ SERVICE_DISPATCHER_SERVLET = "pelix.remote.dispatcher.servlet"
 SERVICE_REGISTRY = "pelix.remote.registry"
 """ Registry of imported end points """
 
+SERVICE_IMPORT_PROVIDER = 'pelix.remote.provider.import'
+""" Remote Services: importer """
+
+SERVICE_EXPORT_PROVIDER = 'pelix.remote.provider.export'
+""" Remote Services: exporter """
+
 SERVICE_ENDPOINT_LISTENER = "pelix.remote.endpoint.listener"
 """
 End point creation/deletion listeners, with listen.exported and/or
@@ -80,9 +86,6 @@ event packet.
 
 PROP_ENDPOINT_NAME = "endpoint.name"
 """ Name of the end point of an exported service """
-
-PROP_ENDPOINT_UID = "pelix.endpoint.uid"
-""" UID of the end point of an exported service """
 
 PREFIX_PROP_EXPORTED = "service.exported."
 """ Prefix common to all export properties (for filtering) """
