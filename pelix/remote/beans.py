@@ -63,11 +63,13 @@ class ExportEndpoint(object):
     """
     Represents an export end point (one per group of configuration types)
     """
-    def __init__(self, uid, configurations, name, svc_ref, service, properties):
+    def __init__(self, uid, fw_uid, configurations, name,
+                 svc_ref, service, properties):
         """
         Sets up the members
 
         :param uid: Unique identified of the end point
+        :param fw_uid: The framework UID
         :param configurations: Kinds of end point (xmlrpc, ...)
         :param name: Name of the end point
         :param svc_ref: ServiceReference of the exported service
@@ -77,10 +79,11 @@ class ExportEndpoint(object):
                            (all specifications have been filtered)
         """
         if not uid:
-            raise ValueError("Invalid GUID")
+            raise ValueError("Invalid UID")
 
         # Given information
         self.__uid = uid
+        self.__fw_uid = fw_uid
         self.__instance = service
         self.__reference = svc_ref
         self.__configurations = configurations
@@ -194,6 +197,14 @@ class ExportEndpoint(object):
         End point unique identifier
         """
         return self.__uid
+
+
+    @property
+    def framework(self):
+        """
+        Framework UID
+        """
+        return self.__fw_uid
 
 
     @property
@@ -384,8 +395,10 @@ def from_export(exp_endpoint):
         except KeyError:
             pass
 
-    # Pelix information
+    # Other information
     properties[pelix.remote.PROP_ENDPOINT_UID] = exp_endpoint.uid
+    properties[pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID] = \
+                                                        exp_endpoint.framework
 
     return EndpointDescription(None, properties)
 

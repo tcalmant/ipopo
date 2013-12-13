@@ -40,7 +40,7 @@ import pelix.remote
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Instantiate, Invalidate
+    Instantiate, Invalidate, Validate
 
 # Standard library
 import logging
@@ -68,6 +68,9 @@ class ImportsRegistry(object):
         # Listeners (injected)
         self._listeners = []
 
+        # Framework UID
+        self._fw_uid = None
+
         # Framework UID -> End point
         self._frameworks = {}
 
@@ -87,9 +90,15 @@ class ImportsRegistry(object):
         :return: True if the end point has been added
         """
         with self.__lock:
+            # Check framework UID (avoid to import our own services)
+            if endpoint.framework == self._fw_uid:
+                _logger.debug("Same framework UID")
+                return False
+
             # Check if the end point already exist
             if endpoint.uid in self._registry:
                 # Already known end point: do nothing
+                _logger.debug("Already known endpoint")
                 return False
 
             # Store the end point
@@ -197,10 +206,20 @@ class ImportsRegistry(object):
                             _logger.exception("Error calling listener: %s", ex)
 
 
+    @Validate
+    def validate(self, context):
+        """
+        Component validated
+        """
+        # Get the framework UID
+        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
+
+
     @Invalidate
     def invalidate(self, context):
         """
         Component invalidated: clean up storage
         """
+        self._fw_uid = None
         self._frameworks.clear()
         self._registry.clear()
