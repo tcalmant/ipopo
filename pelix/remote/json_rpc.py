@@ -142,6 +142,9 @@ class JsonRpcServiceExporter(object):
         # Bundle context
         self._context = None
 
+        # Framework UID
+        self._fw_uid = None
+
         # Dispatcher
         self._dispatcher = None
         self._kinds = None
@@ -238,6 +241,7 @@ class JsonRpcServiceExporter(object):
 
             # Create the registration information
             endpoint = pelix.remote.beans.ExportEndpoint(str(uuid.uuid4()),
+                                                         self._fw_uid,
                                                          self._kinds,
                                                          endpoint_name,
                                                          reference, service,
@@ -345,6 +349,9 @@ class JsonRpcServiceExporter(object):
         # Store the context
         self._context = context
 
+        # Get the framework UID
+        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
+
         # Prepare the service filter
         ldapfilter = '(|(|({0}={2})({0}=\*))(&(!({0}=*))({1}=*)))' \
                     .format(pelix.remote.PROP_EXPORTED_CONFIGS,
@@ -387,6 +394,7 @@ class JsonRpcServiceExporter(object):
 
         # Clean up members
         self._servlet = None
+        self._fw_uid = None
         self._context = None
 
 # ------------------------------------------------------------------------------
@@ -461,6 +469,11 @@ class JsonRpcServiceImporter(object):
         if endpoint.server is not None:
             # Server information given
             access_url = access_url.format(server=endpoint.server)
+
+        else:
+            # Use the local IP as the source server, just in case
+            local_server = "localhost"
+            access_url = access_url.format(server=local_server)
 
         # Register the service
         svc = _ServiceCallProxy(endpoint.name, access_url)
