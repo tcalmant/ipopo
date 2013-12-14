@@ -315,28 +315,58 @@ class MulticastDiscovery(object):
         self._thread = None
 
 
-    def _make_endpoint_dict(self, event, endpoint):
+    def __make_basic_dict(self, event):
         """
-        Converts the end point into an event packet dictionary
+        Prepares basic common information contained into an event packet
+        (access, framework UID, event type)
 
-        :param event: The kind of event: add, update, remove
-        :param endpoint: An end point description object
+        :param event: The kind of event
         :return: A dictionary
         """
         # Get the dispatcher servlet access
         access = self._access.get_access()
 
         # Make the event packet content
-        packet = {"sender": self._fw_uid,  # Framework UID
-                  "event": event,  # Kind of event
-                  "uid": endpoint.uid,  # Endpoint UID
-                  "access": {"port": access[0],  # Access to the dispatcher
-                             "path": access[1]}  # servlet
-                  }
+        return {"sender": self._fw_uid,  # Framework UID
+                "event": event,  # Kind of event
+                "access": {"port": access[0],  # Access to the dispatcher
+                           "path": access[1]}  # servlet
+                }
 
+
+    def _make_endpoint_dict(self, event, endpoint):
+        """
+        Prepares an event packet containing a single endpoint
+
+        :param event: The kind of event (update, remove)
+        :param endpoint: A signal ExportEndpoint bean
+        :return: A dictionary
+        """
+        # Basic packet information
+        packet = self.__make_basic_dict(event)
+
+        # Add endpoint information
+        packet['uid'] = endpoint.uid
         if event == "update":
             # Give the new end point properties
             packet["new_properties"] = endpoint.reference.get_properties()
+
+        return packet
+
+
+    def _make_endpoints_dict(self, event, endpoints):
+        """
+        Prepares an event packet containing multiple endpoints
+
+        :param event: The kind of event (add)
+        :param endpoints: A list of ExportEndpoint beans
+        :return: A dictionary
+        """
+        # Basic packet information
+        packet = self.__make_basic_dict(event)
+
+        # Add endpoints information
+        packet['uids'] = [endpoint.uid for endpoint in endpoints]
 
         return packet
 
@@ -379,12 +409,12 @@ class MulticastDiscovery(object):
         self.__send_packet(data)
 
 
-    def endpoint_added(self, endpoint):
+    def endpoints_added(self, endpoints):
         """
-        A new service is exported
+        Multiple endpoints have been created
         """
         # Send a JSON event
-        data = json.dumps(self._make_endpoint_dict("add", endpoint))
+        data = json.dumps(self._make_endpoints_dict("add", endpoints))
         self.__send_packet(data)
 
 
@@ -447,23 +477,25 @@ class MulticastDiscovery(object):
         """
         # Get the event
         event = data['event']
-        endpoint_uid = data['uid']
-        framework_uid = data['sender']
 
         if event == 'add':
             # Store it
-            access = data['access']
-            endpoint = self.grab_endpoint(sender[0], access['port'],
-                                          access['path'], endpoint_uid)
-            if endpoint is not None:
-                self._access.register_endpoint(sender[0], endpoint)
+            port = data['access']['port']
+            path = data['access']['path']
+
+            for uid in data['uids']:
+                endpoint = self.grab_endpoint(sender[0], port, path, uid)
+                if endpoint is not None:
+                    self._access.register_endpoint(sender[0], endpoint)
 
         elif event == 'remove':
             # Remove it
-            self._registry.remove(endpoint_uid)
+            self._registry.remove(data['uid'])
 
         elif event == 'update':
             # Update it
+            endpoint_uid = data['uid']
+            framework_uid = data['sender']
             new_properties = data['new_properties']
             self._access.filter_properties(framework_uid, new_properties)
             self._registry.update(endpoint_uid, new_properties)
