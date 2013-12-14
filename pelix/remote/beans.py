@@ -109,6 +109,13 @@ class ExportEndpoint(object):
                              self.__uid, self.__name)
 
 
+    def __hash__(self):
+        """
+        Custom hash, as we override equality tests
+        """
+        return hash(self.__uid)
+
+
     def __eq__(self, other):
         """
         Equality checked by UID
