@@ -229,6 +229,10 @@ class Dispatcher(object):
             try:
                 # Create the endpoint
                 endpoint = exporter.export_service(svc_ref, name, self._fw_uid)
+                if endpoint is None:
+                    # Export refused
+                    continue
+
                 endpoints.append(endpoint)
 
                 # Store it

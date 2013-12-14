@@ -230,10 +230,14 @@ class JsonRpcServiceExporter(object):
         properties = {PROP_JSONRPC_URL: self.get_access()}
 
         # Prepare the export endpoint
-        endpoint = pelix.remote.beans.ExportEndpoint(str(uuid.uuid4()),
-                                                     fw_uid, self._kinds, name,
-                                                     svc_ref, service,
-                                                     properties)
+        try:
+            endpoint = pelix.remote.beans.ExportEndpoint(str(uuid.uuid4()),
+                                                         fw_uid, self._kinds,
+                                                         name, svc_ref, service,
+                                                         properties)
+        except ValueError:
+            # No specification to export (specifications filtered, ...)
+            return None
 
         # Store information
         self.__endpoints[name] = endpoint
