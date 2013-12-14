@@ -234,7 +234,7 @@ class Dispatcher(object):
                 uid = endpoint.uid
                 self.__endpoints[uid] = endpoint
                 self.__uid_exporter[uid] = exporter
-                service_uids.add(endpoint)
+                service_uids.add(uid)
 
             except (NameError, pelix.constants.BundleException) as ex:
                 _logger.error("Error exporting service: %s", ex)
@@ -338,20 +338,20 @@ class Dispatcher(object):
 
 
     @BindField('_listeners')
-    def _bind_listener(self, svc, svc_ref):
+    def _bind_listener(self, field, listener, svc_ref):
         """
         Listener bound to the component
         """
         # Exported services listener
         try:
-            svc.endpoints_added(list(self.__endpoints.values()))
+            listener.endpoints_added(list(self.__endpoints.values()))
 
         except Exception as ex:
             _logger.exception("Error notifying newly bound listener: %s", ex)
 
 
     @BindField('_exporters')
-    def _bind_exporter(self, exporter, svc_ref):
+    def _bind_exporter(self, field, exporter, svc_ref):
         """
         Exporter bound
         """
@@ -372,7 +372,7 @@ class Dispatcher(object):
                 uid = endpoint.uid
                 self.__endpoints[uid] = endpoint
                 self.__uid_exporter[uid] = exporter
-                self.__service_uids.setdefault(svc_ref, set()).add(endpoint)
+                self.__service_uids.setdefault(svc_ref, set()).add(uid)
 
             except (NameError, pelix.constants.BundleException) as ex:
                 _logger.error("Error exporting service: %s", ex)
@@ -385,7 +385,7 @@ class Dispatcher(object):
 
 
     @UnbindField('_exporters')
-    def _unbind_exporter(self, exporter, svc_ref):
+    def _unbind_exporter(self, field, exporter, svc_ref):
         """
         Exporter gone
         """
