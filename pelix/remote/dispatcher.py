@@ -229,6 +229,7 @@ class Dispatcher(object):
             try:
                 # Create the endpoint
                 endpoint = exporter.export_service(svc_ref, name, self._fw_uid)
+                endpoints.append(endpoint)
 
                 # Store it
                 uid = endpoint.uid
@@ -343,11 +344,13 @@ class Dispatcher(object):
         Listener bound to the component
         """
         # Exported services listener
-        try:
-            listener.endpoints_added(list(self.__endpoints.values()))
+        if self.__endpoints:
+            try:
+                listener.endpoints_added(list(self.__endpoints.values()))
 
-        except Exception as ex:
-            _logger.exception("Error notifying newly bound listener: %s", ex)
+            except Exception as ex:
+                _logger.exception("Error notifying newly bound listener: %s",
+                                  ex)
 
 
     @BindField('_exporters')
