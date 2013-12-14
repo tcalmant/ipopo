@@ -105,8 +105,8 @@ class ExportEndpoint(object):
         self.__exported_specs = []
         self.__compute_specifications()
         if not self.__exported_specs:
-            raise ValueError("End point %s, %s, exports nothing",
-                             self.__uid, self.__name)
+            raise ValueError("Endpoint {0}, {1}, exports nothing" \
+                             .format(self.__uid, self.__name))
 
 
     def __hash__(self):
