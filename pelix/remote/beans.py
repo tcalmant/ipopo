@@ -136,7 +136,7 @@ class ExportEndpoint(object):
         """
         return "ExportEndpoint(uid={0}, types={1}, specs={2})" \
             .format(self.__uid, self.__configurations,
-                    self.__compute_specifications())
+                    self.__exported_specs)
 
 
     def __compute_specifications(self):
