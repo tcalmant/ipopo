@@ -47,7 +47,7 @@ import pelix.http
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
     BindField, Property, Validate, Invalidate, Instantiate, UnbindField
-from pelix.utilities import to_str
+from pelix.utilities import to_str, Deprecated
 
 # Standard library
 import json
@@ -57,10 +57,12 @@ import threading
 try:
     # Python 3
     import http.client as httplib
+    from urllib.parse import urljoin
 
 except ImportError:
     # Python 2
     import httplib
+    from urlparse import urljoin
 
 # ------------------------------------------------------------------------------
 
@@ -420,37 +422,23 @@ class Dispatcher(object):
         :return: A list of end point matching the parameters
         """
         with self.__lock:
-            if kind:
-                # Filter by kind
-                kind_map = self.__kind_endpoints.get(kind)
-                if kind_map:
-                    # Get the found kind
-                    kind_maps = [kind_map]
+            # Get all endpoints
+            endpoints = list(self.__endpoints.values())
 
-                else:
-                    # Unknown kind
-                    return []
+        # Filter by name
+        if name:
+            endpoints = [endpoint for endpoint in endpoints
+                         if endpoint.name == name]
 
-            else:
-                # Get all kinds
-                kind_maps = self.__kind_endpoints.values()
+        # Filter by kind
+        if kind:
+            endpoints = [endpoint for endpoint in endpoints
+                         if kind in endpoint.configurations]
 
-            results = []
-            if name:
-                # Filter by name
-                for kind_map in kind_maps:
-                    endpoint = kind_map.get(name)
-                    if endpoint is not None:
-                        results.append(endpoint)
-
-            else:
-                # No filter
-                for kind_map in kind_maps:
-                    results.extend(kind_map.values())
-
-            return results
+        return endpoints
 
 
+    @Deprecated("API will change")
     def get_service(self, kind, name):
         """
         Retrieves the instance of the service at the given end point for the
@@ -460,6 +448,7 @@ class Dispatcher(object):
         :param name: The name of the end point
         :return: The service corresponding to the given end point, or None
         """
+        _logger.critical("Calling a deprecated method")
         try:
             return self.__kind_endpoints[kind][name].instance
 
@@ -467,6 +456,7 @@ class Dispatcher(object):
             return None
 
 
+    @Deprecated("Method will disappear")
     def dispatch(self, kind, name, method, params):
         """
         Calls the service for the given kind with the name
@@ -613,8 +603,17 @@ class RegistryServlet(object):
         :param request: Request handler
         :param response: Response handler
         """
+        # Split the path
+        path_parts = request.get_path().split('/')
+
+        if path_parts[-1] != "endpoints":
+            # Bad path
+            response.send_content(404, "Unhandled path", "text/plain")
+            return
+
         # Read the content
         endpoints = json.loads(to_str(request.read_data()))
+
         if endpoints:
             # Got something
             sender = request.get_client_address()[0]
@@ -743,6 +742,12 @@ class RegistryServlet(object):
         # Get the end points from the dispatcher
         endpoints = [self._make_endpoint_dict(endpoint)
                      for endpoint in self._dispatcher.get_endpoints()]
+
+        # Make the path to /endpoints
+        if path[-1] != '/':
+            path = path + '/'
+        path = urljoin(path, 'endpoints')
+
 
         # Request the end points
         try:
