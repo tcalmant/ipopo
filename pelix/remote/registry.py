@@ -40,7 +40,7 @@ import pelix.remote
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Instantiate, Invalidate, Validate
+    Instantiate, Invalidate, Validate, BindField
 
 # Standard library
 import logging
@@ -79,6 +79,25 @@ class ImportsRegistry(object):
 
         # Lock
         self.__lock = threading.Lock()
+
+        # Validation flag
+        self.__validated = False
+
+
+    @BindField('_listeners')
+    def _bind_listener(self, field, listener, svc_ref):
+        """
+        New listener bound
+        """
+        with self.__lock:
+            if self.__validated:
+                # Late listener
+                for endpoint in self._registry.values():
+                    try:
+                        listener.endpoint_added(endpoint)
+
+                    except Exception as ex:
+                        _logger.exception("Error calling listener: %s", ex)
 
 
     def add(self, endpoint):
@@ -214,12 +233,19 @@ class ImportsRegistry(object):
         # Get the framework UID
         self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
 
+        # We are now validated
+        self.__validated = True
+
 
     @Invalidate
     def invalidate(self, context):
         """
         Component invalidated: clean up storage
         """
+        # Update the validation flag
+        self.__validated = False
+
+        # Clean up
         self._fw_uid = None
         self._frameworks.clear()
         self._registry.clear()
