@@ -182,9 +182,9 @@ class JsonRpcServiceExporter(object):
 
         # Get the service
         try:
-            service = self.__endpoints[name].instance
+            service = self.__endpoints[matching].instance
         except KeyError:
-            raise RemoteServiceError("Unknown endpoint: {0}".format(name))
+            raise RemoteServiceError("Unknown endpoint: {0}".format(matching))
 
         # Get the method
         method_ref = getattr(service, method_name, None)
@@ -315,6 +315,7 @@ class JsonRpcServiceExporter(object):
         self.__endpoints.clear()
 
         # Clean up members
+        self._servlet = None
         self._context = None
 
 # ------------------------------------------------------------------------------
