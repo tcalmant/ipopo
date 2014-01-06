@@ -92,3 +92,17 @@ SERVICE_FILEINSTALL_LISTENERS = 'pelix.services.fileinstall.listener'
 
 PROP_FILEINSTALL_FOLDER = 'fileinstall.folder'
 """ Path to the folder to look after, in white board pattern """
+
+#-------------------------------------------------------------------------------
+
+SERVICE_MQTT_CONNECTOR_FACTORY = 'pelix.mqtt.factory'
+""" Specification of an MQTT connection factory """
+
+SERVICE_MQTT_CONNECTION = 'pelix.mqtt.connection'
+""" Specification of an MQTT connection service """
+
+SERVICE_MQTT_LISTENER = 'pelix.mqtt.listener'
+""" Specification of an MQTT message listener """
+
+PROP_MQTT_TOPICS = 'pelix.mqtt.topics'
+""" List of the topics a listener wants to subscribes to """
