@@ -71,7 +71,7 @@ CONNECT_RC = {0: "Success",
 @ComponentFactory()
 @Provides((services.SERVICE_MQTT_CONNECTOR_FACTORY,
            services.SERVICE_CONFIGADMIN_MANAGED_FACTORY))
-@Property('_pid', constants.SERVICE_PID, 'mqtt.factory')
+@Property('_pid', constants.SERVICE_PID, services.MQTT_CONNECTOR_FACTORY_PID)
 @Requires('_listeners', services.SERVICE_MQTT_LISTENER,
           aggregate=True, optional=True)
 @Instantiate('mqtt-connection-factory')
@@ -278,11 +278,14 @@ class MqttConnectionFactory(object):
             # Get the topic
             topic = msg.topic
 
-            # Get listeners for this topic
-            listeners = self._topics[topic].copy()
+            # Get all listeners matching this topic
+            all_listeners = set()
+            for subscription, listeners in self._topics.items():
+                if paho.topic_matches_sub(subscription, topic):
+                    all_listeners.update(listeners)
 
             # Notify them using the pool
-            self._pool.enqueue(self.__notify_listeners, listeners,
+            self._pool.enqueue(self.__notify_listeners, all_listeners,
                                topic, msg.payload, msg.qos)
 
         except KeyError:
