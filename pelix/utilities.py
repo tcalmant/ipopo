@@ -418,3 +418,30 @@ else:
             return data
 
         return data.decode(encoding)
+
+# ------------------------------------------------------------------------------
+
+def to_iterable(value, allow_none=True):
+    """
+    Tries to convert the given value to an iterable, if necessary.
+    If the given value is a list, a list is returned; if it is a string, a list
+    containing one string is returned, ...
+
+    :param value: Any object
+    :param allow_none: If True, the method returns None if value is None, else
+                       it returns an empty list
+    :return: A list containing the given string, or the given value
+    """
+    if value is None:
+        # None given
+        if allow_none:
+            return None
+        else:
+            return []
+
+    elif isinstance(value, (list, tuple, set, frozenset)):
+        # Iterable given, return it as-is
+        return value
+
+    # Return a one-value list
+    return [value]
