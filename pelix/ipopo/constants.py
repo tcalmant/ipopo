@@ -6,7 +6,7 @@ Defines some iPOPO constants
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: Apache License 2.0
-:version: 0.5.6
+:version: 0.5.7
 :status: Beta
 
 ..
@@ -26,7 +26,7 @@ Defines some iPOPO constants
     limitations under the License.
 """
 # Module version
-__version_info__ = (0, 5, 6)
+__version_info__ = (0, 5, 7)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -42,8 +42,11 @@ import contextlib
 
 # ------------------------------------------------------------------------------
 
-IPOPO_SERVICE_SPECIFICATION = "pelix.ipopo.core"
-""" iPOPO service specification string """
+SERVICE_IPOPO = "pelix.ipopo.core"
+""" iPOPO service specification """
+
+IPOPO_SERVICE_SPECIFICATION = SERVICE_IPOPO
+""" Compatibility constant """
 
 # ------------------------------------------------------------------------------
 
@@ -139,7 +142,7 @@ def get_ipopo_svc_ref(bundle_context):
              None if not available
     """
     # Look after the service
-    ref = bundle_context.get_service_reference(IPOPO_SERVICE_SPECIFICATION)
+    ref = bundle_context.get_service_reference(SERVICE_IPOPO)
     if ref is None:
         return None
 
@@ -169,7 +172,7 @@ def use_ipopo(bundle_context):
     # Get the service and its reference
     ref_svc = get_ipopo_svc_ref(bundle_context)
     if ref_svc is None:
-        raise BundleException("iPOPO service not available")
+        raise BundleException("No iPOPO service available")
 
     try:
         # Give the service

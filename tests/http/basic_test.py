@@ -68,7 +68,7 @@ def install_ipopo(framework):
     bundle.start()
 
     # Get the service
-    ref = context.get_service_reference(constants.IPOPO_SERVICE_SPECIFICATION)
+    ref = context.get_service_reference(constants.SERVICE_IPOPO)
     if ref is None:
         raise Exception("iPOPO Service not found")
 
@@ -98,7 +98,7 @@ def get_http_page(host=DEFAULT_HOST, port=DEFAULT_PORT,
                   only_code=True):
     """
     Retrieves the result of an HTTP request
-    
+
     :param host: Server host name
     :param port: Server port
     :param uri: Request URI

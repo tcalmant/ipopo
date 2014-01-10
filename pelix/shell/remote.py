@@ -9,7 +9,7 @@ telnet or netcat.
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: Apache License 2.0
-:version: 0.1.2
+:version: 0.1.3
 :status: Beta
 
 ..
@@ -30,7 +30,7 @@ telnet or netcat.
 """
 
 # Module version
-__version_info__ = (0, 1, 2)
+__version_info__ = (0, 1, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -267,10 +267,10 @@ def _create_server(shell, server_address, port):
 # ------------------------------------------------------------------------------
 
 @ComponentFactory(pelix.shell.FACTORY_REMOTE_SHELL)
-@Provides(pelix.shell.REMOTE_SHELL_SPEC)
+@Provides(pelix.shell.SERVICE_SHELL_REMOTE)
+@Requires("_shell", pelix.shell.SERVICE_SHELL)
 @Property("_address", "pelix.shell.address", "localhost")
 @Property("_port", "pelix.shell.port", 9000)
-@Requires("_shell", pelix.shell.SHELL_SERVICE_SPEC)
 class IPopoRemoteShell(object):
     """
     The iPOPO Remote Shell, based on the Pelix Shell

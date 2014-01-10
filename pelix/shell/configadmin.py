@@ -9,7 +9,7 @@ service
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: Apache License 2.0
-:version: 0.1.0
+:version: 0.1.1
 :status: Beta
 
 ..
@@ -30,7 +30,7 @@ service
 """
 
 # Module version
-__version_info__ = (0, 1, 0)
+__version_info__ = (0, 1, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -39,7 +39,7 @@ __docformat__ = "restructuredtext en"
 # -----------------------------------------------------------------------------
 
 # Shell constants
-from pelix.shell import SHELL_COMMAND_SPEC
+from pelix.shell import SERVICE_SHELL_COMMAND
 
 # iPOPO Decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
@@ -50,7 +50,7 @@ import pelix.services
 
 @ComponentFactory("configadmin-shell-commands-factory")
 @Requires("_config_admin", pelix.services.SERVICE_CONFIGURATION_ADMIN)
-@Provides(SHELL_COMMAND_SPEC)
+@Provides(SERVICE_SHELL_COMMAND)
 @Instantiate("configadmin-shell-commands")
 class ConfigAdminCommands(object):
     """

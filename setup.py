@@ -86,4 +86,5 @@ setup(name='iPOPO',
             'Programming Language :: Python :: 3.2',
             'Programming Language :: Python :: 3.3',
             'Topic :: Software Development :: Libraries :: Application Frameworks'
-      ])
+      ],
+      extras_require={'MQTT': ['paho-mqtt']})
