@@ -9,7 +9,7 @@ available.
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: Apache License 2.0
-:version: 0.1.3
+:version: 0.1.4
 :status: Beta
 
 ..
@@ -30,7 +30,7 @@ available.
 """
 
 # Module version
-__version_info__ = (0, 1, 3)
+__version_info__ = (0, 1, 4)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -39,7 +39,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Shell constants
-from pelix.shell import SHELL_SERVICE_SPEC
+from pelix.shell import SERVICE_SHELL
 import pelix.framework as pelix
 
 # Standard library
@@ -98,7 +98,7 @@ class InteractiveShell(object):
         self.search_shell()
 
         # Register as a service listener
-        self._context.add_service_listener(self, None, SHELL_SERVICE_SPEC)
+        self._context.add_service_listener(self, None, SERVICE_SHELL)
 
 
     def _readline_prompt(self):
@@ -231,7 +231,7 @@ class InteractiveShell(object):
                 # A shell is already there
                 return
 
-            reference = self._context.get_service_reference(SHELL_SERVICE_SPEC)
+            reference = self._context.get_service_reference(SERVICE_SHELL)
             if reference is not None:
                 self.set_shell(reference)
 

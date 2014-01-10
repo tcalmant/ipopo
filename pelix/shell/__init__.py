@@ -6,7 +6,7 @@ Pelix shell package
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: Apache License 2.0
-:version: 0.1
+:version: 0.1.1
 :status: Beta
 
 ..
@@ -27,7 +27,7 @@ Pelix shell package
 """
 
 # Module version
-__version_info__ = (0, 1, 0)
+__version_info__ = (0, 1, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -35,7 +35,7 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-SHELL_SERVICE_SPEC = "pelix.shell"
+SERVICE_SHELL = "pelix.shell"
 """
 Core shell service:
 
@@ -47,7 +47,7 @@ Core shell service:
   given input and output streams
 """
 
-SHELL_COMMAND_SPEC = "pelix.shell.command"
+SERVICE_SHELL_COMMAND = "pelix.shell.command"
 """
 Shell commands service, for auto-registration (white board pattern).
 
@@ -55,7 +55,7 @@ Shell commands service, for auto-registration (white board pattern).
 * get_methods(): returns a command name -> method dictionary
 """
 
-SHELL_UTILS_SERVICE_SPEC = "pelix.shell.utilities"
+SERVICE_SHELL_UTILS = "pelix.shell.utilities"
 """
 Shell utility service:
 
@@ -63,13 +63,28 @@ Shell utility service:
 * bundlestate_to_str(state): to get the string representation of a bundle state
 """
 
-REMOTE_SHELL_SPEC = "pelix.shell.remote"
+SERVICE_SHELL_REMOTE = "pelix.shell.remote"
 """
 Remote shell service
 
 * get_access(): returns the (host, port) tuple where the remote shell is waiting
   clients.
 """
+
+# ------------------------------------------------------------------------------
+# Temporary constants, for compatibility with previous shell developments
+
+SHELL_SERVICE_SPEC = SERVICE_SHELL
+""" Compatibility constant """
+
+SHELL_COMMAND_SPEC = SERVICE_SHELL_COMMAND
+""" Compatibility constant """
+
+SHELL_UTILS_SERVICE_SPEC = SERVICE_SHELL_UTILS
+""" Compatibility constant """
+
+REMOTE_SHELL_SPEC = SERVICE_SHELL_REMOTE
+""" Compatibility constant """
 
 # ------------------------------------------------------------------------------
 

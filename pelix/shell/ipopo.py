@@ -8,7 +8,7 @@ Provides commands to the Pelix shell to get the state of iPOPO instances.
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: Apache License 2.0
-:version: 0.2.2
+:version: 0.2.3
 :status: Beta
 
 ..
@@ -29,7 +29,7 @@ Provides commands to the Pelix shell to get the state of iPOPO instances.
 """
 
 # Module version
-__version_info__ = (0, 2, 2)
+__version_info__ = (0, 2, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -44,7 +44,7 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
 from pelix.ipopo.constants import IPOPO_SERVICE_SPECIFICATION
 
 # Shell constants
-from pelix.shell import SHELL_COMMAND_SPEC, SHELL_UTILS_SERVICE_SPEC
+from pelix.shell import SERVICE_SHELL_COMMAND, SERVICE_SHELL_UTILS
 
 import logging
 
@@ -73,8 +73,8 @@ def ipopo_state_to_str(state):
 
 @ComponentFactory("ipopo-shell-commands-factory")
 @Requires("_ipopo", IPOPO_SERVICE_SPECIFICATION)
-@Requires("_utils", SHELL_UTILS_SERVICE_SPEC)
-@Provides(SHELL_COMMAND_SPEC)
+@Requires("_utils", SERVICE_SHELL_UTILS)
+@Provides(SERVICE_SHELL_COMMAND)
 @Instantiate("ipopo-shell-commands")
 class IPopoCommands(object):
     """

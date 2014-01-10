@@ -17,8 +17,10 @@ __docformat__ = "restructuredtext en"
 from pelix.framework import FrameworkFactory
 
 # Shell constants
-from pelix.shell import SHELL_SERVICE_SPEC, SHELL_COMMAND_SPEC, \
-    SHELL_UTILS_SERVICE_SPEC
+# from pelix.shell import SHELL_SERVICE_SPEC, SHELL_COMMAND_SPEC, \
+#     SHELL_UTILS_SERVICE_SPEC
+from pelix.shell import SERVICE_SHELL, SERVICE_SHELL_COMMAND, \
+    SERVICE_SHELL_UTILS
 
 # Tests
 try:
@@ -45,7 +47,7 @@ class ShellUtilsTest(unittest.TestCase):
         self.context.install_bundle("pelix.shell.core").start()
 
         # Get the utility service
-        svc_ref = self.context.get_service_reference(SHELL_UTILS_SERVICE_SPEC)
+        svc_ref = self.context.get_service_reference(SERVICE_SHELL_UTILS)
         self.utility = self.context.get_service(svc_ref)
 
 
@@ -155,7 +157,7 @@ class ShellCoreTest(unittest.TestCase):
         self.context.install_bundle("pelix.shell.core").start()
 
         # Get the utility service
-        svc_ref = self.context.get_service_reference(SHELL_SERVICE_SPEC)
+        svc_ref = self.context.get_service_reference(SERVICE_SHELL)
         self.shell = self.context.get_service(svc_ref)
 
         # Command flags
@@ -330,7 +332,7 @@ class ShellCommandTest(unittest.TestCase):
         self.context.install_bundle("pelix.shell.core").start()
 
         # Get the utility service
-        svc_ref = self.context.get_service_reference(SHELL_SERVICE_SPEC)
+        svc_ref = self.context.get_service_reference(SERVICE_SHELL)
         self.shell = self.context.get_service(svc_ref)
 
 
@@ -437,7 +439,8 @@ class ShellCommandTest(unittest.TestCase):
         self.assertFalse(service.flag, "Bad flag value")
 
         # Register the service
-        svc_reg = self.context.register_service(SHELL_COMMAND_SPEC, service, {})
+        svc_reg = self.context.register_service(SERVICE_SHELL_COMMAND,
+                                                service, {})
 
         # Test execution
         self.assertTrue(self.shell.execute("test.command"),

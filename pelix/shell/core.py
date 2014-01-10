@@ -8,7 +8,7 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: Apache License 2.0
-:version: 0.2.4
+:version: 0.2.5
 :status: Beta
 
 ..
@@ -29,7 +29,7 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 """
 
 # Module version
-__version_info__ = (0, 2, 4)
+__version_info__ = (0, 2, 5)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -38,8 +38,8 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Shell constants
-from pelix.shell import SHELL_SERVICE_SPEC, SHELL_COMMAND_SPEC, \
-    SHELL_UTILS_SERVICE_SPEC
+from pelix.shell import SERVICE_SHELL, SERVICE_SHELL_COMMAND, \
+    SERVICE_SHELL_UTILS
 
 # Pelix modules
 from pelix.utilities import to_str, to_bytes
@@ -1310,17 +1310,17 @@ class PelixActivator(object):
             utils = ShellUtils()
             self._shell = Shell(context, utils)
 
-            self._shell_reg = context.register_service(SHELL_SERVICE_SPEC,
+            self._shell_reg = context.register_service(SERVICE_SHELL,
                                                        self._shell, {})
 
-            self._utils_reg = context.register_service(SHELL_UTILS_SERVICE_SPEC,
+            self._utils_reg = context.register_service(SERVICE_SHELL_UTILS,
                                                        utils, {})
 
             # Register the service listener
-            context.add_service_listener(self, None, SHELL_COMMAND_SPEC)
+            context.add_service_listener(self, None, SERVICE_SHELL_COMMAND)
 
             # Register existing command services
-            refs = context.get_all_service_references(SHELL_COMMAND_SPEC,
+            refs = context.get_all_service_references(SERVICE_SHELL_COMMAND,
                                                       None)
             if refs is not None:
                 for ref in refs:

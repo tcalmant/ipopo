@@ -8,7 +8,7 @@ Provides commands to the Pelix shell to work with the EventAdmin service
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: Apache License 2.0
-:version: 0.1.2
+:version: 0.1.3
 :status: Beta
 
 ..
@@ -29,7 +29,7 @@ Provides commands to the Pelix shell to work with the EventAdmin service
 """
 
 # Module version
-__version_info__ = (0, 1, 2)
+__version_info__ = (0, 1, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -38,7 +38,7 @@ __docformat__ = "restructuredtext en"
 # -----------------------------------------------------------------------------
 
 # Shell constants
-from pelix.shell import SHELL_COMMAND_SPEC
+from pelix.shell import SERVICE_SHELL_COMMAND
 
 # iPOPO Decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
@@ -49,7 +49,7 @@ import pelix.services
 
 @ComponentFactory("eventadmin-shell-commands-factory")
 @Requires("_events", pelix.services.SERVICE_EVENT_ADMIN)
-@Provides(SHELL_COMMAND_SPEC)
+@Provides(SERVICE_SHELL_COMMAND)
 @Instantiate("eventadmin-shell-commands")
 class EventAdminCommands(object):
     """
