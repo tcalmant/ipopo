@@ -37,15 +37,13 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+# Pelix
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
     Instantiate
+import pelix.ipopo.constants
+import pelix.shell
 
-# iPOPO constants
-from pelix.ipopo.constants import IPOPO_SERVICE_SPECIFICATION
-
-# Shell constants
-from pelix.shell import SERVICE_SHELL_COMMAND, SERVICE_SHELL_UTILS
-
+# Standard library
 import logging
 
 # ------------------------------------------------------------------------------
@@ -72,9 +70,9 @@ def ipopo_state_to_str(state):
 # ------------------------------------------------------------------------------
 
 @ComponentFactory("ipopo-shell-commands-factory")
-@Requires("_ipopo", IPOPO_SERVICE_SPECIFICATION)
-@Requires("_utils", SERVICE_SHELL_UTILS)
-@Provides(SERVICE_SHELL_COMMAND)
+@Requires("_ipopo", pelix.ipopo.constants.SERVICE_IPOPO)
+@Requires("_utils", pelix.shell.SERVICE_SHELL_UTILS)
+@Provides(pelix.shell.SERVICE_SHELL_COMMAND)
 @Instantiate("ipopo-shell-commands")
 class IPopoCommands(object):
     """

@@ -1028,9 +1028,8 @@ class _IPopoActivator(object):
 
         # Register the iPOPO service
         self._service = _IPopoService(context)
-        self._registration = context.register_service(\
-                                        constants.IPOPO_SERVICE_SPECIFICATION, \
-                                        self._service, {})
+        self._registration = context.register_service(constants.SERVICE_IPOPO,
+                                                      self._service, {})
 
         # Register as a bundle listener
         context.add_bundle_listener(self._service)
