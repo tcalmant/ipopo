@@ -6,7 +6,7 @@ An EventAdmin-like implementation for Pelix: a publish-subscribe service
 :author: Thomas Calmant
 :copyright: Copyright 2013, isandlaTech
 :license: Apache License 2.0
-:version: 0.2
+:version: 0.2.1
 :status: Beta
 
 ..
@@ -27,7 +27,7 @@ An EventAdmin-like implementation for Pelix: a publish-subscribe service
 """
 
 # Module version
-__version_info__ = (0, 2, 0)
+__version_info__ = (0, 2, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -38,6 +38,7 @@ __docformat__ = "restructuredtext en"
 # Pelix
 from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
     Validate, Invalidate
+from pelix.utilities import to_iterable
 import pelix.framework
 import pelix.ldapfilter
 import pelix.services
@@ -103,7 +104,7 @@ class EventAdmin(object):
             if self.__match_filter(properties, ldap_filter):
                 # Filter matches the event, test the topic
                 topics = svc_ref.get_property(pelix.services.PROP_EVENT_TOPICS)
-                for handled_topic in topics:
+                for handled_topic in to_iterable(topics, False):
                     if fnmatch.fnmatch(topic, handled_topic):
                         # Full match, keep the service ID
                         handlers.append(svc_ref.get_property(\
