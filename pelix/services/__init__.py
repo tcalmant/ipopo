@@ -61,6 +61,9 @@ EVENT_PROP_FRAMEWORK_UID = "event.sender.framework.uid"
 EVENT_PROP_TIMESTAMP = "event.timestamp"
 """ Time stamp of the event, compute during the call of send() or post() """
 
+EVENT_PROP_PROPAGATE = "event.propagate"
+""" If present in event properties, the event can be propagated through MQTT """
+
 #-------------------------------------------------------------------------------
 
 SERVICE_CONFIGURATION_ADMIN = "pelix.configadmin"

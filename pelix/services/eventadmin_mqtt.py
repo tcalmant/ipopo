@@ -38,7 +38,8 @@ __docformat__ = "restructuredtext en"
 
 # Pelix
 from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
-    Validate, Invalidate, Requires
+    Validate, Invalidate, Requires, Instantiate
+from pelix.utilities import to_str
 import pelix.constants as constants
 import pelix.services as services
 
@@ -69,6 +70,7 @@ EVENT_PROP_STARTING_SLASH = 'pelix.eventadmin.mqtt.start_slash'
 @Property('_mqtt_topic', 'mqtt.bridge.topic', DEFAULT_MQTT_TOPIC)
 @Property('_event_topics', services.PROP_EVENT_TOPICS, '*')
 @Property('_mqtt_topics', services.PROP_MQTT_TOPICS)
+@Instantiate('pelix-eventadmin-mqtt')
 class MqttEventAdminBridge(object):
     """
     The EventAdmin MQTT bridge
@@ -132,6 +134,11 @@ class MqttEventAdminBridge(object):
             # A bridge posted this event, ignore it
             return
 
+        elif services.EVENT_PROP_PROPAGATE not in properties:
+            # Propagation flag is not set, ignore
+            return
+
+
         # Remove starting '/' in the event, and set up the flag
         if topic[0] == '/':
             topic = topic[1:]
@@ -171,10 +178,15 @@ class MqttEventAdminBridge(object):
             return
 
         # Check framework UID of the sender
-        sender_uid = properties.get(services.EVENT_PROP_FRAMEWORK_UID, None)
-        if sender_uid == self._framework_uid:
-            # Loop back
-            return
+        try:
+            sender_uid = to_str(properties[services.EVENT_PROP_FRAMEWORK_UID])
+            if sender_uid == self._framework_uid:
+                # Loop back
+                return
+
+        except KeyError:
+            # Not sent by us... continue
+            pass
 
         # Update the topic if necessary
         if properties.pop(EVENT_PROP_STARTING_SLASH, False):
@@ -182,7 +194,7 @@ class MqttEventAdminBridge(object):
             evt_topic = '/{0}'.format(evt_topic)
 
         # Set up source UID as an extra property
-        properties[EVENT_PROP_SOURCE_UID] = self._framework_uid
+        properties[EVENT_PROP_SOURCE_UID] = sender_uid
 
         # Post the event
         self._event.post(evt_topic, properties)
