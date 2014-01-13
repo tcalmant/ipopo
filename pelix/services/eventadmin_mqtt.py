@@ -169,6 +169,9 @@ class MqttEventAdminBridge(object):
             return
 
         try:
+            # Ensure that the payload is a string
+            payload = to_str(payload)
+
             # Parse the event payload
             properties = json.loads(payload)
 
