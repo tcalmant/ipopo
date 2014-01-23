@@ -84,6 +84,41 @@ def is_from_parent(cls, attribute_name, value=None):
     return False
 
 
+def get_factory_context(cls):
+    """
+    Retrieves the factory context object associated to a factory. Creates it
+    if needed
+
+    :param cls: The factory class
+    :return: The factory class context
+    """
+    context = getattr(cls, constants.IPOPO_FACTORY_CONTEXT, None)
+
+    if context is None:
+        # Class not yet manipulated
+        context = FactoryContext()
+
+    elif is_from_parent(cls, constants.IPOPO_FACTORY_CONTEXT):
+        # Create a copy the context
+        context = context.copy()
+
+        # Clear the values that must not be inherited:
+        # * Provided services
+        # FIXME: do it in a better/generic way
+        context.set_handler(constants.HANDLER_PROVIDES, [])
+
+        # * Manipulation has not been applied yet
+        context.completed = False
+
+    else:
+        # Nothing special to do
+        return context
+
+    # Context has been created or copied, inject the new bean
+    setattr(cls, constants.IPOPO_FACTORY_CONTEXT, context)
+    return context
+
+
 def get_method_description(method):
     """
     Retrieves a description of the given method. If possible, the description
@@ -146,41 +181,6 @@ def validate_method_arity(method, *needed_args):
                                 ", ".join(needed_args)))
 
 # ------------------------------------------------------------------------------
-
-def _get_factory_context(cls):
-    """
-    Retrieves the factory context object associated to a factory. Creates it
-    if needed
-
-    :param cls: The factory class
-    :return: The factory class context
-    """
-    context = getattr(cls, constants.IPOPO_FACTORY_CONTEXT, None)
-
-    if context is None:
-        # Class not yet manipulated
-        context = FactoryContext()
-
-    elif is_from_parent(cls, constants.IPOPO_FACTORY_CONTEXT):
-        # Create a copy the context
-        context = context.copy()
-
-        # Clear the values that must not be inherited:
-        # * Provided services
-        # FIXME: do it in a better/generic way
-        context.set_handler(constants.HANDLER_PROVIDES, [])
-
-        # * Manipulation has not been applied yet
-        context.completed = False
-
-    else:
-        # Nothing special to do
-        return context
-
-    # Context has been created or copied, inject the new bean
-    setattr(cls, constants.IPOPO_FACTORY_CONTEXT, context)
-    return context
-
 
 def _ipopo_setup_callback(cls, context):
     """
@@ -469,7 +469,7 @@ class ComponentFactory(object):
                             "not '{0}'".format(type(factory_class).__name__))
 
         # Get the factory context
-        context = _get_factory_context(factory_class)
+        context = get_factory_context(factory_class)
 
         # Test if a manipulation has already been applied
         if not context.completed:
@@ -566,7 +566,7 @@ class Property(object):
                             .format(type(clazz).__name__))
 
         # Get the factory context
-        context = _get_factory_context(clazz)
+        context = get_factory_context(clazz)
         if context.completed:
             # Do nothing if the class has already been manipulated
             _logger.warning("@Property: Already manipulated class: %s",
@@ -676,7 +676,7 @@ class Provides(object):
                             .format(type(clazz).__name__))
 
         # Get the factory context
-        context = _get_factory_context(clazz)
+        context = get_factory_context(clazz)
         if context.completed:
             # Do nothing if the class has already been manipulated
             _logger.warning("@Provides: Already manipulated class: %s",
@@ -769,7 +769,7 @@ class Requires(object):
                             clazz.__name__, self.__field)
 
         # Set up the property in the class
-        context = _get_factory_context(clazz)
+        context = get_factory_context(clazz)
         if context.completed:
             # Do nothing if the class has already been manipulated
             _logger.warning("@Requires: Already manipulated class: %s",
@@ -856,7 +856,7 @@ class RequiresMap(object):
                             get_method_description(clazz), self.__field)
 
         # Set up the property in the class
-        context = _get_factory_context(clazz)
+        context = get_factory_context(clazz)
         if context.completed:
             # Do nothing if the class has already been manipulated
             _logger.warning("@RequiresMap: Already manipulated class: %s",
