@@ -470,13 +470,21 @@ class StoredInstance(object):
         :raise Exception: Something went wrong
         """
         with self._lock:
-            comp_callback = self.context.get_field_callback(field, event)
-            if not comp_callback:
+            # Get the field callback info
+            cb_info = self.context.get_field_callback(field, event)
+            if not cb_info:
                 # No registered callback
                 return True
 
+            # Extract information
+            callback, if_valid = cb_info
+
+            if if_valid and self.state != StoredInstance.VALID:
+                # Don't call the method if the component state isn't satisfying
+                return True
+
             # Call it
-            result = comp_callback(self.instance, field, *args, **kwargs)
+            result = callback(self.instance, field, *args, **kwargs)
             if result is None:
                 # Special case, if the call back returns nothing
                 return True

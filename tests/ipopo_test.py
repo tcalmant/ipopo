@@ -668,6 +668,90 @@ class FieldCallbackTest(unittest.TestCase):
         # Kill consumer
         self.ipopo.kill("consumer")
 
+
+    def testLifeCycleFieldCallbackIfValid(self):
+        """
+        Tests the order of field notifications with the "if_valid" flag
+        """
+        # Consumer
+        compo = self.ipopo.instantiate(self.module.FACTORY_D, "consumer")
+        self.assertEqual(compo.states, [], "States should be empty")
+
+        # -- Component is invalid
+
+        # Start Service B
+        svc_b = self.ipopo.instantiate(self.module.FACTORY_B, "svcB")
+        self.assertEqual(compo.states, [], "Service B bound: called")
+        del compo.states[:]
+
+        # Update B
+        self.assertNotEqual(svc_b._prop, -123,
+                             "Value already at requested value")
+        compo.change_b(-123)
+        self.assertEqual(svc_b._prop, -123, "Value not changed")
+        self.assertEqual(compo.states, [], "Service B updated: called")
+        del compo.states[:]
+
+        # Kill service B
+        self.ipopo.kill("svcB")
+        self.assertEqual(compo.states, [], "Service B unbound: called")
+        del compo.states[:]
+
+        # Start Service A
+        self.ipopo.instantiate(self.module.FACTORY_A, "svcA")
+        del compo.states[:]
+
+        # -- Component is valid
+
+        # Start Service B
+        svc_b = self.ipopo.instantiate(self.module.FACTORY_B, "svcB")
+        self.assertEqual(compo.states, [self.module.BIND_FIELD_B],
+                         "Service B bound: not called")
+        del compo.states[:]
+
+        # Update B
+        self.assertNotEqual(svc_b._prop, -123,
+                             "Value already at requested value")
+        compo.change_b(-123)
+        self.assertEqual(svc_b._prop, -123, "Value not changed")
+        self.assertEqual(compo.states, [self.module.UPDATE_FIELD_B],
+                         "Service B updated: not called")
+        del compo.states[:]
+
+        # Kill service B
+        self.ipopo.kill("svcB")
+        self.assertEqual(compo.states, [self.module.UNBIND_FIELD_B],
+                         "Service B unbound: not called")
+        del compo.states[:]
+
+        # Restart Service B
+        svc_b = self.ipopo.instantiate(self.module.FACTORY_B, "svcB")
+        self.assertEqual(compo.states, [self.module.BIND_FIELD_B],
+                         "Service B bound: not called")
+        del compo.states[:]
+
+        # Kill service A
+        self.ipopo.kill("svcA")
+        del compo.states[:]
+
+        # -- Component is invalid (again)
+
+        # Update B
+        self.assertNotEqual(svc_b._prop, -123,
+                             "Value already at requested value")
+        compo.change_b(-123)
+        self.assertEqual(svc_b._prop, -123, "Value not changed")
+        self.assertEqual(compo.states, [], "Service B updated: called")
+        del compo.states[:]
+
+        # Kill service B
+        self.ipopo.kill("svcB")
+        self.assertEqual(compo.states, [], "Service B unbound: called")
+        del compo.states[:]
+
+        # Kill consumer
+        self.ipopo.kill("consumer")
+
 # ------------------------------------------------------------------------------
 
 class InstantiateTest(unittest.TestCase):

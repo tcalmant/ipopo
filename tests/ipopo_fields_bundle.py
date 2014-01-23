@@ -21,6 +21,7 @@ SVC_B = "service.b"
 FACTORY_A = "ipopo.fieldtests.a"
 FACTORY_B = "ipopo.fieldtests.b"
 FACTORY_C = "ipopo.fieldtests.c"
+FACTORY_D = "ipopo.fieldtests.d"
 PROP_TEST = "test.value"
 
 BIND_A = "bind.a"
@@ -225,5 +226,62 @@ class Consumer(object):
     def unbind_field_b(self, field, svc, ref):
         """
         Unbound field
+        """
+        self.states.append(UNBIND_FIELD_B)
+
+# ------------------------------------------------------------------------------
+
+# Other consumer
+@ComponentFactory(FACTORY_D)
+@Requires("_svc_a", SVC_A)
+@Requires("_svc_b", SVC_B, optional=True)
+class ConsumerBindIfValid(object):
+    """
+    Sample consumer to test the "if_valid" flag
+    """
+    def __init__(self):
+        """"
+        Constructor
+        """
+        self.states = []
+        self._svc_a = None
+        self._svc_b = None
+
+
+    def change_b(self, value):
+        """
+        Changes the property value of service B
+        """
+        self._svc_b.change(value)
+
+
+    @BindField("_svc_a")
+    def bind_field_a(self, field, svc, ref):
+        """
+        Bound field
+        """
+        self.states.append(BIND_FIELD_A)
+
+
+    @BindField("_svc_b", True)
+    def bind_field_b(self, field, svc, ref):
+        """
+        Bound field
+        """
+        self.states.append(BIND_FIELD_B)
+
+
+    @UpdateField("_svc_b", True)
+    def update_field_b(self, field, svc, ref, old_props):
+        """
+        Bound field
+        """
+        self.states.append(UPDATE_FIELD_B)
+
+
+    @UnbindField("_svc_b", True)
+    def unbind_field_b(self, field, svc, ref):
+        """
+        Bound field
         """
         self.states.append(UNBIND_FIELD_B)

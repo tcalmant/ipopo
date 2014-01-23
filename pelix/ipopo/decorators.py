@@ -271,18 +271,18 @@ def _ipopo_setup_field_callback(cls, context):
         # child will see the attribute -> Don't remove it
 
         # Store the call backs
-        for kind, field in method_callbacks:
+        for kind, field, if_valid in method_callbacks:
             fields_cbs = callbacks.setdefault(field, {})
 
             if kind in fields_cbs and \
-            not is_from_parent(cls, fields_cbs[kind].__name__):
+            not is_from_parent(cls, fields_cbs[kind][0].__name__):
                 _logger.warning("Redefining the callback %s in '%s'. " \
                                 "Previous callback : '%s' (%s). " \
                                 "New callback : %s", kind, name,
-                                fields_cbs[kind].__name__,
-                                fields_cbs[kind], function)
+                                fields_cbs[kind][0].__name__,
+                                fields_cbs[kind][0], function)
 
-            fields_cbs[kind] = function
+            fields_cbs[kind] = (function, if_valid)
 
     # Update the factory context
     context.field_callbacks.clear()
@@ -901,13 +901,15 @@ class BindField(object):
 
     Exceptions raised by a bind callback are ignored.
     """
-    def __init__(self, field):
+    def __init__(self, field, if_valid=False):
         """
         Sets up the decorator
 
         :param field: Field associated to the binding
+        :param if_valid: Call the method only if the component is valid
         """
         self._field = field
+        self._if_valid = if_valid
 
 
     def __call__(self, method):
@@ -926,7 +928,7 @@ class BindField(object):
 
         _append_object_entry(method, constants.IPOPO_METHOD_FIELD_CALLBACKS,
                              (constants.IPOPO_CALLBACK_BIND_FIELD,
-                              self._field))
+                              self._field, self._if_valid))
         return method
 
 
@@ -950,13 +952,15 @@ class UpdateField(object):
 
     Exceptions raised by an update callback are ignored.
     """
-    def __init__(self, field):
+    def __init__(self, field, if_valid=False):
         """
         Sets up the decorator
 
         :param field: Field associated to the binding
+        :param if_valid: Call the method only if the component is valid
         """
         self._field = field
+        self._if_valid = if_valid
 
 
     def __call__(self, method):
@@ -976,7 +980,7 @@ class UpdateField(object):
 
         _append_object_entry(method, constants.IPOPO_METHOD_FIELD_CALLBACKS,
                              (constants.IPOPO_CALLBACK_UPDATE_FIELD,
-                              self._field))
+                              self._field, self._if_valid))
         return method
 
 
@@ -1004,13 +1008,15 @@ class UnbindField(object):
 
     Exceptions raised by an unbind callback are ignored.
     """
-    def __init__(self, field):
+    def __init__(self, field, if_valid=False):
         """
         Sets up the decorator
 
         :param field: Field associated to the binding
+        :param if_valid: Call the method only if the component is valid
         """
         self._field = field
+        self._if_valid = if_valid
 
 
     def __call__(self, method):
@@ -1029,7 +1035,7 @@ class UnbindField(object):
 
         _append_object_entry(method, constants.IPOPO_METHOD_FIELD_CALLBACKS,
                              (constants.IPOPO_CALLBACK_UNBIND_FIELD,
-                              self._field))
+                              self._field, self._if_valid))
         return method
 
 # ------------------------------------------------------------------------------

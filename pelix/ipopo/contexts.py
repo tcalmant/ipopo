@@ -367,10 +367,11 @@ class ComponentContext(object):
 
         :param field: Name of the dependency field
         :param event: A component life cycle event
-        :return: The callback associated to the given event
+        :return: A 2-tuple containing the callback associated to the given event
+                 and flag indicating if the callback must be called in valid
+                 state only
         """
-        return self.factory_context.field_callbacks.get(field,
-                                                        {}).get(event, None)
+        return self.factory_context.field_callbacks.get(field, {}).get(event)
 
 
     def get_factory_name(self):
