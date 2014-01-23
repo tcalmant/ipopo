@@ -185,7 +185,7 @@ class DecoratorsTest(unittest.TestCase):
         decorators.ComponentFactory()(DummyClass)
 
         # No name -> generated one
-        parent_context = decorators._get_factory_context(DummyClass)
+        parent_context = decorators.get_factory_context(DummyClass)
         self.assertEqual(parent_context.name, "DummyClassFactory",
                          "Invalid generated name")
 
@@ -1678,12 +1678,12 @@ class SimpleDecoratorsTests(unittest.TestCase):
                      )
 
         # Get the context
-        class_context = decorators._get_factory_context(DummyClass)
-        self.assertIsNotNone(decorators._get_factory_context(DummyClass),
+        class_context = decorators.get_factory_context(DummyClass)
+        self.assertIsNotNone(decorators.get_factory_context(DummyClass),
                              "Invalid factory context")
 
         # The child has a copy of the parent context
-        child_context = decorators._get_factory_context(ChildClass)
+        child_context = decorators.get_factory_context(ChildClass)
         self.assertIsNot(child_context, class_context,
                          "The child must have a copy of the context")
 
