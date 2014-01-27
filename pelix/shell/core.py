@@ -662,12 +662,18 @@ class Shell(object):
         # Convert the line into a string
         cmdline = to_str(cmdline)
 
-        line_split = shlex.split(cmdline, True, True)
-        if not line_split:
-            return False
-
         # Prepare the I/O handler
         io_handler = IOHandler(stdin, stdout)
+
+        try:
+            line_split = shlex.split(cmdline, True, True)
+
+        except ValueError as ex:
+            io_handler.write_line("Error reading line: {0}", ex)
+            return False
+
+        if not line_split:
+            return False
 
         try:
             # Extract command information
