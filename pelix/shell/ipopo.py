@@ -270,6 +270,7 @@ class IPopoCommands(object):
 
         except Exception as ex:
             io_handler.write_line("Error instantiating the component: {0}", ex)
+            _logger.exception("Error instantiating the component")
 
 
     def kill(self, io_handler, name):
