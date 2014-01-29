@@ -371,7 +371,7 @@ class Dispatcher(object):
         # Tell the exporter to export already known services
         for svc_ref in self.__service_uids:
             # Compute the endpoint name
-            name = self._compute_endpoint_name(svc_ref)
+            name = self._compute_endpoint_name(svc_ref.get_properties())
 
             try:
                 # Create the endpoint
