@@ -160,10 +160,14 @@ class _IPopoService(object):
         self.__factories_lock = threading.RLock()
         self.__instances_lock = threading.RLock()
         self.__listeners_lock = threading.RLock()
+        self.__handlers_lock = threading.RLock()
 
         # Handlers factories
         self._handlers_refs = set()
         self._handlers = {}
+
+        # Instances waiting for a handler: Name -> (ComponentContext, instance)
+        self.__waiting_handlers = {}
 
         # Register the service listener
         bundle_context.add_service_listener(self, None,
@@ -190,18 +194,23 @@ class _IPopoService(object):
 
         :param svc_ref: ServiceReference of the new handler factory
         """
-        # Get the handler ID
-        handler_id = svc_ref.get_property(handlers_const.PROP_HANDLER_ID)
+        with self.__handlers_lock:
+            # Get the handler ID
+            handler_id = svc_ref.get_property(handlers_const.PROP_HANDLER_ID)
 
-        if handler_id in self._handlers:
-            # Duplicated ID
-            _logger.warning("Already registered handler ID: %s",
-                            handler_id)
+            if handler_id in self._handlers:
+                # Duplicated ID
+                _logger.warning("Already registered handler ID: %s",
+                                handler_id)
 
-        else:
-            # Store the service
-            self._handlers_refs.add(svc_ref)
-            self._handlers[handler_id] = self.__context.get_service(svc_ref)
+            else:
+                # Store the service
+                self._handlers_refs.add(svc_ref)
+                self._handlers[handler_id] = self.__context.get_service(svc_ref)
+
+                # Try to instantiate waiting components
+                for context, instance in self.__waiting_handlers.values():
+                    self._try_instantiate(context, instance)
 
 
     def __remove_handler_factory(self, svc_ref):
@@ -210,18 +219,46 @@ class _IPopoService(object):
 
         :param svc_ref: ServiceReference of the handler factory to remove
         """
-        # Get the handler ID
-        handler_id = svc_ref.get_property(handlers_const.PROP_HANDLER_ID)
+        with self.__handlers_lock:
+            # Get the handler ID
+            handler_id = svc_ref.get_property(handlers_const.PROP_HANDLER_ID)
 
-        try:
+            # Check if this is the handler we use
+            if svc_ref not in self._handlers_refs:
+                return
+
             # Clean up
             self.__context.unget_service(svc_ref)
             self._handlers_refs.remove(svc_ref)
             del self._handlers[handler_id]
 
-        except KeyError:
-            # We weren't using this handler
-            pass
+            # TODO: Kill components using this handler
+            to_stop = set()
+            for factory_name in self.__factories:
+                for stored_instance \
+                in self.__get_stored_instances_by_factory(factory_name):
+                    to_stop.add(stored_instance)
+
+            for stored_instance in to_stop:
+                # Extract information
+                context = stored_instance.context
+                name = context.name
+                instance = stored_instance.instance
+
+                # Clean up the stored instance (iPOPO side)
+                stored_instance.kill()
+
+                # Add the component to the waiting queue
+                self.__waiting_handlers[name] = (context, instance)
+
+            # Try to find a new handler factory
+            new_ref = self.__context.get_service_reference(
+                                handlers_const.SERVICE_IPOPO_HANDLER_FACTORY,
+                                "({0}={1})"\
+                                .format(handlers_const.PROP_HANDLER_ID,
+                                        handler_id))
+            if new_ref is not None:
+                self.__add_handler_factory(new_ref)
 
 
     def __get_stored_instances_by_factory(self, factory_name):
@@ -568,18 +605,6 @@ class _IPopoService(object):
                     raise TypeError("Factory context missing in '{0}'" \
                                     .format(factory_name))
 
-            try:
-                # Look for the required handlers
-                handler_factories = set()
-                for handler_id in factory_context.get_handlers_ids():
-                    # Not a 'set-comprehension': handler_id must be visible
-                    handler_factories.add(self._handlers[handler_id])
-
-            except KeyError:
-                raise TypeError("Missing handler '{0}' for factory '{1}', "
-                                "component '{2}'" \
-                                .format(handler_id, factory_name, name))
-
             # Create component instance
             try:
                 instance = factory()
@@ -598,6 +623,58 @@ class _IPopoService(object):
             # Set up the component instance context
             component_context = ComponentContext(factory_context, name, \
                                                  properties)
+
+            # Reserve the instance name
+            self.__instances[name] = None
+
+        # Try to instantiate the component immediately
+        if not self.__try_instantiate(component_context, instance):
+            # A handler is missing, put the component in the queue
+            self.__waiting_handlers[name] = (component_context, instance)
+
+        return instance
+
+
+    def __get_handler_factories(self, handlers_ids):
+        """
+        Returns the list of Handler Factories for the given Handlers IDs.
+        Raises a KeyError exception is a handler factory is missing.
+
+        :param handlers_ids: List of handlers IDs
+        :raise KeyError: A handler is missing
+        """
+        # Look for the required handlers
+        handler_factories = set()
+        for handler_id in handlers_ids:
+            # Not a 'set-comprehension': handler_id must be visible
+            handler_factories.add(self._handlers[handler_id])
+
+        return handler_factories
+
+
+    def __try_instantiate(self, component_context, instance):
+        """
+        Instantiates a component, if all of its handlers are there. Returns
+        False if a handler is missing.
+
+        :param component_context: A ComponentContext bean
+        :param instance: The component instance
+        :return: True if the component has started, else False
+        """
+        with self.__instances_lock:
+            # Extract information about the component
+            factory_context = component_context.factory_context
+            handlers_ids = factory_context.get_handlers_ids()
+            name = component_context.name
+            factory_name = factory_context.name
+
+            try:
+                # Get handlers
+                handler_factories = self.__get_handler_factories(handlers_ids)
+
+            except KeyError:
+                # A handler is missing, stop here
+                return
 
             # Instantiate the handlers
             all_handlers = set()
@@ -628,8 +705,7 @@ class _IPopoService(object):
         # Try to validate it
         stored_instance.update_bindings()
         stored_instance.check_lifecycle()
-
-        return instance
+        return True
 
 
     def invalidate(self, name):
