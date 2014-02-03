@@ -418,6 +418,8 @@ class Shell(object):
         self.register_command(None, "threads", self.threads_list)
         self.register_command(None, "thread", self.thread_details)
 
+        self.register_command(None, "echo", self.echo)
+
         self.register_command(None, "help", self.print_help)
         self.register_command(None, "?", self.print_help)
 
@@ -767,6 +769,13 @@ class Shell(object):
         except KeyError:
             # Unknown name space
             return []
+
+
+    def echo(self, io_handler, *words):
+        """
+        Echoes the given words
+        """
+        io_handler.write_line(' '.join(words))
 
 
     def bundle_details(self, io_handler, bundle_id):

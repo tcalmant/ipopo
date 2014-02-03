@@ -100,6 +100,7 @@ class IPopoCommands(object):
         return [("factories", self.list_factories),
                 ("factory", self.factory_details),
                 ("instances", self.list_instances),
+                ("waiting", self.list_waitings),
                 ("instance", self.instance_details),
                 ("instantiate", self.instantiate),
                 ("kill", self.kill),
@@ -139,14 +140,39 @@ class IPopoCommands(object):
             instances = [instance for instance in instances
                          if name in instance[0]]
 
-        lines = sorted((name, factory, ipopo_state_to_str(state))
-                       for name, factory, state in instances)
+        # Lines are already sorted
+        lines = ((name, factory, ipopo_state_to_str(state))
+                 for name, factory, state in instances)
 
         io_handler.write(self._utils.make_table(headers, lines))
         if name is None:
-            io_handler.write_line("{0} components instantiated", len(lines))
+            io_handler.write_line("{0} components running", len(instances))
         else:
-            io_handler.write_line("{0} filtered components", len(lines))
+            io_handler.write_line("{0} filtered components", len(instances))
+
+
+    def list_waitings(self, io_handler, name=None):
+        """
+        Lists the components waiting to be instantiated
+        """
+        headers = ('Name', 'Factory', 'Missing handlers')
+
+        components = self._ipopo.get_waiting_components()
+        if name is not None:
+            # Filter components by name
+            components = [component for component in components
+                         if name in component[0]]
+
+        # Lines are already sorted
+        lines = ((name, factory, ', '.join(missing))
+                 for name, factory, missing in components)
+
+        io_handler.write(self._utils.make_table(headers, lines))
+        if name is None:
+            io_handler.write_line("{0} components in the waiting queue",
+                                  len(components))
+        else:
+            io_handler.write_line("{0} filtered components", len(components))
 
 
     def factory_details(self, io_handler, name):
