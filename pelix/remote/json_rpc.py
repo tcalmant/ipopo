@@ -367,7 +367,7 @@ class JsonRpcServiceImporter(object):
         self._kinds = None
         self._listener_flag = True
 
-        # Registered services (end point -> reference)
+        # Registered services (endpoint UID -> ServiceReference)
         self.__registrations = {}
 
 

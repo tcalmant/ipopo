@@ -249,7 +249,7 @@ class ImportEndpoint(object):
         :param uid: Unique identified of the end point
         :param framework: UID of the framework exporting the end point
                           (can be None)
-        :param kind: Kind of end point (xmlrpc, ...)
+        :param configurations: Kinds of end point (xmlrpc, ...)
         :param name: Name of the end point
         :param specifications: Specifications of the exported service
         :param properties: Properties of the service
@@ -424,7 +424,7 @@ def extract_specifications(specifications):
     for original in specifications:
         try:
             # Extract informations
-            lang, spec = _extract_specifications_parts(original)
+            lang, spec = _extract_specification_parts(original)
             if lang == PYTHON_LANGUAGE:
                 # Language match: keep the name only
                 filtered_specs.add(spec)
@@ -442,7 +442,7 @@ def extract_specifications(specifications):
 
 def format_specifications(specifications):
     """
-    Transforms the interfaces names into a URI string, with the interface
+    Transforms the interfaces names into URI strings, with the interface
     implementation language as a scheme.
 
     :param specifications: Specifications to transform
@@ -452,7 +452,7 @@ def format_specifications(specifications):
 
     for original in specifications:
         try:
-            lang, spec = _extract_specifications_parts(original)
+            lang, spec = _extract_specification_parts(original)
             transformed.add(_format_specification(lang, spec))
 
         except ValueError:
@@ -462,7 +462,7 @@ def format_specifications(specifications):
     return list(transformed)
 
 
-def _extract_specifications_parts(specification):
+def _extract_specification_parts(specification):
     """
     Extract the language and the interface from a "language:/interface"
     interface name
@@ -521,6 +521,6 @@ def _unescape_specification(specification):
     Unescapes the interface string: replaces '%2F' by slashes '/'
 
     :param specification: Specification name
-    :return: The escaped name
+    :return: The unescaped name
     """
     return specification.replace('%2F', '/')
