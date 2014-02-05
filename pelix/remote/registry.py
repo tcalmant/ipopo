@@ -71,10 +71,10 @@ class ImportsRegistry(object):
         # Framework UID
         self._fw_uid = None
 
-        # Framework UID -> End point
+        # Framework UID -> [Endpoints]
         self._frameworks = {}
 
-        # End point UID -> End point
+        # End point UID -> Endpoint
         self._registry = {}
 
         # Lock
@@ -114,7 +114,7 @@ class ImportsRegistry(object):
                 _logger.debug("Same framework UID")
                 return False
 
-            # Check if the end point already exist
+            # Check if the end point already exists
             if endpoint.uid in self._registry:
                 # Already known end point: do nothing
                 _logger.debug("Already known endpoint")
@@ -191,6 +191,11 @@ class ImportsRegistry(object):
             if endpoint in framework_endpoints:
                 framework_endpoints.remove(endpoint)
 
+                if not framework_endpoints:
+                    # Remove framework entry if there is no more endpoint
+                    # from it
+                    del self._frameworks[endpoint.framework]
+
         except (KeyError, ValueError):
             # Ignore the absence of reference in the framework storage
             pass
@@ -215,6 +220,15 @@ class ImportsRegistry(object):
         endpoints = self._frameworks.pop(uid, None)
         if endpoints:
             for endpoint in endpoints:
+                with self.__lock:
+                    # Remove endpoint from registry
+                    try:
+                        del self._registry[endpoint.uid]
+
+                    except KeyError:
+                        # The endpoint may have been removed by a listener
+                        pass
+
                 # Notify listeners
                 if self._listeners:
                     for listener in self._listeners[:]:
