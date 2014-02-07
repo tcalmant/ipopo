@@ -339,7 +339,7 @@ class MulticastDiscovery(object):
         Prepares an event packet containing a single endpoint
 
         :param event: The kind of event (update, remove)
-        :param endpoint: A signal ExportEndpoint bean
+        :param endpoint: An ExportEndpoint bean
         :return: A dictionary
         """
         # Basic packet information
@@ -394,18 +394,8 @@ class MulticastDiscovery(object):
         """
         Sends a discovery packet, requesting others to indicate their services
         """
-        # Get the dispatcher servlet access
-        access = self._access.get_access()
-
-        # Make the discovery packet content
-        data = {"event": "discovery",  # Discovery packet
-                "sender": self._fw_uid,  # Framework UID
-                "access": {"port": access[0],  # Access to the dispatcher
-                           "path": access[1]}  # servlet
-                }
-
         # Send a JSON request
-        data = json.dumps(data)
+        data = json.dumps(self.__make_basic_dict("discovery"))
         self.__send_packet(data)
 
 
