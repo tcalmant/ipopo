@@ -68,11 +68,11 @@ SERVICE_IMPORT_PROVIDER = 'pelix.remote.provider.import'
 SERVICE_EXPORT_PROVIDER = 'pelix.remote.provider.export'
 """ Remote Services: exporter """
 
-SERVICE_ENDPOINT_LISTENER = "pelix.remote.endpoint.listener"
-"""
-End point creation/deletion listeners, with listen.exported and/or
-listen.imported properties.
-"""
+SERVICE_EXPORT_ENDPOINT_LISTENER = "pelix.remote.endpoint.export.listener"
+""" Exported endpoints listener specification """
+
+SERVICE_IMPORT_ENDPOINT_LISTENER = "pelix.remote.endpoint.import.listener"
+""" Imported endpoints listener specification """
 
 #-------------------------------------------------------------------------------
 # Properties used by Pelix
@@ -92,16 +92,6 @@ PREFIX_PROP_EXPORTED = "service.exported."
 
 PROP_IMPORTED_INTERFACES = "service.imported.interfaces"
 """ Imported specifications (mirror of PROP_EXPORTED_INTERFACES) """
-
-PROP_LISTEN_IMPORTED = "listen.imported"
-"""
-If set to True, the end point listener will be notified of imported end points
-"""
-
-PROP_LISTEN_EXPORTED = "listen.exported"
-"""
-If set to True, the end point listener will be notified of exported end points
-"""
 
 #-------------------------------------------------------------------------------
 # Properties declared in RSA specifications

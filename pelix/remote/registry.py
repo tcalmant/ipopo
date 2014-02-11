@@ -54,8 +54,8 @@ _logger = logging.getLogger(__name__)
 
 @ComponentFactory('pelix-remote-imports-registry-factory')
 @Provides(pelix.remote.SERVICE_REGISTRY)
-@Requires('_listeners', pelix.remote.SERVICE_ENDPOINT_LISTENER, True, True,
-          "({0}=*)".format(pelix.remote.PROP_LISTEN_IMPORTED))
+@Requires('_listeners', pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER,
+          aggregate=True, optional=True)
 @Instantiate('pelix-remote-imports-registry')
 class ImportsRegistry(object):
     """

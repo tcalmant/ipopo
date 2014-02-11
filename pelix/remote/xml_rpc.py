@@ -403,9 +403,8 @@ class _ServiceCallProxy(object):
 
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_XMLRPC_IMPORTER)
-@Provides(pelix.remote.SERVICE_ENDPOINT_LISTENER)
+@Provides(pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER)
 @Property('_kind', 'endpoints.kind', 'xmlrpc')
-@Property('_listener_flag', pelix.remote.PROP_LISTEN_IMPORTED, True)
 class XmlRpcServiceImporter(object):
     """
     XML-RPC Remote Services importer
@@ -419,7 +418,6 @@ class XmlRpcServiceImporter(object):
 
         # Component properties
         self._kind = None
-        self._listener_flag = True
 
         # Registered services (end point -> reference)
         self.__registrations = {}

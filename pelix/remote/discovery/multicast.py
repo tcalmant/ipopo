@@ -276,13 +276,12 @@ def close_multicast_socket(sock, address):
 # ------------------------------------------------------------------------------
 
 @ComponentFactory(pelix.remote.FACTORY_DISCOVERY_MULTICAST)
-@Provides(pelix.remote.SERVICE_ENDPOINT_LISTENER)
+@Provides(pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER)
 @Requires("_dispatcher", pelix.remote.SERVICE_DISPATCHER)
 @Requires('_access', pelix.remote.SERVICE_DISPATCHER_SERVLET)
 @Requires("_registry", pelix.remote.SERVICE_REGISTRY)
 @Property("_group", "multicast.group", "239.0.0.1")
 @Property("_port", "multicast.port", 42000)
-@Property("_listener_flag", pelix.remote.PROP_LISTEN_EXPORTED, True)
 class MulticastDiscovery(object):
     """
     Remote services discovery and notification using multicast packets
@@ -291,9 +290,6 @@ class MulticastDiscovery(object):
         """
         Sets up the component
         """
-        # End point listener flag
-        self._listener_flag = True
-
         # End points registry
         self._dispatcher = None
         self._registry = None

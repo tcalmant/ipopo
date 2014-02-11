@@ -348,10 +348,9 @@ class _ServiceCallProxy(object):
 
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_JSONRPC_IMPORTER)
-@Provides(pelix.remote.SERVICE_ENDPOINT_LISTENER)
+@Provides(pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER)
 @Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
           (JSONRPC_CONFIGURATION,))
-@Property('_listener_flag', pelix.remote.PROP_LISTEN_IMPORTED, True)
 class JsonRpcServiceImporter(object):
     """
     JSON-RPC Remote Services importer
@@ -365,7 +364,6 @@ class JsonRpcServiceImporter(object):
 
         # Component properties
         self._kinds = None
-        self._listener_flag = True
 
         # Registered services (endpoint UID -> ServiceReference)
         self.__registrations = {}

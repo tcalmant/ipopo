@@ -74,8 +74,8 @@ _logger = logging.getLogger(__name__)
 @Provides(pelix.remote.SERVICE_DISPATCHER)
 @Requires('_exporters', pelix.remote.SERVICE_EXPORT_PROVIDER, True, True)
 @Requires('_importers', pelix.remote.SERVICE_IMPORT_PROVIDER, True, True)
-@Requires('_listeners', pelix.remote.SERVICE_ENDPOINT_LISTENER, True, True,
-          "(listen.exported=*)")
+@Requires('_listeners', pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER,
+          aggregate=True, optional=True)
 @Instantiate('pelix-remote-dispatcher')
 class Dispatcher(object):
     """
