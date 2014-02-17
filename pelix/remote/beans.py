@@ -180,6 +180,40 @@ class ExportEndpoint(object):
         return properties
 
 
+    def make_import_properties(self):
+        """
+        Returns the properties of this endpoint where export properties have been
+        replaced by import ones
+
+        :return: A dictionary with import properties
+        """
+        # Use merged properties
+        props = self.get_properties()
+
+        # Add the "imported" property
+        props[pelix.remote.PROP_IMPORTED] = True
+
+        # Replace the "export configs"
+        configs = props.pop(pelix.remote.PROP_EXPORTED_CONFIGS, None)
+        if configs:
+            props[pelix.remote.PROP_IMPORTED_CONFIGS] = configs
+
+        # Clear other export properties
+        for key in (pelix.remote.PROP_EXPORTED_INTENTS,
+                    pelix.remote.PROP_EXPORTED_INTENTS_EXTRA,
+                    pelix.remote.PROP_EXPORTED_INTERFACES):
+            try:
+                del props[key]
+            except KeyError:
+                # Key wasn't there
+                pass
+
+        # Add the framework UID
+        props[pelix.remote.PROP_FRAMEWORK_UID] = self.__fw_uid
+
+        return props
+
+
     # Access to the service
     @property
     def instance(self):
