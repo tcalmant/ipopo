@@ -100,22 +100,21 @@ class Dispatcher(object):
 
         # UID -> Endpoint
         self.__endpoints = {}
+        self.__endpoints_lock = threading.Lock()
 
         # UID -> Exporter
         self.__uid_exporter = {}
 
         # Service Reference -> set(UID)
         self.__service_uids = {}
-
-        # Lock
-        self.__lock = threading.Lock()
+        self.__exporters_lock = threading.Lock()
 
         # Validation flag
         self.__validated = False
 
 
     @Validate
-    def validate(self, context):
+    def _validate(self, context):
         """
         Component validated
         """
@@ -140,7 +139,7 @@ class Dispatcher(object):
 
 
     @Invalidate
-    def invalidate(self, context):
+    def _invalidate(self, context):
         """
         Component invalidated: clean up storage
         """
@@ -173,26 +172,28 @@ class Dispatcher(object):
         kind = event.get_kind()
         svc_ref = event.get_service_reference()
 
-        if kind == pelix.framework.ServiceEvent.REGISTERED:
-            # Simply export the service
-            self.__export_service(svc_ref)
-
-        elif kind == pelix.framework.ServiceEvent.MODIFIED:
-            # Matching registering or updated service
-            if svc_ref not in self.__service_uids:
-                # New match
+        with self.__exporters_lock:
+            if kind == pelix.framework.ServiceEvent.REGISTERED:
+                # Simply export the service
                 self.__export_service(svc_ref)
 
-            else:
-                # Properties modification:
-                # Re-export if endpoint.name has changed
-                self.__update_service(svc_ref, event.get_previous_properties())
+            elif kind == pelix.framework.ServiceEvent.MODIFIED:
+                # Matching registering or updated service
+                if svc_ref not in self.__service_uids:
+                    # New match
+                    self.__export_service(svc_ref)
 
-        elif svc_ref in self.__service_uids and \
-                (kind == pelix.framework.ServiceEvent.UNREGISTERING or \
-                 kind == pelix.framework.ServiceEvent.MODIFIED_ENDMATCH):
-            # Service is updated or unregistering
-            self.__unexport_service(svc_ref)
+                else:
+                    # Properties modification:
+                    # Re-export if endpoint.name has changed
+                    self.__update_service(svc_ref,
+                                          event.get_previous_properties())
+
+            elif svc_ref in self.__service_uids and \
+                    (kind == pelix.framework.ServiceEvent.UNREGISTERING or \
+                     kind == pelix.framework.ServiceEvent.MODIFIED_ENDMATCH):
+                # Service is updated or unregistering
+                self.__unexport_service(svc_ref)
 
 
     def __export_service(self, svc_ref):
@@ -368,29 +369,31 @@ class Dispatcher(object):
         if not self.__validated:
             return
 
-        # Tell the exporter to export already known services
-        for svc_ref in self.__service_uids:
-            # Compute the endpoint name
-            name = self._compute_endpoint_name(svc_ref.get_properties())
+        with self.__exporters_lock:
+            # Tell the exporter to export already known services
+            for svc_ref in self.__service_uids:
+                # Compute the endpoint name
+                name = self._compute_endpoint_name(svc_ref.get_properties())
 
-            try:
-                # Create the endpoint
-                endpoint = exporter.export_service(svc_ref, name, self._fw_uid)
+                try:
+                    # Create the endpoint
+                    endpoint = exporter.export_service(svc_ref, name,
+                                                       self._fw_uid)
 
-                # Store it
-                uid = endpoint.uid
-                self.__endpoints[uid] = endpoint
-                self.__uid_exporter[uid] = exporter
-                self.__service_uids.setdefault(svc_ref, set()).add(uid)
+                    # Store it
+                    uid = endpoint.uid
+                    self.__endpoints[uid] = endpoint
+                    self.__uid_exporter[uid] = exporter
+                    self.__service_uids.setdefault(svc_ref, set()).add(uid)
 
-            except (NameError, pelix.constants.BundleException) as ex:
-                _logger.error("Error exporting service: %s", ex)
+                except (NameError, pelix.constants.BundleException) as ex:
+                    _logger.error("Error exporting service: %s", ex)
 
-            else:
-                # Call listeners (out of the lock)
-                if self._listeners:
-                    for listener in self._listeners[:]:
-                        listener.endpoints_added([endpoint])
+                else:
+                    # Call listeners (out of the lock)
+                    if self._listeners:
+                        for listener in self._listeners[:]:
+                            listener.endpoints_added([endpoint])
 
 
     @UnbindField('_exporters')
@@ -398,8 +401,24 @@ class Dispatcher(object):
         """
         Exporter gone
         """
-        # TODO: delete all endpoints from this provider
-        pass
+        with self.__exporters_lock:
+            # Get the UIDs of all endpoints managed by this exporter
+            uids = [uid for uid, uid_exporter in self.__uid_exporter.items()
+                    if uid_exporter is exporter]
+
+            # Delete each endpoint
+            for uid in uids:
+                # Remove references
+                del self.__uid_exporter[uid]
+                endpoint = self.__endpoints.pop(uid)
+                self.__service_uids.get(endpoint.reference, set()).remove(uid)
+
+                # Unexport the service
+                try:
+                    exporter.unexport_service(endpoint)
+
+                except Exception as ex:
+                    _logger.exception("Error unexporting service: %s", ex)
 
 
     def get_endpoint(self, uid):
@@ -421,7 +440,7 @@ class Dispatcher(object):
         :param name: The name of the end point
         :return: A list of end point matching the parameters
         """
-        with self.__lock:
+        with self.__endpoints_lock:
             # Get all endpoints
             endpoints = list(self.__endpoints.values())
 
