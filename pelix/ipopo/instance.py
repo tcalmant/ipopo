@@ -445,19 +445,18 @@ class StoredInstance(object):
         :return: The callback result, or None
         :raise Exception: Something went wrong
         """
-        with self._lock:
-            comp_callback = self.context.get_callback(event)
-            if not comp_callback:
-                # No registered callback
-                return True
+        comp_callback = self.context.get_callback(event)
+        if not comp_callback:
+            # No registered callback
+            return True
 
-            # Call it
-            result = comp_callback(self.instance, *args, **kwargs)
-            if result is None:
-                # Special case, if the call back returns nothing
-                return True
+        # Call it
+        result = comp_callback(self.instance, *args, **kwargs)
+        if result is None:
+            # Special case, if the call back returns nothing
+            return True
 
-            return result
+        return result
 
 
     def __field_callback(self, field, event, *args, **kwargs):
@@ -469,27 +468,26 @@ class StoredInstance(object):
         :return: The callback result, or None
         :raise Exception: Something went wrong
         """
-        with self._lock:
-            # Get the field callback info
-            cb_info = self.context.get_field_callback(field, event)
-            if not cb_info:
-                # No registered callback
-                return True
+        # Get the field callback info
+        cb_info = self.context.get_field_callback(field, event)
+        if not cb_info:
+            # No registered callback
+            return True
 
-            # Extract information
-            callback, if_valid = cb_info
+        # Extract information
+        callback, if_valid = cb_info
 
-            if if_valid and self.state != StoredInstance.VALID:
-                # Don't call the method if the component state isn't satisfying
-                return True
+        if if_valid and self.state != StoredInstance.VALID:
+            # Don't call the method if the component state isn't satisfying
+            return True
 
-            # Call it
-            result = callback(self.instance, field, *args, **kwargs)
-            if result is None:
-                # Special case, if the call back returns nothing
-                return True
+        # Call it
+        result = callback(self.instance, field, *args, **kwargs)
+        if result is None:
+            # Special case, if the call back returns nothing
+            return True
 
-            return result
+        return result
 
 
     def __safe_callback(self, event, *args, **kwargs):
@@ -500,34 +498,33 @@ class StoredInstance(object):
         :param event: An event (IPOPO_CALLBACK_VALIDATE, ...)
         :return: The callback result, or None
         """
-        with self._lock:
-            if self.state == StoredInstance.KILLED:
-                # Invalid state
-                return None
+        if self.state == StoredInstance.KILLED:
+            # Invalid state
+            return None
 
-            try:
-                return self.__callback(event, *args, **kwargs)
+        try:
+            return self.__callback(event, *args, **kwargs)
 
-            except FrameworkException as ex:
-                # Important error
-                self._logger.exception("Critical error calling back %s: %s",
-                                       self.name, ex)
+        except FrameworkException as ex:
+            # Important error
+            self._logger.exception("Critical error calling back %s: %s",
+                                   self.name, ex)
 
-                # Kill the component
-                self._ipopo_service.kill(self.name)
+            # Kill the component
+            self._ipopo_service.kill(self.name)
 
-                if ex.needs_stop:
-                    # Framework must be stopped...
-                    self._logger.error("%s said that the Framework must be "
-                                       "stopped.", self.name)
-                    self.bundle_context.get_bundle(0).stop()
-                return False
+            if ex.needs_stop:
+                # Framework must be stopped...
+                self._logger.error("%s said that the Framework must be "
+                                   "stopped.", self.name)
+                self.bundle_context.get_bundle(0).stop()
+            return False
 
-            except:
-                self._logger.exception("Component '%s' : error calling "
-                                       "callback method for event %s",
-                                       self.name, event)
-                return False
+        except:
+            self._logger.exception("Component '%s' : error calling "
+                                   "callback method for event %s",
+                                   self.name, event)
+            return False
 
 
     def __safe_field_callback(self, field, event, *args, **kwargs):
@@ -539,34 +536,33 @@ class StoredInstance(object):
         :param event: A field event (IPOPO_CALLBACK_BIND_FIELD, ...)
         :return: The callback result, or None
         """
-        with self._lock:
-            if self.state == StoredInstance.KILLED:
-                # Invalid state
-                return None
+        if self.state == StoredInstance.KILLED:
+            # Invalid state
+            return None
 
-            try:
-                return self.__field_callback(field, event, *args, **kwargs)
+        try:
+            return self.__field_callback(field, event, *args, **kwargs)
 
-            except FrameworkException as ex:
-                # Important error
-                self._logger.exception("Critical error calling back %s: %s",
-                                       self.name, ex)
+        except FrameworkException as ex:
+            # Important error
+            self._logger.exception("Critical error calling back %s: %s",
+                                   self.name, ex)
 
-                # Kill the component
-                self._ipopo_service.kill(self.name)
+            # Kill the component
+            self._ipopo_service.kill(self.name)
 
-                if ex.needs_stop:
-                    # Framework must be stopped...
-                    self._logger.error("%s said that the Framework must be "
-                                       "stopped.", self.name)
-                    self.bundle_context.get_bundle(0).stop()
-                return False
+            if ex.needs_stop:
+                # Framework must be stopped...
+                self._logger.error("%s said that the Framework must be "
+                                   "stopped.", self.name)
+                self.bundle_context.get_bundle(0).stop()
+            return False
 
-            except:
-                self._logger.exception("Component '%s' : error calling "
-                                       "callback method for event %s",
-                                       self.name, event)
-                return False
+        except:
+            self._logger.exception("Component '%s' : error calling "
+                                   "callback method for event %s",
+                                   self.name, event)
+            return False
 
 
     def __safe_handler_callback(self, handler, method_name, *args, **kwargs):
@@ -599,15 +595,23 @@ class StoredInstance(object):
         none_as_true = kwargs.pop('none_as_true', False)
 
         # Get the method for each handler
-        result = None
-        method = getattr(handler, method_name, None)
-        if method is not None:
+        try:
+            method = getattr(handler, method_name)
+
+        except AttributeError:
+            # Method not found
+            result = None
+
+        else:
             try:
                 # Call it
                 result = method(*args, **kwargs)
 
             except Exception as ex:
-                # Log errors
+                # No result
+                result = None
+
+                # Log error
                 self._logger.exception("Error calling handler '%s': %s",
                                        handler, ex)
 
@@ -617,7 +621,7 @@ class StoredInstance(object):
 
         if only_boolean:
             # Convert to a boolean result
-            result = only_boolean and result
+            return bool(result)
 
         return result
 
@@ -643,46 +647,45 @@ class StoredInstance(object):
                        behavior of the call
         :return: True if all handlers returned True (or None), else False
         """
-        with self._lock:
-            if self.state == StoredInstance.KILLED:
-                # Nothing to do
-                return False
+        if self.state == StoredInstance.KILLED:
+            # Nothing to do
+            return False
 
-            # Behavior flags
-            exception_as_error = kwargs.pop('exception_as_error', False)
-            break_on_false = kwargs.pop('break_on_false', False)
+        # Behavior flags
+        exception_as_error = kwargs.pop('exception_as_error', False)
+        break_on_false = kwargs.pop('break_on_false', False)
 
-            result = True
-            for handler in self.get_handlers():
-                # Get the method for each handler
+        result = True
+        for handler in self.get_handlers():
+            # Get the method for each handler
+            try:
+                method = getattr(handler, method_name)
+
+            except AttributeError:
+                # Ignore missing methods
+                pass
+
+            else:
                 try:
-                    method = getattr(handler, method_name)
+                    # Call it
+                    res = method(*args, **kwargs)
+                    if res is not None and not res:
+                        # Ignore 'None' results
+                        result = False
 
-                except AttributeError:
-                    # Ignore missing methods
-                    pass
+                except Exception as ex:
+                    # Log errors
+                    self._logger.exception("Error calling handler '%s': %s",
+                                           handler, ex)
 
-                else:
-                    try:
-                        # Call it
-                        res = method(*args, **kwargs)
-                        if res is not None and not res:
-                            # Ignore 'None' results
-                            result = False
+                    # We can consider exceptions as errors or ignore them
+                    result &= not exception_as_error
 
-                    except Exception as ex:
-                        # Log errors
-                        self._logger.exception("Error calling handler '%s': %s",
-                                               handler, ex)
+                if not handler and break_on_false:
+                    # The loop can stop here
+                    break
 
-                        # We can consider exceptions as errors or ignore them
-                        result &= not exception_as_error
-
-                    if not handler and break_on_false:
-                        # The loop can stop here
-                        break
-
-            return result
+        return result
 
 
     def __set_binding(self, dependency, service, reference):
@@ -693,18 +696,15 @@ class StoredInstance(object):
         :param service: The injected service
         :param reference: The reference of the injected service
         """
-        with self._lock:
-            # Set the value
-            setattr(self.instance, dependency.get_field(),
-                    dependency.get_value())
+        # Set the value
+        setattr(self.instance, dependency.get_field(), dependency.get_value())
 
-            # Call the component back
-            self.__safe_callback(constants.IPOPO_CALLBACK_BIND,
-                                 service, reference)
+        # Call the component back
+        self.__safe_callback(constants.IPOPO_CALLBACK_BIND, service, reference)
 
-            self.__safe_field_callback(dependency.get_field(),
-                                       constants.IPOPO_CALLBACK_BIND_FIELD,
-                                       service, reference)
+        self.__safe_field_callback(dependency.get_field(),
+                                   constants.IPOPO_CALLBACK_BIND_FIELD,
+                                   service, reference)
 
 
     def __update_binding(self, dependency, service, reference, old_properties,
@@ -719,19 +719,18 @@ class StoredInstance(object):
         :param old_properties: Previous properties of the dependency
         :param new_value: If True, inject the new value of the handler
         """
-        with self._lock:
-            if new_value:
-                # Set the value
-                setattr(self.instance, dependency.get_field(),
-                        dependency.get_value())
+        if new_value:
+            # Set the value
+            setattr(self.instance, dependency.get_field(),
+                    dependency.get_value())
 
-            # Call the component back
-            self.__safe_field_callback(dependency.get_field(),
-                                       constants.IPOPO_CALLBACK_UPDATE_FIELD,
-                                       service, reference, old_properties)
+        # Call the component back
+        self.__safe_field_callback(dependency.get_field(),
+                                   constants.IPOPO_CALLBACK_UPDATE_FIELD,
+                                   service, reference, old_properties)
 
-            self.__safe_callback(constants.IPOPO_CALLBACK_UPDATE,
-                                 service, reference, old_properties)
+        self.__safe_callback(constants.IPOPO_CALLBACK_UPDATE, service,
+                             reference, old_properties)
 
 
     def __unset_binding(self, dependency, service, reference):
@@ -742,18 +741,16 @@ class StoredInstance(object):
         :param service: The injected service
         :param reference: The reference of the injected service
         """
-        with self._lock:
-            # Call the component back
-            self.__safe_field_callback(dependency.get_field(),
-                                       constants.IPOPO_CALLBACK_UNBIND_FIELD,
-                                       service, reference)
+        # Call the component back
+        self.__safe_field_callback(dependency.get_field(),
+                                   constants.IPOPO_CALLBACK_UNBIND_FIELD,
+                                   service, reference)
 
-            self.__safe_callback(constants.IPOPO_CALLBACK_UNBIND,
-                                 service, reference)
+        self.__safe_callback(constants.IPOPO_CALLBACK_UNBIND, service,
+                             reference)
 
-            # Update the injected field
-            setattr(self.instance, dependency.get_field(),
-                    dependency.get_value())
+        # Update the injected field
+        setattr(self.instance, dependency.get_field(), dependency.get_value())
 
-            # Unget the service
-            self.bundle_context.unget_service(reference)
+        # Unget the service
+        self.bundle_context.unget_service(reference)
