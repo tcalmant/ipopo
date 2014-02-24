@@ -221,7 +221,8 @@ class JsonRpcServiceExporter(object):
         """
         if name in self.__endpoints:
             # Already known end point
-            raise NameError("Already known end point %s for JSON-RPC", name)
+            raise NameError("Already known end point {0} for JSON-RPC" \
+                            .format(name))
 
         # Get the service (let it raise a BundleException if any
         service = self._context.get_service(svc_ref)
@@ -255,17 +256,22 @@ class JsonRpcServiceExporter(object):
         :param old_properties: Previous properties
         :raise NameError: Rename refused
         """
-        if new_name in self.__endpoints:
-            # Reject the new name
-            raise NameError("New name of %s already used: %s",
-                            endpoint.name, new_name)
+        try:
+            if self.__endpoints[new_name] is not endpoint:
+                # Reject the new name, as an endpoint uses it
+                raise NameError("New name of {0} already used: {1}" \
+                                .format(endpoint.name, new_name))
 
-        # Update storage
-        del self.__endpoints[endpoint.name]
-        self.__endpoints[new_name] = endpoint
+            else:
+                # Name hasn't changed
+                pass
 
-        # Update the endpoint
-        endpoint.name = new_name
+        except KeyError:
+            # No endpoint matches the new name: update the storage
+            self.__endpoints[new_name] = self.__endpoints.pop(endpoint.name)
+
+            # Update the endpoint
+            endpoint.name = new_name
 
 
     def unexport_service(self, endpoint):
