@@ -437,27 +437,27 @@ class _IPopoService(object):
                 del self.__auto_restart[bundle]
 
 
-    def _fire_ipopo_event(self, kind, factory_name, component_name=None):
+    def _fire_ipopo_event(self, kind, factory_name, instance_name=None):
         """
         Triggers an iPOPO event
 
         :param kind: Kind of event
         :param factory_name: Name of the factory associated to the event
-        :param component_name: Name of the component instance associated to the
-                               event
+        :param instance_name: Name of the component instance associated to the
+                              event
         """
         with self.__listeners_lock:
             # Use a copy of the list of listeners
             listeners = self.__listeners[:]
 
-            for listener in listeners:
-                try:
-                    listener.handle_ipopo_event(constants.IPopoEvent(kind,
-                                                             factory_name,
-                                                             component_name))
+        for listener in listeners:
+            try:
+                listener.handle_ipopo_event(constants.IPopoEvent(kind,
+                                                                 factory_name,
+                                                                 instance_name))
 
-                except:
-                    _logger.exception("Error calling an iPOPO event handler")
+            except:
+                _logger.exception("Error calling an iPOPO event handler")
 
 
     def _prepare_instance_properties(self, properties, factory_properties):
