@@ -371,6 +371,19 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
         self.server_bind()
         self.server_activate()
 
+
+    def process_request(self, request, client_address):
+        """
+        Starts a new thread to process the request, adding the client address
+        in its name.
+        """
+        thread = threading.Thread(name="HttpService-{0}-Client-{1}"\
+                                  .format(self.server_port, client_address),
+                                  target=self.process_request_thread,
+                                  args=(request, client_address))
+        thread.daemon = self.daemon_threads
+        thread.start()
+
 # ------------------------------------------------------------------------------
 
 @ComponentFactory(http.FACTORY_HTTP_BASIC)
@@ -774,10 +787,12 @@ class HttpService(object):
                                          self._logger)
 
         # Property update (if port was 0)
-        self._port = self._server.socket.getsockname()[1]
+        self._port = self._server.server_port
 
         # Run it in a separate thread
-        self._thread = threading.Thread(target=self._server.serve_forever)
+        self._thread = threading.Thread(target=self._server.serve_forever,
+                                        name="HttpService-{0}-Server" \
+                                             .format(self._port))
         self._thread.daemon = True
         self._thread.start()
 
