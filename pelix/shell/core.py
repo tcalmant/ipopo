@@ -48,6 +48,7 @@ import pelix.framework as pelix
 
 # Standard library
 import inspect
+import linecache
 import logging
 import os
 import shlex
@@ -1212,11 +1213,129 @@ class Shell(object):
             lines = []
             lines.append('Thread ID: {0} - Name: {1}'.format(thread_id, name))
             lines.append('Stack trace:')
-            lines.extend((line.rstrip()
-                          for line in traceback.format_stack(stack)))
 
-        lines.append("")
+            trace_lines = []
+            frame = stack
+            while frame is not None:
+                # Store the line information
+                trace_lines.append(self.__format_frame_info(frame))
+
+                # Previous frame...
+                frame = frame.f_back
+
+            # Reverse the lines
+            trace_lines.reverse()
+
+            # Add them to the printed lines
+            lines.extend(trace_lines)
+
+        lines.append('')
         io_handler.write('\n'.join(lines))
+
+
+    def __format_frame_info(self, frame):
+        """
+        Formats the given stack frame to show its position in the code and
+        part of its context
+
+        :param frame: A stack frame
+        """
+        # Same as in traceback.extract_stack
+        lineno = frame.f_lineno
+        co = frame.f_code
+        filename = co.co_filename
+        method_name = co.co_name
+        linecache.checkcache(filename)
+
+        output_lines = []
+
+        try:
+            # Try to get the type of the calling object
+            instance = frame.f_locals['self']
+            method_name = '{0}::{1}'.format(type(instance).__name__,
+                                            method_name)
+        except KeyError:
+            # Not called from a bound method
+            pass
+
+        # File & line
+        output_lines.append('  File "{0}", line {1}, in {2}'\
+                            .format(filename, lineno, method_name))
+
+        # Arguments
+        arginfo = inspect.getargvalues(frame)
+        for name in arginfo.args:
+            output_lines.append('    - {0:s} = {1}'\
+                                 .format(name, repr(frame.f_locals[name])))
+
+        if arginfo.varargs:
+            output_lines.append('    - *{0:s} = {1}'\
+                                .format(arginfo.varargs,
+                                        frame.f_locals[arginfo.varargs]))
+
+        if arginfo.keywords:
+            output_lines.append('    - **{0:s} = {1}'\
+                                .format(arginfo.keywords,
+                                        frame.f_locals[arginfo.keywords]))
+
+        # Line block
+        lines = self.__extract_lines(filename, frame.f_globals, lineno, 3)
+        if lines:
+            output_lines.append('')
+            prefix = '      '
+            output_lines.append('{0}{1}'.format(prefix,
+                                            '\n{0}'.format(prefix).join(lines)))
+
+        return '\n'.join(output_lines)
+
+
+    def __extract_lines(self, filename, f_globals, lineno, around):
+        """
+        Extracts a block of lines from the given file
+
+        :param filename: Name of the source file
+        :param f_globals: Globals of the frame of the current code
+        :param lineno: Current line of code
+        :param around: Number of line to print before and after the current one
+        """
+        current_line = linecache.getline(filename, lineno, f_globals)
+        if not current_line:
+            # No data on this line
+            return ''
+
+        lines = []
+        # Add some lines before
+        for pre_lineno in range(lineno - around, lineno):
+            pre_line = linecache.getline(filename, pre_lineno, f_globals)
+            lines.append('{0}'.format(pre_line.rstrip()))
+
+        # The line itself
+        lines.append('{0}'.format(current_line.rstrip()))
+
+        # Add some lines after
+        for pre_lineno in range(lineno + 1, lineno + around + 1):
+            pre_line = linecache.getline(filename, pre_lineno, f_globals)
+            lines.append('{0}'.format(pre_line.rstrip()))
+
+        # Smart left strip
+        minimal_tab = None
+        for line in lines:
+            if line.strip():
+                tab = len(line) - len(line.lstrip())
+                if minimal_tab is None or tab < minimal_tab:
+                    minimal_tab = tab
+
+        if minimal_tab > 0:
+            lines = [line[minimal_tab:] for line in lines]
+
+        # Add some place for a marker
+        marked_line = '>> {0}'.format(lines[around])
+        lines = ['   {0}'.format(line) for line in lines]
+        lines[around] = marked_line
+        lines.append('')
+
+        # Return the lines
+        return lines
 
 
     def quit(self, io_handler):

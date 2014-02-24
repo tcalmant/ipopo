@@ -298,7 +298,6 @@ class InteractiveShell(object):
 
             self._shell_ref = None
             self._shell = None
-            self._readline_matches = None
 
 
     def stop(self):
