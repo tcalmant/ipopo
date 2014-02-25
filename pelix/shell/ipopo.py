@@ -272,8 +272,7 @@ class IPopoCommands(object):
         # Properties
         lines.append("Properties:")
         lines.append(self._utils.make_table(("Key", "Value"),
-                                            details['properties'].items(),
-                                            "\t"))
+                                sorted(details['properties'].items()), "\t"))
 
         lines.append("")
         io_handler.write('\n'.join(lines))

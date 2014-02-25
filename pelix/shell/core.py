@@ -904,7 +904,7 @@ class Shell(object):
                                             constants.OBJECTCLASS)))
         lines.append("Bundle........: {0}".format(svc_ref.get_bundle()))
         lines.append("Properties....:")
-        for key, value in svc_ref.get_properties().items():
+        for key, value in sorted(svc_ref.get_properties().items()):
             lines.append("\t{0} = {1}".format(key, value))
 
         lines.append("Bundles using this service:")
