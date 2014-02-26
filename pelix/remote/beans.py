@@ -193,6 +193,10 @@ class ExportEndpoint(object):
         # Add the "imported" property
         props[pelix.remote.PROP_IMPORTED] = True
 
+        # Remote service ID
+        props[pelix.remote.PROP_ENDPOINT_SERVICE_ID] = \
+                                        props.pop(pelix.constants.SERVICE_ID)
+
         # Replace the "export configs"
         configs = props.pop(pelix.remote.PROP_EXPORTED_CONFIGS, None)
         if configs:
