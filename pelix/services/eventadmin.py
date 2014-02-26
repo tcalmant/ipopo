@@ -45,6 +45,7 @@ import pelix.services
 import pelix.threadpool
 
 # Standard library
+import copy
 import fnmatch
 import logging
 import time
@@ -180,7 +181,7 @@ class EventAdmin(object):
                 ref, handler = self.__get_service(handler_id)
                 if handler is not None:
                     # Use a copy of the properties each time
-                    handler.handle_event(topic, properties.copy())
+                    handler.handle_event(topic, copy.deepcopy(properties))
 
             except Exception as ex:
                 _logger.exception("Error notifying event handler %d: %s (%s)",
