@@ -6,14 +6,14 @@ Pelix remote services: Common dispatcher
 Calls services according to the given method name and parameters
 
 :author: Thomas Calmant
-:copyright: Copyright 2013, isandlaTech
+:copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.2
+:version: 0.2.1
 :status: Beta
 
 ..
 
-    Copyright 2013 isandlaTech
+    Copyright 2014 isandlaTech
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ Calls services according to the given method name and parameters
 """
 
 # Module version
-__version_info__ = (0, 2, 0)
+__version_info__ = (0, 2, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -650,8 +650,8 @@ class RegistryServlet(object):
         :param endpoint: The end point to convert
         :return: A dictionary
         """
-        # Filter the ObjectClass property
-        properties = endpoint.get_properties()
+        # Send import-side properties
+        properties = endpoint.make_import_properties()
 
         return {"sender": self._fw_uid,
                 "uid": endpoint.uid,
@@ -659,34 +659,6 @@ class RegistryServlet(object):
                 "name": endpoint.name,
                 "specifications": endpoint.specifications,
                 "properties": properties}
-
-
-    def filter_properties(self, framework_uid, properties):
-        """
-        Replaces in-place export properties by import ones
-
-        :param framework_uid: The UID of the framework exporting the service
-        :param properties: End point properties
-        :return: The filtered dictionary.
-        """
-        # Add the "imported" property
-        properties[pelix.remote.PROP_IMPORTED] = True
-
-        # Replace the "exported configs"
-        if pelix.remote.PROP_EXPORTED_CONFIGS in properties:
-            properties[pelix.remote.PROP_IMPORTED_CONFIGS] = \
-                                properties[pelix.remote.PROP_EXPORTED_CONFIGS]
-
-        # Clear export properties
-        for name in (pelix.remote.PROP_EXPORTED_CONFIGS,
-                     pelix.remote.PROP_EXPORTED_INTERFACES):
-            if name in properties:
-                del properties[name]
-
-        # Add the framework UID to the properties
-        properties[pelix.remote.PROP_FRAMEWORK_UID] = framework_uid
-
-        return properties
 
 
     def register_endpoint(self, host_address, endpoint_dict):
@@ -697,20 +669,13 @@ class RegistryServlet(object):
         :param endpoint_dict: An end point description dictionary (result of
                               a request to the dispatcher servlet)
         """
-        # Get the UID of the framework exporting the service
-        framework = endpoint_dict['sender']
-
-        # Filter properties
-        properties = self.filter_properties(framework,
-                                            endpoint_dict['properties'])
-
         # Create the end point object
         endpoint = pelix.remote.beans.ImportEndpoint(endpoint_dict['uid'],
-                                                framework,
+                                                endpoint_dict['sender'],
                                                 endpoint_dict['configurations'],
                                                 endpoint_dict['name'],
                                                 endpoint_dict['specifications'],
-                                                properties)
+                                                endpoint_dict['properties'])
 
         # Set the host address
         endpoint.server = host_address

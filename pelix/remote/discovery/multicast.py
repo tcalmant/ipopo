@@ -12,14 +12,14 @@ previous service properties (if the event is an update).
 when using remote services on the local host only.
 
 :author: Thomas Calmant
-:copyright: Copyright 2013, isandlaTech
+:copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.2
+:version: 0.2.1
 :status: Beta
 
 ..
 
-    Copyright 2013 isandlaTech
+    Copyright 2014 isandlaTech
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ when using remote services on the local host only.
 """
 
 # Module version
-__version_info__ = (0, 2, 0)
+__version_info__ = (0, 2, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -345,7 +345,7 @@ class MulticastDiscovery(object):
         packet['uid'] = endpoint.uid
         if event == "update":
             # Give the new end point properties
-            packet["new_properties"] = endpoint.reference.get_properties()
+            packet["new_properties"] = endpoint.make_import_properties()
 
         return packet
 
@@ -481,9 +481,7 @@ class MulticastDiscovery(object):
         elif event == 'update':
             # Update it
             endpoint_uid = data['uid']
-            framework_uid = data['sender']
             new_properties = data['new_properties']
-            self._access.filter_properties(framework_uid, new_properties)
             self._registry.update(endpoint_uid, new_properties)
 
 
