@@ -156,7 +156,7 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
 
 # ------------------------------------------------------------------------------
 
-@ComponentFactory("cohorte-jabsorbrpc-exporter-factory")
+@ComponentFactory(pelix.remote.FACTORY_TRANSPORT_JABSORBRPC_EXPORTER)
 @Provides(pelix.remote.SERVICE_EXPORT_PROVIDER)
 @Requires('_dispatcher', pelix.remote.SERVICE_DISPATCHER)
 @Requires('_http', pelix.http.HTTP_SERVICE)
@@ -445,7 +445,7 @@ class _ServiceCallProxy(object):
 
 # ------------------------------------------------------------------------------
 
-@ComponentFactory("cohorte-jabsorbrpc-importer-factory")
+@ComponentFactory(pelix.remote.FACTORY_TRANSPORT_JABSORBRPC_IMPORTER)
 @Provides(pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER)
 @Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
           (JABSORB_CONFIG, 'jabsorb-rpc'))
@@ -508,8 +508,6 @@ class JabsorbRpcServiceImporter(object):
             if not name:
                 _logger.error("Remote endpoint has no name: %s", endpoint)
                 return
-
-            _logger.debug("Importing %s with name = %s", endpoint, name)
 
             # Register the service
             svc = _ServiceCallProxy(endpoint.uid, name, access_url,

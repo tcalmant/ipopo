@@ -51,6 +51,11 @@ FACTORY_TRANSPORT_XMLRPC_EXPORTER = "pelix-xmlrpc-exporter-factory"
 FACTORY_TRANSPORT_XMLRPC_IMPORTER = "pelix-xmlrpc-importer-factory"
 """ Name of the XML-RPC importer component factory """
 
+FACTORY_TRANSPORT_JABSORBRPC_EXPORTER = "pelix-jabsorbrpc-exporter-factory"
+""" Name of the JABSORB-RPC exporter component factory """
+FACTORY_TRANSPORT_JABSORBRPC_IMPORTER = "pelix-jabsorbrpc-importer-factory"
+""" Name of the JABSORB-RPC importer component factory """
+
 #-------------------------------------------------------------------------------
 
 SERVICE_DISPATCHER = "pelix.remote.dispatcher"
