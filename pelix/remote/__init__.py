@@ -38,8 +38,13 @@ __docformat__ = "restructuredtext en"
 FACTORY_REGISTRY_SERVLET = "pelix-remote-dispatcher-servlet-factory"
 """ Name of the factory of the Servlet component giving access to registries """
 
+
 FACTORY_DISCOVERY_MULTICAST = "pelix-remote-discovery-multicast-factory"
 """ Name of the Multicast discovery component factory """
+
+FACTORY_DISCOVERY_ZEROCONF = "pelix-remote-discovery-zeroconf-factory"
+""" Name of the Zeroconf/mDNS discovery component factory """
+
 
 FACTORY_TRANSPORT_JSONRPC_EXPORTER = "pelix-jsonrpc-exporter-factory"
 """ Name of the JSON-RPC exporter component factory """
@@ -179,6 +184,19 @@ PROP_REMOTE_INTENTS_SUPPORTED = "remote.intents.supported"
 Service property identifying the intents supported by a distribution provider.
 Registered by the distribution provider on one of its services to indicate the
 vocabulary of implemented intents. (str or array of str)
+"""
+
+#-------------------------------------------------------------------------------
+# Zeroconf discovery properties
+
+PROP_ZEROCONF_TYPE = "zeroconf.service.type"
+""" Name of the Zeroconf/mDNS discovery component factory """
+
+VALUE_ZEROCONF_TYPE_ECF = '_ecfosgirsvc._default.default.'
+"""
+Service type recognized by Eclipse ECF as a description of a remote service.
+WARNING: Doesn't work as is with pyzeroconf: the library must be patched.
+=> checking in zeroconf.mdns.DNSQuestion must be removed (around line 220)
 """
 
 #-------------------------------------------------------------------------------
