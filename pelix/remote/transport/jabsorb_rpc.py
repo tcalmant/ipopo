@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-COHORTE Remote Services: JABSORB-RPC, i.e. JSON-RPC in Jabsorb format
+Pelix Remote Services: Java-compatible RPC, based on the Jabsorb library
 
 :author: Thomas Calmant
-:copyright: Copyright 2013, isandlaTech
+:copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
 :version: 1.1
 :status: Beta
 
 ..
 
-    Copyright 2013 isandlaTech
+    Copyright 2014 isandlaTech
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
