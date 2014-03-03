@@ -38,8 +38,9 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Remote Services constants
-import pelix.remote
 from pelix.remote import RemoteServiceError
+import pelix.remote
+import pelix.remote.beans as beans
 
 # HTTP constants
 import pelix.http
@@ -202,6 +203,11 @@ class Dispatcher(object):
 
         :param svc_ref: A service reference
         """
+        if not beans.compute_exported_specifications(svc_ref):
+            # No exported specification matches the service
+            # (case of iPOPO components services sharing export properties)
+            return
+
         # Service can be exported
         service_uids = self.__service_uids.setdefault(svc_ref, set())
 
@@ -209,6 +215,7 @@ class Dispatcher(object):
             _logger.warning("No exporters yet.")
             return
 
+        # Select providers according to the supported configurations
         configs = svc_ref.get_property(pelix.remote.PROP_EXPORTED_CONFIGS)
         if not configs or configs == '*':
             # Export with all providers
@@ -223,7 +230,7 @@ class Dispatcher(object):
             _logger.warning("No exporter for %s", configs)
             return
 
-        # Get common values
+        # Prepare an endpoint name
         name = self._compute_endpoint_name(svc_ref.get_properties())
 
         # Create endpoints

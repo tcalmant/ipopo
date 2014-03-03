@@ -103,10 +103,14 @@ class ExportEndpoint(object):
 
         # Exported specifications
         self.__exported_specs = []
-        self.__compute_specifications()
-        if not self.__exported_specs:
+        exported_specs = compute_exported_specifications(svc_ref)
+        if not exported_specs:
             raise ValueError("Endpoint {0}, {1}, exports nothing" \
                              .format(self.__uid, self.__name))
+
+        else:
+            # Transform the specifications for export (add the language prefix)
+            self.__exported_specs = format_specifications(exported_specs)
 
 
     def __hash__(self):
@@ -137,28 +141,6 @@ class ExportEndpoint(object):
         return "ExportEndpoint(uid={0}, types={1}, specs={2})" \
             .format(self.__uid, self.__configurations,
                     self.__exported_specs)
-
-
-    def __compute_specifications(self):
-        """
-        Computes the list of exported specifications
-        """
-        specs = self.__reference.get_property(pelix.framework.OBJECTCLASS)
-        exported_specs = self.__reference.get_property(\
-                                        pelix.remote.PROP_EXPORTED_INTERFACES)
-
-        if exported_specs and exported_specs != "*":
-            # A set of specifications is exported, replace "objectClass"
-            if isinstance(exported_specs, (list, tuple, set)):
-                filtered_specs = [spec for spec in specs
-                                         if spec in exported_specs]
-
-        else:
-            # Export everything
-            filtered_specs = specs
-
-        # Transform the specifications for export (add the language prefix)
-        self.__exported_specs = format_specifications(filtered_specs)
 
 
     def get_properties(self):
@@ -448,6 +430,26 @@ def from_export(exp_endpoint):
     return EndpointDescription(None, properties)
 
 # ------------------------------------------------------------------------------
+
+def compute_exported_specifications(svc_ref):
+    """
+    Computes the list of specifications exported by the given service
+
+    :param svc_ref: A ServiceReference
+    :return: The list of exported specifications (or an empty list)
+    """
+    specs = svc_ref.get_property(pelix.framework.OBJECTCLASS)
+    exported_specs = svc_ref.get_property(pelix.remote.PROP_EXPORTED_INTERFACES)
+
+    if exported_specs and exported_specs != "*":
+        # A set of specifications is exported, replace "objectClass"
+        if isinstance(exported_specs, (list, tuple, set, frozenset)):
+            return [spec for spec in specs if spec in exported_specs]
+
+    else:
+        # Export everything
+        return specs
+
 
 def extract_specifications(specifications):
     """
