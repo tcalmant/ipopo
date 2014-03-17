@@ -1229,8 +1229,8 @@ class Shell(object):
             # Add them to the printed lines
             lines.extend(trace_lines)
 
-        lines.append('')
-        io_handler.write('\n'.join(lines))
+            lines.append('')
+            io_handler.write('\n'.join(lines))
 
 
     def __format_frame_info(self, frame):
