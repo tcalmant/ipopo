@@ -48,6 +48,9 @@ SERVICE_IPOPO = "pelix.ipopo.core"
 IPOPO_SERVICE_SPECIFICATION = SERVICE_IPOPO
 """ Compatibility constant """
 
+SERVICE_IPOPO_WAITING_LIST = "pelix.ipopo.waiting_list"
+""" iPOPO waiting list service specification """
+
 # ------------------------------------------------------------------------------
 
 HANDLER_REQUIRES = 'ipopo.requires'
@@ -182,6 +185,36 @@ def use_ipopo(bundle_context):
         try:
             # Release it
             bundle_context.unget_service(ref_svc[0])
+
+        except BundleException:
+            # Service might have already been unregistered
+            pass
+
+
+@contextlib.contextmanager
+def use_waiting_list(bundle_context):
+    """
+    Utility context to use the iPOPO waiting list safely in a "with" block.
+    It looks after the the iPOPO waiting list service and releases its
+    reference when exiting the context.
+
+    :param bundle_context: The calling bundle context
+    :return: The iPOPO waiting list service
+    :raise BundleException: Service not found
+    """
+    # Get the service and its reference
+    ref = bundle_context.get_service_reference(SERVICE_IPOPO_WAITING_LIST)
+    if ref is None:
+        raise BundleException("No iPOPO waiting list service available")
+
+    try:
+        # Give the service
+        yield bundle_context.get_service(ref)
+
+    finally:
+        try:
+            # Release it
+            bundle_context.unget_service(ref)
 
         except BundleException:
             # Service might have already been unregistered
