@@ -135,6 +135,23 @@ class InstallUtils(object):
                               "pelix-jabsorbrpc-importer",
                               {IPOPO_AUTO_RESTART: True})
 
+
+    def transport_xmlrpc(self):
+        """
+        Installs the XML-RPC transport bundles and instantiates components
+        """
+        # Install the bundle
+        self.context.install_bundle('pelix.remote.xml_rpc').start()
+
+        with use_ipopo(self.context) as ipopo:
+            # Instantiate the discovery
+            ipopo.instantiate(rs.FACTORY_TRANSPORT_XMLRPC_EXPORTER,
+                              "pelix-xmlrpc-exporter",
+                              {IPOPO_AUTO_RESTART: True})
+            ipopo.instantiate(rs.FACTORY_TRANSPORT_XMLRPC_IMPORTER,
+                              "pelix-xmlrpc-importer",
+                              {IPOPO_AUTO_RESTART: True})
+
 # ------------------------------------------------------------------------------
 
 def main(is_server, discoveries, transports, http_port=0):
@@ -227,7 +244,8 @@ if __name__ == "__main__":
     # Transport
     parser.add_argument("-t", "--transport", nargs="*", default=["jsonrpc"],
                         dest="transports", metavar="TRANSPORT",
-                        help="Transport protocols to use (jsonrpc, jabsorbrpc)")
+                        help="Transport protocols to use (jsonrpc, jabsorbrpc, "
+                             "xmlrpc)")
 
     # Parse arguments
     args = parser.parse_args(sys.argv[1:])
