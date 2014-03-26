@@ -143,9 +143,6 @@ class JsonRpcServiceExporter(object):
         # Bundle context
         self._context = None
 
-        # Framework UID
-        self._fw_uid = None
-
         # Handled configurations
         self._kinds = None
 
@@ -413,28 +410,27 @@ class JsonRpcServiceImporter(object):
         """
         An end point has been updated
         """
-        if endpoint.uid not in self.__registrations:
+        try:
+            # Update service registration properties
+            self.__registrations[endpoint.uid].set_properties(
+                                                          endpoint.properties)
+
+        except KeyError:
             # Unknown end point
             return
-
-        # Update service properties
-        svc_reg = self.__registrations[endpoint.uid]
-        svc_reg.set_properties(endpoint.properties)
 
 
     def endpoint_removed(self, endpoint):
         """
         An end point has been removed
         """
-        if endpoint.uid not in self.__registrations:
+        try:
+            # Pop reference and unregister the service
+            self.__registrations.pop(endpoint.uid).unregister()
+
+        except KeyError:
             # Unknown end point
             return
-
-        # Pop references
-        svc_reg = self.__registrations.pop(endpoint.uid)
-
-        # Unregister the service
-        svc_reg.unregister()
 
 
     @Validate
