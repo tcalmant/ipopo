@@ -122,9 +122,11 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         # .. Thread 1 started after start (obvious)
         self.assertGreater(result[1], start, "Thread 1 started too soon")
 
-        # .. Thread 2 started at least 0.5 secs after thread 1 (due to the lock)
-        self.assertGreaterEqual(result[2], result[1] + .5,
-                                "Thread 2 started too soon")
+        # .. Thread 2 started at least 0.4 secs after thread 1 (due to the lock)
+        # (0.4 instead of 0.5: some systems are not that precise)
+        self.assertGreaterEqual(result[2], result[1] + .4,
+                                "Thread 2 started too soon (after {0}s)" \
+                                .format(result[2] - result[1]))
 
         # .. Thread 2 must not have blocked the main thread
         self.assertGreater(result[2], interm,
@@ -159,7 +161,8 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
             def dummy():
                 pass
 
-            self.fail("@SynchronizedClassMethod(None) should raise a ValueError")
+            self.fail("@SynchronizedClassMethod(None) should raise a "
+                      "ValueError")
 
         except ValueError:
             # We must be there to succeed
@@ -236,7 +239,8 @@ class UtilitiesTest(unittest.TestCase):
             utilities.remove_all_occurrences(None, 12)
 
         except:
-            self.fail("remove_all_occurrences(None) must not raise an exception")
+            self.fail("remove_all_occurrences(None) must not raise an "
+                      "exception")
 
         min_value = -1
         max_value = 4
@@ -278,11 +282,11 @@ class UtilitiesTest(unittest.TestCase):
         invalid = [42, None, [], {}, tuple()]
 
         if sys.version_info[0] >= 3:
+            # Python 3: test bytes
             invalid.extend((b"", b"aaa"))
-
         else:
+            # Python 2: test unicode
             valid.extend((unicode(""), unicode("aaa"), unicode(42)))
-            invalid.extend((42, None, [], {}))
 
         for value in valid:
             self.assertTrue(utilities.is_string(value),
