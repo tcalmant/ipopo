@@ -93,6 +93,9 @@ class Dispatcher(object):
         # Injected listeners
         self._listeners = []
 
+        # Bundle context
+        self._context = None
+
         # Framework UID
         self._fw_uid = None
 
@@ -545,6 +548,106 @@ class RegistryServlet(object):
         self._ports = []
 
 
+    @Validate
+    def _validate(self, context):
+        """
+        Component validated
+        """
+        # Get the framework UID
+        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
+
+        _logger.debug("Dispatcher servlet for %s on %s", self._fw_uid,
+                      self._path)
+
+
+    @Invalidate
+    def _invalidate(self, context):
+        """
+        Component invalidated
+        """
+        # Clean up
+        self._fw_uid = None
+
+
+    def __grab_data(self, host, port, path):
+        """
+        Sends a HTTP request to the server at (host, port), on the given path.
+        Returns the parsed response.
+        Returns None if the HTTP result is not 200 or in case of error.
+
+        :param host: Dispatcher host address
+        :param port: Dispatcher HTTP service port
+        :param path: Request path
+        :return: The parsed response content, or None
+        """
+        # Request the end points
+        try:
+            conn = httplib.HTTPConnection(host, port)
+            conn.request("GET", path)
+            result = conn.getresponse()
+            data = result.read()
+            conn.close()
+
+        except Exception as ex:
+            _logger.exception("Error accessing the dispatcher servlet: %s", ex)
+            return
+
+        if result.status != 200:
+            # Not a valid result
+            return
+
+        try:
+            # Convert the response to a string
+            data = to_str(data)
+
+            # Parse the JSON result
+            return json.loads(data)
+
+        except ValueError as ex:
+            # Error parsing data
+            _logger.error("Error reading the response of the dispatcher: %s",
+                          ex)
+
+
+    def _make_endpoint_dict(self, endpoint):
+        """
+        Converts the end point into a dictionary
+
+        :param endpoint: The end point to convert
+        :return: A dictionary
+        """
+        # Send import-side properties
+        properties = endpoint.make_import_properties()
+
+        return {"sender": self._fw_uid,
+                "uid": endpoint.uid,
+                "configurations": endpoint.configurations,
+                "name": endpoint.name,
+                "specifications": endpoint.specifications,
+                "properties": properties}
+
+
+    def _make_endpoint_bean(self, endpoint_dict, host=None):
+        """
+        Convers an endpoint dictionary into an ImportEndpoint bean
+
+        :param endpoint_dict: Dictionary form of the endpoint
+        :param host: The host of the endpoint (optional)
+        :return: An ImportEndpoint bean
+        """
+        # Create the end point bean
+        endpoint = pelix.remote.beans.ImportEndpoint(endpoint_dict['uid'],
+                                             endpoint_dict['sender'],
+                                             endpoint_dict['configurations'],
+                                             endpoint_dict['name'],
+                                             endpoint_dict['specifications'],
+                                             endpoint_dict['properties'])
+
+        # Set the host address
+        endpoint.server = host
+        return endpoint
+
+
     def bound_to(self, path, parameters):
         """
         This servlet has been bound to a server
@@ -591,7 +694,7 @@ class RegistryServlet(object):
         if path_parts[-2] == "endpoint":
             # /endpoint/<uid>: specific end point
             uid = path_parts[-1]
-            endpoint = self.get_endpoint(uid)
+            endpoint = self._dispatcher.get_endpoint(uid)
             if endpoint is None:
                 response.send_content(404, "Unknown UID: {0}".format(uid),
                                       "text/plain")
@@ -602,7 +705,7 @@ class RegistryServlet(object):
 
         elif path_parts[-1] == "endpoints":
             # /endpoints: all end points
-            endpoints = self.get_endpoints()
+            endpoints = self._dispatcher.get_endpoints()
             if not endpoints:
                 data = []
 
@@ -644,51 +747,10 @@ class RegistryServlet(object):
             # Got something
             sender = request.get_client_address()[0]
             for endpoint in endpoints:
-                self.register_endpoint(sender, endpoint)
+                self._registry.add(self._make_endpoint_bean(endpoint, sender))
 
         # We got the end points
         response.send_content(200, 'OK', 'text/plain')
-
-
-    def _make_endpoint_dict(self, endpoint):
-        """
-        Converts the end point into a dictionary
-
-        :param endpoint: The end point to convert
-        :return: A dictionary
-        """
-        # Send import-side properties
-        properties = endpoint.make_import_properties()
-
-        return {"sender": self._fw_uid,
-                "uid": endpoint.uid,
-                "configurations": endpoint.configurations,
-                "name": endpoint.name,
-                "specifications": endpoint.specifications,
-                "properties": properties}
-
-
-    def register_endpoint(self, host_address, endpoint_dict):
-        """
-        Registers a new end point in the registry
-
-        :param host_address: Address of the service exporter
-        :param endpoint_dict: An end point description dictionary (result of
-                              a request to the dispatcher servlet)
-        """
-        # Create the end point object
-        endpoint = pelix.remote.beans.ImportEndpoint(endpoint_dict['uid'],
-                                                endpoint_dict['sender'],
-                                                endpoint_dict['configurations'],
-                                                endpoint_dict['name'],
-                                                endpoint_dict['specifications'],
-                                                endpoint_dict['properties'])
-
-        # Set the host address
-        endpoint.server = host_address
-
-        # Register it
-        self._registry.add(endpoint)
 
 
     def get_access(self):
@@ -703,22 +765,33 @@ class RegistryServlet(object):
             return (self._ports[0], self._path)
 
 
-    def get_endpoints(self):
+    def grab_endpoint(self, host, port, path, uid):
         """
-        Returns the complete list of end points
+        Retrieves the description of the end point with the given UID from the
+        given dispatcher servlet.
+        Returns an ImportEndpoint bean, or None in case of error.
+        Does not register the end point.
 
-        :return: The list of all known end points
+        :param host: Dispatcher host address
+        :param port: Dispatcher HTTP service port
+        :param path: Path to the dispatcher servlet
+        :param uid: The UID of an end point
+        :return: An ImportEndpoint bean or None
         """
-        return self._dispatcher.get_endpoints()
+        # Setup the request URI
+        if path[-1] == '/':
+            path = path[:-1]
 
+        request_path = "{0}/endpoint/{1}".format(path, uid)
 
-    def get_endpoint(self, uid):
-        """
-        Returns the end point with the given UID or None.
+        # Get the endpoint description
+        endpoint_dict = self.__grab_data(host, port, request_path)
+        if not endpoint_dict:
+            # No description found
+            return
 
-        :return: The end point description or None
-        """
-        return self._dispatcher.get_endpoint(uid)
+        # Create the end point bean
+        return self._make_endpoint_bean(endpoint_dict, host)
 
 
     def send_discovered(self, host, port, path):
@@ -760,24 +833,3 @@ class RegistryServlet(object):
                 _logger.warning("Got an HTTP code %d when contacting a "
                                 "discovered framework: %s",
                                 result.status, data)
-
-
-    @Invalidate
-    def invalidate(self, context):
-        """
-        Component invalidated
-        """
-        # Clean up
-        self._fw_uid = None
-
-
-    @Validate
-    def validate(self, context):
-        """
-        Component validated
-        """
-        # Get the framework UID
-        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
-
-        _logger.debug("Dispatcher servlet for %s on %s", self._fw_uid,
-                      self._path)

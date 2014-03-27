@@ -62,14 +62,6 @@ import socket
 import struct
 import threading
 
-try:
-    # Python 3
-    import http.client as httplib
-
-except ImportError:
-    # Python 2
-    import httplib
-
 # ------------------------------------------------------------------------------
 
 _logger = logging.getLogger(__name__)
@@ -277,7 +269,6 @@ def close_multicast_socket(sock, address):
 
 @ComponentFactory(pelix.remote.FACTORY_DISCOVERY_MULTICAST)
 @Provides(pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER)
-@Requires("_dispatcher", pelix.remote.SERVICE_DISPATCHER)
 @Requires('_access', pelix.remote.SERVICE_DISPATCHER_SERVLET)
 @Requires("_registry", pelix.remote.SERVICE_REGISTRY)
 @Property("_group", "multicast.group", "239.0.0.1")
@@ -291,7 +282,6 @@ class MulticastDiscovery(object):
         Sets up the component
         """
         # End points registry
-        self._dispatcher = None
         self._registry = None
 
         # Dispatcher access
@@ -470,9 +460,12 @@ class MulticastDiscovery(object):
             path = data['access']['path']
 
             for uid in data['uids']:
-                endpoint = self.grab_endpoint(sender[0], port, path, uid)
+                # Get the description of the endpoint
+                endpoint = self._access.grab_endpoint(sender[0], port,
+                                                      path, uid)
                 if endpoint is not None:
-                    self._access.register_endpoint(sender[0], endpoint)
+                    # Register the endpoint
+                    self._registry.add(endpoint)
 
         elif event == 'remove':
             # Remove it
@@ -483,69 +476,6 @@ class MulticastDiscovery(object):
             endpoint_uid = data['uid']
             new_properties = data['new_properties']
             self._registry.update(endpoint_uid, new_properties)
-
-
-    def grab_endpoint(self, host, port, path, uid):
-        """
-        Retrieves the description of the end point with the given UID at the
-        given dispatcher servlet.
-        Returns the end point description as a dictionary, or None in case of
-        error.
-        Does not register nor converts the end point.
-
-        :param host: Dispatcher host address
-        :param port: Dispatcher HTTP service port
-        :param path: Path to the dispatcher servlet
-        :param uid: The UID of an end point
-        :return: An end point dictionary or None
-        """
-        # Setup the request URI
-        if path[-1] == '/':
-            path = path[:-1]
-
-        request_path = "{0}/endpoint/{1}".format(path, uid)
-
-        return self.__grab_data(host, port, request_path)
-
-
-    def __grab_data(self, host, port, path):
-        """
-        Sends a HTTP request to the server at (host, port), on the given path.
-        Returns the parsed response.
-        Returns None if the HTTP result is not 200 or in case of error.
-
-        :param host: Dispatcher host address
-        :param port: Dispatcher HTTP service port
-        :param path: Request path
-        :return: The parsed response content, or None
-        """
-        # Request the end points
-        try:
-            conn = httplib.HTTPConnection(host, port)
-            conn.request("GET", path)
-            result = conn.getresponse()
-            data = result.read()
-            conn.close()
-
-        except Exception as ex:
-            _logger.exception("Error accessing the dispatcher servlet: %s", ex)
-            return
-
-        if result.status != 200:
-            # Not a valid result
-            return
-
-        try:
-            # Convert the response to a string
-            data = to_str(data)
-
-            # Parse the JSON result
-            return json.loads(data)
-
-        except ValueError as ex:
-            # Error parsing data
-            _logger.error("Error reading the response of the dispatcher: %s",
-                          ex)
 
 
     def _read_loop(self):
