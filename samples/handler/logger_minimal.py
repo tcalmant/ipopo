@@ -37,7 +37,8 @@ __docformat__ = "restructuredtext en"
 # Logger handler constants
 import samples.handler.constants as constants
 
-# iPOPO constants
+# Pelix & iPOPO constants
+from pelix.constants import BundleActivator
 import pelix.ipopo.handlers.constants as ipopo_constants
 
 # Standard library
@@ -51,6 +52,7 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 # We need to register the handler factory as a service, using a bundle activator
+@BundleActivator
 class _Activator(object):
     """
     The bundle activator
@@ -83,10 +85,6 @@ class _Activator(object):
         # Unregister the service
         self._registration.unregister()
         self._registration = None
-
-
-# Declare the activator
-activator = _Activator()
 
 # ------------------------------------------------------------------------------
 

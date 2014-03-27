@@ -5,12 +5,17 @@ Bundle defining multiple component factories for iPOPO tests
 
 :author: Thomas Calmant
 """
+
+# Pelix
+from pelix.constants import BundleActivator, FrameworkException
+from pelix.framework import BundleContext
+
+# iPOPO
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
     Requires, Validate, Invalidate, Unbind, Bind, Instantiate, RequiresMap
-
 from pelix.ipopo.constants import IPOPO_INSTANCE_NAME, IPopoEvent
 
-from pelix.framework import BundleContext, FrameworkException
+# Tests
 from tests.interfaces import IEchoService
 
 # ------------------------------------------------------------------------------
@@ -254,6 +259,7 @@ class MapComponentFactory(TestComponentFactory):
 
 # ------------------------------------------------------------------------------
 
+@BundleActivator
 class ActivatorTest:
     """
     Test activator
@@ -286,6 +292,3 @@ class ActivatorTest:
 
         global stopped
         stopped = True
-
-# Prepare the activator
-activator = ActivatorTest()

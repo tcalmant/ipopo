@@ -33,6 +33,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Pelix remote services constants
+from pelix.constants import BundleActivator
 import pelix.remote
 
 # ------------------------------------------------------------------------------
@@ -56,6 +57,7 @@ class HelloWorldImpl(object):
 
 # ------------------------------------------------------------------------------
 
+@BundleActivator
 class BundleActivator(object):
     """
     The bundle activator
@@ -89,6 +91,3 @@ class BundleActivator(object):
         # Unregister the service
         self.__registration.unregister()
         self.__registration = None
-
-# Declare the activator
-activator = BundleActivator()

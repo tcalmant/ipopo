@@ -5,9 +5,11 @@ Simple bundle with an activator (no service registered).
 
 :author: Thomas Calmant
 """
-from pelix.framework import BundleContext, FrameworkException
 
 __version__ = (1, 0, 0)
+
+from pelix.constants import BundleActivator, FrameworkException
+from pelix.framework import BundleContext
 
 started = False
 stopped = False
@@ -15,6 +17,7 @@ raiser = False
 fw_raiser = False
 fw_raiser_stop = False
 
+@BundleActivator
 class ActivatorTest:
     """
     Test activator
@@ -59,6 +62,3 @@ class ActivatorTest:
 
         global stopped
         stopped = True
-
-# Prepare the activator
-activator = ActivatorTest()

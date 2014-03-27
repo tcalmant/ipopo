@@ -1,15 +1,16 @@
 #!/usr/bin/env python
-#-- Content-Encoding: UTF-8 --
+# -- Content-Encoding: UTF-8 --
 """
 Simple bundle registering a service
 
 :author: Thomas Calmant
 """
 
+__version__ = (1, 0, 0)
+
+from pelix.constants import BundleActivator
 from pelix.framework import BundleContext
 from tests.interfaces import IEchoService
-
-__version__ = (1, 0, 0)
 
 registered = False
 unregistered = False
@@ -42,6 +43,7 @@ class ServiceTest(IEchoService):
         self.registration.set_properties(new_props)
 
 
+@BundleActivator
 class ActivatorService:
     """
     Test activator
@@ -81,8 +83,3 @@ class ActivatorService:
         if unregister:
             # To test auto-unregistration...
             self.svc.registration.unregister()
-
-
-
-# Prepare the activator
-activator = ActivatorService()
