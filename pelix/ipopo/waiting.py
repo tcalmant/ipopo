@@ -39,7 +39,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Pelix
-from pelix.constants import BundleException
+from pelix.constants import BundleException, BundleActivator
 from pelix.internals.events import ServiceEvent
 from pelix.ipopo.constants import IPopoEvent, use_ipopo, \
     SERVICE_IPOPO, SERVICE_IPOPO_WAITING_LIST
@@ -51,7 +51,6 @@ import threading
 # ------------------------------------------------------------------------------
 
 _logger = logging.getLogger(__name__)
-_logger.warning("!!! API and names not yet finalized (WORK IN PROGRESS) !!!")
 
 # ------------------------------------------------------------------------------
 
@@ -257,6 +256,7 @@ class IPopoWaitingList(object):
 
 # ------------------------------------------------------------------------------
 
+@BundleActivator
 class Activator(object):
     """
     The bundle activator
@@ -296,7 +296,3 @@ class Activator(object):
         # Clear it
         self.__service._clear()
         self.__service = None
-
-
-# Declare the bundle activator
-activator = Activator()

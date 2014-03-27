@@ -39,6 +39,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Shell constants
+from pelix.constants import BundleActivator
 from pelix.shell import SERVICE_SHELL
 import pelix.framework as pelix
 
@@ -319,6 +320,7 @@ class InteractiveShell(object):
 
 # ------------------------------------------------------------------------------
 
+@BundleActivator
 class Activator(object):
     """
     The bundle activator
@@ -398,8 +400,3 @@ if __name__ == '__main__':
 
     # Run the entry point
     main()
-
-else:
-    # Imported as a module:
-    # Creates the Pelix activator
-    activator = Activator()

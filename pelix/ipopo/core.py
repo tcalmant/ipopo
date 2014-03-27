@@ -36,10 +36,10 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Pelix
+from pelix.constants import SERVICE_ID, BundleActivator
+from pelix.framework import Bundle, BundleException
 from pelix.internals.events import BundleEvent, ServiceEvent
-from pelix.framework import BundleContext, Bundle
 from pelix.utilities import add_listener, remove_listener, is_string
-import pelix.framework as pelix
 
 # iPOPO constants
 import pelix.ipopo.constants as constants
@@ -131,7 +131,6 @@ class _IPopoService(object):
     """
     The iPOPO registry and service
     """
-
     def __init__(self, bundle_context):
         """
         Sets up the iPOPO registry
@@ -983,7 +982,7 @@ class _IPopoService(object):
                                         handlers_const.KIND_SERVICE_PROVIDER):
                     svc_ref = handler.get_service_reference()
                     if svc_ref is not None:
-                        svc_id = svc_ref.get_property(pelix.SERVICE_ID)
+                        svc_id = svc_ref.get_property(SERVICE_ID)
                         result["services"][svc_id] = svc_ref
 
                 # Dependencies
@@ -1130,6 +1129,7 @@ class _IPopoService(object):
 
 # ------------------------------------------------------------------------------
 
+@BundleActivator
 class _IPopoActivator(object):
     """
     The iPOPO bundle activator for Pelix
@@ -1150,8 +1150,6 @@ class _IPopoActivator(object):
 
         :param context: The bundle context
         """
-        assert isinstance(context, BundleContext)
-
         # Automatically install handlers bundles
         for handler in BUILTIN_HANDLERS:
             try:
@@ -1159,7 +1157,7 @@ class _IPopoActivator(object):
                 bundle.start()
                 self._bundles.append(bundle)
 
-            except pelix.BundleException as ex:
+            except BundleException as ex:
                 _logger.error("Error installing handler %s: %s", handler, ex)
 
 
@@ -1190,8 +1188,6 @@ class _IPopoActivator(object):
 
         :param context: The bundle context
         """
-        assert isinstance(context, BundleContext)
-
         # The service is not in the "run" mode anymore
         self._service._stop()
 
@@ -1215,8 +1211,3 @@ class _IPopoActivator(object):
         # Clean up references
         self._registration = None
         self._service = None
-
-# ------------------------------------------------------------------------------
-
-# The activator instance
-activator = _IPopoActivator()

@@ -1403,6 +1403,7 @@ class Shell(object):
 
 # ------------------------------------------------------------------------------
 
+@constants.BundleActivator
 class PelixActivator(object):
     """
     Activator class for Pelix
@@ -1486,7 +1487,3 @@ class PelixActivator(object):
 
         self._shell = None
         _logger.info("Shell services unregistered")
-
-
-# Activator for Pelix
-activator = PelixActivator()

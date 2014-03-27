@@ -36,7 +36,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Pelix beans
-from pelix.constants import BundleException
+from pelix.constants import BundleActivator, BundleException
 
 # iPOPO constants
 import pelix.ipopo.constants as ipopo_constants
@@ -71,6 +71,7 @@ class _HandlerFactory(constants.HandlerFactory):
                 for specs, controller in provides]
 
 
+@BundleActivator
 class _Activator(object):
     """
     The bundle activator
@@ -104,9 +105,6 @@ class _Activator(object):
         # Unregister the service
         self._registration.unregister()
         self._registration = None
-
-# Declare the activator
-activator = _Activator()
 
 # ------------------------------------------------------------------------------
 
