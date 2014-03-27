@@ -51,7 +51,6 @@ from pelix.utilities import SynchronizedClassMethod, is_string
 # Standard library
 import imp
 import importlib
-import inspect
 import logging
 import os
 import pkgutil
@@ -121,6 +120,27 @@ class Bundle(object):
         String representation
         """
         return "Bundle(ID={0}, Name={1})".format(self.__id, self.__name)
+
+
+    def __get_activator_method(self, method_name):
+        """
+        Retrieves the requested method of the activator, or returns None
+
+        :param method_name: A method name
+        :return: A method, or None
+        """
+        # Get the activator
+        activator = getattr(self.__module, ACTIVATOR, None)
+        if activator is None:
+            # Get the old activator
+            activator = getattr(self.__module, ACTIVATOR_LEGACY, None)
+            if activator is not None:
+                # Old activator found: print a deprecation warning
+                _logger.warning("Bundle %s uses the deprecated '%s' to declare "
+                                "its activator. Use @BundleActivator instead.",
+                                self.__name, ACTIVATOR_LEGACY)
+
+        return getattr(activator, method_name, None)
 
 
     def _fire_bundle_event(self, kind):
@@ -296,9 +316,7 @@ class Bundle(object):
             self._fire_bundle_event(BundleEvent.STARTING)
 
             # Call the activator, if any
-            activator = getattr(self.__module, ACTIVATOR, None)
-            starter = getattr(activator, 'start', None)
-
+            starter = self.__get_activator_method('start')
             if starter is not None:
                 try:
                     # Call the start method
@@ -337,6 +355,7 @@ class Bundle(object):
             # Invalid state
             return
 
+        exception = None
         with self._lock:
             # Store the bundle current state
             previous_state = self._state
@@ -346,10 +365,7 @@ class Bundle(object):
             self._fire_bundle_event(BundleEvent.STOPPING)
 
             # Call the activator, if any
-            activator = getattr(self.__module, ACTIVATOR, None)
-            stopper = getattr(activator, 'stop', None)
-
-            exception = None
+            stopper = self.__get_activator_method('stop')
             if stopper is not None:
                 try:
                     # Call the start method

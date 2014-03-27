@@ -35,8 +35,24 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-ACTIVATOR = "activator"
+# Standard library
+import inspect
+
+# ------------------------------------------------------------------------------
+
+ACTIVATOR = "__pelix_bundle_activator__"
 """
+Name of the module member that will be used as bundle activator.
+It must be an object with the following methods:
+
+* start(BundleContext)
+* stop(BundleContext)
+"""
+
+ACTIVATOR_LEGACY = "activator"
+"""
+Deprecated: prefer ACTIVATOR
+
 Name of the module member that will be used as bundle activator.
 It must be an object with the following methods:
 
@@ -77,6 +93,23 @@ a framework from another.
 It can be generated or be forced using the framework initialization properties.
 This property is constant during the life of a framework instance.
 """
+
+# ------------------------------------------------------------------------------
+
+def BundleActivator(clazz):
+    """
+    Decorator to declare the bundle activator
+
+    Instantiates the decorated class and stores it as a module member.
+
+    :param clazz: The decorated bundle activator class
+    :return: The class itself
+    """
+    # Add the activator instance to the module
+    setattr(inspect.getmodule(clazz), ACTIVATOR, clazz())
+
+    # Return the untouched class
+    return clazz
 
 # ------------------------------------------------------------------------------
 
