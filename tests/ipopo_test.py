@@ -457,6 +457,39 @@ class ManipulatedClassTest(unittest.TestCase):
 
         self.assertEqual(instance.usable, True, "Property value not modified")
 
+
+    def testDuplicatedFactory(self):
+        """
+        Tests the behavior of iPOPO if two bundles provide the same factory.
+        """
+        # Start the framework
+        self.framework = FrameworkFactory.get_framework()
+        self.framework.start()
+        ipopo = install_ipopo(self.framework)
+
+        # Install bundles: both provide a "basic-component-factory" factory
+        # and instantiate a component (both with different names)
+        module_A = install_bundle(self.framework, "tests.ipopo_bundle")
+        module_B = install_bundle(self.framework, "tests.ipopo_bundle_copy")
+
+        # Ensure that the module providing the factory is the correct one
+        self.assertIs(module_A,
+                  ipopo.get_factory_bundle(module_A.BASIC_FACTORY).get_module(),
+                  "Duplicated factory is not provided by the first module")
+        self.assertIs(module_A,
+                  ipopo.get_factory_bundle(module_B.BASIC_FACTORY).get_module(),
+                  "Duplicated factory is not provided by the first module")
+
+        # Component of module A must be there
+        self.assertIsNotNone(
+                         ipopo.get_instance_details(module_A.BASIC_INSTANCE),
+                         "Component from module A not started")
+
+        # Component of module B must be absent
+        self.assertRaises(ValueError,
+                          ipopo.get_instance_details, module_B.BASIC_INSTANCE)
+
+
 # ------------------------------------------------------------------------------
 
 class LifeCycleTest(unittest.TestCase):

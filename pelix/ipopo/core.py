@@ -497,16 +497,25 @@ class _IPopoService(object):
         factories = _load_bundle_factories(bundle)
 
         for context, factory_class in factories:
-            # Register each found factory
-            self._register_factory(context.name, factory_class, True)
+            try:
+                # Register each found factory
+                self._register_factory(context.name, factory_class, False)
 
-            instances = getattr(factory_class, constants.IPOPO_INSTANCES, None)
-            if isinstance(instances, dict):
-                for name, properties in instances.items():
-                    self.instantiate(context.name, name, properties)
+            except ValueError as ex:
+                # Already known factory
+                _logger.error("Cannot register factory '%s' of bundle %d (%s): "
+                              "%s", context.name, bundle.get_bundle_id(),
+                              bundle.get_symbolic_name(), ex)
+
+            else:
+                instances = getattr(factory_class, constants.IPOPO_INSTANCES,
+                                    None)
+                if isinstance(instances, dict):
+                    for name, properties in instances.items():
+                        self.instantiate(context.name, name, properties)
 
 
-    def _register_factory(self, factory_name, factory, override=True):
+    def _register_factory(self, factory_name, factory, override):
         """
         Registers a component factory
 
