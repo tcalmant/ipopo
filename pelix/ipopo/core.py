@@ -508,11 +508,9 @@ class _IPopoService(object):
                               bundle.get_symbolic_name(), ex)
 
             else:
-                instances = getattr(factory_class, constants.IPOPO_INSTANCES,
-                                    None)
-                if isinstance(instances, dict):
-                    for name, properties in instances.items():
-                        self.instantiate(context.name, name, properties)
+                # Instantiate components
+                for name, properties in context.get_instances().items():
+                    self.instantiate(context.name, name, properties)
 
 
     def _register_factory(self, factory_name, factory, override):

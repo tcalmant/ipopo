@@ -242,6 +242,9 @@ class FactoryContext(object):
         # Handler ID -> configuration
         self.__handlers = {}
 
+        # Instance name -> Instance properties
+        self.__instances = {}
+
 
     def __eq__(self, other):
         """
@@ -266,18 +269,48 @@ class FactoryContext(object):
         return not self.__eq__(other)
 
 
+    def copy(self):
+        """
+        Returns a deep copy of the current FactoryContext instance
+        """
+        # Copy the context
+        new_context = copy.deepcopy(self)
+
+        # Remove instances
+        new_context.__instances.clear()
+        return new_context
+
+
+    def add_instance(self, name, properties):
+        """
+        Stores the description of a component instance. The given properties
+        are stored as is.
+
+        :param name: Instance name
+        :param properties: Instance properties
+        :raise NameError: Already known instance name
+        """
+        if name in self.__instances:
+            raise NameError(name)
+
+        # Store properties "as-is"
+        self.__instances[name] = properties
+
+
+    def get_instances(self):
+        """
+        Returns the dictionary of instances to start: name -> properties
+
+        :return: A dictionary: instance name -> instance properties
+        """
+        return copy.deepcopy(self.__instances)
+
+
     def get_handlers_ids(self):
         """
         Retrieves the IDs of the handlers to instantiate for this component
         """
         return list(self.__handlers.keys())
-
-
-    def copy(self):
-        """
-        Returns a deep copy of the current FactoryContext instance
-        """
-        return copy.deepcopy(self)
 
 
     def get_handler(self, handler_id, default=None):

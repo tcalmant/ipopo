@@ -77,9 +77,6 @@ IPOPO_METHOD_FIELD_CALLBACKS = "__ipopo_field_callbacks__"
 IPOPO_FACTORY_CONTEXT = "__ipopo_factory_context__"
 """ Storage of the FactoryContext object """
 
-IPOPO_INSTANCES = "__ipopo_instances__"
-""" List of configured instantiations """
-
 # Method called by the injected property (must be injected in the instance)
 IPOPO_GETTER_SUFFIX = "_getter"
 IPOPO_SETTER_SUFFIX = "_setter"

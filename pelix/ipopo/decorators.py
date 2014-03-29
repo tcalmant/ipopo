@@ -414,21 +414,15 @@ class Instantiate(object):
         :raise TypeError: The given object is not a class
         """
         if not inspect.isclass(factory_class):
-            raise TypeError("@ComponentFactory can decorate only classes, " \
+            raise TypeError("@Instantiate can decorate only classes, " \
                             "not '{0}'".format(type(factory_class).__name__))
 
-        instances = getattr(factory_class, constants.IPOPO_INSTANCES, None)
+        # Store the instance in the factory context
+        context = get_factory_context(factory_class)
+        try:
+            context.add_instance(self.__name, self.__properties)
 
-        if instances is None or \
-            is_from_parent(factory_class, constants.IPOPO_INSTANCES):
-            # No instances for this particular class
-            instances = {}
-            setattr(factory_class, constants.IPOPO_INSTANCES, instances)
-
-        if self.__name not in instances:
-            instances[self.__name] = self.__properties
-
-        else:
+        except NameError:
             _logger.warning("Component '%s' defined twice, new definition "
                             "ignored", self.__name)
 
@@ -440,13 +434,6 @@ class ComponentFactory(object):
     """
     Decorator that sets up a component factory class
     """
-
-    NON_INHERITABLE_FIELDS = (constants.IPOPO_INSTANCES,)
-    """
-    Non inheritable fields, i.e. to remove during the manipulation of child
-    classes, if needed
-    """
-
     def __init__(self, name=None):
         """
         Sets up the decorator
@@ -484,12 +471,6 @@ class ComponentFactory(object):
             # Find callbacks
             _ipopo_setup_callback(factory_class, context)
             _ipopo_setup_field_callback(factory_class, context)
-
-            # Clean up inherited fields, to avoid weird behavior
-            for field in ComponentFactory.NON_INHERITABLE_FIELDS:
-                if is_from_parent(factory_class, field):
-                    # Set inherited fields to None
-                    setattr(factory_class, field, None)
 
             # Store the factory context in its field
             setattr(factory_class, constants.IPOPO_FACTORY_CONTEXT, context)

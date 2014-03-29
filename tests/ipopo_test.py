@@ -191,15 +191,15 @@ class DecoratorsTest(unittest.TestCase):
 
         # Transform the child class
         decorators.ComponentFactory()(ChildClass)
+        child_context = decorators.get_factory_context(ChildClass)
 
-        # Ensure the instantiation was not inherited
-        self.assertIn(instance_name,
-                      getattr(DummyClass, constants.IPOPO_INSTANCES),
+        # Ensure the instantiation was not removed after inheritance
+        self.assertIn(instance_name, parent_context.get_instances(),
                       "Instance disappeared of parent")
 
-        # Child attribute is set to None in this case
-        self.assertIsNone(getattr(ChildClass, constants.IPOPO_INSTANCES),
-                          "Instances kept in child")
+        # Ensure the instantiation was not inherited
+        self.assertNotIn(instance_name, child_context.get_instances(),
+                         "Instance kept in child")
 
 
     def testInstantiate(self):
@@ -238,7 +238,9 @@ class DecoratorsTest(unittest.TestCase):
         decorators.Instantiate("test", {"id": 2})(DummyClass)
         log_on()
 
-        instances = getattr(DummyClass, constants.IPOPO_INSTANCES)
+        # Get the factory context
+        context = decorators.get_factory_context(DummyClass)
+        instances = context.get_instances()
         self.assertEqual(instances["test"]["id"], 1,
                          "Instance properties have been overridden")
 
