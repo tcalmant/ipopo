@@ -36,7 +36,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Pelix modules
-from pelix.utilities import is_string
+from pelix.utilities import is_string, to_iterable
 from pelix.ipopo.contexts import FactoryContext, Requirement
 import pelix.ipopo.constants as constants
 
@@ -100,12 +100,7 @@ def get_factory_context(cls):
 
     elif is_from_parent(cls, constants.IPOPO_FACTORY_CONTEXT):
         # Create a copy the context
-        context = context.copy()
-
-        # Clear the values that must not be inherited:
-        # * Provided services
-        # FIXME: do it in a better/generic way
-        context.set_handler(constants.HANDLER_PROVIDES, [])
+        context = context.copy(True)
 
         # * Manipulation has not been applied yet
         context.completed = False
@@ -434,13 +429,16 @@ class ComponentFactory(object):
     """
     Decorator that sets up a component factory class
     """
-    def __init__(self, name=None):
+    def __init__(self, name=None, excluded=None):
         """
         Sets up the decorator
 
         :param name: Name of the component factory
+        :param excluded: List of IDs of handlers which configuration must not
+                         be inherited from the parent class
         """
         self.__factory_name = name
+        self.__excluded_inheritance = to_iterable(excluded)
 
 
     def __call__(self, factory_class):
@@ -465,7 +463,10 @@ class ComponentFactory(object):
                 self.__factory_name = factory_class.__name__ + "Factory"
 
             # Manipulate the class...
+
+            # Update the factory context
             context.name = self.__factory_name
+            context.inherit_handlers(self.__excluded_inheritance)
             context.completed = True
 
             # Find callbacks
@@ -498,6 +499,9 @@ class Property(object):
 
     Defines a component property.
     """
+    HANDLER_ID = constants.HANDLER_PROPERTY
+    """ ID of the handler configured by this decorator """
+
     def __init__(self, field=None, name=None, value=None):
         """
         Sets up the property
@@ -561,7 +565,7 @@ class Property(object):
         context.properties_fields[self.__field] = self.__name
 
         # Mark the handler in the factory context
-        context.set_handler(constants.HANDLER_PROPERTY, None)
+        context.set_handler(self.HANDLER_ID, None)
 
         # Inject a property in the class. The property will call an instance
         # level getter / setter, injected by iPOPO after the instance creation
@@ -615,6 +619,9 @@ class Provides(object):
 
     Defines an interface exported by a component.
     """
+    HANDLER_ID = constants.HANDLER_PROVIDES
+    """ ID of the handler configured by this decorator """
+
     def __init__(self, specifications, controller=None):
         """
         Sets up a provided service.
@@ -671,7 +678,7 @@ class Provides(object):
                 filtered_specs.append(spec)
 
         # Store the service information
-        config = context.get_handler(constants.HANDLER_PROVIDES, [])
+        config = context.get_handler(self.HANDLER_ID, [])
         config.append((filtered_specs, self.__controller))
 
         if self.__controller:
@@ -698,6 +705,9 @@ class Requires(object):
 
     Defines a required service
     """
+    HANDLER_ID = constants.HANDLER_REQUIRES
+    """ ID of the handler configured by this decorator """
+
     def __init__(self, field, specification, aggregate=False, optional=False, \
                  spec_filter=None):
         """
@@ -758,7 +768,7 @@ class Requires(object):
             return clazz
 
         # Store the requirement information
-        config = context.get_handler(constants.HANDLER_REQUIRES, {})
+        config = context.get_handler(self.HANDLER_ID, {})
         config[self.__field] = self.__requirement
 
         # Inject the field
@@ -774,6 +784,9 @@ class RequiresMap(object):
 
     Defines a required service, injected in a dictionary
     """
+    HANDLER_ID = constants.HANDLER_REQUIRES_MAP
+    """ ID of the handler configured by this decorator """
+
     def __init__(self, field, specification, key, allow_none=False,
                  aggregate=False, optional=False, spec_filter=None):
         """
@@ -845,7 +858,7 @@ class RequiresMap(object):
             return clazz
 
         # Store the requirement information
-        config = context.get_handler(constants.HANDLER_REQUIRES_MAP, {})
+        config = context.get_handler(self.HANDLER_ID, {})
         config[self.__field] = (self.__requirement,
                                 self.__key, self.__allow_none)
 

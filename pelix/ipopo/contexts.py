@@ -242,6 +242,9 @@ class FactoryContext(object):
         # Handler ID -> configuration
         self.__handlers = {}
 
+        # Inherited configuration
+        self.__inherited_configuration = {}
+
         # Instance name -> Instance properties
         self.__instances = {}
 
@@ -269,16 +272,58 @@ class FactoryContext(object):
         return not self.__eq__(other)
 
 
-    def copy(self):
+    def copy(self, inheritance=False):
         """
         Returns a deep copy of the current FactoryContext instance
+
+        :param inheritance: If True, current handlers configurations are stored
+                            as inherited ones
         """
         # Copy the context
         new_context = copy.deepcopy(self)
 
-        # Remove instances
+        if inheritance:
+            # Store configuration as inherited one
+            new_context.__inherited_configuration = new_context.__handlers
+            new_context.__handlers = {}
+
+        # Remove instances in any case
         new_context.__instances.clear()
         return new_context
+
+
+    def inherit_handlers(self, excluded_handlers):
+        """
+        Merges the inherited configuration with the current ones
+
+        :param excluded_handlers: Excluded handlers
+        """
+        if not excluded_handlers:
+            excluded_handlers = tuple()
+
+        for handler, configuration in self.__inherited_configuration.items():
+            if handler in excluded_handlers:
+                # Excluded handler
+                continue
+
+            elif handler not in self.__handlers:
+                # Fully inherited configuration
+                self.__handlers[handler] = configuration
+
+            # Merge configuration...
+            elif isinstance(configuration, dict):
+                # Dictionary
+                self.__handlers.setdefault(handler, {}).update(configuration)
+
+            elif isinstance(configuration, list):
+                # List
+                handler_conf = self.__handlers.setdefault(handler, [])
+                for item in configuration:
+                    if item not in handler_conf:
+                        handler_conf.append(item)
+
+        # Clear the inherited configuration dictionary
+        self.__inherited_configuration.clear()
 
 
     def add_instance(self, name, properties):
