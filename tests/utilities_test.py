@@ -354,7 +354,7 @@ class UtilitiesTest(unittest.TestCase):
                           utilities.use_service(context, None).__enter__)
 
         # Start the service bundle
-        bundle = context.install_bundle("tests.service_bundle")
+        bundle = context.install_bundle("tests.framework.service_bundle")
         bundle.start()
 
         # Get the service reference

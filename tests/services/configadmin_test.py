@@ -268,7 +268,8 @@ class ManagedServiceTest(unittest.TestCase):
         self.config = context.get_service(self.config_ref)
 
         # Install the test bundle (don't start it)
-        self.bundle = context.install_bundle('tests.configadmin_bundle')
+        self.bundle = context.install_bundle(
+                                            'tests.services.configadmin_bundle')
         self.pid = self.bundle.get_module().CONFIG_PID
 
 
@@ -476,7 +477,8 @@ class FileInstallTest(unittest.TestCase):
         self.config = context.get_service(self.config_ref)
 
         # Install the test bundle (don't start it)
-        self.bundle = context.install_bundle('tests.configadmin_bundle')
+        self.bundle = context.install_bundle(
+                                            'tests.services.configadmin_bundle')
         self.pid = self.bundle.get_module().CONFIG_PID
 
 
