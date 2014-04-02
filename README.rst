@@ -1,12 +1,25 @@
 iPOPO : A component model for Python
 ####################################
 
-This is iPOPO, a component model framework for Python based on SOA principles.
-It is based on Pelix, an SOA framework.
+.. image:: https://travis-ci.org/tcalmant/ipopo.png?branch=dev
+     :target: https://travis-ci.org/tcalmant/ipopo
 
-See http://ipopo.coderxpress.net for documentation and more information.
+.. image:: https://coveralls.io/repos/tcalmant/ipopo/badge.png?branch=dev
+     :target: https://coveralls.io/r/tcalmant/ipopo?branch=dev
 
-iPOPO is released under the Apache License 2.0.
+`iPOPO <https://ipopo.coderxpress.net/>`_ is a Python-based Service-Oriented
+Component Model (SOCM) based on Pelix, a dynamic service platform.
+They are inspired on two popular Java technologies for the development of
+long-lived applications: the
+`iPOJO <http://felix.apache.org/documentation/subprojects/apache-felix-ipojo.html>`_
+component model and the `OSGi <http://osgi.org/>`_ Service Platform.
+iPOPO enables to conceive long-running and modular IT services.
+
+See https://ipopo.coderxpress.net for documentation and more information.
+
+iPOPO is available on `PyPI <http://pypi.python.org/pypi/iPOPO>`_ and is
+released under the terms of the
+`Apache License 2.0 <http://www.apache.org/licenses/LICENSE-2.0>`_.
 
 
 Feedback
@@ -40,8 +53,6 @@ To use iPOPO on Python 2.6, it is necessary to install the *importlib* module
 back-port, using ``pip install importlib``.
 To execute iPOPO tests on this version, you also need to install the *unittest2*
 module.
-
-iPOPO is available on `PyPI <http://pypi.python.org/pypi/iPOPO>`_.
 
 
 Release notes
