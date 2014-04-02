@@ -1,0 +1,7 @@
+[run]
+source = pelix/
+
+[report]
+include = pelix/*
+exclude = *
+
