@@ -111,7 +111,6 @@ class ImportsRegistry(object):
         with self.__lock:
             # Check framework UID (avoid to import our own services)
             if endpoint.framework == self._fw_uid:
-                _logger.debug("Same framework UID")
                 return False
 
             # Check if the end point already exists
