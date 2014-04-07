@@ -143,6 +143,7 @@ class ImportsRegistry(object):
 
         :param uid: The UID of the end point
         :param new_properties: The new properties of the end point
+        :return: True if the endpoint is known, else False
         """
         try:
             with self.__lock:
@@ -155,7 +156,7 @@ class ImportsRegistry(object):
 
         except KeyError:
             # Unknown end point: ignore it
-            return
+            return False
 
         else:
             # Notify listeners
@@ -168,12 +169,15 @@ class ImportsRegistry(object):
                     except Exception as ex:
                         _logger.exception("Error calling listener: %s", ex)
 
+            return True
+
 
     def remove(self, uid):
         """
         Unregisters an end point and notifies listeners
 
         :param uid: The UID of the end point to unregister
+        :return: True if the endpoint was known
         """
         # Remove the end point from the individual storage
         try:
@@ -182,7 +186,7 @@ class ImportsRegistry(object):
         except KeyError:
             # Unknown end point
             _logger.warning("Unknown end point UID: %s", uid)
-            return
+            return False
 
         # Remove it from its framework storage, if any
         try:
@@ -207,6 +211,8 @@ class ImportsRegistry(object):
 
                 except Exception as ex:
                     _logger.exception("Error calling listener: %s", ex)
+
+        return True
 
 
     def lost_framework(self, uid):
