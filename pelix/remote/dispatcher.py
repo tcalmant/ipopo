@@ -74,7 +74,6 @@ _logger = logging.getLogger(__name__)
 @ComponentFactory('pelix-remote-dispatcher-factory')
 @Provides(pelix.remote.SERVICE_DISPATCHER)
 @Requires('_exporters', pelix.remote.SERVICE_EXPORT_PROVIDER, True, True)
-@Requires('_importers', pelix.remote.SERVICE_IMPORT_PROVIDER, True, True)
 @Requires('_listeners', pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER,
           aggregate=True, optional=True)
 @Instantiate('pelix-remote-dispatcher')
@@ -88,7 +87,6 @@ class Dispatcher(object):
         """
         # Remote Service providers
         self._exporters = []
-        self._importers = []
 
         # Injected listeners
         self._listeners = []
@@ -303,11 +301,16 @@ class Dispatcher(object):
 
                 except NameError as ex:
                     _logger.error("Error updating service properties: %s", ex)
+
+                    # Unexport the service from this exporter
+                    del self.__uid_exporter[endpoint.uid]
+                    del self.__endpoints[endpoint.uid]
                     exporter.unexport_service(endpoint)
+
                     # Call listeners (out of the lock)
                     if self._listeners:
                         for listener in self._listeners:
-                            listener.endpoint_removed(endpoint, old_properties)
+                            listener.endpoint_removed(endpoint)
 
                 else:
                     # Call listeners (out of the lock)
