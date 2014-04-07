@@ -39,6 +39,9 @@ FACTORY_REGISTRY_SERVLET = "pelix-remote-dispatcher-servlet-factory"
 """ Name of the factory of the Servlet component giving access to registries """
 
 
+FACTORY_DISCOVERY_MQTT = "pelix-remote-discovery-mqtt-factory"
+""" Name of the MQTT discovery component factory """
+
 FACTORY_DISCOVERY_MULTICAST = "pelix-remote-discovery-multicast-factory"
 """ Name of the Multicast discovery component factory """
 
