@@ -99,6 +99,20 @@ class InstallUtils(object):
                       "pelix-discovery-zeroconf")
 
 
+    def discovery_mqtt(self):
+        """
+        Installs the MQTT discovery bundles and instantiates components
+        """
+        # Install the bundle
+        self.context.install_bundle('pelix.remote.discovery.mqtt').start()
+
+        with use_waiting_list(self.context) as ipopo:
+            # Instantiate the discovery
+            ipopo.add(rs.FACTORY_DISCOVERY_MQTT, "pelix-discovery-mqtt",
+                      {"application.id": "sample.rs",
+                       "mqtt.host": "test.mosquitto.org"})
+
+
     def transport_jsonrpc(self):
         """
         Installs the JSON-RPC transport bundles and instantiates components
