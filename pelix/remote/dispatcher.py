@@ -38,7 +38,6 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Remote Services constants
-from pelix.remote import RemoteServiceError
 import pelix.remote
 import pelix.remote.beans as beans
 
@@ -48,7 +47,7 @@ import pelix.http
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
     BindField, Property, Validate, Invalidate, Instantiate, UnbindField
-from pelix.utilities import to_str, Deprecated
+from pelix.utilities import to_str
 
 # Standard library
 import json
@@ -483,52 +482,6 @@ class Dispatcher(object):
                          if kind in endpoint.configurations]
 
         return endpoints
-
-
-    @Deprecated("API will change")
-    def get_service(self, kind, name):
-        """
-        Retrieves the instance of the service at the given end point for the
-        given kind.
-
-        :param kind: A kind of end point
-        :param name: The name of the end point
-        :return: The service corresponding to the given end point, or None
-        """
-        _logger.critical("Calling a deprecated method")
-        try:
-            return self.__kind_endpoints[kind][name].instance
-
-        except KeyError:
-            return None
-
-
-    @Deprecated("Method will disappear")
-    def dispatch(self, kind, name, method, params):
-        """
-        Calls the service for the given kind with the name
-
-        :param kind: A kind of end point
-        :param name: The name of the end point
-        :param method: Method to call
-        :param params: List of parameters
-        :return: The result of the method
-        :raise RemoteServiceError: Unknown end point / method
-        :raise Exception: The exception raised by the method
-        """
-        # Get the service
-        try:
-            service = self.__kind_endpoints[kind][name].instance
-        except KeyError:
-            raise RemoteServiceError("Unknown endpoint: {0}".format(name))
-
-        # Get the method
-        method_ref = getattr(service, method, None)
-        if method_ref is None:
-            raise RemoteServiceError("Unknown method {0}".format(method))
-
-        # Call it (let the errors be propagated)
-        return method_ref(*params)
 
 # -----------------------------------------------------------------------------
 
