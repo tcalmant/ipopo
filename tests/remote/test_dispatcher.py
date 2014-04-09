@@ -15,6 +15,7 @@ import pelix.constants
 import pelix.framework
 
 # Standard library
+import sys
 import uuid
 try:
     import unittest2 as unittest
@@ -140,6 +141,10 @@ class DispatcherTest(unittest.TestCase):
         """
         Sets up the test
         """
+        # Compatibility issue between Python 2 & 3
+        if sys.version_info[0] < 3:
+            self.assertCountEqual = self.assertItemsEqual
+
         # Create the framework
         self.framework = pelix.framework.create_framework(['pelix.ipopo.core'])
         self.framework.start()
@@ -479,51 +484,48 @@ class DispatcherTest(unittest.TestCase):
                                {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
 
         # Get all endpoints
-        self.assertItemsEqual([exporterA.endpoint, exporterB.endpoint],
+        self.assertCountEqual([exporterA.endpoint, exporterB.endpoint],
                               self.service.get_endpoints(),
                               "Invalid result for get_endpoints()")
 
         # Get endpoint by name
-        self.assertItemsEqual([exporterA.endpoint],
-                              self.service.get_endpoints(name="nameA"),
-                              "Invalid result for get_endpoints(name)")
-        self.assertItemsEqual([exporterB.endpoint],
-                              self.service.get_endpoints(name="nameB"),
-                              "Invalid result for get_endpoints(name)")
+        self.assertListEqual([exporterA.endpoint],
+                             self.service.get_endpoints(name="nameA"),
+                             "Invalid result for get_endpoints(name)")
+        self.assertListEqual([exporterB.endpoint],
+                             self.service.get_endpoints(name="nameB"),
+                             "Invalid result for get_endpoints(name)")
 
         # Get endpoint by configuration
-        self.assertItemsEqual([exporterA.endpoint],
-                              self.service.get_endpoints(kind="configA"),
-                              "Invalid result for get_endpoints(kind)")
-        self.assertItemsEqual([exporterB.endpoint],
-                              self.service.get_endpoints(kind="configB"),
-                              "Invalid result for get_endpoints(kind)")
+        self.assertListEqual([exporterA.endpoint],
+                             self.service.get_endpoints(kind="configA"),
+                             "Invalid result for get_endpoints(kind)")
+        self.assertListEqual([exporterB.endpoint],
+                             self.service.get_endpoints(kind="configB"),
+                             "Invalid result for get_endpoints(kind)")
 
         # Filter with both
-        self.assertItemsEqual([exporterA.endpoint],
-                              self.service.get_endpoints("configA", "nameA"),
-                              "Invalid result for get_endpoints(kind, name)")
+        self.assertListEqual([exporterA.endpoint],
+                             self.service.get_endpoints("configA", "nameA"),
+                             "Invalid result for get_endpoints(kind, name)")
 
         # Filter with no result
-        self.assertItemsEqual([],
-                              self.service.get_endpoints("configB", "nameA"),
-                              "Invalid result for get_endpoints(kind, name)")
+        self.assertListEqual([], self.service.get_endpoints("configB", "nameA"),
+                             "Invalid result for get_endpoints(kind, name)")
 
         # Unregister exporter B
         exporterB_reg.unregister()
 
         # Get all endpoints
-        self.assertItemsEqual([exporterA.endpoint],
-                              self.service.get_endpoints(),
-                              "Endpoint of B still in get_endpoints()")
+        self.assertListEqual([exporterA.endpoint], self.service.get_endpoints(),
+                             "Endpoint of B still in get_endpoints()")
 
         # Unregister service
         svc_reg.unregister()
 
         # Get all endpoints
-        self.assertItemsEqual([],
-                              self.service.get_endpoints(),
-                              "Endpoint of A still in get_endpoints()")
+        self.assertListEqual([], self.service.get_endpoints(),
+                             "Endpoint of A still in get_endpoints()")
 
         # Unregister exporter A
         exporterA_reg.unregister()
