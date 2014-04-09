@@ -414,6 +414,8 @@ class Dispatcher(object):
         """
         Exporter gone
         """
+        removed_endpoints = []
+
         with self.__exporters_lock:
             # Get the UIDs of all endpoints managed by this exporter
             uids = [uid for uid, uid_exporter in self.__uid_exporter.items()
@@ -426,12 +428,25 @@ class Dispatcher(object):
                 endpoint = self.__endpoints.pop(uid)
                 self.__service_uids.get(endpoint.reference, set()).remove(uid)
 
+                # Store the endpoint for listeners
+                removed_endpoints.append(endpoint)
+
                 # Unexport the service
                 try:
                     exporter.unexport_service(endpoint)
 
                 except Exception as ex:
                     _logger.exception("Error unexporting service: %s", ex)
+
+        # Notify listeners (out of the lock)
+        if self._listeners:
+            for listener in self._listeners[:]:
+                for endpoint in removed_endpoints:
+                    try:
+                        listener.endpoint_removed(endpoint)
+
+                    except Exception as ex:
+                        _logger.error("Error notifying listener: %s", ex)
 
 
     def get_endpoint(self, uid):

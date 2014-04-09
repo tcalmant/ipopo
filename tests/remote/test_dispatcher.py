@@ -338,13 +338,6 @@ class DispatcherTest(unittest.TestCase):
 
         for name_error in (True, False):
             for raise_exception in (False, True):
-                # Prepare a exporter
-                exporter = Exporter(context)
-                exporter.raise_exception = name_error
-                exporter_reg = context.register_service(
-                                        pelix.remote.SERVICE_EXPORT_PROVIDER,
-                                        exporter, {})
-
                 # Prepare a listener
                 listener = Listener()
                 listener.raise_exception = raise_exception
@@ -355,6 +348,18 @@ class DispatcherTest(unittest.TestCase):
                 # Register the exported service
                 svc_reg = context.register_service("sample.spec", service,
                                    {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+
+                # Check the state of the listener
+                self.assertListEqual(listener.events, [],
+                                     "Listener notified too soon")
+                listener.clear()
+
+                # Prepare a exporter
+                exporter = Exporter(context)
+                exporter.raise_exception = name_error
+                exporter_reg = context.register_service(
+                                        pelix.remote.SERVICE_EXPORT_PROVIDER,
+                                        exporter, {})
 
                 # Check the state of the listener
                 self.assertListEqual(listener.events, [ADDED],
@@ -424,16 +429,23 @@ class DispatcherTest(unittest.TestCase):
                                  "Listener not notified")
             listener.clear()
 
-            # Unregister the exported service
-            svc_reg.unregister()
+            # Unregister the exporter
+            exporter_reg.unregister()
 
             # Check the state of the listener
             self.assertListEqual(listener.events, [REMOVED],
                                  "Listener not notified of removal")
             listener.clear()
 
+            # Unregister the exported service
+            svc_reg.unregister()
+
+            # Check the state of the listener
+            self.assertListEqual(listener.events, [],
+                                 "Listener notified of removal")
+            listener.clear()
+
             # Unregister the services
-            exporter_reg.unregister()
             listener_reg.unregister()
 
 # ------------------------------------------------------------------------------
