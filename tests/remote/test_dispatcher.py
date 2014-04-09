@@ -15,6 +15,7 @@ import pelix.constants
 import pelix.framework
 
 # Standard library
+import uuid
 try:
     import unittest2 as unittest
 except ImportError:
@@ -34,13 +35,17 @@ class Exporter(object):
     """
     Service exporter
     """
-    def __init__(self, context):
+    def __init__(self, context, name=None, configs=None):
         """
         Sets up members
         """
         self.context = context
         self.events = []
         self.raise_exception = False
+
+        self.endpoint = None
+        self.name = name or 'test.endpoint'
+        self.configs = configs[:] if configs else ['test.config']
 
 
     def clear(self):
@@ -56,8 +61,10 @@ class Exporter(object):
         """
         self.events.append(ADDED)
         service = self.context.get_service(svc_ref)
-        return beans.ExportEndpoint("some-uid", fw_uid, ["test.config"],
-                                    "test.endpoint", svc_ref, service, {})
+        self.endpoint = beans.ExportEndpoint(str(uuid.uuid4()), fw_uid,
+                                             self.configs, self.name,
+                                             svc_ref, service, {})
+        return self.endpoint
 
 
     def update_export(self, endpoint, new_name, old_properties):
@@ -402,7 +409,7 @@ class DispatcherTest(unittest.TestCase):
         """
         Tests the notification of endpoint listeners
         """
-        # Register an exported service
+        # Prepare an exported service
         context = self.framework.get_bundle_context()
         service = object()
 
@@ -447,6 +454,79 @@ class DispatcherTest(unittest.TestCase):
 
             # Unregister the services
             listener_reg.unregister()
+
+
+    def testGetEndpoints(self):
+        """
+        Tests the behavior of the get_endpoints() method
+        """
+        context = self.framework.get_bundle_context()
+
+        # Register exporters
+        exporterA = Exporter(context, "nameA", ["configA"])
+        exporterA_reg = context.register_service(
+                                        pelix.remote.SERVICE_EXPORT_PROVIDER,
+                                        exporterA, {})
+
+        exporterB = Exporter(context, "nameB", ["configB"])
+        exporterB_reg = context.register_service(
+                                        pelix.remote.SERVICE_EXPORT_PROVIDER,
+                                        exporterB, {})
+
+        # Register the remote service
+        service = object()
+        svc_reg = context.register_service("sample.spec", service,
+                               {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+
+        # Get all endpoints
+        self.assertItemsEqual([exporterA.endpoint, exporterB.endpoint],
+                              self.service.get_endpoints(),
+                              "Invalid result for get_endpoints()")
+
+        # Get endpoint by name
+        self.assertItemsEqual([exporterA.endpoint],
+                              self.service.get_endpoints(name="nameA"),
+                              "Invalid result for get_endpoints(name)")
+        self.assertItemsEqual([exporterB.endpoint],
+                              self.service.get_endpoints(name="nameB"),
+                              "Invalid result for get_endpoints(name)")
+
+        # Get endpoint by configuration
+        self.assertItemsEqual([exporterA.endpoint],
+                              self.service.get_endpoints(kind="configA"),
+                              "Invalid result for get_endpoints(kind)")
+        self.assertItemsEqual([exporterB.endpoint],
+                              self.service.get_endpoints(kind="configB"),
+                              "Invalid result for get_endpoints(kind)")
+
+        # Filter with both
+        self.assertItemsEqual([exporterA.endpoint],
+                              self.service.get_endpoints("configA", "nameA"),
+                              "Invalid result for get_endpoints(kind, name)")
+
+        # Filter with no result
+        self.assertItemsEqual([],
+                              self.service.get_endpoints("configB", "nameA"),
+                              "Invalid result for get_endpoints(kind, name)")
+
+        # Unregister exporter B
+        exporterB_reg.unregister()
+
+        # Get all endpoints
+        self.assertItemsEqual([exporterA.endpoint],
+                              self.service.get_endpoints(),
+                              "Endpoint of B still in get_endpoints()")
+
+        # Unregister service
+        svc_reg.unregister()
+
+        # Get all endpoints
+        self.assertItemsEqual([],
+                              self.service.get_endpoints(),
+                              "Endpoint of A still in get_endpoints()")
+
+        # Unregister exporter A
+        exporterA_reg.unregister()
 
 # ------------------------------------------------------------------------------
 
