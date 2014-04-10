@@ -90,13 +90,6 @@ SERVICE_IMPORT_ENDPOINT_LISTENER = "pelix.remote.endpoint.import.listener"
 #-------------------------------------------------------------------------------
 # Properties used by Pelix
 
-PROP_FRAMEWORK_UID = "pelix.remote.framework.uid"
-"""
-The UID of the framework that exports the service.
-This service property is set by the discoverer, when it parses an end point
-event packet.
-"""
-
 PROP_ENDPOINT_NAME = "endpoint.name"
 """ Name of the end point of an exported service """
 

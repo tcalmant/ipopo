@@ -200,10 +200,15 @@ class EDEFReader(object):
             # Raw XML value
             return next(iter(node))
 
-        elif kind in (TAG_ARRAY, TAG_LIST):
+        elif kind == TAG_LIST:
             # List
             return [self._convert_value(vtype, value_node.text)
                     for value_node in node.findall(TAG_VALUE)]
+
+        elif kind == TAG_ARRAY:
+            # Tuple (array)
+            return tuple(self._convert_value(vtype, value_node.text)
+                         for value_node in node.findall(TAG_VALUE))
 
         elif kind == TAG_SET:
             # Set

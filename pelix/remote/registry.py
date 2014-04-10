@@ -152,7 +152,7 @@ class ImportsRegistry(object):
 
                 # Replace the stored properties
                 old_properties = stored_endpoint.properties.copy()
-                stored_endpoint.properties = new_properties.copy()
+                stored_endpoint.properties = new_properties
 
         except KeyError:
             # Unknown end point: ignore it

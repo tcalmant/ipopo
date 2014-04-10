@@ -93,7 +93,7 @@ class ExportEndpoint(object):
         else:
             self.__properties = properties
 
-        # Normalize list of configurations
+        # Normalize the list of configurations
         if is_string(configurations):
             self.__configurations = (configurations,)
         else:
@@ -157,6 +157,9 @@ class ExportEndpoint(object):
         for key in (pelix.constants.OBJECTCLASS, pelix.constants.SERVICE_ID):
             properties[key] = self.__reference.get_property(key)
 
+        # Force the exported configurations
+        properties[pelix.remote.PROP_EXPORTED_CONFIGS] = self.configurations
+
         return properties
 
 
@@ -167,34 +170,11 @@ class ExportEndpoint(object):
 
         :return: A dictionary with import properties
         """
-        # Use merged properties
-        props = self.get_properties()
-
-        # Add the "imported" property
-        props[pelix.remote.PROP_IMPORTED] = True
-
-        # Remote service ID
-        props[pelix.remote.PROP_ENDPOINT_SERVICE_ID] = \
-                                        props.pop(pelix.constants.SERVICE_ID)
-
-        # Replace the "export configs"
-        configs = props.pop(pelix.remote.PROP_EXPORTED_CONFIGS, None)
-        if configs:
-            props[pelix.remote.PROP_IMPORTED_CONFIGS] = configs
-
-        # Clear other export properties
-        for key in (pelix.remote.PROP_EXPORTED_INTENTS,
-                    pelix.remote.PROP_EXPORTED_INTENTS_EXTRA,
-                    pelix.remote.PROP_EXPORTED_INTERFACES):
-            try:
-                del props[key]
-            except KeyError:
-                # Key wasn't there
-                pass
+        # Convert merged properties
+        props = to_import_properties(self.get_properties())
 
         # Add the framework UID
-        props[pelix.remote.PROP_FRAMEWORK_UID] = self.__fw_uid
-
+        props[pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID] = self.__fw_uid
         return props
 
 
@@ -312,7 +292,7 @@ class ImportEndpoint(object):
     @property
     def properties(self):
         """
-        Specifications of the service
+        Properties of the imported service
         """
         return self.__properties
 
@@ -320,9 +300,10 @@ class ImportEndpoint(object):
     @properties.setter
     def properties(self, properties):
         """
-        Specifications of the service
+        Sets the properties of the imported service
         """
-        self.__properties = properties
+        # Keep a copy of the new properties
+        self.__properties = properties.copy() if properties else {}
 
 
     # End point properties
@@ -385,10 +366,35 @@ class EndpointDescription(object):
 
             # TODO: Framework UUID ??
 
-        self.__check_properties(properties)
+        # Convert properties
+        self.__properties = to_import_properties(all_properties)
 
-        # Keep a copy of properties
-        self.__properties = properties.copy()
+        # Check their validity
+        self.__check_properties(self.__properties)
+
+        # Keep a copy of the endpoint ID
+        self.__endpoint_id = self.get_id()
+
+
+    def __hash__(self):
+        """
+        Custom hash, as we override equality tests
+        """
+        return hash(self.__endpoint_id)
+
+
+    def __eq__(self, other):
+        """
+        Equality checked by UID
+        """
+        return self.__endpoint_id == other.__endpoint_id
+
+
+    def __ne__(self, other):
+        """
+        Inequality checked by UID
+        """
+        return self.__endpoint_id != other.__endpoint_id
 
 
     def __str__(self):
@@ -624,6 +630,47 @@ class EndpointDescription(object):
                                                             endpoint.framework
 
         return EndpointDescription(None, properties)
+
+# ------------------------------------------------------------------------------
+
+def to_import_properties(properties):
+    """
+    Returns a dictionary where export properties have been replaced by import
+    ones
+
+    :param properties: A dictionary of service properties (with export keys)
+    :return: A dictionary with import properties
+    """
+    # Copy the given dictionary
+    props = properties.copy()
+
+    # Add the "imported" property
+    props[pelix.remote.PROP_IMPORTED] = True
+
+    # Remote service ID
+    try:
+        props[pelix.remote.PROP_ENDPOINT_SERVICE_ID] = \
+                                        props.pop(pelix.constants.SERVICE_ID)
+    except KeyError:
+        # No service ID
+        pass
+
+    # Replace the "export configs"
+    configs = props.pop(pelix.remote.PROP_EXPORTED_CONFIGS, None)
+    if configs:
+        props[pelix.remote.PROP_IMPORTED_CONFIGS] = configs
+
+    # Clear other export properties
+    for key in (pelix.remote.PROP_EXPORTED_INTENTS,
+                pelix.remote.PROP_EXPORTED_INTENTS_EXTRA,
+                pelix.remote.PROP_EXPORTED_INTERFACES):
+        try:
+            del props[key]
+        except KeyError:
+            # Key wasn't there
+            pass
+
+    return props
 
 # ------------------------------------------------------------------------------
 
