@@ -101,7 +101,8 @@ class EdefIOTest(unittest.TestCase):
         Tests the writing and parsing of an EndpointDescription bean with
         "complex" properties
         """
-        properties = {"string": "some\nstring\n\njust to see...",
+        properties = {  # Strings whitespaces are not well kept in XML
+                      "string": "some string just to see...",
                       "int": 12,
                       "float": 12.0,
                       "tuple_str": ("a", "b", "c"),
