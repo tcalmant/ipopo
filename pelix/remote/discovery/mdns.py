@@ -272,7 +272,7 @@ class ZeroconfDiscovery(object):
         :param access_port: The dispatcher access port
         """
         # Convert the export endpoint into an EndpointDescription bean
-        endpoint = beans.from_export(exp_endpoint)
+        endpoint = beans.EndpointDescription.from_export(exp_endpoint)
 
         # Get its properties
         properties = endpoint.get_properties()

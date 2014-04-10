@@ -317,7 +317,7 @@ class MqttDiscovery(object):
         """
         # Parse the endpoints
         endpoints_descr = EDEFReader().parse(payload)
-        endpoints = [beans.to_import(endpoint) for endpoint in endpoints_descr]
+        endpoints = [endpoint.to_import() for endpoint in endpoints_descr]
 
         _logger.debug("Handle ADD")
 
@@ -334,7 +334,7 @@ class MqttDiscovery(object):
         """
         # Parse the endpoints
         endpoints_descr = EDEFReader().parse(payload)
-        endpoints = [beans.to_import(endpoint) for endpoint in endpoints_descr]
+        endpoints = [endpoint.to_import() for endpoint in endpoints_descr]
 
         # Notify the import registry
         for endpoint in endpoints:
@@ -370,8 +370,9 @@ class MqttDiscovery(object):
         _logger.debug("Sending DISCOVERED")
 
         # Convert the beans to XML (EDEF format)
-        xml_string = EDEFWriter().to_string(beans.from_export(endpoint)
-                                            for endpoint in endpoints)
+        xml_string = EDEFWriter().to_string(
+                                beans.EndpointDescription.from_export(endpoint)
+                                for endpoint in endpoints)
 
         # Send the message
         self.__send_message(self._make_topic(TOPIC_ADD), xml_string)
@@ -393,8 +394,9 @@ class MqttDiscovery(object):
         :param endpoint: A list of ExportEndpoint beans
         """
         # Convert the beans to XML (EDEF format)
-        xml_string = EDEFWriter().to_string(beans.from_export(endpoint)
-                                            for endpoint in endpoints)
+        xml_string = EDEFWriter().to_string(
+                                beans.EndpointDescription.from_export(endpoint)
+                                for endpoint in endpoints)
 
         # Send the message
         self.__send_message(self._make_topic(TOPIC_ADD), xml_string)
@@ -405,7 +407,7 @@ class MqttDiscovery(object):
         An end point is updated
         """
         # Convert the endpoint into an EndpointDescription bean
-        endpoint_desc = beans.from_export(endpoint)
+        endpoint_desc = beans.EndpointDescription.from_export(endpoint)
 
         # Convert the bean to XML (EDEF format)
         xml_string = EDEFWriter().to_string([endpoint_desc])

@@ -41,7 +41,7 @@ __docformat__ = "restructuredtext en"
 # Pelix
 import pelix.constants
 import pelix.remote
-from pelix.remote.edef import EndpointDescription
+from pelix.remote.beans import EndpointDescription
 
 # Standard library
 try:
