@@ -60,12 +60,32 @@ except ImportError:
 # Python 2.6 compatibility
 if ElementTree.VERSION[0:3] == '1.2':
     # Old version of ElementTree misses many options
+    def _clean_modules_tree(module_name):
+        """
+        Deletes the hierarchy of modules until the given module
+        is reached. This ensures that the next import of the given
+        module will reload all of its parents to.
+        """
+        import sys
+        parts = module_name.split('.')
+        current_part = None
+        for part in parts:
+            if current_part:
+                current_part = '.'.join([current_part, part])
+            else:
+                current_part = part
 
-    # As we will heavily modify this version of the class, remove the version
-    # of the module from sys
-    import sys
-    del sys.modules[ElementTree.__name__]
+            del sys.modules[current_part]
 
+
+    # As we will heavily modify this version of the class, ensure we have our
+    # own version
+    _clean_modules_tree(ElementTree.__name__)
+    ElementTree = __import__('xml.etree.ElementTree', fromlist='.')
+    _clean_modules_tree(ElementTree.__name__)
+
+
+    # Remove column ':' in namespace prefix
     old_fixtag = ElementTree.fixtag
     def _fixtag(tag, namespace):
         """
@@ -86,6 +106,7 @@ if ElementTree.VERSION[0:3] == '1.2':
             return fixed
 
 
+    # Missing method
     def _register_namespace(prefix, uri):
         """
         Backport of the register_namespace() method of ElementTree 1.3.x
@@ -93,6 +114,7 @@ if ElementTree.VERSION[0:3] == '1.2':
         ElementTree._namespace_map[EDEF_NAMESPACE] = ""
 
 
+    # Support 1.3.x parameters + write the XML declaration more often
     def _write(self, out_file, encoding="us-ascii", xml_declaration=True,
                method="xml"):
         """
