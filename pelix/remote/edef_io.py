@@ -44,6 +44,7 @@ import pelix.remote
 from pelix.remote.beans import EndpointDescription
 
 # Standard library
+import xml.etree.ElementTree as ElementTree
 try:
     # Python 2
     import StringIO
@@ -54,12 +55,62 @@ except ImportError:
     import io
     StringIO = io.StringIO
 
-try:
-    # C version
-    import xml.etree.cElementTree as ElementTree
-except ImportError:
-    # Fall back
-    import xml.etree.ElementTree as ElementTree
+# ------------------------------------------------------------------------------
+
+# Python 2.6 compatibility
+if ElementTree.VERSION[0:3] == '1.2':
+    # Old version of ElementTree misses many options
+
+    # As we will heavily modify this version of the class, remove the version
+    # of the module from sys
+    import sys
+    del sys.modules[ElementTree.__name__]
+
+    old_fixtag = ElementTree.fixtag
+    def _fixtag(tag, namespace):
+        """
+        Replaces the fixtag method of ElementTree 1.2.x to remove the starting
+        column when using empty namespace prefix
+        """
+        fixed = old_fixtag(tag, namespace)
+        if fixed[0].startswith(':'):
+            # Remove starting column
+            tag = fixed[0][1:]
+            if fixed[1] and fixed[1][0].endswith(':'):
+                xmlns = (fixed[1][0][:-1], fixed[1][1])
+            else:
+                xmlns = None
+            return tag, xmlns
+        else:
+            # Good to go
+            return fixed
+
+
+    def _register_namespace(prefix, uri):
+        """
+        Backport of the register_namespace() method of ElementTree 1.3.x
+        """
+        ElementTree._namespace_map[EDEF_NAMESPACE] = ""
+
+
+    def _write(self, out_file, encoding="us-ascii", xml_declaration=True,
+               method="xml"):
+        """
+        Backport of the ElementTree.write() class method
+        """
+        assert self._root is not None
+        if not hasattr(out_file, "write"):
+            out_file = open(out_file, "wb")
+        if not encoding:
+            encoding = "us-ascii"
+        if xml_declaration or (encoding not in ("us-ascii", "utf-8")):
+            out_file.write("<?xml version='1.0' encoding='%s'?>\n" % encoding)
+        self._write(out_file, self._root, encoding, {})
+
+    # Update the module
+    ElementTree.register_namespace = _register_namespace
+    ElementTree.fixtag = _fixtag
+    ElementTree.ElementTree.write = _write
 
 # ------------------------------------------------------------------------------
 
@@ -414,11 +465,7 @@ class EDEFWriter(object):
         tree = ElementTree.ElementTree(root)
 
         # Force the default name space
-        try:
-            ElementTree.register_namespace("", EDEF_NAMESPACE)
-        except AttributeError:
-            # Python 2.6 doesn't have the register_namespace method
-            ElementTree._namespace_map[EDEF_NAMESPACE] = ""
+        ElementTree.register_namespace("", EDEF_NAMESPACE)
 
         # Make the XML
         for encoding in ('unicode', 'UTF-8'):
