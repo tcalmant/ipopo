@@ -414,7 +414,11 @@ class EDEFWriter(object):
         tree = ElementTree.ElementTree(root)
 
         # Force the default name space
-        ElementTree.register_namespace("", EDEF_NAMESPACE)
+        try:
+            ElementTree.register_namespace("", EDEF_NAMESPACE)
+        except AttributeError:
+            # Python 2.6 doesn't have the register_namespace method
+            ElementTree._namespace_map[EDEF_NAMESPACE] = ""
 
         # Make the XML
         for encoding in ('unicode', 'UTF-8'):
