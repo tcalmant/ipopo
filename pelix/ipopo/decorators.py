@@ -678,7 +678,7 @@ class Provides(object):
                 filtered_specs.append(spec)
 
         # Store the service information
-        config = context.get_handler(self.HANDLER_ID, [])
+        config = context.set_handler_default(self.HANDLER_ID, [])
         config.append((filtered_specs, self.__controller))
 
         if self.__controller:
@@ -768,7 +768,7 @@ class Requires(object):
             return clazz
 
         # Store the requirement information
-        config = context.get_handler(self.HANDLER_ID, {})
+        config = context.set_handler_default(self.HANDLER_ID, {})
         config[self.__field] = self.__requirement
 
         # Inject the field
@@ -858,7 +858,7 @@ class RequiresMap(object):
             return clazz
 
         # Store the requirement information
-        config = context.get_handler(self.HANDLER_ID, {})
+        config = context.set_handler_default(self.HANDLER_ID, {})
         config[self.__field] = (self.__requirement,
                                 self.__key, self.__allow_none)
 

@@ -252,7 +252,8 @@ class StoredInstance(object):
             for handlers_list in self._handlers.values():
                 result.update(handlers_list)
 
-            return result
+            # Always return a list
+            return list(result)
 
 
     def check_lifecycle(self):

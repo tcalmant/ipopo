@@ -208,8 +208,14 @@ class _IPopoService(object):
                 self._handlers[handler_id] = self.__context.get_service(svc_ref)
 
                 # Try to instantiate waiting components
-                for context, instance in self.__waiting_handlers.values():
-                    self.__try_instantiate(context, instance)
+                succeeded = set()
+                for name, (context, instance) in self.__waiting_handlers.items():
+                    if self.__try_instantiate(context, instance):
+                        succeeded.add(name)
+
+                # Remove instantiated component from the waiting list
+                for name in succeeded:
+                    del self.__waiting_handlers[name]
 
 
     def __remove_handler_factory(self, svc_ref):
@@ -324,7 +330,8 @@ class _IPopoService(object):
 
         :param component_context: A ComponentContext bean
         :param instance: The component instance
-        :return: True if the component has started, else False
+        :return: True if the component has started,
+                 False if a handler is missing
         """
         with self.__instances_lock:
             # Extract information about the component
@@ -1125,12 +1132,10 @@ class _IPopoService(object):
                                         constants.HANDLER_PROVIDES,
                                         constants.HANDLER_REQUIRES))
 
-            if handlers:
-                result["handlers"] = dict((handler,
-                                           (copy.deepcopy(
-                                                 context.get_handler(handler)),
-                                            handler in self._handlers))
-                                          for handler in handlers)
+            handlers_dict = result["handlers"] = {}
+            for handler in handlers:
+                handlers_dict[handler] = copy.deepcopy(\
+                                                context.get_handler(handler))
 
             return result
 

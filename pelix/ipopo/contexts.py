@@ -366,6 +366,18 @@ class FactoryContext(object):
         :param default: The default configuration value
         :return: The existing configuration or the given default
         """
+        return self.__handlers.get(handler_id, default)
+
+
+    def set_handler_default(self, handler_id, default=None):
+        """
+        Retrieves the configuration associated to the given handler, creates
+        it the entry with the given value if necessary
+
+        :param handler_id: The ID of the configured handler
+        :param default: The default configuration value to store if none exists
+        :return: The existing configuration or the given default
+        """
         return self.__handlers.setdefault(handler_id, default)
 
 
