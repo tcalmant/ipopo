@@ -202,7 +202,7 @@ class IPopoWaitingList(object):
         :param factory: Factory name
         :param component: Component name
         :param properties: Component properties
-        :raise ValueError: Component name already taken
+        :raise ValueError: Component name already reserved in the queue
         :raise Exception: Error instantiating the component
         """
         with self.__lock:
@@ -248,10 +248,12 @@ class IPopoWaitingList(object):
 
             # Kill the component
             try:
-                self._ipopo.kill(component)
+                with use_ipopo(self.__context) as ipopo:
+                    # Try to instantiate the component right now
+                    ipopo.kill(component)
 
-            except KeyError:
-                # Component not running
+            except (BundleException, ValueError):
+                # iPOPO not yet started or component not instantiated
                 pass
 
 # ------------------------------------------------------------------------------
