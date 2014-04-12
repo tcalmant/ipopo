@@ -110,7 +110,7 @@ class InstallUtils(object):
             # Instantiate the discovery
             ipopo.add(rs.FACTORY_DISCOVERY_MQTT, "pelix-discovery-mqtt",
                       {"application.id": "sample.rs",
-                       "mqtt.host": "test.mosquitto.org"})
+                       "mqtt.host": "127.0.0.1"})
 
 
     def transport_jsonrpc(self):
@@ -142,6 +142,23 @@ class InstallUtils(object):
                       "pelix-jabsorbrpc-exporter")
             ipopo.add(rs.FACTORY_TRANSPORT_JABSORBRPC_IMPORTER,
                       "pelix-jabsorbrpc-importer")
+
+
+    def transport_mqttrpc(self):
+        """
+        Installs the MQTT-RPC transport bundles and instantiates components
+        """
+        # Install the bundle
+        self.context.install_bundle('pelix.remote.transport.mqtt_rpc').start()
+
+        with use_waiting_list(self.context) as ipopo:
+            # Instantiate the discovery
+            ipopo.add(rs.FACTORY_TRANSPORT_MQTTRPC_EXPORTER,
+                      "pelix-mqttrpc-exporter",
+                      {"mqtt.host": "127.0.0.1"})
+            ipopo.add(rs.FACTORY_TRANSPORT_MQTTRPC_IMPORTER,
+                      "pelix-mqttrpc-importer",
+                      {"mqtt.host": "127.0.0.1"})
 
 
     def transport_xmlrpc(self):

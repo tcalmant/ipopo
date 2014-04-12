@@ -64,6 +64,11 @@ FACTORY_TRANSPORT_JABSORBRPC_EXPORTER = "pelix-jabsorbrpc-exporter-factory"
 FACTORY_TRANSPORT_JABSORBRPC_IMPORTER = "pelix-jabsorbrpc-importer-factory"
 """ Name of the JABSORB-RPC importer component factory """
 
+FACTORY_TRANSPORT_MQTTRPC_EXPORTER = "pelix-mqttrpc-exporter-factory"
+""" Name of the MQTT-RPC exporter component factory """
+FACTORY_TRANSPORT_MQTTRPC_IMPORTER = "pelix-mqttrpc-importer-factory"
+""" Name of the MQTT-RPC importer component factory """
+
 #-------------------------------------------------------------------------------
 
 SERVICE_DISPATCHER = "pelix.remote.dispatcher"
