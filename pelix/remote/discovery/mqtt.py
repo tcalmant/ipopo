@@ -40,7 +40,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # MQTT client
-import paho.mqtt.client as paho
+import pelix.misc.mqtt_client
 
 # Pelix & Remote services
 import pelix.framework
@@ -54,7 +54,6 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
 
 # Standard library
 import logging
-import threading
 
 # ------------------------------------------------------------------------------
 
@@ -115,9 +114,6 @@ class MqttDiscovery(object):
         # MQTT client
         self.__mqtt = None
 
-        # Reconnection timer
-        self.__timer = threading.Timer(5, self.__reconnect)
-
         # Real prefix
         self._real_prefix = ""
 
@@ -138,7 +134,8 @@ class MqttDiscovery(object):
                                                 pelix.framework.FRAMEWORK_UID)
 
         # Create the MQTT client
-        self.__mqtt = paho.Client(self._framework_uid)
+        client_id = "pelix-discovery-{0}".format(self._framework_uid)
+        self.__mqtt = pelix.misc.mqtt_client.MqttClient(client_id)
 
         # Customize callbacks
         self.__mqtt.on_connect = self.__on_connect
@@ -146,17 +143,11 @@ class MqttDiscovery(object):
         self.__mqtt.on_message = self.__on_message
 
         # Prepare the will packet
-        self.__mqtt.will_set(self._make_topic(TOPIC_LOST),
+        self.__mqtt.set_will(self._make_topic(TOPIC_LOST),
                              self._framework_uid, qos=2)
 
         # Prepare the connection
-        self.__mqtt.connect_async(self._host, self._port)
-
-        # Start the MQTT loop
-        self.__mqtt.loop_start()
-
-        # Try to connect the server
-        self.__reconnect()
+        self.__mqtt.connect(self._host, self._port)
 
 
     @Invalidate
@@ -164,11 +155,6 @@ class MqttDiscovery(object):
         """
         Component invalidated
         """
-        # Stop the timer
-        if self.__timer is not None:
-            self.__timer.cancel()
-            self.__timer = None
-
         # Disconnect from the server (this stops the loop)
         self.__mqtt.disconnect()
 
@@ -187,58 +173,13 @@ class MqttDiscovery(object):
         return "{0}/{1}".format(self._real_prefix, event)
 
 
-    def __stop_timer(self):
-        """
-        Stops the reconnection timer, if any
-        """
-        if self.__timer is not None:
-            self.__timer.cancel()
-            self.__timer = None
-
-
-    def __reconnect(self):
-        """
-        Tries to connect to the MQTT server
-        """
-        # Cancel the timer, if any
-        self.__stop_timer()
-
-        try:
-            # Try to reconnect the server
-            rc = self.__mqtt.reconnect()
-            if rc:
-                # Something wrong happened
-                _logger.error("Error connecting the MQTT server: %s (%s)",
-                              rc, CONNECT_RC[rc])
-                raise ValueError("MQTT protocol error: {0}".format(rc))
-
-            else:
-                _logger.info("Connection without error")
-
-        except Exception as ex:
-            _logger.error("Exception connecting server: %s", ex)
-
-            # Error connecting the server, try again later
-            self.__timer = threading.Timer(10, self.__reconnect)
-            self.__timer.start()
-
-
-    def __on_connect(self, client, obj, rc):
+    def __on_connect(self, client, rc):
         """
         Client connected to the server
         """
-        if rc:
-            # rc != 0: something wrong happened
-            _logger.error("Error connecting the MQTT server: %s",
-                          CONNECT_RC[rc])
-
-        else:
-            # Connection is OK: stop the reconnection timer, if any
-            # (reconnected by the Paho client loop)
-            self.__stop_timer()
-
-            # Connection is OK, subscribe to the topic (QoS 2 - Exactly Once)
-            client.subscribe(self._make_topic("#"), qos=2)
+        if not rc:
+            # Connection is OK, subscribe to the topic
+            client.subscribe(self._make_topic("#"))
 
             # Provide the service
             self._controller = True
@@ -249,37 +190,20 @@ class MqttDiscovery(object):
                                 self._framework_uid)
 
 
-    def __on_disconnect(self, client, obj, rc):
+    def __on_disconnect(self, client, rc):
         """
         Client has been disconnected from the server
         """
         # Disconnected: stop providing the service
         self._controller = False
 
-        if rc:
-            # rc != 0: unexpected disconnection
-            _logger.error("Unexpected disconnection from the MQTT server: %s",
-                          rc)
 
-            # Try to reconnect
-            # Cancel the timer, if any
-            self.__stop_timer()
-
-            # Start a new one
-            self.__timer = threading.Timer(2, self.__reconnect)
-            self.__timer.start()
-
-        else:
-            _logger.info("Disconnected from the MQTT server")
-
-
-    def __on_message(self, client, obj, msg):
+    def __on_message(self, client, msg):
         """
         A message has been received from a server
 
         :param client: Client that received the message
-        :param obj: *Unused*
-        :param msg: A Message bean
+        :param msg: A MQTTMessage bean
         """
         try:
             # Get the topic
@@ -318,8 +242,6 @@ class MqttDiscovery(object):
         # Parse the endpoints
         endpoints_descr = EDEFReader().parse(payload)
         endpoints = [endpoint.to_import() for endpoint in endpoints_descr]
-
-        _logger.debug("Handle ADD")
 
         # Notify the import registry
         for endpoint in endpoints:
@@ -366,8 +288,6 @@ class MqttDiscovery(object):
         if not endpoints:
             # Nothing to say
             return
-
-        _logger.debug("Sending DISCOVERED")
 
         # Convert the beans to XML (EDEF format)
         xml_string = EDEFWriter().to_string(
