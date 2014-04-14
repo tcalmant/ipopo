@@ -184,7 +184,6 @@ class MqttDiscovery(object):
 
             # Provide the service
             self._controller = True
-            _logger.info("Connected to the MQTT server")
 
             # Send a discovery packet
             self.__send_message(self._make_topic(EVENT_DISCOVER),

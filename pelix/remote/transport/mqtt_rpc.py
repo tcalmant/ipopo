@@ -32,7 +32,6 @@ Eclipse Foundation: see http://www.eclipse.org/paho
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from pprint import pformat
 
 # Module version
 __version_info__ = (0, 1, 0)
@@ -254,7 +253,6 @@ class MqttRpcServiceExporter(object):
                 return
         except KeyError:
             # Not sent by us
-            _logger.info("Got message: %s", pformat(msg.payload))
             pass
 
         # Handle the request in a different thread
@@ -289,7 +287,6 @@ class MqttRpcServiceExporter(object):
         else:
             try:
                 # Call the service
-                _logger.debug("Calling method: %s", method)
                 result[KEY_DATA] = self._dispatch(method, params)
 
             except Exception as ex:
