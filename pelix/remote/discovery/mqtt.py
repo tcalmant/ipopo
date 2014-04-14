@@ -43,10 +43,10 @@ __docformat__ = "restructuredtext en"
 import pelix.misc.mqtt_client
 
 # Pelix & Remote services
-import pelix.framework
+from pelix.remote.edef_io import EDEFWriter, EDEFReader
+import pelix.constants as constants
 import pelix.remote
 import pelix.remote.beans as beans
-from pelix.remote.edef_io import EDEFWriter, EDEFReader
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
@@ -130,8 +130,7 @@ class MqttDiscovery(object):
         self._real_prefix = self._real_prefix.replace("//", "/")
 
         # Get the framework UID
-        self._framework_uid = context.get_property(\
-                                                pelix.framework.FRAMEWORK_UID)
+        self._framework_uid = context.get_property(constants.FRAMEWORK_UID)
 
         # Create the MQTT client
         client_id = "pelix-discovery-{0}".format(self._framework_uid)

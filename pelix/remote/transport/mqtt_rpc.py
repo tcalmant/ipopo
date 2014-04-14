@@ -48,7 +48,7 @@ import pelix.misc.mqtt_client
 
 # Pelix & Remote services
 from pelix.remote import RemoteServiceError
-import pelix.framework
+import pelix.constants as constants
 import pelix.remote
 
 # iPOPO decorators
@@ -150,8 +150,7 @@ class MqttRpcServiceExporter(object):
         self._context = context
 
         # Get the framework UID
-        self._framework_uid = context.get_property(\
-                                                pelix.framework.FRAMEWORK_UID)
+        self._framework_uid = context.get_property(constants.FRAMEWORK_UID)
 
         # Format the topic prefix
         self.__real_topic = self._topic.format(fw_uid=self._framework_uid)
