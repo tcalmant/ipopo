@@ -67,11 +67,13 @@ CONNECT_RC = {0: "Success",
               4: "Refused - bad user name or password (MQTT v3.1 broker only)",
               5: "Refused - not authorized (MQTT v3.1 broker only)"}
 
-TOPIC_ADD = "add"
-TOPIC_UPDATE = "update"
-TOPIC_REMOVE = "remove"
-TOPIC_LOST = "lost"
-TOPIC_DISCOVER = "discover"
+EVENT_ADD = "add"
+EVENT_UPDATE = "update"
+EVENT_REMOVE = "remove"
+EVENT_LOST = "lost"
+EVENT_DISCOVER = "discover"
+
+ENDPOINT_EVENTS = (EVENT_ADD, EVENT_UPDATE, EVENT_REMOVE)
 
 # ------------------------------------------------------------------------------
 
@@ -142,7 +144,7 @@ class MqttDiscovery(object):
         self.__mqtt.on_message = self.__on_message
 
         # Prepare the will packet
-        self.__mqtt.set_will(self._make_topic(TOPIC_LOST),
+        self.__mqtt.set_will(self._make_topic(EVENT_LOST),
                              self._framework_uid, qos=2)
 
         # Prepare the connection
@@ -185,7 +187,7 @@ class MqttDiscovery(object):
             _logger.info("Connected to the MQTT server")
 
             # Send a discovery packet
-            self.__send_message(self._make_topic(TOPIC_DISCOVER),
+            self.__send_message(self._make_topic(EVENT_DISCOVER),
                                 self._framework_uid)
 
 
@@ -211,8 +213,29 @@ class MqttDiscovery(object):
             # Extract the event
             event = topic.rsplit("/", 1)[1]
 
+            if event in ENDPOINT_EVENTS:
+                # Parse the endpoints (from EDEF XML to ImportEndpoint)
+                endpoints_descr = EDEFReader().parse(msg.payload)
+                endpoints = [endpoint.to_import()
+                             for endpoint in endpoints_descr]
+
+                if not endpoints:
+                    # No enpoints to read
+                    return
+
+                if endpoints[0].framework == self._framework_uid:
+                    # Loopback message
+                    return
+
+                # Give the list of endpoints to the handler
+                parameter = endpoints
+
+            else:
+                # Give the payload as is to other event handlers
+                parameter = msg.payload
+
             try:
-                getattr(self, "_handle_{0}".format(event))(msg.payload)
+                getattr(self, "_handle_{0}".format(event))(parameter)
             except AttributeError:
                 _logger.error("Unhandled MQTT event: %s", event)
 
@@ -232,44 +255,37 @@ class MqttDiscovery(object):
         self.__mqtt.publish(topic, payload, qos=2)
 
 
-    def _handle_add(self, payload):
+    def _handle_add(self, endpoints):
         """
         A set of endpoints have been registered
 
-        :param payload: An EDEF XML
+        :param endpoints: Parsed ImportEndpoint beans
         """
-        # Parse the endpoints
-        endpoints_descr = EDEFReader().parse(payload)
-        endpoints = [endpoint.to_import() for endpoint in endpoints_descr]
-
         # Notify the import registry
         for endpoint in endpoints:
             self._registry.add(endpoint)
 
 
-    def _handle_update(self, payload):
+    def _handle_update(self, endpoints):
         """
         A set of endpoints have been updated
 
-        :param payload: An EDEF XML
+        :param endpoints: Parsed ImportEndpoint beans
         """
-        # Parse the endpoints
-        endpoints_descr = EDEFReader().parse(payload)
-        endpoints = [endpoint.to_import() for endpoint in endpoints_descr]
-
         # Notify the import registry
         for endpoint in endpoints:
             self._registry.update(endpoint.uid, endpoint.properties)
 
 
-    def _handle_remove(self, payload):
+    def _handle_remove(self, endpoints):
         """
-        An endpoint has been removed
+        A set of endpoints has been removed
 
-        :param payload: The UID of the endpoint
+        :param endpoints: Parsed ImportEndpoint beans
         """
-        # Endpoint removed
-        self._registry.remove(payload)
+        # Notify the import registry
+        for endpoint in endpoints:
+            self._registry.remove(endpoint.uid)
 
 
     def _handle_discover(self, payload):
@@ -294,7 +310,7 @@ class MqttDiscovery(object):
                                 for endpoint in endpoints)
 
         # Send the message
-        self.__send_message(self._make_topic(TOPIC_ADD), xml_string)
+        self.__send_message(self._make_topic(EVENT_ADD), xml_string)
 
 
     def _handle_lost(self, payload):
@@ -318,7 +334,7 @@ class MqttDiscovery(object):
                                 for endpoint in endpoints)
 
         # Send the message
-        self.__send_message(self._make_topic(TOPIC_ADD), xml_string)
+        self.__send_message(self._make_topic(EVENT_ADD), xml_string)
 
 
     def endpoint_updated(self, endpoint, old_properties):
@@ -332,12 +348,18 @@ class MqttDiscovery(object):
         xml_string = EDEFWriter().to_string([endpoint_desc])
 
         # Send the message
-        self.__send_message(self._make_topic(TOPIC_UPDATE), xml_string)
+        self.__send_message(self._make_topic(EVENT_UPDATE), xml_string)
 
 
     def endpoint_removed(self, endpoint):
         """
         An end point is removed
         """
-        # Only send the UID here
-        self.__send_message(self._make_topic(TOPIC_REMOVE), endpoint.uid)
+        # Convert the endpoint into an EndpointDescription bean
+        endpoint_desc = beans.EndpointDescription.from_export(endpoint)
+
+        # Convert the bean to XML (EDEF format)
+        xml_string = EDEFWriter().to_string([endpoint_desc])
+
+        # Send the message
+        self.__send_message(self._make_topic(EVENT_REMOVE), xml_string)
