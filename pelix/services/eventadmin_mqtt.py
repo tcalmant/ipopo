@@ -7,7 +7,7 @@ MQTT
 :author: Thomas Calmant
 :copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.1
+:version: 0.2
 :status: Beta
 
 ..
@@ -28,7 +28,7 @@ MQTT
 """
 
 # Module version
-__version_info__ = (0, 1, 0)
+__version_info__ = (0, 2, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -38,9 +38,10 @@ __docformat__ = "restructuredtext en"
 
 # Pelix
 from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
-    Validate, Invalidate, Requires, Instantiate
+    Validate, Invalidate, Requires
 from pelix.utilities import to_str
 import pelix.constants as constants
+import pelix.misc.mqtt_client
 import pelix.services as services
 
 # Standard library
@@ -63,14 +64,12 @@ EVENT_PROP_STARTING_SLASH = 'pelix.eventadmin.mqtt.start_slash'
 #-------------------------------------------------------------------------------
 
 @ComponentFactory(services.FACTORY_EVENT_ADMIN_MQTT)
-@Provides((services.SERVICE_MQTT_LISTENER,
-           services.SERVICE_EVENT_HANDLER))
+@Provides(services.SERVICE_EVENT_HANDLER)
 @Requires('_event', services.SERVICE_EVENT_ADMIN)
-@Requires('_mqtt', services.SERVICE_MQTT_CONNECTOR_FACTORY)
-@Property('_mqtt_topic', 'mqtt.bridge.topic', DEFAULT_MQTT_TOPIC)
 @Property('_event_topics', services.PROP_EVENT_TOPICS, '*')
-@Property('_mqtt_topics', services.PROP_MQTT_TOPICS)
-@Instantiate('pelix-eventadmin-mqtt')
+@Property("_host", "mqtt.host", "localhost")
+@Property("_port", "mqtt.port", 1883)
+@Property('_mqtt_topic', 'mqtt.topic.prefix', DEFAULT_MQTT_TOPIC)
 class MqttEventAdminBridge(object):
     """
     The EventAdmin MQTT bridge
@@ -79,18 +78,17 @@ class MqttEventAdminBridge(object):
         """
         Sets up the members
         """
-        # Component configuration: MQTT topic prefix
+        # MQTT configuration
+        self._host = "localhost"
+        self._port = 1883
         self._mqtt_topic = None
 
-        # Topics service properties
-        self._mqtt_topics = None
-        self._event_topics = None
+        # MQTT Client
+        self._mqtt = None
 
         # EventAdmin
         self._event = None
-
-        # MQTT Connection factory
-        self._mqtt = None
+        self._event_topics = None
 
         # Framework UID
         self._framework_uid = None
@@ -108,12 +106,21 @@ class MqttEventAdminBridge(object):
             # No topic given, use the default one
             self._mqtt_topic = DEFAULT_MQTT_TOPIC
 
-        if self._mqtt_topic[-1] != '/':
-            # End the topic with a '/'
-            self._mqtt_topic += '/'
+        if self._mqtt_topic[-1] == '/':
+            # Remove trailing slash
+            self._mqtt_topic = self._mqtt_topic[:-1]
 
-        # Setup the MQTT topics filter
-        self._mqtt_topics = [self._mqtt_topic + '#']
+        # Create the MQTT client
+        client_id = "pelix-eventadmin-{0}".format(self._framework_uid)
+        self._mqtt = pelix.misc.mqtt_client.MqttClient(client_id)
+
+        # Customize callbacks
+        self._mqtt.on_connect = self.__on_connect
+        self._mqtt.on_disconnect = self.__on_disconnect
+        self._mqtt.on_message = self.__on_message
+
+        # Prepare the connection
+        self._mqtt.connect(self._host, self._port)
 
 
     @Invalidate
@@ -121,8 +128,57 @@ class MqttEventAdminBridge(object):
         """
         Component invalidated
         """
+        # Disconnect from the server (this stops the loop)
+        self._mqtt.disconnect()
+
+        # Clean up
         self._framework_uid = None
-        self._mqtt_topics = None
+        self._mqtt = None
+
+
+    def _make_topic(self, suffix):
+        """
+        Prepares a MQTT topic with the given suffix
+
+        :param suffix: Suffix to the MQTT bridge topic
+        :return: A MQTT topic
+        """
+        return "{0}/{1}".format(self._mqtt_topic, suffix)
+
+
+    def __on_connect(self, client, rc):
+        """
+        Client connected to the server
+        """
+        if not rc:
+            # Connection is OK, subscribe to the topic
+            client.subscribe(self._make_topic("#"))
+
+            # Provide the service
+            self._controller = True
+
+
+    def __on_disconnect(self, client, rc):
+        """
+        Client has been disconnected from the server
+        """
+        # Disconnected: stop providing the service
+        self._controller = False
+
+
+    def __on_message(self, client, msg):
+        """
+        A message has been received from a server
+
+        :param client: Client that received the message
+        :param msg: A MQTTMessage bean
+        """
+        try:
+            self.handle_mqtt_message(msg.topic, msg.payload)
+
+        except Exception as ex:
+            _logger.exception("Error handling an MQTT EventAdmin message: %s",
+                              ex)
 
 
     def handle_event(self, topic, properties):
@@ -136,8 +192,8 @@ class MqttEventAdminBridge(object):
 
         elif services.EVENT_PROP_PROPAGATE not in properties:
             # Propagation flag is not set, ignore
+            _logger.warning("No propagate")
             return
-
 
         # Remove starting '/' in the event, and set up the flag
         if topic[0] == '/':
@@ -145,24 +201,22 @@ class MqttEventAdminBridge(object):
             properties[EVENT_PROP_STARTING_SLASH] = True
 
         # Prepare MQTT data
-        mqtt_topic = '{0}{1}'.format(self._mqtt_topic, topic)
+        mqtt_topic = self._make_topic(topic)
         payload = json.dumps(properties)
 
-        # Publish the event to everybody, with default QOS
-        self._mqtt.publish(mqtt_topic, payload)
+        # Publish the event to everybody, with QOS 2
+        self._mqtt.publish(mqtt_topic, payload, qos=2)
 
 
-    def handle_mqtt_message(self, mqtt_topic, payload, qos):
+    def handle_mqtt_message(self, mqtt_topic, payload):
         """
         An MQTT message has been received
-        """
-        # Compute the EventAdmin topic
-        if not mqtt_topic.startswith(self._mqtt_topic):
-            # Not a valid EventAdmin topic
-            _logger.debug("Ignoring MQTT topic: %s", mqtt_topic)
-            return
 
-        evt_topic = mqtt_topic[len(self._mqtt_topic):]
+        :param mqtt_topic: MQTT message topic
+        :param payload: Payload of the message
+        """
+        # +1 to ignore the joining slash (prefix => prefix/)
+        evt_topic = mqtt_topic[len(self._mqtt_topic) + 1:]
         if not evt_topic:
             # Empty EventAdmin topic
             _logger.debug("Empty EventAdmin topic: %s", mqtt_topic)
