@@ -46,6 +46,7 @@ __docformat__ = "restructuredtext en"
 import pelix.misc.mqtt_client
 
 # Pelix & Remote services
+from pelix.utilities import to_str
 from pelix.remote import RemoteServiceError
 import pelix.constants as constants
 import pelix.remote
@@ -241,7 +242,7 @@ class MqttRpcServiceExporter(object):
         """
         try:
             # Parse the message
-            data = json.loads(msg.payload)
+            data = json.loads(to_str(msg.payload))
 
         except ValueError as ex:
             # Bad content
@@ -614,7 +615,7 @@ class MqttRpcServiceImporter(object):
         """
         try:
             # Parse data
-            data = json.loads(msg.payload)
+            data = json.loads(to_str(msg.payload))
 
             # Check if we are the sender
             try:
