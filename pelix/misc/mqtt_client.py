@@ -91,6 +91,9 @@ class MqttClient(object):
         # Reconnection timer
         self.__timer = threading.Timer(5, self.__reconnect)
 
+        # Publication events
+        self.__in_flight = {}
+
         # MQTT client
         self.__mqtt = paho.Client(self._client_id)
 
@@ -98,6 +101,7 @@ class MqttClient(object):
         self.__mqtt.on_connect = self.__on_connect
         self.__mqtt.on_disconnect = self.__on_disconnect
         self.__mqtt.on_message = self.__on_message
+        self.__mqtt.on_publish = self.__on_publish
 
         # User callbacks
         self.on_connect = None
@@ -192,11 +196,16 @@ class MqttClient(object):
         # Stop the timer
         self.__stop_timer()
 
+        # Unlock all publishers
+        for event in self.__in_flight.values():
+            event.set()
+
+
         # Disconnect from the server (this stops the loop)
         self.__mqtt.disconnect()
 
 
-    def publish(self, topic, payload, qos=0, retain=False):
+    def publish(self, topic, payload, qos=0, retain=False, wait=False):
         """
         Sends a message through the MQTT connection
 
@@ -204,10 +213,28 @@ class MqttClient(object):
         :param payload: Message content
         :param qos: Quality of Service
         :param retain: Retain flag
+        :param wait: If True, prepares an event to wait for the message to be
+                     published
         :return: The local message ID, None on error
         """
         result = self.__mqtt.publish(topic, payload, qos, retain)
+        if wait and not result[0]:
+            # Publish packet sent, wait for it to return
+            self.__in_flight[result[1]] = threading.Event()
+            _logger.debug("Waiting for publication of %s", topic)
+
         return result[1]
+
+
+    def wait_publication(self, mid, timeout=None):
+        """
+        Wait for a publication to be validated
+
+        :param mid: Local message ID (result of publish)
+        :param timeout: Wait timeout (in seconds)
+        :raise KeyError: Unknown waiting local message ID
+        """
+        self.__in_flight[mid].wait(timeout)
 
 
     def subscribe(self, topic, qos=0):
@@ -344,3 +371,17 @@ class MqttClient(object):
 
             except Exception as ex:
                 _logger.exception("Error notifying MQTT listener: %s", ex)
+
+
+    def __on_publish(self, client, userdata, mid):
+        """
+        A message has been published by a server
+
+        :param client: Client that received the message
+        :param obj: *Unused*
+        :param mid: Message ID
+        """
+        try:
+            self.__in_flight[mid].set()
+        except KeyError:
+            pass
