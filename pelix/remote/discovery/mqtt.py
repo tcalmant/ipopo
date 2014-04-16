@@ -135,8 +135,7 @@ class MqttDiscovery(object):
         self._framework_uid = context.get_property(constants.FRAMEWORK_UID)
 
         # Create the MQTT client
-        client_id = "pelix-discovery-{0}".format(self._framework_uid)
-        self.__mqtt = pelix.misc.mqtt_client.MqttClient(client_id)
+        self.__mqtt = pelix.misc.mqtt_client.MqttClient()
 
         # Customize callbacks
         self.__mqtt.on_connect = self.__on_connect

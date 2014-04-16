@@ -159,8 +159,7 @@ class MqttRpcServiceExporter(object):
         self.__reply_topic = make_topic(self.__real_topic, TOPIC_RESPONSE)
 
         # Create the MQTT client
-        client_id = "pelix-mqttrpc-exporter-{0}".format(self._framework_uid)
-        self.__mqtt = pelix.misc.mqtt_client.MqttClient(client_id)
+        self.__mqtt = pelix.misc.mqtt_client.MqttClient()
 
         # Customize callbacks
         self.__mqtt.on_connect = self.__on_connect
@@ -660,12 +659,10 @@ class MqttRpcServiceImporter(object):
         self._context = context
 
         # Get the framework UID
-        self._framework_uid = context.get_property(\
-                                                pelix.framework.FRAMEWORK_UID)
+        self._framework_uid = context.get_property(constants.FRAMEWORK_UID)
 
         # Create the MQTT client
-        client_id = "pelix-mqttrpc-importer-{0}".format(self._framework_uid)
-        self.__mqtt = pelix.misc.mqtt_client.MqttClient(client_id)
+        self.__mqtt = pelix.misc.mqtt_client.MqttClient()
 
         # Customize callbacks
         self.__mqtt.on_message = self.__on_message
