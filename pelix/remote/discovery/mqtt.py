@@ -59,14 +59,6 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
-# Result codes from MQTT
-CONNECT_RC = {0: "Success",
-              1: "Refused - unacceptable protocol version",
-              2: "Refused - identifier rejected",
-              3: "Refused - server unavailable",
-              4: "Refused - bad user name or password (MQTT v3.1 broker only)",
-              5: "Refused - not authorized (MQTT v3.1 broker only)"}
-
 EVENT_ADD = "add"
 EVENT_UPDATE = "update"
 EVENT_REMOVE = "remove"
