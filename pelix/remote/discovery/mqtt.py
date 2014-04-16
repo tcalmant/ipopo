@@ -147,6 +147,10 @@ class MqttDiscovery(object):
         """
         Component invalidated
         """
+        # Send the "lost" message
+        mid = self.__send_message(EVENT_LOST, self._framework_uid, True)
+        self.__mqtt.wait_publication(mid)
+
         # Disconnect from the server (this stops the loop)
         self.__mqtt.disconnect()
 
@@ -177,8 +181,7 @@ class MqttDiscovery(object):
             self._controller = True
 
             # Send a discovery packet
-            self.__send_message(self._make_topic(EVENT_DISCOVER),
-                                self._framework_uid)
+            self.__send_message(EVENT_DISCOVER, self._framework_uid)
 
 
     def __on_disconnect(self, client, rc):
@@ -234,15 +237,17 @@ class MqttDiscovery(object):
                               topic, ex)
 
 
-    def __send_message(self, topic, payload):
+    def __send_message(self, event, payload, wait=False):
         """
         Sends a message through the MQTT connection
 
-        :param topic: Message topic
+        :param event: Remote service event name
         :param payload: Message content
+        :return: The local message ID
         """
         # Publish the MQTT message (QoS 2 - Exactly Once)
-        self.__mqtt.publish(topic, payload, qos=2)
+        return self.__mqtt.publish(self._make_topic(event), payload, qos=2,
+                                   wait=wait)
 
 
     def _handle_add(self, endpoints):
@@ -300,7 +305,7 @@ class MqttDiscovery(object):
                                 for endpoint in endpoints)
 
         # Send the message
-        self.__send_message(self._make_topic(EVENT_ADD), xml_string)
+        self.__send_message(EVENT_ADD, xml_string)
 
 
     def _handle_lost(self, payload):
@@ -324,7 +329,7 @@ class MqttDiscovery(object):
                                 for endpoint in endpoints)
 
         # Send the message
-        self.__send_message(self._make_topic(EVENT_ADD), xml_string)
+        self.__send_message(EVENT_ADD, xml_string)
 
 
     def endpoint_updated(self, endpoint, old_properties):
@@ -338,7 +343,7 @@ class MqttDiscovery(object):
         xml_string = EDEFWriter().to_string([endpoint_desc])
 
         # Send the message
-        self.__send_message(self._make_topic(EVENT_UPDATE), xml_string)
+        self.__send_message(EVENT_UPDATE, xml_string)
 
 
     def endpoint_removed(self, endpoint):
@@ -352,4 +357,4 @@ class MqttDiscovery(object):
         xml_string = EDEFWriter().to_string([endpoint_desc])
 
         # Send the message
-        self.__send_message(self._make_topic(EVENT_REMOVE), xml_string)
+        self.__send_message(EVENT_REMOVE, xml_string)
