@@ -392,15 +392,17 @@ class _MqttCallableProxy(object):
     """
     Callable object that makes the real request to the MQTT server
     """
-    def __init__(self, topic, method, publish_method):
+    def __init__(self, uid, topic, method, publish_method):
         """
         Stores parameters
 
+        :param uid: Endpoint UID
         :param topic: Endpoint topic
         :param method: Name of the method to call
         :param publish_method: Method to call to publish the request message
         """
         # Local information
+        self.__uid = uid
         self.__topic = topic
         self.__method_name = method
         self.__publish = publish_method
@@ -420,9 +422,10 @@ class _MqttCallableProxy(object):
         :param result: Call result
         :param error: Error message
         """
-        # Store results
-        self._error = error
-        self._result = result
+        if not self._error and not self._result:
+            # Store results, if not already set
+            self._error = error
+            self._result = result
 
         # Unlock the call
         self._event.set()
@@ -438,11 +441,10 @@ class _MqttCallableProxy(object):
             request.extend(args)
 
         # Keyword arguments are ignores
-        self.__publish(self, self.__topic, request)
+        self.__publish(self.__uid, self, self.__topic, request)
 
         # Wait for an answer
         self._event.wait()
-        self._event = None
 
         # Act accordingly
         if self._error:
@@ -456,14 +458,16 @@ class _ServiceCallProxy(object):
     """
     Service call proxy
     """
-    def __init__(self, name, topic_prefix, publish_method):
+    def __init__(self, uid, name, topic_prefix, publish_method):
         """
         Sets up the call proxy
 
+        :param uid: End point UID
         :param name: End point name
         :param topic_prefix: Prefix for MQTT topics
         :param publish_method: Method to call to publish the request message
         """
+        self.__uid = uid
         self.__name = name
         self.__topic_prefix = topic_prefix
         self.__publish = publish_method
@@ -477,7 +481,7 @@ class _ServiceCallProxy(object):
         # This is an ugly trick to handle multi-threaded calls, as the
         # underlying proxy re-uses the same connection when possible: sometimes
         # it means sending a request before retrieving a result
-        return _MqttCallableProxy(self.__topic_prefix,
+        return _MqttCallableProxy(self.__uid, self.__topic_prefix,
                                   "{0}.{1}".format(self.__name, name),
                                   self.__publish)
 
@@ -515,6 +519,9 @@ class MqttRpcServiceImporter(object):
         # Proxies waiting for an answer (correlation ID -> _MqttCallableProxy)
         self.__waiting = {}
 
+        # Endpoints in use: Endpoint UID -> _MqttCallableProxy
+        self.__waiting_endpoints = {}
+
         # Registered services (endpoint UID -> ServiceReference)
         self.__registrations = {}
 
@@ -536,7 +543,7 @@ class MqttRpcServiceImporter(object):
             return
 
         # Register the service
-        svc = _ServiceCallProxy(endpoint.name, topic_prefix,
+        svc = _ServiceCallProxy(endpoint.uid, endpoint.name, topic_prefix,
                                 self.__send_request)
         svc_reg = self._context.register_service(endpoint.specifications, svc,
                                                  endpoint.properties)
@@ -571,10 +578,25 @@ class MqttRpcServiceImporter(object):
             # Unknown end point
             return
 
+        try:
+            # Free waiting calls
+            for proxy in self.__waiting_endpoints.pop(endpoint.uid):
+                proxy.handle_result(None, "Endpoint removed")
 
-    def __send_request(self, proxy, topic_prefix, request_parameters):
+        except KeyError:
+            # Unused endpoint
+            return
+
+
+    def __send_request(self, endpoint_uid, proxy, topic_prefix,
+                       request_parameters):
         """
         Sends a request to the given topic
+
+        :param endpoint_uid: Endpoint UID
+        :param proxy: Callable proxy to notify on response
+        :param topic_prefix: Prefix of MQTT topics to use
+        :param request_parameters: Call parameters
         """
         # Prepare the correlation ID
         correlation_id = str(uuid.uuid4())
@@ -591,6 +613,7 @@ class MqttRpcServiceImporter(object):
 
         # Keep the callable in the waiting list
         self.__waiting[correlation_id] = proxy
+        self.__waiting_endpoints.setdefault(endpoint_uid, set()).add(proxy)
 
         # Subscribe to the reply
         self.__mqtt.subscribe(make_topic(topic_prefix, TOPIC_RESPONSE))
