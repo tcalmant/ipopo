@@ -44,8 +44,9 @@ import paho.mqtt.client as paho
 
 # Standard library
 import logging
+import os
+import sys
 import threading
-import uuid
 
 # ------------------------------------------------------------------------------
 
@@ -70,12 +71,28 @@ class MqttClient(object):
         Sets up members
 
         :param client_id: ID of the MQTT client
+        :raise ValueError: Too long client ID (between 1 and 23 characters)
         """
+        # No ID
+        if not client_id:
+            # Randomize client ID
+            self._client_id = self.generate_id()
+
+        elif len(client_id) > 23:
+            # ID too large
+            _logger.warning("MQTT Client ID '%s' is too long (23 chars max): "
+                            "generating a random one", client_id)
+            self._client_id = self.generate_id()
+
+        else:
+            # Keep the ID as is
+            self._client_id = client_id
+
         # Reconnection timer
         self.__timer = threading.Timer(5, self.__reconnect)
 
         # MQTT client
-        self.__mqtt = paho.Client(client_id or str(uuid.uuid4()))
+        self.__mqtt = paho.Client(self._client_id)
 
         # Paho callbacks
         self.__mqtt.on_connect = self.__on_connect
@@ -86,6 +103,54 @@ class MqttClient(object):
         self.on_connect = None
         self.on_disconnect = None
         self.on_message = None
+
+
+    @classmethod
+    def generate_id(cls, prefix="pelix-"):
+        """
+        Generates a random MQTT client ID
+
+        :param prefix: Client ID prefix (truncated to 8 chars)
+        :return: A client ID of 22 or 23 characters
+        """
+        if not prefix:
+            # Normalize string
+            prefix = ""
+        else:
+            # Truncate long prefixes
+            prefix = prefix[:8]
+
+        # Prepare the missing part
+        nb_bytes = (23 - len(prefix)) // 2
+
+        random_bytes = os.urandom(nb_bytes)
+        if sys.version_info[0] >= 3:
+            random_ints = [char for char in random_bytes]
+        else:
+            random_ints = [ord(char) for char in random_bytes]
+
+        random_id = ''.join('{0:02x}'.format(value) for value in random_ints)
+        return "{0}{1}".format(prefix, random_id)
+
+
+    @property
+    def client_id(self):
+        """
+        Returns the ID of this MQTT client
+
+        :return: The MQTT client ID
+        """
+        return self._client_id
+
+
+    def set_credentials(self, username, password):
+        """
+        Sets the user name and password to be authenticated on the server
+
+        :param username: Client username
+        :param password: Client password
+        """
+        self.__mqtt.username_pw_set(username, password)
 
 
     def set_will(self, topic, payload, qos=0, retain=False):
@@ -166,6 +231,16 @@ class MqttClient(object):
         self.__mqtt.unsubscribe(topic)
 
 
+    def __start_time(self, delay):
+        """
+        Starts the reconnection timer
+
+        :param delay: Delay (in seconds) before calling the reconnection method
+        """
+        self.__timer = threading.Timer(delay, self.__reconnect)
+        self.__timer.start()
+
+
     def __stop_timer(self):
         """
         Stops the reconnection timer, if any
@@ -191,15 +266,14 @@ class MqttClient(object):
                               rc, CONNECT_RC[rc])
                 raise ValueError("MQTT protocol error: {0}".format(rc))
 
-            else:
-                _logger.info("Connection without error")
-
         except Exception as ex:
+            # Something went wrong: log it
             _logger.error("Exception connecting server: %s", ex)
 
-            # Error connecting the server, try again later
-            self.__timer = threading.Timer(10, self.__reconnect)
-            self.__timer.start()
+        finally:
+            # Prepare a reconnection timer. It will be cancelled by the
+            # on_connect callback
+            self.__start_time(10)
 
 
     def __on_connect(self, client, obj, rc):
@@ -243,8 +317,7 @@ class MqttClient(object):
 
             # Try to reconnect
             self.__stop_timer()
-            self.__timer = threading.Timer(2, self.__reconnect)
-            self.__timer.start()
+            self.__start_time(2)
 
         # Notify the caller, if any
         if self.on_disconnect is not None:
