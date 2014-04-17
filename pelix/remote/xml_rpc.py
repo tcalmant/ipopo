@@ -6,14 +6,14 @@ Pelix remote services: XML-RPC implementation
 Based on standard package xmlrpclib
 
 :author: Thomas Calmant
-:copyright: Copyright 2013, isandlaTech
+:copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.1.2
+:version: 0.2
 :status: Beta
 
 ..
 
-    Copyright 2013 isandlaTech
+    Copyright 2014 isandlaTech
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -26,13 +26,10 @@ Based on standard package xmlrpclib
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-
-**TODO:**
-* "system" methods (list, help, ...)
 """
 
 # Module version
-__version_info__ = (0, 1, 2)
+__version_info__ = (0, 2, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -45,14 +42,13 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Validate, \
     Invalidate, Property, Provides
 
 # Pelix constants
-import pelix.http
-import pelix.remote.beans
-from pelix.remote import RemoteServiceError
 from pelix.utilities import to_str
+import pelix.http
+import pelix.remote
+import pelix.remote.transport.commons as commons
 
 # Standard library
 import logging
-import uuid
 
 # XML RPC modules
 try:
@@ -134,7 +130,7 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher):
 @Property('_path', pelix.http.HTTP_SERVLET_PATH, '/XML-RPC')
 @Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
           (XMLRPC_CONFIGURATION,))
-class XmlRpcServiceExporter(object):
+class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
     """
     XML-RPC Remote Services exporter
     """
@@ -142,8 +138,8 @@ class XmlRpcServiceExporter(object):
         """
         Sets up the exporter
         """
-        # Bundle context
-        self._context = None
+        # Call parent
+        super(XmlRpcServiceExporter, self).__init__()
 
         # Handled configurations
         self._kinds = None
@@ -155,137 +151,6 @@ class XmlRpcServiceExporter(object):
         # XML-RPC servlet
         self._servlet = None
 
-        # Exported services: Name -> ExportEndpoint
-        self.__endpoints = {}
-
-
-    def _dispatch(self, method, params):
-        """
-        Called by the XML-RPC servlet: calls the method of an exported service
-        """
-        # Get the best matching name
-        matching = None
-        len_found = 0
-        for name in self.__endpoints:
-            if len(name) > len_found and method.startswith(name + "."):
-                # Better matching end point name (longer that previous one)
-                matching = name
-                len_found = len(matching)
-
-        if matching is None:
-            # No end point name match
-            raise KeyError("No end point found for: {0}".format(method))
-
-        # Extract the method name. (+1 for the trailing dot)
-        method_name = method[len_found + 1:]
-
-        # Get the service
-        try:
-            service = self.__endpoints[matching].instance
-        except KeyError:
-            raise RemoteServiceError("Unknown endpoint: {0}".format(matching))
-
-        # Get the method
-        method_ref = getattr(service, method_name, None)
-        if method_ref is None:
-            raise RemoteServiceError("Unknown method {0}".format(method))
-
-        # Call it (let the errors be propagated)
-        return method_ref(*params)
-
-
-    def handles(self, configurations):
-        """
-        Checks if this provider handles the given configuration types
-
-        :param configurations: Configuration types
-        """
-        if configurations is None or configurations == '*':
-            # 'Matches all'
-            return True
-
-        return bool(set(configurations).intersection(self._kinds))
-
-
-    def export_service(self, svc_ref, name, fw_uid):
-        """
-        Prepares an export endpoint
-
-        :param svc_ref: Service reference
-        :param name: Endpoint name
-        :param fw_uid: Framework UID
-        :return: An ExportEndpoint bean
-        :raise NameError: Already known name
-        :raise BundleException: Error getting the service
-        """
-        if name in self.__endpoints:
-            # Already known end point
-            raise NameError("Already known end point {0} for JSON-RPC" \
-                            .format(name))
-
-        # Get the service (let it raise a BundleException if any
-        service = self._context.get_service(svc_ref)
-
-        # Prepare extra properties
-        properties = {PROP_XMLRPC_URL: self.get_access()}
-
-        # Prepare the export endpoint
-        try:
-            endpoint = pelix.remote.beans.ExportEndpoint(str(uuid.uuid4()),
-                                                         fw_uid, self._kinds,
-                                                         name, svc_ref, service,
-                                                         properties)
-        except ValueError:
-            # No specification to export (specifications filtered, ...)
-            return None
-
-        # Store information
-        self.__endpoints[name] = endpoint
-
-        # Return the endpoint bean
-        return endpoint
-
-
-    def update_export(self, endpoint, new_name, old_properties):
-        """
-        Updates an export endpoint
-
-        :param endpoint: An ExportEndpoint bean
-        :param new_name: Future endpoint name
-        :param old_properties: Previous properties
-        :raise NameError: Rename refused
-        """
-        try:
-            if self.__endpoints[new_name] is not endpoint:
-                # Reject the new name, as an endpoint uses it
-                raise NameError("New name of {0} already used: {1}" \
-                                .format(endpoint.name, new_name))
-
-            else:
-                # Name hasn't changed
-                pass
-
-        except KeyError:
-            # No endpoint matches the new name: update the storage
-            self.__endpoints[new_name] = self.__endpoints.pop(endpoint.name)
-
-            # Update the endpoint
-            endpoint.name = new_name
-
-
-    def unexport_service(self, endpoint):
-        """
-        Deletes an export endpoint
-
-        :param endpoint: An ExportEndpoint bean
-        """
-        # Clean up storage
-        del self.__endpoints[endpoint.name]
-
-        # Release the service
-        svc_ref = endpoint.reference
-        self._context.unget_service(svc_ref)
-
 
     def get_access(self):
         """
@@ -295,16 +160,28 @@ class XmlRpcServiceExporter(object):
         return "http://{{server}}:{0}{1}".format(port, self._path)
 
 
+    def make_endpoint_properties(self, svc_ref, name, fw_uid):
+        """
+        Prepare properties for the ExportEndpoint to be created
+
+        :param svc_ref: Service reference
+        :param name: Endpoint name
+        :param fw_uid: Framework UID
+        :return: A dictionary of extra endpoint properties
+        """
+        return {PROP_XMLRPC_URL: self.get_access()}
+
+
     @Validate
     def validate(self, context):
         """
         Component validated
         """
-        # Store the context
-        self._context = context
+        # Call parent
+        super(XmlRpcServiceExporter, self).validate(context)
 
         # Create/register the servlet
-        self._servlet = _XmlRpcServlet(self._dispatch)
+        self._servlet = _XmlRpcServlet(self.dispatch)
         self._http.register_servlet(self._path, self._servlet)
 
 
@@ -316,8 +193,8 @@ class XmlRpcServiceExporter(object):
         # Unregister the servlet
         self._http.unregister(None, self._servlet)
 
-        # Clean up the storage
-        self.__endpoints.clear()
+        # Call parent
+        super(XmlRpcServiceExporter, self).invalidate(context)
 
         # Clean up members
         self._servlet = None
@@ -356,7 +233,7 @@ class _ServiceCallProxy(object):
 @Provides(pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER)
 @Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
           (XMLRPC_CONFIGURATION,))
-class XmlRpcServiceImporter(object):
+class XmlRpcServiceImporter(commons.AbstractRpcServiceImporter):
     """
     XML-RPC Remote Services importer
     """
@@ -364,25 +241,20 @@ class XmlRpcServiceImporter(object):
         """
         Sets up the exporter
         """
-        # Bundle context
-        self._context = None
+        # Call parent
+        super(XmlRpcServiceImporter, self).__init__()
 
         # Component properties
         self._kinds = None
 
-        # Registered services (endpoint UID -> ServiceReference)
-        self.__registrations = {}
 
-
-    def endpoint_added(self, endpoint):
+    def make_service_proxy(self, endpoint):
         """
-        An end point has been imported
-        """
-        configs = set(endpoint.configurations)
-        if '*' not in configs and not configs.intersection(self._kinds):
-            # Not for us
-            return
+        Creates the proxy for the given ImportEndpoint
 
+        :param endpoint: An ImportEndpoint bean
+        :return: A service proxy
+        """
         # Get the access URL
         access_url = endpoint.properties.get(PROP_XMLRPC_URL)
         if not access_url:
@@ -399,53 +271,15 @@ class XmlRpcServiceImporter(object):
             local_server = "localhost"
             access_url = access_url.format(server=local_server)
 
-        # Register the service
-        svc = _ServiceCallProxy(endpoint.name, access_url)
-        svc_reg = self._context.register_service(endpoint.specifications, svc,
-                                                 endpoint.properties)
-
-        # Store references
-        self.__registrations[endpoint.uid] = svc_reg
+        # Return the proxy
+        return _ServiceCallProxy(endpoint.name, access_url)
 
 
-    def endpoint_updated(self, endpoint, old_properties):
+    def clear_service_proxy(self, endpoint):
         """
-        An end point has been updated
+        Destroys the proxy made for the given ImportEndpoint
+
+        :param endpoint: An ImportEndpoint bean
         """
-        try:
-            # Update service registration properties
-            self.__registrations[endpoint.uid].set_properties(
-                                                          endpoint.properties)
-
-        except KeyError:
-            # Unknown end point
-            return
-
-
-    def endpoint_removed(self, endpoint):
-        """
-        An end point has been removed
-        """
-        try:
-            # Pop reference and unregister the service
-            self.__registrations.pop(endpoint.uid).unregister()
-
-        except KeyError:
-            # Unknown end point
-            return
-
-
-    @Validate
-    def validate(self, context):
-        """
-        Component validated
-        """
-        self._context = context
-
-
-    @Invalidate
-    def invalidate(self, context):
-        """
-        Component invalidated
-        """
-        self._context = None
+        # Nothing to do
+        return
