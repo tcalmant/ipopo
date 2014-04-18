@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-Tests the Remote Services Imports Registry
+Tests the Remote Services Exports Dispatcher
 
 :author: Thomas Calmant
 """
