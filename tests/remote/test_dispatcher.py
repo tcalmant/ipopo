@@ -180,7 +180,7 @@ class DispatcherTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
         service = object()
         svc_reg = context.register_service("sample.spec", service,
-                                   {pelix.remote.PROP_EXPORTED_INTENTS: "*"})
+                                   {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
 
         # Look for the endpoint
         self.assertEqual(self.service.get_endpoints(), [],
