@@ -110,9 +110,6 @@ class Dispatcher(object):
         self.__service_uids = {}
         self.__exporters_lock = threading.Lock()
 
-        # Validation flag
-        self.__validated = False
-
 
     @Validate
     def _validate(self, context):
@@ -122,7 +119,6 @@ class Dispatcher(object):
         # Get the framework UID
         self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
         self._context = context
-        self.__validated = True
 
         # Prepare the export LDAP filter
         ldapfilter = '(|({0}=*)({1}=*))' \
@@ -146,8 +142,6 @@ class Dispatcher(object):
         """
         # Unregister the service listener
         context.remove_service_listener(self)
-
-        self.__validated = False
         self._context = None
         self._fw_uid = None
 
@@ -372,15 +366,11 @@ class Dispatcher(object):
                                   ex)
 
 
-    @BindField('_exporters')
+    @BindField('_exporters', if_valid=True)
     def _bind_exporter(self, field, exporter, svc_ref):
         """
         Exporter bound
         """
-        # Do nothing if no yet validated
-        if not self.__validated:
-            return
-
         with self.__exporters_lock:
             # Tell the exporter to export already known services
             for svc_ref in self.__service_uids:
