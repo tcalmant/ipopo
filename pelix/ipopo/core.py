@@ -834,7 +834,10 @@ class _IPopoService(object):
             return False
 
         with self.__factories_lock:
-            if factory_name not in self.__factories:
+            try:
+                # Remove the factory from the registry
+                factory_class = self.__factories.pop(factory_name)
+            except KeyError:
                 # Unknown factory
                 return False
 
@@ -868,8 +871,8 @@ class _IPopoService(object):
                 for name in names:
                     del self.__waiting_handlers[name]
 
-            # Remove the factory from the registry
-            del self.__factories[factory_name]
+            # Clear the bundle context of the factory
+            _set_factory_context(factory_class, None)
 
         return True
 

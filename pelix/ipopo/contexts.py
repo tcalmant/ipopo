@@ -35,9 +35,6 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-# Pelix beans
-from pelix.framework import BundleContext
-
 # Pelix utilities
 from pelix.constants import OBJECTCLASS
 from pelix.utilities import is_string
@@ -395,11 +392,9 @@ class FactoryContext(object):
         """
         Sets up the bundle context associated to this factory context
 
-        :param bundle_context: The factory bundle context
+        :param bundle_context: The factory bundle context (or None to clear it)
         """
-        if self.bundle_context is None:
-            assert isinstance(bundle_context, BundleContext)
-            self.bundle_context = bundle_context
+        self.bundle_context = bundle_context
 
 # ------------------------------------------------------------------------------
 
