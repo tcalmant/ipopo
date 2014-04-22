@@ -94,7 +94,8 @@ class AbstractRpcServiceExporter(object):
 
         if matching is None:
             # No end point name match
-            raise KeyError("No end point found for: {0}".format(method))
+            raise RemoteServiceError("No end point found for: {0}"\
+                                     .format(method))
 
         # Extract the method name. (+1 for the trailing dot)
         method_name = method[len_found + 1:]
