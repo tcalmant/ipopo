@@ -16,6 +16,9 @@ import pelix.framework as pelix
 # iPOPO
 import pelix.ipopo.constants as constants
 import pelix.ipopo.contexts as contexts
+from pelix.ipopo.decorators import ComponentFactory, Provides, Property
+from pelix.ipopo.constants import use_ipopo
+from pelix.utilities import use_service
 
 # Standard library
 try:
@@ -26,6 +29,57 @@ except ImportError:
 # ------------------------------------------------------------------------------
 
 __version__ = "1.0.0"
+
+# ------------------------------------------------------------------------------
+
+FACTORY_PARENT = 'parent'
+FACTORY_ALL = "child.all"
+FACTORY_NO_PROVIDE = "factory.child.no_provide"
+FACTORY_EXTEND_PROVIDE = FACTORY_REPLACE_PROVIDE = "child.extend_provide"
+FACTORY_REPLACE_PROVIDE = "child.replace_provide"
+
+SPEC_PARENT = 'spec.parent'
+SPEC_CHILD = 'spec.child'
+
+@ComponentFactory(FACTORY_PARENT)
+@Provides(SPEC_PARENT)
+@Property('parent_prop', "prop.parent", "parent.value")
+class ParentFactory(object):
+    """
+    Parent factory, providing a service with a property
+    """
+    pass
+
+@ComponentFactory(FACTORY_ALL)
+class ChildAll(ParentFactory):
+    """
+    Child factory, inheriting everything from its parent
+    """
+    pass
+
+@ComponentFactory(FACTORY_NO_PROVIDE, excluded=Provides.HANDLER_ID)
+class ChildNoProvides(ParentFactory):
+    """
+    Child factory, removing the provided service
+    """
+    pass
+
+
+@ComponentFactory(FACTORY_EXTEND_PROVIDE)
+@Provides(SPEC_CHILD)
+class ChildExtendProvides(ParentFactory):
+    """
+    Child factory, replacing the provided service
+    """
+    pass
+
+@ComponentFactory(FACTORY_REPLACE_PROVIDE, excluded=Provides.HANDLER_ID)
+@Provides(SPEC_CHILD)
+class ChildReplaceProvides(ParentFactory):
+    """
+    Child factory, replacing the provided service
+    """
+    pass
 
 # ------------------------------------------------------------------------------
 
@@ -47,6 +101,41 @@ class ContextsTests(unittest.TestCase):
         Called after each test
         """
         FrameworkFactory.delete_framework(self.framework)
+
+
+    def assertProvides(self, specification, provider):
+        """
+        Asserts that the given service is provided and is the given object
+        """
+        context = self.framework.get_bundle_context()
+        svc_refs = context.get_all_service_references(specification)
+        if not svc_refs:
+            self.fail("Service {0} not registered".format(specification))
+
+        for svc_ref in svc_refs:
+            with use_service(context, svc_ref) as svc:
+                if svc is provider:
+                    # Found it
+                    break
+
+        else:
+            self.fail("Service {0} is not provided by {1}"\
+                      .format(specification, provider))
+
+
+    def assertNotProvides(self, specification, provider):
+        """
+        Asserts that the given service is not provided by the given provider
+        """
+        context = self.framework.get_bundle_context()
+        svc_refs = context.get_all_service_references(specification)
+        if svc_refs:
+            for svc_ref in svc_refs:
+                with use_service(context, svc_ref) as svc:
+                    if svc is provider:
+                        # Found it
+                        self.fail("Service {0} is provided by {1}"\
+                                  .format(specification, provider))
 
 
     def testRequirement(self):
@@ -163,6 +252,40 @@ class ContextsTests(unittest.TestCase):
         context_2 = context.copy()
         self.assertEqual(context, context_2, "Copy equality error")
         self.assertIsNot(req_1, context_2, "Requirements must be copied")
+
+
+    def testHandlerInheritance(self):
+        """
+        Tests the inheritance of handlers
+        """
+        # Register factories
+        context = self.framework.get_bundle_context()
+        with use_ipopo(context) as ipopo:
+            for factory in (ChildAll, ChildNoProvides, ChildExtendProvides,
+                            ChildReplaceProvides):
+                ipopo.register_factory(context, factory)
+
+            # Check behavior of "child all"
+            component = ipopo.instantiate(FACTORY_ALL, 'all', {})
+            self.assertProvides(SPEC_PARENT, component)
+            self.assertNotProvides(SPEC_CHILD, component)
+
+            # No service provided
+            component = ipopo.instantiate(FACTORY_NO_PROVIDE, 'no_service', {})
+            self.assertNotProvides(SPEC_PARENT, component)
+            self.assertNotProvides(SPEC_CHILD, component)
+
+            # Service replaced
+            component = ipopo.instantiate(FACTORY_REPLACE_PROVIDE,
+                                          'replacement', {})
+            self.assertNotProvides(SPEC_PARENT, component)
+            self.assertProvides(SPEC_CHILD, component)
+
+            # Service added
+            component = ipopo.instantiate(FACTORY_EXTEND_PROVIDE,
+                                          'addition', {})
+            self.assertProvides(SPEC_PARENT, component)
+            self.assertProvides(SPEC_CHILD, component)
 
 # ------------------------------------------------------------------------------
 
