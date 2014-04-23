@@ -37,6 +37,10 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+# JSON-RPC module
+import jsonrpclib
+from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCDispatcher
+
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Validate, \
     Invalidate, Property, Provides
@@ -49,10 +53,6 @@ import pelix.remote.transport.commons as commons
 
 # Standard library
 import logging
-
-# JSON-RPC module
-import jsonrpclib
-from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCDispatcher
 
 # ------------------------------------------------------------------------------
 
@@ -195,7 +195,6 @@ class JsonRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
         # Clean up members
         self._servlet = None
-        self._context = None
 
 # ------------------------------------------------------------------------------
 

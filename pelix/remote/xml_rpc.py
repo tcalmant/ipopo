@@ -198,7 +198,6 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
         # Clean up members
         self._servlet = None
-        self._context = None
 
 # ------------------------------------------------------------------------------
 

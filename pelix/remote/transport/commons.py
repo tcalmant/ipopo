@@ -48,6 +48,7 @@ from pelix.remote import RemoteServiceError
 
 # Standard library
 import logging
+import threading
 import uuid
 
 # ------------------------------------------------------------------------------
@@ -77,6 +78,9 @@ class AbstractRpcServiceExporter(object):
 
         # Exported services: Name -> ExportEndpoint
         self.__endpoints = {}
+
+        # Thread safety
+        self.__lock = threading.Lock()
 
 
     def dispatch(self, method, params):
@@ -139,29 +143,40 @@ class AbstractRpcServiceExporter(object):
         :raise NameError: Already known name
         :raise BundleException: Error getting the service
         """
-        if name in self.__endpoints:
-            # Already known end point
-            raise NameError("Already known end point {0} for kinds {1}" \
-                            .format(name, ','.join(self._kinds)))
+        with self.__lock:
+            # Prepare extra properties
+            extra_props = self.make_endpoint_properties(svc_ref, name, fw_uid)
 
-        # Get the service (let it raise a BundleException if any
-        service = self._context.get_service(svc_ref)
+            try:
+                # Check if the name has been changed by the exporter
+                name = extra_props[pelix.remote.PROP_ENDPOINT_NAME]
+            except KeyError:
+                # Name not updated
+                pass
 
-        # Prepare extra properties
-        extra_props = self.make_endpoint_properties(svc_ref, name, fw_uid)
+            if name in self.__endpoints:
+                # Already known end point
+                raise NameError("Already known end point {0} for kinds {1}"\
+                                .format(name, ','.join(self._kinds)))
 
-        # Prepare the export endpoint
-        try:
-            endpoint = pelix.remote.beans.ExportEndpoint(str(uuid.uuid4()),
-                                                         fw_uid, self._kinds,
-                                                         name, svc_ref, service,
-                                                         extra_props)
-        except ValueError:
-            # No specification to export (specifications filtered, ...)
-            return None
+            # Get the service (let it raise a BundleException if any
+            service = self._context.get_service(svc_ref)
 
-        # Store information
-        self.__endpoints[name] = endpoint
+            # Prepare the export endpoint
+            try:
+                endpoint = pelix.remote.beans.ExportEndpoint(str(uuid.uuid4()),
+                                                             fw_uid,
+                                                             self._kinds,
+                                                             name,
+                                                             svc_ref,
+                                                             service,
+                                                             extra_props)
+            except ValueError:
+                # No specification to export (specifications filtered, ...)
+                return None
+
+            # Store information
+            self.__endpoints[name] = endpoint
 
         # Return the endpoint bean
         return endpoint
@@ -176,23 +191,24 @@ class AbstractRpcServiceExporter(object):
         :param old_properties: Previous properties
         :raise NameError: Rename refused
         """
-        try:
-            if self.__endpoints[new_name] is not endpoint:
-                # Reject the new name, as an endpoint uses it
-                raise NameError("New name of {0} already used: {1}" \
-                                .format(endpoint.name, new_name))
+        with self.__lock:
+            try:
+                if self.__endpoints[new_name] is not endpoint:
+                    # Reject the new name, as an endpoint uses it
+                    raise NameError("New name of {0} already used: {1}" \
+                                    .format(endpoint.name, new_name))
 
-            else:
-                # Name hasn't changed
-                pass
+                else:
+                    # Name hasn't changed
+                    pass
 
-        except KeyError:
-            # Update the name of the endpoint
-            old_name = endpoint.name
-            endpoint.rename(new_name)
+            except KeyError:
+                # Update the name of the endpoint
+                old_name = endpoint.name
+                endpoint.rename(new_name)
 
-            # No endpoint matches the new name: update the storage
-            self.__endpoints[new_name] = self.__endpoints.pop(old_name)
+                # No endpoint matches the new name: update the storage
+                self.__endpoints[new_name] = self.__endpoints.pop(old_name)
 
 
     def unexport_service(self, endpoint):
@@ -201,12 +217,13 @@ class AbstractRpcServiceExporter(object):
 
         :param endpoint: An ExportEndpoint bean
         """
-        # Clean up storage
-        del self.__endpoints[endpoint.name]
+        with self.__lock:
+            # Clean up storage
+            del self.__endpoints[endpoint.name]
 
-        # Release the service
-        svc_ref = endpoint.reference
-        self._context.unget_service(svc_ref)
+            # Release the service
+            svc_ref = endpoint.reference
+            self._context.unget_service(svc_ref)
 
 
     def make_endpoint_properties(self, svc_ref, name, fw_uid):
@@ -270,6 +287,7 @@ class AbstractRpcServiceImporter(object):
 
         # Registered services (endpoint UID -> ServiceReference)
         self.__registrations = {}
+        self.__lock = threading.Lock()
 
 
     def endpoint_added(self, endpoint):
@@ -281,48 +299,55 @@ class AbstractRpcServiceImporter(object):
             # Not for us
             return
 
-        # Prepare a proxy
-        svc = self.make_service_proxy(endpoint)
-        if svc is None:
-            return
+        with self.__lock:
+            if endpoint.uid in self.__registrations:
+                # Already known endpoint
+                return
 
-        # Register it as a service
-        svc_reg = self._context.register_service(endpoint.specifications, svc,
-                                                 endpoint.properties)
+            # Prepare a proxy
+            svc = self.make_service_proxy(endpoint)
+            if svc is None:
+                return
 
-        # Store references
-        self.__registrations[endpoint.uid] = svc_reg
+            # Register it as a service
+            svc_reg = self._context.register_service(endpoint.specifications,
+                                                     svc, endpoint.properties)
+
+            # Store references
+            self.__registrations[endpoint.uid] = svc_reg
 
 
     def endpoint_updated(self, endpoint, old_properties):
         """
         An end point has been updated
         """
-        try:
-            # Update service registration properties
-            self.__registrations[endpoint.uid].set_properties(
-                                                          endpoint.properties)
+        with self.__lock:
+            try:
+                # Update service registration properties
+                self.__registrations[endpoint.uid].set_properties(
+                                                            endpoint.properties)
 
-        except KeyError:
-            # Unknown end point
-            return
+            except KeyError:
+                # Unknown end point
+                return
 
 
     def endpoint_removed(self, endpoint):
         """
         An end point has been removed
         """
-        try:
-            # Pop reference and unregister the service
-            self.__registrations.pop(endpoint.uid).unregister()
+        with self.__lock:
+            try:
+                # Pop reference and unregister the service
+                self.__registrations.pop(endpoint.uid).unregister()
 
-        except KeyError:
-            # Unknown end point
-            return
+            except KeyError:
+                # Unknown end point
+                return
 
-        else:
-            # Clear the proxy
-            self.clear_service_proxy(endpoint)
+            else:
+                # Clear the proxy
+                self.clear_service_proxy(endpoint)
 
 
     def make_service_proxy(self, endpoint):
