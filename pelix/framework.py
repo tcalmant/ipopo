@@ -1362,9 +1362,10 @@ class BundleContext(object):
                  calling bundle and matching the filters.
         """
         refs = self.__framework.find_service_references(clazz, ldap_filter)
-        for ref in refs:
-            if ref.get_bundle() is not self.__bundle:
-                refs.remove(ref)
+        if refs:
+            for ref in refs:
+                if ref.get_bundle() is not self.__bundle:
+                    refs.remove(ref)
 
         return refs
 
