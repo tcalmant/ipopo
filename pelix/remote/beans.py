@@ -178,6 +178,17 @@ class ExportEndpoint(object):
         return props
 
 
+    def rename(self, new_name):
+        """
+        Updates the endpoint name
+
+        :param new_name: The new name of the endpoint
+        """
+        if new_name:
+            # Update the name only if the new one is valid
+            self.__name = new_name
+
+
     # Access to the service
     @property
     def instance(self):

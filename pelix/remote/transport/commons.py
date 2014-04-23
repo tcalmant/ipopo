@@ -187,11 +187,12 @@ class AbstractRpcServiceExporter(object):
                 pass
 
         except KeyError:
-            # No endpoint matches the new name: update the storage
-            self.__endpoints[new_name] = self.__endpoints.pop(endpoint.name)
+            # Update the name of the endpoint
+            old_name = endpoint.name
+            endpoint.rename(new_name)
 
-            # Update the endpoint
-            endpoint.name = new_name
+            # No endpoint matches the new name: update the storage
+            self.__endpoints[new_name] = self.__endpoints.pop(old_name)
 
 
     def unexport_service(self, endpoint):
