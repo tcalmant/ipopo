@@ -794,12 +794,14 @@ class Shell(object):
             for bundle in self._context.get_bundles():
                 if bundle.get_symbolic_name() == bundle_id:
                     break
+            else:
+                # Bundle not found
+                bundle = None
 
         else:
             # Integer ID: direct access
             try:
                 bundle = self._context.get_bundle(bundle_id)
-
             except constants.BundleException:
                 pass
 
@@ -821,7 +823,6 @@ class Shell(object):
             if services:
                 for svc_ref in services:
                     lines.append("\t{0}".format(svc_ref))
-
             else:
                 lines.append("\tn/a")
 
@@ -942,9 +943,13 @@ class Shell(object):
                          ref.get_property(constants.SERVICE_RANKING))]
                  for ref in references]
 
-        # Print'em all
-        io_handler.write(self._utils.make_table(headers, lines))
-        io_handler.write_line("{0} services registered", len(lines))
+        if not lines and specification:
+            # No matching service found
+            io_handler.write_line("No service provides '{0}'", specification)
+        else:
+            # Print'em all
+            io_handler.write(self._utils.make_table(headers, lines))
+            io_handler.write_line("{0} services registered", len(lines))
 
 
     def __extract_help(self, method):
@@ -1121,7 +1126,12 @@ class Shell(object):
         Prints the value of the given property, looking into
         framework properties then environment variables.
         """
-        io_handler.write_line(str(self._context.get_property(name)))
+        value = self._context.get_property(name)
+        if value is None:
+            # Avoid printing "None"
+            value = ""
+
+        io_handler.write_line(str(value))
 
 
     def environment_list(self, io_handler):
@@ -1345,40 +1355,51 @@ class Shell(object):
         raise KeyboardInterrupt()
 
 
+    def __get_bundle(self, io_handler, bundle_id):
+        """
+        Retrieves the Bundle object with the given bundle ID. Writes errors
+        through the I/O handler if any.
+
+        :param io_handler: I/O Handler
+        :param bundle_id: String or integer bundle ID
+        :return: The Bundle object matching the given ID, None if not found
+        """
+        try:
+            bundle_id = int(bundle_id)
+            return self._context.get_bundle(bundle_id)
+
+        except (TypeError, ValueError):
+            io_handler.write_line("Invalid bundle ID: {0}", bundle_id)
+
+        except constants.BundleException:
+            io_handler.write_line("Unknown bundle: {0}", bundle_id)
+
+
     def start(self, io_handler, bundle_id):
         """
         Starts the bundle with the given ID
         """
-        bundle_id = int(bundle_id)
-        bundle = self._context.get_bundle(bundle_id)
-        if bundle is None:
-            io_handler.write_line("Unknown bundle: {0}", bundle_id)
-
-        bundle.start()
+        bundle = self.__get_bundle(io_handler, bundle_id)
+        if bundle is not None:
+            bundle.start()
 
 
     def stop(self, io_handler, bundle_id):
         """
         Stops the bundle with the given ID
         """
-        bundle_id = int(bundle_id)
-        bundle = self._context.get_bundle(bundle_id)
-        if bundle is None:
-            io_handler.write_line("Unknown bundle: {0}", bundle_id)
-
-        bundle.stop()
+        bundle = self.__get_bundle(io_handler, bundle_id)
+        if bundle is not None:
+            bundle.stop()
 
 
     def update(self, io_handler, bundle_id):
         """
         Updates the bundle with the given ID
         """
-        bundle_id = int(bundle_id)
-        bundle = self._context.get_bundle(bundle_id)
-        if bundle is None:
-            io_handler.write_line("Unknown bundle: {0}", bundle_id)
-
-        bundle.update()
+        bundle = self.__get_bundle(io_handler, bundle_id)
+        if bundle is not None:
+            bundle.update()
 
 
     def install(self, io_handler, module_name):
@@ -1393,13 +1414,9 @@ class Shell(object):
         """
         Uninstalls the bundle with the given ID
         """
-        bundle_id = int(bundle_id)
-        bundle = self._context.get_bundle(bundle_id)
-        if bundle is None:
-            io_handler.write_line("Unknown bundle: {0}", bundle_id)
-
-        bundle.uninstall()
-
+        bundle = self.__get_bundle(io_handler, bundle_id)
+        if bundle is not None:
+            bundle.uninstall()
 
 # ------------------------------------------------------------------------------
 
