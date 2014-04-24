@@ -44,6 +44,13 @@ __version__ = "1.0.0"
 import inspect
 import re
 
+try:
+    # Python 2
+    import __builtin__ as builtins
+except ImportError:
+    # Python 3
+    import builtins
+
 # ------------------------------------------------------------------------------
 
 JSON_CLASS = '__jsonclass__'
@@ -77,7 +84,7 @@ class hashabledict(dict):
         """
         Computes the hash of the dictionary
         """
-        return hash(str(sorted(self.items())))
+        return hash("hashabledict({0})".format(sorted(self.items())))
 
 
 class hashableset(set):
@@ -88,7 +95,7 @@ class hashableset(set):
         """
         Computes the hash of the set
         """
-        return hash(str(sorted(self)))
+        return hash("hashableset({0})".format(sorted(self)))
 
 
 class hashablelist(list):
@@ -99,7 +106,7 @@ class hashablelist(list):
         """
         Computes the hash of the list
         """
-        return hash(str(sorted(self)))
+        return hash("hashablelist({0})".format(sorted(self)))
 
 
 class attributemap(dict):
@@ -120,7 +127,7 @@ class attributemap(dict):
         """
         Computes the hash of the dictionary
         """
-        return hash(str(sorted(self.items())))
+        return hash("attributemap({0})".format(sorted(self.items())))
 
 # ------------------------------------------------------------------------------
 
@@ -148,11 +155,23 @@ def _is_builtin(obj):
     :return: True if the object is of a built-in type
     """
     module = inspect.getmodule(obj)
-    if module is None:
+    if module in (None, builtins):
         return True
 
     else:
         return module.__name__ in ('', '__main__')
+
+
+def _is_converted_class(java_class):
+    """
+    Checks if the given Java class is one we *might* have set up
+    """
+    if not java_class:
+        return False
+
+    return JAVA_MAPS_PATTERN.match(java_class) is not None \
+        or JAVA_LISTS_PATTERN.match(java_class) is not None \
+        or JAVA_SETS_PATTERN.match(java_class) is not None
 
 # ------------------------------------------------------------------------------
 
@@ -172,19 +191,23 @@ def to_jabsorb(value):
 
     # Map ?
     elif isinstance(value, dict):
-
         if JAVA_CLASS in value or JSON_CLASS in value:
-            # Bean representation
-            converted_result = {}
+            if not _is_converted_class(value.get(JAVA_CLASS)):
+                # Bean representation
+                converted_result = {}
 
-            for key, content in value.items():
-                converted_result[key] = to_jabsorb(content)
+                for key, content in value.items():
+                    converted_result[key] = to_jabsorb(content)
 
-            try:
-                # Keep the raw jsonrpclib information
-                converted_result[JSON_CLASS] = value[JSON_CLASS]
-            except KeyError:
-                pass
+                try:
+                    # Keep the raw jsonrpclib information
+                    converted_result[JSON_CLASS] = value[JSON_CLASS]
+                except KeyError:
+                    pass
+
+            else:
+                # We already worked on this value
+                converted_result = value
 
         else:
             # Needs the whole transformation
@@ -198,7 +221,6 @@ def to_jabsorb(value):
                 map_pairs[JSON_CLASS] = value[JSON_CLASS]
             except KeyError:
                 pass
-
 
     # List ? (consider tuples as an array)
     elif isinstance(value, list):
@@ -217,7 +239,7 @@ def to_jabsorb(value):
     elif hasattr(value, JAVA_CLASS):
         # Class with a Java class hint: convert into a dictionary
         converted_result = hashabledict((name, to_jabsorb(content))
-                                          for name, content
+                                        for name, content
             in map(lambda name: (name, getattr(value, name)), dir(value))
             if not name.startswith('_') and not inspect.ismethod(content))
 
@@ -234,41 +256,60 @@ def to_jabsorb(value):
     return converted_result
 
 
-def from_jabsorb(request):
+def from_jabsorb(request, seems_raw=False):
     """
     Transforms a jabsorb request into a more Python data model (converts maps
     and lists)
 
     :param request: Data coming from Jabsorb
+    :param seems_raw: Set it to True if the given data seems to already have
+                      been parsed (no Java class hint). If True, the lists will
+                      be kept as lists instead of being converted to tuples.
     :return: A Python representation of the given data
     """
-    if isinstance(request, (list, set, frozenset, tuple)):
+    if isinstance(request, (tuple, set, frozenset)):
         # Special case : JSON arrays (Python lists)
-        return [from_jabsorb(element) for element in request]
+        return type(request)(from_jabsorb(element) for element in request)
+
+    elif isinstance(request, list):
+        # Check if we were a list or a tuple
+        if seems_raw:
+            return list(from_jabsorb(element) for element in request)
+        else:
+            return tuple(from_jabsorb(element) for element in request)
 
     elif isinstance(request, dict):
         # Dictionary
         java_class = request.get(JAVA_CLASS)
+        json_class = request.get(JSON_CLASS)
+        seems_raw = not java_class and not json_class
 
         if java_class:
             # Java Map ?
             if JAVA_MAPS_PATTERN.match(java_class) is not None:
                 return hashabledict((from_jabsorb(key), from_jabsorb(value))
-                                      for key, value in request["map"].items())
+                                    for key, value in request["map"].items())
 
             # Java List ?
             elif JAVA_LISTS_PATTERN.match(java_class) is not None:
                 return hashablelist(from_jabsorb(element)
-                                      for element in request["list"])
+                                    for element in request["list"])
 
             # Java Set ?
             elif JAVA_SETS_PATTERN.match(java_class) is not None:
                 return hashableset(from_jabsorb(element)
-                                     for element in request["set"])
+                                    for element in request["set"])
 
         # Any other case
-        return attributemap((from_jabsorb(key), from_jabsorb(value))
+        result = attributemap((from_jabsorb(key),
+                               from_jabsorb(value, seems_raw))
                               for key, value in request.items())
+
+        # Keep JSON class information as is
+        if json_class:
+            result[JSON_CLASS] = json_class
+
+        return result
 
     elif not _is_builtin(request):
         # Bean
