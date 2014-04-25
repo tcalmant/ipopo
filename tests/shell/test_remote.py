@@ -8,7 +8,7 @@ Tests the remote shell
 
 # Pelix
 from pelix.framework import FrameworkFactory, create_framework
-from pelix.utilities import to_str
+from pelix.utilities import to_str, to_bytes
 from pelix.ipopo.constants import use_ipopo
 
 # Shell constants
@@ -108,7 +108,7 @@ class ShellClient(object):
             self.__wait_prompt = False
 
         # Run the command
-        self._socket.send(command + "\n")
+        self._socket.send(to_bytes(command + "\n"))
 
         # Disconnect if required
         if disconnect:
