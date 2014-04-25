@@ -350,7 +350,7 @@ class IPopoRemoteShell(object):
                 # Invalid port value
                 self._port = 0
 
-        except ValueError:
+        except (ValueError, TypeError):
             # Invalid port string: use a random port
             self._port = 0
 
@@ -385,4 +385,3 @@ class IPopoRemoteShell(object):
         self._server_flag = None
 
         _logger.info("RemoteShell gone from port: %d", self._port)
-
