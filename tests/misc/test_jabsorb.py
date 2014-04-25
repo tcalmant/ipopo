@@ -128,10 +128,10 @@ class JabsorbConverterTest(unittest.TestCase):
         Tests the behavior of hashable types
         """
         # Prepare items
-        hash_dict = jabsorb.hashabledict(((1, 2), (3, 4)))
-        hash_attrmap = jabsorb.attributemap(hash_dict.items())
-        hash_set = jabsorb.hashableset((1, 2, 3))
-        hash_list = jabsorb.hashablelist((1, 2, 3))
+        hash_dict = jabsorb.HashableDict(((1, 2), (3, 4)))
+        hash_attrmap = jabsorb.AttributeMap(hash_dict.items())
+        hash_set = jabsorb.HashableSet((1, 2, 3))
+        hash_list = jabsorb.HashableList((1, 2, 3))
 
         # Group'em
         hash_values = [hash_dict, hash_attrmap, hash_set, hash_list]

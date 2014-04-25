@@ -76,7 +76,7 @@ JAVA_SETS_PATTERN = re.compile(r"java\.util\..*Set")
 
 # ------------------------------------------------------------------------------
 
-class hashabledict(dict):
+class HashableDict(dict):
     """
     Small workaround because dictionaries are not hashable in Python
     """
@@ -84,10 +84,10 @@ class hashabledict(dict):
         """
         Computes the hash of the dictionary
         """
-        return hash("hashabledict({0})".format(sorted(self.items())))
+        return hash("HashableDict({0})".format(sorted(self.items())))
 
 
-class hashableset(set):
+class HashableSet(set):
     """
     Small workaround because sets are not hashable in Python
     """
@@ -95,10 +95,10 @@ class hashableset(set):
         """
         Computes the hash of the set
         """
-        return hash("hashableset({0})".format(sorted(self)))
+        return hash("HashableSet({0})".format(sorted(self)))
 
 
-class hashablelist(list):
+class HashableList(list):
     """
     Small workaround because lists are not hashable in Python
     """
@@ -106,10 +106,10 @@ class hashablelist(list):
         """
         Computes the hash of the list
         """
-        return hash("hashablelist({0})".format(sorted(self)))
+        return hash("HashableList({0})".format(sorted(self)))
 
 
-class attributemap(dict):
+class AttributeMap(dict):
     """
     Wraps a map to have the same behaviour between getattr and getitem
     """
@@ -119,7 +119,7 @@ class attributemap(dict):
 
         :param content: A dictionary
         """
-        super(attributemap, self).__init__(*args, **kwargs)
+        super(AttributeMap, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
 
@@ -127,7 +127,7 @@ class attributemap(dict):
         """
         Computes the hash of the dictionary
         """
-        return hash("attributemap({0})".format(sorted(self.items())))
+        return hash("AttributeMap({0})".format(sorted(self.items())))
 
 # ------------------------------------------------------------------------------
 
@@ -238,10 +238,13 @@ def to_jabsorb(value):
 
     elif hasattr(value, JAVA_CLASS):
         # Class with a Java class hint: convert into a dictionary
-        converted_result = hashabledict((name, to_jabsorb(content))
-                                        for name, content
-            in map(lambda name: (name, getattr(value, name)), dir(value))
-            if not name.startswith('_') and not inspect.ismethod(content))
+        class_members = dict((name, getattr(value, name))
+                             for name in dir(value)
+                             if not name.startswith('_'))
+
+        converted_result = HashableDict((name, to_jabsorb(content))
+                                    for name, content in class_members.items()
+                                    if not inspect.ismethod(content))
 
         # Do not forget the Java class
         converted_result[JAVA_CLASS] = getattr(value, JAVA_CLASS)
@@ -287,21 +290,21 @@ def from_jabsorb(request, seems_raw=False):
         if java_class:
             # Java Map ?
             if JAVA_MAPS_PATTERN.match(java_class) is not None:
-                return hashabledict((from_jabsorb(key), from_jabsorb(value))
+                return HashableDict((from_jabsorb(key), from_jabsorb(value))
                                     for key, value in request["map"].items())
 
             # Java List ?
             elif JAVA_LISTS_PATTERN.match(java_class) is not None:
-                return hashablelist(from_jabsorb(element)
+                return HashableList(from_jabsorb(element)
                                     for element in request["list"])
 
             # Java Set ?
             elif JAVA_SETS_PATTERN.match(java_class) is not None:
-                return hashableset(from_jabsorb(element)
+                return HashableSet(from_jabsorb(element)
                                     for element in request["set"])
 
         # Any other case
-        result = attributemap((from_jabsorb(key),
+        result = AttributeMap((from_jabsorb(key),
                                from_jabsorb(value, seems_raw))
                               for key, value in request.items())
 
