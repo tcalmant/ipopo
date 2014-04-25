@@ -128,7 +128,7 @@ class ImportsRegistry(object):
                     listener.endpoint_added(endpoint)
 
                 except Exception as ex:
-                        _logger.exception("Error calling listener: %s", ex)
+                    _logger.exception("Error calling listener: %s", ex)
 
         return True
 

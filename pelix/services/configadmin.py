@@ -305,8 +305,8 @@ class Configuration(object):
             # Update status
             self.__deleted = True
 
-            # Notify ConfigurationAdmin, notify services only if the configuration
-            # had been updated before
+            # Notify ConfigurationAdmin, notify services only if the
+            # configuration had been updated before
             self.__config_admin._delete(self, self.__updated, directory_updated)
 
             # Remove the file
@@ -926,7 +926,8 @@ class ConfigurationAdmin(object):
                 return self._directory.get_configuration(pid)
 
             except KeyError:
-                # Unknown configuration, look for it (outside the exception block)
+                # Unknown configuration, look for it
+                # (outside the exception block)
                 pass
 
             for persistence in self._persistences[:]:

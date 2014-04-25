@@ -88,6 +88,9 @@ if os.name == "nt":
 
             # Prepare structure
             class sockaddr_in6(ctypes.Structure):
+                """
+                Definition of the C structure 'sockaddr_in6'
+                """
                 _fields_ = [("sin6_family", ctypes.c_short),
                             ("sin6_port", ctypes.c_ushort),
                             ("sin6_flowinfo", ctypes.c_ulong),

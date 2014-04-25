@@ -116,8 +116,11 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         self._kinds = None
 
         # MQTT topic
-        self._topic = None
-        self.__real_topic = None
+        self._topic = ""
+        self.__real_topic = ""
+
+        # Topic to reply to requests
+        self.__reply_topic = ""
 
         # MQTT server
         self._host = None

@@ -64,11 +64,11 @@ EVENT_PROP_STARTING_SLASH = 'pelix.eventadmin.mqtt.start_slash'
 #-------------------------------------------------------------------------------
 
 @ComponentFactory(services.FACTORY_EVENT_ADMIN_MQTT)
-@Provides(services.SERVICE_EVENT_HANDLER)
+@Provides(services.SERVICE_EVENT_HANDLER, '_controller')
 @Requires('_event', services.SERVICE_EVENT_ADMIN)
 @Property('_event_topics', services.PROP_EVENT_TOPICS, '*')
-@Property("_host", "mqtt.host", "localhost")
-@Property("_port", "mqtt.port", 1883)
+@Property('_host', 'mqtt.host', 'localhost')
+@Property('_port', 'mqtt.port', 1883)
 @Property('_mqtt_topic', 'mqtt.topic.prefix', DEFAULT_MQTT_TOPIC)
 class MqttEventAdminBridge(object):
     """
@@ -89,6 +89,9 @@ class MqttEventAdminBridge(object):
         # EventAdmin
         self._event = None
         self._event_topics = None
+
+        # EventHandler service controller
+        self._controller = False
 
         # Framework UID
         self._framework_uid = None
@@ -118,6 +121,9 @@ class MqttEventAdminBridge(object):
         self._mqtt.on_connect = self.__on_connect
         self._mqtt.on_disconnect = self.__on_disconnect
         self._mqtt.on_message = self.__on_message
+
+        # Do not provide the EventHandler service before being connected
+        self._controller = False
 
         # Prepare the connection
         self._mqtt.connect(self._host, self._port)

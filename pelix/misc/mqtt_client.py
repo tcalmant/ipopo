@@ -168,7 +168,7 @@ class MqttClient(object):
         :raise ValueError: Invalid topic
         :raise TypeError: Invalid payload
         """
-        self.__mqtt.will_set(topic, payload, qos)
+        self.__mqtt.will_set(topic, payload, qos, retain=retain)
 
 
     def connect(self, host="localhost", port=1883):

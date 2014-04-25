@@ -72,7 +72,7 @@ class _UsageCounter(object):
     def dec(self):
         """
         Counter is decremented
-        
+
         :return: True if the counter is still greater than 0
         """
         self.__count -= 1
@@ -82,7 +82,7 @@ class _UsageCounter(object):
     def is_used(self):
         """
         Tests if the reference is still used
-        
+
         :return: True if the counter is still greater than 0
         """
         return self.__count > 0

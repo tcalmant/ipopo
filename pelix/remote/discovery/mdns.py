@@ -97,6 +97,9 @@ class ZeroconfDiscovery(object):
         # Framework UID
         self._fw_uid = None
 
+        # Address of this framework
+        self._address = None
+
         # Zeroconf
         self._zeroconf = None
         self._browsers = []

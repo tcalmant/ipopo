@@ -811,7 +811,10 @@ class Framework(Bundle):
 
         # Create a simple visitor
         def visitor(fullname, is_package, module_path):
-            # Accept everything in recursive mode, else avoid packages
+            """
+            Package visitor: accepts everything in recursive mode,
+            else avoids packages
+            """
             return recursive or not is_package
 
         # Set up the prefix if needed

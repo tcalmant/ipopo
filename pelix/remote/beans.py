@@ -165,8 +165,8 @@ class ExportEndpoint(object):
 
     def make_import_properties(self):
         """
-        Returns the properties of this endpoint where export properties have been
-        replaced by import ones
+        Returns the properties of this endpoint where export properties have
+        been replaced by import ones
 
         :return: A dictionary with import properties
         """

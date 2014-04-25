@@ -161,7 +161,7 @@ class ServiceEvent(object):
         """
         Returns the previous values of the service properties, meaningless if
         the the event is not MODIFIED nor MODIFIED_ENDMATCH.
-        
+
         :return: The previous properties of the service
         """
         return self.__previous_properties
@@ -170,7 +170,7 @@ class ServiceEvent(object):
     def get_service_reference(self):
         """
         Returns the reference to the service associated to this event
-        
+
         :return: A ServiceReference object
         """
         return self.__reference
@@ -179,7 +179,7 @@ class ServiceEvent(object):
     def get_kind(self):
         """
         Returns the kind of service event (see the constants)
-        
+
         :return: the kind of service event
         """
         return self.__kind
@@ -189,7 +189,7 @@ class ServiceEvent(object):
     def get_type(self):
         """
         **DEPRECATED:** Use get_kind() instead
-        
+
         Retrieves the kind of service event.
         """
         return self.__kind

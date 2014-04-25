@@ -105,7 +105,7 @@ class PropertiesHandler(constants.Handler):
         """
         Sets up the handler
         """
-        pass
+        self._ipopo_instance = None
 
 
     def _field_property_generator(self):

@@ -181,9 +181,11 @@ class IOHandler(object):
         if in_stream is sys.stdin:
             # Warning: conflicts with the console
             self.prompt = safe_input
+        else:
+            self.prompt = self._prompt
 
 
-    def prompt(self, prompt=None):
+    def _prompt(self, prompt=None):
         """
         Reads a line written by the user
 
@@ -1252,9 +1254,9 @@ class Shell(object):
         """
         # Same as in traceback.extract_stack
         lineno = frame.f_lineno
-        co = frame.f_code
-        filename = co.co_filename
-        method_name = co.co_name
+        code = frame.f_code
+        filename = code.co_filename
+        method_name = code.co_name
         linecache.checkcache(filename)
 
         output_lines = []
@@ -1352,6 +1354,7 @@ class Shell(object):
         """
         Stops the current shell session (raises a KeyboardInterrupt exception)
         """
+        io_handler.write_line("Raising KeyboardInterrupt to stop main thread")
         raise KeyboardInterrupt()
 
 

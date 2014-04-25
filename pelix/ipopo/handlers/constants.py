@@ -108,7 +108,7 @@ class Handler(object):
         """
         return None
 
-    def manipulate(self):
+    def manipulate(self, stored_instance, component_instance):
         """
         Manipulates the associated component instance
         """

@@ -209,7 +209,8 @@ class _IPopoService(object):
 
                 # Try to instantiate waiting components
                 succeeded = set()
-                for name, (context, instance) in self.__waiting_handlers.items():
+                for name, (context, instance) \
+                in self.__waiting_handlers.items():
                     if self.__try_instantiate(context, instance):
                         succeeded.add(name)
 
@@ -242,8 +243,7 @@ class _IPopoService(object):
             for factory_name in self.__factories:
                 _, context = self.__get_factory_with_context(factory_name)
                 if handler_id in context.get_handlers_ids():
-                    to_stop.update(self.__get_stored_instances_by_factory(
-                                                                  factory_name))
+                    to_stop.update(self.__get_stored_instances(factory_name))
 
             with self.__instances_lock:
                 for stored_instance in to_stop:
@@ -309,7 +309,7 @@ class _IPopoService(object):
         return handler_factories
 
 
-    def __get_stored_instances_by_factory(self, factory_name):
+    def __get_stored_instances(self, factory_name):
         """
         Retrieves the list of all stored instances objects corresponding to
         the given factory name
@@ -848,7 +848,7 @@ class _IPopoService(object):
             # Invalidate and delete all components of this factory
             with self.__instances_lock:
                 # Compute the list of __instances to remove
-                to_remove = self.__get_stored_instances_by_factory(factory_name)
+                to_remove = self.__get_stored_instances(factory_name)
 
                 # Remove instances from the registry: avoids dependencies \
                 # update to link against a component from this factory again.

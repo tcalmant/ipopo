@@ -518,5 +518,5 @@ class EDEFWriter(object):
         :param filename: Name of the file where to write the XML
         :raise IOError: Error writing the file
         """
-        with open(filename, "w") as fp:
-            fp.write(self.to_string(endpoints))
+        with open(filename, "w") as filep:
+            filep.write(self.to_string(endpoints))
