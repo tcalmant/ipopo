@@ -517,6 +517,11 @@ class RegistryServlet(object):
         # Get the framework UID
         self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
 
+        # Normalize the path
+        self._path = '/{0}/'.format('/'.join(part
+                                             for part in self._path.split('/')
+                                             if part))
+
         _logger.debug("Dispatcher servlet for %s on %s", self._fw_uid,
                       self._path)
 
@@ -550,7 +555,7 @@ class RegistryServlet(object):
             conn.close()
 
         except Exception as ex:
-            _logger.exception("Error accessing the dispatcher servlet: %s", ex)
+            _logger.error("Error accessing the dispatcher servlet: %s", ex)
             return
 
         if result.status != 200:
@@ -649,22 +654,20 @@ class RegistryServlet(object):
         :param request: Request handler
         :param response: Response handler
         """
-        # Split the path
-        path_parts = request.get_path().split('/')
+        # Normalize the path
+        path_parts = [part for part in request.get_path().split('/') if part]
 
-        if path_parts[-2] == "endpoint":
-            # /endpoint/<uid>: specific end point
-            uid = path_parts[-1]
-            endpoint = self._dispatcher.get_endpoint(uid)
-            if endpoint is None:
-                response.send_content(404, "Unknown UID: {0}".format(uid),
-                                      "text/plain")
-                return
+        # Remove the servlet part
+        servlet_parts = [part for part in self._path.split('/') if part]
+        path_parts = path_parts[len(servlet_parts):]
+        action = path_parts[0]
 
-            else:
-                data = self._make_endpoint_dict(endpoint)
+        if action == 'framework':
+            # /framework: return the framework UID, let it be converted as a
+            # JSON string
+            data = self._fw_uid
 
-        elif path_parts[-1] == "endpoints":
+        elif action == "endpoints":
             # /endpoints: all end points
             endpoints = self._dispatcher.get_endpoints()
             if not endpoints:
@@ -674,9 +677,30 @@ class RegistryServlet(object):
                 data = [self._make_endpoint_dict(endpoint)
                         for endpoint in endpoints]
 
+        elif action == "endpoint":
+            # /endpoint/<uid>: specific end point
+            try:
+                uid = path_parts[1]
+                endpoint = self._dispatcher.get_endpoint(uid)
+
+            except IndexError:
+                # UID not given
+                uid = "<unknown>"
+                endpoint = None
+
+            if endpoint is None:
+                response.send_content(404, "Unknown UID: {0}".format(uid),
+                                      "text/plain")
+                return
+
+            else:
+                data = self._make_endpoint_dict(endpoint)
+
         else:
             # Unknown
-            response.send_content(404, "Unhandled path", "text/plain")
+            response.send_content(404, "Unhandled path {0}"\
+                                       .format(request.get_path()),
+                                  "text/plain")
             return
 
         # Convert the result to JSON
@@ -763,6 +787,7 @@ class RegistryServlet(object):
         :param host: The address of the sender
         :param port: Port of the HTTP server of the sender
         :param path: Path of the dispatcher servlet
+        :return: True if the request has been handled by the peer
         """
         # Get the end points from the dispatcher
         endpoints = [self._make_endpoint_dict(endpoint)
@@ -786,7 +811,9 @@ class RegistryServlet(object):
             conn.close()
 
         except Exception as ex:
-            _logger.exception("Error accessing a discovered framework: %s", ex)
+            _logger.error("Error sending endpoints to a discovered framework: "
+                          "%s", ex)
+            return False
 
         else:
             if result.status != 200:
@@ -794,3 +821,5 @@ class RegistryServlet(object):
                 _logger.warning("Got an HTTP code %d when contacting a "
                                 "discovered framework: %s",
                                 result.status, data)
+
+            return result.status == 200
