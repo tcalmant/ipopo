@@ -115,9 +115,7 @@ class AttributeMap(dict):
     """
     def __init__(self, *args, **kwargs):
         """
-        Sets up the wrapper
-
-        :param content: A dictionary
+        Adds a __dict__ member to this dictionary
         """
         super(AttributeMap, self).__init__(*args, **kwargs)
         self.__dict__ = self

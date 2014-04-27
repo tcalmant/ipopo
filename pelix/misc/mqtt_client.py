@@ -140,9 +140,7 @@ class MqttClient(object):
     @property
     def client_id(self):
         """
-        Returns the ID of this MQTT client
-
-        :return: The MQTT client ID
+        The MQTT client ID
         """
         return self._client_id
 
@@ -286,12 +284,12 @@ class MqttClient(object):
 
         try:
             # Try to reconnect the server
-            rc = self.__mqtt.reconnect()
-            if rc:
+            result_code = self.__mqtt.reconnect()
+            if result_code:
                 # Something wrong happened
                 _logger.error("Error connecting the MQTT server: %s (%s)",
-                              rc, CONNECT_RC[rc])
-                raise ValueError("MQTT protocol error: {0}".format(rc))
+                              result_code, CONNECT_RC[result_code])
+                raise ValueError("MQTT protocol error: {0}".format(result_code))
 
         except Exception as ex:
             # Something went wrong: log it
@@ -303,18 +301,18 @@ class MqttClient(object):
             self.__start_time(10)
 
 
-    def __on_connect(self, client, obj, rc):
+    def __on_connect(self, client, userdata, result_code):
         """
         Client connected to the server
 
         :param client: Connected Paho client
-        :parma obj: User data (unused)
-        :param rc: Connection result code (0: success, others: error)
+        :param userdata: User data (unused)
+        :param result_code: Connection result code (0: success, others: error)
         """
-        if rc:
-            # rc != 0: something wrong happened
+        if result_code:
+            # result_code != 0: something wrong happened
             _logger.error("Error connecting the MQTT server: %s",
-                          CONNECT_RC[rc])
+                          CONNECT_RC[result_code])
 
         else:
             # Connection is OK: stop the reconnection timer
@@ -323,24 +321,23 @@ class MqttClient(object):
         # Notify the caller, if any
         if self.on_connect is not None:
             try:
-                self.on_connect(self, rc)
+                self.on_connect(self, result_code)
 
             except Exception as ex:
                 _logger.exception("Error notifying MQTT listener: %s", ex)
 
 
-    def __on_disconnect(self, client, obj, rc):
+    def __on_disconnect(self, client, userdata, result_code):
         """
         Client has been disconnected from the server
 
         :param client: Client that received the message
-        :param obj: *Unused*
-        :param rc: Disconnection reason (0: expected, 1: error)
+        :param userdata: User data (unused)
+        :param result_code: Disconnection reason (0: expected, 1: error)
         """
-        if rc:
+        if result_code:
             # rc != 0: unexpected disconnection
-            _logger.error("Unexpected disconnection from the MQTT server: %s",
-                          rc)
+            _logger.error("Unexpected disconnection from the MQTT server")
 
             # Try to reconnect
             self.__stop_timer()
@@ -349,19 +346,19 @@ class MqttClient(object):
         # Notify the caller, if any
         if self.on_disconnect is not None:
             try:
-                self.on_disconnect(self, rc)
+                self.on_disconnect(self, result_code)
 
             except Exception as ex:
                 _logger.exception("Error notifying MQTT listener: %s", ex)
 
 
 
-    def __on_message(self, client, obj, msg):
+    def __on_message(self, client, userdata, msg):
         """
         A message has been received from a server
 
         :param client: Client that received the message
-        :param obj: *Unused*
+        :param userdata: User data (unused)
         :param msg: A MQTTMessage bean
         """
         # Notify the caller, if any
@@ -378,7 +375,7 @@ class MqttClient(object):
         A message has been published by a server
 
         :param client: Client that received the message
-        :param obj: *Unused*
+        :param userdata: User data (unused)
         :param mid: Message ID
         """
         try:

@@ -795,7 +795,7 @@ class RequiresMap(object):
         :param field: The injected field
         :param specification: The injected service specification
         :param key: Name of the service property to use as a dictionary key
-        :param all_none: If True, inject services with a None property value
+        :param allow_none: If True, inject services with a None property value
         :param aggregate: If true, injects a list
         :param optional: If true, this injection is optional
         :param spec_filter: An LDAP query to filter injected services upon their

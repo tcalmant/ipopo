@@ -321,7 +321,7 @@ class MqttDiscovery(object):
         """
         Multiple endpoints have been added
 
-        :param endpoint: A list of ExportEndpoint beans
+        :param endpoints: A list of ExportEndpoint beans
         """
         # Convert the beans to XML (EDEF format)
         xml_string = EDEFWriter().to_string(
@@ -335,6 +335,9 @@ class MqttDiscovery(object):
     def endpoint_updated(self, endpoint, old_properties):
         """
         An end point is updated
+
+        :param endpoint: The updated endpoint
+        :param old_properties: Previous properties of the endpoint
         """
         # Convert the endpoint into an EndpointDescription bean
         endpoint_desc = beans.EndpointDescription.from_export(endpoint)
@@ -349,6 +352,8 @@ class MqttDiscovery(object):
     def endpoint_removed(self, endpoint):
         """
         An end point is removed
+
+        :param endpoint: Endpoint being removed
         """
         # Convert the endpoint into an EndpointDescription bean
         endpoint_desc = beans.EndpointDescription.from_export(endpoint)

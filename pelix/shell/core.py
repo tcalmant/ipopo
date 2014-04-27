@@ -1026,7 +1026,7 @@ class Shell(object):
         Prints the documentation of all the commands in the given name space,
         or only of the given command
 
-        :parma io_handler: I/O Handler
+        :param io_handler: I/O Handler
         :param namespace: Name space of the command
         :param cmd_name: Name of the command to show, None to show them all
         """

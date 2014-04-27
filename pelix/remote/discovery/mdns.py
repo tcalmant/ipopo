@@ -257,7 +257,7 @@ class ZeroconfDiscovery(object):
         """
         Multiple endpoints have been added
 
-        :param endpoint: A list of ExportEndpoint beans
+        :param endpoints: A list of ExportEndpoint beans
         """
         # Get the dispatcher servlet port
         access_port = self._access.get_access()[0]
@@ -304,6 +304,9 @@ class ZeroconfDiscovery(object):
     def endpoint_updated(self, endpoint, old_properties):
         """
         An end point is updated
+
+        :param endpoint: The updated endpoint
+        :param old_properties: Previous properties of the endpoint
         """
         # Not available...
         # TODO: register a temporary service while the update is performed ?
@@ -313,6 +316,8 @@ class ZeroconfDiscovery(object):
     def endpoint_removed(self, endpoint):
         """
         An end point is removed
+
+        :param endpoint: Endpoint being removed
         """
         try:
             # Get the associated service info
