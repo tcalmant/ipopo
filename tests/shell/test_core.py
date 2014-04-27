@@ -718,8 +718,9 @@ class ShellCoreCommandsTest(unittest.TestCase):
         for line in output.split('\n'):
             if line.startswith('|'):
                 # Value line, name column
-                values = line.split('|')
-                name, value = values[1].strip(), values[2].strip()
+                idx_separator = line.find('|', 1)
+                name = line[1:idx_separator].strip()
+                value = line[idx_separator + 1:-1].strip()
                 if name and name != 'Environment Variable':
                     props[name] = value
 
