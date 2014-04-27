@@ -60,15 +60,28 @@ import sys
 
 # ------------------------------------------------------------------------------
 
+# Available discovery protocols
+DISCOVERIES = ('multicast', 'mqtt', 'mdns')
+
+# Available transport protocols
+TRANSPORTS = ('xmlrpc', 'jsonrpc', 'mqttrpc', 'jabsorbrpc')
+
+# ------------------------------------------------------------------------------
+
 class InstallUtils(object):
     """
     Utility class to install services and instantiate components in a framework
     """
-    def __init__(self, context):
+    def __init__(self, context, arguments):
         """
         Sets up the utility class
+
+        :param context: Bundle context
+        :param arguments: Program arguments
         """
         self.context = context
+        self.arguments = arguments
+
 
     def discovery_multicast(self):
         """
@@ -110,7 +123,8 @@ class InstallUtils(object):
             # Instantiate the discovery
             ipopo.add(rs.FACTORY_DISCOVERY_MQTT, "pelix-discovery-mqtt",
                       {"application.id": "sample.rs",
-                       "mqtt.host": "127.0.0.1"})
+                       "mqtt.host": self.arguments.mqtt_host,
+                       "mqtt.port": self.arguments.mqtt_port})
 
 
     def transport_jsonrpc(self):
@@ -155,10 +169,12 @@ class InstallUtils(object):
             # Instantiate the discovery
             ipopo.add(rs.FACTORY_TRANSPORT_MQTTRPC_EXPORTER,
                       "pelix-mqttrpc-exporter",
-                      {"mqtt.host": "127.0.0.1"})
+                      {"mqtt.host": self.arguments.mqtt_host,
+                       "mqtt.port": self.arguments.mqtt_port})
             ipopo.add(rs.FACTORY_TRANSPORT_MQTTRPC_IMPORTER,
                       "pelix-mqttrpc-importer",
-                      {"mqtt.host": "127.0.0.1"})
+                      {"mqtt.host": self.arguments.mqtt_host,
+                       "mqtt.port": self.arguments.mqtt_port})
 
 
     def transport_xmlrpc(self):
@@ -177,31 +193,35 @@ class InstallUtils(object):
 
 # ------------------------------------------------------------------------------
 
-def main(is_server, discoveries, transports, http_port=0):
+def main(is_server, discoveries, transports, http_port, other_arguments):
     """
     Runs the framework
 
     :param is_server: If True, starts the provider bundle, else the consumer one
-    :param discoveries: List of ('multicast' or 'mdns')
-    :param transports: List of ('jsonrpc' or 'jabsorbrpc')
-    :param http_port: Port the HTTP server must listen to
+    :param discoveries: List of discovery protocols
+    :param transports: List of RPC protocols
+    :param http_port: Port of the HTTP server
+    :param other_arguments: Other arguments
     """
     # Create the framework
-    framework = pelix.framework.create_framework((# iPOPO
-                                                  'pelix.ipopo.core',
-                                                  'pelix.ipopo.waiting',
+    framework = pelix.framework.create_framework(
+                     (# iPOPO
+                      'pelix.ipopo.core',
+                      'pelix.ipopo.waiting',
 
-                                                  # Shell
-                                                  'pelix.shell.core',
-                                                  'pelix.shell.ipopo',
-                                                  'pelix.shell.console',
+                      # Shell
+                      'pelix.shell.core',
+                      'pelix.shell.ipopo',
+                      'pelix.shell.console',
 
-                                                  # HTTP Service
-                                                  "pelix.http.basic",
+                      # HTTP Service
+                      "pelix.http.basic",
 
-                                                  # Remote Services (core)
-                                                  'pelix.remote.dispatcher',
-                                                  'pelix.remote.registry'))
+                      # Remote Services (core)
+                      'pelix.remote.dispatcher',
+                      'pelix.remote.registry'),
+                     # Framework properties
+                     {pelix.constants.FRAMEWORK_UID: other_arguments.fw_uid})
 
     # Start everything
     framework.start()
@@ -211,7 +231,7 @@ def main(is_server, discoveries, transports, http_port=0):
     # Get the iPOPO service
     with use_waiting_list(context) as ipopo:
         # Instantiate remote service components
-        # ... HTTP, using a random port
+        # ... HTTP server
         ipopo.add("pelix.http.service.basic.factory", "http-server",
                   {"pelix.http.port": http_port})
 
@@ -220,7 +240,7 @@ def main(is_server, discoveries, transports, http_port=0):
                   "pelix-remote-dispatcher-servlet")
 
     # Prepare the utility object
-    util = InstallUtils(context)
+    util = InstallUtils(context, other_arguments)
 
     # Install the discovery bundles
     for discovery in discoveries:
@@ -253,21 +273,46 @@ if __name__ == "__main__":
                         dest="is_server",
                         help="Runs the framework with a service provider")
 
-    # HTTP Port
-    parser.add_argument("-p", "--port", action="store", type=int, default=0,
-                        dest="http_port",
-                        help="Port of the HTTP server (can be 0)")
-
     # Discovery
-    parser.add_argument("-d", "--discovery", nargs="*", default=["multicast"],
+    parser.add_argument("-d", "--discovery", nargs="*",
+                        default=DISCOVERIES[0], choices=DISCOVERIES,
                         dest="discoveries", metavar="DISCOVERY",
-                        help="Discovery protocols to use (multicast, mdns)")
+                        help="Discovery protocols to use (one of {0})"\
+                             .format(', '.join(DISCOVERIES)))
 
     # Transport
-    parser.add_argument("-t", "--transport", nargs="*", default=["jsonrpc"],
+    parser.add_argument("-t", "--transport", nargs="*",
+                        default=TRANSPORTS[0], choices=TRANSPORTS,
                         dest="transports", metavar="TRANSPORT",
-                        help="Transport protocols to use (jsonrpc, jabsorbrpc, "
-                             "xmlrpc)")
+                        help="Transport protocols to use (one of {0})"\
+                             .format(', '.join(TRANSPORTS)))
+
+    # Framework configuration
+    group = parser.add_argument_group("Framework Configuration",
+                                      "Configuration of the Pelix framework")
+    # ... HTTP server
+    parser.add_argument("-p", "--port", action="store", type=int, default=0,
+                        dest="http_port",
+                        help="Port of the framework HTTP server (can be 0)")
+
+    # ... Framework UID
+    parser.add_argument("--uid", action="store", default=None,
+                        dest="fw_uid", help="Forces the framework UID")
+
+    # MQTT configuration
+    group = parser.add_argument_group("MQTT Configuration",
+                                      "Configuration of the MQTT discovery and "
+                                      "RPC components")
+    # ... server
+    group.add_argument("--mqtt-host", action="store", dest="mqtt_host",
+                       default="test.mosquitto.org",
+                       help="MQTT server host (default: test.mosquitto.org)")
+
+    # ... port
+    group.add_argument("--mqtt-port", action="store", dest="mqtt_port",
+                       type=int, default=1883,
+                       help="MQTT server port (default: 1883)")
+
 
     # Parse arguments
     args = parser.parse_args(sys.argv[1:])
@@ -276,4 +321,5 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
 
     # Run the sample
-    main(args.is_server, args.discoveries, args.transports, args.http_port)
+    main(args.is_server, args.discoveries, args.transports,
+         args.http_port, args)

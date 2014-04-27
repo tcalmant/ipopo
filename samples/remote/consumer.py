@@ -34,7 +34,13 @@ __docformat__ = "restructuredtext en"
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Instantiate, \
-    BindField, UnbindField
+    BindField, UnbindField, Validate
+
+# Pelix constants
+import pelix.constants
+
+# Standard library
+import threading
 
 # ------------------------------------------------------------------------------
 
@@ -55,32 +61,42 @@ class HelloWorldConsumer(object):
         Sets up members
         """
         self._services = []
+        self._fw_uid = None
 
 
-    @BindField('_services')
+    def _use_service(self, service):
+        """
+        Calls the given greeting service
+
+        :param service: A greeting service
+        """
+        service.sayHello("from {0} (Pelix framework)".format(self._fw_uid))
+
+
+    @BindField('_services', if_valid=True)
     def bind_greeting(self, field, service, reference):
         """
         A greeting service has been bound
 
-        @param field Name of the injected field
-        @param service The injected service
-        @param reference Reference of the injected service
+        :param field: Name of the injected field
+        :param service: The injected service
+        :param reference: Reference of the injected service
         """
         # Trace something
         print("A new greeting service has been bound")
 
-        # Use the service
-        service.sayHello("from a Python component")
+        # Use the service. Use a thread to avoid locking iPOPO for too long
+        threading.Thread(target=self._use_service, args=[service]).start()
 
 
-    @UnbindField('_services')
+    @UnbindField('_services', if_valid=True)
     def unbind_greeting(self, field, service, reference):
         """
         A greeting service has been bound
 
-        @param field Name of the injected field
-        @param service The injected service
-        @param reference Reference of the injected service
+        :param field: Name of the injected field
+        :param service: The injected service
+        :param reference: Reference of the injected service
         """
         # Trace something
         print("A greeting service is gone")
@@ -88,3 +104,21 @@ class HelloWorldConsumer(object):
         # Avoid to use the service here, as its proxy might have already been
         # disconnected
 
+
+    @Validate
+    def validate(self, context):
+        """
+        Component validated
+
+        :param context: Bundle context
+        """
+        # Get the framework UID
+        self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
+
+        # Print it
+        print("This framework has UID: {0}".format(self._fw_uid))
+
+        # Use existing services
+        for service in self._services:
+            # Use the service. Use a thread to avoid locking iPOPO for too long
+            threading.Thread(target=self._use_service, args=[service]).start()
