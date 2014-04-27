@@ -85,6 +85,10 @@ class ConfigAdminShellTest(unittest.TestCase):
         """
         Cleans up for next test
         """
+        # Remove existing configurations
+        for config in self.config.list_configurations():
+            config.delete()
+
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
         self.framework = None

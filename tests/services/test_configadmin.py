@@ -268,11 +268,19 @@ class ManagedServiceTest(unittest.TestCase):
                                             'tests.services.configadmin_bundle')
         self.pid = self.bundle.get_module().CONFIG_PID
 
+        # Remove existing configurations
+        for config in self.config.list_configurations():
+            config.delete()
+
 
     def tearDown(self):
         """
         Cleans up for next test
         """
+        # Remove existing configurations
+        for config in self.config.list_configurations():
+            config.delete()
+
         # Release the service
         self.framework.get_bundle_context().unget_service(self.config_ref)
         self.config = None
