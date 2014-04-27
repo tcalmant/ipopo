@@ -7,14 +7,14 @@ Provides an implementation of the Pelix HTTP service based on the standard
 Python library.
 
 :author: Thomas Calmant
-:copyright: Copyright 2013, isandlaTech
+:copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.1.4
+:version: 0.1.5
 :status: Beta
 
 ..
 
-    Copyright 2013 isandlaTech
+    Copyright 2014 isandlaTech
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ Python library.
 """
 
 # Module version
-__version_info__ = (0, 1, 4)
+__version_info__ = (0, 1, 5)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

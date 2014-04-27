@@ -7,7 +7,7 @@ Tests the utility module
 """
 
 # Same version as the tested bundle
-__version__ = (0, 5, 5)
+__version__ = (0, 5, 6)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
