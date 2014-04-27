@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-LDAP filter parser tests
+Tests for the ConfigurationAdmin tests
 
 :author: Thomas Calmant
 """
 
+# Pelix
 import pelix.framework
 import pelix.services as services
 from pelix.utilities import use_service
 
+# Standard library
 import json
 import os
 import time
@@ -21,22 +23,10 @@ except ImportError:
 
 # ------------------------------------------------------------------------------
 
-__version__ = (1, 0, 0)
+__version__ = "1.0.0"
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-def create_framework():
-    """
-    Creates and starts a Pelix instance
-    """
-    # Start a framework with ConfigurationAdmin
-    framework = pelix.framework.create_framework(['pelix.ipopo.core',
-                                                  'pelix.services.configadmin'])
-    framework.start()
-    return framework
 
 # ------------------------------------------------------------------------------
 
@@ -49,7 +39,10 @@ class ConfigurationAdminTest(unittest.TestCase):
         Sets up the test
         """
         # Create the framework
-        self.framework = create_framework()
+        self.framework = pelix.framework.create_framework(
+                                              ('pelix.ipopo.core',
+                                               'pelix.services.configadmin'))
+        self.framework.start()
         context = self.framework.get_bundle_context()
 
         # Get the service
@@ -259,7 +252,10 @@ class ManagedServiceTest(unittest.TestCase):
         """
         Sets up the test
         """
-        self.framework = create_framework()
+        self.framework = pelix.framework.create_framework(
+                                              ('pelix.ipopo.core',
+                                               'pelix.services.configadmin'))
+        self.framework.start()
         context = self.framework.get_bundle_context()
 
         # Get the ConfigAdmin service
@@ -464,7 +460,10 @@ class FileInstallTest(unittest.TestCase):
         """
         Sets up the test
         """
-        self.framework = create_framework()
+        self.framework = pelix.framework.create_framework(
+                                              ('pelix.ipopo.core',
+                                               'pelix.services.configadmin'))
+        self.framework.start()
         context = self.framework.get_bundle_context()
 
         # in FileInstall

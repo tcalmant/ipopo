@@ -93,19 +93,6 @@ class ConfigAdminCommands(object):
                 ("list", self.list)]
 
 
-    def _get_configuration(self, pid):
-        """
-        Tries to return the configuration in cache before calling the
-        Configuration Admin
-
-        :param pid: A configuration PID
-        :return: The retrieved configuration
-        """
-        # Erase cache in all cases
-        config = self._configs[pid] = self._config_admin.get_configuration(pid)
-        return config
-
-
     def create(self, io_handler, factory_pid, **kwargs):
         """
         Creates a factory configuration
@@ -154,8 +141,13 @@ class ConfigAdminCommands(object):
         # Get the configuration with given PID
         self._configs[pid] = config = self._config_admin.get_configuration(pid)
 
-        # Reload the file
-        config.reload()
+        try:
+            # Reload the file
+            config.reload()
+
+        except Exception as ex:
+            # Log errors
+            io_handler.write_line("Error reloading {0}: {1}", pid, ex)
 
 
     def delete(self, io_handler, pid):
