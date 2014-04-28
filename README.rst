@@ -38,16 +38,10 @@ Compatibility
 #############
 
 Pelix and iPOPO are tested using `Tox <http://testrun.org/tox/latest/>`_ and
-`Travis-CI <https://travis-ci.org/tcalmant/ipopo>`_ with:
+`Travis-CI <https://travis-ci.org/tcalmant/ipopo>`_ with Python 2.6, 2.7, 3.2
+and 3.3.
 
-* Python 2.6, 2.7, 3.2 and 3.3
-
-  .. image:: https://travis-ci.org/tcalmant/ipopo.png?branch=dev
-     :target: https://travis-ci.org/tcalmant/ipopo
-
-It is also manually tested with:
-
-* Pypy 1.9
+It is also manually tested with Pypy 1.9 and Python 3.4.
 
 To use iPOPO on Python 2.6, it is necessary to install the *importlib* module
 back-port, using ``pip install importlib``.
