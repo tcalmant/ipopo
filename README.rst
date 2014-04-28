@@ -1,10 +1,10 @@
 iPOPO : A component model for Python
 ####################################
 
-.. image:: https://travis-ci.org/tcalmant/ipopo.png?branch=dev
+.. image:: https://travis-ci.org/tcalmant/ipopo.png?branch=master
      :target: https://travis-ci.org/tcalmant/ipopo
 
-.. image:: https://coveralls.io/repos/tcalmant/ipopo/badge.png?branch=dev
+.. image:: https://coveralls.io/repos/tcalmant/ipopo/badge.png?branch=master
      :target: https://coveralls.io/r/tcalmant/ipopo?branch=dev
 
 `iPOPO <https://ipopo.coderxpress.net/>`_ is a Python-based Service-Oriented
