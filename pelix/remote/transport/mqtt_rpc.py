@@ -503,8 +503,17 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
             result = None
             error = "Missing MQTT-RPC reply field: {0}".format(ex)
 
-        # Notify the matching proxy
-        self.__waiting.pop(correlation_id).handle_result(result, error)
+        try:
+            # Find the matching proxy
+            proxy = self.__waiting.pop(correlation_id)
+
+        except KeyError:
+            # No a correlation ID we know
+            pass
+
+        else:
+            # Notify the proxy
+            proxy.handle_result(result, error)
 
 
     @Validate
