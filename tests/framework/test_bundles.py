@@ -397,9 +397,9 @@ def test_fct():
 
         # Validate get_location()
         bundle_without_ext = os.path.splitext(bundle.get_location())[0]
-        self.assertEqual(bundle_without_ext, self.test_bundle_loc,
-                         "Not the same location {0} -> {1}" \
-                         .format(self.test_bundle_loc, bundle_without_ext))
+        full_bundle_path = os.path.abspath(bundle_without_ext)
+        self.assertIn(self.test_bundle_loc,
+                      (bundle_without_ext, full_bundle_path))
 
         # Validate the version number
         self.assertEqual(bundle.get_version(), module.__version__,
