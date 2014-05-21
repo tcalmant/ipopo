@@ -137,6 +137,18 @@ class MqttClient(object):
         return "{0}{1}".format(prefix, random_id)
 
 
+    @classmethod
+    def topic_matches(cls, subscription_filter, topic):
+        """
+        Checks if the given topic matches the given subscription filter
+
+        :param subscription_filter: A MQTT subscription filter
+        :param topic: A topic
+        :return: True if the topic matches the filter
+        """
+        return paho.topic_matches_sub(subscription_filter, topic)
+
+
     @property
     def client_id(self):
         """
@@ -169,16 +181,18 @@ class MqttClient(object):
         self.__mqtt.will_set(topic, payload, qos, retain=retain)
 
 
-    def connect(self, host="localhost", port=1883):
+    def connect(self, host="localhost", port=1883, keepalive=60):
         """
         Connects to the MQTT server. The client will automatically try to
         reconnect to this server when the connection is lost.
 
         :param host: MQTT server host
         :param port: MQTT server port
+        :param keepalive: Maximum period in seconds between communications with
+                          the broker
         """
         # Prepare the connection
-        self.__mqtt.connect_async(host, port)
+        self.__mqtt.connect_async(host, port, keepalive)
 
         # Start the MQTT loop
         self.__mqtt.loop_start()

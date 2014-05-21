@@ -394,9 +394,11 @@ def main():
 
 
 if __name__ == '__main__':
-    # Ran as a script:
     # Prepare the logger
-    logging.basicConfig(level=logging.WARNING)
+    if '-v' in sys.argv or '--verbose' in sys.argv:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.WARNING)
 
     # Run the entry point
     main()

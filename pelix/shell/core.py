@@ -423,6 +423,8 @@ class Shell(object):
 
         self.register_command(None, "echo", self.echo)
 
+        self.register_command(None, "loglevel", self.log_level)
+
         self.register_command(None, "help", self.print_help)
         self.register_command(None, "?", self.print_help)
 
@@ -1348,6 +1350,33 @@ class Shell(object):
 
         # Return the lines
         return lines
+
+
+    def log_level(self, io_handler, level=None, name=None):
+        """
+        Prints/Changes log level
+        """
+        # Get the logger
+        logger = logging.getLogger(name)
+
+        # Normalize the name
+        if not name:
+            name = "Root"
+
+        if not level:
+            # Level not given: print the logger level
+            io_handler.write_line("{0} log level: {1} (real: {2})", name,
+                              logging.getLevelName(logger.getEffectiveLevel()),
+                              logging.getLevelName(logger.level))
+
+        else:
+            # Set the logger level
+            try:
+                logger.setLevel(level.upper())
+                io_handler.write_line("New level for {0}: {1}", name, level)
+
+            except ValueError:
+                io_handler.write_line("Invalid log level: {0}", level)
 
 
     def quit(self, io_handler):
