@@ -199,7 +199,13 @@ class ThreadPool(object):
 
             # Join threads
             for thread in self._threads:
-                thread.join()
+                while thread.is_alive():
+                    # Wait 3 seconds
+                    thread.join(3.)
+                    if thread.is_alive():
+                        # Thread is still alive: something might be wrong
+                        self._logger.warning("Thread %s is still alive...",
+                                             thread.name)
 
         # Clear storage
         del self._threads[:]
