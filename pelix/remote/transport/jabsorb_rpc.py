@@ -49,7 +49,6 @@ from pelix.ipopo.decorators import ComponentFactory, Provides, Validate, \
 
 # Pelix constants
 from pelix.utilities import to_str
-from pelix.remote import RemoteServiceError
 import pelix.http
 import pelix.remote
 import pelix.remote.transport.commons as commons
@@ -183,41 +182,6 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
         self._servlet = None
 
 
-    def _dispatch(self, method, params):
-        """
-        Called by the JSON-RPC servlet: calls the method of an exported service
-        """
-        # Get the best matching name
-        matching = None
-        len_found = 0
-        for name in self.__endpoints:
-            if len(name) > len_found and method.startswith(name + "."):
-                # Better matching end point name (longer that previous one)
-                matching = name
-                len_found = len(matching)
-
-        if matching is None:
-            # No end point name match
-            raise KeyError("No end point found for: {0}".format(method))
-
-        # Extract the method name. (+1 for the trailing dot)
-        method_name = method[len_found + 1:]
-
-        # Get the service
-        try:
-            service = self.__endpoints[matching].instance
-        except KeyError:
-            raise RemoteServiceError("Unknown endpoint: {0}".format(matching))
-
-        # Get the method
-        method_ref = getattr(service, method_name, None)
-        if method_ref is None:
-            raise RemoteServiceError("Unknown method {0}".format(method))
-
-        # Call it (let the errors be propagated)
-        return method_ref(*params)
-
-
     def make_endpoint_properties(self, svc_ref, name, fw_uid):
         """
         Prepare properties for the ExportEndpoint to be created
@@ -266,7 +230,7 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
         super(JabsorbRpcServiceExporter, self).validate(context)
 
         # Create/register the servlet
-        self._servlet = _JabsorbRpcServlet(self._dispatch)
+        self._servlet = _JabsorbRpcServlet(self.dispatch)
         self._http.register_servlet(self._path, self._servlet)
 
 
