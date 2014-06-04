@@ -223,8 +223,11 @@ class _RequestHandler(BaseHTTPRequestHandler):
             # Not a request handling
             return object.__getattribute__(self, name)
 
+        # Remove double-slashes in path
+        path = self.path.replace('//', '/')
+
         # Parse the URL
-        parsed_url = urlparse.urlparse(self.path)
+        parsed_url = urlparse.urlparse(path)
         parsed_path = parsed_url.path
 
         # Get the corresponding servlet
@@ -584,7 +587,6 @@ class HttpService(object):
         with self._lock:
             longest_match = ""
             for servlet_path in self._servlets.keys():
-
                 tested_path = servlet_path
                 if tested_path[-1] != '/':
                     # Add a trailing slash
