@@ -233,6 +233,20 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
                 _logger.exception("Couldn't set IP double stack flag: %s", ex)
 
 
+    def process_request(self, request, client_address):
+        """
+        Starts a new thread to process the request, adding the client address
+        in its name.
+        """
+        thread = threading.Thread(name="RemoteShell-{0}-Client-{1}"\
+                                  .format(self.server_address[1],
+                                          client_address[:2]),
+                                  target=self.process_request_thread,
+                                  args=(request, client_address))
+        thread.daemon = self.daemon_threads
+        thread.start()
+
+
 def _create_server(shell, server_address, port):
     """
     Creates the TCP console on the given address and port
