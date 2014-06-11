@@ -52,14 +52,6 @@ import threading
 
 _logger = logging.getLogger(__name__)
 
-# Result codes from MQTT
-CONNECT_RC = {0: "Success",
-              1: "Refused - unacceptable protocol version",
-              2: "Refused - identifier rejected",
-              3: "Refused - server unavailable",
-              4: "Refused - bad user name or password (MQTT v3.1 broker only)",
-              5: "Refused - not authorized (MQTT v3.1 broker only)"}
-
 # ------------------------------------------------------------------------------
 
 class MqttClient(object):
@@ -190,7 +182,11 @@ class MqttClient(object):
         :param port: MQTT server port
         :param keepalive: Maximum period in seconds between communications with
                           the broker
+        :raise ValueError: Invalid host or port
         """
+        # Disconnect first (it also stops the timer)
+        self.disconnect()
+
         # Prepare the connection
         self.__mqtt.connect_async(host, port, keepalive)
 
@@ -212,9 +208,11 @@ class MqttClient(object):
         for event in self.__in_flight.values():
             event.set()
 
-
-        # Disconnect from the server (this stops the loop)
+        # Disconnect from the server
         self.__mqtt.disconnect()
+
+        # Stop the MQTT loop thread
+        self.__mqtt.loop_stop()
 
 
     def publish(self, topic, payload, qos=0, retain=False, wait=False):
@@ -270,13 +268,14 @@ class MqttClient(object):
         self.__mqtt.unsubscribe(topic)
 
 
-    def __start_time(self, delay):
+    def __start_timer(self, delay):
         """
         Starts the reconnection timer
 
         :param delay: Delay (in seconds) before calling the reconnection method
         """
         self.__timer = threading.Timer(delay, self.__reconnect)
+        self.__timer.daemon = True
         self.__timer.start()
 
 
@@ -301,9 +300,10 @@ class MqttClient(object):
             result_code = self.__mqtt.reconnect()
             if result_code:
                 # Something wrong happened
-                _logger.error("Error connecting the MQTT server: %s (%s)",
-                              result_code, CONNECT_RC[result_code])
-                raise ValueError("MQTT protocol error: {0}".format(result_code))
+                message = "Error connecting the MQTT server: {0} ({1})" \
+                    .format(result_code, paho.error_string(result_code))
+                _logger.error(message)
+                raise ValueError(message)
 
         except Exception as ex:
             # Something went wrong: log it
@@ -312,7 +312,7 @@ class MqttClient(object):
         finally:
             # Prepare a reconnection timer. It will be cancelled by the
             # on_connect callback
-            self.__start_time(10)
+            self.__start_timer(10)
 
 
     def __on_connect(self, client, userdata, result_code):
@@ -326,7 +326,7 @@ class MqttClient(object):
         if result_code:
             # result_code != 0: something wrong happened
             _logger.error("Error connecting the MQTT server: %s",
-                          CONNECT_RC[result_code])
+                          paho.connack_string(result_code))
 
         else:
             # Connection is OK: stop the reconnection timer
@@ -355,7 +355,7 @@ class MqttClient(object):
 
             # Try to reconnect
             self.__stop_timer()
-            self.__start_time(2)
+            self.__start_timer(2)
 
         # Notify the caller, if any
         if self.on_disconnect is not None:
@@ -364,7 +364,6 @@ class MqttClient(object):
 
             except Exception as ex:
                 _logger.exception("Error notifying MQTT listener: %s", ex)
-
 
 
     def __on_message(self, client, userdata, msg):
