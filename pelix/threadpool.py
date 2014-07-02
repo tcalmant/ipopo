@@ -289,6 +289,7 @@ class ThreadPool(object):
                 task = self._queue.get(True, self._timeout)
                 if task is self._done_event:
                     # Stop event in the queue: get out
+                    self._queue.task_done()
                     return
 
             except queue.Empty:
