@@ -726,6 +726,13 @@ class Shell(object):
             io_handler.write_line("{0}: {1}", type(ex).__name__, str(ex))
             return False
 
+        finally:
+            # Try to flush in any case
+            try:
+                io_handler.flush()
+            except:
+                pass
+
 
     def get_banner(self):
         """
