@@ -27,7 +27,7 @@ iPOPO installation script
 """
 
 # Module version
-__version_info__ = (0, 5, 6)
+__version_info__ = (0, 5, 7)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -91,5 +91,6 @@ setup(name='iPOPO',
             'Topic :: Software Development :: Libraries :: Application Frameworks'
       ],
       extras_require={'MQTT': ['paho-mqtt'],
-                      'JSONRPC': ['jsonrpclib-pelix']}
+                      'JSONRPC': ['jsonrpclib-pelix'],
+                      'XMPP': ['sleekxmpp']}
       )
