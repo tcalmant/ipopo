@@ -445,3 +445,53 @@ def to_iterable(value, allow_none=True):
 
     # Return a one-value list
     return [value]
+
+# ------------------------------------------------------------------------------
+
+class EventData(object):
+    """
+    A threading event with some associated data
+    """
+    def __init__(self):
+        """
+        Sets up the event
+        """
+        self.__event = threading.Event()
+        self.__data = None
+
+    @property
+    def data(self):
+        """
+        Returns the associated value
+        """
+        return self.__data
+
+    def clear(self):
+        """
+        Clears the event
+        """
+        self.__event.clear()
+        self.__data = None
+
+    def is_set(self):
+        """
+        Checks if the event is set
+        """
+        self.__event.is_set()
+
+    def set(self, data=None):
+        """
+        Sets the event
+        """
+        self.__data = data
+        self.__event.set()
+
+    def wait(self, timeout=None):
+        """
+        Waits for the event or for the timeout
+
+        :param timeout: Wait timeout (in seconds)
+        :return: True if the event as been set, else False
+        """
+        # The 'or' part if for Python 2.6
+        return self.__event.wait(timeout) or self.__event.is_set()

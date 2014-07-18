@@ -90,3 +90,6 @@ REMOTE_SHELL_SPEC = SERVICE_SHELL_REMOTE
 
 FACTORY_REMOTE_SHELL = "ipopo-remote-shell-factory"
 """ Name of remote shell component factory """
+
+FACTORY_XMPP_SHELL = "ipopo-xmpp-shell-factory"
+""" Name of XMPP shell component factory """
