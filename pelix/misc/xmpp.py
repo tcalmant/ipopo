@@ -139,15 +139,15 @@ class InviteMixIn(object):
         self.register_plugin('xep_0045')
 
         # Activate the plug-in
-        self.start()
+        self.invite_start()
 
-    def start(self):
+    def invite_start(self):
         """
         Activates the mix-in.
         """
         self.add_event_handler("groupchat_invite", self.on_invite)
 
-    def stop(self):
+    def invite_stop(self):
         """
         Deactivates the mix-in
         """
@@ -157,8 +157,11 @@ class InviteMixIn(object):
         """
         Multi-User Chat invite
         """
+        if not self._nick:
+            self._nick = self.boundjid.user
+
         # Join the room
-        self.__xmpp.plugin['xep_0045'].joinMUC(data['from'], self._nick)
+        self.plugin['xep_0045'].joinMUC(data['from'], self._nick)
 
 # ------------------------------------------------------------------------------
 
