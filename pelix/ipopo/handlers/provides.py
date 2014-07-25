@@ -61,7 +61,7 @@ class _HandlerFactory(constants.HandlerFactory):
         """
         # Retrieve the handler configuration
         provides = component_context.get_handler(
-                                             ipopo_constants.HANDLER_PROVIDES)
+            ipopo_constants.HANDLER_PROVIDES)
         if not provides:
             # Nothing to do
             return tuple()
@@ -93,9 +93,8 @@ class _Activator(object):
 
         # Register the handler factory service
         self._registration = context.register_service(
-                                      constants.SERVICE_IPOPO_HANDLER_FACTORY,
-                                      _HandlerFactory(),
-                                      properties)
+            constants.SERVICE_IPOPO_HANDLER_FACTORY,
+            _HandlerFactory(), properties)
 
 
     def stop(self, context):
@@ -298,9 +297,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
 
             # Register the service
             self._registration = bundle_context.register_service(
-                                            self.specifications,
-                                            self._ipopo_instance.instance,
-                                            properties)
+                self.specifications, self._ipopo_instance.instance, properties)
             self._svc_reference = self._registration.get_reference()
 
 

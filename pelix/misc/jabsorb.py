@@ -240,9 +240,10 @@ def to_jabsorb(value):
                              for name in dir(value)
                              if not name.startswith('_'))
 
-        converted_result = HashableDict((name, to_jabsorb(content))
-                                    for name, content in class_members.items()
-                                    if not inspect.ismethod(content))
+        converted_result = HashableDict(
+            (name, to_jabsorb(content))
+            for name, content in class_members.items()
+            if not inspect.ismethod(content))
 
         # Do not forget the Java class
         converted_result[JAVA_CLASS] = getattr(value, JAVA_CLASS)
@@ -299,7 +300,7 @@ def from_jabsorb(request, seems_raw=False):
             # Java Set ?
             elif JAVA_SETS_PATTERN.match(java_class) is not None:
                 return HashableSet(from_jabsorb(element)
-                                    for element in request["set"])
+                                   for element in request["set"])
 
         # Any other case
         result = AttributeMap((from_jabsorb(key),

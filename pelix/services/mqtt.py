@@ -223,8 +223,7 @@ class MqttConnectionFactory(object):
         """
         old_topics = set(old_props[services.PROP_MQTT_TOPICS])
         topics = set(to_iterable(
-                             svc_ref.get_property(services.PROP_MQTT_TOPICS),
-                             False))
+            svc_ref.get_property(services.PROP_MQTT_TOPICS), False))
 
         # New topics
         for topic in topics.difference(old_topics):
@@ -363,8 +362,7 @@ class MqttConnectionFactory(object):
                 svc = _MqttConnection(self, client)
                 props = {'id': pid, 'host': host, 'port': port}
                 svc_reg = self._context.register_service(
-                                             services.SERVICE_MQTT_CONNECTION,
-                                             svc, props)
+                    services.SERVICE_MQTT_CONNECTION, svc, props)
 
                 # Store PID -> ServiceRegistration
                 self._services[pid] = svc_reg

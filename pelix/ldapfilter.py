@@ -122,8 +122,9 @@ class LDAPFilter(object):
         """
         String representation
         """
-        return "({0}{1})".format(operator2str(self.operator),
-               "".join([str(subfilter) for subfilter in self.subfilters]))
+        return "({0}{1})" \
+            .format(operator2str(self.operator),
+                    "".join([str(subfilter) for subfilter in self.subfilters]))
 
 
     def append(self, ldap_filter):
@@ -136,8 +137,8 @@ class LDAPFilter(object):
                            NOT operator
         """
         if not isinstance(ldap_filter, (LDAPFilter, LDAPCriteria)):
-            raise TypeError("Invalid filter type: {0}".format(
-                                                type(ldap_filter).__name__))
+            raise TypeError("Invalid filter type: {0}" \
+                            .format(type(ldap_filter).__name__))
 
         if len(self.subfilters) >= 1 and self.operator == NOT:
             raise ValueError("Not operator only handles one child")

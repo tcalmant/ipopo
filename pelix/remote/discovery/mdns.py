@@ -141,8 +141,8 @@ class ZeroconfDiscovery(object):
         self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
 
         # Get the host address
-        self._address = socket.inet_aton(socket.gethostbyname(
-                                                          socket.gethostname()))
+        self._address = socket.inet_aton(
+            socket.gethostbyname(socket.gethostname()))
 
         # Prepare Zeroconf
         self._zeroconf = mdns.Zeroconf("0.0.0.0")
@@ -151,11 +151,12 @@ class ZeroconfDiscovery(object):
         self.__register_servlet()
 
         # Listen to our types
-        self._browsers.append(mdns.ServiceBrowser(self._zeroconf,
-                                        ZeroconfDiscovery.DNS_DISPATCHER_TYPE,
-                                        self))
-        self._browsers.append(mdns.ServiceBrowser(self._zeroconf, self._rs_type,
-                                                  self))
+        self._browsers.append(
+            mdns.ServiceBrowser(self._zeroconf,
+                                ZeroconfDiscovery.DNS_DISPATCHER_TYPE,
+                                self))
+        self._browsers.append(
+            mdns.ServiceBrowser(self._zeroconf, self._rs_type, self))
 
         _logger.debug("Zeroconf discovery validated")
 
@@ -405,10 +406,9 @@ class ZeroconfDiscovery(object):
             try:
                 # Make an import bean
                 endpoint = beans.ImportEndpoint(
-                                properties[pelix.remote.PROP_ENDPOINT_ID],
-                                properties[pelix.remote.\
-                                            PROP_ENDPOINT_FRAMEWORK_UUID],
-                                [configuration], None, specs, properties)
+                    properties[pelix.remote.PROP_ENDPOINT_ID],
+                    properties[pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID],
+                    [configuration], None, specs, properties)
 
             except KeyError as ex:
                 # Log a warning on incomplete endpoints

@@ -281,12 +281,12 @@ class ShellUtils(object):
         Converts a bundle state integer to a string
         """
         states = {
-                  pelix.Bundle.INSTALLED:   "INSTALLED",
-                  pelix.Bundle.ACTIVE:      "ACTIVE",
-                  pelix.Bundle.RESOLVED:    "RESOLVED",
-                  pelix.Bundle.STARTING:    "STARTING",
-                  pelix.Bundle.STOPPING:    "STOPPING",
-                  pelix.Bundle.UNINSTALLED: "UNINSTALLED"
+            pelix.Bundle.INSTALLED:   "INSTALLED",
+            pelix.Bundle.ACTIVE:      "ACTIVE",
+            pelix.Bundle.RESOLVED:    "RESOLVED",
+            pelix.Bundle.STARTING:    "STARTING",
+            pelix.Bundle.STOPPING:    "STOPPING",
+            pelix.Bundle.UNINSTALLED: "UNINSTALLED"
         }
 
         return states.get(state, "Unknown state (%d)".format(state))
@@ -825,8 +825,8 @@ class Shell(object):
         lines.append("ID......: {0}".format(bundle.get_bundle_id()))
         lines.append("Name....: {0}".format(bundle.get_symbolic_name()))
         lines.append("Version.: {0}".format(bundle.get_version()))
-        lines.append("State...: {0}".format(self._utils.bundlestate_to_str(
-                                                        bundle.get_state())))
+        lines.append("State...: {0}" \
+            .format(self._utils.bundlestate_to_str(bundle.get_state())))
         lines.append("Location: {0}".format(bundle.get_location()))
         lines.append("Published services:")
         try:
@@ -879,11 +879,12 @@ class Shell(object):
                        if name in bundle.get_symbolic_name()]
 
         # Make the entries
-        lines = [[str(entry) for entry in
-                        (bundle.get_bundle_id(),
-                         bundle.get_symbolic_name(),
-                         self._utils.bundlestate_to_str(bundle.get_state()),
-                         bundle.get_version())]
+        lines = [[str(entry)
+                  for entry in (bundle.get_bundle_id(),
+                                bundle.get_symbolic_name(),
+                                self._utils.bundlestate_to_str(
+                                    bundle.get_state()),
+                                bundle.get_version())]
                  for bundle in bundles]
 
         # Print'em all
@@ -900,20 +901,19 @@ class Shell(object):
         """
         Prints the details of the service with the given ID
         """
-        svc_ref = self._context.get_service_reference(None,
-                                '({0}={1})'.format(constants.SERVICE_ID,
-                                                   service_id))
+        svc_ref = self._context.get_service_reference(
+            None, '({0}={1})'.format(constants.SERVICE_ID, service_id))
         if svc_ref is None:
             io_handler.write_line('Service not found: {0}', service_id)
             return
 
         lines = []
-        lines.append("ID............: {0}".format(svc_ref.get_property(
-                                            constants.SERVICE_ID)))
-        lines.append("Rank..........: {0}".format(svc_ref.get_property(
-                                            constants.SERVICE_RANKING)))
-        lines.append("Specifications: {0}".format(svc_ref.get_property(
-                                            constants.OBJECTCLASS)))
+        lines.append("ID............: {0}" \
+                     .format(svc_ref.get_property(constants.SERVICE_ID)))
+        lines.append("Rank..........: {0}" \
+                     .format(svc_ref.get_property(constants.SERVICE_RANKING)))
+        lines.append("Specifications: {0}" \
+                     .format(svc_ref.get_property(constants.OBJECTCLASS)))
         lines.append("Bundle........: {0}".format(svc_ref.get_bundle()))
         lines.append("Properties....:")
         for key, value in sorted(svc_ref.get_properties().items()):
@@ -943,15 +943,16 @@ class Shell(object):
 
         if specification is not None:
             # Filter on specifications
-            references = [ref for ref in references if specification
+            references = [ref for ref in references \
+                          if specification \
                           in ref.get_property(constants.OBJECTCLASS)]
 
         # Construct the list of services
-        lines = [[str(entry) for entry in
-                        (ref.get_property(constants.SERVICE_ID),
-                         ref.get_property(constants.OBJECTCLASS),
-                         ref.get_bundle(),
-                         ref.get_property(constants.SERVICE_RANKING))]
+        lines = [[str(entry)
+                  for entry in (ref.get_property(constants.SERVICE_ID),
+                                ref.get_property(constants.OBJECTCLASS),
+                                ref.get_bundle(),
+                                ref.get_property(constants.SERVICE_RANKING))]
                  for ref in references]
 
         if not lines and specification:
@@ -1304,8 +1305,9 @@ class Shell(object):
         if lines:
             output_lines.append('')
             prefix = '      '
-            output_lines.append('{0}{1}'.format(prefix,
-                                            '\n{0}'.format(prefix).join(lines)))
+            output_lines.append('{0}{1}' \
+                                .format(prefix,
+                                        '\n{0}'.format(prefix).join(lines)))
 
         return '\n'.join(output_lines)
 
@@ -1372,9 +1374,11 @@ class Shell(object):
 
         if not level:
             # Level not given: print the logger level
-            io_handler.write_line("{0} log level: {1} (real: {2})", name,
-                              logging.getLevelName(logger.getEffectiveLevel()),
-                              logging.getLevelName(logger.level))
+            io_handler.write_line(
+                "{0} log level: {1} (real: {2})",
+                name,
+                logging.getLevelName(logger.getEffectiveLevel()),
+                logging.getLevelName(logger.level))
 
         else:
             # Set the logger level

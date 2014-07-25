@@ -98,10 +98,9 @@ class _HandlerFactory(constants.HandlerFactory):
         """
         # Extract information from the context
         configs = component_context.get_handler(
-                                         ipopo_constants.HANDLER_REQUIRES_MAP)
+            ipopo_constants.HANDLER_REQUIRES_MAP)
         requires_filters = component_context.properties.get(
-                                         ipopo_constants.IPOPO_REQUIRES_FILTERS,
-                                         None)
+            ipopo_constants.IPOPO_REQUIRES_FILTERS, None)
 
         # Prepare requirements
         configs = self._prepare_requirements(configs, requires_filters)
@@ -145,9 +144,8 @@ class _Activator(object):
 
         # Register the handler factory service
         self._registration = context.register_service(
-                                      constants.SERVICE_IPOPO_HANDLER_FACTORY,
-                                      _HandlerFactory(),
-                                      properties)
+            constants.SERVICE_IPOPO_HANDLER_FACTORY,
+            _HandlerFactory(), properties)
 
 
     def stop(self, context):

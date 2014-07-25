@@ -204,10 +204,11 @@ class InteractiveShell(object):
                                      if namespace.startswith(prefix))
 
                 # ... then commands in those name spaces
-                possibilities.extend('{0}.{1}'.format(namespace, command)
-                            for namespace in namespaces if namespace is not None
-                            for command in self._shell.get_commands(namespace)
-                            if command.startswith(prefix))
+                possibilities.extend(
+                    '{0}.{1}'.format(namespace, command)
+                    for namespace in namespaces if namespace is not None
+                    for command in self._shell.get_commands(namespace)
+                    if command.startswith(prefix))
 
                 # Filter methods according to the prefix
                 self._readline_matches = possibilities

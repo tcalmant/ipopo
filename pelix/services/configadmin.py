@@ -865,8 +865,7 @@ class ConfigurationAdmin(object):
                     if factories:
                         # Call them from the pool
                         future = self._pool.enqueue(
-                                                self.__notify_factories_delete,
-                                                factories, pid)
+                            self.__notify_factories_delete, factories, pid)
 
                 else:
                     # Called corresponding managed services

@@ -325,7 +325,7 @@ class AbstractRpcServiceImporter(object):
             try:
                 # Update service registration properties
                 self.__registrations[endpoint.uid].set_properties(
-                                                            endpoint.properties)
+                    endpoint.properties)
 
             except KeyError:
                 # Unknown end point

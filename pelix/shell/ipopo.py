@@ -62,8 +62,7 @@ def ipopo_state_to_str(state):
     ipopo_states = {0: "INVALID",
                     1:"VALID",
                     2:"KILLED",
-                    3:"VALIDATING"
-    }
+                    3:"VALIDATING"}
 
     return ipopo_states.get(state, "Unknown state (%d)".format(state))
 
@@ -104,7 +103,7 @@ class IPopoCommands(object):
                 ("instance", self.instance_details),
                 ("instantiate", self.instantiate),
                 ("kill", self.kill),
-                ]
+               ]
 
 
     def list_factories(self, io_handler, name=None):
@@ -161,7 +160,7 @@ class IPopoCommands(object):
         if name is not None:
             # Filter components by name
             components = [component for component in components
-                         if name in component[0]]
+                          if name in component[0]]
 
         # Lines are already sorted
         lines = ((name, factory, ', '.join(missing))
@@ -246,7 +245,7 @@ class IPopoCommands(object):
         lines.append("Factory..: {0}".format(details["factory"]))
         lines.append("Bundle ID: {0}".format(details["bundle_id"]))
         lines.append("State....: {0}".format(
-                                         ipopo_state_to_str(details["state"])))
+            ipopo_state_to_str(details["state"])))
 
         # Provided services
         lines.append("Services.:")
@@ -271,8 +270,8 @@ class IPopoCommands(object):
 
         # Properties
         lines.append("Properties:")
-        lines.append(self._utils.make_table(("Key", "Value"),
-                                sorted(details['properties'].items()), "\t"))
+        lines.append(self._utils.make_table(
+            ("Key", "Value"), sorted(details['properties'].items()), "\t"))
 
         lines.append("")
         io_handler.write('\n'.join(lines))

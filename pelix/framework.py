@@ -902,10 +902,9 @@ class Framework(Bundle):
 
                             # Visit the package
                             sub_path = os.path.join(path, name)
-                            sub_bundles, sub_failed = self.install_visiting(
-                                                                sub_path,
-                                                                visitor,
-                                                                fullname)
+                            sub_bundles, sub_failed = \
+                                self.install_visiting(sub_path, visitor,
+                                                      fullname)
                             bundles.update(sub_bundles)
                             failed.update(sub_failed)
 
@@ -1106,9 +1105,8 @@ class Framework(Bundle):
                 raise BundleException("Invalid bundle {0}".format(bundle))
 
             # Notify listeners
-            self._dispatcher.fire_bundle_event(BundleEvent(
-                                                       BundleEvent.UNINSTALLED,
-                                                       bundle))
+            self._dispatcher.fire_bundle_event(
+                BundleEvent(BundleEvent.UNINSTALLED, bundle))
 
             # Remove it from the dictionary
             del self.__bundles[bundle_id]
@@ -1437,7 +1435,8 @@ class BundleContext(object):
         :raise BundleException: An error occurred while registering the service
         """
         return self.__framework.register_service(self.__bundle, clazz,
-                                                service, properties, send_event)
+                                                 service, properties,
+                                                 send_event)
 
 
     def remove_bundle_listener(self, listener):

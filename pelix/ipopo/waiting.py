@@ -281,8 +281,7 @@ class Activator(object):
 
         # Register it
         self.__registration = context.register_service(
-                                                   SERVICE_IPOPO_WAITING_LIST,
-                                                   self.__service, {})
+            SERVICE_IPOPO_WAITING_LIST, self.__service, {})
 
     def stop(self, context):
         """

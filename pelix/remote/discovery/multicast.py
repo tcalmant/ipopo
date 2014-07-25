@@ -182,7 +182,7 @@ def create_multicast_socket(address, port):
     # Get the information about a datagram (UDP) socket, of any family
     try:
         addrs_info = socket.getaddrinfo(address, port, socket.AF_UNSPEC,
-                                       socket.SOCK_DGRAM)
+                                        socket.SOCK_DGRAM)
     except socket.gaierror:
         raise ValueError("Error retrieving address informations ({0}, {1})" \
                          .format(address, port))
@@ -320,7 +320,7 @@ class MulticastDiscovery(object):
                 "event": event,  # Kind of event
                 "access": {"port": access[0],  # Access to the dispatcher
                            "path": access[1]}  # servlet
-                }
+               }
 
 
     def _make_endpoint_dict(self, event, endpoint):

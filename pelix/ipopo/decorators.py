@@ -171,8 +171,8 @@ def validate_method_arity(method, *needed_args):
     elif len(method_args) != nb_needed_args or method_args[0] != 'self':
         # "Normal" arguments
         raise TypeError("The decorated method {0} must accept exactly {1} "
-                        "parameters : (self, {2})".format(
-                                get_method_description(method), nb_needed_args,
+                        "parameters : (self, {2})" \
+                        .format(get_method_description(method), nb_needed_args,
                                 ", ".join(needed_args)))
 
 # ------------------------------------------------------------------------------
@@ -686,8 +686,9 @@ class Provides(object):
             # level getter / setter, injected by iPOPO after the instance
             # creation
             setattr(clazz, self.__controller,
-                    _ipopo_class_field_property(self.__controller, True,
-                                            constants.IPOPO_CONTROLLER_PREFIX))
+                    _ipopo_class_field_property(
+                        self.__controller, True,
+                        constants.IPOPO_CONTROLLER_PREFIX))
 
             # Inject the future controller methods
             setattr(clazz, constants.IPOPO_CONTROLLER_PREFIX \

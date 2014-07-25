@@ -301,8 +301,8 @@ class MqttDiscovery(object):
 
         # Convert the beans to XML (EDEF format)
         xml_string = EDEFWriter().to_string(
-                                beans.EndpointDescription.from_export(endpoint)
-                                for endpoint in endpoints)
+            beans.EndpointDescription.from_export(endpoint)
+            for endpoint in endpoints)
 
         # Send the message
         self.__send_message(EVENT_ADD, xml_string)
@@ -325,8 +325,8 @@ class MqttDiscovery(object):
         """
         # Convert the beans to XML (EDEF format)
         xml_string = EDEFWriter().to_string(
-                                beans.EndpointDescription.from_export(endpoint)
-                                for endpoint in endpoints)
+            beans.EndpointDescription.from_export(endpoint)
+            for endpoint in endpoints)
 
         # Send the message
         self.__send_message(EVENT_ADD, xml_string)

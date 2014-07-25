@@ -602,12 +602,13 @@ class RegistryServlet(object):
         :return: An ImportEndpoint bean
         """
         # Create the end point bean
-        endpoint = pelix.remote.beans.ImportEndpoint(endpoint_dict['uid'],
-                                             endpoint_dict['sender'],
-                                             endpoint_dict['configurations'],
-                                             endpoint_dict['name'],
-                                             endpoint_dict['specifications'],
-                                             endpoint_dict['properties'])
+        endpoint = pelix.remote.beans.ImportEndpoint(
+            endpoint_dict['uid'],
+            endpoint_dict['sender'],
+            endpoint_dict['configurations'],
+            endpoint_dict['name'],
+            endpoint_dict['specifications'],
+            endpoint_dict['properties'])
 
         # Set the host address
         endpoint.server = host

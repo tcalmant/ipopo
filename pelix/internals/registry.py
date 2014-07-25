@@ -105,8 +105,8 @@ class ServiceReference(object):
         for mandatory in (SERVICE_ID, OBJECTCLASS):
             if mandatory not in properties:
                 raise BundleException(
-                            "A Service must at least have a '{0}' entry"\
-                            .format(mandatory))
+                    "A Service must at least have a '{0}' entry" \
+                    .format(mandatory))
 
         # Properties lock (used by ServiceRegistration too)
         self._props_lock = threading.RLock()
@@ -131,10 +131,9 @@ class ServiceReference(object):
         """
         String representation
         """
-        return "ServiceReference(ID={0}, Bundle={1}, Specs={2})".format(
-                                                self.__service_id,
-                                                self.__bundle.get_bundle_id(),
-                                                self.__properties[OBJECTCLASS])
+        return "ServiceReference(ID={0}, Bundle={1}, Specs={2})" \
+            .format(self.__service_id, self.__bundle.get_bundle_id(),
+                    self.__properties[OBJECTCLASS])
 
 
     def __hash__(self):
@@ -448,8 +447,8 @@ class EventDispatcher(object):
 
         with self.__bnd_lock:
             if listener in self.__bnd_listeners:
-                self._logger.warning("Already known bundle listener '%s'",
-                                listener)
+                self._logger.warning(
+                    "Already known bundle listener '%s'", listener)
                 return False
 
             self.__bnd_listeners.append(listener)
@@ -471,8 +470,8 @@ class EventDispatcher(object):
 
         with self.__fw_lock:
             if listener in self.__fw_listeners:
-                self._logger.warning("Already known framework listener '%s'",
-                                listener)
+                self._logger.warning(
+                    "Already known framework listener '%s'", listener)
                 return False
 
             self.__fw_listeners.append(listener)
@@ -498,8 +497,8 @@ class EventDispatcher(object):
 
         with self.__svc_lock:
             if listener in self.__listeners_data:
-                self._logger.warning("Already known service listener '%s'",
-                                listener)
+                self._logger.warning(
+                    "Already known service listener '%s'", listener)
                 return False
 
             try:

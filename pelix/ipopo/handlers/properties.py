@@ -82,9 +82,8 @@ class _Activator(object):
 
         # Register the handler factory service
         self._registration = context.register_service(
-                                      constants.SERVICE_IPOPO_HANDLER_FACTORY,
-                                      _HandlerFactory(),
-                                      properties)
+            constants.SERVICE_IPOPO_HANDLER_FACTORY,
+            _HandlerFactory(), properties)
 
 
     def stop(self, context):

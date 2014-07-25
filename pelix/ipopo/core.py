@@ -169,8 +169,8 @@ class _IPopoService(object):
         self.__waiting_handlers = {}
 
         # Register the service listener
-        bundle_context.add_service_listener(self, None,
-                                handlers_const.SERVICE_IPOPO_HANDLER_FACTORY)
+        bundle_context.add_service_listener(
+            self, None, handlers_const.SERVICE_IPOPO_HANDLER_FACTORY)
         self.__find_handler_factories()
 
 
@@ -180,7 +180,7 @@ class _IPopoService(object):
         """
         # Get the references
         svc_refs = self.__context.get_all_service_references(
-                                 handlers_const.SERVICE_IPOPO_HANDLER_FACTORY)
+            handlers_const.SERVICE_IPOPO_HANDLER_FACTORY)
         if svc_refs:
             for svc_ref in svc_refs:
                 # Store each handler factory
@@ -261,10 +261,8 @@ class _IPopoService(object):
 
             # Try to find a new handler factory
             new_ref = self.__context.get_service_reference(
-                                handlers_const.SERVICE_IPOPO_HANDLER_FACTORY,
-                                "({0}={1})"\
-                                .format(handlers_const.PROP_HANDLER_ID,
-                                        handler_id))
+                handlers_const.SERVICE_IPOPO_HANDLER_FACTORY,
+                "({0}={1})".format(handlers_const.PROP_HANDLER_ID, handler_id))
             if new_ref is not None:
                 self.__add_handler_factory(new_ref)
 
@@ -536,8 +534,8 @@ class _IPopoService(object):
             raise ValueError("A factory name must be a non-empty string")
 
         if not inspect.isclass(factory):
-            raise TypeError("Invalid factory class '{0}'".format(
-                                                        type(factory).__name__))
+            raise TypeError("Invalid factory class '{0}'" \
+                            .format(type(factory).__name__))
 
         with self.__factories_lock:
             if factory_name in self.__factories:
@@ -545,8 +543,8 @@ class _IPopoService(object):
                     _logger.info("Overriding factory '%s'", factory_name)
 
                 else:
-                    raise ValueError("'{0}' factory already exist".format(
-                                                                factory_name))
+                    raise ValueError("'{0}' factory already exist" \
+                                     .format(factory_name))
 
             self.__factories[factory_name] = factory
 
@@ -702,8 +700,8 @@ class _IPopoService(object):
 
             with self.__factories_lock:
                 # Can raise a TypeError exception
-                factory, factory_context = self.__get_factory_with_context(
-                                                                   factory_name)
+                factory, factory_context = \
+                    self.__get_factory_with_context(factory_name)
 
             # Create component instance
             try:
@@ -717,11 +715,12 @@ class _IPopoService(object):
                                 .format(factory_name, name))
 
             # Normalize the given properties
-            properties = self._prepare_instance_properties(properties,
-                                                   factory_context.properties)
+            properties = \
+                self._prepare_instance_properties(properties,
+                                                  factory_context.properties)
 
             # Set up the component instance context
-            component_context = ComponentContext(factory_context, name, \
+            component_context = ComponentContext(factory_context, name,
                                                  properties)
 
         # Try to instantiate the component immediately
@@ -996,7 +995,7 @@ class _IPopoService(object):
                 # Provided service
                 result["services"] = {}
                 for handler in stored_instance.get_handlers(
-                                        handlers_const.KIND_SERVICE_PROVIDER):
+                        handlers_const.KIND_SERVICE_PROVIDER):
                     svc_ref = handler.get_service_reference()
                     if svc_ref is not None:
                         svc_id = svc_ref.get_property(SERVICE_ID)
@@ -1005,7 +1004,7 @@ class _IPopoService(object):
                 # Dependencies
                 result["dependencies"] = {}
                 for dependency in stored_instance.get_handlers(
-                                        handlers_const.KIND_DEPENDENCY):
+                        handlers_const.KIND_DEPENDENCY):
                     # Dependency
                     info = result["dependencies"][dependency.get_field()] = {}
                     info["handler"] = type(dependency).__name__

@@ -331,12 +331,12 @@ class StoredInstance(object):
             # Call the component
             if callback:
                 self.__safe_callback(constants.IPOPO_CALLBACK_INVALIDATE,
-                                   self.bundle_context)
+                                     self.bundle_context)
 
                 # Trigger an "Invalidated" event
                 self._ipopo_service._fire_ipopo_event(
-                                              constants.IPopoEvent.INVALIDATED,
-                                              self.factory_name, self.name)
+                    constants.IPopoEvent.INVALIDATED,
+                    self.factory_name, self.name)
 
             # Call the handlers
             self.__safe_handlers_callback('post_invalidate')
@@ -434,8 +434,8 @@ class StoredInstance(object):
             if self._ipopo_service is not None:
                 # Trigger the iPOPO event (after the service _registration)
                 self._ipopo_service._fire_ipopo_event(
-                                              constants.IPopoEvent.VALIDATED,
-                                              self.factory_name, self.name)
+                    constants.IPopoEvent.VALIDATED,
+                    self.factory_name, self.name)
 
 
     def __callback(self, event, *args, **kwargs):
