@@ -77,7 +77,6 @@ class LDAPFilter(object):
         self.subfilters = []
         self.operator = operator
 
-
     def __eq__(self, other):
         """
         Equality testing
@@ -103,13 +102,11 @@ class LDAPFilter(object):
         # Same content
         return True
 
-
     def __ne__(self, other):
         """
         Inequality testing
         """
         return not self.__eq__(other)
-
 
     def __repr__(self):
         """
@@ -117,15 +114,13 @@ class LDAPFilter(object):
         """
         return "{0}.get_ldap_filter({1!r})".format(__name__, self.__str__())
 
-
     def __str__(self):
         """
         String representation
         """
         return "({0}{1})" \
             .format(operator2str(self.operator),
-                    "".join([str(subfilter) for subfilter in self.subfilters]))
-
+                    "".join(str(subfilter) for subfilter in self.subfilters))
 
     def append(self, ldap_filter):
         """
@@ -137,14 +132,13 @@ class LDAPFilter(object):
                            NOT operator
         """
         if not isinstance(ldap_filter, (LDAPFilter, LDAPCriteria)):
-            raise TypeError("Invalid filter type: {0}" \
+            raise TypeError("Invalid filter type: {0}"
                             .format(type(ldap_filter).__name__))
 
         if len(self.subfilters) >= 1 and self.operator == NOT:
             raise ValueError("Not operator only handles one child")
 
         self.subfilters.append(ldap_filter)
-
 
     def matches(self, properties):
         """
@@ -161,7 +155,6 @@ class LDAPFilter(object):
         # Extract "if" from loops and use built-in methods
         if self.operator == OR:
             result = any(generator)
-
         else:
             result = all(generator)
             if self.operator == NOT:
@@ -169,7 +162,6 @@ class LDAPFilter(object):
                 return not result
 
         return result
-
 
     def normalize(self):
         """
@@ -194,12 +186,10 @@ class LDAPFilter(object):
         if size > 1:
             # Normal filter
             return self
-
         else:
             if self.operator == NOT:
                 # NOT is the only operator to accept 1 operand
                 return self
-
             else:
                 # Return the only child as the filter object
                 return self.subfilters[0].normalize()
@@ -217,17 +207,17 @@ class LDAPCriteria(object):
         """
         if not name or not value or not comparator:
             # Refuse empty values
-            raise ValueError("Invalid criterion parameter ({0}, {1}, {2})"\
+            raise ValueError("Invalid criterion parameter ({0}, {1}, {2})"
                              .format(name, value, comparator))
 
-        if not inspect.isroutine(comparator):
+        if not (inspect.ismethod(comparator)
+                or inspect.isfunction(comparator)):
             # Ensure we have a valid comparator
             raise ValueError("Comparator must be a method: {0}", comparator)
 
         self.name = str(name)
         self.value = value
         self.comparator = comparator
-
 
     def __eq__(self, other):
         """
@@ -242,15 +232,12 @@ class LDAPCriteria(object):
                 # Difference found
                 return False
 
-        if type(self.value) == type(other.value):
+        if isinstance(other.value, type(self.value)):
             # Same type: direct comparison
-            result = self.value == other.value
-            return result
-
+            return self.value == other.value
         else:
             # Convert to strings for comparison
             return str(self.value) == str(other.value)
-
 
     def __ne__(self, other):
         """
@@ -258,13 +245,11 @@ class LDAPCriteria(object):
         """
         return not self.__eq__(other)
 
-
     def __repr__(self):
         """
         String representation
         """
         return '{0}.get_ldap_filter({1!r})'.format(__name__, self.__str__())
-
 
     def __str__(self):
         """
@@ -273,7 +258,6 @@ class LDAPCriteria(object):
         return "({0}{1}{2})".format(escape_LDAP(self.name),
                                     comparator2str(self.comparator),
                                     escape_LDAP(str(self.value)))
-
 
     def matches(self, properties):
         """
@@ -285,11 +269,9 @@ class LDAPCriteria(object):
         try:
             # Use the comparator
             return self.comparator(self.value, properties[self.name])
-
         except KeyError:
             # Criterion key is not in the properties
             return False
-
 
     def normalize(self):
         """
@@ -298,47 +280,6 @@ class LDAPCriteria(object):
         return self
 
 # ------------------------------------------------------------------------------
-
-def comparator2str(comparator):
-    """
-    Converts an operator method to a string
-    """
-    if comparator in (_comparator_approximate, _comparator_approximate_star):
-        return "~="
-
-    elif comparator in (_comparator_eq, _comparator_star):
-        return "="
-
-    elif comparator == _comparator_le:
-        return "<="
-
-    elif comparator == _comparator_lt:
-        return "<"
-
-    elif comparator == _comparator_ge:
-        return ">="
-
-    elif comparator == _comparator_gt:
-        return ">"
-
-    return "??"
-
-
-def operator2str(operator):
-    """
-    Converts an operator value to a string
-    """
-    if operator == AND:
-        return '&'
-
-    elif operator == OR:
-        return '|'
-
-    elif operator == NOT:
-        return '!'
-
-    return '<unknown>'
-
 
 def escape_LDAP(ldap_string):
     """
@@ -357,7 +298,7 @@ def escape_LDAP(ldap_string):
         return ldap_string
 
     # Protect escape character previously in the string
-    ldap_string = ldap_string.replace(ESCAPE_CHARACTER, \
+    ldap_string = ldap_string.replace(ESCAPE_CHARACTER,
                                       ESCAPE_CHARACTER + ESCAPE_CHARACTER)
 
     # Leading space
@@ -385,8 +326,6 @@ def unescape_LDAP(ldap_string):
     if ldap_string is None:
         return None
 
-    assert is_string(ldap_string)
-
     if ESCAPE_CHARACTER not in ldap_string:
         # No need to loop
         return ldap_string
@@ -398,7 +337,6 @@ def unescape_LDAP(ldap_string):
         if not escaped and character == ESCAPE_CHARACTER:
             # Escape character found
             escaped = True
-
         else:
             # Copy the character
             escaped = False
@@ -435,7 +373,6 @@ def _comparator_star(filter_value, tested_value):
         for value in tested_value:
             if _star_comparison(filter_value, value):
                 return True
-
     else:
         return _star_comparison(filter_value, tested_value)
 
@@ -468,7 +405,7 @@ def _star_comparison(filter_value, tested_value):
             return False
 
         if i == last_part and len(part) != 0 \
-        and idx != len(tested_value) - len(part):
+                and idx != len(tested_value) - len(part):
             # Last tested part is not at the end of the sequence
             return False
 
@@ -494,12 +431,10 @@ def _comparator_eq(filter_value, tested_value):
             if filter_value == value:
                 # Match !
                 return True
-
     # Standard comparison
     elif not is_string(tested_value):
         # String vs string representation
         return filter_value == repr(tested_value)
-
     else:
         # String vs string
         return filter_value == tested_value
@@ -522,7 +457,7 @@ def _comparator_approximate(filter_value, tested_value):
 
     elif hasattr(tested_value, '__iter__'):
         # Extract a list of strings
-        new_tested = [value.lower() for value in tested_value \
+        new_tested = [value.lower() for value in tested_value
                       if is_string(value)]
 
         if _comparator_eq(lower_filter_value, new_tested):
@@ -550,7 +485,7 @@ def _comparator_approximate_star(filter_value, tested_value):
 
     elif hasattr(tested_value, '__iter__'):
         # Extract a list of strings
-        new_tested = [value.lower() for value in tested_value \
+        new_tested = [value.lower() for value in tested_value
                       if is_string(value)]
 
         if _comparator_star(lower_filter_value, new_tested):
@@ -589,18 +524,14 @@ def _comparator_lt(filter_value, tested_value):
                 # Integer/float comparison trick
                 try:
                     filter_value = float(filter_value)
-
                 except (TypeError, ValueError):
                     # None-float value
                     return False
-
             else:
                 # Incompatible type
                 return False
-
     try:
         return tested_value < filter_value
-
     except TypeError:
         # Incompatible type
         return False
@@ -633,22 +564,53 @@ def _comparator_gt(filter_value, tested_value):
                 # Integer/float comparison trick
                 try:
                     filter_value = float(filter_value)
-
                 except (TypeError, ValueError):
                     # None-float value
                     return False
-
             else:
                 # Incompatible type
                 return False
-
     try:
         return tested_value > filter_value
-
     except TypeError:
         # Incompatible type
         return False
 
+_COMPARATOR_SYMBOL = {
+    _comparator_approximate: "~=",
+    _comparator_approximate_star: "~=",
+    _comparator_eq: "=",
+    _comparator_star: "=",
+    _comparator_le: "<=",
+    _comparator_lt: "<",
+    _comparator_ge: ">=",
+    _comparator_gt: ">"}
+
+
+def comparator2str(comparator):
+    """
+    Converts an operator method to a string
+
+    :param comparator: A comparator method
+    :return: The corresponding LDAP filter comparator string
+    """
+    return _COMPARATOR_SYMBOL.get(comparator, "??")
+
+
+def operator2str(operator):
+    """
+    Converts an operator value to a string
+
+    :param operator: An LDAP filter operator internal value
+    :return: The corresponding LDAP operator string
+    """
+    if operator == AND:
+        return '&'
+    elif operator == OR:
+        return '|'
+    elif operator == NOT:
+        return '!'
+    return '<unknown>'
 
 # ------------------------------------------------------------------------------
 
@@ -668,33 +630,30 @@ def _compute_comparator(string, idx):
     :return: The corresponding operator, None if unknown
     """
     part1 = string[idx]
+    try:
+        part2 = string[idx + 1]
+    except IndexError:
+        # String is too short (no comparison)
+        return None
+
     if part1 == '=':
         # Equality
         return _comparator_eq
-
-    elif len(string) < idx + 2:
-        # Too short string
-        return None
-
-    elif string[idx + 1] != '=':
+    elif part2 != '=':
         # It's a "strict" operator
         if part1 == '<':
             # Strictly lesser
             return _comparator_lt
-
         elif part1 == '>':
             # Strictly greater
             return _comparator_gt
-
     else:
         if part1 == '<':
             # Less or equal
             return _comparator_le
-
         elif part1 == '>':
             # Greater or equal
             return _comparator_ge
-
         elif part1 == '~':
             # Approximate equality
             return _comparator_approximate
@@ -737,18 +696,15 @@ def _skip_spaces(string, idx):
     :return: The next non-space character index, -1 if not found
     """
     i = idx
-    size = len(string)
-
-    while i < size:
-        if not string[i].isspace():
+    for char in string[idx:]:
+        if not char.isspace():
             return i
-
         i += 1
 
     return -1
 
 
-def _parse_LDAP_criteria(ldap_filter, startidx=0, endidx=-1):
+def _parse_ldap_criteria(ldap_filter, startidx=0, endidx=-1):
     """
     Parses an LDAP sub filter (criterion)
 
@@ -759,78 +715,62 @@ def _parse_LDAP_criteria(ldap_filter, startidx=0, endidx=-1):
     :raise ValueError: Invalid sub-filter
     """
     comparators = "=<>~"
-
-    if endidx < 0:
-        endidx = len(ldap_filter)
-
-    if startidx >= endidx or startidx < 0 or endidx > len(ldap_filter):
-        raise ValueError("Invalid string range start={0}, end={1}" \
+    if startidx < 0:
+        raise ValueError("Invalid string range start={0}, end={1}"
                          .format(startidx, endidx))
 
     # Get the comparator
-    i = startidx
     escaped = False
-    while i < endidx:
+    idx = startidx
+    for char in ldap_filter[startidx:endidx]:
         if not escaped:
-            if ldap_filter[i] == ESCAPE_CHARACTER:
+            if char == ESCAPE_CHARACTER:
                 # Next character escaped
                 escaped = True
-
-            elif ldap_filter[i] in comparators:
+            elif char in comparators:
                 # Comparator found
                 break
-
         else:
             # Escaped character ignored
             escaped = False
-
-        i += 1
-
+        idx += 1
     else:
         # Comparator never found
-        raise ValueError("Comparator not found in '{0}'" \
+        raise ValueError("Comparator not found in '{0}'"
                          .format(ldap_filter[startidx:endidx]))
-
-    if i == startidx:
-        # Attribute name is missing
-        raise ValueError("Attribute name is missing in '{0}'" \
-                         .format(ldap_filter[startidx:endidx]))
-
-    comparator = _compute_comparator(ldap_filter, i)
-    if comparator is None:
-        # Unknown comparator
-        raise ValueError("Unknown comparator in '{0}' - {1}\nFilter : {2}" \
-                         .format(ldap_filter[startidx:endidx], ldap_filter[i],
-                                 ldap_filter))
 
     # The attribute name can be extracted directly
-    attribute_name = ldap_filter[startidx:i].strip()
-
-    # Find the end of the comparator
-    i += 1
-    if i >= endidx:
-        raise ValueError("Compared value is missing in '{0}'" \
+    attribute_name = ldap_filter[startidx:idx].strip()
+    if not attribute_name:
+        # Attribute name is missing
+        raise ValueError("Attribute name is missing in '{0}'"
                          .format(ldap_filter[startidx:endidx]))
 
-    while ldap_filter[i] in comparators:
-        i += 1
+    comparator = _compute_comparator(ldap_filter, idx)
+    if comparator is None:
+        # Unknown comparator
+        raise ValueError("Unknown comparator in '{0}' - {1}\nFilter : {2}"
+                         .format(ldap_filter[startidx:endidx],
+                                 ldap_filter[idx], ldap_filter))
+
+    # Find the end of the comparator
+    while ldap_filter[idx] in comparators:
+        idx += 1
 
     # Skip spaces
-    i = _skip_spaces(ldap_filter, i)
+    idx = _skip_spaces(ldap_filter, idx)
 
     # Extract the value
-    value = ldap_filter[i:endidx].strip()
+    value = ldap_filter[idx:endidx].strip()
 
     # Use the appropriate comparator if a joker is found in the filter value
     if value == '*':
         # Presence comparator
         comparator = _comparator_presence
-
     elif '*' in value:
         # Joker
         if comparator == _comparator_eq:
             comparator = _comparator_star
-
         elif comparator == _comparator_approximate:
             comparator = _comparator_approximate_star
 
@@ -838,7 +778,7 @@ def _parse_LDAP_criteria(ldap_filter, startidx=0, endidx=-1):
                         comparator)
 
 
-def _parse_LDAP(ldap_filter):
+def _parse_ldap(ldap_filter):
     """
     Parses the given LDAP filter string
 
@@ -871,7 +811,7 @@ def _parse_LDAP(ldap_filter):
                 # Opening filter : get the operator
                 idx = _skip_spaces(ldap_filter, idx + 1)
                 if idx == -1:
-                    raise ValueError("Missing filter operator: {0}" \
+                    raise ValueError("Missing filter operator: {0}"
                                      .format(ldap_filter))
 
                 operator = _compute_operation(ldap_filter, idx)
@@ -889,7 +829,8 @@ def _parse_LDAP(ldap_filter):
                 if len(subfilter_stack) != 0:
                     # criterion finished
                     startidx = subfilter_stack.pop()
-                    criterion = _parse_LDAP_criteria(ldap_filter, startidx, idx)
+                    criterion = _parse_ldap_criteria(ldap_filter, startidx,
+                                                     idx)
 
                     if len(stack) != 0:
                         top = stack.pop()
@@ -915,7 +856,7 @@ def _parse_LDAP(ldap_filter):
                         root = ended_filter
 
                 else:
-                    raise ValueError("Too many end of parenthesis:{0}: {1}" \
+                    raise ValueError("Too many end of parenthesis:{0}: {1}"
                                      .format(idx, ldap_filter[idx:]))
 
             elif ldap_filter[idx] == '\\':
@@ -956,10 +897,10 @@ def get_ldap_filter(ldap_filter):
 
     elif is_string(ldap_filter):
         # Parse the filter
-        return _parse_LDAP(ldap_filter)
+        return _parse_ldap(ldap_filter)
 
     # Unknown type
-    raise TypeError("Unhandled filter type {0}"\
+    raise TypeError("Unhandled filter type {0}"
                     .format(type(ldap_filter).__name__))
 
 

@@ -155,16 +155,16 @@ class LDAPUtilitiesTest(unittest.TestCase):
 
     def testParseCriteria(self):
         """
-        Tests the _parse_LDAP_criteria() method
+        Tests the _parse_ldap_criteria() method
         """
         # Invalid criteria / incomplete operators
         for invalid in ("test 12", "=12", "test=", "test~12", "test~"):
             self.assertRaises(ValueError,
-                              pelix.ldapfilter._parse_LDAP_criteria, invalid)
+                              pelix.ldapfilter._parse_ldap_criteria, invalid)
 
         # Escape test (avoid the first test)
         value = "a=2 tes\ t\==1\ 2\~"
-        criteria = pelix.ldapfilter._parse_LDAP_criteria(value, 4, len(value))
+        criteria = pelix.ldapfilter._parse_ldap_criteria(value, 4, len(value))
         self.assertEqual(criteria.name, "tes t=",
                          "Escaped name not correctly parsed")
         self.assertEqual(criteria.value, "1 2~",
@@ -173,36 +173,32 @@ class LDAPUtilitiesTest(unittest.TestCase):
         # Invalid test range
         test_str = "test=1"
         self.assertRaises(ValueError,
-                          pelix.ldapfilter._parse_LDAP_criteria,
-                          test_str, 0, len(test_str) + 1)
-
-        self.assertRaises(ValueError,
-                          pelix.ldapfilter._parse_LDAP_criteria,
+                          pelix.ldapfilter._parse_ldap_criteria,
                           test_str, -1, len(test_str))
 
         self.assertRaises(ValueError,
-                          pelix.ldapfilter._parse_LDAP_criteria,
+                          pelix.ldapfilter._parse_ldap_criteria,
                           test_str, len(test_str) - 1 , len(test_str) - 2)
 
 
     def testParseLDAP(self):
         """
-        Tests the _parse_LDAP method
+        Tests the _parse_ldap method
         """
         # Empty filters
         for empty in (None, "", "   "):
-            self.assertEqual(pelix.ldapfilter._parse_LDAP(empty), None,
+            self.assertEqual(pelix.ldapfilter._parse_ldap(empty), None,
                              "Empty filter: must return None")
 
         # Invalid filters
         for invalid in ("(", "(test", "(|(test=True)(test=False))))",
                         "(test)", "((test=1)(test2=1))"):
-            self.assertRaises(ValueError, pelix.ldapfilter._parse_LDAP, invalid)
+            self.assertRaises(ValueError, pelix.ldapfilter._parse_ldap, invalid)
 
         # Criteria parsing
         criteria = pelix.ldapfilter.LDAPCriteria("test", True,
                                              pelix.ldapfilter._comparator_eq)
-        self.assertEqual(pelix.ldapfilter._parse_LDAP(str(criteria)), criteria,
+        self.assertEqual(pelix.ldapfilter._parse_ldap(str(criteria)), criteria,
                          "Incorrect result: {0}".format(criteria))
 
         # Filter parsing
@@ -219,7 +215,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
                                                 pelix.ldapfilter._comparator_eq)
         ldap_filter.subfilters.append(criteria_2)
 
-        self.assertEqual(pelix.ldapfilter._parse_LDAP(str(ldap_filter)),
+        self.assertEqual(pelix.ldapfilter._parse_ldap(str(ldap_filter)),
                          ldap_filter.normalize(),
                          "Incorrect result: {0}".format(ldap_filter))
 
