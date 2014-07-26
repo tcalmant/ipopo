@@ -70,6 +70,7 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory('pelix-remote-dispatcher-factory')
 @Provides(pelix.remote.SERVICE_DISPATCHER)
 @Requires('_exporters', pelix.remote.SERVICE_EXPORT_PROVIDER, True, True)
@@ -110,7 +111,6 @@ class Dispatcher(object):
         self.__service_uids = {}
         self.__exporters_lock = threading.Lock()
 
-
     @Validate
     def _validate(self, context):
         """
@@ -122,8 +122,8 @@ class Dispatcher(object):
 
         # Prepare the export LDAP filter
         ldapfilter = '(|({0}=*)({1}=*))' \
-                            .format(pelix.remote.PROP_EXPORTED_CONFIGS,
-                                    pelix.remote.PROP_EXPORTED_INTERFACES)
+            .format(pelix.remote.PROP_EXPORTED_CONFIGS,
+                    pelix.remote.PROP_EXPORTED_INTERFACES)
 
         # Export existing services
         existing_ref = context.get_all_service_references(None, ldapfilter)
@@ -134,7 +134,6 @@ class Dispatcher(object):
         # Register a service listener, to update the exported services state
         context.add_service_listener(self, ldapfilter)
 
-
     @Invalidate
     def _invalidate(self, context):
         """
@@ -144,7 +143,6 @@ class Dispatcher(object):
         context.remove_service_listener(self)
         self._context = None
         self._fw_uid = None
-
 
     def _compute_endpoint_name(self, properties):
         """
@@ -158,7 +156,6 @@ class Dispatcher(object):
             name = "service_{0}".format(properties[pelix.constants.SERVICE_ID])
 
         return name
-
 
     def service_changed(self, event):
         """
@@ -185,11 +182,10 @@ class Dispatcher(object):
                                           event.get_previous_properties())
 
             elif svc_ref in self.__service_uids and \
-                    (kind == pelix.framework.ServiceEvent.UNREGISTERING or \
+                    (kind == pelix.framework.ServiceEvent.UNREGISTERING or
                      kind == pelix.framework.ServiceEvent.MODIFIED_ENDMATCH):
                 # Service is updated or unregistering
                 self.__unexport_service(svc_ref)
-
 
     def __export_service(self, svc_ref):
         """
@@ -257,7 +253,6 @@ class Dispatcher(object):
             for listener in self._listeners[:]:
                 listener.endpoints_added(endpoints)
 
-
     def __update_service(self, svc_ref, old_properties):
         """
         Service updated, notify exporters
@@ -287,7 +282,8 @@ class Dispatcher(object):
                 # TODO: check configuration change (can be an unexport)
 
                 # Compute the previous name
-                new_name = self._compute_endpoint_name(svc_ref.get_properties())
+                new_name = \
+                    self._compute_endpoint_name(svc_ref.get_properties())
 
                 try:
                     exporter.update_export(endpoint, new_name, old_properties)
@@ -310,7 +306,6 @@ class Dispatcher(object):
                     if self._listeners:
                         for listener in self._listeners:
                             listener.endpoint_updated(endpoint, old_properties)
-
 
     def __unexport_service(self, svc_ref):
         """
@@ -349,8 +344,6 @@ class Dispatcher(object):
                         except Exception as ex:
                             _logger.error("Error notifying listener: %s", ex)
 
-
-
     @BindField('_listeners')
     def _bind_listener(self, field, listener, svc_ref):
         """
@@ -364,7 +357,6 @@ class Dispatcher(object):
             except Exception as ex:
                 _logger.exception("Error notifying newly bound listener: %s",
                                   ex)
-
 
     @BindField('_exporters', if_valid=True)
     def _bind_exporter(self, field, exporter, svc_ref):
@@ -396,7 +388,6 @@ class Dispatcher(object):
                     if self._listeners:
                         for listener in self._listeners[:]:
                             listener.endpoints_added([endpoint])
-
 
     @UnbindField('_exporters')
     def _unbind_exporter(self, field, exporter, svc_ref):
@@ -433,10 +424,8 @@ class Dispatcher(object):
                 for endpoint in removed_endpoints:
                     try:
                         listener.endpoint_removed(endpoint)
-
                     except Exception as ex:
                         _logger.error("Error notifying listener: %s", ex)
-
 
     def get_endpoint(self, uid):
         """
@@ -447,7 +436,6 @@ class Dispatcher(object):
         :return: The end point description
         """
         return self.__endpoints.get(uid)
-
 
     def get_endpoints(self, kind=None, name=None):
         """
@@ -474,6 +462,7 @@ class Dispatcher(object):
         return endpoints
 
 # -----------------------------------------------------------------------------
+
 
 @ComponentFactory(pelix.remote.FACTORY_REGISTRY_SERVLET)
 @Provides(pelix.http.HTTP_SERVLET)
@@ -508,7 +497,6 @@ class RegistryServlet(object):
         # Ports of exposing servers
         self._ports = []
 
-
     @Validate
     def _validate(self, context):
         """
@@ -525,7 +513,6 @@ class RegistryServlet(object):
         _logger.debug("Dispatcher servlet for %s on %s", self._fw_uid,
                       self._path)
 
-
     @Invalidate
     def _invalidate(self, context):
         """
@@ -533,7 +520,6 @@ class RegistryServlet(object):
         """
         # Clean up
         self._fw_uid = None
-
 
     def __grab_data(self, host, port, path):
         """
@@ -574,7 +560,6 @@ class RegistryServlet(object):
             _logger.error("Error reading the response of the dispatcher: %s",
                           ex)
 
-
     def _make_endpoint_dict(self, endpoint):
         """
         Converts the end point into a dictionary
@@ -591,7 +576,6 @@ class RegistryServlet(object):
                 "name": endpoint.name,
                 "specifications": endpoint.specifications,
                 "properties": properties}
-
 
     def _make_endpoint_bean(self, endpoint_dict, host=None):
         """
@@ -614,7 +598,6 @@ class RegistryServlet(object):
         endpoint.server = host
         return endpoint
 
-
     def bound_to(self, path, parameters):
         """
         This servlet has been bound to a server
@@ -629,7 +612,6 @@ class RegistryServlet(object):
 
             # Activate the service, we're bound to a server
             self._controller = True
-
 
     def unbound_from(self, path, parameters):
         """
@@ -646,7 +628,6 @@ class RegistryServlet(object):
             # Deactivate the service if no more server available
             if not self._ports:
                 self._controller = False
-
 
     def do_GET(self, request, response):
         """
@@ -699,9 +680,9 @@ class RegistryServlet(object):
 
         else:
             # Unknown
-            response.send_content(404, "Unhandled path {0}"\
-                                       .format(request.get_path()),
-                                  "text/plain")
+            response.send_content(404,
+                                  "Unhandled path {0}"
+                                  .format(request.get_path()), "text/plain")
             return
 
         # Convert the result to JSON
@@ -709,7 +690,6 @@ class RegistryServlet(object):
 
         # Send the result
         response.send_content(200, data, 'application/json')
-
 
     def do_POST(self, request, response):
         """
@@ -738,7 +718,6 @@ class RegistryServlet(object):
         # We got the end points
         response.send_content(200, 'OK', 'text/plain')
 
-
     def get_access(self):
         """
         Returns the port and path to access this servlet with the first
@@ -749,7 +728,6 @@ class RegistryServlet(object):
         """
         if self._ports:
             return (self._ports[0], self._path)
-
 
     def grab_endpoint(self, host, port, path, uid):
         """
@@ -779,7 +757,6 @@ class RegistryServlet(object):
         # Create the end point bean
         return self._make_endpoint_bean(endpoint_dict, host)
 
-
     def send_discovered(self, host, port, path):
         """
         Sends a "discovered" HTTP POST request to the dispatcher servlet of the
@@ -798,7 +775,6 @@ class RegistryServlet(object):
         if path[-1] != '/':
             path = path + '/'
         path = urljoin(path, 'endpoints')
-
 
         # Request the end points
         try:

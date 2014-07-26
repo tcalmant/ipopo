@@ -72,6 +72,7 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+
 def _find_assignment(arg_token):
     """
     Find the first non-escaped assignment in the given argument token.
@@ -147,6 +148,7 @@ def _split_ns_command(cmd_token):
 
 # ------------------------------------------------------------------------------
 
+
 class IOHandler(object):
     """
     Handles I/O operations between the command handler and the client
@@ -184,7 +186,6 @@ class IOHandler(object):
         else:
             self.prompt = self._prompt
 
-
     def _prompt(self, prompt=None):
         """
         Reads a line written by the user
@@ -200,7 +201,6 @@ class IOHandler(object):
         # Read the line
         return to_str(self.input.readline())
 
-
     def _write_bytes(self, data):
         """
         Converts the given data then writes it
@@ -210,7 +210,6 @@ class IOHandler(object):
         """
         self.output.write(to_bytes(data, self.encoding))
 
-
     def _write_str(self, data):
         """
         Converts the given data then writes it
@@ -219,7 +218,6 @@ class IOHandler(object):
         :return: The result of ``self.output.write()``
         """
         self.output.write(to_str(data, self.encoding))
-
 
     def write_line(self, line, *args, **kwargs):
         """
@@ -248,7 +246,6 @@ class IOHandler(object):
 
         self.flush()
 
-
     def write_line_no_feed(self, line, *args, **kwargs):
         """
         Formats and writes a line to the output
@@ -272,6 +269,7 @@ class IOHandler(object):
 
 # ------------------------------------------------------------------------------
 
+
 class ShellUtils(object):
     """
     Utility methods for the shell
@@ -281,16 +279,15 @@ class ShellUtils(object):
         Converts a bundle state integer to a string
         """
         states = {
-            pelix.Bundle.INSTALLED:   "INSTALLED",
-            pelix.Bundle.ACTIVE:      "ACTIVE",
-            pelix.Bundle.RESOLVED:    "RESOLVED",
-            pelix.Bundle.STARTING:    "STARTING",
-            pelix.Bundle.STOPPING:    "STOPPING",
+            pelix.Bundle.INSTALLED: "INSTALLED",
+            pelix.Bundle.ACTIVE: "ACTIVE",
+            pelix.Bundle.RESOLVED: "RESOLVED",
+            pelix.Bundle.STARTING: "STARTING",
+            pelix.Bundle.STOPPING: "STOPPING",
             pelix.Bundle.UNINSTALLED: "UNINSTALLED"
         }
 
         return states.get(state, "Unknown state (%d)".format(state))
-
 
     def make_table(self, headers, lines, prefix=None):
         """
@@ -300,7 +297,8 @@ class ShellUtils(object):
         :param lines: List of table lines (N-tuples)
         :param prefix: Optional prefix for each line
         :return: The ASCII representation of the table
-        :raise ValueError: Different number of columns between headers and lines
+        :raise ValueError: Different number of columns between headers and
+                           lines
         """
         # Normalize the prefix
         prefix = str(prefix or "")
@@ -351,7 +349,8 @@ class ShellUtils(object):
         head_str = format_str.format(*headers)
 
         # Prepare the separator, according the length of the headers string
-        separator = '{0}{1}'.format(prefix, '-' * (len(head_str) - len(prefix)))
+        separator = '{0}{1}'.format(prefix,
+                                    '-' * (len(head_str) - len(prefix)))
         idx = head_str.find('|')
         while idx != -1:
             separator = '+'.join((separator[:idx], separator[idx + 1:]))
@@ -376,6 +375,7 @@ class ShellUtils(object):
         return '\n'.join(output)
 
 # ------------------------------------------------------------------------------
+
 
 class Shell(object):
     """
@@ -432,7 +432,6 @@ class Shell(object):
         self.register_command(None, "close", self.quit)
         self.register_command(None, "exit", self.quit)
 
-
     def _bind_handler(self, svc_ref):
         """
         Called if a command service has been found.
@@ -462,7 +461,6 @@ class Shell(object):
         self._reference_commands[svc_ref] = (namespace, commands)
         return True
 
-
     def _unbind_handler(self, svc_ref):
         """
         Called if a command service is gone.
@@ -486,7 +484,6 @@ class Shell(object):
         del self._reference_commands[svc_ref]
         return True
 
-
     def register_command(self, namespace, command, method):
         """
         Registers the given command to the shell.
@@ -496,8 +493,8 @@ class Shell(object):
         :param namespace: The command name space.
         :param command: The shell name of the command
         :param method: The method to call
-        :return: True if the method has been registered, False if it was already
-                 known or invalid
+        :return: True if the method has been registered, False if it was
+                 already known or invalid
         """
         if method is None:
             _logger.error("No method given for %s.%s", namespace, command)
@@ -526,7 +523,6 @@ class Shell(object):
 
         space[command] = method
         return True
-
 
     def unregister(self, namespace, command=None):
         """
@@ -565,7 +561,6 @@ class Shell(object):
 
         return True
 
-
     def __find_command_ns(self, command):
         """
         Returns the name spaces where the given command named is registered.
@@ -596,7 +591,6 @@ class Shell(object):
 
         return namespaces
 
-
     def get_ns_commands(self, cmd_name):
         """
         Retrieves the possible name spaces and commands associated to the given
@@ -620,7 +614,6 @@ class Shell(object):
 
         # Single match
         return [(namespace, command)]
-
 
     def get_ns_command(self, cmd_name):
         """
@@ -647,7 +640,7 @@ class Shell(object):
 
                 else:
                     # Ambiguous name
-                    raise ValueError("Multiple name spaces for {0}: {1}" \
+                    raise ValueError("Multiple name spaces for {0}: {1}"
                                      .format(command, ', '.join(spaces)))
 
             else:
@@ -656,7 +649,6 @@ class Shell(object):
 
         # Command found
         return namespace, command
-
 
     def execute(self, cmdline, stdin=sys.stdin, stdout=sys.stdout):
         """
@@ -722,7 +714,8 @@ class Shell(object):
 
         except Exception as ex:
             # Error
-            _logger.exception("Error calling %s.%s: %s", namespace, command, ex)
+            _logger.exception("Error calling %s.%s: %s",
+                              namespace, command, ex)
             io_handler.write_line("{0}: {1}", type(ex).__name__, str(ex))
             return False
 
@@ -733,20 +726,17 @@ class Shell(object):
             except:
                 pass
 
-
     def get_banner(self):
         """
         Returns the Shell banner
         """
         return "** Pelix Shell prompt **\n"
 
-
     def get_ps1(self):
         """
         Returns the PS1, the basic shell prompt
         """
         return "$ "
-
 
     def get_namespaces(self):
         """
@@ -758,7 +748,6 @@ class Shell(object):
         namespaces.remove(DEFAULT_NAMESPACE)
         namespaces.sort()
         return namespaces
-
 
     def get_commands(self, namespace):
         """
@@ -782,13 +771,11 @@ class Shell(object):
             # Unknown name space
             return []
 
-
     def echo(self, io_handler, *words):
         """
         Echoes the given words
         """
         io_handler.write_line(' '.join(words))
-
 
     def bundle_details(self, io_handler, bundle_id):
         """
@@ -825,8 +812,8 @@ class Shell(object):
         lines.append("ID......: {0}".format(bundle.get_bundle_id()))
         lines.append("Name....: {0}".format(bundle.get_symbolic_name()))
         lines.append("Version.: {0}".format(bundle.get_version()))
-        lines.append("State...: {0}" \
-            .format(self._utils.bundlestate_to_str(bundle.get_state())))
+        lines.append("State...: {0}".format(
+            self._utils.bundlestate_to_str(bundle.get_state())))
         lines.append("Location: {0}".format(bundle.get_location()))
         lines.append("Published services:")
         try:
@@ -857,7 +844,6 @@ class Shell(object):
 
         lines.append("")
         io_handler.write('\n'.join(lines))
-
 
     def bundles_list(self, io_handler, name=None):
         """
@@ -896,7 +882,6 @@ class Shell(object):
         else:
             io_handler.write_line("{0} filtered bundles", len(lines))
 
-
     def service_details(self, io_handler, service_id):
         """
         Prints the details of the service with the given ID
@@ -908,11 +893,11 @@ class Shell(object):
             return
 
         lines = []
-        lines.append("ID............: {0}" \
+        lines.append("ID............: {0}"
                      .format(svc_ref.get_property(constants.SERVICE_ID)))
-        lines.append("Rank..........: {0}" \
+        lines.append("Rank..........: {0}"
                      .format(svc_ref.get_property(constants.SERVICE_RANKING)))
-        lines.append("Specifications: {0}" \
+        lines.append("Specifications: {0}"
                      .format(svc_ref.get_property(constants.OBJECTCLASS)))
         lines.append("Bundle........: {0}".format(svc_ref.get_bundle()))
         lines.append("Properties....:")
@@ -925,7 +910,6 @@ class Shell(object):
 
         lines.append("")
         io_handler.write('\n'.join(lines))
-
 
     def services_list(self, io_handler, specification=None):
         """
@@ -943,8 +927,8 @@ class Shell(object):
 
         if specification is not None:
             # Filter on specifications
-            references = [ref for ref in references \
-                          if specification \
+            references = [ref for ref in references
+                          if specification
                           in ref.get_property(constants.OBJECTCLASS)]
 
         # Construct the list of services
@@ -962,7 +946,6 @@ class Shell(object):
             # Print'em all
             io_handler.write(self._utils.make_table(headers, lines))
             io_handler.write_line("{0} services registered", len(lines))
-
 
     def __extract_help(self, method):
         """
@@ -982,14 +965,14 @@ class Shell(object):
             nb_optional = len(argspec.defaults)
 
             # Let the mandatory arguments as they are
-            args = ["<{0}>".format(arg) for arg in argspec.args[2:-nb_optional]]
+            args = ["<{0}>".format(arg)
+                    for arg in argspec.args[2:-nb_optional]]
 
             # Add the other arguments
             for name, value in zip(argspec.args[-nb_optional:],
                                    argspec.defaults[-nb_optional:]):
                 if value is not None:
                     args.append('[<{0}>={1}]'.format(name, value))
-
                 else:
                     args.append('[<{0}>]'.format(name))
 
@@ -1008,7 +991,6 @@ class Shell(object):
         doc = inspect.getdoc(method) or "(Documentation missing)"
 
         return ' '.join(args), ' '.join(doc.split())
-
 
     def __print_command_help(self, io_handler, namespace, cmd_name):
         """
@@ -1029,7 +1011,6 @@ class Shell(object):
 
         # Print the documentation line
         io_handler.write_line("\t\t{0}", doc)
-
 
     def __print_namespace_help(self, io_handler, namespace, cmd_name=None):
         """
@@ -1058,7 +1039,6 @@ class Shell(object):
 
             self.__print_command_help(io_handler, namespace, command)
             first_cmd = False
-
 
     def print_help(self, io_handler, command=None):
         """
@@ -1093,7 +1073,8 @@ class Shell(object):
                     io_handler.write_line('\n\n')
 
                 for namespace, cmd_name in possibilities:
-                    self.__print_namespace_help(io_handler, namespace, cmd_name)
+                    self.__print_namespace_help(io_handler, namespace,
+                                                cmd_name)
 
         else:
             # Get all name spaces
@@ -1111,7 +1092,6 @@ class Shell(object):
                 # Print the help of all commands
                 self.__print_namespace_help(io_handler, namespace)
                 first_ns = False
-
 
     def properties_list(self, io_handler):
         """
@@ -1132,7 +1112,6 @@ class Shell(object):
         # Print the table
         io_handler.write(self._utils.make_table(headers, lines))
 
-
     def property_value(self, io_handler, name):
         """
         Prints the value of the given property, looking into
@@ -1144,7 +1123,6 @@ class Shell(object):
             value = ""
 
         io_handler.write_line(str(value))
-
 
     def environment_list(self, io_handler):
         """
@@ -1162,13 +1140,11 @@ class Shell(object):
         # Print the table
         io_handler.write(self._utils.make_table(headers, lines))
 
-
     def environment_value(self, io_handler, name):
         """
         Prints the value of the given environment variable
         """
         io_handler.write_line(os.getenv(name))
-
 
     def threads_list(self, io_handler):
         """
@@ -1207,7 +1183,6 @@ class Shell(object):
 
         # Sort the lines
         io_handler.write('\n'.join(lines))
-
 
     def thread_details(self, io_handler, thread_id):
         """
@@ -1254,7 +1229,6 @@ class Shell(object):
             lines.append('')
             io_handler.write('\n'.join(lines))
 
-
     def __format_frame_info(self, frame):
         """
         Formats the given stack frame to show its position in the code and
@@ -1281,22 +1255,22 @@ class Shell(object):
             pass
 
         # File & line
-        output_lines.append('  File "{0}", line {1}, in {2}'\
+        output_lines.append('  File "{0}", line {1}, in {2}'
                             .format(filename, lineno, method_name))
 
         # Arguments
         arginfo = inspect.getargvalues(frame)
         for name in arginfo.args:
-            output_lines.append('    - {0:s} = {1}'\
-                                 .format(name, repr(frame.f_locals[name])))
+            output_lines.append('    - {0:s} = {1}'
+                                .format(name, repr(frame.f_locals[name])))
 
         if arginfo.varargs:
-            output_lines.append('    - *{0:s} = {1}'\
+            output_lines.append('    - *{0:s} = {1}'
                                 .format(arginfo.varargs,
                                         frame.f_locals[arginfo.varargs]))
 
         if arginfo.keywords:
-            output_lines.append('    - **{0:s} = {1}'\
+            output_lines.append('    - **{0:s} = {1}'
                                 .format(arginfo.keywords,
                                         frame.f_locals[arginfo.keywords]))
 
@@ -1305,12 +1279,11 @@ class Shell(object):
         if lines:
             output_lines.append('')
             prefix = '      '
-            output_lines.append('{0}{1}' \
+            output_lines.append('{0}{1}'
                                 .format(prefix,
                                         '\n{0}'.format(prefix).join(lines)))
 
         return '\n'.join(output_lines)
-
 
     def __extract_lines(self, filename, f_globals, lineno, around):
         """
@@ -1360,7 +1333,6 @@ class Shell(object):
         # Return the lines
         return lines
 
-
     def log_level(self, io_handler, level=None, name=None):
         """
         Prints/Changes log level
@@ -1389,14 +1361,12 @@ class Shell(object):
             except ValueError:
                 io_handler.write_line("Invalid log level: {0}", level)
 
-
     def quit(self, io_handler):
         """
         Stops the current shell session (raises a KeyboardInterrupt exception)
         """
         io_handler.write_line("Raising KeyboardInterrupt to stop main thread")
         raise KeyboardInterrupt()
-
 
     def __get_bundle(self, io_handler, bundle_id):
         """
@@ -1417,7 +1387,6 @@ class Shell(object):
         except constants.BundleException:
             io_handler.write_line("Unknown bundle: {0}", bundle_id)
 
-
     def start(self, io_handler, bundle_id):
         """
         Starts the bundle with the given ID
@@ -1425,7 +1394,6 @@ class Shell(object):
         bundle = self.__get_bundle(io_handler, bundle_id)
         if bundle is not None:
             bundle.start()
-
 
     def stop(self, io_handler, bundle_id):
         """
@@ -1435,7 +1403,6 @@ class Shell(object):
         if bundle is not None:
             bundle.stop()
 
-
     def update(self, io_handler, bundle_id):
         """
         Updates the bundle with the given ID
@@ -1444,14 +1411,12 @@ class Shell(object):
         if bundle is not None:
             bundle.update()
 
-
     def install(self, io_handler, module_name):
         """
         Installs the bundle with the given module name
         """
         bundle = self._context.install_bundle(module_name)
         io_handler.write_line("Bundle ID: {0}", bundle.get_bundle_id())
-
 
     def uninstall(self, io_handler, bundle_id):
         """
@@ -1462,6 +1427,7 @@ class Shell(object):
             bundle.uninstall()
 
 # ------------------------------------------------------------------------------
+
 
 @constants.BundleActivator
 class PelixActivator(object):
@@ -1475,7 +1441,6 @@ class PelixActivator(object):
         self._shell = None
         self._shell_reg = None
         self._utils_reg = None
-
 
     def service_changed(self, event):
         """
@@ -1492,7 +1457,6 @@ class PelixActivator(object):
         else:
             # Service gone or not matching anymore
             self._shell._unbind_handler(reference)
-
 
     def start(self, context):
         """
@@ -1525,7 +1489,6 @@ class PelixActivator(object):
 
         except constants.BundleException as ex:
             _logger.exception("Error registering the shell service: %s", ex)
-
 
     def stop(self, context):
         """

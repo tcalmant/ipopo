@@ -132,6 +132,7 @@ else:
 
 # ------------------------------------------------------------------------------
 
+
 def make_mreq(family, address):
     """
     Makes a mreq structure object for the given address and socket family.
@@ -169,6 +170,7 @@ def make_mreq(family, address):
 
 # ------------------------------------------------------------------------------
 
+
 def create_multicast_socket(address, port):
     """
     Creates a multicast socket according to the given address and port.
@@ -184,7 +186,7 @@ def create_multicast_socket(address, port):
         addrs_info = socket.getaddrinfo(address, port, socket.AF_UNSPEC,
                                         socket.SOCK_DGRAM)
     except socket.gaierror:
-        raise ValueError("Error retrieving address informations ({0}, {1})" \
+        raise ValueError("Error retrieving address informations ({0}, {1})"
                          .format(address, port))
 
     if len(addrs_info) > 1:
@@ -270,6 +272,7 @@ def close_multicast_socket(sock, address):
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory(pelix.remote.FACTORY_DISCOVERY_MULTICAST)
 @Provides(pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER)
 @Requires('_access', pelix.remote.SERVICE_DISPATCHER_SERVLET)
@@ -303,7 +306,6 @@ class MulticastDiscovery(object):
         self._stop_event = threading.Event()
         self._thread = None
 
-
     def __make_basic_dict(self, event):
         """
         Prepares basic common information contained into an event packet
@@ -316,12 +318,10 @@ class MulticastDiscovery(object):
         access = self._access.get_access()
 
         # Make the event packet content
-        return {"sender": self._fw_uid,  # Framework UID
+        return {"sender": self._fw_uid,
                 "event": event,  # Kind of event
                 "access": {"port": access[0],  # Access to the dispatcher
-                           "path": access[1]}  # servlet
-               }
-
+                           "path": access[1]}}  # servlet
 
     def _make_endpoint_dict(self, event, endpoint):
         """
@@ -342,7 +342,6 @@ class MulticastDiscovery(object):
 
         return packet
 
-
     def _make_endpoints_dict(self, event, endpoints):
         """
         Prepares an event packet containing multiple endpoints
@@ -358,7 +357,6 @@ class MulticastDiscovery(object):
         packet['uids'] = [endpoint.uid for endpoint in endpoints]
 
         return packet
-
 
     def __send_packet(self, data, target=None):
         """
@@ -378,7 +376,6 @@ class MulticastDiscovery(object):
         # Send the data
         self._socket.sendto(data, 0, target)
 
-
     def _send_discovery(self):
         """
         Sends a discovery packet, requesting others to indicate their services
@@ -386,7 +383,6 @@ class MulticastDiscovery(object):
         # Send a JSON request
         data = json.dumps(self.__make_basic_dict("discovery"))
         self.__send_packet(data)
-
 
     def endpoints_added(self, endpoints):
         """
@@ -396,7 +392,6 @@ class MulticastDiscovery(object):
         data = json.dumps(self._make_endpoints_dict("add", endpoints))
         self.__send_packet(data)
 
-
     def endpoint_updated(self, endpoint, old_properties):
         """
         An end point is updated
@@ -405,7 +400,6 @@ class MulticastDiscovery(object):
         data = json.dumps(self._make_endpoint_dict("update", endpoint))
         self.__send_packet(data)
 
-
     def endpoint_removed(self, endpoint):
         """
         An end point is removed
@@ -413,7 +407,6 @@ class MulticastDiscovery(object):
         # Send a JSON event
         data = json.dumps(self._make_endpoint_dict("remove", endpoint))
         self.__send_packet(data)
-
 
     def _handle_packet(self, sender, raw_data):
         """
@@ -445,7 +438,6 @@ class MulticastDiscovery(object):
 
         else:
             _logger.warning("Unknown event '%s' from %s", event, sender)
-
 
     def _handle_event_packet(self, sender, data):
         """
@@ -480,7 +472,6 @@ class MulticastDiscovery(object):
             new_properties = data['new_properties']
             self._registry.update(endpoint_uid, new_properties)
 
-
     def _read_loop(self):
         """
         Reads packets from the socket
@@ -497,7 +488,6 @@ class MulticastDiscovery(object):
 
                 except Exception as ex:
                     _logger.exception("Error handling the packet: %s", ex)
-
 
     @Invalidate
     def invalidate(self, context):
@@ -521,7 +511,6 @@ class MulticastDiscovery(object):
 
         _logger.debug("Multicast discovery invalidated")
 
-
     @Validate
     def validate(self, context):
         """
@@ -534,7 +523,8 @@ class MulticastDiscovery(object):
         self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
 
         # Create the socket
-        self._socket, address = create_multicast_socket(self._group, self._port)
+        self._socket, address = create_multicast_socket(self._group,
+                                                        self._port)
 
         # Store group access information
         self._target = (address, self._port)

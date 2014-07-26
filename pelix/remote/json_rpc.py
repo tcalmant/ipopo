@@ -66,6 +66,7 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+
 class _JsonRpcServlet(SimpleJSONRPCDispatcher):
     """
     A JSON-RPC servlet that can be registered in the Pelix HTTP service
@@ -84,7 +85,6 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
         # Make a link to the dispatch method
         self._dispatch_method = dispatch_method
 
-
     def _simple_dispatch(self, name, params):
         """
         Dispatch method
@@ -96,7 +96,6 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
         except KeyError:
             # Other method
             return self._dispatch_method(name, params)
-
 
     def do_POST(self, request, response):
         """
@@ -120,6 +119,7 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
                                   'text/plain')
 
 # ------------------------------------------------------------------------------
+
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_JSONRPC_EXPORTER)
 @Provides(pelix.remote.SERVICE_EXPORT_PROVIDER)
@@ -148,14 +148,12 @@ class JsonRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # JSON-RPC servlet
         self._servlet = None
 
-
     def get_access(self):
         """
         Retrieves the URL to access this component
         """
         port = self._http.get_access()[1]
         return "http://{{server}}:{0}{1}".format(port, self._path)
-
 
     def make_endpoint_properties(self, svc_ref, name, fw_uid):
         """
@@ -168,7 +166,6 @@ class JsonRpcServiceExporter(commons.AbstractRpcServiceExporter):
         """
         return {PROP_JSONRPC_URL: self.get_access()}
 
-
     @Validate
     def validate(self, context):
         """
@@ -180,7 +177,6 @@ class JsonRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # Create/register the servlet
         self._servlet = _JsonRpcServlet(self.dispatch)
         self._http.register_servlet(self._path, self._servlet)
-
 
     @Invalidate
     def invalidate(self, context):
@@ -198,6 +194,7 @@ class JsonRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
 # ------------------------------------------------------------------------------
 
+
 class _ServiceCallProxy(object):
     """
     Service call proxy
@@ -211,7 +208,6 @@ class _ServiceCallProxy(object):
         """
         self.__name = name
         self.__url = url
-
 
     def __getattr__(self, name):
         """
@@ -243,7 +239,6 @@ class JsonRpcServiceImporter(commons.AbstractRpcServiceImporter):
         # Component properties
         self._kinds = None
 
-
     def make_service_proxy(self, endpoint):
         """
         Creates the proxy for the given ImportEndpoint
@@ -269,7 +264,6 @@ class JsonRpcServiceImporter(commons.AbstractRpcServiceImporter):
 
         # Return the proxy
         return _ServiceCallProxy(endpoint.name, access_url)
-
 
     def clear_service_proxy(self, endpoint):
         """

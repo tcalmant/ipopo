@@ -33,10 +33,12 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 FACTORY_REGISTRY_SERVLET = "pelix-remote-dispatcher-servlet-factory"
-""" Name of the factory of the Servlet component giving access to registries """
+"""
+Name of the factory of the Servlet component giving access to registries
+"""
 
 
 FACTORY_DISCOVERY_MQTT = "pelix-remote-discovery-mqtt-factory"
@@ -69,7 +71,7 @@ FACTORY_TRANSPORT_MQTTRPC_EXPORTER = "pelix-mqttrpc-exporter-factory"
 FACTORY_TRANSPORT_MQTTRPC_IMPORTER = "pelix-mqttrpc-importer-factory"
 """ Name of the MQTT-RPC importer component factory """
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 SERVICE_DISPATCHER = "pelix.remote.dispatcher"
 """ Remote call dispatcher """
@@ -92,7 +94,7 @@ SERVICE_EXPORT_ENDPOINT_LISTENER = "pelix.remote.endpoint.export.listener"
 SERVICE_IMPORT_ENDPOINT_LISTENER = "pelix.remote.endpoint.import.listener"
 """ Imported endpoints listener specification """
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Properties used by Pelix
 
 PROP_ENDPOINT_NAME = "endpoint.name"
@@ -104,7 +106,7 @@ PREFIX_PROP_EXPORTED = "service.exported."
 PROP_IMPORTED_INTERFACES = "service.imported.interfaces"
 """ Imported specifications (mirror of PROP_EXPORTED_INTERFACES) """
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Properties declared in RSA specifications
 
 # Already known
@@ -174,8 +176,8 @@ endpoint is not for an OSGi service. (int)
 
 PROP_REMOTE_CONFIGS_SUPPORTED = "remote.configs.supported"
 """
-Service property identifying the configuration types supported by a distribution
-provider.
+Service property identifying the configuration types supported by a
+distribution provider.
 Registered by the distribution provider on one of its services to indicate the
 supported configuration types. (str or array of str)
 """
@@ -187,7 +189,7 @@ Registered by the distribution provider on one of its services to indicate the
 vocabulary of implemented intents. (str or array of str)
 """
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Zeroconf discovery properties
 
 PROP_ZEROCONF_TYPE = "zeroconf.service.type"
@@ -200,7 +202,8 @@ WARNING: Doesn't work as is with pyzeroconf: the library must be patched.
 => checking in zeroconf.mdns.DNSQuestion must be removed (around line 220)
 """
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+
 
 class RemoteServiceError(Exception):
     """

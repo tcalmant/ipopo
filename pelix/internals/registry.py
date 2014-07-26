@@ -51,6 +51,7 @@ import threading
 
 # ------------------------------------------------------------------------------
 
+
 class _UsageCounter(object):
     """
     Simple reference usage counter
@@ -61,13 +62,11 @@ class _UsageCounter(object):
         """
         self.__count = 0
 
-
     def inc(self):
         """
         Counter is incremented
         """
         self.__count += 1
-
 
     def dec(self):
         """
@@ -77,7 +76,6 @@ class _UsageCounter(object):
         """
         self.__count -= 1
         return self.__count > 0
-
 
     def is_used(self):
         """
@@ -89,6 +87,7 @@ class _UsageCounter(object):
 
 # ------------------------------------------------------------------------------
 
+
 class ServiceReference(object):
     """
     Represents a reference to a service
@@ -99,13 +98,14 @@ class ServiceReference(object):
 
         :param bundle: The bundle registering the service
         :param properties: The service properties
-        :raise BundleException: The properties doesn't contain mandatory entries
+        :raise BundleException: The properties doesn't contain mandatory
+                                entries
         """
         # Check properties
         for mandatory in (SERVICE_ID, OBJECTCLASS):
             if mandatory not in properties:
                 raise BundleException(
-                    "A Service must at least have a '{0}' entry" \
+                    "A Service must at least have a '{0}' entry"
                     .format(mandatory))
 
         # Properties lock (used by ServiceRegistration too)
@@ -126,7 +126,6 @@ class ServiceReference(object):
         self.__sort_key = None
         self.update_sort_key()
 
-
     def __str__(self):
         """
         String representation
@@ -134,7 +133,6 @@ class ServiceReference(object):
         return "ServiceReference(ID={0}, Bundle={1}, Specs={2})" \
             .format(self.__service_id, self.__bundle.get_bundle_id(),
                     self.__properties[OBJECTCLASS])
-
 
     def __hash__(self):
         """
@@ -144,13 +142,11 @@ class ServiceReference(object):
         """
         return self.__service_id
 
-
     def __eq__(self, other):
         """
         Two references are equal if they have the same service ID
         """
         return self.__service_id == other.__service_id
-
 
     def __lt__(self, other):
         """
@@ -182,7 +178,6 @@ class ServiceReference(object):
         """
         return self.__service_id != other.__service_id
 
-
     def get_bundle(self):
         """
         Returns the bundle that registered this service
@@ -191,7 +186,6 @@ class ServiceReference(object):
         """
         return self.__bundle
 
-
     def get_using_bundles(self):
         """
         Returns the list of bundles that use this service
@@ -199,7 +193,6 @@ class ServiceReference(object):
         :return: A list of Bundle objects
         """
         return list(self.__using_bundles.keys())
-
 
     def get_properties(self):
         """
@@ -210,7 +203,6 @@ class ServiceReference(object):
         with self._props_lock:
             return self.__properties.copy()
 
-
     def get_property(self, name):
         """
         Retrieves the property value for the given name
@@ -220,7 +212,6 @@ class ServiceReference(object):
         with self._props_lock:
             return self.__properties.get(name, None)
 
-
     def get_property_keys(self):
         """
         Returns an array of the keys in the properties of the service
@@ -229,7 +220,6 @@ class ServiceReference(object):
         """
         with self._props_lock:
             return tuple(self.__properties.keys())
-
 
     def unused_by(self, bundle):
         """
@@ -249,11 +239,9 @@ class ServiceReference(object):
                     # This bundle has cleaner all of its usages of this
                     # reference
                     del self.__using_bundles[bundle]
-
             except KeyError:
                 # Ignore error
                 pass
-
 
     def used_by(self, bundle):
         """
@@ -269,17 +257,18 @@ class ServiceReference(object):
         with self.__usage_lock:
             self.__using_bundles.setdefault(bundle, _UsageCounter()).inc()
 
-
     def update_sort_key(self):
         """
         Recomputes the sort key, based on the service ranking and ID
 
-        See: http://www.osgi.org/javadoc/r4v43/org/osgi/framework/ServiceReference.html#compareTo%28java.lang.Object%29
+        See: http://www.osgi.org/javadoc/r4v43/org/osgi/framework/
+                          ServiceReference.html#compareTo%28java.lang.Object%29
         """
         self.__sort_key = (int(self.__properties.get(SERVICE_RANKING, 0)),
                            (-self.__service_id))
 
 # ------------------------------------------------------------------------------
+
 
 class ServiceRegistration(object):
     """
@@ -298,13 +287,11 @@ class ServiceRegistration(object):
         self.__reference = reference
         self.__properties = properties
 
-
     def __str__(self):
         """
         String representation
         """
         return "ServiceRegistration({0})".format(self.__reference)
-
 
     def get_reference(self):
         """
@@ -313,7 +300,6 @@ class ServiceRegistration(object):
         :return: A ServiceReference object
         """
         return self.__reference
-
 
     def set_properties(self, properties):
         """
@@ -361,15 +347,14 @@ class ServiceRegistration(object):
 
             self.__framework._dispatcher.fire_service_event(event)
 
-
     def unregister(self):
         """
         Unregisters the service
         """
         self.__framework.unregister_service(self)
 
-
 # ------------------------------------------------------------------------------
+
 
 class _Listener(object):
     """
@@ -418,7 +403,6 @@ class EventDispatcher(object):
         self.__fw_listeners = []
         self.__fw_lock = threading.Lock()
 
-
     def clear(self):
         """
         Clears the event dispatcher
@@ -431,7 +415,6 @@ class EventDispatcher(object):
 
         with self.__fw_lock:
             del self.__fw_listeners[:]
-
 
     def add_bundle_listener(self, listener):
         """
@@ -454,11 +437,10 @@ class EventDispatcher(object):
             self.__bnd_listeners.append(listener)
             return True
 
-
     def add_framework_listener(self, listener):
         """
-        Registers a listener that will be called back right before the framework
-        stops.
+        Registers a listener that will be called back right before the
+        framework stops.
 
         :param listener: The framework stop listener
         :return: True if the listener has been registered, False if it was
@@ -476,7 +458,6 @@ class EventDispatcher(object):
 
             self.__fw_listeners.append(listener)
             return True
-
 
     def add_service_listener(self, listener, specification=None,
                              ldap_filter=None):
@@ -505,14 +486,13 @@ class EventDispatcher(object):
                 ldap_filter = ldapfilter.get_ldap_filter(ldap_filter)
 
             except ValueError as ex:
-                raise BundleException("Invalid service filter: {0}" \
-                                                 .format(ex))
+                raise BundleException("Invalid service filter: {0}"
+                                      .format(ex))
 
             stored = _Listener(listener, specification, ldap_filter)
             self.__listeners_data[listener] = stored
             self.__svc_listeners.setdefault(specification, []).append(stored)
             return True
-
 
     def remove_bundle_listener(self, listener):
         """
@@ -528,7 +508,6 @@ class EventDispatcher(object):
             self.__bnd_listeners.remove(listener)
             return True
 
-
     def remove_framework_listener(self, listener):
         """
         Unregisters a framework stop listener
@@ -542,7 +521,6 @@ class EventDispatcher(object):
 
             self.__fw_listeners.remove(listener)
             return True
-
 
     def remove_service_listener(self, listener):
         """
@@ -563,7 +541,6 @@ class EventDispatcher(object):
             except KeyError:
                 return False
 
-
     def fire_bundle_event(self, event):
         """
         Notifies bundle events listeners of a new event in the calling thread.
@@ -581,7 +558,6 @@ class EventDispatcher(object):
             except:
                 self._logger.exception("Error calling a bundle listener")
 
-
     def fire_framework_stopping(self):
         """
         Calls all framework listeners, telling them that the framework is
@@ -596,9 +572,8 @@ class EventDispatcher(object):
                 listener.framework_stopping()
 
             except:
-                self._logger.exception("An error occurred calling one of the " \
+                self._logger.exception("An error occurred calling one of the "
                                        "framework stop listeners")
-
 
     def fire_service_event(self, event):
         """
@@ -643,10 +618,10 @@ class EventDispatcher(object):
             # Test if the service properties matches the filter
             ldap_filter = data.ldap_filter
             if ldap_filter is not None \
-            and not ldap_filter.matches(properties):
+                    and not ldap_filter.matches(properties):
                 # Event doesn't match listener filter...
                 if svc_modified and previous is not None \
-                and ldap_filter.matches(previous):
+                        and ldap_filter.matches(previous):
                     # ... but previous properties did match
                     sent_event = endmatch_event
                 else:
@@ -661,6 +636,7 @@ class EventDispatcher(object):
                 self._logger.exception("Error calling a service listener")
 
 # ------------------------------------------------------------------------------
+
 
 class ServiceRegistry(object):
     """
@@ -702,7 +678,6 @@ class ServiceRegistry(object):
         # Locks
         self.__svc_lock = threading.Lock()
 
-
     def clear(self):
         """
         Clears the registry
@@ -713,7 +688,6 @@ class ServiceRegistry(object):
             self.__svc_bundle.clear()
             self.__bundle_svc.clear()
             self.__bundle_imports.clear()
-
 
     def register(self, bundle, classes, properties, svc_instance):
         """
@@ -753,7 +727,6 @@ class ServiceRegistry(object):
 
             return svc_registration
 
-
     def unregister(self, svc_ref):
         """
         Unregisters a service
@@ -790,7 +763,6 @@ class ServiceRegistry(object):
 
             return service
 
-
     def find_service_references(self, clazz=None, ldap_filter=None,
                                 only_one=False):
         """
@@ -800,7 +772,8 @@ class ServiceRegistry(object):
         :param ldap_filter: Service filter
         :param only_one: Return the first matching service reference only
         :return: A list of found references, or None
-        :raise BundleException: An error occurred looking for service references
+        :raise BundleException: An error occurred looking for service
+                                references
         """
         with self.__svc_lock:
             if clazz is None and ldap_filter is None:
@@ -854,11 +827,10 @@ class ServiceRegistry(object):
             # Get all the matching references
             return list(refs_set) or None
 
-
     def get_bundle_imported_services(self, bundle):
         """
-        Returns this bundle's ServiceReference list for all services it is using
-        or returns None if this bundle is not using any services.
+        Returns this bundle's ServiceReference list for all services it is
+        using or returns None if this bundle is not using any services.
         A bundle is considered to be using a service if its use count for that
         service is greater than zero.
 
@@ -872,7 +844,6 @@ class ServiceRegistry(object):
         with self.__svc_lock:
             return self.__bundle_imports.get(bundle, [])
 
-
     def get_bundle_registered_services(self, bundle):
         """
         Retrieves the services registered by the given bundle. Returns None
@@ -883,7 +854,6 @@ class ServiceRegistry(object):
         """
         with self.__svc_lock:
             return self.__bundle_svc.get(bundle, [])
-
 
     def get_service(self, bundle, reference):
         """
@@ -908,9 +878,8 @@ class ServiceRegistry(object):
 
             except KeyError:
                 # Not found
-                raise BundleException("Service not found (reference: {0})" \
+                raise BundleException("Service not found (reference: {0})"
                                       .format(reference))
-
 
     def unget_service(self, bundle, reference):
         """

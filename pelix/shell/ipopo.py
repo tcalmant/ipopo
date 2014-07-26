@@ -52,6 +52,7 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+
 def ipopo_state_to_str(state):
     """
     Converts the state of a component instance to its string representation
@@ -60,13 +61,14 @@ def ipopo_state_to_str(state):
     :return: A string representation of the state
     """
     ipopo_states = {0: "INVALID",
-                    1:"VALID",
-                    2:"KILLED",
-                    3:"VALIDATING"}
+                    1: "VALID",
+                    2: "KILLED",
+                    3: "VALIDATING"}
 
     return ipopo_states.get(state, "Unknown state (%d)".format(state))
 
 # ------------------------------------------------------------------------------
+
 
 @ComponentFactory("ipopo-shell-commands-factory")
 @Requires("_ipopo", pelix.ipopo.constants.SERVICE_IPOPO)
@@ -84,13 +86,11 @@ class IPopoCommands(object):
         self._ipopo = None
         self._utils = None
 
-
     def get_namespace(self):
         """
         Retrieves the name space of this command handler
         """
         return "ipopo"
-
 
     def get_methods(self):
         """
@@ -102,9 +102,7 @@ class IPopoCommands(object):
                 ("waiting", self.list_waitings),
                 ("instance", self.instance_details),
                 ("instantiate", self.instantiate),
-                ("kill", self.kill),
-               ]
-
+                ("kill", self.kill)]
 
     def list_factories(self, io_handler, name=None):
         """
@@ -125,7 +123,6 @@ class IPopoCommands(object):
             io_handler.write_line("{0} factories available", len(lines))
         else:
             io_handler.write_line("{0} filtered factories", len(lines))
-
 
     def list_instances(self, io_handler, name=None):
         """
@@ -149,7 +146,6 @@ class IPopoCommands(object):
         else:
             io_handler.write_line("{0} filtered components", len(instances))
 
-
     def list_waitings(self, io_handler, name=None):
         """
         Lists the components waiting to be instantiated
@@ -172,7 +168,6 @@ class IPopoCommands(object):
                                   len(components))
         else:
             io_handler.write_line("{0} filtered components", len(components))
-
 
     def factory_details(self, io_handler, name):
         """
@@ -215,7 +210,6 @@ class IPopoCommands(object):
 
             lines.append(self._utils.make_table(req_headers, req_lines, '\t'))
 
-
         handlers = details.get('handlers', None)
         if handlers:
             lines.append("Handlers:")
@@ -225,7 +219,6 @@ class IPopoCommands(object):
                                                 handlers_lines, '\t'))
 
         io_handler.write('\n'.join(lines))
-
 
     def instance_details(self, io_handler, name):
         """
@@ -256,7 +249,7 @@ class IPopoCommands(object):
         lines.append("Dependencies:")
         for field, infos in details["dependencies"].items():
             lines.append("\tField: {0}".format(field))
-            lines.append("\t\tSpecification: {0}"\
+            lines.append("\t\tSpecification: {0}"
                          .format(infos['specification']))
             if "filter" in infos:
                 lines.append("\t\tFilter......: {0}".format(infos["filter"]))
@@ -276,7 +269,6 @@ class IPopoCommands(object):
         lines.append("")
         io_handler.write('\n'.join(lines))
 
-
     def instantiate(self, io_handler, factory, name, **kwargs):
         """
         Instantiates a component of the given factory with the given name and
@@ -295,7 +287,6 @@ class IPopoCommands(object):
         except Exception as ex:
             io_handler.write_line("Error instantiating the component: {0}", ex)
             _logger.exception("Error instantiating the component")
-
 
     def kill(self, io_handler, name):
         """

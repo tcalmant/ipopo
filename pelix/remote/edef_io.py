@@ -77,16 +77,15 @@ if ElementTree.VERSION[0:3] == '1.2':
 
             del sys.modules[current_part]
 
-
     # As we will heavily modify this version of the class, ensure we have our
     # own version
     _clean_modules_tree(ElementTree.__name__)
     ElementTree = __import__('xml.etree.ElementTree', fromlist='.')
     _clean_modules_tree(ElementTree.__name__)
 
-
     # Remove column ':' in namespace prefix
     old_fixtag = ElementTree.fixtag
+
     def _fixtag(tag, namespace):
         """
         Replaces the fixtag method of ElementTree 1.2.x to remove the starting
@@ -105,14 +104,12 @@ if ElementTree.VERSION[0:3] == '1.2':
             # Good to go
             return fixed
 
-
     # Missing method
     def _register_namespace(prefix, uri):
         """
         Backport of the register_namespace() method of ElementTree 1.3.x
         """
         ElementTree._namespace_map[EDEF_NAMESPACE] = ""
-
 
     # Support 1.3.x parameters + write the XML declaration more often
     def _write(self, out_file, encoding="us-ascii", xml_declaration=True,
@@ -140,8 +137,8 @@ if ElementTree.VERSION[0:3] == '1.2':
 EDEF_NAMESPACE = "http://www.osgi.org/xmlns/rsa/v1.0.0"
 
 # EDEF tags
-TAG_ENDPOINT_DESCRIPTIONS = "{{{0}}}endpoint-descriptions"\
-                                                        .format(EDEF_NAMESPACE)
+TAG_ENDPOINT_DESCRIPTIONS = "{{{0}}}endpoint-descriptions" \
+    .format(EDEF_NAMESPACE)
 TAG_ENDPOINT_DESCRIPTION = "{{{0}}}endpoint-description".format(EDEF_NAMESPACE)
 TAG_PROPERTY = "{{{0}}}property".format(EDEF_NAMESPACE)
 TAG_ARRAY = "{{{0}}}array".format(EDEF_NAMESPACE)
@@ -182,6 +179,7 @@ XML_VALUE = object()
 
 # ------------------------------------------------------------------------------
 
+
 class EDEFReader(object):
     """
     Reads an EDEF XML data. Inspired from EndpoitnDescriptionParser from ECF
@@ -201,23 +199,18 @@ class EDEFReader(object):
         if vtype == TYPE_STRING:
             # Nothing to do
             return value
-
         elif vtype in TYPES_INT:
             return int(value)
-
         elif vtype in TYPES_FLOAT:
             return float(value)
-
         elif vtype in TYPES_BOOLEAN:
             # Compare lower-case value
             return value.lower() not in ("false", "0")
-
         elif vtype in TYPES_CHAR:
             return value[0]
 
         # No luck
         raise ValueError("Unknown value type: {0}".format(vtype))
-
 
     def _parse_description(self, node):
         """
@@ -235,7 +228,6 @@ class EDEFReader(object):
 
         return EndpointDescription(None, endpoint)
 
-
     def _parse_property(self, node):
         """
         Parses a property node
@@ -252,13 +244,11 @@ class EDEFReader(object):
         try:
             value_node = next(iter(node))
             value = self._parse_value_node(vtype, value_node)
-
         except StopIteration:
             # Value is an attribute
             value = self._convert_value(vtype, node.attrib[ATTR_VALUE])
 
         return name, value
-
 
     def _parse_value_node(self, vtype, node):
         """
@@ -292,7 +282,6 @@ class EDEFReader(object):
             # Unknown
             raise ValueError("Unknown value tag: {0}".format(kind))
 
-
     def parse(self, xml_str):
         """
         Parses an EDEF XML string
@@ -310,6 +299,7 @@ class EDEFReader(object):
                 for node in root.findall(TAG_ENDPOINT_DESCRIPTION)]
 
 # ------------------------------------------------------------------------------
+
 
 class EDEFWriter(object):
     """
@@ -346,7 +336,6 @@ class EDEFWriter(object):
             if level and (not element.tail or not element.tail.strip()):
                 element.tail = element_prefix
 
-
     def _add_container(self, props_node, tag, container):
         """
         Walks through the given container and fills the node
@@ -359,7 +348,6 @@ class EDEFWriter(object):
         for value in container:
             value_node = ElementTree.SubElement(values_node, TAG_VALUE)
             value_node.text = str(value)
-
 
     def _get_type(self, name, value):
         """
@@ -405,7 +393,6 @@ class EDEFWriter(object):
 
         # Default: String
         return TYPE_STRING
-
 
     def _make_endpoint(self, root_node, endpoint):
         """
@@ -456,7 +443,6 @@ class EDEFWriter(object):
                 # Simple value -> Attribute
                 prop_node.set(ATTR_VALUE, str(value))
 
-
     def _make_xml(self, endpoints):
         """
         Converts the given endpoint description beans into an XML Element
@@ -473,7 +459,6 @@ class EDEFWriter(object):
         self._indent(root)
 
         return root
-
 
     def to_string(self, endpoints):
         """
@@ -508,7 +493,6 @@ class EDEFWriter(object):
             raise LookupError("Couldn't find a valid encoding")
 
         return output.getvalue()
-
 
     def write(self, endpoints, filename):
         """

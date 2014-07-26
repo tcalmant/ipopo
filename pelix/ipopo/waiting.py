@@ -54,6 +54,7 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+
 class IPopoWaitingList(object):
     """
     iPOPO instantiation waiting list
@@ -76,7 +77,6 @@ class IPopoWaitingList(object):
         # Some locking
         self.__lock = threading.RLock()
 
-
     def _try_instantiate(self, ipopo, factory, component):
         """
         Tries to instantiate a component from the queue. Hides all exceptions.
@@ -89,28 +89,22 @@ class IPopoWaitingList(object):
             # Get component properties
             with self.__lock:
                 properties = self.__queue[factory][component]
-
         except KeyError:
             # Component not in queue
             return
-
         else:
             try:
                 # Try instantiation
                 ipopo.instantiate(factory, component, properties)
-
             except TypeError:
                 # Unknown factory: try later
                 pass
-
             except ValueError as ex:
                 # Already known component
                 _logger.error("Component already running: %s", ex)
-
             except Exception as ex:
                 # Other error
                 _logger.exception("Error instantiating component: %s", ex)
-
 
     def _start(self):
         """
@@ -120,14 +114,12 @@ class IPopoWaitingList(object):
             # Try to register to factory events
             with use_ipopo(self.__context) as ipopo:
                 ipopo.add_listener(self)
-
         except BundleException:
             # Service not yet present
             pass
 
         # Register the iPOPO service listener
         self.__context.add_service_listener(self, specification=SERVICE_IPOPO)
-
 
     def _stop(self):
         """
@@ -140,11 +132,9 @@ class IPopoWaitingList(object):
             # Try to register to factory events
             with use_ipopo(self.__context) as ipopo:
                 ipopo.remove_listener(self)
-
         except BundleException:
             # Service not present anymore
             pass
-
 
     def _clear(self):
         """
@@ -153,7 +143,6 @@ class IPopoWaitingList(object):
         self.__names.clear()
         self.__queue.clear()
         self.__context = None
-
 
     def service_changed(self, event):
         """
@@ -164,7 +153,6 @@ class IPopoWaitingList(object):
             # iPOPO service registered: register to factory events
             with use_ipopo(self.__context) as ipopo:
                 ipopo.add_listener(self)
-
 
     def handle_ipopo_event(self, event):
         """
@@ -185,15 +173,12 @@ class IPopoWaitingList(object):
 
                     for component in components:
                         self._try_instantiate(ipopo, factory, component)
-
             except BundleException:
                 # iPOPO not yet started
                 pass
-
             except KeyError:
                 # No components for this new factory
                 pass
-
 
     def add(self, factory, component, properties=None):
         """
@@ -207,7 +192,7 @@ class IPopoWaitingList(object):
         """
         with self.__lock:
             if component in self.__names:
-                raise ValueError("Component name already queued: {0}"\
+                raise ValueError("Component name already queued: {0}"
                                  .format(component))
 
             # Normalize properties
@@ -222,11 +207,9 @@ class IPopoWaitingList(object):
                 with use_ipopo(self.__context) as ipopo:
                     # Try to instantiate the component right now
                     self._try_instantiate(ipopo, factory, component)
-
             except BundleException:
                 # iPOPO not yet started
                 pass
-
 
     def remove(self, component):
         """
@@ -251,12 +234,12 @@ class IPopoWaitingList(object):
                 with use_ipopo(self.__context) as ipopo:
                     # Try to instantiate the component right now
                     ipopo.kill(component)
-
             except (BundleException, ValueError):
                 # iPOPO not yet started or component not instantiated
                 pass
 
 # ------------------------------------------------------------------------------
+
 
 @BundleActivator
 class Activator(object):
@@ -269,7 +252,6 @@ class Activator(object):
         """
         self.__registration = None
         self.__service = None
-
 
     def start(self, context):
         """

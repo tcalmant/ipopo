@@ -127,10 +127,12 @@ IPOPO_REQUIRES_FILTERS = "requires.filters"
 
 IPOPO_AUTO_RESTART = "pelix.ipopo.auto_restart"
 """
-If True, the component will be re-instantiated after its bundle has been updated
+If True, the component will be re-instantiated after its bundle has been
+updated
 """
 
 # ------------------------------------------------------------------------------
+
 
 def get_ipopo_svc_ref(bundle_context):
     """
@@ -149,7 +151,6 @@ def get_ipopo_svc_ref(bundle_context):
     try:
         # Get it
         svc = bundle_context.get_service(ref)
-
     except BundleException:
         # Service reference has been invalidated
         return None
@@ -162,8 +163,8 @@ def get_ipopo_svc_ref(bundle_context):
 def use_ipopo(bundle_context):
     """
     Utility context to use the iPOPO service safely in a "with" block.
-    It looks after the the iPOPO service and releases its reference when exiting
-    the context.
+    It looks after the the iPOPO service and releases its reference when
+    exiting the context.
 
     :param bundle_context: The calling bundle context
     :return: The iPOPO service
@@ -177,12 +178,10 @@ def use_ipopo(bundle_context):
     try:
         # Give the service
         yield ref_svc[1]
-
     finally:
         try:
             # Release it
             bundle_context.unget_service(ref_svc[0])
-
         except BundleException:
             # Service might have already been unregistered
             pass
@@ -219,6 +218,7 @@ def use_waiting_list(bundle_context):
 
 # ------------------------------------------------------------------------------
 
+
 class IPopoEvent(object):
     """
     An iPOPO event descriptor.
@@ -247,7 +247,6 @@ class IPopoEvent(object):
     UNREGISTERED = 10
     """ A component factory has been unregistered """
 
-
     def __init__(self, kind, factory_name, component_name):
         """
         Sets up the iPOPO event
@@ -261,7 +260,6 @@ class IPopoEvent(object):
         self.__factory_name = factory_name
         self.__component_name = component_name
 
-
     def get_component_name(self):
         """
         Retrieves the name of the component associated to the event
@@ -270,7 +268,6 @@ class IPopoEvent(object):
         """
         return self.__component_name
 
-
     def get_factory_name(self):
         """
         Retrieves the name of the factory associated to the event
@@ -278,7 +275,6 @@ class IPopoEvent(object):
         :return: the name of the component factory
         """
         return self.__factory_name
-
 
     def get_kind(self):
         """

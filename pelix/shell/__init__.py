@@ -67,8 +67,8 @@ SERVICE_SHELL_REMOTE = "pelix.shell.remote"
 """
 Remote shell service
 
-* get_access(): returns the (host, port) tuple where the remote shell is waiting
-  clients.
+* get_access(): returns the (host, port) tuple where the remote shell is
+  waiting clients.
 """
 
 # ------------------------------------------------------------------------------

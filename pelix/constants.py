@@ -96,6 +96,7 @@ This property is constant during the life of a framework instance.
 
 # ------------------------------------------------------------------------------
 
+
 def BundleActivator(clazz):
     """
     Decorator to declare the bundle activator
@@ -112,6 +113,7 @@ def BundleActivator(clazz):
     return clazz
 
 # ------------------------------------------------------------------------------
+
 
 class BundleException(Exception):
     """

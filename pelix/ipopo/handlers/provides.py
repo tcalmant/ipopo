@@ -47,6 +47,7 @@ import logging
 
 # ------------------------------------------------------------------------------
 
+
 class _HandlerFactory(constants.HandlerFactory):
     """
     Factory service for service registration handlers
@@ -82,7 +83,6 @@ class _Activator(object):
         """
         self._registration = None
 
-
     def start(self, context):
         """
         Bundle started
@@ -96,7 +96,6 @@ class _Activator(object):
             constants.SERVICE_IPOPO_HANDLER_FACTORY,
             _HandlerFactory(), properties)
 
-
     def stop(self, context):
         """
         Bundle stopped
@@ -106,6 +105,7 @@ class _Activator(object):
         self._registration = None
 
 # ------------------------------------------------------------------------------
+
 
 class ServiceRegistrationHandler(constants.ServiceProviderHandler):
     """
@@ -131,7 +131,6 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         self._registration = None
         self._svc_reference = None
 
-
     def _field_controller_generator(self):
         """
         Generates the methods called by the injected controller
@@ -147,7 +146,6 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
             :return: The property value
             """
             return stored_instance.get_controller_state(name)
-
 
         def set_value(self, name, new_value):
             """
@@ -165,7 +163,6 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
             return new_value
 
         return (get_value, set_value)
-
 
     def manipulate(self, stored_instance, component_instance):
         """
@@ -201,7 +198,6 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         setattr(component_instance, getter_name, getter)
         setattr(component_instance, setter_name, setter)
 
-
     def check_event(self, svc_event):
         """
         Tests if the given service event corresponds to the registered service
@@ -211,7 +207,6 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         """
         return self._svc_reference is not svc_event.get_service_reference()
 
-
     def get_kinds(self):
         """
         Retrieves the kinds of this handler: 'service_provider'
@@ -219,7 +214,6 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         :return: the kinds of this handler
         """
         return (constants.KIND_SERVICE_PROVIDER,)
-
 
     def get_service_reference(self):
         """
@@ -229,10 +223,10 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         """
         return self._svc_reference
 
-
     def on_controller_change(self, name, value):
         """
-        Called by the instance manager when a controller value has been modified
+        Called by the instance manager when a controller value has been
+        modified
 
         :param name: The name of the controller
         :param value: The new value of the controller
@@ -246,11 +240,9 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         if value:
             # Controller switched to "ON"
             self._register_service()
-
         else:
             # Controller switched to "OFF"
             self._unregister_service()
-
 
     def on_property_change(self, name, old_value, new_value):
         """
@@ -264,7 +256,6 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
             # use the registration to trigger the service event
             self._registration.set_properties({name: new_value})
 
-
     def post_validate(self):
         """
         Called by the instance manager once the component has been validated
@@ -272,7 +263,6 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         # Update the validation flag
         self.__validated = True
         self._register_service()
-
 
     def pre_invalidate(self):
         """
@@ -284,13 +274,12 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         # Force service unregistration
         self._unregister_service()
 
-
     def _register_service(self):
         """
         Registers the provided service, if possible
         """
         if self._registration is None and self.specifications \
-        and self.__validated and self.__controller_on:
+                and self.__validated and self.__controller_on:
             # Use a copy of component properties
             properties = self._ipopo_instance.context.properties.copy()
             bundle_context = self._ipopo_instance.bundle_context
@@ -299,7 +288,6 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
             self._registration = bundle_context.register_service(
                 self.specifications, self._ipopo_instance.instance, properties)
             self._svc_reference = self._registration.get_reference()
-
 
     def _unregister_service(self):
         """

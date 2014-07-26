@@ -47,6 +47,7 @@ import pelix.services
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory("eventadmin-shell-commands-factory")
 @Requires("_events", pelix.services.SERVICE_EVENT_ADMIN)
 @Provides(SERVICE_SHELL_COMMAND)
@@ -62,13 +63,11 @@ class EventAdminCommands(object):
         # Injected services
         self._events = None
 
-
     def get_namespace(self):
         """
         Retrieves the name space of this command handler
         """
         return "event"
-
 
     def get_methods(self):
         """
@@ -77,13 +76,11 @@ class EventAdminCommands(object):
         return [("send", self.send),
                 ("post", self.post)]
 
-
     def send(self, io_handler, topic, **kwargs):
         """
         Sends an event (blocking)
         """
         self._events.send(topic, kwargs)
-
 
     def post(self, io_handler, topic, **kwargs):
         """

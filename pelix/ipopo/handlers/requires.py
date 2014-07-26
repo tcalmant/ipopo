@@ -49,6 +49,7 @@ import threading
 
 # ------------------------------------------------------------------------------
 
+
 class _HandlerFactory(constants.HandlerFactory):
     """
     Factory service for service registration handlers
@@ -83,7 +84,6 @@ class _HandlerFactory(constants.HandlerFactory):
                 new_requirements[field] = requirement
 
         return new_requirements
-
 
     def get_handlers(self, component_context, instance):
         """
@@ -126,7 +126,6 @@ class _Activator(object):
         """
         self._registration = None
 
-
     def start(self, context):
         """
         Bundle started
@@ -140,7 +139,6 @@ class _Activator(object):
             constants.SERVICE_IPOPO_HANDLER_FACTORY,
             _HandlerFactory(), properties)
 
-
     def stop(self, context):
         """
         Bundle stopped
@@ -150,6 +148,7 @@ class _Activator(object):
         self._registration = None
 
 # ------------------------------------------------------------------------------
+
 
 class _RuntimeDependency(constants.DependencyHandler):
     """
@@ -180,7 +179,6 @@ class _RuntimeDependency(constants.DependencyHandler):
         # Current field value
         self._value = None
 
-
     def manipulate(self, stored_instance, component_instance):
         """
         Stores the given StoredInstance bean.
@@ -194,7 +192,6 @@ class _RuntimeDependency(constants.DependencyHandler):
         # ... and the bundle context
         self._context = stored_instance.bundle_context
 
-
     def clear(self):
         """
         Cleans up the manager. The manager can't be used after this method has
@@ -207,7 +204,6 @@ class _RuntimeDependency(constants.DependencyHandler):
         self._value = None
         self._field = None
 
-
     def get_bindings(self):
         """
         Retrieves the list of the references to the bound services
@@ -216,13 +212,11 @@ class _RuntimeDependency(constants.DependencyHandler):
         """
         raise NotImplementedError
 
-
     def get_field(self):
         """
         Returns the name of the field handled by this handler
         """
         return self._field
-
 
     def get_kinds(self):
         """
@@ -231,7 +225,6 @@ class _RuntimeDependency(constants.DependencyHandler):
         :return: the kinds of this handler
         """
         return (constants.KIND_DEPENDENCY,)
-
 
     def get_value(self):
         """
@@ -242,14 +235,12 @@ class _RuntimeDependency(constants.DependencyHandler):
         """
         return self._value
 
-
     def is_valid(self):
         """
         Tests if the dependency is in a valid state
         """
         return (self.requirement is not None and self.requirement.optional) \
             or self._value is not None
-
 
     def on_service_arrival(self, svc_ref):
         """
@@ -259,7 +250,6 @@ class _RuntimeDependency(constants.DependencyHandler):
         """
         raise NotImplementedError
 
-
     def on_service_departure(self, svc_ref):
         """
         Called when a service has been registered in the framework
@@ -267,7 +257,6 @@ class _RuntimeDependency(constants.DependencyHandler):
         :param svc_ref: A service reference
         """
         raise NotImplementedError
-
 
     def on_service_modify(self, svc_ref, old_properties):
         """
@@ -278,13 +267,12 @@ class _RuntimeDependency(constants.DependencyHandler):
         """
         raise NotImplementedError
 
-
     def service_changed(self, event):
         """
         Called by the framework when a service event occurs
         """
         if self._ipopo_instance is None \
-        or not self._ipopo_instance.check_event(event):
+                or not self._ipopo_instance.check_event(event):
             # stop() and clean() may have been called after we have been put
             # inside a listener list copy...
             # or we've been told to ignore this event
@@ -307,7 +295,6 @@ class _RuntimeDependency(constants.DependencyHandler):
             # Modified properties (can be a new injection)
             self.on_service_modify(svc_ref, event.get_previous_properties())
 
-
     def start(self):
         """
         Starts the dependency manager
@@ -315,7 +302,6 @@ class _RuntimeDependency(constants.DependencyHandler):
         self._context.add_service_listener(self,
                                            self.requirement.filter,
                                            self.requirement.specification)
-
 
     def stop(self):
         """
@@ -339,7 +325,6 @@ class SimpleDependency(_RuntimeDependency):
         # We have only one reference to keep
         self.reference = None
 
-
     def clear(self):
         """
         Cleans up the manager. The manager can't be used after this method has
@@ -347,7 +332,6 @@ class SimpleDependency(_RuntimeDependency):
         """
         self.reference = None
         super(SimpleDependency, self).clear()
-
 
     def get_bindings(self):
         """
@@ -358,10 +342,8 @@ class SimpleDependency(_RuntimeDependency):
         with self._lock:
             if self.reference:
                 return [self.reference]
-
             else:
                 return []
-
 
     def on_service_arrival(self, svc_ref):
         """
@@ -377,7 +359,6 @@ class SimpleDependency(_RuntimeDependency):
 
                 self._ipopo_instance.bind(self, self._value, self.reference)
                 return True
-
 
     def on_service_departure(self, svc_ref):
         """
@@ -396,7 +377,6 @@ class SimpleDependency(_RuntimeDependency):
                 self._ipopo_instance.unbind(self, service, svc_ref)
                 return True
 
-
     def on_service_modify(self, svc_ref, old_properties):
         """
         Called when a service has been modified in the framework
@@ -414,7 +394,6 @@ class SimpleDependency(_RuntimeDependency):
                 self._ipopo_instance.update(self, self._value, svc_ref,
                                             old_properties)
 
-
     def stop(self):
         """
         Stops the dependency manager (must be called before clear())
@@ -425,7 +404,6 @@ class SimpleDependency(_RuntimeDependency):
         if self.reference is not None:
             # Return a list
             return [(self._value, self.reference)]
-
 
     def try_binding(self):
         """
@@ -440,8 +418,8 @@ class SimpleDependency(_RuntimeDependency):
 
             # Get all matching services
             ref = self._context \
-                        .get_service_reference(self.requirement.specification,
-                                               self.requirement.filter)
+                .get_service_reference(self.requirement.specification,
+                                       self.requirement.filter)
             if ref is not None:
                 # Found a service
                 self.on_service_arrival(ref)
@@ -463,7 +441,6 @@ class AggregateDependency(_RuntimeDependency):
         # Future injected value
         self._future_value = None
 
-
     def clear(self):
         """
         Cleans up the manager. The manager can't be used after this method has
@@ -478,7 +455,6 @@ class AggregateDependency(_RuntimeDependency):
 
         super(AggregateDependency, self).clear()
 
-
     def get_bindings(self):
         """
         Retrieves the list of the references to the bound services
@@ -487,7 +463,6 @@ class AggregateDependency(_RuntimeDependency):
         """
         with self._lock:
             return list(self.services.keys())
-
 
     def get_value(self):
         """
@@ -502,14 +477,12 @@ class AggregateDependency(_RuntimeDependency):
             else:
                 return None
 
-
     def is_valid(self):
         """
         Tests if the dependency is in a valid state
         """
         return (self.requirement is not None and self.requirement.optional) \
             or self._future_value is not None
-
 
     def on_service_arrival(self, svc_ref):
         """
@@ -532,7 +505,6 @@ class AggregateDependency(_RuntimeDependency):
 
                 self._ipopo_instance.bind(self, service, svc_ref)
                 return True
-
 
     def on_service_departure(self, svc_ref):
         """
@@ -558,7 +530,6 @@ class AggregateDependency(_RuntimeDependency):
                 self._ipopo_instance.unbind(self, service, svc_ref)
                 return True
 
-
     def on_service_modify(self, svc_ref, old_properties):
         """
         Called when a service has been modified in the framework
@@ -572,12 +543,10 @@ class AggregateDependency(_RuntimeDependency):
             if svc_ref not in self.services:
                 # A previously registered service now matches our filter
                 return self.on_service_arrival(svc_ref)
-
             else:
                 # Notify the property modification
                 self._ipopo_instance.update(self, self.services[svc_ref],
                                             svc_ref, old_properties)
-
 
     def stop(self):
         """
@@ -588,14 +557,8 @@ class AggregateDependency(_RuntimeDependency):
         super(AggregateDependency, self).stop()
 
         if self.services:
-            results = [(service, reference)
-                       for reference, service in self.services.items()]
-
-        else:
-            results = None
-
-        return results
-
+            return [(service, reference)
+                    for reference, service in self.services.items()]
 
     def try_binding(self):
         """
@@ -611,8 +574,8 @@ class AggregateDependency(_RuntimeDependency):
 
             # Get all matching services
             refs = self._context \
-                    .get_all_service_references(self.requirement.specification,
-                                                self.requirement.filter)
+                .get_all_service_references(self.requirement.specification,
+                                            self.requirement.filter)
             if not refs:
                 # No match found
                 return

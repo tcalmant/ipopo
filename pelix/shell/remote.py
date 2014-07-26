@@ -66,6 +66,7 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+
 class SharedBoolean(object):
     """
     Shared boolean between objects / threads
@@ -77,14 +78,12 @@ class SharedBoolean(object):
         self._lock = threading.Lock()
         self._value = value
 
-
     def get_value(self):
         """
         Retrieves the boolean value
         """
         with self._lock:
             return self._value
-
 
     def set_value(self, value):
         """
@@ -94,6 +93,7 @@ class SharedBoolean(object):
             self._value = value
 
 # ------------------------------------------------------------------------------
+
 
 class RemoteConsole(socketserver.StreamRequestHandler):
     """
@@ -109,7 +109,6 @@ class RemoteConsole(socketserver.StreamRequestHandler):
         self._shell = shell_svc
         self._active = active_flag
         socketserver.StreamRequestHandler.__init__(self, *args)
-
 
     def send(self, data):
         """
@@ -131,7 +130,6 @@ class RemoteConsole(socketserver.StreamRequestHandler):
             # -> This allows to handle the command even if the client has been
             # disconnect (i.e. "echo stop 0 | nc localhost 9000")
             return False
-
 
     def handle(self):
         """
@@ -198,6 +196,7 @@ class RemoteConsole(socketserver.StreamRequestHandler):
 
 # ------------------------------------------------------------------------------
 
+
 class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
     """
     Threaded TCP Server handling different address families
@@ -232,13 +231,12 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
                 # Log the error
                 _logger.exception("Couldn't set IP double stack flag: %s", ex)
 
-
     def process_request(self, request, client_address):
         """
         Starts a new thread to process the request, adding the client address
         in its name.
         """
-        thread = threading.Thread(name="RemoteShell-{0}-Client-{1}"\
+        thread = threading.Thread(name="RemoteShell-{0}-Client-{1}"
                                   .format(self.server_address[1],
                                           client_address[:2]),
                                   target=self.process_request_thread,
@@ -281,6 +279,7 @@ def _create_server(shell, server_address, port):
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory(pelix.shell.FACTORY_REMOTE_SHELL)
 @Provides(pelix.shell.SERVICE_SHELL_REMOTE)
 @Requires("_shell", pelix.shell.SERVICE_SHELL)
@@ -304,7 +303,6 @@ class IPopoRemoteShell(object):
         self._server = None
         self._server_flag = None
 
-
     def get_access(self):
         """
         Implementation of the remote shell specification
@@ -312,7 +310,6 @@ class IPopoRemoteShell(object):
         :return: A (host, port) tuple
         """
         return (self._address, self._port)
-
 
     def get_banner(self):
         """
@@ -326,7 +323,6 @@ class IPopoRemoteShell(object):
         return "{lines}\n{shell_banner}\niPOPO Remote Shell\n{lines}\n" \
             .format(lines=line, shell_banner=shell_banner)
 
-
     def get_ps1(self):
         """
         Returns the shell prompt
@@ -334,7 +330,6 @@ class IPopoRemoteShell(object):
         :return: The shell prompt
         """
         return self._shell.get_ps1()
-
 
     def handle_line(self, rfile, wfile, line):
         """
@@ -348,7 +343,6 @@ class IPopoRemoteShell(object):
         :return: The execution result (True on success, else False)
         """
         return self._shell.execute(line, rfile, wfile)
-
 
     @Validate
     def validate(self, context):
@@ -371,13 +365,12 @@ class IPopoRemoteShell(object):
 
         # Start the TCP server
         self._thread, self._server, self._server_flag = \
-                                _create_server(self, self._address, self._port)
+            _create_server(self, self._address, self._port)
 
         # Property update (if port was 0)
         self._port = self._server.socket.getsockname()[1]
 
         _logger.info("RemoteShell validated on port: %d", self._port)
-
 
     @Invalidate
     def invalidate(self, context):
@@ -402,6 +395,7 @@ class IPopoRemoteShell(object):
         _logger.info("RemoteShell gone from port: %d", self._port)
 
 # ------------------------------------------------------------------------------
+
 
 def main(address="localhost", port=9000):
     """

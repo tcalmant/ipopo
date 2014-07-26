@@ -67,6 +67,7 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+
 class _XmppOutStream(object):
     """
     File-like XMPP output. For shell IOHandler use only
@@ -123,6 +124,7 @@ class _XmppInStream(object):
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory(pelix.shell.FACTORY_XMPP_SHELL)
 @Requires("_shell", pelix.shell.SERVICE_SHELL)
 @Property("_host", "shell.xmpp.server", "localhost")
@@ -153,7 +155,6 @@ class IPopoXMPPShell(object):
 
         # Waiting for a message from the given JID
         self.__waiting = {}
-
 
         # Task queue thread
         self.__pool = pelix.threadpool.ThreadPool(1, logname="XMPPShell")
@@ -287,6 +288,7 @@ class IPopoXMPPShell(object):
         return event.data
 
 # ------------------------------------------------------------------------------
+
 
 def main(server, port, jid=None, password=None, use_tls=False, use_ssl=False):
     """

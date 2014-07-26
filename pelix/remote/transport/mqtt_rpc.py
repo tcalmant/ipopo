@@ -83,6 +83,7 @@ KEY_SENDER = pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID
 
 # ------------------------------------------------------------------------------
 
+
 def make_topic(topic, suffix):
     """
     Prepares a topic with the given suffix
@@ -129,7 +130,6 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # MQTT client
         self.__mqtt = None
 
-
     @Validate
     def validate(self, context):
         """
@@ -154,7 +154,6 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # Prepare the connection
         self.__mqtt.connect(self._host, self._port)
 
-
     @Invalidate
     def invalidate(self, context):
         """
@@ -169,7 +168,6 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # Clean up members
         self.__mqtt = None
 
-
     def __on_connect(self, client, rc):
         """
         Client connected to the server
@@ -179,7 +177,6 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
             # Subscribe to endpoints calls
             request_topic_filter = make_topic(self.__real_topic, TOPIC_REQUEST)
             self.__mqtt.subscribe(request_topic_filter)
-
 
     def __on_message(self, client, msg):
         """
@@ -207,7 +204,6 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # Handle the request in a different thread
         threading.Thread(name="MQTT-RPC-Exporter",
                          target=self.__handle_rpc, args=(data,)).start()
-
 
     def __handle_rpc(self, data):
         """
@@ -250,7 +246,6 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         except (ValueError, AttributeError) as ex:
             _logger.error("Error replying an RPC request: %s", ex)
 
-
     def make_endpoint_properties(self, svc_ref, name, fw_uid):
         """
         Prepare properties for the ExportEndpoint to be created
@@ -263,6 +258,7 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         return {PROP_MQTT_TOPIC: self.__real_topic}
 
 # ------------------------------------------------------------------------------
+
 
 class _MqttCallableProxy(object):
     """
@@ -290,7 +286,6 @@ class _MqttCallableProxy(object):
         self._error = None
         self._result = None
 
-
     def handle_result(self, result, error):
         """
         The result has been received
@@ -305,7 +300,6 @@ class _MqttCallableProxy(object):
 
         # Unlock the call
         self._event.set()
-
 
     def __call__(self, *args, **kwargs):
         """
@@ -347,7 +341,6 @@ class _ServiceCallProxy(object):
         self.__name = name
         self.__topic_prefix = topic_prefix
         self.__publish = publish_method
-
 
     def __getattr__(self, name):
         """
@@ -395,7 +388,6 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         # Endpoints in use: Endpoint UID -> _MqttCallableProxy
         self.__waiting_endpoints = {}
 
-
     def make_service_proxy(self, endpoint):
         """
         Creates the proxy for the given ImportEndpoint
@@ -413,7 +405,6 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
             return _ServiceCallProxy(endpoint.uid, endpoint.name, topic_prefix,
                                      self.__send_request)
 
-
     def clear_service_proxy(self, endpoint):
         """
         Destroys the proxy made for the given ImportEndpoint
@@ -428,7 +419,6 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         except KeyError:
             # Unused endpoint
             return
-
 
     def __send_request(self, endpoint_uid, proxy, topic_prefix,
                        request_parameters):
@@ -450,7 +440,7 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
                                   KEY_SENDER: self._framework_uid})
 
         except ValueError as ex:
-            raise RemoteServiceError("Cannot convert request to JSON: {0}" \
+            raise RemoteServiceError("Cannot convert request to JSON: {0}"
                                      .format(ex))
 
         # Keep the callable in the waiting list
@@ -463,7 +453,6 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         # Send the request
         self.__mqtt.publish(make_topic(topic_prefix, TOPIC_REQUEST), request,
                             qos=2)
-
 
     def __on_message(self, client, msg):
         """
@@ -515,7 +504,6 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
             # Notify the proxy
             proxy.handle_result(result, error)
 
-
     @Validate
     def validate(self, context):
         """
@@ -532,7 +520,6 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
 
         # Prepare the connection
         self.__mqtt.connect(self._host, self._port)
-
 
     @Invalidate
     def invalidate(self, context):

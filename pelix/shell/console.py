@@ -59,7 +59,6 @@ try:
     import readline
     readline.parse_and_bind('tab: complete')
     readline.set_completer(None)
-
 except ImportError:
     # Readline is missing, not critical
     readline = None
@@ -67,11 +66,11 @@ except ImportError:
 # Before Python 3, input() was raw_input()
 if sys.version_info[0] < 3:
     safe_input = raw_input
-
 else:
     safe_input = input
 
 # ------------------------------------------------------------------------------
+
 
 class InteractiveShell(object):
     """
@@ -101,7 +100,6 @@ class InteractiveShell(object):
         # Register as a service listener
         self._context.add_service_listener(self, None, SERVICE_SHELL)
 
-
     def _readline_prompt(self):
         """
         Prompt using the readline module (no pre-flush)
@@ -110,7 +108,6 @@ class InteractiveShell(object):
         """
         sys.stdout.flush()
         return safe_input(self._shell.get_ps1())
-
 
     def _normal_prompt(self):
         """
@@ -121,7 +118,6 @@ class InteractiveShell(object):
         sys.stdout.write(self._shell.get_ps1())
         sys.stdout.flush()
         return safe_input()
-
 
     def loop_input(self, on_quit=None):
         """
@@ -135,7 +131,7 @@ class InteractiveShell(object):
 
             # Set up the prompt
             prompt = self._readline_prompt if readline is not None \
-                        else self._normal_prompt
+                else self._normal_prompt
 
             while not self._stop_event.is_set():
                 # Wait for the shell to be there
@@ -171,7 +167,6 @@ class InteractiveShell(object):
         if on_quit is not None:
             # Call a handler if needed
             on_quit()
-
 
     def readline_completer(self, text, state):
         """
@@ -223,7 +218,6 @@ class InteractiveShell(object):
             # Next try
             return self._readline_matches[state]
 
-
     def search_shell(self):
         """
         Looks for a shell service
@@ -236,7 +230,6 @@ class InteractiveShell(object):
             reference = self._context.get_service_reference(SERVICE_SHELL)
             if reference is not None:
                 self.set_shell(reference)
-
 
     def service_changed(self, event):
         """
@@ -257,7 +250,6 @@ class InteractiveShell(object):
 
                 # Request for a new binding
                 self.search_shell()
-
 
     def set_shell(self, svc_ref):
         """
@@ -280,7 +272,6 @@ class InteractiveShell(object):
             # Set the flag
             self._shell_event.set()
 
-
     def clear_shell(self):
         """
         Unbinds the active shell service
@@ -301,7 +292,6 @@ class InteractiveShell(object):
             self._shell_ref = None
             self._shell = None
 
-
     def stop(self):
         """
         Clears all members
@@ -321,6 +311,7 @@ class InteractiveShell(object):
 
 # ------------------------------------------------------------------------------
 
+
 @BundleActivator
 class Activator(object):
     """
@@ -333,7 +324,6 @@ class Activator(object):
         self._context = None
         self._shell = None
         self._thread = None
-
 
     def start(self, context):
         """
@@ -350,14 +340,12 @@ class Activator(object):
         self._thread.daemon = True
         self._thread.start()
 
-
     def stop(self, context):
         """
         Bundle stopped
         """
         self._cleanup()
         self._context = None
-
 
     def _quit(self):
         """
@@ -369,7 +357,6 @@ class Activator(object):
         # Stop the framework
         if self._context is not None:
             self._context.get_bundle(0).stop()
-
 
     def _cleanup(self):
         """
@@ -384,6 +371,7 @@ class Activator(object):
 
 # ------------------------------------------------------------------------------
 
+
 def main():
     """
     Entry point
@@ -392,7 +380,6 @@ def main():
     pelix.create_framework(('pelix.ipopo.core', 'pelix.shell.core',
                             'pelix.shell.console', 'pelix.shell.ipopo'),
                            None, True, True, True)
-
 
 if __name__ == '__main__':
     # Prepare the logger

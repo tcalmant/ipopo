@@ -65,6 +65,7 @@ _logger = logging.getLogger("pelix.main")
 
 # ------------------------------------------------------------------------------
 
+
 class Bundle(object):
     """
     Represents a "bundle" in Pelix
@@ -487,6 +488,7 @@ class Bundle(object):
         self._fire_bundle_event(BundleEvent.UPDATED)
 
 # ------------------------------------------------------------------------------
+
 
 class Framework(Bundle):
     """
@@ -1141,6 +1143,7 @@ class Framework(Bundle):
 
 # ------------------------------------------------------------------------------
 
+
 class BundleContext(object):
     """
     Represents a bundle context
@@ -1417,11 +1420,11 @@ class BundleContext(object):
 
 # ------------------------------------------------------------------------------
 
+
 class FrameworkFactory(object):
     """
     A framework factory
     """
-
     __singleton = None
     """ The framework singleton """
 
@@ -1486,6 +1489,7 @@ class FrameworkFactory(object):
         return False
 
 # ------------------------------------------------------------------------------
+
 
 def create_framework(bundles, properties=None,
                      auto_start=False, wait_for_stop=False, auto_delete=False):

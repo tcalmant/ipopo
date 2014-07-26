@@ -69,6 +69,7 @@ ENDPOINT_EVENTS = (EVENT_ADD, EVENT_UPDATE, EVENT_REMOVE)
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory(pelix.remote.FACTORY_DISCOVERY_MQTT)
 @Provides(pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER, "_controller")
 @Requires("_dispatcher", pelix.remote.SERVICE_DISPATCHER)
@@ -111,7 +112,6 @@ class MqttDiscovery(object):
         # Real prefix
         self._real_prefix = ""
 
-
     @Validate
     def _validate(self, context):
         """
@@ -141,7 +141,6 @@ class MqttDiscovery(object):
         # Prepare the connection
         self.__mqtt.connect(self._host, self._port)
 
-
     @Invalidate
     def _invalidate(self, context):
         """
@@ -158,7 +157,6 @@ class MqttDiscovery(object):
         self._framework_uid = None
         self.__mqtt = None
 
-
     def _make_topic(self, event):
         """
         Prepares a MQTT topic name for the given event
@@ -167,7 +165,6 @@ class MqttDiscovery(object):
         :return: A MQTT topic
         """
         return "{0}/{1}".format(self._real_prefix, event)
-
 
     def __on_connect(self, client, rc):
         """
@@ -183,14 +180,12 @@ class MqttDiscovery(object):
             # Send a discovery packet
             self.__send_message(EVENT_DISCOVER, self._framework_uid)
 
-
     def __on_disconnect(self, client, rc):
         """
         Client has been disconnected from the server
         """
         # Disconnected: stop providing the service
         self._controller = False
-
 
     def __on_message(self, client, msg):
         """
@@ -236,7 +231,6 @@ class MqttDiscovery(object):
             _logger.exception("Error handling an MQTT message '%s': %s",
                               topic, ex)
 
-
     def __send_message(self, event, payload, wait=False):
         """
         Sends a message through the MQTT connection
@@ -249,7 +243,6 @@ class MqttDiscovery(object):
         return self.__mqtt.publish(self._make_topic(event), payload, qos=2,
                                    wait=wait)
 
-
     def _handle_add(self, endpoints):
         """
         A set of endpoints have been registered
@@ -259,7 +252,6 @@ class MqttDiscovery(object):
         # Notify the import registry
         for endpoint in endpoints:
             self._registry.add(endpoint)
-
 
     def _handle_update(self, endpoints):
         """
@@ -271,7 +263,6 @@ class MqttDiscovery(object):
         for endpoint in endpoints:
             self._registry.update(endpoint.uid, endpoint.properties)
 
-
     def _handle_remove(self, endpoints):
         """
         A set of endpoints has been removed
@@ -281,7 +272,6 @@ class MqttDiscovery(object):
         # Notify the import registry
         for endpoint in endpoints:
             self._registry.remove(endpoint.uid)
-
 
     def _handle_discover(self, payload):
         """
@@ -307,7 +297,6 @@ class MqttDiscovery(object):
         # Send the message
         self.__send_message(EVENT_ADD, xml_string)
 
-
     def _handle_lost(self, payload):
         """
         A framework has been lost
@@ -315,7 +304,6 @@ class MqttDiscovery(object):
         :param payload: The UID of the lost framework
         """
         self._registry.lost_framework(payload)
-
 
     def endpoints_added(self, endpoints):
         """
@@ -330,7 +318,6 @@ class MqttDiscovery(object):
 
         # Send the message
         self.__send_message(EVENT_ADD, xml_string)
-
 
     def endpoint_updated(self, endpoint, old_properties):
         """
@@ -347,7 +334,6 @@ class MqttDiscovery(object):
 
         # Send the message
         self.__send_message(EVENT_UPDATE, xml_string)
-
 
     def endpoint_removed(self, endpoint):
         """

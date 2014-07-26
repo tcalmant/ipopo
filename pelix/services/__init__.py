@@ -33,7 +33,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 FACTORY_EVENT_ADMIN = "pelix-services-eventadmin-factory"
 """ Name of the EventAdmin component factory """
@@ -41,7 +41,7 @@ FACTORY_EVENT_ADMIN = "pelix-services-eventadmin-factory"
 FACTORY_EVENT_ADMIN_MQTT = "pelix-services-eventadmin-mqtt-factory"
 """ Name of the component factory of the MQTT bridge for EventAdmin """
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 SERVICE_EVENT_ADMIN = "pelix.services.eventadmin"
 """ Specification of the EventAdmin service """
@@ -62,9 +62,11 @@ EVENT_PROP_TIMESTAMP = "event.timestamp"
 """ Time stamp of the event, compute during the call of send() or post() """
 
 EVENT_PROP_PROPAGATE = "event.propagate"
-""" If present in event properties, the event can be propagated through MQTT """
+"""
+If present in event properties, the event can be propagated through MQTT
+"""
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 SERVICE_CONFIGURATION_ADMIN = "pelix.configadmin"
 """ Specification of the ConfigurationAdmin service """
@@ -90,7 +92,7 @@ CONFIG_PROP_FACTORY_PID = 'service.factoryPid'
 CONFIG_PROP_BUNDLE_LOCATION = 'service.bundleLocation'
 """ Configuration property: bound location (not used yet) """
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 SERVICE_FILEINSTALL = 'pelix.services.fileinstall'
 """ Specification of the File Install service """
@@ -101,7 +103,7 @@ SERVICE_FILEINSTALL_LISTENERS = 'pelix.services.fileinstall.listener'
 PROP_FILEINSTALL_FOLDER = 'fileinstall.folder'
 """ Path to the folder to look after, in white board pattern """
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 SERVICE_MQTT_CONNECTOR_FACTORY = 'pelix.mqtt.factory'
 """ Specification of an MQTT connection factory """

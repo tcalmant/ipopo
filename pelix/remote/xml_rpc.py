@@ -73,6 +73,7 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+
 class _XmlRpcServlet(SimpleXMLRPCDispatcher):
     """
     A XML-RPC servlet that can be registered in the Pelix HTTP service
@@ -92,7 +93,6 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher):
         # Make a link to the dispatch method
         self._dispatch_method = dispatch_method
 
-
     def _simple_dispatch(self, name, params):
         """
         Dispatch method
@@ -104,7 +104,6 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher):
         except KeyError:
             # Other method
             return self._dispatch_method(name, params)
-
 
     def do_POST(self, request, response):
         """
@@ -123,6 +122,7 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher):
         response.send_content(200, result, 'text/xml')
 
 # ------------------------------------------------------------------------------
+
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_XMLRPC_EXPORTER)
 @Provides(pelix.remote.SERVICE_EXPORT_PROVIDER)
@@ -151,14 +151,12 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # XML-RPC servlet
         self._servlet = None
 
-
     def get_access(self):
         """
         Retrieves the URL to access this component
         """
         port = self._http.get_access()[1]
         return "http://{{server}}:{0}{1}".format(port, self._path)
-
 
     def make_endpoint_properties(self, svc_ref, name, fw_uid):
         """
@@ -171,7 +169,6 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
         """
         return {PROP_XMLRPC_URL: self.get_access()}
 
-
     @Validate
     def validate(self, context):
         """
@@ -183,7 +180,6 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # Create/register the servlet
         self._servlet = _XmlRpcServlet(self.dispatch)
         self._http.register_servlet(self._path, self._servlet)
-
 
     @Invalidate
     def invalidate(self, context):
@@ -201,6 +197,7 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
 # ------------------------------------------------------------------------------
 
+
 class _ServiceCallProxy(object):
     """
     Service call proxy
@@ -215,15 +212,14 @@ class _ServiceCallProxy(object):
         self.__name = name
         self.__url = url
 
-
     def __getattr__(self, name):
         """
         Prefixes the requested attribute name by the endpoint name
         """
         # Make a proxy for this call
-        # This is an ugly trick to handle multithreaded calls, as the underlying
-        # proxy re-uses the same connection when possible: sometimes it means
-        # sending a request before retrieving a result
+        # This is an ugly trick to handle multithreaded calls, as the
+        # underlying proxy re-uses the same connection when possible: sometimes
+        # it means sending a request before retrieving a result
         proxy = xmlrpclib.ServerProxy(self.__url, allow_none=True)
         return getattr(proxy, "{0}.{1}".format(self.__name, name))
 
@@ -245,7 +241,6 @@ class XmlRpcServiceImporter(commons.AbstractRpcServiceImporter):
 
         # Component properties
         self._kinds = None
-
 
     def make_service_proxy(self, endpoint):
         """
@@ -272,7 +267,6 @@ class XmlRpcServiceImporter(commons.AbstractRpcServiceImporter):
 
         # Return the proxy
         return _ServiceCallProxy(endpoint.name, access_url)
-
 
     def clear_service_proxy(self, endpoint):
         """

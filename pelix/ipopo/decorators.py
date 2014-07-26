@@ -53,6 +53,7 @@ _logger = logging.getLogger("ipopo.decorators")
 
 # ------------------------------------------------------------------------------
 
+
 def is_from_parent(cls, attribute_name, value=None):
     """
     Tests if the current attribute value is shared by a parent of the given
@@ -130,9 +131,10 @@ def get_method_description(method):
             # Error reading the source file
             line_no = -1
 
-        return "'{method}' ({file}:{line})".format(method=method.__name__,
-                                                   file=inspect.getfile(method),
-                                                   line=line_no)
+        return "'{method}' ({file}:{line})" \
+            .format(method=method.__name__,
+                    file=inspect.getfile(method),
+                    line=line_no)
 
     except TypeError:
         # Method can't be inspected
@@ -144,8 +146,8 @@ def validate_method_arity(method, *needed_args):
     Tests if the decorated method has a sufficient number of parameters.
 
     :param method: The method to be tested
-    :param needed_args: The name (for description only) of the needed arguments,
-                        without "self".
+    :param needed_args: The name (for description only) of the needed
+                        arguments, without "self".
     :return: Nothing
     :raise TypeError: Invalid number of parameter
     """
@@ -164,18 +166,19 @@ def validate_method_arity(method, *needed_args):
         # Variable arguments
         if len(method_args) != 1 or method_args[0] != "self":
             # Other arguments detected
-            raise TypeError("When using '*args', the decorated {0} method must "
-                            "only accept the 'self' argument".format(
-                                get_method_description(method)))
+            raise TypeError("When using '*args', the decorated {0} method must"
+                            " only accept the 'self' argument"
+                            .format(get_method_description(method)))
 
     elif len(method_args) != nb_needed_args or method_args[0] != 'self':
         # "Normal" arguments
         raise TypeError("The decorated method {0} must accept exactly {1} "
-                        "parameters : (self, {2})" \
+                        "parameters : (self, {2})"
                         .format(get_method_description(method), nb_needed_args,
                                 ", ".join(needed_args)))
 
 # ------------------------------------------------------------------------------
+
 
 def _ipopo_setup_callback(cls, context):
     """
@@ -205,7 +208,7 @@ def _ipopo_setup_callback(cls, context):
 
         if not isinstance(method_callbacks, list):
             # Invalid content
-            _logger.warning("Invalid callback information %s in %s", \
+            _logger.warning("Invalid callback information %s in %s",
                             constants.IPOPO_METHOD_CALLBACKS,
                             get_method_description(function))
             continue
@@ -216,10 +219,10 @@ def _ipopo_setup_callback(cls, context):
         # Store the call backs
         for _callback in method_callbacks:
             if _callback in callbacks and \
-            not is_from_parent(cls, callbacks[_callback].__name__,
-                               callbacks[_callback]):
-                _logger.warning("Redefining the callback %s in class '%s'.\n" \
-                                "\tPrevious callback : %s\n" \
+                    not is_from_parent(cls, callbacks[_callback].__name__,
+                                       callbacks[_callback]):
+                _logger.warning("Redefining the callback %s in class '%s'.\n"
+                                "\tPrevious callback : %s\n"
                                 "\tNew callback : %s", _callback, cls.__name__,
                                 get_method_description(callbacks[_callback]),
                                 get_method_description(function))
@@ -258,7 +261,7 @@ def _ipopo_setup_field_callback(cls, context):
                                    constants.IPOPO_METHOD_FIELD_CALLBACKS)
         if not isinstance(method_callbacks, list):
             # Invalid content
-            _logger.warning("Invalid attribute %s in %s", \
+            _logger.warning("Invalid attribute %s in %s",
                             constants.IPOPO_METHOD_FIELD_CALLBACKS, name)
             continue
 
@@ -270,9 +273,9 @@ def _ipopo_setup_field_callback(cls, context):
             fields_cbs = callbacks.setdefault(field, {})
 
             if kind in fields_cbs and \
-            not is_from_parent(cls, fields_cbs[kind][0].__name__):
-                _logger.warning("Redefining the callback %s in '%s'. " \
-                                "Previous callback : '%s' (%s). " \
+                    not is_from_parent(cls, fields_cbs[kind][0].__name__):
+                _logger.warning("Redefining the callback %s in '%s'. "
+                                "Previous callback : '%s' (%s). "
                                 "New callback : %s", kind, name,
                                 fields_cbs[kind][0].__name__,
                                 fields_cbs[kind][0], function)
@@ -284,6 +287,7 @@ def _ipopo_setup_field_callback(cls, context):
     context.field_callbacks.update(callbacks)
 
 # ------------------------------------------------------------------------------
+
 
 def _append_object_entry(obj, list_name, entry):
     """
@@ -310,6 +314,7 @@ def _append_object_entry(obj, list_name, entry):
 
 # ------------------------------------------------------------------------------
 
+
 class Holder(object):
     """
     Simple class that holds a value
@@ -335,8 +340,10 @@ def _ipopo_class_field_property(name, value, methods_prefix):
     lock = threading.RLock()
 
     # Prepare the methods names
-    getter_name = "{0}{1}".format(methods_prefix, constants.IPOPO_GETTER_SUFFIX)
-    setter_name = "{0}{1}".format(methods_prefix, constants.IPOPO_SETTER_SUFFIX)
+    getter_name = "{0}{1}".format(methods_prefix,
+                                  constants.IPOPO_GETTER_SUFFIX)
+    setter_name = "{0}{1}".format(methods_prefix,
+                                  constants.IPOPO_SETTER_SUFFIX)
 
     local_holder = Holder(value)
 
@@ -349,11 +356,9 @@ def _ipopo_class_field_property(name, value, methods_prefix):
             # Use the component getter
             with lock:
                 return getter(self, name)
-
         else:
             # Use the local holder
             return local_holder.value
-
 
     def set_value(self, new_value):
         """
@@ -366,7 +371,6 @@ def _ipopo_class_field_property(name, value, methods_prefix):
             # Use the component setter
             with lock:
                 setter(self, name, new_value)
-
         else:
             # Change the local holder
             local_holder.value = new_value
@@ -374,6 +378,7 @@ def _ipopo_class_field_property(name, value, methods_prefix):
     return property(get_value, set_value)
 
 # ------------------------------------------------------------------------------
+
 
 class Instantiate(object):
     """
@@ -399,7 +404,6 @@ class Instantiate(object):
         self.__name = name
         self.__properties = properties
 
-
     def __call__(self, factory_class):
         """
         Sets up and registers the instances descriptions
@@ -409,7 +413,7 @@ class Instantiate(object):
         :raise TypeError: The given object is not a class
         """
         if not inspect.isclass(factory_class):
-            raise TypeError("@Instantiate can decorate only classes, " \
+            raise TypeError("@Instantiate can decorate only classes, "
                             "not '{0}'".format(type(factory_class).__name__))
 
         # Store the instance in the factory context
@@ -424,6 +428,7 @@ class Instantiate(object):
         return factory_class
 
 # ------------------------------------------------------------------------------
+
 
 class ComponentFactory(object):
     """
@@ -440,7 +445,6 @@ class ComponentFactory(object):
         self.__factory_name = name
         self.__excluded_inheritance = to_iterable(excluded)
 
-
     def __call__(self, factory_class):
         """
         Sets up and registers the factory class
@@ -450,7 +454,7 @@ class ComponentFactory(object):
         :raise TypeError: The given object is not a class
         """
         if not inspect.isclass(factory_class):
-            raise TypeError("@ComponentFactory can decorate only classes, " \
+            raise TypeError("@ComponentFactory can decorate only classes, "
                             "not '{0}'".format(type(factory_class).__name__))
 
         # Get the factory context
@@ -478,20 +482,21 @@ class ComponentFactory(object):
 
             # Inject the properties getter and setter if needed
             if context.properties_fields:
-                setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX \
+                setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX
                         + constants.IPOPO_GETTER_SUFFIX, None)
-                setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX \
+                setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX
                         + constants.IPOPO_SETTER_SUFFIX, None)
 
         else:
             # Manipulation already applied: do nothing more
-            _logger.error("%s has already been manipulated with the name '%s'. "
-                          "Keeping the old name.",
+            _logger.error("%s has already been manipulated with the name '%s'."
+                          " Keeping the old name.",
                           get_method_description(factory_class), context.name)
 
         return factory_class
 
 # ------------------------------------------------------------------------------
+
 
 class Property(object):
     """
@@ -536,7 +541,6 @@ class Property(object):
         self.__name = name
         self.__value = value
 
-
     def __call__(self, clazz):
         """
         Adds the property to the class iPOPO properties field.
@@ -547,7 +551,7 @@ class Property(object):
         :raise TypeError: If *clazz* is not a type
         """
         if not inspect.isclass(clazz):
-            raise TypeError("@Property can decorate only classes, not '{0}'" \
+            raise TypeError("@Property can decorate only classes, not '{0}'"
                             .format(type(clazz).__name__))
 
         # Get the factory context
@@ -569,13 +573,14 @@ class Property(object):
 
         # Inject a property in the class. The property will call an instance
         # level getter / setter, injected by iPOPO after the instance creation
-        setattr(clazz, self.__field, \
+        setattr(clazz, self.__field,
                 _ipopo_class_field_property(self.__name, self.__value,
                                             constants.IPOPO_PROPERTY_PREFIX))
 
         return clazz
 
 # ------------------------------------------------------------------------------
+
 
 def _get_specifications(specifications):
     """
@@ -609,7 +614,7 @@ def _get_specifications(specifications):
         return results
 
     else:
-        raise ValueError("Unhandled specifications type : {0}" \
+        raise ValueError("Unhandled specifications type : {0}"
                          .format(type(specifications).__name__))
 
 
@@ -629,7 +634,8 @@ class Provides(object):
 
         :param specifications: A list of provided interface(s) name(s)
                                (can't be empty)
-        :param controller: Name of the service controller class field (optional)
+        :param controller: Name of the service controller class field
+                           (optional)
         :raise ValueError: If the specifications are invalid
         """
         if controller is not None:
@@ -648,7 +654,6 @@ class Provides(object):
         self.__specifications = _get_specifications(specifications)
         self.__controller = controller
 
-
     def __call__(self, clazz):
         """
         Adds the provided service information to the class context iPOPO field.
@@ -658,9 +663,8 @@ class Provides(object):
         :return: The decorated class
         :raise TypeError: If *clazz* is not a type
         """
-
         if not inspect.isclass(clazz):
-            raise TypeError("@Provides can decorate only classes, not '{0}'" \
+            raise TypeError("@Provides can decorate only classes, not '{0}'"
                             .format(type(clazz).__name__))
 
         # Get the factory context
@@ -682,23 +686,24 @@ class Provides(object):
         config.append((filtered_specs, self.__controller))
 
         if self.__controller:
-            # Inject a property in the class. The property will call an instance
-            # level getter / setter, injected by iPOPO after the instance
-            # creation
+            # Inject a property in the class. The property will call an
+            # instance level getter / setter, injected by iPOPO after the
+            # instance creation
             setattr(clazz, self.__controller,
                     _ipopo_class_field_property(
                         self.__controller, True,
                         constants.IPOPO_CONTROLLER_PREFIX))
 
             # Inject the future controller methods
-            setattr(clazz, constants.IPOPO_CONTROLLER_PREFIX \
+            setattr(clazz, constants.IPOPO_CONTROLLER_PREFIX
                     + constants.IPOPO_GETTER_SUFFIX, None)
-            setattr(clazz, constants.IPOPO_CONTROLLER_PREFIX \
+            setattr(clazz, constants.IPOPO_CONTROLLER_PREFIX
                     + constants.IPOPO_SETTER_SUFFIX, None)
 
         return clazz
 
 # ------------------------------------------------------------------------------
+
 
 class Requires(object):
     """
@@ -709,7 +714,7 @@ class Requires(object):
     HANDLER_ID = constants.HANDLER_REQUIRES
     """ ID of the handler configured by this decorator """
 
-    def __init__(self, field, specification, aggregate=False, optional=False, \
+    def __init__(self, field, specification, aggregate=False, optional=False,
                  spec_filter=None):
         """
         Sets up the requirement
@@ -718,8 +723,8 @@ class Requires(object):
         :param specification: The injected service specification
         :param aggregate: If true, injects a list
         :param optional: If true, this injection is optional
-        :param spec_filter: An LDAP query to filter injected services upon their
-                            properties
+        :param spec_filter: An LDAP query to filter injected services upon
+                            their properties
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter or an
                            argument is incorrect
@@ -728,7 +733,7 @@ class Requires(object):
             raise ValueError("Empty field name.")
 
         if not is_string(field):
-            raise TypeError("The field name must be a string, not {0}" \
+            raise TypeError("The field name must be a string, not {0}"
                             .format(type(field).__name__))
 
         if ' ' in field:
@@ -753,7 +758,7 @@ class Requires(object):
         :raise TypeError: If *clazz* is not a type
         """
         if not inspect.isclass(clazz):
-            raise TypeError("@Requires can decorate only classes, not '{0}'" \
+            raise TypeError("@Requires can decorate only classes, not '{0}'"
                             .format(type(clazz).__name__))
 
         if self.__multi_specs:
@@ -779,6 +784,7 @@ class Requires(object):
 
 # ------------------------------------------------------------------------------
 
+
 class RequiresMap(object):
     """
     @RequiresMap decorator
@@ -799,8 +805,8 @@ class RequiresMap(object):
         :param allow_none: If True, inject services with a None property value
         :param aggregate: If true, injects a list
         :param optional: If true, this injection is optional
-        :param spec_filter: An LDAP query to filter injected services upon their
-                            properties
+        :param spec_filter: An LDAP query to filter injected services upon
+                            their properties
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter or an
                            argument is incorrect
@@ -810,7 +816,7 @@ class RequiresMap(object):
             raise ValueError("Empty field name.")
 
         if not is_string(field):
-            raise TypeError("The field name must be a string, not {0}" \
+            raise TypeError("The field name must be a string, not {0}"
                             .format(type(field).__name__))
 
         if ' ' in field:
@@ -843,7 +849,7 @@ class RequiresMap(object):
         :raise TypeError: If *clazz* is not a type
         """
         if not inspect.isclass(clazz):
-            raise TypeError("@RequiresMap can decorate only classes, not '{0}'"\
+            raise TypeError("@RequiresMap can decorate only classes, not '{0}'"
                             .format(type(clazz).__name__))
 
         if self.__multi_specs:
@@ -870,6 +876,7 @@ class RequiresMap(object):
 
 # ------------------------------------------------------------------------------
 
+
 class BindField(object):
     """
     BindField callback decorator, called when a component is bound to a
@@ -888,11 +895,12 @@ class BindField(object):
            '''
            # ...
 
-    If the service is a required one, the bind callback is called **before** the
-    component is validated.
+    If the service is a required one, the bind callback is called **before**
+    the component is validated.
     The bind field callback is called **after** the global bind method.
 
-    The service reference can be stored *if its reference is deleted on unbind*.
+    The service reference can be stored *if its reference is deleted on
+    unbind*.
 
     Exceptions raised by a bind callback are ignored.
     """
@@ -905,7 +913,6 @@ class BindField(object):
         """
         self._field = field
         self._if_valid = if_valid
-
 
     def __call__(self, method):
         """
@@ -956,7 +963,6 @@ class UpdateField(object):
         """
         self._field = field
         self._if_valid = if_valid
-
 
     def __call__(self, method):
         """
@@ -1013,7 +1019,6 @@ class UnbindField(object):
         self._field = field
         self._if_valid = if_valid
 
-
     def __call__(self, method):
         """
         Updates the "field callback" list for this method
@@ -1035,6 +1040,7 @@ class UnbindField(object):
 
 # ------------------------------------------------------------------------------
 
+
 def Bind(method):
     """
     Bind callback decorator, called when a component is bound to a dependency.
@@ -1051,10 +1057,11 @@ def Bind(method):
            '''
            # ...
 
-    If the service is a required one, the bind callback is called **before** the
-    component is validated.
+    If the service is a required one, the bind callback is called **before**
+    the component is validated.
 
-    The service reference can be stored *if its reference is deleted on unbind*.
+    The service reference can be stored *if its reference is deleted on
+    unbind*.
 
     Exceptions raised by a bind callback are ignored.
 
@@ -1067,7 +1074,7 @@ def Bind(method):
     # Tests the number of parameters
     validate_method_arity(method, "service", "service_reference")
 
-    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS, \
+    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
                          constants.IPOPO_CALLBACK_BIND)
     return method
 
@@ -1095,14 +1102,14 @@ def Update(method):
     :param method: The decorated method
     :raise TypeError: The decorated element is not a valid function
     """
-    if type(method) is not types.FunctionType:
+    if not isinstance(method, types.FunctionType):
         raise TypeError("@Update can only be applied on functions")
 
     # Tests the number of parameters
     validate_method_arity(method, "service", "service_reference",
                           "old_properties")
 
-    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS, \
+    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
                          constants.IPOPO_CALLBACK_UPDATE)
     return method
 
@@ -1131,13 +1138,13 @@ def Unbind(method):
     :param method: The decorated method
     :raise TypeError: The decorated element is not a valid function
     """
-    if type(method) is not types.FunctionType:
+    if not isinstance(method, types.FunctionType):
         raise TypeError("@Unbind can only be applied on functions")
 
     # Tests the number of parameters
     validate_method_arity(method, "service", "service_reference")
 
-    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS, \
+    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
                          constants.IPOPO_CALLBACK_UNBIND)
     return method
 
@@ -1167,13 +1174,13 @@ def Validate(method):
     :param method: The decorated method
     :raise TypeError: The decorated element is not a valid function
     """
-    if type(method) is not types.FunctionType:
+    if not isinstance(method, types.FunctionType):
         raise TypeError("@Validate can only be applied on functions")
 
     # Tests the number of parameters
     validate_method_arity(method, "bundle_context")
 
-    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS, \
+    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
                          constants.IPOPO_CALLBACK_VALIDATE)
     return method
 
@@ -1196,20 +1203,19 @@ def Invalidate(method):
 
     Exceptions raised by an invalidation callback are ignored.
 
-    If the component provides a service, the invalidation method is called after
-    the provided service has been unregistered to the framework.
+    If the component provides a service, the invalidation method is called
+    after the provided service has been unregistered to the framework.
 
     :param method: The decorated method
     :raise TypeError: The decorated element is not a function
     """
 
-    if type(method) is not types.FunctionType:
+    if not isinstance(method, types.FunctionType):
         raise TypeError("@Invalidate can only be applied on functions")
 
     # Tests the number of parameters
     validate_method_arity(method, "bundle_context")
 
-    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS, \
+    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
                          constants.IPOPO_CALLBACK_INVALIDATE)
     return method
-

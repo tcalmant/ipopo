@@ -53,12 +53,13 @@ PYTHON_3 = (sys.version_info[0] == 3)
 
 # ------------------------------------------------------------------------------
 
+
 @contextlib.contextmanager
 def use_service(bundle_context, svc_reference):
     """
     Utility context to safely use a service in a "with" block.
-    It looks after the the given service and releases its reference when exiting
-    the context.
+    It looks after the the given service and releases its reference when
+    exiting the context.
 
     :param bundle_context: The calling bundle context
     :param svc_reference: The reference of the service to use
@@ -81,6 +82,7 @@ def use_service(bundle_context, svc_reference):
 
 # ------------------------------------------------------------------------------
 
+
 class Deprecated(object):
     """
     Prints a warning when using the decorated method
@@ -99,7 +101,6 @@ class Deprecated(object):
         self.__logger = logger or None
         self.__already_logged = False
 
-
     def __log(self, method_name):
         """
         Logs the deprecation message on first call, does nothing after
@@ -115,7 +116,6 @@ class Deprecated(object):
                                                      self.__message,
                                                      stack)
             self.__already_logged = True
-
 
     def __call__(self, method):
         """
@@ -135,8 +135,8 @@ class Deprecated(object):
 
         return wrapped
 
-
 # ------------------------------------------------------------------------------
+
 
 class Synchronized(object):
     """
@@ -151,10 +151,8 @@ class Synchronized(object):
         """
         if not is_lock(lock):
             self.__lock = threading.RLock()
-
         else:
             self.__lock = lock
-
 
     def __call__(self, method):
         """
@@ -163,7 +161,6 @@ class Synchronized(object):
         :param method: The decorated method
         :return: The wrapped method
         """
-
         @functools.wraps(method)
         def wrapped(*args, **kwargs):
             """
@@ -215,7 +212,8 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
             Calls the wrapped method with a lock
             """
             # Raises an AttributeError if needed
-            locks = [getattr(self, attr_name) for attr_name in locks_attr_names]
+            locks = [getattr(self, attr_name)
+                     for attr_name in locks_attr_names]
             locked = collections.deque()
             i = 0
 
@@ -225,7 +223,7 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
                     if lock is None:
                         # No lock...
                         raise AttributeError(
-                            "Lock '{0}' can't be None in class {1}" \
+                            "Lock '{0}' can't be None in class {1}"
                             .format(locks_attr_names[i], type(self).__name__))
 
                     # Get the lock
@@ -249,6 +247,7 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
     # Return the wrapped method
     return wrapped
 
+
 def is_lock(lock):
     """
     Tests if the given lock is an instance of a lock class
@@ -267,6 +266,7 @@ def is_lock(lock):
 
 # ------------------------------------------------------------------------------
 
+
 def read_only_property(value):
     """
     Makes a read-only property that always returns the given value
@@ -274,6 +274,7 @@ def read_only_property(value):
     return property(lambda cls: value)
 
 # ------------------------------------------------------------------------------
+
 
 def remove_all_occurrences(sequence, item):
     """
@@ -289,6 +290,7 @@ def remove_all_occurrences(sequence, item):
         sequence.remove(item)
 
 # ------------------------------------------------------------------------------
+
 
 def add_listener(registry, listener):
     """
@@ -350,7 +352,6 @@ if PYTHON_3:
 
         return data.encode(encoding)
 
-
     def to_str(data, encoding="UTF-8"):
         """
         Converts the given parameter to a string.
@@ -383,7 +384,6 @@ else:
         # Python 2 also have unicode
         return isinstance(string, (str, unicode))
 
-
     def to_str(data, encoding="UTF-8"):
         """
         Converts the given parameter to a string.
@@ -399,15 +399,14 @@ else:
 
         return data.encode(encoding)
 
-
     # Same operation
     to_bytes = to_str
-
 
     def to_unicode(data, encoding="UTF-8"):
         """
         Converts the given string to an unicode string using ``str.decode()``.
-        Returns the first parameter if it is already an instance of ``unicode``.
+        Returns the first parameter if it is already an instance of
+        ``unicode``.
 
         :param data: A string
         :param encoding: The encoding of data
@@ -420,6 +419,7 @@ else:
         return data.decode(encoding)
 
 # ------------------------------------------------------------------------------
+
 
 def to_iterable(value, allow_none=True):
     """
@@ -447,6 +447,7 @@ def to_iterable(value, allow_none=True):
     return [value]
 
 # ------------------------------------------------------------------------------
+
 
 class EventData(object):
     """

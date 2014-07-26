@@ -48,6 +48,7 @@ import copy
 
 # ------------------------------------------------------------------------------
 
+
 class Requirement(object):
     """
     Represents a component requirement
@@ -89,7 +90,6 @@ class Requirement(object):
         self.filter = None
         self.set_filter(spec_filter)
 
-
     def __eq__(self, other):
         """
         Equality test
@@ -102,7 +102,8 @@ class Requirement(object):
             # Different types
             return False
 
-        if self.aggregate != other.aggregate or self.optional != other.optional:
+        if self.aggregate != other.aggregate \
+                or self.optional != other.optional:
             # Different flags
             return False
 
@@ -116,20 +117,17 @@ class Requirement(object):
 
         return True
 
-
     def __ne__(self, other):
         """
         Inequality test
         """
         return not self.__eq__(other)
 
-
     def __deepcopy__(self, memo):
         """
         Called by copy.deepcopy()
         """
         return self.copy()
-
 
     def copy(self):
         """
@@ -139,7 +137,6 @@ class Requirement(object):
         """
         return Requirement(self.specification, self.aggregate, self.optional,
                            self.__original_filter)
-
 
     def matches(self, properties):
         """
@@ -155,14 +152,12 @@ class Requirement(object):
         # Properties filter test
         return self.__full_filter.matches(properties)
 
-
     @property
     def full_filter(self):
         """
         The filter that tests both specification and properties
         """
         return self.__full_filter
-
 
     @property
     def original_filter(self):
@@ -174,7 +169,6 @@ class Requirement(object):
 
         return str(self.__original_filter)
 
-
     def set_filter(self, props_filter):
         """
         Changes the current filter for the given one
@@ -183,11 +177,12 @@ class Requirement(object):
         :raise TypeError: Unknown filter type
         """
         if props_filter is not None \
-        and not (is_string(props_filter) \
-                 or isinstance(props_filter, (ldapfilter.LDAPFilter,
-                                              ldapfilter.LDAPCriteria))):
+                and not (is_string(props_filter)
+                         or isinstance(props_filter,
+                                       (ldapfilter.LDAPFilter,
+                                        ldapfilter.LDAPCriteria))):
             # Unknown type
-            raise TypeError("Invalid filter type {0}" \
+            raise TypeError("Invalid filter type {0}"
                             .format(type(props_filter).__name__))
 
         if props_filter is not None:
@@ -206,6 +201,7 @@ class Requirement(object):
                                                          self.filter))
 
 # ------------------------------------------------------------------------------
+
 
 class FactoryContext(object):
     """
@@ -245,7 +241,6 @@ class FactoryContext(object):
         # Instance name -> Instance properties
         self.__instances = {}
 
-
     def __eq__(self, other):
         """
         Equality test
@@ -261,13 +256,11 @@ class FactoryContext(object):
         # Name-based equality
         return self.name == other.name
 
-
     def __ne__(self, other):
         """
         Inequality test
         """
         return not self.__eq__(other)
-
 
     def copy(self, inheritance=False):
         """
@@ -287,7 +280,6 @@ class FactoryContext(object):
         # Remove instances in any case
         new_context.__instances.clear()
         return new_context
-
 
     def inherit_handlers(self, excluded_handlers):
         """
@@ -322,7 +314,6 @@ class FactoryContext(object):
         # Clear the inherited configuration dictionary
         self.__inherited_configuration.clear()
 
-
     def add_instance(self, name, properties):
         """
         Stores the description of a component instance. The given properties
@@ -338,7 +329,6 @@ class FactoryContext(object):
         # Store properties "as-is"
         self.__instances[name] = properties
 
-
     def get_instances(self):
         """
         Returns the dictionary of instances to start: name -> properties
@@ -347,13 +337,11 @@ class FactoryContext(object):
         """
         return copy.deepcopy(self.__instances)
 
-
     def get_handlers_ids(self):
         """
         Retrieves the IDs of the handlers to instantiate for this component
         """
         return list(self.__handlers.keys())
-
 
     def get_handler(self, handler_id, default=None):
         """
@@ -364,7 +352,6 @@ class FactoryContext(object):
         :return: The existing configuration or the given default
         """
         return self.__handlers.get(handler_id, default)
-
 
     def set_handler_default(self, handler_id, default=None):
         """
@@ -377,7 +364,6 @@ class FactoryContext(object):
         """
         return self.__handlers.setdefault(handler_id, default)
 
-
     def set_handler(self, handler_id, configuration):
         """
         Stores the configuration of the given handler
@@ -386,7 +372,6 @@ class FactoryContext(object):
         :param configuration: The complete configuration of the handler
         """
         self.__handlers[handler_id] = configuration
-
 
     def set_bundle_context(self, bundle_context):
         """
@@ -397,6 +382,7 @@ class FactoryContext(object):
         self.bundle_context = bundle_context
 
 # ------------------------------------------------------------------------------
+
 
 class ComponentContext(object):
     """
@@ -424,7 +410,6 @@ class ComponentContext(object):
         self.properties = factory_context.properties.copy()
         self.properties.update(properties)
 
-
     def get_bundle_context(self):
         """
         Retrieves the bundle context
@@ -433,31 +418,28 @@ class ComponentContext(object):
         """
         return self.factory_context.bundle_context
 
-
     def get_callback(self, event):
         """
-        Retrieves the registered method for the given event. Returns None if not
-        found
+        Retrieves the registered method for the given event. Returns None if
+        not found
 
         :param event: A component life cycle event
         :return: The callback associated to the given event
         """
         return self.factory_context.callbacks.get(event, None)
 
-
     def get_field_callback(self, field, event):
         """
-        Retrieves the registered method for the given event. Returns None if not
-        found
+        Retrieves the registered method for the given event. Returns None if
+        not found
 
         :param field: Name of the dependency field
         :param event: A component life cycle event
-        :return: A 2-tuple containing the callback associated to the given event
-                 and flag indicating if the callback must be called in valid
-                 state only
+        :return: A 2-tuple containing the callback associated to the given
+                 event and flag indicating if the callback must be called in
+                 valid state only
         """
         return self.factory_context.field_callbacks.get(field, {}).get(event)
-
 
     def get_factory_name(self):
         """
@@ -466,7 +448,6 @@ class ComponentContext(object):
         :return: The component factory name
         """
         return self.factory_context.name
-
 
     def get_handler(self, handler_id):
         """

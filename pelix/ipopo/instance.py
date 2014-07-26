@@ -51,6 +51,7 @@ import threading
 
 # ------------------------------------------------------------------------------
 
+
 class StoredInstance(object):
     """
     Represents a component instance
@@ -76,7 +77,8 @@ class StoredInstance(object):
         """
         Sets up the instance object
 
-        :param ipopo_service: The iPOPO service that instantiated this component
+        :param ipopo_service: The iPOPO service that instantiated this
+                              component
         :param context: The component context
         :param instance: The component instance
         :param handlers: The list of handlers associated to this component
@@ -122,13 +124,11 @@ class StoredInstance(object):
                 for kind in kinds:
                     self._handlers.setdefault(kind, []).append(handler)
 
-
     def __repr__(self):
         """
         String representation
         """
         return self.__str__()
-
 
     def __str__(self):
         """
@@ -136,7 +136,6 @@ class StoredInstance(object):
         """
         return "StoredInstance(Name={0}, State={1})".format(self.name,
                                                             self.state)
-
 
     def check_event(self, event):
         """
@@ -154,7 +153,6 @@ class StoredInstance(object):
 
             return self.__safe_handlers_callback('check_event', event)
 
-
     def bind(self, dependency, svc, svc_ref):
         """
         Called by a dependency manager to inject a new service and update the
@@ -164,8 +162,8 @@ class StoredInstance(object):
             self.__set_binding(dependency, svc, svc_ref)
             self.check_lifecycle()
 
-
-    def update(self, dependency, svc, svc_ref, old_properties, new_value=False):
+    def update(self, dependency, svc, svc_ref, old_properties,
+               new_value=False):
         """
         Called by a dependency manager when the properties of an injected
         dependency have been updated.
@@ -180,7 +178,6 @@ class StoredInstance(object):
             self.__update_binding(dependency, svc, svc_ref, old_properties,
                                   new_value)
             self.check_lifecycle()
-
 
     def unbind(self, dependency, svc, svc_ref):
         """
@@ -198,7 +195,6 @@ class StoredInstance(object):
             if self.update_bindings():
                 self.check_lifecycle()
 
-
     def get_controller_state(self, name):
         """
         Retrieves the state of the controller with the given name
@@ -208,7 +204,6 @@ class StoredInstance(object):
         :raise KeyError: No value associated to this controller
         """
         return self._controllers_state[name]
-
 
     def set_controller_state(self, name, value):
         """
@@ -221,7 +216,6 @@ class StoredInstance(object):
             self._controllers_state[name] = value
             self.__safe_handlers_callback('on_controller_change', name, value)
 
-
     def update_property(self, name, old_value, new_value):
         """
         Handles a property changed event
@@ -231,9 +225,8 @@ class StoredInstance(object):
         :param new_value: The new property value
         """
         with self._lock:
-            self.__safe_handlers_callback('on_property_change', name, old_value,
-                                          new_value)
-
+            self.__safe_handlers_callback('on_property_change', name,
+                                          old_value, new_value)
 
     def get_handlers(self, kind=None):
         """
@@ -254,7 +247,6 @@ class StoredInstance(object):
 
             # Always return a list
             return list(result)
-
 
     def check_lifecycle(self):
         """
@@ -277,9 +269,8 @@ class StoredInstance(object):
 
             # We're all good
             elif can_validate and handlers_valid \
-            and self._ipopo_service.running:
+                    and self._ipopo_service.running:
                 self.validate(True)
-
 
     def update_bindings(self):
         """
@@ -298,9 +289,7 @@ class StoredInstance(object):
                 all_valid &= self.__safe_handler_callback(handler, 'is_valid',
                                                           only_boolean=True,
                                                           none_as_true=True)
-
             return all_valid
-
 
     def start(self):
         """
@@ -308,7 +297,6 @@ class StoredInstance(object):
         """
         with self._lock:
             self.__safe_handlers_callback('start')
-
 
     def invalidate(self, callback=True):
         """
@@ -341,7 +329,6 @@ class StoredInstance(object):
             # Call the handlers
             self.__safe_handlers_callback('post_invalidate')
 
-
     def kill(self):
         """
         This instance is killed : invalidate it if needed, clean up all members
@@ -373,7 +360,6 @@ class StoredInstance(object):
                         for binding in results:
                             self.__unset_binding(handler, binding[0],
                                                  binding[1])
-
                     except Exception as ex:
                         self._logger.exception("Error stopping handler '%s': "
                                                "%s", handler, ex)
@@ -394,7 +380,6 @@ class StoredInstance(object):
             self.context = None
             self.instance = None
             self._ipopo_service = None
-
 
     def validate(self, safe_callback=True):
         """
@@ -437,7 +422,6 @@ class StoredInstance(object):
                     constants.IPopoEvent.VALIDATED,
                     self.factory_name, self.name)
 
-
     def __callback(self, event, *args, **kwargs):
         """
         Calls the registered method in the component for the given event
@@ -458,7 +442,6 @@ class StoredInstance(object):
             return True
 
         return result
-
 
     def __field_callback(self, field, event, *args, **kwargs):
         """
@@ -489,7 +472,6 @@ class StoredInstance(object):
             return True
 
         return result
-
 
     def __safe_callback(self, event, *args, **kwargs):
         """
@@ -526,7 +508,6 @@ class StoredInstance(object):
                                    "callback method for event %s",
                                    self.name, event)
             return False
-
 
     def __safe_field_callback(self, field, event, *args, **kwargs):
         """
@@ -565,7 +546,6 @@ class StoredInstance(object):
                                    self.name, event)
             return False
 
-
     def __safe_handler_callback(self, handler, method_name, *args, **kwargs):
         """
         Calls the given method with the given arguments in the given handler.
@@ -573,8 +553,8 @@ class StoredInstance(object):
 
         Special arguments can be given in kwargs:
 
-        * 'none_as_true': If set to True and the method returned None or doesn't
-                          exist, the result is considered as True.
+        * 'none_as_true': If set to True and the method returned None or
+                          doesn't exist, the result is considered as True.
                           If set to False, None result is kept as is.
                           Default is False.
         * 'only_boolean': If True, the result can only be True or False, else
@@ -598,7 +578,6 @@ class StoredInstance(object):
         # Get the method for each handler
         try:
             method = getattr(handler, method_name)
-
         except AttributeError:
             # Method not found
             result = None
@@ -607,7 +586,6 @@ class StoredInstance(object):
             try:
                 # Call it
                 result = method(*args, **kwargs)
-
             except Exception as ex:
                 # No result
                 result = None
@@ -625,7 +603,6 @@ class StoredInstance(object):
             return bool(result)
 
         return result
-
 
     def __safe_handlers_callback(self, method_name, *args, **kwargs):
         """
@@ -661,11 +638,9 @@ class StoredInstance(object):
             # Get the method for each handler
             try:
                 method = getattr(handler, method_name)
-
             except AttributeError:
                 # Ignore missing methods
                 pass
-
             else:
                 try:
                     # Call it
@@ -673,7 +648,6 @@ class StoredInstance(object):
                     if res is not None and not res:
                         # Ignore 'None' results
                         result = False
-
                 except Exception as ex:
                     # Log errors
                     self._logger.exception("Error calling handler '%s': %s",
@@ -687,7 +661,6 @@ class StoredInstance(object):
                     break
 
         return result
-
 
     def __set_binding(self, dependency, service, reference):
         """
@@ -706,7 +679,6 @@ class StoredInstance(object):
         self.__safe_field_callback(dependency.get_field(),
                                    constants.IPOPO_CALLBACK_BIND_FIELD,
                                    service, reference)
-
 
     def __update_binding(self, dependency, service, reference, old_properties,
                          new_value):
@@ -732,7 +704,6 @@ class StoredInstance(object):
 
         self.__safe_callback(constants.IPOPO_CALLBACK_UPDATE, service,
                              reference, old_properties)
-
 
     def __unset_binding(self, dependency, service, reference):
         """

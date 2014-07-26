@@ -97,6 +97,7 @@ Contains the listening port of the HTTP server binding the servlet
 
 # ------------------------------------------------------------------------------
 
+
 class AbstractHTTPServletRequest(object):
     """
     Abstract HTTP Servlet request helper
@@ -109,7 +110,6 @@ class AbstractHTTPServletRequest(object):
         """
         raise NotImplementedError("This method must be implemented by a child")
 
-
     def get_header(self, name, default=None):
         """
         Returns the value of a header
@@ -120,7 +120,6 @@ class AbstractHTTPServletRequest(object):
         """
         raise NotImplementedError("This method must be implemented by a child")
 
-
     def get_headers(self):
         """
         Returns a copy all headers, with a dictionary interface
@@ -128,7 +127,6 @@ class AbstractHTTPServletRequest(object):
         :return: A dictionary-like object
         """
         raise NotImplementedError("This method must be implemented by a child")
-
 
     def get_path(self):
         """
@@ -138,7 +136,6 @@ class AbstractHTTPServletRequest(object):
         """
         raise NotImplementedError("This method must be implemented by a child")
 
-
     def get_rfile(self):
         """
         Returns the request input as a file stream
@@ -146,7 +143,6 @@ class AbstractHTTPServletRequest(object):
         :return: A file-like input stream
         """
         raise NotImplementedError("This method must be implemented by a child")
-
 
     def read_data(self):
         """
@@ -156,7 +152,6 @@ class AbstractHTTPServletRequest(object):
         """
         try:
             size = int(self.get_header('content-length'))
-
         except ValueError:
             size = -1
 
@@ -177,7 +172,6 @@ class AbstractHTTPServletResponse(object):
         """
         raise NotImplementedError("This method must be implemented by a child")
 
-
     def set_header(self, name, value):
         """
         Sets the value of a header.
@@ -188,13 +182,11 @@ class AbstractHTTPServletResponse(object):
         """
         raise NotImplementedError("This method must be implemented by a child")
 
-
     def end_headers(self):
         """
         Ends the headers part
         """
         raise NotImplementedError("This method must be implemented by a child")
-
 
     def get_wfile(self):
         """
@@ -206,7 +198,6 @@ class AbstractHTTPServletResponse(object):
         """
         raise NotImplementedError("This method must be implemented by a child")
 
-
     def write(self, data):
         """
         Writes the given data.
@@ -216,7 +207,6 @@ class AbstractHTTPServletResponse(object):
         :param data: Data to be written
         """
         raise NotImplementedError("This method must be implemented by a child")
-
 
     def send_content(self, http_code, content, mime_type="text/html",
                      http_message=None, content_length=-1):
@@ -255,4 +245,3 @@ class AbstractHTTPServletResponse(object):
 
         # Send the content
         self.write(content)
-

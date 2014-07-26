@@ -54,6 +54,7 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+
 class MqttClient(object):
     """
     Remote Service discovery provider based on MQTT
@@ -100,7 +101,6 @@ class MqttClient(object):
         self.on_disconnect = None
         self.on_message = None
 
-
     @classmethod
     def generate_id(cls, prefix="pelix-"):
         """
@@ -128,7 +128,6 @@ class MqttClient(object):
         random_id = ''.join('{0:02x}'.format(value) for value in random_ints)
         return "{0}{1}".format(prefix, random_id)
 
-
     @classmethod
     def topic_matches(cls, subscription_filter, topic):
         """
@@ -140,14 +139,12 @@ class MqttClient(object):
         """
         return paho.topic_matches_sub(subscription_filter, topic)
 
-
     @property
     def client_id(self):
         """
         The MQTT client ID
         """
         return self._client_id
-
 
     def set_credentials(self, username, password):
         """
@@ -157,7 +154,6 @@ class MqttClient(object):
         :param password: Client password
         """
         self.__mqtt.username_pw_set(username, password)
-
 
     def set_will(self, topic, payload, qos=0, retain=False):
         """
@@ -171,7 +167,6 @@ class MqttClient(object):
         :raise TypeError: Invalid payload
         """
         self.__mqtt.will_set(topic, payload, qos, retain=retain)
-
 
     def connect(self, host="localhost", port=1883, keepalive=60):
         """
@@ -196,7 +191,6 @@ class MqttClient(object):
         # Try to connect the server
         self.__reconnect()
 
-
     def disconnect(self):
         """
         Disconnects from the MQTT server
@@ -213,7 +207,6 @@ class MqttClient(object):
 
         # Stop the MQTT loop thread
         self.__mqtt.loop_stop()
-
 
     def publish(self, topic, payload, qos=0, retain=False, wait=False):
         """
@@ -235,7 +228,6 @@ class MqttClient(object):
 
         return result[1]
 
-
     def wait_publication(self, mid, timeout=None):
         """
         Wait for a publication to be validated
@@ -245,7 +237,6 @@ class MqttClient(object):
         :raise KeyError: Unknown waiting local message ID
         """
         self.__in_flight[mid].wait(timeout)
-
 
     def subscribe(self, topic, qos=0):
         """
@@ -257,7 +248,6 @@ class MqttClient(object):
         """
         self.__mqtt.subscribe(topic, qos)
 
-
     def unsubscribe(self, topic):
         """
         Unscribes from a topic on the server
@@ -266,7 +256,6 @@ class MqttClient(object):
         :raise ValueError: Invalid topic parameter
         """
         self.__mqtt.unsubscribe(topic)
-
 
     def __start_timer(self, delay):
         """
@@ -278,7 +267,6 @@ class MqttClient(object):
         self.__timer.daemon = True
         self.__timer.start()
 
-
     def __stop_timer(self):
         """
         Stops the reconnection timer, if any
@@ -286,7 +274,6 @@ class MqttClient(object):
         if self.__timer is not None:
             self.__timer.cancel()
             self.__timer = None
-
 
     def __reconnect(self):
         """
@@ -314,7 +301,6 @@ class MqttClient(object):
             # on_connect callback
             self.__start_timer(10)
 
-
     def __on_connect(self, client, userdata, result_code):
         """
         Client connected to the server
@@ -336,10 +322,8 @@ class MqttClient(object):
         if self.on_connect is not None:
             try:
                 self.on_connect(self, result_code)
-
             except Exception as ex:
                 _logger.exception("Error notifying MQTT listener: %s", ex)
-
 
     def __on_disconnect(self, client, userdata, result_code):
         """
@@ -361,10 +345,8 @@ class MqttClient(object):
         if self.on_disconnect is not None:
             try:
                 self.on_disconnect(self, result_code)
-
             except Exception as ex:
                 _logger.exception("Error notifying MQTT listener: %s", ex)
-
 
     def __on_message(self, client, userdata, msg):
         """
@@ -378,10 +360,8 @@ class MqttClient(object):
         if self.on_message is not None:
             try:
                 self.on_message(self, msg)
-
             except Exception as ex:
                 _logger.exception("Error notifying MQTT listener: %s", ex)
-
 
     def __on_publish(self, client, userdata, mid):
         """

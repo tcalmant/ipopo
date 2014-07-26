@@ -52,6 +52,7 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory('pelix-remote-imports-registry-factory')
 @Provides(pelix.remote.SERVICE_REGISTRY)
 @Requires('_listeners', pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER,
@@ -80,7 +81,6 @@ class ImportsRegistry(object):
         # Lock
         self.__lock = threading.Lock()
 
-
     @BindField('_listeners', if_valid=True)
     def _bind_listener(self, field, listener, svc_ref):
         """
@@ -91,10 +91,8 @@ class ImportsRegistry(object):
             for endpoint in self._registry.values():
                 try:
                     listener.endpoint_added(endpoint)
-
                 except Exception as ex:
                     _logger.exception("Error calling listener: %s", ex)
-
 
     def add(self, endpoint):
         """
@@ -119,19 +117,17 @@ class ImportsRegistry(object):
             self._registry[endpoint.uid] = endpoint
             if endpoint.framework:
                 self._frameworks.setdefault(endpoint.framework, []) \
-                                                            .append(endpoint)
+                    .append(endpoint)
 
         # Notify listeners (out of lock)
         if self._listeners:
             for listener in self._listeners[:]:
                 try:
                     listener.endpoint_added(endpoint)
-
                 except Exception as ex:
                     _logger.exception("Error calling listener: %s", ex)
 
         return True
-
 
     def update(self, uid, new_properties):
         """
@@ -161,12 +157,10 @@ class ImportsRegistry(object):
                     try:
                         listener.endpoint_updated(stored_endpoint,
                                                   old_properties)
-
                     except Exception as ex:
                         _logger.exception("Error calling listener: %s", ex)
 
             return True
-
 
     def remove(self, uid):
         """
@@ -178,7 +172,6 @@ class ImportsRegistry(object):
         # Remove the end point from the individual storage
         try:
             endpoint = self._registry.pop(uid)
-
         except KeyError:
             # Unknown end point
             _logger.warning("Unknown end point UID: %s", uid)
@@ -204,12 +197,10 @@ class ImportsRegistry(object):
             for listener in self._listeners[:]:
                 try:
                     listener.endpoint_removed(endpoint)
-
                 except Exception as ex:
                     _logger.exception("Error calling listener: %s", ex)
 
         return True
-
 
     def lost_framework(self, uid):
         """
@@ -225,7 +216,6 @@ class ImportsRegistry(object):
                     # Remove endpoint from registry
                     try:
                         del self._registry[endpoint.uid]
-
                     except KeyError:
                         # The endpoint may have been removed by a listener
                         pass
@@ -235,10 +225,8 @@ class ImportsRegistry(object):
                     for listener in self._listeners[:]:
                         try:
                             listener.endpoint_removed(endpoint)
-
                         except Exception as ex:
                             _logger.exception("Error calling listener: %s", ex)
-
 
     @Validate
     def validate(self, context):
@@ -247,7 +235,6 @@ class ImportsRegistry(object):
         """
         # Get the framework UID
         self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
-
 
     @Invalidate
     def invalidate(self, context):

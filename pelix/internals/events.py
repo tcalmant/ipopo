@@ -40,11 +40,11 @@ from pelix.utilities import Deprecated
 
 # ------------------------------------------------------------------------------
 
+
 class BundleEvent(object):
     """
     Represents a bundle event
     """
-
     INSTALLED = 1
     """The bundle has been installed."""
 
@@ -79,7 +79,6 @@ class BundleEvent(object):
     UPDATE_FAILED = 64
     """ The bundle update has failed. The bundle might be in RESOLVED state """
 
-
     def __init__(self, kind, bundle):
         """
         Sets up the event
@@ -87,20 +86,17 @@ class BundleEvent(object):
         self.__kind = kind
         self.__bundle = bundle
 
-
     def __str__(self):
         """
         String representation
         """
         return "BundleEvent({0}, {1})".format(self.__kind, self.__bundle)
 
-
     def get_bundle(self):
         """
         Retrieves the modified bundle
         """
         return self.__bundle
-
 
     def get_kind(self):
         """
@@ -110,11 +106,11 @@ class BundleEvent(object):
 
 # ------------------------------------------------------------------------------
 
+
 class ServiceEvent(object):
     """
     Represents a service event
     """
-
     REGISTERED = 1
     """ This service has been registered """
 
@@ -143,19 +139,17 @@ class ServiceEvent(object):
         self.__reference = reference
 
         if previous_properties is not None \
-        and not isinstance(previous_properties, dict):
+                and not isinstance(previous_properties, dict):
             # Accept None or dict() only
             previous_properties = {}
 
         self.__previous_properties = previous_properties
-
 
     def __str__(self):
         """
         String representation
         """
         return "ServiceEvent({0}, {1})".format(self.__kind, self.__reference)
-
 
     def get_previous_properties(self):
         """
@@ -166,7 +160,6 @@ class ServiceEvent(object):
         """
         return self.__previous_properties
 
-
     def get_service_reference(self):
         """
         Returns the reference to the service associated to this event
@@ -175,7 +168,6 @@ class ServiceEvent(object):
         """
         return self.__reference
 
-
     def get_kind(self):
         """
         Returns the kind of service event (see the constants)
@@ -183,7 +175,6 @@ class ServiceEvent(object):
         :return: the kind of service event
         """
         return self.__kind
-
 
     @Deprecated("ServiceEvent: get_type() must be replaced by get_kind()")
     def get_type(self):

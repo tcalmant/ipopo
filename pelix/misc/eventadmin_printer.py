@@ -34,7 +34,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 # Pelix
 from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
@@ -46,11 +46,12 @@ import pelix.services as services
 from pprint import pformat
 import logging
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 _logger = logging.getLogger(__name__)
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+
 
 def _parse_boolean(value):
     """
@@ -71,7 +72,8 @@ def _parse_boolean(value):
         # Not a string, but has a value
         return True
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+
 
 @ComponentFactory(pelix.misc.FACTORY_EVENT_ADMIN_PRINTER)
 @Provides(services.SERVICE_EVENT_HANDLER)
@@ -90,7 +92,6 @@ class EventAdminPrinter(object):
         self._print = False
         self._log = False
 
-
     @Validate
     def _validate(self, context):
         """
@@ -100,15 +101,14 @@ class EventAdminPrinter(object):
         self._print = _parse_boolean(self._print)
         self._log = _parse_boolean(self._log)
 
-
     def handle_event(self, topic, properties):
         """
         An EventAdmin event has been received
         """
         if self._print:
             # Print the event on standard output
-            print("Event: {0}\nProperties:\n{1}" \
-                                            .format(topic, pformat(properties)))
+            print("Event: {0}\nProperties:\n{1}"
+                  .format(topic, pformat(properties)))
 
         if self._log:
             # Log the event

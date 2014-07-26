@@ -48,6 +48,7 @@ import pelix.services
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory("configadmin-shell-commands-factory")
 @Requires("_config_admin", pelix.services.SERVICE_CONFIGURATION_ADMIN)
 @Provides(SERVICE_SHELL_COMMAND)
@@ -74,13 +75,11 @@ class ConfigAdminCommands(object):
         # Clean up
         self._configs.clear()
 
-
     def get_namespace(self):
         """
         Retrieves the name space of this command handler
         """
         return "config"
-
 
     def get_methods(self):
         """
@@ -91,7 +90,6 @@ class ConfigAdminCommands(object):
                 ("reload", self.reload),
                 ("delete", self.delete),
                 ("list", self.list)]
-
 
     def create(self, io_handler, factory_pid, **kwargs):
         """
@@ -106,7 +104,6 @@ class ConfigAdminCommands(object):
         if kwargs:
             # Update it immediately if some properties are already set
             config.update(kwargs)
-
 
     def update(self, io_handler, pid, **kwargs):
         """
@@ -133,7 +130,6 @@ class ConfigAdminCommands(object):
         # Update configuration
         config.update(new_properties)
 
-
     def reload(self, io_handler, pid):
         """
         Reloads the configuration with the given PID from the persistence
@@ -149,7 +145,6 @@ class ConfigAdminCommands(object):
             # Log errors
             io_handler.write_line("Error reloading {0}: {1}", pid, ex)
 
-
     def delete(self, io_handler, pid):
         """
         Deletes a configuration
@@ -161,7 +156,6 @@ class ConfigAdminCommands(object):
         except KeyError:
             # Configuration was unknown
             pass
-
 
     def list(self, io_handler, pid=None):
         """
@@ -189,7 +183,8 @@ class ConfigAdminCommands(object):
             factory_pid = config.get_factory_pid()
             if factory_pid:
                 lines.append('\tFactory PID: {0}'.format(factory_pid))
-            lines.append('\tLocation: {0}'.format(config.get_bundle_location()))
+            lines.append('\tLocation: {0}'
+                         .format(config.get_bundle_location()))
 
             try:
                 properties = config.get_properties()

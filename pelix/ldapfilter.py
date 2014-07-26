@@ -63,6 +63,7 @@ NOT = 2
 
 # ------------------------------------------------------------------------------
 
+
 class LDAPFilter(object):
     """
     Represents an LDAP filter
@@ -281,6 +282,7 @@ class LDAPCriteria(object):
 
 # ------------------------------------------------------------------------------
 
+
 def escape_LDAP(ldap_string):
     """
     Escape a string to let it go in an LDAP filter
@@ -348,6 +350,7 @@ def unescape_LDAP(ldap_string):
 
 ITERABLES = (list, tuple, set)
 """ The types that are considered iterable in comparators """
+
 
 def _comparator_presence(_, tested_value):
     """
@@ -613,6 +616,7 @@ def operator2str(operator):
     return '<unknown>'
 
 # ------------------------------------------------------------------------------
+
 
 def _compute_comparator(string, idx):
     """

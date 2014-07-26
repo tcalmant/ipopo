@@ -71,14 +71,15 @@ Those handlers must implement the following method:
 
 It should also implement the following ones:
 
-* on_controller_changer(): Called when a component controller has been modified.
-  The publication of a service might be stopped if its controller is set to
-  False.
+* on_controller_changer(): Called when a component controller has been
+  modified. The publication of a service might be stopped if its controller is
+  set to False.
 * on_property_change(): Called when a component property has been modified.
   The provided service properties should be modified accordingly.
 """
 
 # ------------------------------------------------------------------------------
+
 
 class HandlerFactory(object):
     """
@@ -95,6 +96,7 @@ class HandlerFactory(object):
         return None
 
 # ------------------------------------------------------------------------------
+
 
 class Handler(object):
     """
@@ -126,8 +128,8 @@ class Handler(object):
 
     def is_valid(self):
         """
-        Checks this handler is valid. All handlers must be valid for a component
-        to be validated
+        Checks this handler is valid. All handlers must be valid for a
+        component to be validated
 
         :return: True if the handler is in a valid state
         """
@@ -161,14 +163,15 @@ class Handler(object):
 
     def stop(self):
         """
-        Stops the handler. Called once, just after the component has been killed
+        Stops the handler. Called once, just after the component has been
+        killed
         """
         pass
 
     def clear(self):
         """
-        Called just after a component has been killed and all handlers have been
-        stopped. The handler should release all its resources here.
+        Called just after a component has been killed and all handlers have
+        been stopped. The handler should release all its resources here.
         """
         pass
 
@@ -198,6 +201,7 @@ class Handler(object):
 
 # ------------------------------------------------------------------------------
 
+
 class ServiceProviderHandler(Handler):
     """
     Service provider handler abstract class
@@ -209,6 +213,7 @@ class ServiceProviderHandler(Handler):
         return None
 
 # ------------------------------------------------------------------------------
+
 
 class DependencyHandler(Handler):
     """

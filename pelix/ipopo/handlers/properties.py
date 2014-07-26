@@ -44,6 +44,7 @@ import pelix.ipopo.handlers.constants as constants
 
 # ------------------------------------------------------------------------------
 
+
 class _HandlerFactory(constants.HandlerFactory):
     """
     Factory service for service registration handlers
@@ -71,7 +72,6 @@ class _Activator(object):
         """
         self._registration = None
 
-
     def start(self, context):
         """
         Bundle started
@@ -85,7 +85,6 @@ class _Activator(object):
             constants.SERVICE_IPOPO_HANDLER_FACTORY,
             _HandlerFactory(), properties)
 
-
     def stop(self, context):
         """
         Bundle stopped
@@ -96,6 +95,7 @@ class _Activator(object):
 
 # ------------------------------------------------------------------------------
 
+
 class PropertiesHandler(constants.Handler):
     """
     Handles the properties
@@ -105,7 +105,6 @@ class PropertiesHandler(constants.Handler):
         Sets up the handler
         """
         self._ipopo_instance = None
-
 
     def _field_property_generator(self):
         """
@@ -123,7 +122,6 @@ class PropertiesHandler(constants.Handler):
             :return: The property value
             """
             return properties.get(name, None)
-
 
         def set_value(self, name, new_value):
             """
@@ -146,7 +144,6 @@ class PropertiesHandler(constants.Handler):
             return new_value
 
         return (get_value, set_value)
-
 
     def manipulate(self, stored_instance, component_instance):
         """

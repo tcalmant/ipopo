@@ -74,6 +74,7 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+
 class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
     """
     A JSON-RPC servlet, replacing the SimpleJSONRPCDispatcher from jsonrpclib,
@@ -91,7 +92,6 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
         # Make a link to the dispatch method
         self._dispatch_method = dispatch_method
 
-
     def _simple_dispatch(self, name, params):
         """
         Dispatch method
@@ -108,13 +108,11 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
         # an exception state (logs will consider the KeyError as a failure)
         return self._dispatch_method(name, params)
 
-
     def do_GET(self, request, response):
         """
         Handles a GET request
         """
         response.send_content(200, "Jabsorb-RPC servlet", "text/plain")
-
 
     def do_POST(self, request, response):
         """
@@ -154,6 +152,7 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_JABSORBRPC_EXPORTER)
 @Provides(pelix.remote.SERVICE_EXPORT_PROVIDER)
 @Requires('_http', pelix.http.HTTP_SERVICE)
@@ -181,7 +180,6 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # JSON-RPC servlet
         self._servlet = None
 
-
     def make_endpoint_properties(self, svc_ref, name, fw_uid):
         """
         Prepare properties for the ExportEndpoint to be created
@@ -203,7 +201,6 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
                 # HTTP accesses, as a comma-separated string
                 PROP_HTTP_ACCESSES: self.get_accesses()}
 
-
     def get_accesses(self):
         """
         Retrieves the URLs to access this component as a comma-separated list.
@@ -220,7 +217,6 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
         model = "http://{{server}}:{0}{1}".format(port, self._path)
         return ','.join((model, model.format(server=host)))
 
-
     @Validate
     def validate(self, context):
         """
@@ -232,7 +228,6 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # Create/register the servlet
         self._servlet = _JabsorbRpcServlet(self.dispatch)
         self._http.register_servlet(self._path, self._servlet)
-
 
     @Invalidate
     def invalidate(self, context):
@@ -250,6 +245,7 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
 # ------------------------------------------------------------------------------
 
+
 class _ServiceCallProxy(object):
     """
     Service call proxy
@@ -264,15 +260,14 @@ class _ServiceCallProxy(object):
         self.__name = name
         self.__url = url
 
-
     def __getattr__(self, name):
         """
         Prefixes the requested attribute name by the endpoint name
         """
         # Make a proxy for this call
-        # This is an ugly trick to handle multithreaded calls, as the underlying
-        # proxy re-uses the same connection when possible: sometimes it means
-        # sending a request before retrieving a result
+        # This is an ugly trick to handle multithreaded calls, as the
+        # underlying proxy re-uses the same connection when possible: sometimes
+        # it means sending a request before retrieving a result
         proxy = jsonrpclib.ServerProxy(self.__url)
 
         def wrapped_call(*args, **kwargs):
@@ -294,6 +289,7 @@ class _ServiceCallProxy(object):
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_JABSORBRPC_IMPORTER)
 @Provides(pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER)
 @Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
@@ -311,7 +307,6 @@ class JabsorbRpcServiceImporter(commons.AbstractRpcServiceImporter):
 
         # Component properties
         self._kinds = None
-
 
     def make_service_proxy(self, endpoint):
         """
@@ -347,7 +342,6 @@ class JabsorbRpcServiceImporter(commons.AbstractRpcServiceImporter):
 
         # Prepare the proxy
         return _ServiceCallProxy(name, access_url)
-
 
     def clear_service_proxy(self, endpoint):
         """

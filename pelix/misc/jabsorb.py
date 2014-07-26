@@ -76,6 +76,7 @@ JAVA_SETS_PATTERN = re.compile(r"java\.util\..*Set")
 
 # ------------------------------------------------------------------------------
 
+
 class HashableDict(dict):
     """
     Small workaround because dictionaries are not hashable in Python
@@ -120,7 +121,6 @@ class AttributeMap(dict):
         super(AttributeMap, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
-
     def __hash__(self):
         """
         Computes the hash of the dictionary
@@ -128,6 +128,7 @@ class AttributeMap(dict):
         return hash("AttributeMap({0})".format(sorted(self.items())))
 
 # ------------------------------------------------------------------------------
+
 
 def _compute_jsonclass(obj):
     """
@@ -172,6 +173,7 @@ def _is_converted_class(java_class):
         or JAVA_SETS_PATTERN.match(java_class) is not None
 
 # ------------------------------------------------------------------------------
+
 
 def to_jabsorb(value):
     """

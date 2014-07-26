@@ -33,11 +33,9 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 FACTORY_EVENT_ADMIN_PRINTER = "pelix-misc-eventadmin-printer-factory"
 """
 Name of the EventAdmin printer factory.
 """
-
-#-------------------------------------------------------------------------------

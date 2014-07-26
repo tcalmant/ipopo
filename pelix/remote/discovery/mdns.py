@@ -65,6 +65,7 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory(pelix.remote.FACTORY_DISCOVERY_ZEROCONF)
 @Provides(pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER)
 @Property('_rs_type', pelix.remote.PROP_ZEROCONF_TYPE, '_pelix_rs._tcp.local.')
@@ -110,7 +111,6 @@ class ZeroconfDiscovery(object):
         # mDNS name -> Endpoint UID
         self._imported_endpoints = {}
 
-
     @Invalidate
     def invalidate(self, context):
         """
@@ -130,7 +130,6 @@ class ZeroconfDiscovery(object):
         self._fw_uid = None
 
         _logger.debug("Zeroconf discovery invalidated")
-
 
     @Validate
     def validate(self, context):
@@ -160,7 +159,6 @@ class ZeroconfDiscovery(object):
 
         _logger.debug("Zeroconf discovery validated")
 
-
     def _serialize_properties(self, props):
         """
         Converts properties values into strings
@@ -170,11 +168,9 @@ class ZeroconfDiscovery(object):
         for key, value in props.items():
             if is_string(value):
                 new_props[key] = value
-
             else:
                 try:
                     new_props[key] = json.dumps(value)
-
                 except ValueError:
                     new_props[key] = "pelix-type:{0}:{1}" \
                                      .format(type(value).__name__, repr(value))
@@ -189,7 +185,6 @@ class ZeroconfDiscovery(object):
                 pass
 
         return new_props
-
 
     def _deserialize_properties(self, props):
         """
@@ -223,7 +218,6 @@ class ZeroconfDiscovery(object):
 
         return new_props
 
-
     def __register_servlet(self):
         """
         Registers the Pelix Remote Services dispatcher servlet as a service via
@@ -253,7 +247,6 @@ class ZeroconfDiscovery(object):
         # Register the service
         self._zeroconf.registerService(info, self._ttl)
 
-
     def endpoints_added(self, endpoints):
         """
         Multiple endpoints have been added
@@ -266,7 +259,6 @@ class ZeroconfDiscovery(object):
         # Handle each one separately
         for endpoint in endpoints:
             self._endpoint_added(endpoint, access_port)
-
 
     def _endpoint_added(self, exp_endpoint, access_port):
         """
@@ -301,7 +293,6 @@ class ZeroconfDiscovery(object):
         # Register the service
         self._zeroconf.registerService(info, self._ttl)
 
-
     def endpoint_updated(self, endpoint, old_properties):
         """
         An end point is updated
@@ -313,7 +304,6 @@ class ZeroconfDiscovery(object):
         # TODO: register a temporary service while the update is performed ?
         return
 
-
     def endpoint_removed(self, endpoint):
         """
         An end point is removed
@@ -323,15 +313,12 @@ class ZeroconfDiscovery(object):
         try:
             # Get the associated service info
             info = self._export_infos.pop(endpoint.uid)
-
         except KeyError:
             # Unknown service
             _logger.debug("Unknown removed endpoint: %s", endpoint)
-
         else:
             # Unregister the service
             self._zeroconf.unregisterService(info)
-
 
     def _get_service_info(self, svc_type, name, max_retries=10):
         """
@@ -345,20 +332,19 @@ class ZeroconfDiscovery(object):
         info = None
         retries = 0
         while self._zeroconf is not None \
-        and info is None \
-        and retries < max_retries:
+                and info is None and retries < max_retries:
             # Try to get information about the service...
             info = self._zeroconf.getServiceInfo(svc_type, name)
             retries += 1
 
         return info
 
-
     def addService(self, zeroconf, svc_type, name):
         """
         Called by Zeroconf when a record is updated
 
-        :param zeroconf: The Zeroconf instance than notifies of the modification
+        :param zeroconf: The Zeroconf instance than notifies of the
+                         modification
         :param svc_type: Service type
         :param name: Service name
         """
@@ -422,12 +408,12 @@ class ZeroconfDiscovery(object):
                     # Associate the mDNS name to the endpoint on success
                     self._imported_endpoints[name] = endpoint.uid
 
-
     def removeService(self, zeroconf, svc_type, name):
         """
         Called by Zeroconf when a record is removed
 
-        :param zeroconf: The Zeroconf instance than notifies of the modification
+        :param zeroconf: The Zeroconf instance than notifies of the
+                         modification
         :param svc_type: Service type
         :param name: Service name
         """
@@ -436,11 +422,9 @@ class ZeroconfDiscovery(object):
             try:
                 # Get the stored endpoint UID
                 uid = self._imported_endpoints.pop(name)
-
             except KeyError:
                 # Unknown service
                 return
-
             else:
                 # Remove it
                 self._registry.remove(uid)

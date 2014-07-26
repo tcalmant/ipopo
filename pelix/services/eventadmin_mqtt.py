@@ -34,7 +34,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 # Pelix
 from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
@@ -48,7 +48,7 @@ import pelix.services as services
 import json
 import logging
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 _logger = logging.getLogger(__name__)
 
@@ -61,7 +61,8 @@ EVENT_PROP_SOURCE_UID = 'pelix.eventadmin.mqtt.source'
 EVENT_PROP_STARTING_SLASH = 'pelix.eventadmin.mqtt.start_slash'
 """ Flag to indicate that the EventAdmin topic starts with a '/' """
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+
 
 @ComponentFactory(services.FACTORY_EVENT_ADMIN_MQTT)
 @Provides(services.SERVICE_EVENT_HANDLER, '_controller')
@@ -96,7 +97,6 @@ class MqttEventAdminBridge(object):
         # Framework UID
         self._framework_uid = None
 
-
     @Validate
     def _validate(self, context):
         """
@@ -128,7 +128,6 @@ class MqttEventAdminBridge(object):
         # Prepare the connection
         self._mqtt.connect(self._host, self._port)
 
-
     @Invalidate
     def _invalidate(self, context):
         """
@@ -141,7 +140,6 @@ class MqttEventAdminBridge(object):
         self._framework_uid = None
         self._mqtt = None
 
-
     def _make_topic(self, suffix):
         """
         Prepares a MQTT topic with the given suffix
@@ -150,7 +148,6 @@ class MqttEventAdminBridge(object):
         :return: A MQTT topic
         """
         return "{0}/{1}".format(self._mqtt_topic, suffix)
-
 
     def __on_connect(self, client, rc):
         """
@@ -163,14 +160,12 @@ class MqttEventAdminBridge(object):
             # Provide the service
             self._controller = True
 
-
     def __on_disconnect(self, client, rc):
         """
         Client has been disconnected from the server
         """
         # Disconnected: stop providing the service
         self._controller = False
-
 
     def __on_message(self, client, msg):
         """
@@ -185,7 +180,6 @@ class MqttEventAdminBridge(object):
         except Exception as ex:
             _logger.exception("Error handling an MQTT EventAdmin message: %s",
                               ex)
-
 
     def handle_event(self, topic, properties):
         """
@@ -212,7 +206,6 @@ class MqttEventAdminBridge(object):
 
         # Publish the event to everybody, with QOS 2
         self._mqtt.publish(mqtt_topic, payload, qos=2)
-
 
     def handle_mqtt_message(self, mqtt_topic, payload):
         """

@@ -36,7 +36,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 # MQTT client
 import paho.mqtt.client as paho
@@ -55,7 +55,7 @@ import logging
 import threading
 import uuid
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 _logger = logging.getLogger(__name__)
 
@@ -66,7 +66,8 @@ CONNECT_RC = {0: "Success",
               4: "Refused - bad user name or password (MQTT v3.1 broker only)",
               5: "Refused - not authorized (MQTT v3.1 broker only)"}
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+
 
 @ComponentFactory()
 @Provides((services.SERVICE_MQTT_CONNECTOR_FACTORY,
@@ -112,7 +113,6 @@ class MqttConnectionFactory(object):
         # Notification pool
         self._pool = None
 
-
     @Validate
     def _validate(self, context):
         """
@@ -133,7 +133,6 @@ class MqttConnectionFactory(object):
         self._thread.start()
 
         _logger.info("MQTT factory validated")
-
 
     @Invalidate
     def _invalidate(self, context):
@@ -170,7 +169,6 @@ class MqttConnectionFactory(object):
 
         _logger.info("MQTT factory invalidated")
 
-
     def __add_listener(self, topic, listener):
         """
         Adds a topic listener
@@ -186,7 +184,6 @@ class MqttConnectionFactory(object):
 
         # Store the listener
         listeners.add(listener)
-
 
     def __remove_listener(self, topic, listener):
         """
@@ -204,7 +201,6 @@ class MqttConnectionFactory(object):
             # Unused topic or listener not registered for it
             pass
 
-
     @BindField('_listeners')
     def _bind_listener(self, field, listener, svc_ref):
         """
@@ -214,7 +210,6 @@ class MqttConnectionFactory(object):
                              False)
         for topic in topics:
             self.__add_listener(topic, listener)
-
 
     @UpdateField('_listeners')
     def _update_listener(self, field, listener, svc_ref, old_props):
@@ -233,7 +228,6 @@ class MqttConnectionFactory(object):
         for topic in old_topics.difference(topics):
             self.__remove_listener(topic, listener)
 
-
     @UnbindField('_listeners')
     def _unbind_listener(self, field, listener, svc_ref):
         """
@@ -244,12 +238,12 @@ class MqttConnectionFactory(object):
         for topic in topics:
             self.__remove_listener(topic, listener)
 
-
     def __clients_loop(self):
         """
         Control loop to let each client check its messages
         """
-        while not self.__stop_event.wait(.1) and not self.__stop_event.is_set():
+        while not self.__stop_event.wait(.1) \
+                and not self.__stop_event.is_set():
             # Copy clients using the lock
             with self.__lock:
                 clients = list(self._clients.items())
@@ -260,10 +254,9 @@ class MqttConnectionFactory(object):
                 if rc != 0:
                     # Reconnect on error
                     # FIXME: do a better job
-                    _logger.warning("Loop error for client %s, reconnecting it",
-                                    pid)
+                    _logger.warning("Loop error for client %s, "
+                                    "reconnecting it", pid)
                     client.reconnect()
-
 
     def __on_message(self, client, obj, msg):
         """
@@ -291,7 +284,6 @@ class MqttConnectionFactory(object):
             # No listener for this topic
             pass
 
-
     def __notify_listeners(self, listeners, topic, payload, qos):
         """
         Notifies listeners of an MQTT message
@@ -303,7 +295,6 @@ class MqttConnectionFactory(object):
             except Exception as ex:
                 _logger.exception("Error calling MQTT listener: %s", ex)
 
-
     def __subscribe(self, topic):
         """
         Subscribes to a topic in all servers
@@ -311,14 +302,12 @@ class MqttConnectionFactory(object):
         for client in self._clients.values():
             client.subscribe(topic, 0)
 
-
     def __unsubscribe(self, topic):
         """
         Unsubscribes from the topic from all servers
         """
         for client in self._clients.values():
             client.unsubscribe(topic)
-
 
     def updated(self, pid, properties):
         """
@@ -372,7 +361,6 @@ class MqttConnectionFactory(object):
                 _logger.error("Error connecting to the MQTT server: %d - %s",
                               rc, CONNECT_RC.get(rc, "Unknown error"))
 
-
     def deleted(self, pid):
         """
         Configuration deleted
@@ -397,7 +385,6 @@ class MqttConnectionFactory(object):
                 client.disconnect()
                 _logger.debug("Disconnected from %s", client)
 
-
     def publish(self, topic, payload, qos=0, retain=False, pid=None):
         """
         Publishes an MQTT message
@@ -414,7 +401,8 @@ class MqttConnectionFactory(object):
                 # TODO: check for success of at least one publication
                 client.publish(topic, payload, qos, retain)
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+
 
 class _MqttConnection(object):
     """
@@ -429,7 +417,6 @@ class _MqttConnection(object):
         """
         self.__factory = factory
         self._client = connection
-
 
     def publish(self, topic, payload, qos=0, retain=False):
         """

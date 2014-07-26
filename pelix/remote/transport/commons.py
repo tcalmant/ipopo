@@ -57,6 +57,7 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+
 @Provides(pelix.remote.SERVICE_EXPORT_PROVIDER)
 @Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED)
 class AbstractRpcServiceExporter(object):
@@ -82,7 +83,6 @@ class AbstractRpcServiceExporter(object):
         # Thread safety
         self.__lock = threading.Lock()
 
-
     def dispatch(self, method, params):
         """
         Called by the servlet: calls the method of an exported service
@@ -98,7 +98,7 @@ class AbstractRpcServiceExporter(object):
 
         if matching is None:
             # No end point name match
-            raise RemoteServiceError("No end point found for: {0}"\
+            raise RemoteServiceError("No end point found for: {0}"
                                      .format(method))
 
         # Extract the method name. (+1 for the trailing dot)
@@ -118,7 +118,6 @@ class AbstractRpcServiceExporter(object):
         # Call it (let the errors be propagated)
         return method_ref(*params)
 
-
     def handles(self, configurations):
         """
         Checks if this provider handles the given configuration types
@@ -130,7 +129,6 @@ class AbstractRpcServiceExporter(object):
             return True
 
         return bool(set(configurations).intersection(self._kinds))
-
 
     def export_service(self, svc_ref, name, fw_uid):
         """
@@ -156,7 +154,7 @@ class AbstractRpcServiceExporter(object):
 
             if name in self.__endpoints:
                 # Already known end point
-                raise NameError("Already known end point {0} for kinds {1}"\
+                raise NameError("Already known end point {0} for kinds {1}"
                                 .format(name, ','.join(self._kinds)))
 
             # Get the service (let it raise a BundleException if any
@@ -181,7 +179,6 @@ class AbstractRpcServiceExporter(object):
         # Return the endpoint bean
         return endpoint
 
-
     def update_export(self, endpoint, new_name, old_properties):
         """
         Updates an export endpoint
@@ -195,13 +192,11 @@ class AbstractRpcServiceExporter(object):
             try:
                 if self.__endpoints[new_name] is not endpoint:
                     # Reject the new name, as an endpoint uses it
-                    raise NameError("New name of {0} already used: {1}" \
+                    raise NameError("New name of {0} already used: {1}"
                                     .format(endpoint.name, new_name))
-
                 else:
                     # Name hasn't changed
                     pass
-
             except KeyError:
                 # Update the name of the endpoint
                 old_name = endpoint.name
@@ -209,7 +204,6 @@ class AbstractRpcServiceExporter(object):
 
                 # No endpoint matches the new name: update the storage
                 self.__endpoints[new_name] = self.__endpoints.pop(old_name)
-
 
     def unexport_service(self, endpoint):
         """
@@ -225,7 +219,6 @@ class AbstractRpcServiceExporter(object):
             svc_ref = endpoint.reference
             self._context.unget_service(svc_ref)
 
-
     def make_endpoint_properties(self, svc_ref, name, fw_uid):
         """
         Prepare properties for the ExportEndpoint to be created
@@ -235,10 +228,9 @@ class AbstractRpcServiceExporter(object):
         :param fw_uid: Framework UID
         :return: A dictionary of extra endpoint properties
         """
-        raise NotImplementedError("make_endpoint_properties() not " \
-                                  "implemented by class {0}"\
+        raise NotImplementedError("make_endpoint_properties() not "
+                                  "implemented by class {0}"
                                   .format(type(self).__name__))
-
 
     @Validate
     def validate(self, context):
@@ -250,7 +242,6 @@ class AbstractRpcServiceExporter(object):
 
         # Store the framework UID
         self._framework_uid = context.get_property(constants.FRAMEWORK_UID)
-
 
     @Invalidate
     def invalidate(self, context):
@@ -265,6 +256,7 @@ class AbstractRpcServiceExporter(object):
         self._framework_uid = None
 
 # ------------------------------------------------------------------------------
+
 
 @Provides(pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER)
 @Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED)
@@ -288,7 +280,6 @@ class AbstractRpcServiceImporter(object):
         # Registered services (endpoint UID -> ServiceReference)
         self.__registrations = {}
         self.__lock = threading.Lock()
-
 
     def endpoint_added(self, endpoint):
         """
@@ -316,7 +307,6 @@ class AbstractRpcServiceImporter(object):
             # Store references
             self.__registrations[endpoint.uid] = svc_reg
 
-
     def endpoint_updated(self, endpoint, old_properties):
         """
         An end point has been updated
@@ -330,7 +320,6 @@ class AbstractRpcServiceImporter(object):
             except KeyError:
                 # Unknown end point
                 return
-
 
     def endpoint_removed(self, endpoint):
         """
@@ -349,7 +338,6 @@ class AbstractRpcServiceImporter(object):
                 # Clear the proxy
                 self.clear_service_proxy(endpoint)
 
-
     def make_service_proxy(self, endpoint):
         """
         Creates the proxy for the given ImportEndpoint
@@ -357,9 +345,8 @@ class AbstractRpcServiceImporter(object):
         :param endpoint: An ImportEndpoint bean
         :return: A service proxy
         """
-        raise NotImplementedError("make_service_proxy() not implemented by " \
+        raise NotImplementedError("make_service_proxy() not implemented by "
                                   "class {0}".format(type(self).__name__))
-
 
     def clear_service_proxy(self, endpoint):
         """
@@ -367,9 +354,8 @@ class AbstractRpcServiceImporter(object):
 
         :param endpoint: An ImportEndpoint bean
         """
-        raise NotImplementedError("clear_service_proxy() not implemented by " \
+        raise NotImplementedError("clear_service_proxy() not implemented by "
                                   "class {0}".format(type(self).__name__))
-
 
     @Validate
     def validate(self, context):
@@ -379,7 +365,6 @@ class AbstractRpcServiceImporter(object):
         # Store the bundle context and the framework UID
         self._context = context
         self._framework_uid = context.get_property(constants.FRAMEWORK_UID)
-
 
     @Invalidate
     def invalidate(self, context):

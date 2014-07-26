@@ -76,6 +76,7 @@ HTTP_SERVICE_EXTRA = "http.extra"
 
 # ------------------------------------------------------------------------------
 
+
 class _HTTPServletRequest(http.AbstractHTTPServletRequest):
     """
     HTTP Servlet request helper
@@ -88,7 +89,6 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         """
         self._handler = request_handler
 
-
     def get_client_address(self):
         """
         Retrieves the address of the client
@@ -97,13 +97,11 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         """
         return self._handler.client_address
 
-
     def get_header(self, name, default=None):
         """
         Retrieves the value of a header
         """
         return self._handler.headers.get(name, default)
-
 
     def get_headers(self):
         """
@@ -111,13 +109,11 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         """
         return self._handler.headers
 
-
     def get_path(self):
         """
         Retrieves the request full path
         """
         return self._handler.path
-
 
     def get_rfile(self):
         """
@@ -138,7 +134,6 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         """
         self._handler = request_handler
 
-
     def set_response(self, code, message=None):
         """
         Sets the response line.
@@ -148,7 +143,6 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         :param message: Associated message
         """
         self._handler.send_response(code, message)
-
 
     def set_header(self, name, value):
         """
@@ -160,13 +154,11 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         """
         self._handler.send_header(name, value)
 
-
     def end_headers(self):
         """
         Ends the headers part
         """
         self._handler.end_headers()
-
 
     def get_wfile(self):
         """
@@ -177,7 +169,6 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         :return: The output file-like object
         """
         return self._handler.wfile
-
 
     def write(self, data):
         """
@@ -190,6 +181,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         self._handler.wfile.write(data)
 
 # ------------------------------------------------------------------------------
+
 
 class _RequestHandler(BaseHTTPRequestHandler):
     """
@@ -208,7 +200,6 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
         # This calls the do_* methods
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
-
 
     def __getattr__(self, name):
         """
@@ -247,7 +238,6 @@ class _RequestHandler(BaseHTTPRequestHandler):
                     try:
                         # Handle the request
                         return getattr(servlet, name)(request, response)
-
                     except:
                         # Send a 500 error page on error
                         return self.send_exception(response)
@@ -258,20 +248,17 @@ class _RequestHandler(BaseHTTPRequestHandler):
         # Return the super implementation if needed
         return self.send_no_servlet_response
 
-
     def log_error(self, message, *args, **kwargs):
         """
         Log server error
         """
         self._service.log(logging.ERROR, message, *args, **kwargs)
 
-
     def log_request(self, code='-', size='-'):
         """
         Logs a request to the server
         """
         self._service.log(logging.DEBUG, '"%s" %s', self.requestline, code)
-
 
     def send_no_servlet_response(self):
         """
@@ -290,7 +277,6 @@ class _RequestHandler(BaseHTTPRequestHandler):
         # Use the helper to send the error page
         response = _HTTPServletResponse(self)
         response.send_content(404, page)
-
 
     def send_exception(self, response):
         """
@@ -324,6 +310,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
         response.send_content(500, page)
 
 # ------------------------------------------------------------------------------
+
 
 class _HttpServerFamily(ThreadingMixIn, HTTPServer):
     """
@@ -374,13 +361,12 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
         self.server_bind()
         self.server_activate()
 
-
     def process_request(self, request, client_address):
         """
         Starts a new thread to process the request, adding the client address
         in its name.
         """
-        thread = threading.Thread(name="HttpService-{0}-Client-{1}"\
+        thread = threading.Thread(name="HttpService-{0}-Client-{1}"
                                   .format(self.server_port, client_address),
                                   target=self.process_request_thread,
                                   args=(request, client_address))
@@ -388,6 +374,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
         thread.start()
 
 # ------------------------------------------------------------------------------
+
 
 @ComponentFactory(http.FACTORY_HTTP_BASIC)
 @Provides(http.HTTP_SERVICE)
@@ -437,13 +424,11 @@ class HttpService(object):
         self._server = None
         self._thread = None
 
-
     def __str__(self):
         """
         String representation of the instance
         """
         return "BasicHttpService({0}, {1:d})".format(self._address, self._port)
-
 
     def __safe_callback(self, instance, method, *args, **kwargs):
         """
@@ -479,7 +464,6 @@ class HttpService(object):
 
         return False
 
-
     def __register_servlet_service(self, service, service_reference):
         """
         Registers a servlet according to its service properties
@@ -498,7 +482,6 @@ class HttpService(object):
             for path in paths:
                 self.register_servlet(path, service, None)
 
-
     @BindField("_servlets_services")
     def _bind(self, field, service, service_reference):
         """
@@ -510,7 +493,6 @@ class HttpService(object):
             if self._validated:
                 # We've been validated, register the service
                 self.__register_servlet_service(service, service_reference)
-
 
     @UpdateField('_servlets_services')
     def _update(self, field, service, service_reference, old_properties):
@@ -532,7 +514,6 @@ class HttpService(object):
                 # Register the service with its new properties
                 self.__register_servlet_service(service, service_reference)
 
-
     @UnbindField("_servlets_services")
     def _unbind(self, field, service, service_reference):
         """
@@ -545,7 +526,6 @@ class HttpService(object):
             # Remove the service reference
             del self._servlets_refs[service]
 
-
     def get_access(self):
         """
         Retrieves the (address, port) tuple to access the server
@@ -555,7 +535,6 @@ class HttpService(object):
         # Only keep the address and the port information
         return sock_info[0], sock_info[1]
 
-
     def get_hostname(self):
         """
         Retrieves the server host name
@@ -563,7 +542,6 @@ class HttpService(object):
         :return: The server host name
         """
         return socket.gethostname()
-
 
     def get_servlet(self, path):
         """
@@ -607,7 +585,6 @@ class HttpService(object):
                 # Retrieve the stored information
                 return self._servlets[longest_match]
 
-
     def register_servlet(self, path, servlet, parameters=None):
         """
         Registers a servlet
@@ -623,7 +600,7 @@ class HttpService(object):
             raise ValueError("Invalid servlet instance")
 
         if not path or path[0] != '/':
-            raise ValueError("Invalid path given to register the servlet: {0}" \
+            raise ValueError("Invalid path given to register the servlet: {0}"
                              .format(path))
 
         # Use lower-case paths
@@ -663,7 +640,7 @@ class HttpService(object):
 
             if already_taken:
                 # The path is already taken by another servlet
-                raise ValueError("A servlet is already registered on {0}" \
+                raise ValueError("A servlet is already registered on {0}"
                                  .format(path))
 
             # Tell the servlet it can be bound to the path
@@ -674,7 +651,6 @@ class HttpService(object):
 
             # The servlet refused the binding
             return False
-
 
     def unregister(self, path, servlet=None):
         """
@@ -721,7 +697,6 @@ class HttpService(object):
                 del self._servlets[path]
                 return True
 
-
     def log(self, level, message, *args, **kwargs):
         """
         Logs the given message
@@ -733,7 +708,6 @@ class HttpService(object):
             # Log the message
             self._logger.log(level, message, *args, **kwargs)
 
-
     def log_exception(self, message, *args, **kwargs):
         """
         Logs an exception
@@ -743,7 +717,6 @@ class HttpService(object):
         if self._logger is not None:
             # Log the exception
             self._logger.exception(message, *args, **kwargs)
-
 
     @Validate
     def validate(self, context):
@@ -757,7 +730,6 @@ class HttpService(object):
         if self._port is None or self._port < 0:
             # Random port
             self._port = 0
-
         else:
             # Ensure we have an integer
             self._port = int(self._port)
@@ -793,8 +765,8 @@ class HttpService(object):
 
         # Run it in a separate thread
         self._thread = threading.Thread(target=self._server.serve_forever,
-                                        name="HttpService-{0}-Server" \
-                                             .format(self._port))
+                                        name="HttpService-{0}-Server"
+                                        .format(self._port))
         self._thread.daemon = True
         self._thread.start()
 
@@ -808,7 +780,6 @@ class HttpService(object):
 
         self.log(logging.INFO, "HTTP server started: [%s]:%d",
                  self._address, self._port)
-
 
     @Invalidate
     def invalidate(self, context):

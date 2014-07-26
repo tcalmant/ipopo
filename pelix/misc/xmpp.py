@@ -43,6 +43,7 @@ import sleekxmpp
 
 # ------------------------------------------------------------------------------
 
+
 class BasicBot(sleekxmpp.ClientXMPP):
     """
     Basic bot: connects to a server with the given credentials
@@ -122,6 +123,7 @@ class BasicBot(sleekxmpp.ClientXMPP):
 
 # ------------------------------------------------------------------------------
 
+
 class InviteMixIn(object):
     """
     A bot that automatically accepts invites from other participants
@@ -164,6 +166,7 @@ class InviteMixIn(object):
         self.plugin['xep_0045'].joinMUC(data['from'], self._nick)
 
 # ------------------------------------------------------------------------------
+
 
 class ServiceDiscoveryMixin(object):
     """
