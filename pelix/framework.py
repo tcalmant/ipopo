@@ -88,7 +88,6 @@ class Bundle(object):
     ACTIVE = 32
     """ The bundle is now running """
 
-
     def __init__(self, framework, bundle_id, name, module):
         """
         Sets up the bundle descriptor
@@ -114,13 +113,11 @@ class Bundle(object):
         self.__registered_services = []
         self.__registration_lock = threading.Lock()
 
-
     def __str__(self):
         """
         String representation
         """
         return "Bundle(ID={0}, Name={1})".format(self.__id, self.__name)
-
 
     def __get_activator_method(self, method_name):
         """
@@ -136,12 +133,11 @@ class Bundle(object):
             activator = getattr(self.__module, ACTIVATOR_LEGACY, None)
             if activator is not None:
                 # Old activator found: print a deprecation warning
-                _logger.warning("Bundle %s uses the deprecated '%s' to declare "
-                                "its activator. Use @BundleActivator instead.",
+                _logger.warning("Bundle %s uses the deprecated '%s' to declare"
+                                " its activator. "
+                                "Use @BundleActivator instead.",
                                 self.__name, ACTIVATOR_LEGACY)
-
         return getattr(activator, method_name, None)
-
 
     def _fire_bundle_event(self, kind):
         """
@@ -150,7 +146,6 @@ class Bundle(object):
         :param kind: Kind of event
         """
         self.__framework._dispatcher.fire_bundle_event(BundleEvent(kind, self))
-
 
     def _registered_service(self, registration):
         """
@@ -162,18 +157,16 @@ class Bundle(object):
         with self.__registration_lock:
             self.__registered_services.append(registration)
 
-
     def _unregistered_service(self, registration):
         """
-        Bundle is notified by the framework that a service has been unregistered
-        in the name of this bundle.
+        Bundle is notified by the framework that a service has been
+        unregistered in the name of this bundle.
 
         :param registration: The service registration object
         """
         with self.__registration_lock:
             if registration in self.__registered_services:
                 self.__registered_services.remove(registration)
-
 
     def get_bundle_context(self):
         """
@@ -183,7 +176,6 @@ class Bundle(object):
         """
         return self.__context
 
-
     def get_bundle_id(self):
         """
         Retrieves the bundle ID
@@ -191,7 +183,6 @@ class Bundle(object):
         :return: The bundle ID
         """
         return self.__id
-
 
     def get_location(self):
         """
@@ -201,7 +192,6 @@ class Bundle(object):
         """
         return getattr(self.__module, '__file__', "")
 
-
     def get_module(self):
         """
         Retrieves the Python module corresponding to the bundle
@@ -210,15 +200,14 @@ class Bundle(object):
         """
         return self.__module
 
-
     def get_registered_services(self):
         """
         Returns this bundle's ServiceReference list for all services it has
         registered or an empty list
 
         The list is valid at the time of the call to this method, however, as
-        the Framework is a very dynamic environment, services can be modified or
-        unregistered at any time.
+        the Framework is a very dynamic environment, services can be modified
+        or unregistered at any time.
 
         :return: An array of ServiceReference objects
         :raise BundleException: If the bundle has been uninstalled
@@ -226,14 +215,12 @@ class Bundle(object):
         if self._state == Bundle.UNINSTALLED:
             raise BundleException("Can't call 'get_registered_services' on an "
                                   "uninstalled bundle")
-
         return self.__framework._registry.get_bundle_registered_services(self)
-
 
     def get_services_in_use(self):
         """
-        Returns this bundle's ServiceReference list for all services it is using
-        or an empty list.
+        Returns this bundle's ServiceReference list for all services it is
+        using or an empty list.
         A bundle is considered to be using a service if its use count for that
         service is greater than zero.
 
@@ -247,9 +234,7 @@ class Bundle(object):
         if self._state == Bundle.UNINSTALLED:
             raise BundleException("Can't call 'get_services_in_use' on an "
                                   "uninstalled bundle")
-
         return self.__framework._registry.get_bundle_imported_services(self)
-
 
     def get_state(self):
         """
@@ -259,7 +244,6 @@ class Bundle(object):
         """
         return self._state
 
-
     def get_symbolic_name(self):
         """
         Retrieves the bundle symbolic name (its Python module name)
@@ -267,7 +251,6 @@ class Bundle(object):
         :return: The bundle symbolic name
         """
         return self.__name
-
 
     def get_version(self):
         """
@@ -288,7 +271,6 @@ class Bundle(object):
 
         # No version
         return "0.0.0"
-
 
     def start(self):
         """
@@ -327,8 +309,8 @@ class Bundle(object):
                     self._state = previous_state
 
                     # Re-raise directly Pelix exceptions
-                    _logger.exception("Pelix error raised by %s while starting",
-                                      self.__name)
+                    _logger.exception("Pelix error raised by %s while "
+                                      "starting", self.__name)
                     raise
 
                 except Exception as ex:
@@ -343,7 +325,6 @@ class Bundle(object):
             # Bundle is now active
             self._state = Bundle.ACTIVE
             self._fire_bundle_event(BundleEvent.STARTED)
-
 
     def stop(self):
         """
@@ -376,8 +357,8 @@ class Bundle(object):
                     self._state = previous_state
 
                     # Re-raise directly Pelix exceptions
-                    _logger.exception("Pelix error raised by %s while stopping",
-                                      self.__name)
+                    _logger.exception("Pelix error raised by %s while "
+                                      "stopping", self.__name)
                     exception = ex
 
                 except Exception as ex:
@@ -400,7 +381,6 @@ class Bundle(object):
         # Raise the exception, if any
         if exception is not None:
             raise exception
-
 
     def __unregister_services(self):
         """
@@ -425,7 +405,6 @@ class Bundle(object):
             # Clear the list, just to be clean
             del self.__registered_services[:]
 
-
     def uninstall(self):
         """
         Uninstalls the bundle
@@ -439,7 +418,6 @@ class Bundle(object):
 
             # Call the framework
             self.__framework.uninstall_bundle(self)
-
 
     @SynchronizedClassMethod('_lock')
     def update(self):
@@ -467,16 +445,16 @@ class Bundle(object):
             try:
                 stat = os.stat(module_file)
 
-                # Change modification time to bypass weak time resolution of the
-                # underlying file system
+                # Change modification time to bypass weak time resolution of
+                # the underlying file system
                 os.utime(module_file, (stat.st_atime, stat.st_mtime + 1))
                 time_changed = True
 
             except OSError:
                 # Can't touch the file
                 _logger.warning("Failed to update the modification time of "
-                                "'%s'. The bundle update might not reflect the "
-                                "latest changes.", module_file)
+                                "'%s'. The bundle update might not reflect the"
+                                " latest changes.", module_file)
 
         try:
             # Reload the module
@@ -563,7 +541,6 @@ class Framework(Bundle):
         self._fw_stop_event = threading.Event()
         self._fw_stop_event.set()
 
-
     def add_property(self, name, value):
         """
         Adds a property to the framework **if it is not yet set**.
@@ -583,7 +560,6 @@ class Framework(Bundle):
             self.__properties[name] = value
             return True
 
-
     def find_service_references(self, clazz=None, ldap_filter=None,
                                 only_one=False):
         """
@@ -593,11 +569,11 @@ class Framework(Bundle):
         :param ldap_filter: Service filter
         :param only_one: Return the first matching service reference only
         :return: A list of found reference, or None
-        :raise BundleException: An error occurred looking for service references
+        :raise BundleException: An error occurred looking for service
+                                references
         """
         return self._registry.find_service_references(clazz, ldap_filter,
                                                       only_one)
-
 
     def get_bundle_by_id(self, bundle_id):
         """
@@ -613,10 +589,10 @@ class Framework(Bundle):
 
         with self.__bundles_lock:
             if bundle_id not in self.__bundles:
-                raise BundleException("Invalid bundle ID {0}".format(bundle_id))
+                raise BundleException("Invalid bundle ID {0}"
+                                      .format(bundle_id))
 
             return self.__bundles[bundle_id]
-
 
     def get_bundle_by_name(self, bundle_name):
         """
@@ -642,7 +618,6 @@ class Framework(Bundle):
             # Not found...
             return None
 
-
     def get_bundles(self):
         """
         Returns the list of all installed bundles
@@ -652,14 +627,12 @@ class Framework(Bundle):
         with self.__bundles_lock:
             return list(self.__bundles.values())
 
-
     def get_properties(self):
         """
         Retrieves a copy of the stored framework properties.
         """
         with self.__properties_lock:
             return self.__properties.copy()
-
 
     def get_property(self, name):
         """
@@ -671,7 +644,6 @@ class Framework(Bundle):
         with self.__properties_lock:
             return self.__properties.get(name, os.getenv(name))
 
-
     def get_property_keys(self):
         """
         Returns an array of the keys in the properties of the service
@@ -680,7 +652,6 @@ class Framework(Bundle):
         """
         with self.__properties_lock:
             return tuple(self.__properties.keys())
-
 
     def get_service(self, bundle, reference):
         """
@@ -696,14 +667,14 @@ class Framework(Bundle):
             raise TypeError("First argument must be a Bundle object")
 
         if not isinstance(reference, ServiceReference):
-            raise TypeError("Second argument must be a ServiceReference object")
+            raise TypeError("Second argument must be a ServiceReference "
+                            "object")
 
         if reference in self.__unregistering_services:
             # Unregistering service, just give it
             return self.__unregistering_services[reference]
 
         return self._registry.get_service(bundle, reference)
-
 
     def get_symbolic_name(self):
         """
@@ -713,13 +684,12 @@ class Framework(Bundle):
         """
         return "pelix.framework"
 
-
     def install_bundle(self, name, path=None):
         """
         Installs the bundle with the given name
 
-        *Note:* Before Pelix 0.5.0, this method returned the ID of the installed
-        bundle, instead of the Bundle object.
+        *Note:* Before Pelix 0.5.0, this method returned the ID of the
+        installed bundle, instead of the Bundle object.
 
         **WARNING:** The behavior of the loading process is subject to changes,
         as it does not allow to safely run multiple frameworks in the same
@@ -752,12 +722,10 @@ class Framework(Bundle):
                     #  __import__(name) -> package level
                     # import_module -> module level
                     module = importlib.import_module(name)
-
             except ImportError as ex:
                 # Error importing the module
-                raise BundleException("Error installing bundle {0}: {1}" \
+                raise BundleException("Error installing bundle {0}: {1}"
                                       .format(name, ex))
-
             finally:
                 if path:
                     # Clean up the path. The loaded module(s) might
@@ -783,9 +751,7 @@ class Framework(Bundle):
         # Fire the bundle installed event
         event = BundleEvent(BundleEvent.INSTALLED, bundle)
         self._dispatcher.fire_bundle_event(event)
-
         return bundle
-
 
     def install_package(self, path, recursive=False, prefix=None):
         """
@@ -844,7 +810,6 @@ class Framework(Bundle):
 
         return bundles, failed
 
-
     def install_visiting(self, path, visitor, prefix=None):
         """
         Installs all the modules found in the given path if they are accepted
@@ -888,8 +853,8 @@ class Framework(Bundle):
 
         with self.__bundles_lock:
             # Use an ImpImporter per iteration because, in Python 3,
-            # pkgutil.iter_modules() will use a _FileImporter on the second walk
-            # in a package which will return nothing
+            # pkgutil.iter_modules() will use a _FileImporter on the second
+            # walk in a package which will return nothing
             for name, is_package in pkgutil.ImpImporter(path).iter_modules():
                 # Compute the full name of the module
                 fullname = '.'.join((prefix, name)) if prefix else name
@@ -921,7 +886,6 @@ class Framework(Bundle):
                     continue
 
         return bundles, failed
-
 
     def register_service(self, bundle, clazz, service, properties, send_event):
         """
@@ -960,7 +924,7 @@ class Framework(Bundle):
 
             if not svc_clazz or not is_string(svc_clazz):
                 # Invalid class name
-                raise BundleException("Invalid class name: {0}" \
+                raise BundleException("Invalid class name: {0}"
                                       .format(svc_clazz))
 
             # Class OK
@@ -980,7 +944,6 @@ class Framework(Bundle):
             self._dispatcher.fire_service_event(event)
 
         return registration
-
 
     @SynchronizedClassMethod('_lock')
     def start(self):
@@ -1010,7 +973,8 @@ class Framework(Bundle):
 
             except FrameworkException as ex:
                 # Important error
-                _logger.exception("Important error starting bundle: %s", bundle)
+                _logger.exception("Important error starting bundle: %s",
+                                  bundle)
                 if ex.needs_stop:
                     # Stop the framework (has to be in active state)
                     self._state = Bundle.ACTIVE
@@ -1024,7 +988,6 @@ class Framework(Bundle):
         # Bundle is now active
         self._state = Bundle.ACTIVE
         return True
-
 
     @SynchronizedClassMethod('_lock')
     def stop(self, force=False):
@@ -1072,9 +1035,7 @@ class Framework(Bundle):
 
         # Force the registry clean up
         self._registry.clear()
-
         return True
-
 
     def uninstall(self):
         """
@@ -1083,7 +1044,6 @@ class Framework(Bundle):
         :raise BundleException: This method must not be called
         """
         raise BundleException("A framework can't be uninstalled")
-
 
     def uninstall_bundle(self, bundle):
         """
@@ -1111,12 +1071,11 @@ class Framework(Bundle):
             # Remove it from the dictionary
             del self.__bundles[bundle_id]
 
-            # Remove it from the system => avoid unintended behaviors and forces
-            # a complete module reload if it is re-installed
+            # Remove it from the system => avoid unintended behaviors and
+            # forces a complete module reload if it is re-installed
             name = bundle.get_symbolic_name()
             if name in sys.modules:
                 del sys.modules[name]
-
 
     def unregister_service(self, registration):
         """
@@ -1146,9 +1105,7 @@ class Framework(Bundle):
 
         # Remove the unregistering reference
         del self.__unregistering_services[reference]
-
         return True
-
 
     def update(self):
         """
@@ -1161,7 +1118,6 @@ class Framework(Bundle):
             if self._state == Bundle.ACTIVE:
                 self.stop()
                 self.start()
-
 
     def wait_for_stop(self, timeout=None):
         """
@@ -1199,13 +1155,11 @@ class BundleContext(object):
         self.__bundle = bundle
         self.__framework = framework
 
-
     def __str__(self):
         """
         String representation
         """
         return "BundleContext({0})".format(self.__bundle)
-
 
     def add_bundle_listener(self, listener):
         """
@@ -1226,13 +1180,12 @@ class BundleContext(object):
         """
         return self.__framework._dispatcher.add_bundle_listener(listener)
 
-
     def add_framework_stop_listener(self, listener):
         """
-        Registers a listener that will be called back right before the framework
-        stops
+        Registers a listener that will be called back right before the
+        framework stops
 
-        The framework listener must have a method with the following prototype :
+        The framework listener must have a method with the following prototype:
 
         .. python::
 
@@ -1247,13 +1200,12 @@ class BundleContext(object):
         """
         return self.__framework._dispatcher.add_framework_listener(listener)
 
-
     def add_service_listener(self, listener, ldap_filter=None,
                              specification=None):
         """
         Registers a service listener
 
-        The service listener must have a method with the following prototype :
+        The service listener must have a method with the following prototype:
 
         .. python::
 
@@ -1276,20 +1228,18 @@ class BundleContext(object):
                                                                  specification,
                                                                  ldap_filter)
 
-
     def get_all_service_references(self, clazz, ldap_filter=None):
         """
         Returns an array of ServiceReference objects.
         The returned array of ServiceReference objects contains services that
-        were registered under the specified class and match the specified filter
-        expression.
+        were registered under the specified class and match the specified
+        filter expression.
 
         :param clazz: Class implemented by the service
         :param ldap_filter: Service filter
         :return: The sorted list of all matching service references, or None
         """
         return self.__framework.find_service_references(clazz, ldap_filter)
-
 
     def get_bundle(self, bundle_id=None):
         """
@@ -1302,13 +1252,11 @@ class BundleContext(object):
         if bundle_id is None:
             # Current bundle
             return self.__bundle
-
         elif type(bundle_id) is Bundle:
             # Got a bundle (compatibility with older install_bundle())
             bundle_id = bundle_id.get_bundle_id()
 
         return self.__framework.get_bundle_by_id(bundle_id)
-
 
     def get_bundles(self):
         """
@@ -1317,7 +1265,6 @@ class BundleContext(object):
         :return: the list of all installed bundles
         """
         return self.__framework.get_bundles()
-
 
     def get_property(self, name):
         """
@@ -1328,7 +1275,6 @@ class BundleContext(object):
         """
         return self.__framework.get_property(name)
 
-
     def get_service(self, reference):
         """
         Returns the service described with the given reference
@@ -1337,7 +1283,6 @@ class BundleContext(object):
         :return: The service object itself
         """
         return self.__framework.get_service(self.__bundle, reference)
-
 
     def get_service_reference(self, clazz, ldap_filter=None):
         """
@@ -1350,7 +1295,6 @@ class BundleContext(object):
         """
         return self.__framework.find_service_references(clazz, ldap_filter,
                                                         True)
-
 
     def get_service_references(self, clazz, ldap_filter=None):
         """
@@ -1370,13 +1314,12 @@ class BundleContext(object):
 
         return refs
 
-
     def install_bundle(self, name, path=None):
         """
         Installs the bundle with the given name
 
-        *Note:* Before Pelix 0.5.0, this method returned the ID of the installed
-        bundle, instead of the Bundle object.
+        *Note:* Before Pelix 0.5.0, this method returned the ID of the
+        installed bundle, instead of the Bundle object.
 
         **WARNING:** The behavior of the loading process is subject to changes,
         as it does not allow to safely run multiple frameworks in the same
@@ -1389,7 +1332,6 @@ class BundleContext(object):
         """
         return self.__framework.install_bundle(name, path)
 
-
     def install_package(self, path, recursive=False):
         """
         Installs all the modules found in the given package
@@ -1401,7 +1343,6 @@ class BundleContext(object):
         :raise ValueError: Invalid path
         """
         return self.__framework.install_package(path, recursive)
-
 
     def install_visiting(self, path, visitor):
         """
@@ -1422,7 +1363,6 @@ class BundleContext(object):
         """
         return self.__framework.install_visiting(path, visitor)
 
-
     def register_service(self, clazz, service, properties, send_event=True):
         """
         Registers a service
@@ -1438,7 +1378,6 @@ class BundleContext(object):
                                                  service, properties,
                                                  send_event)
 
-
     def remove_bundle_listener(self, listener):
         """
         Unregisters a bundle listener
@@ -1447,7 +1386,6 @@ class BundleContext(object):
         :return: True if the listener has been unregistered
         """
         return self.__framework._dispatcher.remove_bundle_listener(listener)
-
 
     def remove_framework_stop_listener(self, listener):
         """
@@ -1458,7 +1396,6 @@ class BundleContext(object):
         """
         return self.__framework._dispatcher.remove_framework_listener(listener)
 
-
     def remove_service_listener(self, listener):
         """
         Unregisters a service listener
@@ -1467,7 +1404,6 @@ class BundleContext(object):
         :return: True if the listener has been unregistered
         """
         return self.__framework._dispatcher.remove_service_listener(listener)
-
 
     def unget_service(self, reference):
         """
@@ -1502,7 +1438,6 @@ class FrameworkFactory(object):
 
         return cls.__singleton
 
-
     @classmethod
     def is_framework_running(cls, framework=None):
         """
@@ -1515,10 +1450,8 @@ class FrameworkFactory(object):
         """
         if framework is None:
             return cls.__singleton is not None
-
         else:
             return cls.__singleton == framework
-
 
     @classmethod
     def delete_framework(cls, framework):
@@ -1531,7 +1464,6 @@ class FrameworkFactory(object):
             # Stop the framework
             try:
                 framework.stop()
-
             except:
                 _logger.exception("Error stopping the framework")
 
@@ -1541,7 +1473,7 @@ class FrameworkFactory(object):
                 try:
                     bundle.uninstall()
                 except:
-                    _logger.exception("Error uninstalling bundle %s", \
+                    _logger.exception("Error uninstalling bundle %s",
                                       bundle.get_symbolic_name())
 
             # Clear the event dispatcher
@@ -1564,8 +1496,8 @@ def create_framework(bundles, properties=None,
     will have been installed
     If *wait_for_stop* is True, the method will return only when the framework
     will have stopped. This requires *auto_start* to be True.
-    If *auto_delete* is True, the framework will be deleted once it has stopped,
-    and the method will return None.
+    If *auto_delete* is True, the framework will be deleted once it has
+    stopped, and the method will return None.
     This requires *wait_for_stop* and *auto_start* to be True.
 
     :param bundles: Bundles to initially install (shouldn't be empty if
