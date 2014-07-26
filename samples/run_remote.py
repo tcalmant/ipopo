@@ -275,14 +275,14 @@ if __name__ == "__main__":
 
     # Discovery
     parser.add_argument("-d", "--discovery", nargs="*",
-                        default=DISCOVERIES[0], choices=DISCOVERIES,
+                        default=(DISCOVERIES[0],), choices=DISCOVERIES,
                         dest="discoveries", metavar="DISCOVERY",
                         help="Discovery protocols to use (one of {0})"\
                              .format(', '.join(DISCOVERIES)))
 
     # Transport
     parser.add_argument("-t", "--transport", nargs="*",
-                        default=TRANSPORTS[0], choices=TRANSPORTS,
+                        default=(TRANSPORTS[0],), choices=TRANSPORTS,
                         dest="transports", metavar="TRANSPORT",
                         help="Transport protocols to use (one of {0})"\
                              .format(', '.join(TRANSPORTS)))
