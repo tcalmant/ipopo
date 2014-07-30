@@ -459,6 +459,7 @@ class EventData(object):
         """
         self.__event = threading.Event()
         self.__data = None
+        self.__exception = None
 
     @property
     def data(self):
@@ -466,6 +467,13 @@ class EventData(object):
         Returns the associated value
         """
         return self.__data
+
+    @property
+    def exception(self):
+        """
+        Returns the exception used to stop the wait() method
+        """
+        return self.__exception
 
     def clear(self):
         """
@@ -487,6 +495,16 @@ class EventData(object):
         self.__data = data
         self.__event.set()
 
+    def raise_exception(self, exception):
+        """
+        Raises an exception in wait()
+
+        :param exception: An Exception object
+        """
+        self.__data = None
+        self.__exception = exception
+        self.__event.set()
+
     def wait(self, timeout=None):
         """
         Waits for the event or for the timeout
@@ -494,5 +512,11 @@ class EventData(object):
         :param timeout: Wait timeout (in seconds)
         :return: True if the event as been set, else False
         """
-        # The 'or' part if for Python 2.6
-        return self.__event.wait(timeout) or self.__event.is_set()
+        # The 'or' part is for Python 2.6
+        result = self.__event.wait(timeout) or self.__event.is_set()
+        if self.__exception is None:
+            return result
+        else:
+            # Clear the event, to keep the same state after the exception
+            self.__event.clear()
+            raise self.__exception
