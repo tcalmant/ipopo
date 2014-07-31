@@ -334,7 +334,8 @@ class Activator(object):
 
         # Run the loop thread
         self._thread = threading.Thread(target=self._shell.loop_input,
-                                        args=[self._quit])
+                                        args=[self._quit],
+                                        name="Pelix-Shell-TextConsole")
         # Set the thread as a daemon, to let it be killed by the interpreter
         # once all other threads stopped.
         self._thread.daemon = True
