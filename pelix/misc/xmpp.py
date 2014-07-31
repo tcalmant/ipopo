@@ -97,20 +97,6 @@ class BasicBot(sleekxmpp.ClientXMPP):
 
         return False
 
-    def disconnect(self, reconnect=False, wait=True, send_close=True):
-        """
-        Disconnects from the server.
-
-        Contrary to SleekXMPP, this version waits for the send queue to be
-        emptied.
-
-        :param reconnect: Reconnect after disconnection
-        :param wait: Wait for the send queue to be flushed before returning
-        :param send_close: Send the end of stream tag
-        """
-        sleekxmpp.ClientXMPP.disconnect(self, reconnect=reconnect, wait=wait,
-                                        send_close=send_close)
-
     def on_session_start(self, data):
         """
         XMPP session started
