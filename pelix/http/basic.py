@@ -43,6 +43,7 @@ from pelix.ipopo.decorators import ComponentFactory, Provides, Validate, \
     Invalidate, Property, Requires, BindField, UnbindField, UpdateField
 
 import pelix.ipopo.constants as constants
+import pelix.ipv6utils
 import pelix.utilities as utilities
 
 # Standard library
@@ -336,25 +337,19 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
         # Get the family of the first possibility
         self.address_family = addr_info[0][0]
 
-        # Special case: IPv6
-        ipv6 = (self.address_family == socket.AF_INET6)
-
         # Set up the server, socket, ... but do not bind immediately
         HTTPServer.__init__(self, server_address, request_handler_class, False)
 
-        if ipv6:
+        if self.address_family == socket.AF_INET6:
             # Explicitly ask to be accessible both by IPv4 and IPv6
-            # Some versions of Python don't have V6ONLY.
-            # On Linux, IPC6_V6ONLY = 26
-            opt_ipv6_only = getattr(socket, "IPV6_V6ONLY", 26)
-
             try:
-                self.socket.setsockopt(socket.IPPROTO_IPV6, opt_ipv6_only, 0)
-
-            except socket.error as ex:
-                # Ignore the error, but log it if possible
+                pelix.ipv6utils.set_double_stack(socket)
+            except AttributeError as ex:
                 if logger is not None:
-                    logger.exception("Couldn't set IP double stack flag: %s",
+                    logger.exception("System misses IPv6 constant: %s", ex)
+            except socket.error as ex:
+                if logger is not None:
+                    logger.exception("Error setting up IPv6 double stack: %s",
                                      ex)
 
         # Bind & accept

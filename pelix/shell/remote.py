@@ -44,6 +44,7 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
 
 # Shell constants
 import pelix.shell
+import pelix.ipv6utils
 
 # Standard library
 from select import select
@@ -217,19 +218,14 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         socketserver.ThreadingTCPServer.__init__(self, server_address,
                                                  request_handler_class,
                                                  False)
-
         if self.address_family == socket.AF_INET6:
             # Explicitly ask to be accessible both by IPv4 and IPv6
-            # Some versions of Python don't have V6ONLY.
-            # On Linux, IPC6_V6ONLY = 26
-            opt_ipv6_only = getattr(socket, "IPV6_V6ONLY", 26)
-
             try:
-                self.socket.setsockopt(socket.IPPROTO_IPV6, opt_ipv6_only, 0)
-
+                pelix.ipv6utils.set_double_stack(socket)
+            except AttributeError as ex:
+                _logger.exception("System misses IPv6 constant: %s", ex)
             except socket.error as ex:
-                # Log the error
-                _logger.exception("Couldn't set IP double stack flag: %s", ex)
+                _logger.exception("Error setting up IPv6 double stack: %s", ex)
 
     def process_request(self, request, client_address):
         """

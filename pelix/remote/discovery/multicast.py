@@ -44,6 +44,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Pelix utilities
+from pelix.ipv6utils import ipproto_ipv6
 from pelix.utilities import to_bytes, to_str
 
 # Remote services
@@ -231,12 +232,12 @@ def create_multicast_socket(address, port):
         # Allow multicast packets to get back on this host
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
 
-    else:
+    elif sock.family == socket.AF_INET6:
         # IPv6
-        sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_JOIN_GROUP, mreq)
+        sock.setsockopt(ipproto_ipv6(), socket.IPV6_JOIN_GROUP, mreq)
 
         # Allow multicast packets to get back on this host
-        sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_MULTICAST_LOOP, 1)
+        sock.setsockopt(ipproto_ipv6(), socket.IPV6_MULTICAST_LOOP, 1)
 
     return (sock, addr_info[4][0])
 
@@ -265,7 +266,7 @@ def close_multicast_socket(sock, address):
 
         elif sock.family == socket.AF_INET6:
             # IPv6
-            sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_LEAVE_GROUP, mreq)
+            sock.setsockopt(ipproto_ipv6(), socket.IPV6_LEAVE_GROUP, mreq)
 
     # Close the socket
     sock.close()
