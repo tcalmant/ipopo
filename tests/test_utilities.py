@@ -120,7 +120,7 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
 
         # Validate conditions :
         # .. Thread 1 started after start (obvious)
-        self.assertGreater(result[1], start, "Thread 1 started too soon")
+        self.assertGreaterEqual(result[1], start, "Thread 1 started too soon")
 
         # .. Thread 2 started at least 0.4 secs after thread 1 (due to the lock)
         # (0.4 instead of 0.5: some systems are not that precise)
