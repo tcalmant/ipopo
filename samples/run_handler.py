@@ -57,28 +57,26 @@ import pelix.framework
 
 # ------------------------------------------------------------------------------
 
+
 def main():
     """
     Runs the framework
     """
     # Create the framework
-    fw = pelix.framework.create_framework([  # Pelix iPOPO + Shell
-                                           'pelix.ipopo.core',
+    fw = pelix.framework.create_framework(('pelix.ipopo.core',
                                            'pelix.shell.core',
                                            'pelix.shell.ipopo',
                                            'pelix.shell.console',
-
                                            # Logger handler
                                            'samples.handler.logger',
+                                           # ... or:
                                            # 'samples.handler.logger_minimal',
-
                                            # Sample bundle
-                                           'samples.handler.sample'])
+                                           'samples.handler.sample'))
 
     # Start the framework and wait for it to stop
     fw.start()
     fw.wait_for_stop()
-
 
 # ------------------------------------------------------------------------------
 

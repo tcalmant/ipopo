@@ -49,6 +49,7 @@ SERVICE_SPECIFICATION = "sample.grettings"
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory("hello-world-consumer")
 @Requires("_services", SERVICE_SPECIFICATION, aggregate=True, optional=True)
 @Instantiate("consumer")
@@ -63,7 +64,6 @@ class HelloWorldConsumer(object):
         self._services = []
         self._fw_uid = None
 
-
     def _use_service(self, service):
         """
         Calls the given greeting service
@@ -71,7 +71,6 @@ class HelloWorldConsumer(object):
         :param service: A greeting service
         """
         service.sayHello("from {0} (Pelix framework)".format(self._fw_uid))
-
 
     @BindField('_services', if_valid=True)
     def bind_greeting(self, field, service, reference):
@@ -88,7 +87,6 @@ class HelloWorldConsumer(object):
         # Use the service. Use a thread to avoid locking iPOPO for too long
         threading.Thread(target=self._use_service, args=[service]).start()
 
-
     @UnbindField('_services', if_valid=True)
     def unbind_greeting(self, field, service, reference):
         """
@@ -103,7 +101,6 @@ class HelloWorldConsumer(object):
 
         # Avoid to use the service here, as its proxy might have already been
         # disconnected
-
 
     @Validate
     def validate(self, context):

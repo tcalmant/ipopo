@@ -51,7 +51,9 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
-# We need to register the handler factory as a service, using a bundle activator
+
+# We need to register the handler factory as a service, using a bundle
+# activator
 @BundleActivator
 class _Activator(object):
     """
@@ -63,20 +65,18 @@ class _Activator(object):
         """
         self._registration = None
 
-
     def start(self, context):
         """
         Bundle started
         """
         # Set up properties: declare the handler ID
-        properties = {ipopo_constants.PROP_HANDLER_ID: constants.HANDLER_LOGGER}
+        properties = {ipopo_constants.PROP_HANDLER_ID:
+                      constants.HANDLER_LOGGER}
 
         # Register an handler factory instance as a service
         self._registration = context.register_service(
-                                  ipopo_constants.SERVICE_IPOPO_HANDLER_FACTORY,
-                                  _LoggerHandlerFactory(),
-                                  properties)
-
+            ipopo_constants.SERVICE_IPOPO_HANDLER_FACTORY,
+            _LoggerHandlerFactory(), properties)
 
     def stop(self, context):
         """
@@ -87,6 +87,7 @@ class _Activator(object):
         self._registration = None
 
 # ------------------------------------------------------------------------------
+
 
 class _LoggerHandlerFactory(ipopo_constants.HandlerFactory):
     """
@@ -105,8 +106,10 @@ class _LoggerHandlerFactory(ipopo_constants.HandlerFactory):
         # Extract information from the context
         logger_field = component_context.get_handler(constants.HANDLER_LOGGER)
         if not logger_field:
-            # Error: log it and either raise an exception or ignore this handler
-            _logger.warning("Logger iPOPO handler can't find its configuration")
+            # Error: log it and either raise an exception
+            # or ignore this handler
+            _logger.warning("Logger iPOPO handler can't find "
+                            "its configuration")
 
             # Here, we ignore the error and do not give any handler to iPOPO
             return []
@@ -131,7 +134,6 @@ class _LoggerHandler(object):
         self._name = name
         self._logger = None
 
-
     def manipulate(self, stored_instance, component_instance):
         """
         Called by iPOPO right after the instantiation of the component.
@@ -146,7 +148,6 @@ class _LoggerHandler(object):
 
         # Inject it
         setattr(component_instance, self._field, self._logger)
-
 
     def get_kinds(self):
         """
@@ -163,13 +164,11 @@ class _LoggerHandler(object):
         """
         return "logger"
 
-
     def start(self):
         """
         Optional: The handler has been started
         """
         self._logger.debug("Component handlers are starting")
-
 
     def stop(self):
         """
@@ -177,14 +176,12 @@ class _LoggerHandler(object):
         """
         self._logger.debug("Component handlers are stopping")
 
-
     def is_valid(self):
         """
         Optional: If this method returns False, the component will then stay or
         become invalid.
         """
         return True
-
 
     def clear(self):
         """
@@ -198,13 +195,11 @@ class _LoggerHandler(object):
         self._name = None
         self._logger = None
 
-
     def pre_validate(self):
         """
         Optional: called when the component is being validated
         """
         self._logger.debug("Component will be validated")
-
 
     def post_validate(self):
         """
@@ -212,13 +207,11 @@ class _LoggerHandler(object):
         """
         self._logger.debug("Component has been validated")
 
-
     def pre_invalidate(self):
         """
         Optional: called when the component is being invalidated
         """
         self._logger.debug("Component will be invalidated")
-
 
     def post_invalidate(self):
         """

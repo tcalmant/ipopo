@@ -43,6 +43,7 @@ SERVICE_SPECIFICATION = "sample.grettings"
 
 # ------------------------------------------------------------------------------
 
+
 class HelloWorldImpl(object):
     """
     Implementation of the greeting service
@@ -57,8 +58,9 @@ class HelloWorldImpl(object):
 
 # ------------------------------------------------------------------------------
 
+
 @BundleActivator
-class BundleActivator(object):
+class Activator(object):
     """
     The bundle activator
     """
@@ -75,12 +77,12 @@ class BundleActivator(object):
         @param context The bundle context
         """
         # Prepare export properties
-        props = {pelix.remote.PROP_EXPORTED_INTERFACES: [SERVICE_SPECIFICATION]}
+        props = {pelix.remote.PROP_EXPORTED_INTERFACES:
+                 [SERVICE_SPECIFICATION]}
 
         # Register the service with the Java specification
         self.__registration = context.register_service(SERVICE_SPECIFICATION,
                                                        HelloWorldImpl(), props)
-
 
     def stop(self, context):
         """

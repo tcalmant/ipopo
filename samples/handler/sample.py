@@ -46,6 +46,7 @@ from pelix.ipopo.decorators import ComponentFactory, Validate, Invalidate, \
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory()
 @Logger("_logger")
 @Instantiate("sample-logger-component")
@@ -59,14 +60,12 @@ class SampleLoggerComponent(object):
         """
         self._logger = None
 
-
     @Validate
     def validate(self, context):
         """
         Component validated
         """
         self._logger.debug("Validated ! (Logged from the component)")
-
 
     @Invalidate
     def invalidate(self, context):
