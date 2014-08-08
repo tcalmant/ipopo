@@ -9,7 +9,7 @@ service
 :author: Thomas Calmant
 :copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.1.1
+:version: 0.5.7
 :status: Beta
 
 ..
@@ -30,7 +30,7 @@ service
 """
 
 # Module version
-__version_info__ = (0, 1, 1)
+__version_info__ = (0, 5, 7)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

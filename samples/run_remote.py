@@ -20,8 +20,8 @@ Usage: run_remote.py [-h] [-s] [-p HTTP_PORT] [-d [DISCOVERY [DISCOVERY ...]]]
 :author: Thomas Calmant
 :copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.0.1
-:status: Alpha
+:version: 0.5.7
+:status: Beta
 
 ..
 
@@ -40,7 +40,7 @@ Usage: run_remote.py [-h] [-s] [-p HTTP_PORT] [-d [DISCOVERY [DISCOVERY ...]]]
     limitations under the License.
 """
 # Module version
-__version_info__ = (0, 0, 1)
+__version_info__ = (0, 5, 7)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

@@ -24,7 +24,7 @@ Greeting service consumer
     limitations under the License.
 """
 # Module version
-__version_info__ = (0, 0, 1)
+__version_info__ = (0, 5, 7)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

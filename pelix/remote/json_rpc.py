@@ -8,7 +8,7 @@ Based on a modified version of the 3rd-party package jsonrpclib-pelix.
 :author: Thomas Calmant
 :copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.3.0
+:version: 0.5.7
 :status: Beta
 
 ..
@@ -29,7 +29,7 @@ Based on a modified version of the 3rd-party package jsonrpclib-pelix.
 """
 
 # Module version
-__version_info__ = (0, 3, 0)
+__version_info__ = (0, 5, 7)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

@@ -14,7 +14,7 @@ when using remote services on the local host only.
 :author: Thomas Calmant
 :copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.3.0
+:version: 0.5.7
 :status: Beta
 
 ..
@@ -35,7 +35,7 @@ when using remote services on the local host only.
 """
 
 # Module version
-__version_info__ = (0, 3, 0)
+__version_info__ = (0, 5, 7)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

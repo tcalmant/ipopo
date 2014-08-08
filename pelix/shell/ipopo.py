@@ -8,7 +8,7 @@ Provides commands to the Pelix shell to get the state of iPOPO instances.
 :author: Thomas Calmant
 :copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.2.3
+:version: 0.5.7
 :status: Beta
 
 ..
@@ -29,7 +29,7 @@ Provides commands to the Pelix shell to get the state of iPOPO instances.
 """
 
 # Module version
-__version_info__ = (0, 2, 3)
+__version_info__ = (0, 5, 7)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
