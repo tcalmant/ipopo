@@ -193,7 +193,7 @@ def main(is_server, discoveries, transports, http_port, other_arguments):
     Runs the framework
 
     :param is_server: If True, starts the provider bundle,
-    else the consumer one
+                      else the consumer one
     :param discoveries: List of discovery protocols
     :param transports: List of RPC protocols
     :param http_port: Port of the HTTP server

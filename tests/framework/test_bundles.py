@@ -137,8 +137,6 @@ class BundlesTest(unittest.TestCase):
     def testLifeCycleRecalls(self):
         """
         Tests a bundle installation + start + stop
-
-        @param test_bundle_id: If True, also tests if the test bundle ID is 1
         """
         # Install the bundle
         bundle = self.context.install_bundle(self.test_bundle_name)
@@ -191,8 +189,6 @@ class BundlesTest(unittest.TestCase):
     def testLifeCycleExceptions(self):
         """
         Tests a bundle installation + start + stop
-
-        @param test_bundle_id: If True, also tests if the test bundle ID is 1
         """
         # Install the bundle
         bundle = self.context.install_bundle(self.test_bundle_name)
