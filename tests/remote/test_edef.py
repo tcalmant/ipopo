@@ -27,6 +27,7 @@ __version__ = "1.0.0"
 
 # ------------------------------------------------------------------------------
 
+
 class EdefIOTest(unittest.TestCase):
     """
     Tests for the Remote Services EDEF I/O operations
@@ -41,12 +42,12 @@ class EdefIOTest(unittest.TestCase):
 
         # Register an exported service
         context = self.framework.get_bundle_context()
-        svc_reg = context.register_service("sample.spec", object(),
-                                   {pelix.remote.PROP_EXPORTED_INTENTS: "*",
-                                    pelix.remote.PROP_EXPORTED_CONFIGS: "*",
-                                    "some.property": "some value"})
+        svc_reg = context.register_service(
+            "sample.spec", object(),
+            {pelix.remote.PROP_EXPORTED_INTENTS: "*",
+             pelix.remote.PROP_EXPORTED_CONFIGS: "*",
+             "some.property": "some value"})
         self.svc_ref = svc_reg.get_reference()
-
 
     def tearDown(self):
         """
@@ -58,16 +59,16 @@ class EdefIOTest(unittest.TestCase):
         self.framework = None
         self.svc_ref = None
 
-
     def testEdefStringReload(self):
         """
         Tries to convert an EndpointDescription to its XML format (EDEF) and to
         reload this string
         """
-        original = beans.EndpointDescription(self.svc_ref,
-                                  {pelix.remote.PROP_ENDPOINT_ID: "toto",
-                                   pelix.remote.PROP_IMPORTED_CONFIGS: ['titi'],
-                                   pelix.constants.OBJECTCLASS: "spec"})
+        original = beans.EndpointDescription(
+            self.svc_ref,
+            {pelix.remote.PROP_ENDPOINT_ID: "toto",
+             pelix.remote.PROP_IMPORTED_CONFIGS: ['titi'],
+             pelix.constants.OBJECTCLASS: "spec"})
 
         # Write the endpoint to an XML string
         writer = EDEFWriter()
@@ -95,25 +96,24 @@ class EdefIOTest(unittest.TestCase):
                              endpoint.get_properties(),
                              "Endpoint properties changed")
 
-
     def testEdefIOTypes(self):
         """
         Tests the writing and parsing of an EndpointDescription bean with
         "complex" properties
         """
         properties = {  # Strings whitespaces are not well kept in XML
-                      "string": "some string just to see...",
-                      "int": 12,
-                      "float": 12.0,
-                      "tuple_str": ("a", "b", "c"),
-                      "tuple_int": (1, 2, 3),
-                      "tuple_float": (1.0, 2.0, 3.0),
-                      "list_str": ["a", "b", "c"],
-                      "list_int": [1, 2, 3],
-                      "list_float": [1.0, 2.0, 3.0],
-                      "set_str": set(["a", "b", "c"]),
-                      "set_int": set([1, 2, 3]),
-                      "set_float": set([1.0, 2.0, 3.0])}
+            "string": "some string just to see...",
+            "int": 12,
+            "float": 12.0,
+            "tuple_str": ("a", "b", "c"),
+            "tuple_int": (1, 2, 3),
+            "tuple_float": (1.0, 2.0, 3.0),
+            "list_str": ["a", "b", "c"],
+            "list_int": [1, 2, 3],
+            "list_float": [1.0, 2.0, 3.0],
+            "set_str": set(["a", "b", "c"]),
+            "set_int": set([1, 2, 3]),
+            "set_float": set([1.0, 2.0, 3.0])}
 
         all_props = properties.copy()
         all_props[pelix.remote.PROP_ENDPOINT_ID] = 'toto'
@@ -133,6 +133,7 @@ class EdefIOTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+
 class BeansTest(unittest.TestCase):
     """
     Tests beans methods
@@ -148,12 +149,12 @@ class BeansTest(unittest.TestCase):
         # Register an exported service
         context = self.framework.get_bundle_context()
         self.service = object()
-        svc_reg = context.register_service("sample.spec", self.service,
-                                   {pelix.remote.PROP_EXPORTED_INTENTS: "*",
-                                    pelix.remote.PROP_EXPORTED_CONFIGS: "*",
-                                    "some.property": "some value"})
+        svc_reg = context.register_service(
+            "sample.spec", self.service,
+            {pelix.remote.PROP_EXPORTED_INTENTS: "*",
+             pelix.remote.PROP_EXPORTED_CONFIGS: "*",
+             "some.property": "some value"})
         self.svc_ref = svc_reg.get_reference()
-
 
     def tearDown(self):
         """
@@ -165,7 +166,6 @@ class BeansTest(unittest.TestCase):
         self.framework = None
         self.svc_ref = None
 
-
     def testConstructor(self):
         """
         Tests the behavior of the __init__ method
@@ -175,9 +175,10 @@ class BeansTest(unittest.TestCase):
                           self.svc_ref, None)
 
         # Must not fail
-        beans.EndpointDescription(self.svc_ref,
-                                {pelix.remote.PROP_ENDPOINT_ID: "toto",
-                                 pelix.remote.PROP_IMPORTED_CONFIGS: ['titi']})
+        beans.EndpointDescription(
+            self.svc_ref,
+            {pelix.remote.PROP_ENDPOINT_ID: "toto",
+             pelix.remote.PROP_IMPORTED_CONFIGS: ['titi']})
 
         # Must fail due to the lack of properties
         for mandatory in (pelix.remote.PROP_ENDPOINT_ID,
@@ -188,11 +189,12 @@ class BeansTest(unittest.TestCase):
                                      pelix.constants.SERVICE_ID: 1})
 
         # Must not fail
-        beans.EndpointDescription(None,
-                                  {pelix.remote.PROP_ENDPOINT_ID: "toto",
-                                   pelix.remote.PROP_IMPORTED_CONFIGS: ['titi'],
-                                   pelix.constants.OBJECTCLASS: "spec",
-                                   pelix.constants.SERVICE_ID: 1})
+        beans.EndpointDescription(
+            None,
+            {pelix.remote.PROP_ENDPOINT_ID: "toto",
+             pelix.remote.PROP_IMPORTED_CONFIGS: ['titi'],
+             pelix.constants.OBJECTCLASS: "spec",
+             pelix.constants.SERVICE_ID: 1})
 
     def testProperties(self):
         """
@@ -200,10 +202,11 @@ class BeansTest(unittest.TestCase):
         description
         """
         # Original endpoint description
-        original = beans.EndpointDescription(self.svc_ref,
-                                  {pelix.remote.PROP_ENDPOINT_ID: "toto",
-                                   pelix.remote.PROP_IMPORTED_CONFIGS: ['titi'],
-                                   pelix.constants.OBJECTCLASS: "spec"})
+        original = beans.EndpointDescription(
+            self.svc_ref,
+            {pelix.remote.PROP_ENDPOINT_ID: "toto",
+             pelix.remote.PROP_IMPORTED_CONFIGS: ['titi'],
+             pelix.constants.OBJECTCLASS: "spec"})
         for key in original.get_properties().keys():
             self.assertFalse(key.startswith("service.exported"),
                              "An export property has been found")
@@ -223,12 +226,13 @@ class BeansTest(unittest.TestCase):
                                            self.service,
                                            {"extra.property": 42})
 
-        import_bean = beans.ImportEndpoint(export_bean.uid,
-                                           export_bean.framework,
-                                           export_bean.configurations,
-                                           export_bean.name,
-                                           export_bean.specifications,
-                                           export_bean.make_import_properties())
+        import_bean = beans.ImportEndpoint(
+            export_bean.uid,
+            export_bean.framework,
+            export_bean.configurations,
+            export_bean.name,
+            export_bean.specifications,
+            export_bean.make_import_properties())
 
         # Convert it to an EndpointDescription bean
         description_bean = beans.EndpointDescription.from_export(export_bean)

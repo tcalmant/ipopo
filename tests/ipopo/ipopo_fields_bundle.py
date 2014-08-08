@@ -38,8 +38,9 @@ UNBIND_FIELD_A = "unbind.field.a"
 UNBIND_FIELD_B = "unbind.field.b"
 
 # ------------------------------------------------------------------------------
-
 # Providers (auto-instantiated)
+
+
 @ComponentFactory(FACTORY_A)
 @Provides(SVC_A)
 @Property("_prop", PROP_TEST)
@@ -53,7 +54,6 @@ class TestComponentA(object):
         """
         self._prop = None
 
-
     @Validate
     def validate(self, context):
         """
@@ -61,13 +61,11 @@ class TestComponentA(object):
         """
         self._prop = None
 
-
     def change(self, value):
         """
         Changes the value of the service property
         """
         self._prop = value
-
 
     @Invalidate
     def invalidate(self, context):
@@ -90,7 +88,6 @@ class TestComponentB(object):
         """
         self._prop = None
 
-
     @Validate
     def validate(self, context):
         """
@@ -98,13 +95,11 @@ class TestComponentB(object):
         """
         self._prop = None
 
-
     def change(self, value):
         """
         Changes the value of the service property
         """
         self._prop = value
-
 
     @Invalidate
     def invalidate(self, context):
@@ -114,8 +109,9 @@ class TestComponentB(object):
         self._prop = None
 
 # ------------------------------------------------------------------------------
-
 # Consumer
+
+
 @ComponentFactory(FACTORY_C)
 @Requires("_svc_a", SVC_A)
 @Requires("_svc_b", SVC_B)
@@ -131,20 +127,17 @@ class Consumer(object):
         self._svc_a = None
         self._svc_b = None
 
-
     def change_a(self, value):
         """
         Changes the property value of service A
         """
         self._svc_a.change(value)
 
-
     def change_b(self, value):
         """
         Changes the property value of service B
         """
         self._svc_b.change(value)
-
 
     @Bind
     def bind(self, svc, ref):
@@ -157,7 +150,6 @@ class Consumer(object):
         elif SVC_B in ref.get_property(OBJECTCLASS):
             self.states.append(BIND_B)
 
-
     @BindField("_svc_a")
     def bind_field_a(self, field, svc, ref):
         """
@@ -165,14 +157,12 @@ class Consumer(object):
         """
         self.states.append(BIND_FIELD_A)
 
-
     @BindField("_svc_b")
     def bind_field_b(self, field, svc, ref):
         """
         Bound field
         """
         self.states.append(BIND_FIELD_B)
-
 
     @Update
     def update(self, svc, ref, old_props):
@@ -185,7 +175,6 @@ class Consumer(object):
         elif SVC_B in ref.get_property(OBJECTCLASS):
             self.states.append(UPDATE_B)
 
-
     @UpdateField("_svc_a")
     def update_field_a(self, field, svc, ref, old_props):
         """
@@ -193,14 +182,12 @@ class Consumer(object):
         """
         self.states.append(UPDATE_FIELD_A)
 
-
     @UpdateField("_svc_b")
     def update_field_b(self, field, svc, ref, old_props):
         """
         Updated dependency
         """
         self.states.append(UPDATE_FIELD_B)
-
 
     @Unbind
     def unbind(self, svc, ref):
@@ -213,14 +200,12 @@ class Consumer(object):
         elif SVC_B in ref.get_property(OBJECTCLASS):
             self.states.append(UNBIND_B)
 
-
     @UnbindField("_svc_a")
     def unbind_field_a(self, field, svc, ref):
         """
         Unbound field
         """
         self.states.append(UNBIND_FIELD_A)
-
 
     @UnbindField("_svc_b")
     def unbind_field_b(self, field, svc, ref):
@@ -232,6 +217,8 @@ class Consumer(object):
 # ------------------------------------------------------------------------------
 
 # Other consumer
+
+
 @ComponentFactory(FACTORY_D)
 @Requires("_svc_a", SVC_A)
 @Requires("_svc_b", SVC_B, optional=True)
@@ -247,13 +234,11 @@ class ConsumerBindIfValid(object):
         self._svc_a = None
         self._svc_b = None
 
-
     def change_b(self, value):
         """
         Changes the property value of service B
         """
         self._svc_b.change(value)
-
 
     @BindField("_svc_a")
     def bind_field_a(self, field, svc, ref):
@@ -262,7 +247,6 @@ class ConsumerBindIfValid(object):
         """
         self.states.append(BIND_FIELD_A)
 
-
     @BindField("_svc_b", True)
     def bind_field_b(self, field, svc, ref):
         """
@@ -270,14 +254,12 @@ class ConsumerBindIfValid(object):
         """
         self.states.append(BIND_FIELD_B)
 
-
     @UpdateField("_svc_b", True)
     def update_field_b(self, field, svc, ref, old_props):
         """
         Bound field
         """
         self.states.append(UPDATE_FIELD_B)
-
 
     @UnbindField("_svc_b", True)
     def unbind_field_b(self, field, svc, ref):

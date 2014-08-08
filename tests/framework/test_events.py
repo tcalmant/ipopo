@@ -29,6 +29,7 @@ SIMPLE_BUNDLE = "tests.framework.simple_bundle"
 
 # ------------------------------------------------------------------------------
 
+
 class BundleEventTest(unittest.TestCase):
     """
     Pelix bundle event tests
@@ -45,7 +46,6 @@ class BundleEventTest(unittest.TestCase):
         self.bundle = None
         self.received = []
 
-
     def tearDown(self):
         """
         Called after each test
@@ -53,13 +53,11 @@ class BundleEventTest(unittest.TestCase):
         self.framework.stop()
         FrameworkFactory.delete_framework(self.framework)
 
-
     def reset_state(self):
         """
         Resets the flags
         """
         del self.received[:]
-
 
     def bundle_changed(self, event):
         """
@@ -72,14 +70,13 @@ class BundleEventTest(unittest.TestCase):
         bundle = event.get_bundle()
         kind = event.get_kind()
         if self.bundle is not None \
-        and kind == BundleEvent.INSTALLED:
+                and kind == BundleEvent.INSTALLED:
             # Bundle is not yet locally known...
             self.assertIs(self.bundle, bundle,
                           "Received an event for an other bundle.")
 
         self.assertNotIn(kind, self.received, "Event received twice")
         self.received.append(kind)
-
 
     def testBundleEvents(self):
         """
@@ -97,14 +94,14 @@ class BundleEventTest(unittest.TestCase):
         assert isinstance(bundle, Bundle)
         # Assert the Install events has been received
         self.assertEqual([BundleEvent.INSTALLED],
-                          self.received, "Received {0}".format(self.received))
+                         self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Start the bundle
         bundle.start()
         # Assert the events have been received
         self.assertEqual([BundleEvent.STARTING, BundleEvent.STARTED],
-                          self.received, "Received {0}".format(self.received))
+                         self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Stop the bundle
@@ -119,13 +116,14 @@ class BundleEventTest(unittest.TestCase):
         bundle.uninstall()
         # Assert the events have been received
         self.assertEqual([BundleEvent.UNINSTALLED],
-                          self.received, "Received {0}".format(self.received))
+                         self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Unregister from events
         context.remove_bundle_listener(self)
 
 # ------------------------------------------------------------------------------
+
 
 class ServiceEventTest(unittest.TestCase):
     """
@@ -143,7 +141,6 @@ class ServiceEventTest(unittest.TestCase):
         self.bundle = None
         self.received = []
 
-
     def tearDown(self):
         """
         Called after each test
@@ -151,13 +148,11 @@ class ServiceEventTest(unittest.TestCase):
         self.framework.stop()
         FrameworkFactory.delete_framework(self.framework)
 
-
     def reset_state(self):
         """
         Resets the flags
         """
         del self.received[:]
-
 
     def service_changed(self, event):
         """
@@ -173,7 +168,7 @@ class ServiceEventTest(unittest.TestCase):
         kind = event.get_kind()
 
         if kind == ServiceEvent.MODIFIED \
-        or kind == ServiceEvent.MODIFIED_ENDMATCH:
+                or kind == ServiceEvent.MODIFIED_ENDMATCH:
             # Properties have been modified
             self.assertNotEqual(ref.get_properties(),
                                 event.get_previous_properties(),
@@ -181,7 +176,6 @@ class ServiceEventTest(unittest.TestCase):
 
         self.assertNotIn(kind, self.received, "Event received twice")
         self.received.append(kind)
-
 
     def testDoubleListener(self):
         """
@@ -196,7 +190,7 @@ class ServiceEventTest(unittest.TestCase):
 
         log_off()
         self.assertFalse(context.add_service_listener(self),
-                        "Service listener registered twice")
+                         "Service listener registered twice")
         log_on()
 
         # Double unregistration
@@ -205,9 +199,8 @@ class ServiceEventTest(unittest.TestCase):
 
         log_off()
         self.assertFalse(context.remove_service_listener(self),
-                        "Service listener unregistered twice")
+                         "Service listener unregistered twice")
         log_on()
-
 
     def testInvalidFilterListener(self):
         """
@@ -224,7 +217,6 @@ class ServiceEventTest(unittest.TestCase):
         self.assertFalse(context.remove_service_listener(self),
                          "Invalid filter was registered anyway")
 
-
     def testServiceEventsNormal(self):
         """
         Tests if the signals are correctly received
@@ -240,32 +232,33 @@ class ServiceEventTest(unittest.TestCase):
         self.bundle = bundle = context.install_bundle(self.test_bundle_name)
         assert isinstance(bundle, Bundle)
         # Assert the Install events has been received
-        self.assertEqual([], self.received, "Received {0}".format(self.received))
+        self.assertEqual(
+            [], self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Start the bundle
         bundle.start()
         # Assert the events have been received
         self.assertEqual([ServiceEvent.REGISTERED],
-                          self.received, "Received {0}".format(self.received))
+                         self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Stop the bundle
         bundle.stop()
         # Assert the events have been received
         self.assertEqual([ServiceEvent.UNREGISTERING],
-                          self.received, "Received {0}".format(self.received))
+                         self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Uninstall the bundle
         bundle.uninstall()
         # Assert the events have been received
-        self.assertEqual([], self.received, "Received {0}".format(self.received))
+        self.assertEqual(
+            [], self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Unregister from events
         context.remove_service_listener(self)
-
 
     def testServiceEventsNoStop(self):
         """
@@ -283,14 +276,15 @@ class ServiceEventTest(unittest.TestCase):
         self.bundle = bundle = context.install_bundle(self.test_bundle_name)
         assert isinstance(bundle, Bundle)
         # Assert the Install events has been received
-        self.assertEqual([], self.received, "Received {0}".format(self.received))
+        self.assertEqual(
+            [], self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Start the bundle
         bundle.start()
         # Assert the events have been received
         self.assertEqual([ServiceEvent.REGISTERED],
-                          self.received, "Received {0}".format(self.received))
+                         self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Uninstall the bundle, without unregistering the service
@@ -300,12 +294,11 @@ class ServiceEventTest(unittest.TestCase):
 
         # Assert the events have been received
         self.assertEqual([ServiceEvent.UNREGISTERING],
-                          self.received, "Received {0}".format(self.received))
+                         self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Unregister from events
         context.remove_service_listener(self)
-
 
     def testServiceModified(self):
         """
@@ -326,7 +319,7 @@ class ServiceEventTest(unittest.TestCase):
         bundle.start()
         # Assert the events have been received
         self.assertEqual([ServiceEvent.REGISTERED],
-                          self.received, "Received {0}".format(self.received))
+                         self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Get the service
@@ -339,7 +332,7 @@ class ServiceEventTest(unittest.TestCase):
         # Modify the service => Simple modification
         svc.modify({"answer": 42})
         self.assertEqual([ServiceEvent.MODIFIED],
-                          self.received, "Received {0}".format(self.received))
+                         self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Set the same value => No event should be sent
@@ -352,21 +345,21 @@ class ServiceEventTest(unittest.TestCase):
         svc.modify({"test": False})
         # Assert the events have been received
         self.assertEqual([ServiceEvent.MODIFIED_ENDMATCH],
-                          self.received, "Received {0}".format(self.received))
+                         self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Modify the service => the filter matches again
         svc.modify({"test": True})
         # Assert the events have been received
         self.assertEqual([ServiceEvent.MODIFIED],
-                          self.received, "Received {0}".format(self.received))
+                         self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Stop the bundle
         bundle.stop()
         # Assert the events have been received
         self.assertEqual([ServiceEvent.UNREGISTERING],
-                          self.received, "Received {0}".format(self.received))
+                         self.received, "Received {0}".format(self.received))
         self.reset_state()
 
         # Uninstall the bundle

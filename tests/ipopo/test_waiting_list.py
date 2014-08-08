@@ -30,6 +30,7 @@ FACTORY_A = "ipopo.tests.a"
 
 # ------------------------------------------------------------------------------
 
+
 class WaitingListTest(unittest.TestCase):
     """
     Tests the iPOPO waiting list service
@@ -47,10 +48,9 @@ class WaitingListTest(unittest.TestCase):
         install_bundle(self.framework, "pelix.ipopo.waiting")
 
         # Get the service
-        svc_ref = context.get_service_reference(\
-                                        constants.SERVICE_IPOPO_WAITING_LIST)
+        svc_ref = context.get_service_reference(
+            constants.SERVICE_IPOPO_WAITING_LIST)
         self.waiting = context.get_service(svc_ref)
-
 
     def tearDown(self):
         """
@@ -60,7 +60,6 @@ class WaitingListTest(unittest.TestCase):
         FrameworkFactory.delete_framework(self.framework)
         self.framework = None
         self.waiting = None
-
 
     def testAddRemove(self):
         """
@@ -86,7 +85,6 @@ class WaitingListTest(unittest.TestCase):
 
         # Re-add it
         self.waiting.add("some.factory", "some.instance", {})
-
 
     def testInstantiateKillBeforeIPopo(self):
         """
@@ -117,7 +115,6 @@ class WaitingListTest(unittest.TestCase):
         self.assertFalse(ipopo.is_registered_instance(NAME_A),
                          "Instance still there")
 
-
     def testInstantiateKillAfterIPopoBeforeBundle(self):
         """
         Tests if the component is correctly instantiated when added and killed
@@ -146,7 +143,6 @@ class WaitingListTest(unittest.TestCase):
         # The instance must have been kill
         self.assertFalse(ipopo.is_registered_instance(NAME_A),
                          "Instance still there")
-
 
     def testInstantiateKillAfterIPopoAfterBundle(self):
         """
@@ -177,7 +173,6 @@ class WaitingListTest(unittest.TestCase):
         self.assertFalse(ipopo.is_registered_instance(NAME_A),
                          "Instance still there")
 
-
     def testInstantiateConflict(self):
         """
         Try to instantiate a component with a name already used
@@ -190,7 +185,7 @@ class WaitingListTest(unittest.TestCase):
 
         # The component must be present
         self.assertTrue(ipopo.is_registered_instance(module.BASIC_INSTANCE),
-                         "Auto-instance not yet there")
+                        "Auto-instance not yet there")
 
         # This addition must not fail, but must be logger
         self.waiting.add(module.BASIC_FACTORY, module.BASIC_INSTANCE)

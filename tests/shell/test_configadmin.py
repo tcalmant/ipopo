@@ -28,6 +28,7 @@ __version__ = "1.0.0"
 
 # ------------------------------------------------------------------------------
 
+
 class ConfigAdminShellTest(unittest.TestCase):
     """
     Tests the EventAdmin shell commands
@@ -38,10 +39,10 @@ class ConfigAdminShellTest(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(
-                                                  ('pelix.ipopo.core',
-                                                   'pelix.shell.core',
-                                                   'pelix.services.configadmin',
-                                                   'pelix.shell.configadmin'))
+            ('pelix.ipopo.core',
+             'pelix.shell.core',
+             'pelix.services.configadmin',
+             'pelix.shell.configadmin'))
         self.framework.start()
 
         # Get the Shell service
@@ -54,13 +55,12 @@ class ConfigAdminShellTest(unittest.TestCase):
 
         # Get the service
         self.config_ref = context.get_service_reference(
-                                    pelix.services.SERVICE_CONFIGURATION_ADMIN)
+            pelix.services.SERVICE_CONFIGURATION_ADMIN)
         self.config = context.get_service(self.config_ref)
 
         # Remove existing configurations
         for config in self.config.list_configurations():
             config.delete()
-
 
     def _run_command(self, command, *args):
         """
@@ -80,7 +80,6 @@ class ConfigAdminShellTest(unittest.TestCase):
         self.shell.execute(command, stdout=str_output)
         return str_output.getvalue()
 
-
     def tearDown(self):
         """
         Cleans up for next test
@@ -92,7 +91,6 @@ class ConfigAdminShellTest(unittest.TestCase):
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
         self.framework = None
-
 
     def testLifeCycle(self):
         """
@@ -135,7 +133,6 @@ class ConfigAdminShellTest(unittest.TestCase):
         self._run_command("delete {0}", config.get_pid())
         self.assertEqual(self.config.list_configurations(), set())
 
-
     def testInvalidPid(self):
         """
         Tests commands with invalid PIDs
@@ -143,7 +140,6 @@ class ConfigAdminShellTest(unittest.TestCase):
         self._run_command("delete <invalid>")
         self._run_command("list <invalid>")
         self._run_command("reload <invalid>")
-
 
     def testUpdate(self):
         """
@@ -168,7 +164,6 @@ class ConfigAdminShellTest(unittest.TestCase):
         # Remove a key
         self._run_command("update {0} {1}=None", pid, key)
         self.assertNotIn(key, config.get_properties())
-
 
     def testList(self):
         """

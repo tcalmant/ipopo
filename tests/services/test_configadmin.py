@@ -30,6 +30,7 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+
 class ConfigurationAdminTest(unittest.TestCase):
     """
     Tests for configuration admin methods
@@ -40,16 +41,15 @@ class ConfigurationAdminTest(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(
-                                              ('pelix.ipopo.core',
-                                               'pelix.services.configadmin'))
+            ('pelix.ipopo.core',
+             'pelix.services.configadmin'))
         self.framework.start()
         context = self.framework.get_bundle_context()
 
         # Get the service
         self.config_ref = context.get_service_reference(
-                                        services.SERVICE_CONFIGURATION_ADMIN)
+            services.SERVICE_CONFIGURATION_ADMIN)
         self.config = context.get_service(self.config_ref)
-
 
     def tearDown(self):
         """
@@ -61,7 +61,6 @@ class ConfigurationAdminTest(unittest.TestCase):
         self.config_ref = None
 
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
-
 
     def testCreateFactoryConfiguration(self):
         """
@@ -100,14 +99,14 @@ class ConfigurationAdminTest(unittest.TestCase):
         config2 = self.config.create_factory_configuration(factory_pid)
 
         # They must be different and have different PID
-        self.assertIsNot(config, config2,
-                         "ConfigAdmin returned a deleted factory configuration")
+        self.assertIsNot(
+            config, config2,
+            "ConfigAdmin returned a deleted factory configuration")
         self.assertNotEqual(pid, config2.get_pid(),
                             "Same PID for new configuration")
 
         # Delete the new one
         config2.delete()
-
 
     def testGetConfiguration(self):
         """
@@ -148,7 +147,6 @@ class ConfigurationAdminTest(unittest.TestCase):
         # Clean up
         config2.delete()
 
-
     def testListConfiguration(self):
         """
         Tests the list configuration method
@@ -171,8 +169,8 @@ class ConfigurationAdminTest(unittest.TestCase):
                             "Incorrect result set")
 
         ldap_filter = "({0}={1})".format(services.CONFIG_PROP_PID, pid)
-        self.assertSetEqual(self.config.list_configurations(ldap_filter), set(),
-                            "Invalid configuration matches a filter")
+        self.assertSetEqual(self.config.list_configurations(ldap_filter),
+                            set(), "Invalid configuration matches a filter")
 
         # Update the configuration
         config.update({'arthur': 'dent'})
@@ -182,18 +180,18 @@ class ConfigurationAdminTest(unittest.TestCase):
                             "Incorrect result set")
 
         filters = [  # PID
-                   "({0}={1})".format(services.CONFIG_PROP_PID, pid),
+            "({0}={1})".format(services.CONFIG_PROP_PID, pid),
                      # Property
-                   "({0}={1})".format('arthur', 'dent'),
+            "({0}={1})".format('arthur', 'dent'),
                      # Both
-                   "(&({0}={1})({2}={3}))".format(services.CONFIG_PROP_PID, pid,
-                                                  'arthur', 'dent'),
-                   ]
+            "(&({0}={1})({2}={3}))".format(services.CONFIG_PROP_PID, pid,
+                                           'arthur', 'dent'),
+        ]
 
         for ldap_filter in filters:
             self.assertSetEqual(self.config.list_configurations(ldap_filter),
                                 set([config]),
-                                "Configuration doesn't match filter {0}" \
+                                "Configuration doesn't match filter {0}"
                                 .format(ldap_filter))
 
         # Add a new configuration
@@ -210,7 +208,6 @@ class ConfigurationAdminTest(unittest.TestCase):
         # Delete the first one
         config.delete()
         self.assertSetEqual(configs, set(), "Non-empty result set")
-
 
     def testPersistence(self):
         """
@@ -244,6 +241,7 @@ class ConfigurationAdminTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+
 class ManagedServiceTest(unittest.TestCase):
     """
     Tests the behavior of managed services
@@ -253,25 +251,24 @@ class ManagedServiceTest(unittest.TestCase):
         Sets up the test
         """
         self.framework = pelix.framework.create_framework(
-                                              ('pelix.ipopo.core',
-                                               'pelix.services.configadmin'))
+            ('pelix.ipopo.core',
+             'pelix.services.configadmin'))
         self.framework.start()
         context = self.framework.get_bundle_context()
 
         # Get the ConfigAdmin service
         self.config_ref = context.get_service_reference(
-                                        services.SERVICE_CONFIGURATION_ADMIN)
+            services.SERVICE_CONFIGURATION_ADMIN)
         self.config = context.get_service(self.config_ref)
 
         # Install the test bundle (don't start it)
         self.bundle = context.install_bundle(
-                                            'tests.services.configadmin_bundle')
+            'tests.services.configadmin_bundle')
         self.pid = self.bundle.get_module().CONFIG_PID
 
         # Remove existing configurations
         for config in self.config.list_configurations():
             config.delete()
-
 
     def tearDown(self):
         """
@@ -288,7 +285,6 @@ class ManagedServiceTest(unittest.TestCase):
 
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
 
-
     def get_ref(self):
         """
         Retrieves the reference to the managed service provided by the test
@@ -296,23 +292,20 @@ class ManagedServiceTest(unittest.TestCase):
         """
         return self.bundle.get_registered_services()[0]
 
-
     def pause(self):
         """
         Small pause to let the task pool notify the services
         """
         time.sleep(.2)
 
-
     def check_call_count(self, test_svc, expected_count):
         """
         Checks if the given test service has been called X times
         """
         self.assertEqual(test_svc.call_count, expected_count,
-                         "updated() called more than {0} times"\
+                         "updated() called more than {0} times"
                          .format(expected_count))
         test_svc.call_count = 0
-
 
     def testNoConfigDelete(self):
         """
@@ -332,7 +325,8 @@ class ManagedServiceTest(unittest.TestCase):
 
             # Nothing should have happened yet
             self.assertIsNone(svc.value, "Value has been set")
-            self.assertFalse(svc.deleted, "Configuration considered as deleted")
+            self.assertFalse(
+                svc.deleted, "Configuration considered as deleted")
 
             # Delete the configuration
             config.delete()
@@ -342,8 +336,8 @@ class ManagedServiceTest(unittest.TestCase):
 
             # Nothing should have happened either
             self.assertIsNone(svc.value, "Value has been set")
-            self.assertFalse(svc.deleted, "Configuration considered as deleted")
-
+            self.assertFalse(
+                svc.deleted, "Configuration considered as deleted")
 
     def testEarlyConfig(self):
         """
@@ -365,7 +359,8 @@ class ManagedServiceTest(unittest.TestCase):
 
             # The service should already have been configured
             self.assertEqual(svc.value, 42, "Value hasn't been set")
-            self.assertFalse(svc.deleted, "Configuration considered as deleted")
+            self.assertFalse(
+                svc.deleted, "Configuration considered as deleted")
 
             # Delete the configuration
             config.delete()
@@ -375,7 +370,6 @@ class ManagedServiceTest(unittest.TestCase):
 
             # The flag must have been set
             self.assertTrue(svc.deleted, "Configuration considered as deleted")
-
 
     def testLateConfig(self):
         """
@@ -393,7 +387,8 @@ class ManagedServiceTest(unittest.TestCase):
 
             # Nothing should have happened yet
             self.assertIsNone(svc.value, "Value has been set")
-            self.assertFalse(svc.deleted, "Configuration considered as deleted")
+            self.assertFalse(
+                svc.deleted, "Configuration considered as deleted")
 
             # Create the configuration
             config = self.config.get_configuration(self.pid)
@@ -404,7 +399,8 @@ class ManagedServiceTest(unittest.TestCase):
 
             # The service should have been configured
             self.assertEqual(svc.value, 42, "Value hasn't been set")
-            self.assertFalse(svc.deleted, "Configuration considered as deleted")
+            self.assertFalse(
+                svc.deleted, "Configuration considered as deleted")
 
             # Delete the configuration
             config.delete()
@@ -414,7 +410,6 @@ class ManagedServiceTest(unittest.TestCase):
 
             # The flag must have been set
             self.assertTrue(svc.deleted, "Configuration considered as deleted")
-
 
     def testUpdateConfig(self):
         """
@@ -435,7 +430,8 @@ class ManagedServiceTest(unittest.TestCase):
             # Nothing should have happened yet
             self.check_call_count(svc, 0)
             self.assertIsNone(svc.value, "Value has been set")
-            self.assertFalse(svc.deleted, "Configuration considered as deleted")
+            self.assertFalse(
+                svc.deleted, "Configuration considered as deleted")
 
             # Update the configuration
             config.update({'config.value': 42})
@@ -446,7 +442,8 @@ class ManagedServiceTest(unittest.TestCase):
             # The service should have been configured
             self.check_call_count(svc, 1)
             self.assertEqual(svc.value, 42, "Value hasn't been set")
-            self.assertFalse(svc.deleted, "Configuration considered as deleted")
+            self.assertFalse(
+                svc.deleted, "Configuration considered as deleted")
 
             # Delete the configuration
             config.delete()
@@ -460,6 +457,7 @@ class ManagedServiceTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+
 class FileInstallTest(unittest.TestCase):
     """
     Tests the behavior of FileInstall with ConfigurationAdmin
@@ -469,25 +467,24 @@ class FileInstallTest(unittest.TestCase):
         Sets up the test
         """
         self.framework = pelix.framework.create_framework(
-                                              ('pelix.ipopo.core',
-                                               'pelix.services.configadmin'))
+            ('pelix.ipopo.core',
+             'pelix.services.configadmin'))
         self.framework.start()
         context = self.framework.get_bundle_context()
 
         # in FileInstall
-        self.bnd_fileinstall = context.install_bundle(\
-                                                   'pelix.services.fileinstall')
+        self.bnd_fileinstall = context.install_bundle(
+            'pelix.services.fileinstall')
 
         # Get the ConfigAdmin service
         self.config_ref = context.get_service_reference(
-                                        services.SERVICE_CONFIGURATION_ADMIN)
+            services.SERVICE_CONFIGURATION_ADMIN)
         self.config = context.get_service(self.config_ref)
 
         # Install the test bundle (don't start it)
         self.bundle = context.install_bundle(
-                                            'tests.services.configadmin_bundle')
+            'tests.services.configadmin_bundle')
         self.pid = self.bundle.get_module().CONFIG_PID
-
 
     def start_fileinstall(self):
         """
@@ -499,11 +496,10 @@ class FileInstallTest(unittest.TestCase):
         # Speed up the poll time
         context = self.framework.get_bundle_context()
         fileinstall_ref = context.get_service_reference(
-                                                services.SERVICE_FILEINSTALL)
+            services.SERVICE_FILEINSTALL)
         with use_service(context, fileinstall_ref) as svc:
             svc._poll_time = .1
             time.sleep(1)
-
 
     def tearDown(self):
         """
@@ -516,14 +512,12 @@ class FileInstallTest(unittest.TestCase):
 
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
 
-
     def get_ref(self):
         """
         Retrieves the reference to the managed service provided by the test
         bundle
         """
         return self.bundle.get_registered_services()[0]
-
 
     def check_call_count(self, test_svc, expected_count):
         """
@@ -532,14 +526,12 @@ class FileInstallTest(unittest.TestCase):
         self.assertEqual(test_svc.call_count, expected_count)
         test_svc.call_count = 0
 
-
     def touch(self, filepath):
         """
         Updates the modification time of the given file
         """
         with open(filepath, "r"):
             os.utime(filepath, None)
-
 
     def write(self, filepath, value):
         """
@@ -548,7 +540,6 @@ class FileInstallTest(unittest.TestCase):
         props = {'config.value': value}
         with open(filepath, "w") as filep:
             filep.write(json.dumps(props))
-
 
     def testAddUpdateDelete(self):
         """
@@ -571,8 +562,8 @@ class FileInstallTest(unittest.TestCase):
             self.assertIsNone(svc.value, "Value has been set")
 
         # Get the watched folder
-        persistence_ref = context.get_service_reference(\
-                                     services.SERVICE_CONFIGADMIN_PERSISTENCE)
+        persistence_ref = context.get_service_reference(
+            services.SERVICE_CONFIGADMIN_PERSISTENCE)
         folder = persistence_ref.get_property(services.PROP_FILEINSTALL_FOLDER)
 
         # JSON persistence file name
@@ -629,8 +620,5 @@ class FileInstallTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
-def main():
-    unittest.main()
-
 if __name__ == "__main__":
-    main()
+    unittest.main()

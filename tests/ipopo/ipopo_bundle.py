@@ -34,8 +34,9 @@ FACTORY_C = "ipopo.tests.c"
 PROP_USABLE = "usable"
 
 # ------------------------------------------------------------------------------
-
 # Auto-instantiated component (tests the decorator)
+
+
 @ComponentFactory(BASIC_FACTORY)
 @Instantiate(BASIC_INSTANCE)
 @Provides("basic-component-svc")
@@ -50,14 +51,12 @@ class BasicComponent(object):
         self.states = []
         self.states.append(IPopoEvent.INSTANTIATED)
 
-
     @Validate
     def validate(self, context):
         """
         Validation
         """
         self.states.append(IPopoEvent.VALIDATED)
-
 
     @Invalidate
     def invalidate(self, context):
@@ -67,8 +66,9 @@ class BasicComponent(object):
         self.states.append(IPopoEvent.INVALIDATED)
 
 # ------------------------------------------------------------------------------
-
 # Inherited property
+
+
 @Property("name", IPOPO_INSTANCE_NAME)
 class TestComponentFactory(object):
     """
@@ -97,7 +97,6 @@ class TestComponentFactory(object):
         """
         self.states.append(IPopoEvent.INVALIDATED)
 
-
     def reset(self):
         """
         Resets the states list
@@ -105,6 +104,7 @@ class TestComponentFactory(object):
         del self.states[:]
 
 # ------------------------------------------------------------------------------
+
 
 @ComponentFactory(name=FACTORY_A)
 @Property("usable", PROP_USABLE, True)
@@ -123,20 +123,17 @@ class ComponentFactoryA(TestComponentFactory, IEchoService):
         super(ComponentFactoryA, self).__init__()
         self.prop_1 = 10
 
-
     def echo(self, value):
         """
         Implementation of IEchoService
         """
         return value
 
-
     def change(self, usable):
         """
         Changes the usable property
         """
         self.usable = usable
-
 
     def change_controller(self, value):
         """
@@ -174,7 +171,6 @@ class ComponentFactoryB(TestComponentFactory):
 
         if self.fw_raiser:
             raise FrameworkException("FrameworkException", self.fw_raiser_stop)
-
 
         if self.raiser:
             raise Exception("Some exception")
@@ -234,6 +230,7 @@ class ComponentFactoryC(TestComponentFactory):
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory(FACTORY_MAP)
 @RequiresMap('single', MAP_SPEC_TEST, 'single.key', False)
 @RequiresMap('multiple', MAP_SPEC_TEST, 'other.key', False,
@@ -259,18 +256,17 @@ class MapComponentFactory(TestComponentFactory):
 
 # ------------------------------------------------------------------------------
 
+
 @BundleActivator
 class ActivatorTest:
     """
     Test activator
     """
-
     def __init__(self):
         """
         Constructor
         """
         self.context = None
-
 
     def start(self, context):
         """
@@ -281,7 +277,6 @@ class ActivatorTest:
 
         global started
         started = True
-
 
     def stop(self, context):
         """

@@ -32,6 +32,7 @@ REMOVED = 3
 
 # ------------------------------------------------------------------------------
 
+
 class Exporter(object):
     """
     Service exporter
@@ -48,13 +49,11 @@ class Exporter(object):
         self.name = name or 'test.endpoint'
         self.configs = configs[:] if configs else ['test.config']
 
-
     def clear(self):
         """
         Clears the listener state
         """
         del self.events[:]
-
 
     def export_service(self, svc_ref, name, fw_uid):
         """
@@ -67,7 +66,6 @@ class Exporter(object):
                                              svc_ref, service, {})
         return self.endpoint
 
-
     def update_export(self, endpoint, new_name, old_properties):
         """
         Endpoint updated
@@ -75,7 +73,6 @@ class Exporter(object):
         self.events.append(UPDATED)
         if self.raise_exception:
             raise NameError("Update exception: new name refused")
-
 
     def unexport_service(self, endpoint):
         """
@@ -95,13 +92,11 @@ class Listener(object):
         self.events = []
         self.raise_exception = False
 
-
     def clear(self):
         """
         Clears the listener state
         """
         del self.events[:]
-
 
     def endpoints_added(self, endpoints):
         """
@@ -113,7 +108,6 @@ class Listener(object):
         if self.raise_exception:
             raise Exception("Endpoints added exception")
 
-
     def endpoint_updated(self, endpoint, old_props):
         """
         Endpoint updated
@@ -121,7 +115,6 @@ class Listener(object):
         self.events.append(UPDATED)
         if self.raise_exception:
             raise Exception("Endpoints updated exception")
-
 
     def endpoint_removed(self, endpoint):
         """
@@ -132,6 +125,7 @@ class Listener(object):
             raise Exception("Endpoints removed exception")
 
 # ------------------------------------------------------------------------------
+
 
 class DispatcherTest(unittest.TestCase):
     """
@@ -154,12 +148,13 @@ class DispatcherTest(unittest.TestCase):
         context.install_bundle("pelix.remote.dispatcher").start()
 
         # Get the framework UID
-        self.framework_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
+        self.framework_uid = context.get_property(
+            pelix.constants.FRAMEWORK_UID)
 
         # Get the service
-        svc_ref = context.get_service_reference(pelix.remote.SERVICE_DISPATCHER)
+        svc_ref = context.get_service_reference(
+            pelix.remote.SERVICE_DISPATCHER)
         self.service = context.get_service(svc_ref)
-
 
     def tearDown(self):
         """
@@ -171,7 +166,6 @@ class DispatcherTest(unittest.TestCase):
         self.framework = None
         self.service = None
 
-
     def testEmpty(self):
         """
         Tests the behavior of the dispatcher without listener
@@ -179,8 +173,9 @@ class DispatcherTest(unittest.TestCase):
         # Register an exported service
         context = self.framework.get_bundle_context()
         service = object()
-        svc_reg = context.register_service("sample.spec", service,
-                                   {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+        svc_reg = context.register_service(
+            "sample.spec", service,
+            {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
 
         # Look for the endpoint
         self.assertEqual(self.service.get_endpoints(), [],
@@ -188,7 +183,6 @@ class DispatcherTest(unittest.TestCase):
 
         # Unregister the service
         svc_reg.unregister()
-
 
     def testExporterAfterRegistration(self):
         """
@@ -200,8 +194,9 @@ class DispatcherTest(unittest.TestCase):
 
         for raise_exception in (False, True):
             # Register the exported service
-            svc_reg = context.register_service("sample.spec", service,
-                                   {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+            svc_reg = context.register_service(
+                "sample.spec", service,
+                {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
 
             # Prepare a exporter
             exporter = Exporter(context)
@@ -209,8 +204,8 @@ class DispatcherTest(unittest.TestCase):
 
             # Register it
             exporter_reg = context.register_service(
-                                        pelix.remote.SERVICE_EXPORT_PROVIDER,
-                                        exporter, {})
+                pelix.remote.SERVICE_EXPORT_PROVIDER,
+                exporter, {})
 
             # Check the state of the exporter
             self.assertListEqual(exporter.events, [ADDED],
@@ -263,7 +258,6 @@ class DispatcherTest(unittest.TestCase):
 
             # Unregister the service
             exporter_reg.unregister()
-
 
     def testExporterBeforeRegistration(self):
         """
@@ -280,12 +274,13 @@ class DispatcherTest(unittest.TestCase):
 
             # Register it
             exporter_reg = context.register_service(
-                                        pelix.remote.SERVICE_EXPORT_PROVIDER,
-                                        exporter, {})
+                pelix.remote.SERVICE_EXPORT_PROVIDER,
+                exporter, {})
 
             # Register the exported service
-            svc_reg = context.register_service("sample.spec", service,
-                                   {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+            svc_reg = context.register_service(
+                "sample.spec", service,
+                {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
 
             # Check the state of the exporter
             self.assertListEqual(exporter.events, [ADDED],
@@ -339,7 +334,6 @@ class DispatcherTest(unittest.TestCase):
             # Unregister the service
             exporter_reg.unregister()
 
-
     def testListenerBefore(self):
         """
         Tests the notification of endpoint listeners
@@ -354,12 +348,13 @@ class DispatcherTest(unittest.TestCase):
                 listener = Listener()
                 listener.raise_exception = raise_exception
                 listener_reg = context.register_service(
-                                pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER,
-                                listener, {})
+                    pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER,
+                    listener, {})
 
                 # Register the exported service
-                svc_reg = context.register_service("sample.spec", service,
-                                   {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+                svc_reg = context.register_service(
+                    "sample.spec", service,
+                    {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
 
                 # Check the state of the listener
                 self.assertListEqual(listener.events, [],
@@ -370,8 +365,8 @@ class DispatcherTest(unittest.TestCase):
                 exporter = Exporter(context)
                 exporter.raise_exception = name_error
                 exporter_reg = context.register_service(
-                                        pelix.remote.SERVICE_EXPORT_PROVIDER,
-                                        exporter, {})
+                    pelix.remote.SERVICE_EXPORT_PROVIDER,
+                    exporter, {})
 
                 # Check the state of the listener
                 self.assertListEqual(listener.events, [ADDED],
@@ -382,8 +377,9 @@ class DispatcherTest(unittest.TestCase):
                 svc_reg.set_properties({"some": "property"})
                 if name_error:
                     # The new properties have been refused
-                    self.assertListEqual(listener.events, [REMOVED],
-                                     "Listener not notified of name removal")
+                    self.assertListEqual(
+                        listener.events, [REMOVED],
+                        "Listener not notified of name removal")
 
                 else:
                     # Check the state of the exporter
@@ -396,8 +392,9 @@ class DispatcherTest(unittest.TestCase):
 
                 if name_error:
                     # Exception raised: the listener has not been notified
-                    self.assertListEqual(listener.events, [],
-                                         "Listener notified of ignored removal")
+                    self.assertListEqual(
+                        listener.events, [],
+                        "Listener notified of ignored removal")
 
                 else:
                     # Check the state of the listener
@@ -408,7 +405,6 @@ class DispatcherTest(unittest.TestCase):
                 # Unregister the services
                 exporter_reg.unregister()
                 listener_reg.unregister()
-
 
     def testListenerAfter(self):
         """
@@ -422,19 +418,20 @@ class DispatcherTest(unittest.TestCase):
             # Prepare a exporter
             exporter = Exporter(context)
             exporter_reg = context.register_service(
-                                        pelix.remote.SERVICE_EXPORT_PROVIDER,
-                                        exporter, {})
+                pelix.remote.SERVICE_EXPORT_PROVIDER,
+                exporter, {})
 
             # Register the exported service
-            svc_reg = context.register_service("sample.spec", service,
-                               {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+            svc_reg = context.register_service(
+                "sample.spec", service,
+                {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
 
             # Prepare a listener
             listener = Listener()
             listener.raise_exception = raise_exception
             listener_reg = context.register_service(
-                            pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER,
-                            listener, {})
+                pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER,
+                listener, {})
 
             # Check the state of the listener
             self.assertListEqual(listener.events, [ADDED],
@@ -460,7 +457,6 @@ class DispatcherTest(unittest.TestCase):
             # Unregister the services
             listener_reg.unregister()
 
-
     def testGetEndpoints(self):
         """
         Tests the behavior of the get_endpoints() method
@@ -470,18 +466,19 @@ class DispatcherTest(unittest.TestCase):
         # Register exporters
         exporterA = Exporter(context, "nameA", ["configA"])
         exporterA_reg = context.register_service(
-                                        pelix.remote.SERVICE_EXPORT_PROVIDER,
-                                        exporterA, {})
+            pelix.remote.SERVICE_EXPORT_PROVIDER,
+            exporterA, {})
 
         exporterB = Exporter(context, "nameB", ["configB"])
         exporterB_reg = context.register_service(
-                                        pelix.remote.SERVICE_EXPORT_PROVIDER,
-                                        exporterB, {})
+            pelix.remote.SERVICE_EXPORT_PROVIDER,
+            exporterB, {})
 
         # Register the remote service
         service = object()
-        svc_reg = context.register_service("sample.spec", service,
-                               {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+        svc_reg = context.register_service(
+            "sample.spec", service,
+            {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
 
         # Get all endpoints
         self.assertCountEqual([exporterA.endpoint, exporterB.endpoint],
@@ -510,14 +507,16 @@ class DispatcherTest(unittest.TestCase):
                              "Invalid result for get_endpoints(kind, name)")
 
         # Filter with no result
-        self.assertListEqual([], self.service.get_endpoints("configB", "nameA"),
+        self.assertListEqual([],
+                             self.service.get_endpoints("configB", "nameA"),
                              "Invalid result for get_endpoints(kind, name)")
 
         # Unregister exporter B
         exporterB_reg.unregister()
 
         # Get all endpoints
-        self.assertListEqual([exporterA.endpoint], self.service.get_endpoints(),
+        self.assertListEqual([exporterA.endpoint],
+                             self.service.get_endpoints(),
                              "Endpoint of B still in get_endpoints()")
 
         # Unregister service

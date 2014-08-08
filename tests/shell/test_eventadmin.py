@@ -25,6 +25,7 @@ __version__ = "1.0.0"
 
 # ------------------------------------------------------------------------------
 
+
 class DummyEventHandler(object):
     """
     Dummy event handler
@@ -38,7 +39,6 @@ class DummyEventHandler(object):
         self.last_props = {}
         self.__event = threading.Event()
 
-
     def handle_event(self, topic, properties):
         """
         Handles an event received from EventAdmin
@@ -47,7 +47,6 @@ class DummyEventHandler(object):
         self.last_event = topic
         self.last_props = properties
         self.__event.set()
-
 
     def pop_event(self):
         """
@@ -60,7 +59,6 @@ class DummyEventHandler(object):
         event, self.last_event = self.last_event, None
         return event
 
-
     def wait(self, timeout):
         """
         Waits for the event to be received
@@ -69,20 +67,23 @@ class DummyEventHandler(object):
 
 # ------------------------------------------------------------------------------
 
+
 class EventAdminShellTest(unittest.TestCase):
+
     """
     Tests the EventAdmin shell commands
     """
+
     def setUp(self):
         """
         Prepares a framework and a registers a service to export
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(
-                                                  ('pelix.ipopo.core',
-                                                   'pelix.shell.core',
-                                                   'pelix.services.eventadmin',
-                                                   'pelix.shell.eventadmin'))
+            ('pelix.ipopo.core',
+             'pelix.shell.core',
+             'pelix.services.eventadmin',
+             'pelix.shell.eventadmin'))
         self.framework.start()
 
         # Get the Shell service
@@ -93,10 +94,9 @@ class EventAdminShellTest(unittest.TestCase):
         # Instantiate the EventAdmin component
         context = self.framework.get_bundle_context()
         with use_ipopo(context) as ipopo:
-            self.eventadmin = ipopo.instantiate(\
-                                            pelix.services.FACTORY_EVENT_ADMIN,
-                                            "evtadmin", {})
-
+            self.eventadmin = ipopo.instantiate(
+                pelix.services.FACTORY_EVENT_ADMIN,
+                "evtadmin", {})
 
     def _register_handler(self, topics, evt_filter=None):
         """
@@ -107,12 +107,11 @@ class EventAdminShellTest(unittest.TestCase):
         """
         svc = DummyEventHandler()
         context = self.framework.get_bundle_context()
-        svc_reg = context.register_service(pelix.services.SERVICE_EVENT_HANDLER,
-                               svc,
-                               {pelix.services.PROP_EVENT_TOPICS: topics,
-                                pelix.services.PROP_EVENT_FILTER: evt_filter})
+        svc_reg = context.register_service(
+            pelix.services.SERVICE_EVENT_HANDLER, svc,
+            {pelix.services.PROP_EVENT_TOPICS: topics,
+             pelix.services.PROP_EVENT_FILTER: evt_filter})
         return svc, svc_reg
-
 
     def _run_command(self, command, *args):
         """
@@ -125,7 +124,6 @@ class EventAdminShellTest(unittest.TestCase):
         # Run command
         self.shell.execute(command)
 
-
     def tearDown(self):
         """
         Cleans up for next test
@@ -133,7 +131,6 @@ class EventAdminShellTest(unittest.TestCase):
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
         self.framework = None
-
 
     def testTopics(self):
         """
@@ -151,7 +148,6 @@ class EventAdminShellTest(unittest.TestCase):
         for topic in ('/toto/titi/42', '/titi', '/toto/42'):
             self._run_command("send {0}", topic)
             self.assertEqual(handler.pop_event(), None)
-
 
     def testFilters(self):
         """
@@ -181,7 +177,6 @@ class EventAdminShellTest(unittest.TestCase):
             # Send events, with a non-matching properties
             self._run_command("send {0} {1}=21", topic, key)
             self.assertEqual(handler.pop_event(), None)
-
 
     def testPost(self):
         """

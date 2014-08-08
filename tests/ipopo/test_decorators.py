@@ -30,6 +30,7 @@ __version__ = "1.0.0"
 
 # ------------------------------------------------------------------------------
 
+
 class DecoratorsTest(unittest.TestCase):
     """
     Tests the iPOPO decorators
@@ -42,7 +43,6 @@ class DecoratorsTest(unittest.TestCase):
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
 
-
     def tearDown(self):
         """
         Called after each test
@@ -50,18 +50,17 @@ class DecoratorsTest(unittest.TestCase):
         self.framework.stop()
         FrameworkFactory.delete_framework(self.framework)
 
-
     def testCallbacks(self):
         """
         Tests callbacks definitions
         """
         # Define what the method should contain
         callbacks = {
-                    decorators.Bind: constants.IPOPO_CALLBACK_BIND,
-                    decorators.Unbind: constants.IPOPO_CALLBACK_UNBIND,
-                    decorators.Validate: constants.IPOPO_CALLBACK_VALIDATE,
-                    decorators.Invalidate: constants.IPOPO_CALLBACK_INVALIDATE
-                    }
+            decorators.Bind: constants.IPOPO_CALLBACK_BIND,
+            decorators.Unbind: constants.IPOPO_CALLBACK_UNBIND,
+            decorators.Validate: constants.IPOPO_CALLBACK_VALIDATE,
+            decorators.Invalidate: constants.IPOPO_CALLBACK_INVALIDATE
+        }
 
         # Define some non decorable types
         class BadClass(object):
@@ -80,17 +79,16 @@ class DecoratorsTest(unittest.TestCase):
         def correct_method(self, *args):
             pass
 
-
         bad_types = (None, 12, "Bad", BadClass)
         bad_methods = (None, empty_method, args_method, kwargs_method)
 
         self.assertFalse(hasattr(empty_method,
                                  constants.IPOPO_METHOD_CALLBACKS),
-                                 "The method is already tagged")
+                         "The method is already tagged")
 
         self.assertFalse(hasattr(correct_method,
                                  constants.IPOPO_METHOD_CALLBACKS),
-                                 "The method is already tagged")
+                         "The method is already tagged")
 
         for decorator, callback in callbacks.items():
             # Ensure that the empty  method will fail being decorated
@@ -111,7 +109,6 @@ class DecoratorsTest(unittest.TestCase):
             # Assert that the decorator raises a TypeError on invalid elements
             for bad in bad_types:
                 self.assertRaises(TypeError, decorator, bad)
-
 
     def testComponentFactory(self):
         """
@@ -153,7 +150,6 @@ class DecoratorsTest(unittest.TestCase):
         # Ensure the instantiation was not inherited
         self.assertNotIn(instance_name, child_context.get_instances(),
                          "Instance kept in child")
-
 
     def testInstantiate(self):
         """
@@ -197,7 +193,6 @@ class DecoratorsTest(unittest.TestCase):
         self.assertEqual(instances["test"]["id"], 1,
                          "Instance properties have been overridden")
 
-
     def testProperty(self):
         """
         Tests the @Property decorator
@@ -226,7 +221,6 @@ class DecoratorsTest(unittest.TestCase):
         for invalid in (None, method, 123):
             self.assertRaises(TypeError, decorators.Property("field", "name"),
                               invalid)
-
 
     def testProvides(self):
         """
@@ -260,7 +254,6 @@ class DecoratorsTest(unittest.TestCase):
             self.assertRaises(TypeError, decorators.Provides("spec", "field"),
                               invalid)
 
-
     def testRequires(self):
         """
         Tests the @Requires decorator
@@ -279,7 +272,8 @@ class DecoratorsTest(unittest.TestCase):
         # Invalid field or specification type
         for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
             self.assertRaises(TypeError, decorators.Requires, invalid)
-            self.assertRaises(ValueError, decorators.Requires, "field", invalid)
+            self.assertRaises(
+                ValueError, decorators.Requires, "field", invalid)
 
         # Invalid target
         for invalid in (None, method, 123):
@@ -311,7 +305,8 @@ class DecoratorsTest(unittest.TestCase):
         # Invalid field or specification type
         for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
             self.assertRaises(TypeError, decorators.Requires, invalid)
-            self.assertRaises(ValueError, decorators.Requires, "field", invalid)
+            self.assertRaises(
+                ValueError, decorators.Requires, "field", invalid)
 
         # Invalid target
         for invalid in (None, method, 123):
@@ -319,6 +314,7 @@ class DecoratorsTest(unittest.TestCase):
                               invalid)
 
 # ------------------------------------------------------------------------------
+
 
 class SimpleDecoratorsTests(unittest.TestCase):
     """
@@ -332,14 +328,12 @@ class SimpleDecoratorsTests(unittest.TestCase):
         self.framework.start()
         self.context = self.framework.get_bundle_context()
 
-
     def tearDown(self):
         """
         Called after each test
         """
         self.framework.stop()
         FrameworkFactory.delete_framework(self.framework)
-
 
     def testGetFactoryContext(self):
         """
@@ -356,11 +350,9 @@ class SimpleDecoratorsTests(unittest.TestCase):
                           constants.IPOPO_FACTORY_CONTEXT)
 
         # Convert the parent into a component
-        DummyClass = decorators.ComponentFactory("dummy-factory") \
-                     (
-                        decorators.Requires("field", "req")
-                        (DummyClass)
-                     )
+        DummyClass = decorators.ComponentFactory("dummy-factory")(
+            decorators.Requires("field", "req")
+            (DummyClass))
 
         # Get the context
         class_context = decorators.get_factory_context(DummyClass)
@@ -371,7 +363,6 @@ class SimpleDecoratorsTests(unittest.TestCase):
         child_context = decorators.get_factory_context(ChildClass)
         self.assertIsNot(child_context, class_context,
                          "The child must have a copy of the context")
-
 
     def testGetMethodDescription(self):
         """
@@ -396,7 +387,8 @@ class SimpleDecoratorsTests(unittest.TestCase):
         Tests the _get_specifications() method
         """
         for empty in (None, "", [], tuple()):
-            self.assertRaises(ValueError, decorators._get_specifications, empty)
+            self.assertRaises(
+                ValueError, decorators._get_specifications, empty)
 
         # Class specification
         class Spec(object):

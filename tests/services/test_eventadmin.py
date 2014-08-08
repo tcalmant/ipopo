@@ -26,6 +26,7 @@ __version__ = "1.0.0"
 
 # ------------------------------------------------------------------------------
 
+
 class DummyEventHandler(object):
     """
     Dummy event handler
@@ -43,7 +44,6 @@ class DummyEventHandler(object):
         self.change_props = False
         self.sleep = 0
 
-
     def handle_event(self, topic, properties):
         """
         Handles an event received from EventAdmin
@@ -60,7 +60,6 @@ class DummyEventHandler(object):
         self.last_props = properties
         self.__event.set()
 
-
     def pop_event(self):
         """
         Pops the list of events
@@ -72,7 +71,6 @@ class DummyEventHandler(object):
         event, self.last_event = self.last_event, None
         return event
 
-
     def wait(self, timeout):
         """
         Waits for the event to be received
@@ -80,6 +78,7 @@ class DummyEventHandler(object):
         self.__event.wait(timeout)
 
 # ------------------------------------------------------------------------------
+
 
 class EventAdminTest(unittest.TestCase):
     """
@@ -91,17 +90,16 @@ class EventAdminTest(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(
-                                                  ('pelix.ipopo.core',
-                                                   'pelix.services.eventadmin'))
+            ('pelix.ipopo.core',
+             'pelix.services.eventadmin'))
         self.framework.start()
 
         # Instantiate the EventAdmin component
         context = self.framework.get_bundle_context()
         with use_ipopo(context) as ipopo:
-            self.eventadmin = ipopo.instantiate(\
-                                            pelix.services.FACTORY_EVENT_ADMIN,
-                                            "evtadmin", {})
-
+            self.eventadmin = ipopo.instantiate(
+                pelix.services.FACTORY_EVENT_ADMIN,
+                "evtadmin", {})
 
     def _register_handler(self, topics, evt_filter=None):
         """
@@ -112,12 +110,11 @@ class EventAdminTest(unittest.TestCase):
         """
         svc = DummyEventHandler()
         context = self.framework.get_bundle_context()
-        svc_reg = context.register_service(pelix.services.SERVICE_EVENT_HANDLER,
-                               svc,
-                               {pelix.services.PROP_EVENT_TOPICS: topics,
-                                pelix.services.PROP_EVENT_FILTER: evt_filter})
+        svc_reg = context.register_service(
+            pelix.services.SERVICE_EVENT_HANDLER, svc,
+            {pelix.services.PROP_EVENT_TOPICS: topics,
+             pelix.services.PROP_EVENT_FILTER: evt_filter})
         return svc, svc_reg
-
 
     def tearDown(self):
         """
@@ -127,13 +124,11 @@ class EventAdminTest(unittest.TestCase):
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
         self.framework = None
 
-
     def testNoHandler(self):
         """
         Tests events when no event handler is registered
         """
         self.eventadmin.send('/titi/toto', {'some.value': 42})
-
 
     def testTopics(self):
         """
@@ -154,7 +149,6 @@ class EventAdminTest(unittest.TestCase):
         for topic in ('/toto/titi/42', '/titi', '/toto/42'):
             self.eventadmin.send(topic)
             self.assertEqual(handler.pop_event(), None)
-
 
     def testFilters(self):
         """
@@ -184,7 +178,6 @@ class EventAdminTest(unittest.TestCase):
             for value in (' 42 ', 21, [1, 2, 3], (4, 5, 6), set((7, 8, 9))):
                 self.eventadmin.send(topic, {'answer': value})
                 self.assertEqual(handler.pop_event(), None)
-
 
     def testPost(self):
         """
@@ -227,7 +220,6 @@ class EventAdminTest(unittest.TestCase):
         self.assertEqual(handler_2.pop_event(), topic)
         self.assertEqual(handler_3.pop_event(), None)
 
-
     def testProperties(self):
         """
         Ensures that each handler get its own copy of the properties
@@ -249,6 +241,5 @@ class EventAdminTest(unittest.TestCase):
             self.assertDictContainsSubset(evt_props, handler.last_props)
 
             # Check that the handler value has been stored
-            self.assertEqual(handler.last_props['change'], handler.change_props)
-
-# ------------------------------------------------------------------------------
+            self.assertEqual(
+                handler.last_props['change'], handler.change_props)

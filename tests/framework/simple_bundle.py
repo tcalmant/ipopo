@@ -17,18 +17,17 @@ raiser = False
 fw_raiser = False
 fw_raiser_stop = False
 
+
 @BundleActivator
 class ActivatorTest:
     """
     Test activator
     """
-
     def __init__(self):
         """
         Constructor
         """
         self.context = None
-
 
     def start(self, context):
         """
@@ -45,7 +44,6 @@ class ActivatorTest:
 
         global started
         started = True
-
 
     def stop(self, context):
         """

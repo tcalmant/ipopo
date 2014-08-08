@@ -25,6 +25,7 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+
 def applyTest(self, filters, key):
     """
     Applies a list of tests according to the given dictionary
@@ -38,28 +39,28 @@ def applyTest(self, filters, key):
 
     for filter_str, tests in filters.items():
         ldap_filter = get_ldap_filter(filter_str)
-        self.assertIsNotNone(ldap_filter, "{0} is a valid filter" \
+        self.assertIsNotNone(ldap_filter, "{0} is a valid filter"
                              .format(filter_str))
 
         for good in tests[0]:
             props[key] = good
             self.assertTrue(ldap_filter.matches(props),
-                            "Filter '{0}' should match {1}" \
+                            "Filter '{0}' should match {1}"
                             .format(ldap_filter, props))
 
         for bad in tests[1]:
             props[key] = bad
             self.assertFalse(ldap_filter.matches(props),
-                             "Filter '{0}' should not match {1}" \
+                             "Filter '{0}' should not match {1}"
                              .format(ldap_filter, props))
 
 # ------------------------------------------------------------------------------
+
 
 class LDAPUtilitiesTest(unittest.TestCase):
     """
     Tests for LDAP utility methods
     """
-
     def testComparator2str(self):
         """
         Tests comparator2str()
@@ -69,20 +70,19 @@ class LDAPUtilitiesTest(unittest.TestCase):
             ldap_filter = get_ldap_filter("(a{0}1)".format(comparator))
 
             # Get the string version of the parsed comparator
-            str_comparator = pelix.ldapfilter.comparator2str(\
-                                                        ldap_filter.comparator)
+            str_comparator = pelix.ldapfilter.comparator2str(
+                ldap_filter.comparator)
 
             self.assertEqual(str_comparator, comparator,
-                             "Bad string for comparator '{0}': '{1}'" \
+                             "Bad string for comparator '{0}': '{1}'"
                              .format(comparator, str_comparator))
 
         # Invalid comparators
         for comparator in (None, str, str(), int()):
             str_comparator = pelix.ldapfilter.comparator2str(comparator)
             self.assertEqual(str_comparator, "??",
-                             "Bad string for comparator '{0}': '{1}'" \
+                             "Bad string for comparator '{0}': '{1}'"
                              .format(comparator, str_comparator))
-
 
     def testOperator2str(self):
         """
@@ -95,7 +95,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
         for operator, str_operator in operators.items():
             conv_operator = pelix.ldapfilter.operator2str(operator)
             self.assertEqual(str_operator, conv_operator,
-                             "Invalid operator conversion '{0}': '{1}'" \
+                             "Invalid operator conversion '{0}': '{1}'"
                              .format(str_operator, conv_operator))
 
         for operator in (None, str, int, str(), "AND", "OR", "NOT", 42):
@@ -103,7 +103,6 @@ class LDAPUtilitiesTest(unittest.TestCase):
             self.assertEqual("<unknown>", conv_operator,
                              "Invalid operator conversion '{0}': '{1}'"
                              .format(str_operator, conv_operator))
-
 
     def testEscapeLDAP(self):
         """
@@ -113,45 +112,35 @@ class LDAPUtilitiesTest(unittest.TestCase):
         https://www.owasp.org/index.php/Preventing_LDAP_Injection_in_Java
         """
         # Tested values: normal -> escaped
-        tested_values = {
-                         # None -> None
-                         None: None,
-
+        tested_values = {None: None,
                          # Empty string -> Empty string
-                         "":"",
-
+                         "": "",
                          # No escape needed
                          "Helloé": "Helloé",
-
                          # Sharp escape
                          "# Helloé": "\\# Helloé",
-
                          # Space escapes
                          " Helloé": "\\ Helloé",
                          "Helloé ": "Helloé\\ ",
                          "Hello é": "Hello é",
-
                          # Only spaces
                          "   ": "\\  \\ ",
-
                          # Complex
                          ' Hello\\ + , "World" ; ':
-                                    '\\ Hello\\\\ \\+ \\, \\"World\\" \\;\\ ',
-                         }
+                             '\\ Hello\\\\ \\+ \\, \\"World\\" \\;\\ '}
 
         for normal, escaped in tested_values.items():
             # Escape
             ldap_escape = pelix.ldapfilter.escape_LDAP(normal)
             self.assertEqual(escaped, ldap_escape,
-                             "Invalid escape '{0}' should be '{1}'" \
+                             "Invalid escape '{0}' should be '{1}'"
                              .format(ldap_escape, escaped))
 
             # Un-escape
             ldap_unescape = pelix.ldapfilter.unescape_LDAP(ldap_escape)
             self.assertEqual(escaped, ldap_escape,
-                             "Invalid unescape '{0}' should be '{1}'" \
+                             "Invalid unescape '{0}' should be '{1}'"
                              .format(ldap_unescape, normal))
-
 
     def testParseCriteria(self):
         """
@@ -163,7 +152,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
                               pelix.ldapfilter._parse_ldap_criteria, invalid)
 
         # Escape test (avoid the first test)
-        value = "a=2 tes\ t\==1\ 2\~"
+        value = "a=2 tes\\ t\\==1\\ 2\\~"
         criteria = pelix.ldapfilter._parse_ldap_criteria(value, 4, len(value))
         self.assertEqual(criteria.name, "tes t=",
                          "Escaped name not correctly parsed")
@@ -178,8 +167,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
 
         self.assertRaises(ValueError,
                           pelix.ldapfilter._parse_ldap_criteria,
-                          test_str, len(test_str) - 1 , len(test_str) - 2)
-
+                          test_str, len(test_str) - 1, len(test_str) - 2)
 
     def testParseLDAP(self):
         """
@@ -193,13 +181,14 @@ class LDAPUtilitiesTest(unittest.TestCase):
         # Invalid filters
         for invalid in ("(", "(test", "(|(test=True)(test=False))))",
                         "(test)", "((test=1)(test2=1))"):
-            self.assertRaises(ValueError, pelix.ldapfilter._parse_ldap, invalid)
+            self.assertRaises(ValueError, pelix.ldapfilter._parse_ldap,
+                              invalid)
 
         # Criteria parsing
-        criteria = pelix.ldapfilter.LDAPCriteria("test", True,
-                                             pelix.ldapfilter._comparator_eq)
-        self.assertEqual(pelix.ldapfilter._parse_ldap(str(criteria)), criteria,
-                         "Incorrect result: {0}".format(criteria))
+        criteria = pelix.ldapfilter.LDAPCriteria(
+            "test", True, pelix.ldapfilter._comparator_eq)
+        self.assertEqual(pelix.ldapfilter._parse_ldap(str(criteria)),
+                         criteria, "Incorrect result: {0}".format(criteria))
 
         # Filter parsing
         ldap_filter = pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.AND)
@@ -211,14 +200,13 @@ class LDAPUtilitiesTest(unittest.TestCase):
         ldap_filter.subfilters.append(sub_filter)
         ldap_filter.subfilters.append(criteria)
 
-        criteria_2 = pelix.ldapfilter.LDAPCriteria("te st=", True,
-                                                pelix.ldapfilter._comparator_eq)
+        criteria_2 = pelix.ldapfilter.LDAPCriteria(
+            "te st=", True, pelix.ldapfilter._comparator_eq)
         ldap_filter.subfilters.append(criteria_2)
 
         self.assertEqual(pelix.ldapfilter._parse_ldap(str(ldap_filter)),
                          ldap_filter.normalize(),
                          "Incorrect result: {0}".format(ldap_filter))
-
 
     def testCombine(self):
         """
@@ -266,7 +254,6 @@ class LDAPUtilitiesTest(unittest.TestCase):
                                                         ldap_filter_2)),
                       ldap_filter_1, "The result of combine must be minimal")
 
-
     def testGetLdapFilter(self):
         """
         Tests the get_ldap_filter() method
@@ -293,6 +280,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+
 class LDAPCriteriaTest(unittest.TestCase):
     """
     Tests for the LDAP criteria behavior
@@ -305,12 +293,12 @@ class LDAPCriteriaTest(unittest.TestCase):
             for value in (None, "", "value"):
                 for comparator in (None, True, lambda x: True):
                     if not all((name, value, comparator)) \
-                    or (not inspect.isfunction(comparator) \
-                        and not inspect.ismethod(comparator)):
+                            or (not inspect.isfunction(comparator)
+                                and not inspect.ismethod(comparator)):
                         # One value is None
                         self.assertRaises(ValueError,
                                           pelix.ldapfilter.LDAPCriteria, name,
-                                                            value, comparator)
+                                          value, comparator)
 
                     else:
                         # All values are OK
@@ -320,10 +308,10 @@ class LDAPCriteriaTest(unittest.TestCase):
                                          "Name modified")
                         self.assertEqual(value, criteria.value,
                                          "Value modified")
-                        self.assertTrue(inspect.ismethod(criteria.comparator) or
-                                        inspect.isfunction(criteria.comparator),
-                                        "Invalid comparator accepted")
-
+                        self.assertTrue(
+                            inspect.ismethod(criteria.comparator)
+                            or inspect.isfunction(criteria.comparator),
+                            "Invalid comparator accepted")
 
     def testRepr(self):
         """
@@ -351,7 +339,6 @@ class LDAPCriteriaTest(unittest.TestCase):
         # Equality based on the string form
         self.assertEqual(str_criteria, str(eval_filter), "Invalid evaluation")
 
-
     def testEq(self):
         """
         Tests the LDAPFilter objects equality
@@ -364,8 +351,9 @@ class LDAPCriteriaTest(unittest.TestCase):
         self.assertNotEqual(ldap_filter, None, "Filter is not equal to None")
         self.assertEqual(ldap_filter, ldap_filter, "Filter is not self-equal")
         self.assertNotEqual(pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.NOT),
-                            pelix.ldapfilter.LDAPCriteria('test', 123,
-                                    pelix.ldapfilter._comparator_approximate),
+                            pelix.ldapfilter.LDAPCriteria(
+                                'test', 123,
+                                pelix.ldapfilter._comparator_approximate),
                             "Invalid equality (type)")
 
         # Tests order must not provide a different filter
@@ -379,12 +367,13 @@ class LDAPCriteriaTest(unittest.TestCase):
         self.assertNotEqual(get_ldap_filter("(test2=true)"), ldap_filter,
                             "Invalid equality (type, reverse)")
 
-        self.assertNotEqual(ldap_filter,
-                        get_ldap_filter("(&(test=False)(test2=True)(test3=1))"),
-                        "Invalid equality (size)")
         self.assertNotEqual(
-                        get_ldap_filter("(&(test=False)(test2=True)(test3=1))"),
-                        ldap_filter, "Invalid equality (size, reverse)")
+            ldap_filter,
+            get_ldap_filter("(&(test=False)(test2=True)(test3=1))"),
+            "Invalid equality (size)")
+        self.assertNotEqual(
+            get_ldap_filter("(&(test=False)(test2=True)(test3=1))"),
+            ldap_filter, "Invalid equality (size, reverse)")
 
         self.assertNotEqual(ldap_filter,
                             get_ldap_filter("(&(test1=False)(test2=True))"),
@@ -396,9 +385,9 @@ class LDAPCriteriaTest(unittest.TestCase):
         self.assertNotEqual(ldap_filter,
                             get_ldap_filter("(|(test=False)(test2=True))"),
                             "Invalid equality (operator)")
-        self.assertNotEqual(get_ldap_filter("(|(test=False)(test2=True))"),
-                            ldap_filter, "Invalid equality (operator, reverse)")
-
+        self.assertNotEqual(
+            get_ldap_filter("(|(test=False)(test2=True))"),
+            ldap_filter, "Invalid equality (operator, reverse)")
 
     def testNormalize(self):
         """
@@ -408,16 +397,16 @@ class LDAPCriteriaTest(unittest.TestCase):
         self.assertIs(criteria, criteria.normalize(),
                       "Criteria.normalize() must return itself")
 
-
     def testEmptyCriteria(self):
         """
         Empty filter test
         """
-        self.assertIsNone(get_ldap_filter(None), "None filter must return None")
-        self.assertIsNone(get_ldap_filter(""), "Empty filter must return None")
+        self.assertIsNone(get_ldap_filter(None),
+                          "None filter must return None")
+        self.assertIsNone(get_ldap_filter(""),
+                          "Empty filter must return None")
         self.assertIsNone(get_ldap_filter(" "),
                           "Trimmed filter must return None")
-
 
     def testSimpleCriteria(self):
         """
@@ -431,25 +420,24 @@ class LDAPCriteriaTest(unittest.TestCase):
         # Test with a single property
         props["valid"] = True
         self.assertTrue(ldap_filter.matches(props),
-                        "Filter '{0}' should match {1}" \
+                        "Filter '{0}' should match {1}"
                         .format(ldap_filter, props))
 
         props["valid"] = False
         self.assertFalse(ldap_filter.matches(props),
-                         "Filter '{0}' should not match {1}" \
+                         "Filter '{0}' should not match {1}"
                          .format(ldap_filter, props))
 
         # Test the ignorance of other properties
         props["valid2"] = True
         self.assertFalse(ldap_filter.matches(props),
-                         "Filter '{0}' should not match {1}" \
+                         "Filter '{0}' should not match {1}"
                          .format(ldap_filter, props))
 
         props["valid"] = "True"
         self.assertTrue(ldap_filter.matches(props),
-                        "Filter '{0}' should match {1}" \
+                        "Filter '{0}' should match {1}"
                         .format(ldap_filter, props))
-
 
     def testPresenceCriteria(self):
         """
@@ -462,39 +450,38 @@ class LDAPCriteriaTest(unittest.TestCase):
 
         # Missing value
         self.assertFalse(ldap_filter.matches(props),
-                         "Filter '{0}' should not match {1}" \
+                         "Filter '{0}' should not match {1}"
                          .format(ldap_filter, props))
 
         # Still missing
         props["valid2"] = True
         self.assertFalse(ldap_filter.matches(props),
-                         "Filter '{0}' should not match {1}" \
+                         "Filter '{0}' should not match {1}"
                          .format(ldap_filter, props))
 
         # Value present
         props["valid"] = True
         self.assertTrue(ldap_filter.matches(props),
-                        "Filter '{0}' should match {1}" \
+                        "Filter '{0}' should match {1}"
                         .format(ldap_filter, props))
 
         props["valid"] = False
         self.assertTrue(ldap_filter.matches(props),
-                        "Filter '{0}' should match {1}" \
+                        "Filter '{0}' should match {1}"
                         .format(ldap_filter, props))
 
         # Some other type
         props["valid"] = "1234"
         self.assertTrue(ldap_filter.matches(props),
-                        "Filter '{0}' should match {1}" \
+                        "Filter '{0}' should match {1}"
                         .format(ldap_filter, props))
 
         # Empty values
         for empty in ('', [], tuple()):
             props["valid"] = empty
             self.assertFalse(ldap_filter.matches(props),
-                             "Filter '{0}' should not match {1}" \
+                             "Filter '{0}' should not match {1}"
                              .format(ldap_filter, props))
-
 
     def testStarCriteria(self):
         """
@@ -517,7 +504,7 @@ class LDAPCriteriaTest(unittest.TestCase):
 
         # List test
         filters["(string=*li*ed*)"] = ((["listed"], ["toto", "aaaliXed123"]),
-                                      ([], ["LixeD"], ["toto"]))
+                                       ([], ["LixeD"], ["toto"]))
 
         applyTest(self, filters, "string")
 
@@ -527,7 +514,6 @@ class LDAPCriteriaTest(unittest.TestCase):
 
         self.assertTrue(pelix.ldapfilter._comparator_star('T*ue', 'True'),
                         "String star test failure")
-
 
     def testListCriteria(self):
         """
@@ -540,7 +526,6 @@ class LDAPCriteriaTest(unittest.TestCase):
                                   ([], ["titi"], ["*toto*"]))
 
         applyTest(self, filters, "list")
-
 
     def testInequalityCriteria(self):
         """
@@ -587,7 +572,6 @@ class LDAPCriteriaTest(unittest.TestCase):
         self.assertFalse(pelix.ldapfilter._comparator_lt('13.0 + 1j', 12.0),
                          "Complex/Float comparison error")
 
-
     def testApproximateCriteria(self):
         """
         Tests the approximate criteria
@@ -609,14 +593,16 @@ class LDAPCriteriaTest(unittest.TestCase):
         applyTest(self, filters, "string")
 
         # Direct call test (for other cases)
-        self.assertFalse(pelix.ldapfilter._comparator_approximate('test', None),
-                         "Invalid None test result")
+        self.assertFalse(
+            pelix.ldapfilter._comparator_approximate('test', None),
+            "Invalid None test result")
 
-        self.assertTrue(pelix.ldapfilter._comparator_approximate('test',
-                                                                 ['Test', 12]),
-                         "Invalid list test result")
+        self.assertTrue(
+            pelix.ldapfilter._comparator_approximate('test', ['Test', 12]),
+            "Invalid list test result")
 
 # ------------------------------------------------------------------------------
+
 
 class LDAPFilterTest(unittest.TestCase):
     """
@@ -637,7 +623,6 @@ class LDAPFilterTest(unittest.TestCase):
                              "Operator modified")
             self.assertEqual(len(ldap_filter.subfilters), 0,
                              "Filter not empty after init")
-
 
     def testRepr(self):
         """
@@ -673,9 +658,8 @@ class LDAPFilterTest(unittest.TestCase):
 
                     self.assertEqual(ldap_filter.matches(properties),
                                      eval_filter.matches(properties),
-                                     "Different result found for {0}" \
+                                     "Different result found for {0}"
                                      .format(properties))
-
 
     def testEq(self):
         """
@@ -688,10 +672,11 @@ class LDAPFilterTest(unittest.TestCase):
         # Test with other values
         self.assertNotEqual(ldap_filter, None, "Filter is not equal to None")
         self.assertEqual(ldap_filter, ldap_filter, "Filter is not self-equal")
-        self.assertNotEqual(pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.NOT),
-                            pelix.ldapfilter.LDAPCriteria('test', 123,
-                                    pelix.ldapfilter._comparator_approximate),
-                            "Invalid equality (type)")
+        self.assertNotEqual(
+            pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.NOT),
+            pelix.ldapfilter.LDAPCriteria(
+                'test', 123, pelix.ldapfilter._comparator_approximate),
+            "Invalid equality (type)")
 
         # Tests order must not provide a different filter
         str_filter_2 = "(&(test2=True)(test=False))"
@@ -702,9 +687,10 @@ class LDAPFilterTest(unittest.TestCase):
         self.assertNotEqual(ldap_filter, get_ldap_filter("(test2=true)"),
                             "Invalid equality (type)")
 
-        self.assertNotEqual(ldap_filter,
-                        get_ldap_filter("(&(test=False)(test2=True)(test3=1))"),
-                        "Invalid equality (size)")
+        self.assertNotEqual(
+            ldap_filter,
+            get_ldap_filter("(&(test=False)(test2=True)(test3=1))"),
+            "Invalid equality (size)")
 
         self.assertNotEqual(ldap_filter,
                             get_ldap_filter("(&(test1=False)(test2=True))"),
@@ -713,7 +699,6 @@ class LDAPFilterTest(unittest.TestCase):
         self.assertNotEqual(ldap_filter,
                             get_ldap_filter("(|(test=False)(test2=True))"),
                             "Invalid equality (operator)")
-
 
     def testAppend(self):
         """
@@ -739,7 +724,6 @@ class LDAPFilterTest(unittest.TestCase):
         # No more value must be accepted
         self.assertRaises(ValueError, ldap_filter.append, criteria)
 
-
     def testNormalize(self):
         """
         Tests the normalize() method
@@ -761,15 +745,15 @@ class LDAPFilterTest(unittest.TestCase):
         ldap_filter = pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.NOT)
         ldap_filter.append(criteria)
         self.assertIs(ldap_filter.normalize(), ldap_filter,
-                         "'Not' filter with 1 child must return itself")
+                      "'Not' filter with 1 child must return itself")
 
         # 'And', 'Or' filter
         for operator in (pelix.ldapfilter.AND, pelix.ldapfilter.OR):
             ldap_filter = pelix.ldapfilter.LDAPFilter(operator)
             ldap_filter.append(criteria)
-            self.assertEqual(ldap_filter.normalize(), criteria,
-                             "'And' or 'Or' with 1 child must return the child")
-
+            self.assertEqual(
+                ldap_filter.normalize(), criteria,
+                "'And' or 'Or' with 1 child must return the child")
 
     def testNot(self):
         """
@@ -790,7 +774,6 @@ class LDAPFilterTest(unittest.TestCase):
         self.assertRaises(ValueError, get_ldap_filter,
                           "(!(test=True)(test2=False))")
 
-
     def testAnd(self):
         """
         Tests the AND operator
@@ -802,26 +785,26 @@ class LDAPFilterTest(unittest.TestCase):
         props["test"] = True
         props["test2"] = False
         self.assertTrue(ldap_filter.matches(props),
-                        "Filter '{0}' should match {1}" \
+                        "Filter '{0}' should match {1}"
                         .format(ldap_filter, props))
 
         # Invalid...
         props["test"] = False
         props["test2"] = False
         self.assertFalse(ldap_filter.matches(props),
-                         "Filter '{0}' should not match {1}" \
+                         "Filter '{0}' should not match {1}"
                          .format(ldap_filter, props))
 
         props["test"] = False
         props["test2"] = True
         self.assertFalse(ldap_filter.matches(props),
-                         "Filter '{0}' should not match {1}" \
+                         "Filter '{0}' should not match {1}"
                          .format(ldap_filter, props))
 
         props["test"] = True
         props["test2"] = True
         self.assertFalse(ldap_filter.matches(props),
-                         "Filter '{0}' should not match {1}" \
+                         "Filter '{0}' should not match {1}"
                          .format(ldap_filter, props))
 
     def testOr(self):
@@ -835,32 +818,29 @@ class LDAPFilterTest(unittest.TestCase):
         props["test"] = True
         props["test2"] = False
         self.assertTrue(ldap_filter.matches(props),
-                        "Filter '{0}' should match {1}" \
+                        "Filter '{0}' should match {1}"
                         .format(ldap_filter, props))
 
         props["test"] = False
         props["test2"] = False
         self.assertTrue(ldap_filter.matches(props),
-                        "Filter '{0}' should match {1}" \
+                        "Filter '{0}' should match {1}"
                         .format(ldap_filter, props))
 
         props["test"] = True
         props["test2"] = True
         self.assertTrue(ldap_filter.matches(props),
-                        "Filter '{0}' should match {1}" \
+                        "Filter '{0}' should match {1}"
                         .format(ldap_filter, props))
 
         # Invalid...
         props["test"] = False
         props["test2"] = True
         self.assertFalse(ldap_filter.matches(props),
-                         "Filter '{0}' should not match {1}" \
+                         "Filter '{0}' should not match {1}"
                          .format(ldap_filter, props))
 
 # ------------------------------------------------------------------------------
 
-def main():
-    unittest.main()
-
 if __name__ == "__main__":
-    main()
+    unittest.main()

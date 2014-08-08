@@ -24,6 +24,7 @@ SERVICE_BUNDLE = "tests.framework.service_bundle"
 
 # ------------------------------------------------------------------------------
 
+
 class UtilityMethodsTest(unittest.TestCase):
     """
     Pelix utility methods tests
@@ -35,7 +36,6 @@ class UtilityMethodsTest(unittest.TestCase):
         self.framework = None
         self.test_bundle_name = SERVICE_BUNDLE
 
-
     def tearDown(self):
         """
         Called after each test
@@ -43,7 +43,6 @@ class UtilityMethodsTest(unittest.TestCase):
         if self.framework is not None:
             FrameworkFactory.delete_framework(self.framework)
             self.framework = None
-
 
     def testCreateFrameworkBasic(self):
         """
@@ -59,7 +58,6 @@ class UtilityMethodsTest(unittest.TestCase):
         # Try to start two framework
         self.assertRaises(ValueError, pelix.create_framework, [])
 
-
     def testCreateFrameworkWithBundles(self):
         """
         Tests create_framework(), with specified bundles
@@ -74,7 +72,6 @@ class UtilityMethodsTest(unittest.TestCase):
         bundle = self.framework.get_bundle_by_id(1)
         self.assertEqual(bundle.get_symbolic_name(), self.test_bundle_name,
                          "The test bundle hasn't been installed correctly")
-
 
     def testCreateFrameworkAutoStart(self):
         """

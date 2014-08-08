@@ -17,6 +17,7 @@ unregistered = False
 service = None
 unregister = True
 
+
 class ServiceTest(IEchoService):
     """
     Simple test service
@@ -28,13 +29,11 @@ class ServiceTest(IEchoService):
         self.toto = 0
         self.registration = None
 
-
     def echo(self, value):
         """
         Returns the given value
         """
         return value
-
 
     def modify(self, new_props):
         """
@@ -48,14 +47,12 @@ class ActivatorService:
     """
     Test activator
     """
-
     def __init__(self):
         """
         Constructor
         """
         self.context = None
         self.svc = None
-
 
     def start(self, context):
         """
@@ -67,12 +64,11 @@ class ActivatorService:
         # Register the service
         self.svc = ServiceTest()
         self.svc.registration = \
-                context.register_service(IEchoService, self.svc, \
-                                         {"test": True, "answer": 0})
+            context.register_service(IEchoService, self.svc,
+                                     {"test": True, "answer": 0})
 
         global service
         service = self.svc
-
 
     def stop(self, context):
         """

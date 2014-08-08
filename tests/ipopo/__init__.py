@@ -7,9 +7,10 @@ Test package for iPOPO
 """
 
 # iPOPO
-from pelix.ipopo.constants  import get_ipopo_svc_ref
+from pelix.ipopo.constants import get_ipopo_svc_ref
 
 # ------------------------------------------------------------------------------
+
 
 def install_bundle(framework, bundle_name="tests.ipopo.ipopo_bundle"):
     """

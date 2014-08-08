@@ -37,6 +37,7 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+
 class ShellClient(object):
     """
     Simple client of the remote shell
@@ -52,7 +53,6 @@ class ShellClient(object):
         self.__wait_prompt = True
         self.__prefix = ""
 
-
     def connect(self, access):
         """
         Connects to the remote shell
@@ -65,13 +65,11 @@ class ShellClient(object):
         if banner != self._banner:
             self.fail("Incorrect banner read from remote shell")
 
-
     def close(self):
         """
         Close the connection
         """
         self._socket.close()
-
 
     def wait_prompt(self, raise_error=True):
         """
@@ -97,7 +95,6 @@ class ShellClient(object):
 
         return data
 
-
     def run_command(self, command, disconnect=False):
         """
         Runs a command on the remote shell
@@ -121,6 +118,7 @@ class ShellClient(object):
 
 # ------------------------------------------------------------------------------
 
+
 class RemoteShellTest(unittest.TestCase):
     """
     Tests the remote shell by comparing local and remote outputs
@@ -141,10 +139,10 @@ class RemoteShellTest(unittest.TestCase):
 
         # Start the remote shell
         with use_ipopo(context) as ipopo:
-            self.remote = ipopo.instantiate(FACTORY_REMOTE_SHELL, "remoteShell",
-                                            {'pelix.shell.address': '127.0.0.1',
-                                             'pelix.shell.port': 9000})
-
+            self.remote = ipopo.instantiate(
+                FACTORY_REMOTE_SHELL, "remoteShell",
+                {'pelix.shell.address': '127.0.0.1',
+                 'pelix.shell.port': 9000})
 
     def tearDown(self):
         """
@@ -155,7 +153,6 @@ class RemoteShellTest(unittest.TestCase):
         self.remote = None
         self.shell = None
         self.framework = None
-
 
     def _run_local_command(self, command, *args):
         """
@@ -171,7 +168,6 @@ class RemoteShellTest(unittest.TestCase):
         # Run command
         self.shell.execute(command, stdout=str_output)
         return str_output.getvalue().strip()
-
 
     def testCoreVsRemoteCommands(self):
         """
@@ -194,7 +190,6 @@ class RemoteShellTest(unittest.TestCase):
         finally:
             # Close the client in any case
             client.close()
-
 
     def testRemoteVsRemoteCommands(self):
         """
@@ -222,7 +217,6 @@ class RemoteShellTest(unittest.TestCase):
             # Close the client in any case
             client_1.close()
             client_2.close()
-
 
     def testDualRemoteShell(self):
         """
@@ -260,7 +254,6 @@ class RemoteShellTest(unittest.TestCase):
             client_1.close()
             client_2.close()
 
-
     def testInvalidConfiguration(self):
         """
         Tests the instantiation of the remote shell with invalid port
@@ -291,7 +284,6 @@ class RemoteShellTest(unittest.TestCase):
                 self.assertTrue(remote.get_access()[0])
                 ipopo.kill("remoteShell_test")
 
-
     def testClientDisconnect(self):
         """
         Tests the behavior of the server when a client disconnects before
@@ -321,7 +313,6 @@ class RemoteShellTest(unittest.TestCase):
         # Close clients
         client_2.close()
         client_1.close()
-
 
     def testClientInactive(self):
         """

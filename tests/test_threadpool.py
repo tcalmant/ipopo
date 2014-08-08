@@ -28,6 +28,7 @@ except ImportError:
 
 # ------------------------------------------------------------------------------
 
+
 def _slow_call(wait, result):
     """
     Method that returns after the given time (in seconds)
@@ -36,6 +37,7 @@ def _slow_call(wait, result):
     return result
 
 # ------------------------------------------------------------------------------
+
 
 class FutureTest(unittest.TestCase):
     """
@@ -47,13 +49,11 @@ class FutureTest(unittest.TestCase):
         """
         return (pos1, pos2, result)
 
-
     def _raise_call(self):
         """
         Method that raises a ValueError exception
         """
         raise ValueError("Buggy method")
-
 
     def testSimple(self):
         """
@@ -76,7 +76,6 @@ class FutureTest(unittest.TestCase):
         self.assertEqual(future.result(), (result1, result2, result3),
                          "Invalid result")
 
-
     def testRaise(self):
         """
         Tests the traversal of an exception
@@ -89,7 +88,6 @@ class FutureTest(unittest.TestCase):
         # The call must be considered as done
         self.assertTrue(future.done(), "Execution flag not updated")
         self.assertIsNone(future.result(), "A result has been set")
-
 
     def testTimeout(self):
         """
@@ -118,6 +116,7 @@ class FutureTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+
 class ThreadPoolTest(unittest.TestCase):
     """
     Tests the thread pool utility class
@@ -129,7 +128,6 @@ class ThreadPoolTest(unittest.TestCase):
         # Pool member
         self.pool = None
 
-
     def tearDown(self):
         """
         Cleans up the test
@@ -138,7 +136,6 @@ class ThreadPoolTest(unittest.TestCase):
         if self.pool is not None:
             self.pool.stop()
 
-
     def testInitParameters(self):
         """
         Tests the validity checks on thread pool creation
@@ -146,7 +143,6 @@ class ThreadPoolTest(unittest.TestCase):
         # Invalid number of threads
         for invalid_nb in (0, -1, 5.1):
             self.assertRaises(ValueError, threadpool.ThreadPool, invalid_nb)
-
 
     def testPreStartEnqueue(self):
         """
@@ -165,7 +161,6 @@ class ThreadPoolTest(unittest.TestCase):
         # Wait for the result
         self.assertIs(future.result(1), result, "Invalid result")
         self.assertTrue(future.done(), "Execution flag not updated")
-
 
     def testPreRestartEnqueue(self):
         """

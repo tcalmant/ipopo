@@ -36,6 +36,7 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+
 class ShellUtilsTest(unittest.TestCase):
     """
     Tests the shell utility service
@@ -56,7 +57,6 @@ class ShellUtilsTest(unittest.TestCase):
         svc_ref = self.context.get_service_reference(SERVICE_SHELL_UTILS)
         self.utility = self.context.get_service(svc_ref)
 
-
     def tearDown(self):
         """
         Cleans up the framework
@@ -66,7 +66,6 @@ class ShellUtilsTest(unittest.TestCase):
         self.utility = None
         self.context = None
         self.framework = None
-
 
     def testTableSimple(self):
         """
@@ -100,7 +99,6 @@ class ShellUtilsTest(unittest.TestCase):
         self.assertEqual(self.utility.make_table(headers, lines, '  '),
                          result, "Different outputs")
 
-
     def testTableEmpty(self):
         """
         Tests the creation of an empty table
@@ -113,7 +111,6 @@ class ShellUtilsTest(unittest.TestCase):
 """
         self.assertEqual(self.utility.make_table(headers, []),
                          result, "Different outputs")
-
 
     def testTableBadCount(self):
         """
@@ -132,7 +129,6 @@ class ShellUtilsTest(unittest.TestCase):
                           headers, bad_columns_2,
                           "Missing columns accepted")
 
-
     def testTableBadType(self):
         """
         Tests invalid types of line
@@ -146,10 +142,13 @@ class ShellUtilsTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+
 class ShellCoreTest(unittest.TestCase):
+
     """
     Tests the shell core service
     """
+
     def setUp(self):
         """
         Starts a framework and install the shell bundle
@@ -169,7 +168,6 @@ class ShellCoreTest(unittest.TestCase):
         # Command flags
         self._flag = False
 
-
     def tearDown(self):
         """
         Cleans up the framework
@@ -181,13 +179,11 @@ class ShellCoreTest(unittest.TestCase):
         self.framework = None
         self._flag = False
 
-
     def _command1(self, io_handler):
         """
         Test command
         """
         self._flag = True
-
 
     def testRegister(self):
         """
@@ -205,14 +201,13 @@ class ShellCoreTest(unittest.TestCase):
 
         # Invalid command
         for invalid in (None, "", "  "):
-            self.assertFalse(self.shell.register_command("test", invalid,
-                                                         self._command1),
-                             "Invalid command registered: '{0}'".format(invalid))
+            self.assertFalse(
+                self.shell.register_command("test", invalid, self._command1),
+                "Invalid command registered: '{0}'".format(invalid))
 
         # Invalid method
         self.assertFalse(self.shell.register_command("test", "invalid", None),
                          "Invalid method registered")
-
 
     def testExecute(self):
         """
@@ -233,7 +228,6 @@ class ShellCoreTest(unittest.TestCase):
                         "Error in executing 'command'")
         self.assertTrue(self._flag, "Command not called")
 
-
     def testExecuteInvalid(self):
         """
         Tests execution of empty or unknown commands
@@ -247,7 +241,6 @@ class ShellCoreTest(unittest.TestCase):
         for unknown in ("unknown", "test.unknown", "unknown.unknown"):
             self.assertFalse(self.shell.execute(unknown),
                              "No error executing unknown command")
-
 
     def testUnregister(self):
         """
@@ -274,7 +267,6 @@ class ShellCoreTest(unittest.TestCase):
                          "Succeeded executing 'test.command'")
         self.assertFalse(self._flag, "Command called")
 
-
     def testGetters(self):
         """
         Tests get_*() methods
@@ -298,7 +290,6 @@ class ShellCoreTest(unittest.TestCase):
         self.assertIn("command", self.shell.get_commands('test'),
                       "Registered command not in get_commands")
 
-
     def testMultiplePossibilities(self):
         """
         Tests the execution of multiple command possibilities
@@ -321,10 +312,13 @@ class ShellCoreTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+
 class ShellCommandTest(unittest.TestCase):
+
     """
     Tests the shell core service
     """
+
     def setUp(self):
         """
         Starts a framework and install the shell bundle
@@ -341,7 +335,6 @@ class ShellCommandTest(unittest.TestCase):
         svc_ref = self.context.get_service_reference(SERVICE_SHELL)
         self.shell = self.context.get_service(svc_ref)
 
-
     def tearDown(self):
         """
         Cleans up the framework
@@ -351,7 +344,6 @@ class ShellCommandTest(unittest.TestCase):
         self.shell = None
         self.context = None
         self.framework = None
-
 
     def testPositional(self):
         """
@@ -374,10 +366,9 @@ class ShellCommandTest(unittest.TestCase):
         # Invalid call
         for invalid in ([1], (1, 2, 3)):
             args = ' '.join(str(arg) for arg in invalid)
-            self.assertFalse(self.shell.execute('test.command {0}' \
+            self.assertFalse(self.shell.execute('test.command {0}'
                                                 .format(args)),
                              "Invalid call passed")
-
 
     def testKeywords(self):
         """
@@ -415,15 +406,16 @@ class ShellCommandTest(unittest.TestCase):
         self.assertFalse(self.shell.execute('test.command 1 2'),
                          "Invalid call passed")
 
-
     def testWhiteboard(self):
         """
         Tests commands registered by a service
         """
         class CommandService(object):
+
             """
             Command service
             """
+
             def __init__(self):
                 self.flag = False
 
@@ -465,10 +457,13 @@ class ShellCommandTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+
 class ShellCoreCommandsTest(unittest.TestCase):
+
     """
     Tests the shell core commands
     """
+
     def setUp(self):
         """
         Starts a framework and install the shell bundle
@@ -481,7 +476,6 @@ class ShellCoreCommandsTest(unittest.TestCase):
         svc_ref = self.context.get_service_reference(SERVICE_SHELL)
         self.shell = self.context.get_service(svc_ref)
 
-
     def tearDown(self):
         """
         Cleans up the framework
@@ -491,7 +485,6 @@ class ShellCoreCommandsTest(unittest.TestCase):
         self.shell = None
         self.context = None
         self.framework = None
-
 
     def _run_command(self, command, *args):
         """
@@ -507,7 +500,6 @@ class ShellCoreCommandsTest(unittest.TestCase):
         # Run command
         self.shell.execute(command, stdout=str_output)
         return str_output.getvalue()
-
 
     def testHelp(self):
         """
@@ -537,7 +529,6 @@ class ShellCoreCommandsTest(unittest.TestCase):
                 self.assertIn(namespace, output)
                 self.assertIn(command, output)
 
-
     def testEcho(self):
         """
         Tests the echo command
@@ -545,7 +536,6 @@ class ShellCoreCommandsTest(unittest.TestCase):
         echo_value = "Hello, World !"
         output = self._run_command("echo {0}", echo_value)
         self.assertEqual(output.strip(), echo_value)
-
 
     def testBundlesInfo(self):
         """
@@ -585,7 +575,6 @@ class ShellCoreCommandsTest(unittest.TestCase):
         self.assertIn("Unknown bundle", output)
         output = self._run_command('bd aaa')
         self.assertIn("Unknown bundle", output)
-
 
     def testBundlesCommands(self):
         """
@@ -627,7 +616,6 @@ class ShellCoreCommandsTest(unittest.TestCase):
 
             output = self._run_command('{0} {1}', command, -1)
             self.assertIn("Unknown bundle", output)
-
 
     def testServicesInfo(self):
         """
@@ -676,7 +664,6 @@ class ShellCoreCommandsTest(unittest.TestCase):
             output = self._run_command('sd {0}', invalid)
             self.assertIn('Service not found', output)
 
-
     def testProperties(self):
         """
         Tests the properties and property commands
@@ -705,7 +692,6 @@ class ShellCoreCommandsTest(unittest.TestCase):
         # Check invalid property
         output = self._run_command('property <<invalid>>')
         self.assertEqual("", output.strip())
-
 
     def testEnvironment(self):
         """
@@ -736,7 +722,6 @@ class ShellCoreCommandsTest(unittest.TestCase):
         # Check invalid variable
         output = self._run_command('sysprop <<invalid>>')
         self.assertEqual("", output.strip())
-
 
     def testThreads(self):
         """

@@ -38,6 +38,7 @@ COMPONENT_NAME = "sample-logger-component"
 
 # ------------------------------------------------------------------------------
 
+
 class DummyHandlerFactory(object):
     """
     A dummy handler with a "called" flag
@@ -57,6 +58,7 @@ class DummyHandlerFactory(object):
 
 # ------------------------------------------------------------------------------
 
+
 class LifeCycleTest(unittest.TestCase):
     """
     Tests the component life cycle
@@ -72,7 +74,6 @@ class LifeCycleTest(unittest.TestCase):
         if sys.version_info[0] < 3:
             self.assertCountEqual = self.assertItemsEqual
 
-
     def tearDown(self):
         """
         Called after each test
@@ -80,7 +81,6 @@ class LifeCycleTest(unittest.TestCase):
         self.framework.stop()
         FrameworkFactory.delete_framework(self.framework)
         self.framework = None
-
 
     def testHandlerAfterBundle(self):
         """
@@ -113,7 +113,6 @@ class LifeCycleTest(unittest.TestCase):
         # Remove the component
         self.framework.get_bundle_by_name(COMPONENT_BUNDLE_NAME).stop()
 
-
     def testHandlerBeforeBundle(self):
         """
         Test a single component life cycle
@@ -136,7 +135,6 @@ class LifeCycleTest(unittest.TestCase):
 
         # Remove the handler
         self.framework.get_bundle_by_name(HANDLER_BUNDLE_NAME).stop()
-
 
     def testWaitingFactoryDetails(self):
         """
@@ -198,7 +196,6 @@ class LifeCycleTest(unittest.TestCase):
         self.assertRaises(ValueError, ipopo.get_instance_details,
                           COMPONENT_NAME)
 
-
     def testDuplicateHandler(self):
         """
         Duplicated handler must be ignored
@@ -216,8 +213,8 @@ class LifeCycleTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
         dummy_handler = DummyHandlerFactory()
         svc_reg = context.register_service(
-                                        constants.SERVICE_IPOPO_HANDLER_FACTORY,
-                                        dummy_handler, properties)
+            constants.SERVICE_IPOPO_HANDLER_FACTORY,
+            dummy_handler, properties)
 
         # Install the component bundle
         install_bundle(self.framework, COMPONENT_BUNDLE_NAME)

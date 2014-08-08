@@ -5,8 +5,8 @@ Bundle defining multiple classes and component factories for HTTP service tests
 
 :author: Thomas Calmant
 """
-from pelix.ipopo.decorators import ComponentFactory, Property, Provides
 
+from pelix.ipopo.decorators import ComponentFactory, Property, Provides
 import pelix.http as http
 
 # ------------------------------------------------------------------------------
@@ -16,6 +16,7 @@ MULTIPLE_SERVLET_FACTORY = "multiple.servlet.factory"
 
 # ------------------------------------------------------------------------------
 
+
 class SimpleServlet(object):
     """
     A simple servlet implementation
@@ -23,14 +24,13 @@ class SimpleServlet(object):
     def __init__(self, raiser=False):
         """
         Sets up the servlet
-        
+
         :param raiser: If True, the servlet will raise an exception on bound_to
         """
         self.raiser = raiser
         self.accept = True
         self.bound = []
         self.unbound = []
-
 
     def reset(self):
         """
@@ -39,13 +39,11 @@ class SimpleServlet(object):
         del self.bound[:]
         del self.unbound[:]
 
-
     def accept_binding(self, path, params):
         """
         Tests if the HTTP server can be accepted
         """
         return self.accept
-
 
     def bound_to(self, path, params):
         """
@@ -58,7 +56,6 @@ class SimpleServlet(object):
 
         return True
 
-
     def unbound_from(self, path, params):
         """
         Servlet unbound from a path
@@ -69,7 +66,6 @@ class SimpleServlet(object):
             raise Exception("Some exception")
 
         return None
-
 
     def do_GET(self, request, response):
         """
@@ -93,7 +89,6 @@ class SimpleServlet(object):
 
         response.send_content(200, content)
 
-
     def do_POST(self, request, response):
         """
         Handle a GET
@@ -101,6 +96,7 @@ class SimpleServlet(object):
         response.send_content(201, "Success")
 
 # ------------------------------------------------------------------------------
+
 
 @ComponentFactory(name=SIMPLE_SERVLET_FACTORY)
 @Provides(specifications=http.HTTP_SERVLET)
@@ -117,7 +113,6 @@ class SimpleServletFactory(SimpleServlet):
         SimpleServlet.__init__(self, False)
         self._path = None
         self._raiser = False
-
 
     def change(self, new_path):
         """

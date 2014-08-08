@@ -18,6 +18,7 @@ CONFIG_PID = 'test.ca.bundle'
 
 # ------------------------------------------------------------------------------
 
+
 @ComponentFactory()
 @Provides(services.SERVICE_CONFIGADMIN_MANAGED)
 @Property('_config_pid', constants.SERVICE_PID, CONFIG_PID)
@@ -34,7 +35,6 @@ class Configurable(object):
         self.deleted = False
         self.call_count = 0
 
-
     def reset(self):
         """
         Resets the flags
@@ -42,7 +42,6 @@ class Configurable(object):
         self.value = None
         self.deleted = False
         self.call_count = 0
-
 
     def updated(self, properties):
         """

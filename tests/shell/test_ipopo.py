@@ -28,6 +28,7 @@ __version__ = "1.0.0"
 
 # ------------------------------------------------------------------------------
 
+
 class IPopoShellTest(unittest.TestCase):
     """
     Tests the iPOPO shell commands
@@ -38,20 +39,19 @@ class IPopoShellTest(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(
-                                                  ('pelix.ipopo.core',
-                                                   'pelix.shell.core',
-                                                   'pelix.shell.ipopo',
-                                                   # Some bundles providing
-                                                   # factories
-                                                   'tests.ipopo.ipopo_bundle',
-                                                   'samples.handler.sample'))
+            ('pelix.ipopo.core',
+             'pelix.shell.core',
+             'pelix.shell.ipopo',
+             # Some bundles providing
+             # factories
+             'tests.ipopo.ipopo_bundle',
+             'samples.handler.sample'))
         self.framework.start()
 
         # Get the Shell service
         context = self.framework.get_bundle_context()
         svc_ref = context.get_service_reference(pelix.shell.SERVICE_SHELL)
         self.shell = context.get_service(svc_ref)
-
 
     def _run_command(self, command, *args):
         """
@@ -68,7 +68,6 @@ class IPopoShellTest(unittest.TestCase):
         self.shell.execute(command, stdout=str_output)
         return str_output.getvalue()
 
-
     def tearDown(self):
         """
         Cleans up for next test
@@ -77,7 +76,6 @@ class IPopoShellTest(unittest.TestCase):
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
         self.shell = None
         self.framework = None
-
 
     def testFactoriesListing(self):
         """
@@ -93,12 +91,13 @@ class IPopoShellTest(unittest.TestCase):
                 details = ipopo.get_factory_details(factory_name)
                 for command in ('factory', 'factories'):
                     # Check its details
-                    subout = self._run_command('{0} {1}', command, factory_name)
+                    subout = self._run_command(
+                        '{0} {1}', command, factory_name)
 
                     # Check name and bundle
                     self.assertIn(factory_name, subout)
-                    self.assertIn(details['bundle'].get_symbolic_name(), subout)
-
+                    self.assertIn(
+                        details['bundle'].get_symbolic_name(), subout)
 
     def testInstancesListing(self):
         """
@@ -124,7 +123,6 @@ class IPopoShellTest(unittest.TestCase):
                     self.assertIn(name, subout)
                     self.assertIn(factory, subout)
 
-
     def testWaitingListing(self):
         """
         Tests listing the waiting instances
@@ -147,7 +145,6 @@ class IPopoShellTest(unittest.TestCase):
                 self.assertIn(name, subout)
                 self.assertIn(factory, subout)
 
-
     def testUnknownDetails(self):
         """
         Tests details of unknown factory or instance
@@ -155,7 +152,6 @@ class IPopoShellTest(unittest.TestCase):
         for command in ('factory', 'instance'):
             output = self._run_command('{0} <unknown>', command)
             self.assertIn("error", output.lower())
-
 
     def testLifeCycle(self):
         """
@@ -187,7 +183,6 @@ class IPopoShellTest(unittest.TestCase):
             # Kill it a second time (no exception must raise)
             self._run_command("kill {0}", name)
 
-
     def testInvalidInstantiate(self):
         """
         Tests invalid parameters to instantiate and kill
@@ -199,4 +194,3 @@ class IPopoShellTest(unittest.TestCase):
 
             # Bad component name
             self._run_command("kill <bad_component>")
-

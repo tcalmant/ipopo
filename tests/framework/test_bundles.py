@@ -30,11 +30,11 @@ SIMPLE_BUNDLE = "tests.framework.simple_bundle"
 
 # ------------------------------------------------------------------------------
 
+
 class BundlesTest(unittest.TestCase):
     """
     Pelix bundle registry tests
     """
-
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -45,9 +45,8 @@ class BundlesTest(unittest.TestCase):
 
         self.test_bundle_name = SIMPLE_BUNDLE
         # File path, without extension
-        self.test_bundle_loc = os.path.abspath(\
-                                    self.test_bundle_name.replace('.', os.sep))
-
+        self.test_bundle_loc = os.path.abspath(
+            self.test_bundle_name.replace('.', os.sep))
 
     def tearDown(self):
         """
@@ -56,7 +55,6 @@ class BundlesTest(unittest.TestCase):
         self.framework.stop()
         FrameworkFactory.delete_framework(self.framework)
 
-
     def testImportError(self):
         """
         Tries to install an invalid bundle
@@ -64,7 +62,6 @@ class BundlesTest(unittest.TestCase):
         # Try to install the bundle
         self.assertRaises(BundleException, self.context.install_bundle,
                           "//Invalid Name\\\\")
-
 
     def testCompatibility(self, test_bundle_id=False):
         """
@@ -102,7 +99,6 @@ class BundlesTest(unittest.TestCase):
         # Uninstall (validated in another test)
         bundle.uninstall()
 
-
     def testLifeCycle(self, test_bundle_id=False):
         """
         Tests a bundle installation + start + stop
@@ -137,7 +133,6 @@ class BundlesTest(unittest.TestCase):
 
         # Uninstall (validated in another test)
         bundle.uninstall()
-
 
     def testLifeCycleRecalls(self):
         """
@@ -192,7 +187,6 @@ class BundlesTest(unittest.TestCase):
 
         self.assertEqual(bundle.get_state(), Bundle.UNINSTALLED,
                          "Bundle should be considered uninstalled")
-
 
     def testLifeCycleExceptions(self):
         """
@@ -249,7 +243,6 @@ class BundlesTest(unittest.TestCase):
         # Uninstall (validated in another test)
         bundle.uninstall()
 
-
     def testUninstallInstall(self):
         """
         Runs the life-cycle test twice.
@@ -266,7 +259,6 @@ class BundlesTest(unittest.TestCase):
         # Pass 2: refresh test
         self.testLifeCycle(False)
 
-
     def testUninstallWithStartStop(self):
         """
         Tests if a bundle is correctly uninstalled and if it is really
@@ -281,36 +273,36 @@ class BundlesTest(unittest.TestCase):
 
         # Test state
         self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Invalid fresh install state {0:d}" \
+                         "Invalid fresh install state {0:d}"
                          .format(bundle.get_state()))
 
         # Start
         bundle.start()
         self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
-                         "Invalid fresh start state {0:d}" \
+                         "Invalid fresh start state {0:d}"
                          .format(bundle.get_state()))
 
         # Stop
         bundle.stop()
         self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Invalid fresh stop state {0:d}" \
+                         "Invalid fresh stop state {0:d}"
                          .format(bundle.get_state()))
 
         # Uninstall
         bundle.uninstall()
         self.assertEqual(bundle.get_state(), Bundle.UNINSTALLED,
-                         "Invalid fresh stop state {0:d}" \
+                         "Invalid fresh stop state {0:d}"
                          .format(bundle.get_state()))
 
         # The bundle must not be accessible through the framework
         self.assertRaises(BundleException, self.context.get_bundle, bid)
 
-        self.assertRaises(BundleException, self.framework.get_bundle_by_id, bid)
+        self.assertRaises(
+            BundleException, self.framework.get_bundle_by_id, bid)
 
         found_bundle = self.framework.get_bundle_by_name(self.test_bundle_name)
-        self.assertIsNone(found_bundle, "Bundle is still accessible by name " \
+        self.assertIsNone(found_bundle, "Bundle is still accessible by name "
                           "through the framework")
-
 
     def testUpdate(self):
         """
@@ -373,8 +365,6 @@ def test_fct():
         f.write(bundle_content.format(version="1.0.0", test=False))
         f.close()
 
-
-
     def testVersion(self):
         """
         Tests if the version is correctly read from the bundle
@@ -391,7 +381,7 @@ def test_fct():
 
         # Validate the bundle name
         self.assertEqual(bundle.get_symbolic_name(), self.test_bundle_name,
-                         "Names are different ({0} / {1})" \
+                         "Names are different ({0} / {1})"
                          .format(bundle.get_symbolic_name(),
                                  self.test_bundle_name))
 
@@ -403,7 +393,7 @@ def test_fct():
 
         # Validate the version number
         self.assertEqual(bundle.get_version(), module.__version__,
-                         "Different versions found ({0} / {1})" \
+                         "Different versions found ({0} / {1})"
                          .format(bundle.get_version(), module.__version__))
 
         # Remove the bundle
@@ -411,11 +401,11 @@ def test_fct():
 
 # ------------------------------------------------------------------------------
 
+
 class LocalBundleTest(unittest.TestCase):
     """
     Tests the installation of the __main__ bundle
     """
-
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -429,7 +419,6 @@ class LocalBundleTest(unittest.TestCase):
         """
         self.framework.stop()
         FrameworkFactory.delete_framework(self.framework)
-
 
     def testLocalBundle(self):
         """
@@ -449,24 +438,24 @@ class LocalBundleTest(unittest.TestCase):
 
         # Validate the symbolic name
         self.assertEqual(bundle.get_symbolic_name(), __name__,
-                         "Bundle ({0}) and module ({1}) are different" \
+                         "Bundle ({0}) and module ({1}) are different"
                          .format(bundle.get_symbolic_name(), __name__))
 
         # Validate get_bundle() via bundle context
         context_bundle = bundle.get_bundle_context().get_bundle()
         self.assertIs(bundle, context_bundle,
-                      "Not the same bundle:\n{0:d} / {1}\n{2:d} / {3}" \
+                      "Not the same bundle:\n{0:d} / {1}\n{2:d} / {3}"
                       .format(id(bundle), bundle,
                               id(context_bundle), context_bundle))
 
         # Validate get_version()
         self.assertEqual(bundle.get_version(), __version__,
-                         "Not the same version {0} -> {1}" \
+                         "Not the same version {0} -> {1}"
                          .format(__version__, bundle.get_version()))
 
         # Validate get_location()
         self.assertEqual(bundle.get_location(), __file__,
-                         "Not the same location {0} -> {1}" \
+                         "Not the same location {0} -> {1}"
                          .format(__file__, bundle.get_location()))
 
 # ------------------------------------------------------------------------------

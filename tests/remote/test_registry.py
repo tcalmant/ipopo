@@ -30,6 +30,7 @@ REMOVED = 3
 
 # ------------------------------------------------------------------------------
 
+
 class ImportListener(object):
     """
     Imports listener
@@ -41,13 +42,11 @@ class ImportListener(object):
         self.events = []
         self.raise_exception = False
 
-
     def clear(self):
         """
         Clears the listener state
         """
         del self.events[:]
-
 
     def endpoint_added(self, endpoint):
         """
@@ -57,7 +56,6 @@ class ImportListener(object):
         if self.raise_exception:
             raise Exception("Addition exception")
 
-
     def endpoint_updated(self, endpoint, properties):
         """
         Endpoint updated
@@ -65,7 +63,6 @@ class ImportListener(object):
         self.events.append(UPDATED)
         if self.raise_exception:
             raise Exception("Update exception")
-
 
     def endpoint_removed(self, uid):
         """
@@ -76,6 +73,7 @@ class ImportListener(object):
             raise Exception("Removal exception")
 
 # ------------------------------------------------------------------------------
+
 
 class ImportsRegistryTest(unittest.TestCase):
     """
@@ -94,12 +92,12 @@ class ImportsRegistryTest(unittest.TestCase):
         context.install_bundle("pelix.remote.registry").start()
 
         # Get the framework UID
-        self.framework_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
+        self.framework_uid = context.get_property(
+            pelix.constants.FRAMEWORK_UID)
 
         # Get the service
         svc_ref = context.get_service_reference(pelix.remote.SERVICE_REGISTRY)
         self.service = context.get_service(svc_ref)
-
 
     def tearDown(self):
         """
@@ -110,7 +108,6 @@ class ImportsRegistryTest(unittest.TestCase):
 
         self.framework = None
         self.service = None
-
 
     def testAdd(self):
         """
@@ -147,7 +144,6 @@ class ImportsRegistryTest(unittest.TestCase):
         self.assertFalse(self.service.add(endpoint_local),
                          "ImportEndpoint local framework")
 
-
     def testUpdate(self):
         """
         Tests the update of an endpoint
@@ -169,7 +165,6 @@ class ImportsRegistryTest(unittest.TestCase):
         self.assertTrue(self.service.update(endpoint.uid, {}),
                         "Error updating an endpoint")
 
-
     def testRemove(self):
         """
         Tests the removal of an endpoint
@@ -190,7 +185,6 @@ class ImportsRegistryTest(unittest.TestCase):
         # Removal must succeed
         self.assertTrue(self.service.remove(endpoint.uid),
                         "Error removing an endpoint")
-
 
     def testLost(self):
         """
@@ -219,7 +213,6 @@ class ImportsRegistryTest(unittest.TestCase):
                          "Update of a lost endpoint has been accepted")
         self.assertTrue(self.service.add(endpoint), "Addition refused")
 
-
     def testListener(self):
         """
         Tests the listener
@@ -242,9 +235,9 @@ class ImportsRegistryTest(unittest.TestCase):
 
             # Register the listener
             svc_reg = context.register_service(
-                        pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER,
-                        listener,
-                        {pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED: "configA"})
+                pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER,
+                listener,
+                {pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED: "configA"})
 
             # The listener must have been notified
             self.assertListEqual(listener.events, [ADDED],

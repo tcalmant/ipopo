@@ -29,6 +29,7 @@ NAME_A = "componentA"
 
 # ------------------------------------------------------------------------------
 
+
 class InstantiateTest(unittest.TestCase):
     """
     Specific test case to test @Instantiate, as it needs a pure framework
@@ -41,7 +42,6 @@ class InstantiateTest(unittest.TestCase):
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
 
-
     def tearDown(self):
         """
         Called after each test
@@ -52,7 +52,6 @@ class InstantiateTest(unittest.TestCase):
         # Clean up
         self.ipopo = None
         self.framework = None
-
 
     def testInstantiate(self):
         """
@@ -85,10 +84,10 @@ class InstantiateTest(unittest.TestCase):
 
         # Assert the component has been registered
         self.assertTrue(self.ipopo.is_registered_factory(factory),
-                         "Factory not registered while the bundle is started")
+                        "Factory not registered while the bundle is started")
 
         self.assertTrue(self.ipopo.is_registered_instance(name),
-                         "Instance not registered while the bundle is started")
+                        "Instance not registered while the bundle is started")
 
         # Assert it has been validated
         ref = context.get_service_reference(svc_spec)
@@ -110,8 +109,9 @@ class InstantiateTest(unittest.TestCase):
                          "@Instantiate component should have been invalidated")
 
         # Assert the framework has been cleaned up
-        self.assertFalse(self.ipopo.is_registered_factory(factory),
-                         "Factory registered while the bundle has been stopped")
+        self.assertFalse(
+            self.ipopo.is_registered_factory(factory),
+            "Factory registered while the bundle has been stopped")
 
         self.assertFalse(self.ipopo.is_registered_instance(name),
                          "Instance registered while the bundle has been "
@@ -120,7 +120,6 @@ class InstantiateTest(unittest.TestCase):
         # Ensure the service has been unregistered properly
         self.assertIsNone(context.get_service_reference(svc_spec),
                           "@Instantiate service is still there")
-
 
     def testNotRunning(self):
         """

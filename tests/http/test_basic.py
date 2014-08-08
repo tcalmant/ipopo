@@ -5,6 +5,7 @@ Pelix basic HTTP service test module.
 
 :author: Thomas Calmant
 """
+
 from pelix.framework import FrameworkFactory, BundleContext
 from tests import log_on, log_off
 
@@ -35,6 +36,7 @@ DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 8080
 
 # ------------------------------------------------------------------------------
+
 
 def install_bundle(framework, bundle_name="tests.ipopo_bundle"):
     """
@@ -121,6 +123,7 @@ def get_http_page(host=DEFAULT_HOST, port=DEFAULT_PORT,
 
 # ------------------------------------------------------------------------------
 
+
 class BasicHTTPServiceServletsTest(unittest.TestCase):
     """
     Tests of the basic HTTP service servlets handling
@@ -141,8 +144,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
 
         # Install test bundle
         self.servlets = install_bundle(self.framework,
-                                          "tests.http.servlets_bundle")
-
+                                       "tests.http.servlets_bundle")
 
     def tearDown(self):
         """
@@ -152,7 +154,6 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         FrameworkFactory.delete_framework(self.framework)
         self.framework = None
 
-
     def testBlank(self):
         """
         Tests the server when no servlet is active
@@ -160,7 +161,6 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         instantiate_server(self.ipopo, self.http_bundle)
         self.assertEqual(get_http_page(only_code=True), 404,
                          "Received something other than a 404")
-
 
     def testRegisteredServlet(self):
         """
@@ -230,7 +230,6 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
                                        only_code=True), 404,
                          "Servlet still registered")
 
-
     def testBindingRaiser(self):
         """
         Tests the behavior of the HTTP service when a bound_to() method raises
@@ -244,12 +243,11 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         # Register the servlet
         log_off()
         self.assertFalse(http_svc.register_servlet("/test", servlet),
-                        "Servlet registered even raising an exception")
+                         "Servlet registered even raising an exception")
         log_on()
 
         self.assertEqual(get_http_page(uri="/test", only_code=True), 404,
                          "Servlet registered even raising an exception")
-
 
     def testUnbindingRaiser(self):
         """
@@ -278,7 +276,6 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         # The servlet must have been unregistered
         self.assertEqual(get_http_page(uri="/test", only_code=True), 404,
                          "Servlet still registered")
-
 
     def testAcceptBinding(self):
         """
@@ -330,8 +327,6 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         self.assertEqual(get_http_page(uri="/test", only_code=True), 404,
                          "Servlet still registered")
 
-
-
     def testWhiteboardPatternSimple(self):
         """
         Tests the whiteboard pattern with a simple path
@@ -378,7 +373,6 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
                                        only_code=True), 404,
                          "Servlet still registered")
 
-
     def testWhiteboardPatternMultiple(self):
         """
         Tests the whiteboard pattern with a multiple paths
@@ -424,8 +418,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         # Test access to paths
         for path in paths:
             self.assertEqual(get_http_page(uri=path, only_code=True),
-                                     404, "Servlet still registered")
-
+                             404, "Servlet still registered")
 
     def testWhiteboardPatternUpdate(self):
         """
@@ -495,6 +488,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+
 class BasicHTTPServiceMethodsTest(unittest.TestCase):
     """
     Tests of the basic HTTP service methods
@@ -516,8 +510,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
 
         # Install test bundle
         self.servlets = install_bundle(self.framework,
-                                          "tests.http.servlets_bundle")
-
+                                       "tests.http.servlets_bundle")
 
     def tearDown(self):
         """
@@ -526,7 +519,6 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         # Stop the framework
         FrameworkFactory.delete_framework(self.framework)
         self.framework = None
-
 
     def testGetServerInfo(self):
         """
@@ -567,7 +559,6 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         self.assertEqual(get_http_page(address, port, only_code=True), 404,
                          "HTTP Service not stated with a random port")
 
-
     def testGetServlet(self):
         """
         Tests the get_servlet() method
@@ -594,13 +585,12 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
 
         # Test the get_servlet method
         for path in ("/test", "/test/", "/test/1"):
-            self.assertIs(self.http_svc.get_servlet(path)[0],
-                          servlet_1, "Servlet 1 should handle {0}".format(path))
+            self.assertIs(self.http_svc.get_servlet(path)[0], servlet_1,
+                          "Servlet 1 should handle {0}".format(path))
 
         for path in ("/test/sub", "/test/sub/", "/test/sub/1"):
-            self.assertIs(self.http_svc.get_servlet(path)[0],
-                          servlet_2, "Servlet 2 should handle {0}".format(path))
-
+            self.assertIs(self.http_svc.get_servlet(path)[0], servlet_2,
+                          "Servlet 2 should handle {0}".format(path))
 
     def testRegisterServlet(self):
         """
@@ -617,7 +607,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         # Refuse empty paths
         for invalid in (None, "", "test"):
             self.assertRaises(ValueError, self.http_svc.register_servlet,
-                          invalid, servlet_1)
+                              invalid, servlet_1)
 
         # Registration must succeed, even without calls to bound_to
         self.assertTrue(self.http_svc.register_servlet("/test", servlet_1))
@@ -628,7 +618,6 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         self.assertRaises(ValueError, self.http_svc.register_servlet,
                           "/test", servlet_2)
         self.assertTrue(self.http_svc.register_servlet("/test/sub", servlet_2))
-
 
     def testUnregisterServlet(self):
         """
@@ -642,7 +631,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         # Try to unregister invalid/unknown paths
         for invalid in (None, "", "test", "/test/sub", "/"):
             self.assertFalse(self.http_svc.unregister(invalid),
-                             "An invalid path was unregistered: {0}"\
+                             "An invalid path was unregistered: {0}"
                              .format(invalid))
 
         # Try to unregister a None servlet
@@ -654,6 +643,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
                          "An unknown servlet can't be unregistered.")
 
 # ------------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     # Set logging level

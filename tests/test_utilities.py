@@ -35,6 +35,7 @@ except ImportError:
 
 # ------------------------------------------------------------------------------
 
+
 class SynchronizationUtilitiesTest(unittest.TestCase):
     """
     Tests for utility module synchronization methods
@@ -44,7 +45,6 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         Sets up the test
         """
         self.lock = threading.Lock()
-
 
     def testIsLock(self):
         """
@@ -56,14 +56,13 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
 
         for test in valid:
             self.assertTrue(utilities.is_lock(test),
-                            "Valid lock not detected: {0}" \
+                            "Valid lock not detected: {0}"
                             .format(type(test).__name__))
 
         for test in invalid:
             self.assertFalse(utilities.is_lock(test),
-                             "Invalid lock not detected: {0}" \
-                            .format(type(test).__name__))
-
+                             "Invalid lock not detected: {0}"
+                             .format(type(test).__name__))
 
     @utilities.SynchronizedClassMethod('lock')
     def testSynchronizedClassMethod(self):
@@ -72,7 +71,6 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         """
         # Just test if the lock is really locked
         self.assertFalse(self.lock.acquire(False), "Method is not locked")
-
 
     def testSynchronizedMethod(self, no_lock=False):
         """
@@ -122,23 +120,22 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         # .. Thread 1 started after start (obvious)
         self.assertGreaterEqual(result[1], start, "Thread 1 started too soon")
 
-        # .. Thread 2 started at least 0.4 secs after thread 1 (due to the lock)
+        # .. Thread 2 started at least 0.4 secs after thread 1
+        # (due to the lock)
         # (0.4 instead of 0.5: some systems are not that precise)
         self.assertGreaterEqual(result[2], result[1] + .4,
-                                "Thread 2 started too soon (after {0}s)" \
+                                "Thread 2 started too soon (after {0}s)"
                                 .format(result[2] - result[1]))
 
         # .. Thread 2 must not have blocked the main thread
         self.assertGreater(result[2], interm,
                            "Thread 2 blocked the main thread")
 
-
     def testSynchronizedMethod2(self):
         """
         Tests the @Synchronized decorator, without a given lock
         """
         self.testSynchronizedMethod(True)
-
 
     def testNoLockException(self):
         """
@@ -151,7 +148,6 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
                 pass
 
             self.fail("@SynchronizedClassMethod() should raise a ValueError")
-
         except ValueError:
             # We must be there to succeed
             pass
@@ -163,11 +159,9 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
 
             self.fail("@SynchronizedClassMethod(None) should raise a "
                       "ValueError")
-
         except ValueError:
             # We must be there to succeed
             pass
-
 
     def testNoneLockException(self):
         """
@@ -177,8 +171,8 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         self.lock = None
         self.assertRaises(AttributeError, self.testSynchronizedClassMethod)
 
-
 # ------------------------------------------------------------------------------
+
 
 class UtilitiesTest(unittest.TestCase):
     """
@@ -229,7 +223,6 @@ class UtilitiesTest(unittest.TestCase):
         self.assertEqual(instance.outside, value_2,
                          "Invalid final value (out)")
 
-
     def testRemoveAllOccurrences(self):
         """
         Tests the remove_all_occurrences() method
@@ -273,7 +266,6 @@ class UtilitiesTest(unittest.TestCase):
             self.assertEqual(len(list_copy), len_base - count_base,
                              "Incorrect new list size")
 
-
     def testIsString(self):
         """
         Tests the is_string() method
@@ -295,7 +287,6 @@ class UtilitiesTest(unittest.TestCase):
         for value in invalid:
             self.assertFalse(utilities.is_string(value),
                              "'{0}' is not a string".format(value))
-
 
     def testAddRemoveListener(self):
         """
@@ -339,7 +330,6 @@ class UtilitiesTest(unittest.TestCase):
             # Second removal
             self.assertFalse(utilities.remove_listener(registry, value),
                              "Value has been removed twice")
-
 
     def testUseService(self):
         """

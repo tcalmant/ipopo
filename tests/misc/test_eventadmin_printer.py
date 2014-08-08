@@ -31,6 +31,7 @@ __version__ = "1.0.0"
 
 # ------------------------------------------------------------------------------
 
+
 class EventAdminPrinterTest(unittest.TestCase):
     """
     Tests the EventAdmin service
@@ -41,9 +42,9 @@ class EventAdminPrinterTest(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(
-                                              ('pelix.ipopo.core',
-                                               'pelix.services.eventadmin',
-                                               'pelix.misc.eventadmin_printer'))
+            ('pelix.ipopo.core',
+             'pelix.services.eventadmin',
+             'pelix.misc.eventadmin_printer'))
         self.framework.start()
 
         # Add a log handler
@@ -56,10 +57,9 @@ class EventAdminPrinterTest(unittest.TestCase):
         # Instantiate the EventAdmin component
         context = self.framework.get_bundle_context()
         with use_ipopo(context) as ipopo:
-            self.eventadmin = ipopo.instantiate(\
-                                            pelix.services.FACTORY_EVENT_ADMIN,
-                                            "evtadmin", {})
-
+            self.eventadmin = ipopo.instantiate(
+                pelix.services.FACTORY_EVENT_ADMIN,
+                "evtadmin", {})
 
     def tearDown(self):
         """
@@ -72,7 +72,6 @@ class EventAdminPrinterTest(unittest.TestCase):
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
         self.framework = None
-
 
     def testPrinter(self):
         """
@@ -109,14 +108,13 @@ class EventAdminPrinterTest(unittest.TestCase):
             output = self.log_io.getvalue()
             self.assertNotIn(topic, output)
 
-
     def testParseBoolean(self):
         """
         Tests the parse boolean method of the printer module
         """
         # Get the module
         bundle = self.framework.get_bundle_by_name(
-                                               'pelix.misc.eventadmin_printer')
+            'pelix.misc.eventadmin_printer')
         module = bundle.get_module()
 
         # Test false values

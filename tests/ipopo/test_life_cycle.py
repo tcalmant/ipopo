@@ -31,6 +31,7 @@ NAME_B = "componentB"
 
 # ------------------------------------------------------------------------------
 
+
 class LifeCycleTest(unittest.TestCase):
     """
     Tests the component life cycle
@@ -44,7 +45,6 @@ class LifeCycleTest(unittest.TestCase):
         self.ipopo = install_ipopo(self.framework)
         self.module = install_bundle(self.framework)
 
-
     def tearDown(self):
         """
         Called after each test
@@ -52,14 +52,13 @@ class LifeCycleTest(unittest.TestCase):
         self.framework.stop()
         FrameworkFactory.delete_framework(self.framework)
 
-
     def testSingleNormal(self):
         """
         Test a single component life cycle
         """
         # Assert it is not yet in the registry
         self.assertFalse(self.ipopo.is_registered_instance(NAME_A),
-                        "Instance is already in the registry")
+                         "Instance is already in the registry")
 
         # Instantiate the component
         compoA = self.ipopo.instantiate(self.module.FACTORY_A, NAME_A)
@@ -91,8 +90,7 @@ class LifeCycleTest(unittest.TestCase):
 
         # Assert it has been removed of the registry
         self.assertFalse(self.ipopo.is_registered_instance(NAME_A),
-                        "Instance is still in the registry")
-
+                         "Instance is still in the registry")
 
     def testSingleKill(self):
         """
@@ -100,7 +98,7 @@ class LifeCycleTest(unittest.TestCase):
         """
         # Assert it is not yet in the registry
         self.assertFalse(self.ipopo.is_registered_instance(NAME_A),
-                        "Instance is already in the registry")
+                         "Instance is already in the registry")
 
         # Instantiate the component
         compoA = self.ipopo.instantiate(self.module.FACTORY_A, NAME_A)
@@ -121,8 +119,7 @@ class LifeCycleTest(unittest.TestCase):
 
         # Assert it has been removed of the registry
         self.assertFalse(self.ipopo.is_registered_instance(NAME_A),
-                        "Instance is still in the registry")
-
+                         "Instance is still in the registry")
 
     def testAutoRestart(self):
         """

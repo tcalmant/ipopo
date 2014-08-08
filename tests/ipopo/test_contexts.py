@@ -41,6 +41,7 @@ FACTORY_REPLACE_PROVIDE = "child.replace_provide"
 SPEC_PARENT = 'spec.parent'
 SPEC_CHILD = 'spec.child'
 
+
 @ComponentFactory(FACTORY_PARENT)
 @Provides(SPEC_PARENT)
 @Property('parent_prop', "prop.parent", "parent.value")
@@ -50,12 +51,14 @@ class ParentFactory(object):
     """
     pass
 
+
 @ComponentFactory(FACTORY_ALL)
 class ChildAll(ParentFactory):
     """
     Child factory, inheriting everything from its parent
     """
     pass
+
 
 @ComponentFactory(FACTORY_NO_PROVIDE, excluded=Provides.HANDLER_ID)
 class ChildNoProvides(ParentFactory):
@@ -73,6 +76,7 @@ class ChildExtendProvides(ParentFactory):
     """
     pass
 
+
 @ComponentFactory(FACTORY_REPLACE_PROVIDE, excluded=Provides.HANDLER_ID)
 @Provides(SPEC_CHILD)
 class ChildReplaceProvides(ParentFactory):
@@ -82,6 +86,7 @@ class ChildReplaceProvides(ParentFactory):
     pass
 
 # ------------------------------------------------------------------------------
+
 
 class ContextsTests(unittest.TestCase):
     """
@@ -95,13 +100,11 @@ class ContextsTests(unittest.TestCase):
         self.framework.start()
         self.ipopo_bundle = install_bundle(self.framework, "pelix.ipopo.core")
 
-
     def tearDown(self):
         """
         Called after each test
         """
         FrameworkFactory.delete_framework(self.framework)
-
 
     def assertProvides(self, specification, provider):
         """
@@ -119,9 +122,8 @@ class ContextsTests(unittest.TestCase):
                     break
 
         else:
-            self.fail("Service {0} is not provided by {1}"\
+            self.fail("Service {0} is not provided by {1}"
                       .format(specification, provider))
-
 
     def assertNotProvides(self, specification, provider):
         """
@@ -134,9 +136,8 @@ class ContextsTests(unittest.TestCase):
                 with use_service(context, svc_ref) as svc:
                     if svc is provider:
                         # Found it
-                        self.fail("Service {0} is provided by {1}"\
+                        self.fail("Service {0} is provided by {1}"
                                   .format(specification, provider))
-
 
     def testRequirement(self):
         """
@@ -162,7 +163,7 @@ class ContextsTests(unittest.TestCase):
 
         # Match test
         self.assertFalse(without_filter.matches(None),
-                        "Should never match with None")
+                         "Should never match with None")
         self.assertFalse(with_filter.matches(None),
                          "Should never match with None")
 
@@ -180,7 +181,6 @@ class ContextsTests(unittest.TestCase):
             self.assertTrue(with_filter.matches(props),
                             "Should match with filter: {0}".format(props))
 
-
     def testRequirementEquality(self):
         """
         Tests Requirement equality test
@@ -195,7 +195,7 @@ class ContextsTests(unittest.TestCase):
         # Different types
         for req_2 in (None, "spec_1", [], {}):
             self.assertNotEqual(req_1, req_2,
-                                "Requirement should not be equal to {0}" \
+                                "Requirement should not be equal to {0}"
                                 .format(req_1))
 
         # Copy
@@ -210,17 +210,18 @@ class ContextsTests(unittest.TestCase):
 
         # Different flags
         req_2.optional = not req_1.optional
-        self.assertNotEqual(req_1, req_2,
-                        "Requirements are equal with different optional flag")
+        self.assertNotEqual(
+            req_1, req_2,
+            "Requirements are equal with different optional flag")
 
         req_2.aggregate = not req_1.aggregate
         self.assertNotEqual(req_1, req_2,
-                        "Requirements are equal with different flags")
+                            "Requirements are equal with different flags")
 
         req_2.optional = req_1.optional
-        self.assertNotEqual(req_1, req_2,
-                        "Requirements are equal with different aggregate flags")
-
+        self.assertNotEqual(
+            req_1, req_2,
+            "Requirements are equal with different aggregate flags")
 
     def testCopyFactoryContext(self):
         """
@@ -252,7 +253,6 @@ class ContextsTests(unittest.TestCase):
         context_2 = context.copy()
         self.assertEqual(context, context_2, "Copy equality error")
         self.assertIsNot(req_1, context_2, "Requirements must be copied")
-
 
     def testHandlerInheritance(self):
         """

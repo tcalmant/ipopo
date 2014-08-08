@@ -28,6 +28,7 @@ __version__ = "1.0.0"
 
 # ------------------------------------------------------------------------------
 
+
 class UtilitiesTest(unittest.TestCase):
     """
     Tests the utility methods
@@ -40,7 +41,6 @@ class UtilitiesTest(unittest.TestCase):
         self.framework.start()
         self.context = self.framework.get_bundle_context()
 
-
     def tearDown(self):
         """
         Called after each test
@@ -49,7 +49,6 @@ class UtilitiesTest(unittest.TestCase):
         FrameworkFactory.delete_framework(self.framework)
         self.framework = None
         self.context = None
-
 
     def testConstantGetReference(self):
         """
@@ -80,7 +79,6 @@ class UtilitiesTest(unittest.TestCase):
         # Ensure the service is not accessible anymore
         self.assertIsNone(constants.get_ipopo_svc_ref(self.context),
                           "iPOPO service found while stopped.")
-
 
     def testConstantContext(self):
         """

@@ -42,6 +42,7 @@ __version__ = "1.0.0"
 
 # ------------------------------------------------------------------------------
 
+
 class Exporter(object):
     """
     Service exporter
@@ -54,7 +55,6 @@ class Exporter(object):
         self.configs = ['test.config']
         self.endpoints = []
 
-
     def export_service(self, svc_ref, name, fw_uid):
         """
         Endpoint registered
@@ -66,13 +66,11 @@ class Exporter(object):
         self.endpoints.append(endpoint)
         return endpoint
 
-
     def update_export(self, endpoint, new_name, old_properties):
         """
         Endpoint updated
         """
         pass
-
 
     def unexport_service(self, endpoint):
         """
@@ -91,20 +89,17 @@ class ImportListener(object):
         """
         self.endpoints = {}
 
-
     def endpoint_added(self, endpoint):
         """
         Endpoint registered
         """
         self.endpoints[endpoint.uid] = endpoint
 
-
     def endpoint_updated(self, endpoint, properties):
         """
         Endpoint updated
         """
         pass
-
 
     def endpoint_removed(self, uid):
         """
@@ -123,7 +118,6 @@ class FakeSerlvet(object):
         """
         self.data = None
         self.error = False
-
 
     def do_POST(self, request, response):
         """
@@ -144,6 +138,7 @@ class FakeSerlvet(object):
 
 # ------------------------------------------------------------------------------
 
+
 class DispatcherTest(unittest.TestCase):
     """
     Tests for the Remote Services dispatcher
@@ -158,10 +153,10 @@ class DispatcherTest(unittest.TestCase):
 
         # Create the framework
         self.framework = pelix.framework.create_framework(
-                                                    ('pelix.ipopo.core',
-                                                     'pelix.http.basic',
-                                                     'pelix.remote.dispatcher',
-                                                     'pelix.remote.registry'))
+            ('pelix.ipopo.core',
+             'pelix.http.basic',
+             'pelix.remote.dispatcher',
+             'pelix.remote.registry'))
         self.framework.start()
 
         # Instantiate components
@@ -175,20 +170,21 @@ class DispatcherTest(unittest.TestCase):
 
             # ... servlet giving access to the registry
             self.servlet = ipopo.instantiate(
-                                        pelix.remote.FACTORY_REGISTRY_SERVLET,
-                                        "pelix-remote-dispatcher-servlet")
+                pelix.remote.FACTORY_REGISTRY_SERVLET,
+                "pelix-remote-dispatcher-servlet")
 
         # Keep the HTTP server port
         self.port = http.get_access()[1]
         self.servlet_path = self.servlet.get_access()[1]
 
         # Get the framework UID
-        self.framework_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
+        self.framework_uid = context.get_property(
+            pelix.constants.FRAMEWORK_UID)
 
         # Get the service
-        svc_ref = context.get_service_reference(pelix.remote.SERVICE_DISPATCHER)
+        svc_ref = context.get_service_reference(
+            pelix.remote.SERVICE_DISPATCHER)
         self.dispatcher = context.get_service(svc_ref)
-
 
     def tearDown(self):
         """
@@ -199,7 +195,6 @@ class DispatcherTest(unittest.TestCase):
 
         self.framework = None
         self.dispatcher = None
-
 
     def _http_get(self, path):
         """
@@ -224,7 +219,6 @@ class DispatcherTest(unittest.TestCase):
         # Convert the response to a string
         return result.status, to_str(data)
 
-
     def _http_post(self, path, data):
         """
         Makes a HTTP GET request to the given path and returns the response
@@ -248,14 +242,12 @@ class DispatcherTest(unittest.TestCase):
         # Convert the response to a string
         return result.status, to_str(data)
 
-
     def testInvalidPath(self):
         """
         Tests the behavior of the servlet on an invalid path
         """
         status, _ = self._http_get("invalid_path")
         self.assertEqual(status, 404)
-
 
     def testGetFrameworkUid(self):
         """
@@ -267,7 +259,6 @@ class DispatcherTest(unittest.TestCase):
         # Check result
         self.assertEqual(status, 200)
         self.assertEqual(response, json.dumps(self.framework_uid))
-
 
     def testListEndpoints(self):
         """
@@ -290,8 +281,10 @@ class DispatcherTest(unittest.TestCase):
         svc_regs = []
         for _ in range(3):
             # Register a service
-            svc_regs.append(context.register_service("sample.spec", object(),
-                                 {pelix.remote.PROP_EXPORTED_INTERFACES: "*"}))
+            svc_regs.append(
+                context.register_service(
+                    "sample.spec", object(),
+                    {pelix.remote.PROP_EXPORTED_INTERFACES: "*"}))
 
             # Request the list of endpoints
             status, response = self._http_get("/endpoints")
@@ -324,7 +317,6 @@ class DispatcherTest(unittest.TestCase):
 
             self.assertCountEqual(servlet_uids, local_uids)
 
-
     def testEndpoint(self):
         """
         Checks the details of an endpoint
@@ -342,8 +334,9 @@ class DispatcherTest(unittest.TestCase):
         self.assertEqual(status, 404)
 
         # Register a service
-        svc_reg = context.register_service("sample.spec", object(),
-                                {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+        svc_reg = context.register_service(
+            "sample.spec", object(),
+            {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
 
         # Get the endpoint bean
         endpoint = exporter.endpoints[-1]
@@ -369,7 +362,6 @@ class DispatcherTest(unittest.TestCase):
         # Check result
         self.assertEqual(status, 404)
 
-
     def testGrabEndpoint(self):
         """
         Tests the grab_endpoint method
@@ -381,8 +373,9 @@ class DispatcherTest(unittest.TestCase):
                                  exporter, {})
 
         # Register a service
-        svc_reg = context.register_service("sample.spec", object(),
-                                {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+        svc_reg = context.register_service(
+            "sample.spec", object(),
+            {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
 
         # Get the endpoint bean
         endpoint = exporter.endpoints[-1]
@@ -409,7 +402,6 @@ class DispatcherTest(unittest.TestCase):
                                                      self.servlet_path,
                                                      endpoint.uid))
 
-
     def testInvalidPostPath(self):
         """
         Tries to send a POST request to an invalid path
@@ -417,7 +409,6 @@ class DispatcherTest(unittest.TestCase):
         for path in ('framework', 'endpoint', 'invalid'):
             status, _ = self._http_post(path, "some-data")
             self.assertEqual(status, 404)
-
 
     def testPostEndpoints(self):
         """
@@ -464,7 +455,6 @@ class DispatcherTest(unittest.TestCase):
         self.assertEqual(imported_endpoint.uid, endpoint_data['uid'])
         self.assertEqual(imported_endpoint.framework, endpoint_data['sender'])
         self.assertEqual(imported_endpoint.name, endpoint_data['name'])
-
 
     def testDiscovered(self):
         """

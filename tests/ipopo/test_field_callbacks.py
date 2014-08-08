@@ -24,6 +24,7 @@ __version__ = "1.0.0"
 
 # ------------------------------------------------------------------------------
 
+
 class FieldCallbackTest(unittest.TestCase):
     """
     Tests the component life cycle
@@ -38,14 +39,12 @@ class FieldCallbackTest(unittest.TestCase):
         self.module = install_bundle(self.framework,
                                      "tests.ipopo.ipopo_fields_bundle")
 
-
     def tearDown(self):
         """
         Called after each test
         """
         self.framework.stop()
         FrameworkFactory.delete_framework(self.framework)
-
 
     def testLifeCycleFieldCallback(self):
         """
@@ -58,54 +57,53 @@ class FieldCallbackTest(unittest.TestCase):
         # Service A
         svc_a = self.ipopo.instantiate(self.module.FACTORY_A, "svcA")
         self.assertEqual(compo.states,
-                          [self.module.BIND_A, self.module.BIND_FIELD_A],
-                          "Service A bound incorrectly")
+                         [self.module.BIND_A, self.module.BIND_FIELD_A],
+                         "Service A bound incorrectly")
         del compo.states[:]
 
         # Service B
         svc_b = self.ipopo.instantiate(self.module.FACTORY_B, "svcB")
         self.assertEqual(compo.states,
-                          [self.module.BIND_B, self.module.BIND_FIELD_B],
-                          "Service B bound incorrectly")
+                         [self.module.BIND_B, self.module.BIND_FIELD_B],
+                         "Service B bound incorrectly")
         del compo.states[:]
 
         # Update A
         self.assertNotEqual(svc_a._prop, 42,
-                             "Value already at requested value")
+                            "Value already at requested value")
         compo.change_a(42)
         self.assertEqual(svc_a._prop, 42, "Value not changed")
         self.assertEqual(compo.states,
-                          [self.module.UPDATE_FIELD_A, self.module.UPDATE_A],
-                          "Service A updated incorrectly")
+                         [self.module.UPDATE_FIELD_A, self.module.UPDATE_A],
+                         "Service A updated incorrectly")
         del compo.states[:]
 
         # Update B
         self.assertNotEqual(svc_b._prop, -123,
-                             "Value already at requested value")
+                            "Value already at requested value")
         compo.change_b(-123)
         self.assertEqual(svc_b._prop, -123, "Value not changed")
         self.assertEqual(compo.states,
-                          [self.module.UPDATE_FIELD_B, self.module.UPDATE_B],
-                          "Service B updated incorrectly")
+                         [self.module.UPDATE_FIELD_B, self.module.UPDATE_B],
+                         "Service B updated incorrectly")
         del compo.states[:]
 
         # Kill service A
         self.ipopo.kill("svcA")
         self.assertEqual(compo.states,
-                          [self.module.UNBIND_FIELD_A, self.module.UNBIND_A],
-                          "Service A unbound incorrectly")
+                         [self.module.UNBIND_FIELD_A, self.module.UNBIND_A],
+                         "Service A unbound incorrectly")
         del compo.states[:]
 
         # Kill service B
         self.ipopo.kill("svcB")
         self.assertEqual(compo.states,
-                          [self.module.UNBIND_FIELD_B, self.module.UNBIND_B],
-                          "Service B unbound incorrectly")
+                         [self.module.UNBIND_FIELD_B, self.module.UNBIND_B],
+                         "Service B unbound incorrectly")
         del compo.states[:]
 
         # Kill consumer
         self.ipopo.kill("consumer")
-
 
     def testLifeCycleFieldCallbackIfValid(self):
         """
@@ -124,7 +122,7 @@ class FieldCallbackTest(unittest.TestCase):
 
         # Update B
         self.assertNotEqual(svc_b._prop, -123,
-                             "Value already at requested value")
+                            "Value already at requested value")
         compo.change_b(-123)
         self.assertEqual(svc_b._prop, -123, "Value not changed")
         self.assertEqual(compo.states, [], "Service B updated: called")
@@ -149,7 +147,7 @@ class FieldCallbackTest(unittest.TestCase):
 
         # Update B
         self.assertNotEqual(svc_b._prop, -123,
-                             "Value already at requested value")
+                            "Value already at requested value")
         compo.change_b(-123)
         self.assertEqual(svc_b._prop, -123, "Value not changed")
         self.assertEqual(compo.states, [self.module.UPDATE_FIELD_B],
@@ -176,7 +174,7 @@ class FieldCallbackTest(unittest.TestCase):
 
         # Update B
         self.assertNotEqual(svc_b._prop, -123,
-                             "Value already at requested value")
+                            "Value already at requested value")
         compo.change_b(-123)
         self.assertEqual(svc_b._prop, -123, "Value not changed")
         self.assertEqual(compo.states, [], "Service B updated: called")

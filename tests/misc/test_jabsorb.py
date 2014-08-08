@@ -22,6 +22,7 @@ __version__ = "1.0.0"
 
 # ------------------------------------------------------------------------------
 
+
 class JabsorbConverterTest(unittest.TestCase):
     """
     Tests the Jabsorb conversion module
@@ -62,7 +63,6 @@ class JabsorbConverterTest(unittest.TestCase):
         # Check content
         self.assertDictEqual(revert_value, value)
 
-
     def testCustomClass(self):
         """
         Tests the conversion of a custom class
@@ -70,6 +70,7 @@ class JabsorbConverterTest(unittest.TestCase):
         # Basic class
         class Custom(object):
             javaClass = "test.Custom"
+
             def __init__(self):
                 self.value = str(uuid.uuid4())
                 self._value = str(uuid.uuid4())
@@ -95,17 +96,16 @@ class JabsorbConverterTest(unittest.TestCase):
         self.assertEqual(revert.javaClass, Custom.javaClass)
         self.assertEqual(revert.value, value.value)
 
-
     def testBeanInTheMiddle(self):
         """
         Tests the conversion of the content of a bean (half parsed stream)
         """
         class Bean(object):
+
             def __init__(self):
                 self.list = jabsorb.to_jabsorb([1, 2, 3])
                 self.tuple = jabsorb.to_jabsorb((1, 2, 3))
                 self.set = jabsorb.to_jabsorb(set((1, 2, 3)))
-
 
             def __eq__(self, other):
                 return self.list == other.list \
@@ -121,7 +121,6 @@ class JabsorbConverterTest(unittest.TestCase):
         self.assertEqual(revert.list, [1, 2, 3])
         self.assertEqual(revert.tuple, (1, 2, 3))
         self.assertEqual(revert.set, set((1, 2, 3)))
-
 
     def testHashableType(self):
         """
@@ -145,7 +144,6 @@ class JabsorbConverterTest(unittest.TestCase):
         for value in in_set:
             dico[value] = 42
         self.assertEqual(len(dico), len(hash_values))
-
 
     def testDoubleConvert(self):
         """
@@ -172,7 +170,6 @@ class JabsorbConverterTest(unittest.TestCase):
         # Check results
         self.assertDictEqual(revert_second, value)
         self.assertDictEqual(revert_first, value)
-
 
     def testJsonAndJavaClass(self):
         """

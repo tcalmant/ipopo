@@ -19,8 +19,9 @@ BASIC_FACTORY = "basic-component-factory"
 BASIC_INSTANCE = "basic-component-copy"
 
 # ------------------------------------------------------------------------------
-
 # Auto-instantiated component (tests the decorator)
+
+
 @ComponentFactory(BASIC_FACTORY)
 @Instantiate(BASIC_INSTANCE)
 @Provides("basic-component-svc")
@@ -35,14 +36,12 @@ class BasicComponent(object):
         self.states = []
         self.states.append(IPopoEvent.INSTANTIATED)
 
-
     @Validate
     def validate(self, context):
         """
         Validation
         """
         self.states.append(IPopoEvent.VALIDATED)
-
 
     @Invalidate
     def invalidate(self, context):

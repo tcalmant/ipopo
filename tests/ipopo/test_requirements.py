@@ -34,6 +34,7 @@ NAME_C = "componentC"
 
 # ------------------------------------------------------------------------------
 
+
 class RequirementTest(unittest.TestCase):
     """
     Tests the component requirements behavior
@@ -46,14 +47,12 @@ class RequirementTest(unittest.TestCase):
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
 
-
     def tearDown(self):
         """
         Called after each test
         """
         self.framework.stop()
         FrameworkFactory.delete_framework(self.framework)
-
 
     def testCycleInner(self):
         """
@@ -92,7 +91,6 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual([IPopoEvent.INVALIDATED], compoA.states,
                          "Invalid component states: {0}".format(compoA.states))
 
-
     def testCycleOuterEnd(self):
         """
         Tests if the required service is correctly unbound after the component
@@ -128,7 +126,6 @@ class RequirementTest(unittest.TestCase):
         self.ipopo.kill(NAME_B)
         self.assertEqual([], compoB.states,
                          "Invalid component states: {0}".format(compoA.states))
-
 
     def testCycleOuterStart(self):
         """
@@ -172,7 +169,6 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual([IPopoEvent.INVALIDATED], compoA.states,
                          "Invalid component states: {0}".format(compoA.states))
 
-
     def testConfiguredInstance(self):
         """
         Tests if the filter can be overridden by instance properties
@@ -180,7 +176,7 @@ class RequirementTest(unittest.TestCase):
         module = install_bundle(self.framework)
 
         # The module filter
-        properties_b = {constants.IPOPO_REQUIRES_FILTERS: \
+        properties_b = {constants.IPOPO_REQUIRES_FILTERS:
                         {"service": "({0}=True)".format(module.PROP_USABLE)}}
 
         # Instantiate A (validated)
@@ -212,7 +208,6 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual([IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
                          compoB.states,
                          "Invalid component states: {0}".format(compoB.states))
-
 
     def testAggregateDependency(self):
         """
@@ -293,7 +288,6 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual([IPopoEvent.INVALIDATED], compoC.states,
                          "Invalid component states: {0}".format(compoC.states))
 
-
     def testAggregateDependencyLate(self):
         """
         Tests a component that aggregates dependencies, with one dependency
@@ -313,7 +307,6 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual([IPopoEvent.INSTANTIATED, IPopoEvent.BOUND,
                           IPopoEvent.VALIDATED], compoC.states,
                          "Invalid component states: {0}".format(compoC.states))
-
 
     def testCallbackRaiser(self):
         """
@@ -358,7 +351,6 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual([IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
                          compoB.states,
                          "Invalid component states: {0}".format(compoB.states))
-
 
     def testCallbackInstantiateStopper(self):
         """
@@ -422,7 +414,6 @@ class RequirementTest(unittest.TestCase):
         # Framework must have stopped now
         self.assertEqual(self.framework.get_state(), Bundle.RESOLVED,
                          "Framework hasn't stopped")
-
 
     def testRequiresMap(self):
         """

@@ -27,6 +27,7 @@ NAME_A = "componentA"
 
 # ------------------------------------------------------------------------------
 
+
 class ProvidesTest(unittest.TestCase):
     """
     Tests the component "provides" behavior
@@ -39,14 +40,12 @@ class ProvidesTest(unittest.TestCase):
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
 
-
     def tearDown(self):
         """
         Called after each test
         """
         self.framework.stop()
         FrameworkFactory.delete_framework(self.framework)
-
 
     def testProvides(self):
         """
@@ -102,7 +101,6 @@ class ProvidesTest(unittest.TestCase):
                 self.ipopo.kill(NAME_A)
             except:
                 pass
-
 
     def testController(self):
         """
