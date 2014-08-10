@@ -287,7 +287,7 @@ class ShellUtils(object):
             pelix.Bundle.UNINSTALLED: "UNINSTALLED"
         }
 
-        return states.get(state, "Unknown state (%d)".format(state))
+        return states.get(state, "Unknown state ({0})".format(state))
 
     def make_table(self, headers, lines, prefix=None):
         """
