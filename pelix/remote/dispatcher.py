@@ -157,6 +157,20 @@ class Dispatcher(object):
 
         return name
 
+    def _check_name_reuse(self, name):
+        """
+        Checks if a service was waiting to reuse an endpoint name
+
+        :param name: The endpoint name to reuse
+        """
+        ldap_filter = "({0}={1})".format(pelix.remote.PROP_ENDPOINT_NAME, name)
+        _logger.info("Checking name reuse: %s", ldap_filter)
+        svc_ref = self._context.get_service_reference(None, ldap_filter)
+        _logger.info("Found svc_ref=%s", svc_ref)
+        if svc_ref is not None:
+            # A service wants to be exported with the given endpoint name
+            self.__export_service(svc_ref)
+
     def service_changed(self, event):
         """
         Called when a service event is triggered
@@ -265,6 +279,7 @@ class Dispatcher(object):
             # No known UID
             return
 
+        names = set()
         for uid in uids:
             try:
                 # Get its exporter and bean
@@ -295,6 +310,7 @@ class Dispatcher(object):
                     del self.__uid_exporter[endpoint.uid]
                     del self.__endpoints[endpoint.uid]
                     exporter.unexport_service(endpoint)
+                    names.add(endpoint.name)
 
                     # Call listeners (out of the lock)
                     if self._listeners:
@@ -306,6 +322,10 @@ class Dispatcher(object):
                     if self._listeners:
                         for listener in self._listeners:
                             listener.endpoint_updated(endpoint, old_properties)
+
+        # Check if a service wanted to export an endpoint with the given name
+        for name in names:
+            self._check_name_reuse(name)
 
     def __unexport_service(self, svc_ref):
         """
@@ -321,6 +341,7 @@ class Dispatcher(object):
             # No known UID
             return
 
+        names = set()
         for uid in uids:
             try:
                 # Remove from storage
@@ -334,6 +355,7 @@ class Dispatcher(object):
             else:
                 # Delete endpoint
                 exporter.unexport_service(endpoint)
+                names.add(endpoint.name)
 
                 # Call listeners
                 if self._listeners:
@@ -343,6 +365,10 @@ class Dispatcher(object):
 
                         except Exception as ex:
                             _logger.error("Error notifying listener: %s", ex)
+
+        # Check if a service wanted to export an endpoint with the given name
+        for name in names:
+            self._check_name_reuse(name)
 
     @BindField('_listeners')
     def _bind_listener(self, field, listener, svc_ref):
