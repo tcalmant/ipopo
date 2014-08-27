@@ -520,3 +520,60 @@ class EventData(object):
             # Clear the event, to keep the same state after the exception
             self.__event.clear()
             raise self.__exception
+
+
+class CountdownEvent(object):
+    """
+    Sets up an Event once the internal integer reaches 0
+    (kind of the opposite of a semaphore)
+    """
+    def __init__(self, value):
+        """
+        Sets up the counter
+
+        :param value: The initial value of the counter, which must be greater
+        than 0.
+        :raise ValueError: The value is not greater than 0
+        """
+        if value <= 0:
+            raise ValueError("Initial value is not greater than 0")
+
+        self.__lock = threading.Lock()
+        self.__value = value
+        self.__event = threading.Event()
+
+    def is_set(self):
+        """
+        Checks if the event is set
+        """
+        return self.__event.is_set()
+
+    def step(self):
+        """
+        Decreases the internal counter. Raises an error if the counter goes
+        below 0
+
+        :return: True if this step was the final one, else False
+        :raise ValueError: The counter has gone below 0
+        """
+        with self.__lock:
+            self.__value = self.__value - 1
+            if self.__value == 0:
+                # All done
+                self.__event.set()
+                return True
+            elif self.__value < 0:
+                # Gone too far
+                raise ValueError("The counter has gone below 0")
+
+        return False
+
+    def wait(self, timeout=None):
+        """
+        Waits for the event or for the timeout
+
+        :param timeout: Wait timeout (in seconds)
+        :return: True if the event as been set, else False
+        """
+        # The 'or' part is for Python 2.6
+        return self.__event.wait(timeout) or self.__event.is_set()
