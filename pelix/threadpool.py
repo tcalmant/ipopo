@@ -35,6 +35,9 @@ __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 
+# Pelix
+import pelix.utilities
+
 # Standard library
 import logging
 import threading
@@ -53,12 +56,45 @@ class FutureResult(object):
     """
     An object to wait for the result of a threaded execution
     """
-    def __init__(self):
+    def __init__(self, logger=None):
         """
         Sets up the FutureResult object
+
+        :param logger: The Logger to use in case of error (optional)
         """
-        self._done_event = threading.Event()
-        self._result = None
+        self._logger = logger or logging.getLogger(__name__)
+        self._done_event = pelix.utilities.EventData()
+        self.__callback = None
+        self.__extra = None
+
+    def __notify(self):
+        """
+        Notify the given callback about the result of the execution
+        """
+        if self.__callback is not None:
+            try:
+                self.__callback(self._done_event.data,
+                                self._done_event.exception,
+                                self.__extra)
+            except Exception as ex:
+                self._logger.exception("Error calling back method: %s", ex)
+
+    def set_callback(self, method, extra=None):
+        """
+        Sets a callback method, called once the result has been computed or in
+        case of exception.
+
+        The callback method must have the following signature:
+        ``callback(result, exception, extra)``.
+
+        :param method: The method to call back in the end of the execution
+        :param extra: Extra parameter to be given to the callback method
+        """
+        self.__callback = method
+        self.__extra = extra
+        if self._done_event.is_set():
+            # The execution has already finished
+            self.__notify()
 
     def execute(self, method, args, kwargs):
         """
@@ -79,10 +115,16 @@ class FutureResult(object):
 
         try:
             # Call the method
-            self._result = method(*args, **kwargs)
+            result = method(*args, **kwargs)
+        except Exception as ex:
+            # Something went wrong
+            self._done_event.raise_exception(ex)
+        else:
+            # Store the result
+            self._done_event.set(result)
         finally:
-            # Mark the action as executed
-            self._done_event.set()
+            # In any case: notify the call back (if any)
+            self.__notify()
 
     def done(self):
         """
@@ -97,9 +139,10 @@ class FutureResult(object):
 
         :param timeout: The maximum time to wait for a result (in seconds)
         :raise OSError: The timeout raised before the job finished
+        :raise: The exception encountered during the call, if any
         """
-        if self._done_event.wait(timeout) or self._done_event.is_set():
-            return self._result
+        if self._done_event.wait(timeout):
+            return self._done_event.data
 
         raise OSError("Timeout raised")
 
@@ -220,7 +263,7 @@ class ThreadPool(object):
                              .format(method.__name__))
 
         # Prepare the future result object
-        future = FutureResult()
+        future = FutureResult(self._logger)
 
         # Use a lock, as we might be "resetting" the queue
         with self.__lock:
