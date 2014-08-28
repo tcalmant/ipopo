@@ -44,9 +44,11 @@ import threading
 
 try:
     # Python 3
+    # pylint: disable=F0401
     import queue
 except ImportError:
     # Python 2
+    # pylint: disable=F0401
     import Queue as queue
 
 # ------------------------------------------------------------------------------
@@ -117,8 +119,9 @@ class FutureResult(object):
             # Call the method
             result = method(*args, **kwargs)
         except Exception as ex:
-            # Something went wrong
+            # Something went wrong: propagate to the event and to the caller
             self._done_event.raise_exception(ex)
+            raise
         else:
             # Store the result
             self._done_event.set(result)
@@ -143,8 +146,8 @@ class FutureResult(object):
         """
         if self._done_event.wait(timeout):
             return self._done_event.data
-
-        raise OSError("Timeout raised")
+        else:
+            raise OSError("Timeout raised")
 
 # ------------------------------------------------------------------------------
 
@@ -164,12 +167,15 @@ class ThreadPool(object):
         :raise ValueError: Invalid number of threads
         """
         # Validate parameters
-        if type(nb_threads) is not int or nb_threads < 1:
-            raise ValueError("Invalid pool size: {0}".format(nb_threads))
+        try:
+            nb_threads = int(nb_threads)
+            if nb_threads < 1:
+                raise ValueError("Pool size must be greater than 0")
+        except (TypeError, ValueError) as ex:
+            raise ValueError("Invalid pool size: {0}".format(ex))
 
         # The logger
-        self.__name = logname or __name__
-        self._logger = logging.getLogger(self.__name)
+        self._logger = logging.getLogger(logname or __name__)
 
         # The loop control event
         self._done_event = threading.Event()
@@ -178,7 +184,6 @@ class ThreadPool(object):
         # The task queue
         try:
             queue_size = int(queue_size)
-
         except (TypeError, ValueError):
             # Not a valid integer
             queue_size = 0
@@ -206,8 +211,8 @@ class ThreadPool(object):
         i = 0
         while i < self._nb_threads:
             i += 1
-            thread = threading.Thread(target=self.__run,
-                                      name="{0}-{1}".format(self.__name, i))
+            name = "{0}-{1}".format(self._logger.name, i)
+            thread = threading.Thread(target=self.__run, name=name)
             self._threads.append(thread)
 
         # Start'em
@@ -230,7 +235,6 @@ class ThreadPool(object):
             try:
                 for _ in self._threads:
                     self._queue.put(self._done_event, True, self._timeout)
-
             except queue.Full:
                 # There is already something in the queue
                 pass
@@ -239,7 +243,7 @@ class ThreadPool(object):
             for thread in self._threads:
                 while thread.is_alive():
                     # Wait 3 seconds
-                    thread.join(3.)
+                    thread.join(3)
                     if thread.is_alive():
                         # Thread is still alive: something might be wrong
                         self._logger.warning("Thread %s is still alive...",
@@ -284,7 +288,6 @@ class ThreadPool(object):
                 while True:
                     self._queue.get_nowait()
                     self._queue.task_done()
-
             except queue.Empty:
                 # Queue is now empty
                 pass
