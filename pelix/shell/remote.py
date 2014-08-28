@@ -55,10 +55,11 @@ import sys
 
 try:
     # Python 3
+    # pylint: disable=F0401
     import socketserver
-
 except ImportError:
     # Python 2
+    # pylint: disable=F0401
     import SocketServer as socketserver
 
 # ------------------------------------------------------------------------------

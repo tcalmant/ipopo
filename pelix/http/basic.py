@@ -55,6 +55,7 @@ import traceback
 # Basic HTTP server
 try:
     # Python 3
+    # pylint: disable=F0401,E0611
     import urllib.parse as urlparse
     from http.server import HTTPServer
     from http.server import BaseHTTPRequestHandler
@@ -62,6 +63,7 @@ try:
 
 except ImportError:
     # Python 2
+    # pylint: disable=F0401
     import urlparse
     from BaseHTTPServer import HTTPServer
     from BaseHTTPServer import BaseHTTPRequestHandler

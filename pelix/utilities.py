@@ -368,6 +368,7 @@ if PYTHON_3:
         return str(data, encoding)
 
     # Same operation
+    # pylint: disable=C0103
     to_unicode = to_str
 
 else:
@@ -400,6 +401,7 @@ else:
         return data.encode(encoding)
 
     # Same operation
+    # pylint: disable=C0103
     to_bytes = to_str
 
     def to_unicode(data, encoding="UTF-8"):
@@ -515,6 +517,8 @@ class EventData(object):
         """
         # The 'or' part is for Python 2.6
         result = self.__event.wait(timeout) or self.__event.is_set()
+        # pylint: disable=E0702
+        # Pylint seems to miss the "is None" check below
         if self.__exception is None:
             return result
         else:

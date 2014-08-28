@@ -46,9 +46,11 @@ import re
 
 try:
     # Python 2
+    # pylint: disable=F0401
     import __builtin__ as builtins
 except ImportError:
     # Python 3
+    # pylint: disable=F0401
     import builtins
 
 # ------------------------------------------------------------------------------

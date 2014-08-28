@@ -380,6 +380,8 @@ class Bundle(object):
             self._fire_bundle_event(BundleEvent.STOPPED)
 
         # Raise the exception, if any
+        # pylint: disable=E0702
+        # Pylint seems to miss the "is not None" check below
         if exception is not None:
             raise exception
 
