@@ -391,6 +391,191 @@ class UtilitiesTest(unittest.TestCase):
         self.assertRaises(pelix.constants.BundleException,
                           utilities.use_service(context, svc_ref).__enter__)
 
+    def testToIterable(self):
+        """
+        Tests the to_iterable() method
+        """
+        # None value
+        self.assertIsNone(utilities.to_iterable(None, True),
+                          "None value refused")
+        self.assertListEqual(utilities.to_iterable(None, False), [],
+                          "None value accepted")
+
+        # Check iterable types
+        for clazz in (list, tuple, set, frozenset):
+            iterable = clazz()
+            self.assertIs(utilities.to_iterable(iterable), iterable,
+                          "to_iterable() didn't returned the original object")
+
+        # Check other types
+        for value in ("hello", 123, {1: 2}, object()):
+            self.assertListEqual(utilities.to_iterable(value), [value],
+                                 "to_iterable() didn't returned a list")
+
+# ------------------------------------------------------------------------------
+
+
+class CountdownEventTest(unittest.TestCase):
+    """
+    Tests for the CountdownEvent class
+    """
+    def testInitCheck(self):
+        """
+        Tests the value check when creating the event
+        """
+        for invalid in (-1, 0):
+            self.assertRaises(ValueError, utilities.CountdownEvent, invalid)
+
+    def testSteps(self):
+        """
+        Tests the count down event behavior
+        """
+        event = utilities.CountdownEvent(3)
+        # Stepping...
+        self.assertFalse(event.step(), "Finished on first step...")
+        self.assertFalse(event.is_set(), "Set on first step...")
+        self.assertFalse(event.step(), "Finished on second step...")
+        self.assertFalse(event.is_set(), "Set on second step...")
+
+        # Last one
+        self.assertTrue(event.step(), "Not done on last step...")
+        self.assertTrue(event.is_set(), "Not set on last step...")
+
+        # No more
+        self.assertRaises(ValueError, event.step)
+        self.assertTrue(event.is_set(), "Not set after last step...")
+
+    def testWait(self):
+        """
+        Tests the wait() method
+        """
+        event = utilities.CountdownEvent(1)
+        self.assertFalse(event.wait(.1), "Timed out wait must return False")
+
+        start = time.time()
+        threading.Timer(1, event.step).start()
+        self.assertFalse(event.wait(.1), "Timed out wait must return False")
+        self.assertTrue(event.wait(), "Wait should return true on set")
+        self.assertLessEqual(time.time() - start, 2, "Too long to wait")
+
+        self.assertTrue(event.wait(.5),
+                        "Already set event shoudn't block wait()")
+        self.assertTrue(event.wait(),
+                        "Already set event shoudn't block wait()")
+
+# ------------------------------------------------------------------------------
+
+
+class EventDataTest(unittest.TestCase):
+    """
+    Tests for the EventData class
+    """
+    def testSetClear(self):
+        """
+        Tests set() and clear() operations
+        """
+        # Initial condition
+        event = utilities.EventData()
+        self.assertFalse(event.is_set(), "Event initially set")
+        self.assertIsNone(event.data, "Non-None data")
+        self.assertIsNone(event.exception, "Non-None exception")
+
+        # No-data set
+        event.set()
+        self.assertTrue(event.is_set(), "Event not set")
+        self.assertIsNone(event.data, "Non-None data")
+        self.assertIsNone(event.exception, "Non-None exception")
+
+        # Clear
+        event.clear()
+        self.assertFalse(event.is_set(), "Event still set")
+        self.assertIsNone(event.data, "Non-None data")
+        self.assertIsNone(event.exception, "Non-None exception")
+
+        # Set data
+        data = object()
+        event.set(data)
+        self.assertTrue(event.is_set(), "Event not set")
+        self.assertIs(event.data, data, "Invalid event data")
+        self.assertIsNone(event.exception, "Non-None exception")
+
+        # Clear
+        event.clear()
+        self.assertFalse(event.is_set(), "Event still set")
+        self.assertIsNone(event.data, "Non-None data")
+        self.assertIsNone(event.exception, "Non-None exception")
+
+    def testException(self):
+        """
+        Tests the exception storage
+        """
+        event = utilities.EventData()
+
+        # "Raise" an exception
+        exception = Exception("Some dummy exception")
+        event.raise_exception(exception)
+
+        # Check content
+        self.assertTrue(event.is_set(), "Event has not been set")
+        self.assertIsNone(event.data, "Non-None data")
+        self.assertIs(event.exception, exception, "Invalid exception")
+
+        # Check the behavior of "wait"
+        try:
+            event.wait()
+        except Exception as ex:
+            self.assertIs(ex, exception, "Not the same exception")
+            self.assertTrue(event.is_set(), "Event has been cleared")
+        else:
+            self.fail("Exception not raised")
+
+        # Clear
+        event.clear()
+        self.assertFalse(event.is_set(), "Event has been set")
+        self.assertIsNone(event.data, "Non-None data")
+        self.assertIsNone(event.exception, "Non-None exception")
+
+    def testWait(self):
+        """
+        Tests the wait() method
+        """
+        event = utilities.EventData()
+        self.assertFalse(event.wait(.1), "Timed out wait must return False")
+
+        start = time.time()
+        threading.Timer(1, event.set).start()
+        self.assertFalse(event.wait(.1), "Timed out wait must return False")
+        self.assertTrue(event.wait(), "Wait should return true on set")
+        self.assertLessEqual(time.time() - start, 2, "Too long to wait")
+
+        self.assertTrue(event.wait(.5),
+                        "Already set event shoudn't block wait()")
+        self.assertTrue(event.wait(),
+                        "Already set event shoudn't block wait()")
+
+    def testWaitException(self):
+        """
+        Tests the exception effect on wait()
+        """
+        event = utilities.EventData()
+        exception = Exception("Some dummy exception")
+
+        # "Raise" an exception
+        threading.Timer(.5, event.raise_exception, [exception]).start()
+
+        # Check the behavior of "wait"
+        try:
+            event.wait()
+        except Exception as ex:
+            self.assertIs(ex, exception, "Not the same exception")
+        else:
+            self.fail("Exception not raised")
+
+        # Check content
+        self.assertTrue(event.is_set(), "Event has been cleared")
+        self.assertIsNone(event.data, "Non-None data")
+        self.assertIs(event.exception, exception, "Invalid exception")
+
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":

@@ -481,12 +481,13 @@ class EventData(object):
         """
         self.__event.clear()
         self.__data = None
+        self.__exception = None
 
     def is_set(self):
         """
         Checks if the event is set
         """
-        self.__event.is_set()
+        return self.__event.is_set()
 
     def set(self, data=None):
         """
@@ -517,8 +518,6 @@ class EventData(object):
         if self.__exception is None:
             return result
         else:
-            # Clear the event, to keep the same state after the exception
-            self.__event.clear()
             raise self.__exception
 
 
