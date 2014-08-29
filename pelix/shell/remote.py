@@ -222,7 +222,7 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         if self.address_family == socket.AF_INET6:
             # Explicitly ask to be accessible both by IPv4 and IPv6
             try:
-                pelix.ipv6utils.set_double_stack(socket)
+                pelix.ipv6utils.set_double_stack(self.socket)
             except AttributeError as ex:
                 _logger.exception("System misses IPv6 constant: %s", ex)
             except socket.error as ex:
