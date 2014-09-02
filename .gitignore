@@ -1,9 +1,13 @@
 # Python
 *.pyc
+*.pyo
 __pycache__/
 
 # Eclipse settings
-.settings
+.settings/
+
+# PyCharm
+.idea/
 
 # When installed in develop mode
 dist/
@@ -33,7 +37,4 @@ html/
 
 # Sphinx build
 build/
-
-# Google Analytics setter
-private_make.sh
 
