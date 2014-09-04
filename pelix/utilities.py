@@ -496,6 +496,7 @@ class EventData(object):
         Sets the event
         """
         self.__data = data
+        self.__exception = None
         self.__event.set()
 
     def raise_exception(self, exception):
