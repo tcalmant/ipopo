@@ -1068,18 +1068,11 @@ class _IPopoService(object):
             handler_requires = context.get_handler(constants.HANDLER_REQUIRES)
             if handler_requires is not None:
                 for field, requirement in handler_requires.items():
-                    req = {}
-                    # ID = Field name
-                    req["id"] = field
-                    req["specification"] = requirement.specification
-                    req["aggregate"] = requirement.aggregate
-                    req["optional"] = requirement.optional
-
-                    # Give the string representation of the original LDAP
-                    # filter
-                    req["filter"] = requirement.original_filter
-
-                    reqs.append(req)
+                    reqs.append({"id": field,
+                                 "specification": requirement.specification,
+                                 "aggregate": requirement.aggregate,
+                                 "optional": requirement.optional,
+                                 "filter": requirement.original_filter})
 
             # Provided services (list of list of specifications)
             svc = result["services"] = []

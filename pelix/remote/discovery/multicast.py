@@ -239,7 +239,7 @@ def create_multicast_socket(address, port):
         # Allow multicast packets to get back on this host
         sock.setsockopt(ipproto_ipv6(), socket.IPV6_MULTICAST_LOOP, 1)
 
-    return (sock, addr_info[4][0])
+    return sock, addr_info[4][0]
 
 
 def close_multicast_socket(sock, address):

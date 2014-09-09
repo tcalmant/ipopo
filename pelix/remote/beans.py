@@ -337,7 +337,9 @@ class ImportEndpoint(object):
 class EndpointDescription(object):
     """
     Endpoint description bean, according to OSGi specifications:
-    http://www.osgi.org/javadoc/r4v42/org/osgi/service/remoteserviceadmin/EndpointDescription.html
+
+    http://www.osgi.org/javadoc/r4v42/org/osgi/service/remoteserviceadmin/
+    EndpointDescription.html
 
     This is an importer-side description
     """
@@ -503,7 +505,7 @@ class EndpointDescription(object):
 
         except KeyError:
             # No version
-            return (0, 0, 0)
+            return 0, 0, 0
 
     def get_properties(self):
         """
@@ -761,7 +763,7 @@ def _extract_specification_parts(specification):
         # Formatted name: un-escape it, without the starting '/'
         interface = _unescape_specification(interface[1:])
 
-    return (language, interface)
+    return language, interface
 
 
 def _format_specification(language, specification):

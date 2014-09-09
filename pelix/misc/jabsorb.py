@@ -226,13 +226,13 @@ def to_jabsorb(value):
 
     # List ? (consider tuples as an array)
     elif isinstance(value, list):
-        converted_result = {JAVA_CLASS: "java.util.ArrayList"}
-        converted_result["list"] = [to_jabsorb(entry) for entry in value]
+        converted_result = {JAVA_CLASS: "java.util.ArrayList",
+                            'list': [to_jabsorb(entry) for entry in value]}
 
     # Set ?
     elif isinstance(value, (set, frozenset)):
-        converted_result = {JAVA_CLASS: "java.util.HashSet"}
-        converted_result["set"] = [to_jabsorb(entry) for entry in value]
+        converted_result = {JAVA_CLASS: "java.util.HashSet",
+                            'set': [to_jabsorb(entry) for entry in value]}
 
     # Tuple ? (used as array, except if it is empty)
     elif isinstance(value, tuple):

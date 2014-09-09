@@ -277,7 +277,7 @@ class FileInstall(object):
         :raise IOError: File not readable
         """
         filepath = os.path.join(folder, filename)
-        return (os.path.getmtime(filepath), self.__get_checksum(filepath))
+        return os.path.getmtime(filepath), self.__get_checksum(filepath)
 
     def __check_different(self, folder, filename, file_info, updated):
         """
@@ -313,11 +313,11 @@ class FileInstall(object):
 
         if previous_checksum == checksum:
             # No real modification, update file info
-            return (mtime, checksum)
+            return mtime, checksum
 
         # File modified
         updated.add(filename)
-        return (mtime, checksum)
+        return mtime, checksum
 
     def __watch(self, folder, stopper):
         """

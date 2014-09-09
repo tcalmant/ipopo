@@ -240,6 +240,9 @@ class MqttEventAdminBridge(object):
                 # Loop back
                 return
 
+            # Set up source UID as an extra property
+            properties[EVENT_PROP_SOURCE_UID] = sender_uid
+
         except KeyError:
             # Not sent by us... continue
             pass
@@ -248,9 +251,6 @@ class MqttEventAdminBridge(object):
         if properties.pop(EVENT_PROP_STARTING_SLASH, False):
             # Topic has a starting '/'
             evt_topic = '/{0}'.format(evt_topic)
-
-        # Set up source UID as an extra property
-        properties[EVENT_PROP_SOURCE_UID] = sender_uid
 
         # Post the event
         self._event.post(evt_topic, properties)

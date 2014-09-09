@@ -192,6 +192,7 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         except ValueError as ex:
             # Bad content
             _logger.error("Error reading MQTT-RPC request: %s", ex)
+            return
 
         try:
             if data[KEY_SENDER] == self._framework_uid:
@@ -458,6 +459,7 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         """
         An MQTT reply has been received
         """
+        correlation_id = None
         try:
             # Parse data
             data = json.loads(to_str(msg.payload))
@@ -477,6 +479,7 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         except ValueError as ex:
             # Unreadable reply
             _logger.error("Error reading MQTT-RPC reply: %s", ex)
+            return
 
         except KeyError as ex:
             # No correlation ID

@@ -143,7 +143,7 @@ class PropertiesHandler(constants.Handler):
 
             return new_value
 
-        return (get_value, set_value)
+        return get_value, set_value
 
     def manipulate(self, stored_instance, component_instance):
         """

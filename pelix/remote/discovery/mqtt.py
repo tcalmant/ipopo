@@ -194,13 +194,13 @@ class MqttDiscovery(object):
         :param client: Client that received the message
         :param msg: A MQTTMessage bean
         """
+        # Get the topic
+        topic = msg.topic
+
+        # Extract the event
+        event = topic.rsplit("/", 1)[1]
+
         try:
-            # Get the topic
-            topic = msg.topic
-
-            # Extract the event
-            event = topic.rsplit("/", 1)[1]
-
             if event in ENDPOINT_EVENTS:
                 # Parse the endpoints (from EDEF XML to ImportEndpoint)
                 endpoints_descr = EDEFReader().parse(msg.payload)

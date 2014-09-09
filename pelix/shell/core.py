@@ -357,10 +357,9 @@ class ShellUtils(object):
             idx = head_str.find('|', idx + 1)
 
         # Prepare the output
-        output = []
-        output.append(separator)
-        output.append(head_str)
-        output.append(separator.replace('-', '='))
+        output = [separator,
+                  head_str,
+                  separator.replace('-', '=')]
 
         # Compute the lines
         format_str = format_str.replace('^', '<')
@@ -808,14 +807,13 @@ class Shell(object):
             io_handler.write_line("Unknown bundle ID: {0}", bundle_id)
             return
 
-        lines = []
-        lines.append("ID......: {0}".format(bundle.get_bundle_id()))
-        lines.append("Name....: {0}".format(bundle.get_symbolic_name()))
-        lines.append("Version.: {0}".format(bundle.get_version()))
-        lines.append("State...: {0}".format(
-            self._utils.bundlestate_to_str(bundle.get_state())))
-        lines.append("Location: {0}".format(bundle.get_location()))
-        lines.append("Published services:")
+        lines = ["ID......: {0}".format(bundle.get_bundle_id()),
+                 "Name....: {0}".format(bundle.get_symbolic_name()),
+                 "Version.: {0}".format(bundle.get_version()),
+                 "State...: {0}".format(
+                     self._utils.bundlestate_to_str(bundle.get_state())),
+                 "Location: {0}".format(bundle.get_location()),
+                 "Published services:"]
         try:
             services = bundle.get_registered_services()
             if services:
@@ -1207,9 +1205,8 @@ class Shell(object):
             except KeyError:
                 name = "<unknown>"
 
-            lines = []
-            lines.append('Thread ID: {0} - Name: {1}'.format(thread_id, name))
-            lines.append('Stack trace:')
+            lines = ['Thread ID: {0} - Name: {1}'.format(thread_id, name),
+                     'Stack trace:']
 
             trace_lines = []
             frame = stack

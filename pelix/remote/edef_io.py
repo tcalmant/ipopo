@@ -47,13 +47,10 @@ from pelix.remote.beans import EndpointDescription
 import xml.etree.ElementTree as ElementTree
 try:
     # Python 2
-    import StringIO
-    StringIO = StringIO.StringIO
-
+    from StringIO import StringIO
 except ImportError:
     # Python 3
-    import io
-    StringIO = io.StringIO
+    from io import StringIO
 
 # ------------------------------------------------------------------------------
 

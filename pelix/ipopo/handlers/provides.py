@@ -162,7 +162,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
 
             return new_value
 
-        return (get_value, set_value)
+        return get_value, set_value
 
     def manipulate(self, stored_instance, component_instance):
         """
@@ -213,7 +213,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
 
         :return: the kinds of this handler
         """
-        return (constants.KIND_SERVICE_PROVIDER,)
+        return constants.KIND_SERVICE_PROVIDER,
 
     def get_service_reference(self):
         """

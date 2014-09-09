@@ -754,7 +754,7 @@ class RegistryServlet(object):
         :return: A tuple: (port, path) or None
         """
         if self._ports:
-            return (self._ports[0], self._path)
+            return self._ports[0], self._path
 
     def grab_endpoint(self, host, port, path, uid):
         """
@@ -800,7 +800,7 @@ class RegistryServlet(object):
 
         # Make the path to /endpoints
         if path[-1] != '/':
-            path = path + '/'
+            path += '/'
         path = urljoin(path, 'endpoints')
 
         # Request the end points

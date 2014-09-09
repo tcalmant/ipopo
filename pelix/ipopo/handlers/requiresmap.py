@@ -252,7 +252,7 @@ class _RuntimeDependency(constants.DependencyHandler):
 
         :return: the kinds of this handler
         """
-        return (constants.KIND_DEPENDENCY,)
+        return constants.KIND_DEPENDENCY,
 
     def get_value(self):
         """

@@ -1037,7 +1037,7 @@ class JsonPersistence(object):
             _logger.error("Error parsing %s: %s", filename, ex)
             return
 
-        return (pid, properties)
+        return pid, properties
 
     def exists(self, pid):
         """

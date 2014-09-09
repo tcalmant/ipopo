@@ -272,7 +272,7 @@ def _create_server(shell, server_address, port):
     server_thread.daemon = True
     server_thread.start()
 
-    return (server_thread, server, active_flag)
+    return server_thread, server, active_flag
 
 # ------------------------------------------------------------------------------
 
@@ -306,7 +306,7 @@ class IPopoRemoteShell(object):
 
         :return: A (host, port) tuple
         """
-        return (self._address, self._port)
+        return self._address, self._port
 
     def get_banner(self):
         """

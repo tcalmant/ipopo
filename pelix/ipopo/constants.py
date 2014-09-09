@@ -156,7 +156,7 @@ def get_ipopo_svc_ref(bundle_context):
         return None
 
     # Return both the reference (to call unget_service()) and the service
-    return (ref, svc)
+    return ref, svc
 
 
 @contextlib.contextmanager

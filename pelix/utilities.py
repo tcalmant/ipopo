@@ -561,7 +561,7 @@ class CountdownEvent(object):
         :raise ValueError: The counter has gone below 0
         """
         with self.__lock:
-            self.__value = self.__value - 1
+            self.__value -= 1
             if self.__value == 0:
                 # All done
                 self.__event.set()
