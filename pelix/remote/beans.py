@@ -40,6 +40,7 @@ from pelix.utilities import is_string
 import pelix.constants
 import pelix.ldapfilter
 import pelix.remote
+import pelix.utilities
 
 # Standard library
 try:
@@ -265,7 +266,8 @@ class ImportEndpoint(object):
             self.__configurations = tuple(configurations)
 
         # Extract the language prefix in specifications
-        self.__specifications = extract_specifications(specifications)
+        self.__specifications = extract_specifications(specifications,
+                                                       self.__properties)
 
         # Public variable: the source server,
         # set up by a Pelix discovery service
@@ -362,8 +364,6 @@ class EndpointDescription(object):
             # Service ID
             all_properties[pelix.remote.PROP_ENDPOINT_SERVICE_ID] = \
                 svc_ref.get_property(pelix.constants.SERVICE_ID)
-
-            # TODO: Framework UUID ??
 
         # Convert properties
         self.__properties = to_import_properties(all_properties)
@@ -681,28 +681,36 @@ def compute_exported_specifications(svc_ref):
         return specs
 
 
-def extract_specifications(specifications):
+def extract_specifications(specifications, properties):
     """
     Converts "python:/name" specifications to "name". Keeps the other
     specifications as is.
 
     :param specifications: The specifications found in a remote registration
-    :return: The filtered specifications (as a set)
+    :param properties: Service properties
+    :return: The filtered specifications (as a list)
     """
     filtered_specs = set()
 
-    for original in specifications:
+    all_specs = set(specifications)
+    try:
+        synonyms = \
+            pelix.utilities.to_iterable(properties[pelix.remote.PROP_SYNONYMS],
+                                        False)
+    except KeyError:
+        # No synonyms property
+        pass
+
+    for original in all_specs:
         try:
-            # Extract informations
+            # Extract information
             lang, spec = _extract_specification_parts(original)
             if lang == PYTHON_LANGUAGE:
                 # Language match: keep the name only
                 filtered_specs.add(spec)
-
             else:
                 # Keep the name as is
                 filtered_specs.add(original)
-
         except ValueError:
             # Ignore invalid specifications
             pass

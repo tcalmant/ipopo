@@ -106,10 +106,13 @@ PREFIX_PROP_EXPORTED = "service.exported."
 PROP_IMPORTED_INTERFACES = "service.imported.interfaces"
 """ Imported specifications (mirror of PROP_EXPORTED_INTERFACES) """
 
+PROP_SYNONYMS = "pelix.remote.synonyms"
+"""
+Synonyms of the exported specifications. Used of multi-language applications.
+"""
+
 # ------------------------------------------------------------------------------
 # Properties declared in RSA specifications
-
-# Already known
 
 PROP_EXPORTED_CONFIGS = "service.exported.configs"
 """ Export configurations (xmlrpc, ...) (str or array of str) """
@@ -122,8 +125,6 @@ PROP_IMPORTED = "service.imported"
 
 PROP_IMPORTED_CONFIGS = "service.imported.configs"
 """ Configurations of the imported service (array of str) """
-
-# New ones
 
 PROP_EXPORTED_INTENTS = "service.exported.intents"
 """
