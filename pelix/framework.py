@@ -442,36 +442,40 @@ class Bundle(object):
             raise
 
         # Change the source file age
-        time_changed = False
+        module_stat = None
         module_file = getattr(self.__module, "__file__", None)
         if module_file is not None and os.path.isfile(module_file):
             try:
-                stat = os.stat(module_file)
+                module_stat = os.stat(module_file)
 
                 # Change modification time to bypass weak time resolution of
                 # the underlying file system
-                os.utime(module_file, (stat.st_atime, stat.st_mtime + 1))
-                time_changed = True
-
+                os.utime(module_file, (module_stat.st_atime,
+                                       module_stat.st_mtime + 1))
             except OSError:
                 # Can't touch the file
                 _logger.warning("Failed to update the modification time of "
                                 "'%s'. The bundle update might not reflect the"
                                 " latest changes.", module_file)
 
+        # Clean up the module constants (otherwise kept by reload)
+        # Keep special members (__name__, __file__, ...)
+        for name in tuple(self.__module.__dict__):
+            if not (name.startswith('__') and name.endswith('__')):
+                del self.__module.__dict__[name]
+
         try:
             # Reload the module
             imp.reload(self.__module)
-
         except SyntaxError as ex:
             # Exception raised in Python 3
             _logger.exception("Error updating %s: %s", self.__name, ex)
 
-        if time_changed:
+        if module_stat is not None:
             try:
                 # Reset times
-                os.utime(module_file, (stat.st_atime, stat.st_mtime))
-
+                os.utime(module_file, (module_stat.st_atime,
+                                       module_stat.st_mtime))
             except OSError:
                 # Shouldn't occur, since we succeeded before the update
                 _logger.debug("Failed to reset the modification time of '%s'",
