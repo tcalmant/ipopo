@@ -460,6 +460,7 @@ class Bundle(object):
 
         # Clean up the module constants (otherwise kept by reload)
         # Keep special members (__name__, __file__, ...)
+        old_content = self.__module.__dict__.copy()
         for name in tuple(self.__module.__dict__):
             if not (name.startswith('__') and name.endswith('__')):
                 del self.__module.__dict__[name]
@@ -467,9 +468,13 @@ class Bundle(object):
         try:
             # Reload the module
             imp.reload(self.__module)
-        except SyntaxError as ex:
-            # Exception raised in Python 3
+        except (ImportError, SyntaxError) as ex:
+            # Exception raised if the file is unreadable
             _logger.exception("Error updating %s: %s", self.__name, ex)
+
+            # Reset module content
+            self.__module.__dict__.clear()
+            self.__module.__dict__.update(old_content)
 
         if module_stat is not None:
             try:
