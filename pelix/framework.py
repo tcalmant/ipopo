@@ -998,7 +998,7 @@ class Framework(Bundle):
         return True
 
     @SynchronizedClassMethod('_lock')
-    def stop(self, force=False):
+    def stop(self):
         """
         Stops the framework
 
