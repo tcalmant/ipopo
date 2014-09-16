@@ -199,11 +199,11 @@ class TransportsTest(unittest.TestCase):
                        args=(status_queue, transport_bundle, components))
         peer.start()
 
-        # Load the local framework (after the fork)
-        framework = load_framework(transport_bundle, components)
-        context = framework.get_bundle_context()
-
         try:
+            # Load the local framework (after the fork)
+            framework = load_framework(transport_bundle, components)
+            context = framework.get_bundle_context()
+
             # Wait for the ready state
             state = status_queue.get(4)
             self.assertEqual(state, "ready")
