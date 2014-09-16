@@ -11,7 +11,6 @@ env:
 before_install:
   - pip install tox
   - pip install coveralls
-  - pip install https://github.com/tcalmant/jsonrpclib/archive/master.zip
 
 script:
   - tox -e $TOX_ENV
