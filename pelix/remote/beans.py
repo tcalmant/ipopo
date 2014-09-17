@@ -690,17 +690,17 @@ def extract_specifications(specifications, properties):
     :param properties: Service properties
     :return: The filtered specifications (as a list)
     """
-    filtered_specs = set()
-
-    all_specs = set(specifications)
+    all_specs = set(pelix.utilities.to_iterable(specifications))
     try:
         synonyms = \
             pelix.utilities.to_iterable(properties[pelix.remote.PROP_SYNONYMS],
                                         False)
+        all_specs.update(synonyms)
     except KeyError:
         # No synonyms property
         pass
 
+    filtered_specs = set()
     for original in all_specs:
         try:
             # Extract information

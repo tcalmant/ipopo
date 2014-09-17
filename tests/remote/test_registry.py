@@ -267,6 +267,38 @@ class ImportsRegistryTest(unittest.TestCase):
             # Unregister the service
             svc_reg.unregister()
 
+    def testSynonyms(self):
+        """
+        Tests synonyms property handling
+        """
+        # Specifications
+        spec_1 = 'sample.spec'
+        spec_2 = 'sample.spec2'
+        spec_3 = 'sample.spec3'
+        python_specs = ['python:/{0}'.format(spec)
+                        for spec in (spec_2, spec_3)]
+        spec_java = 'org.pelix.sample.ISpec2'
+        java_specs = ['java:/{0}'.format(spec_java)]
+
+        # Prepare an ImportEndpoint
+        endpoint = beans.ImportEndpoint(
+            "service-uid", "some-framework", ["configA", "configB"], "name",
+            # "Normal" specification
+            spec_1,
+            #  Synonyms
+            {pelix.remote.PROP_SYNONYMS: python_specs + java_specs})
+
+        # Register the endpoint
+        self.service.add(endpoint)
+
+        # Check its specifications: Python ones don't have a prefix
+        self.assertIn(spec_1, endpoint.specifications)
+        self.assertIn(spec_2, endpoint.specifications)
+        self.assertIn(spec_3, endpoint.specifications)
+
+        # Java one is kept as is
+        self.assertIn(java_specs[0], endpoint.specifications)
+
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
