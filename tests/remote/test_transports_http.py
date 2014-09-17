@@ -45,7 +45,11 @@ import pelix.remote
 from multiprocessing import Process, Queue
 import time
 import threading
-import unittest
+
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
 
 try:
     import queue
