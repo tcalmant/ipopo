@@ -23,6 +23,7 @@ generated_bundle.py
 # Tests and coverage
 .tox/
 .coverage
+.coverage.*
 htmlcov/
 
 # ConfigurationAdmin folder
