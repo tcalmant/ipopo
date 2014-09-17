@@ -380,15 +380,15 @@ class AbstractCommonExporterTest(unittest.TestCase):
             "sample.spec", service_2,
             {pelix.remote.PROP_EXPORTED_INTERFACES: "*",
              pelix.remote.PROP_ENDPOINT_NAME: name})
-    
+
         # Call the test method
         # (the replacement endpoint should not be callable yet)
         self.assertEqual(exporter.dispatch(method_name, []), service.value)
         # The second service must be callable now
         self.assertListEqual(service.events, [SERVICE_CALLED],
-                              "Old service not called")
+                             "Old service not called")
         self.assertListEqual(service_2.events, [],
-                              "New service called after registration")
+                             "New service called after registration")
         service.clear()
         service_2.clear()
 
@@ -397,15 +397,15 @@ class AbstractCommonExporterTest(unittest.TestCase):
 
         # Check replacement of an endpoint by a previously
         # refused one.
-        
+
         # Call the test method (the new replacement endpoint should be used)
         self.assertEqual(exporter.dispatch(method_name, []), service_2.value)
 
         # The second service must be callable now
         self.assertListEqual(service_2.events, [SERVICE_CALLED],
-                              "New service not called")
+                             "New service not called")
         self.assertListEqual(service.events, [],
-                              "Old service called after unregistration")
+                             "Old service called after unregistration")
         service.clear()
         service_2.clear()
 
@@ -415,7 +415,7 @@ class AbstractCommonExporterTest(unittest.TestCase):
 # ------------------------------------------------------------------------------
 
 
-class AbstractCommonImpoterTest(unittest.TestCase):
+class AbstractCommonImporterTest(unittest.TestCase):
     """
     Tests for the common importer
     """
