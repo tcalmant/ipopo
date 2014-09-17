@@ -1,7 +1,7 @@
 [run]
 source = pelix/
+parallel = True
 
 [report]
 include = pelix/*
 exclude = *
-

@@ -177,6 +177,23 @@ def export_framework(state_queue, transport, components):
 
 # ------------------------------------------------------------------------------
 
+try:
+    # Trick to use coverage in sub-processes, from:
+    # http://blog.schettino72.net/posts/python-code-coverage-multiprocessing.html
+    from coverage.control import coverage
+
+    class WrappedProcess(Process):
+        def _bootstrap(self):
+            cov = coverage(data_suffix=True)
+            cov.start()
+            try:
+                return Process._bootstrap(self)
+            finally:
+                cov.stop()
+                cov.save()
+except ImportError:
+    WrappedProcess = Process
+
 
 class TransportsTest(unittest.TestCase):
     """
@@ -198,8 +215,9 @@ class TransportsTest(unittest.TestCase):
 
         # Start the remote framework
         status_queue = Queue()
-        peer = Process(target=export_framework,
-                       args=(status_queue, transport_bundle, components))
+        peer = WrappedProcess(target=export_framework,
+                              args=(status_queue, transport_bundle,
+                                    components))
         peer.start()
 
         try:
@@ -259,6 +277,16 @@ class TransportsTest(unittest.TestCase):
                 pass
             else:
                 self.fail("No exception raised calling an undefined method")
+
+            # Stop the peer
+            svc.stop()
+
+            # Wait for the peer to stop
+            state = status_queue.get(2)
+            self.assertEqual(state, "stopping")
+
+            # Wait a bit more, to let coverage save its files
+            time.sleep(.1)
         finally:
             # Stop everything (and delete the framework in any case
             FrameworkFactory.delete_framework(FrameworkFactory.get_framework())
