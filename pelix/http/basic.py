@@ -662,13 +662,14 @@ class HttpService(object):
         if servlet is not None:
             with self._lock:
                 # Unregister all paths for this servlet
-                paths = [path
-                         for (path, servlet_info) in self._servlets.items()
+                paths = [servlet_path
+                         for (servlet_path, servlet_info)
+                         in self._servlets.items()
                          if servlet_info[0] == servlet]
 
             result = False
-            for path in paths:
-                result |= self.unregister(path)
+            for servlet_path in paths:
+                result |= self.unregister(servlet_path)
 
             return result
 
