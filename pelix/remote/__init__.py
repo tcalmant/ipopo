@@ -111,6 +111,13 @@ PROP_SYNONYMS = "pelix.remote.synonyms"
 Synonyms of the exported specifications. Used of multi-language applications.
 """
 
+PROP_EXPORT_REJECT = "pelix.remote.export.reject"
+"""
+List of specifications that must never exported. Acts as a filter when
+exporting all other specifications with the "service.exported.interfaces"
+property set to "*"
+"""
+
 # ------------------------------------------------------------------------------
 # Properties declared in RSA specifications
 

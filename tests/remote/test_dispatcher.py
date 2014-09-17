@@ -529,6 +529,75 @@ class DispatcherTest(unittest.TestCase):
         # Unregister exporter A
         exporterA_reg.unregister()
 
+    def testExportReject(self):
+        """
+        Tests the "pelix.remote.export.reject" property
+        """
+        spec_1 = "sample.spec.1"
+        full_spec_1 = "python:/" + spec_1
+        spec_2 = "sample.spec.2"
+        full_spec_2 = "python:/" + spec_2
+        spec_3 = "sample.spec.3"
+        full_spec_3 = "python:/" + spec_3
+
+        # Register an exporter
+        context = self.framework.get_bundle_context()
+        exporter = Exporter(context)
+        context.register_service(pelix.remote.SERVICE_EXPORT_PROVIDER,
+                                 exporter, {})
+
+        # Register an exported service: No filter
+        service = object()
+        svc_reg = context.register_service(
+            [spec_1, spec_2, spec_3], service,
+            {pelix.remote.PROP_EXPORTED_INTERFACES: "*",
+             pelix.remote.PROP_EXPORT_REJECT: None})
+
+        # Look for the endpoint: all services must be exported
+        endpoint = self.service.get_endpoints()[0]
+        self.assertCountEqual([full_spec_1, full_spec_2, full_spec_3],
+                              endpoint.specifications)
+        svc_reg.unregister()
+
+        # Check with a string
+        svc_reg = context.register_service(
+            [spec_1, spec_2, spec_3], service,
+            {pelix.remote.PROP_EXPORTED_INTERFACES: "*",
+             pelix.remote.PROP_EXPORT_REJECT: spec_1})
+
+        # Look for the endpoint: all services must be exported
+        endpoint = self.service.get_endpoints()[0]
+        self.assertCountEqual([full_spec_2, full_spec_3],
+                              endpoint.specifications)
+        svc_reg.unregister()
+
+        for reject in ([spec_1], [spec_1, spec_2]):
+            # Register the service
+            svc_reg = context.register_service(
+                [spec_1, spec_2, spec_3], service,
+                {pelix.remote.PROP_EXPORTED_INTERFACES: "*",
+                 pelix.remote.PROP_EXPORT_REJECT: reject})
+
+            # Compute exported interfaces
+            exported = ['python:/' + spec for spec
+                        in set([spec_1, spec_2, spec_3]).difference(reject)]
+
+            # Check it
+            endpoint = self.service.get_endpoints()[0]
+            self.assertCountEqual(exported, endpoint.specifications)
+
+            # Unregister the service
+            svc_reg.unregister()
+
+        # Reject everything
+        svc_reg = context.register_service(
+            [spec_1, spec_2, spec_3], service,
+            {pelix.remote.PROP_EXPORTED_INTERFACES: "*",
+             pelix.remote.PROP_EXPORT_REJECT: [spec_1, spec_2, spec_3]})
+        self.assertListEqual([], self.service.get_endpoints(),
+                             "Endpoint registered while it exports nothing")
+        svc_reg.unregister()
+
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":

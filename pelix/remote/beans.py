@@ -668,17 +668,22 @@ def compute_exported_specifications(svc_ref):
     :return: The list of exported specifications (or an empty list)
     """
     specs = svc_ref.get_property(pelix.constants.OBJECTCLASS)
-    exported_specs = \
-        svc_ref.get_property(pelix.remote.PROP_EXPORTED_INTERFACES)
+    exported_specs = svc_ref.get_property(
+        pelix.remote.PROP_EXPORTED_INTERFACES)
+    rejected_specs = pelix.utilities.to_iterable(
+        svc_ref.get_property(pelix.remote.PROP_EXPORT_REJECT), False)
 
     if exported_specs and exported_specs != "*":
         # A set of specifications is exported, replace "objectClass"
-        if isinstance(exported_specs, (list, tuple, set, frozenset)):
-            return [spec for spec in specs if spec in exported_specs]
-
+        iterable_exports = pelix.utilities.to_iterable(exported_specs, False)
+        all_exported_specs = [spec for spec in specs
+                              if spec in iterable_exports]
     else:
         # Export everything
-        return specs
+        all_exported_specs = pelix.utilities.to_iterable(specs)
+
+    # Filter specifications
+    return [spec for spec in all_exported_specs if spec not in rejected_specs]
 
 
 def extract_specifications(specifications, properties):
