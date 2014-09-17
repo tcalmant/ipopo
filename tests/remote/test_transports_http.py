@@ -250,6 +250,15 @@ class TransportsTest(unittest.TestCase):
                 self.assertEqual(state, "call-error")
             else:
                 self.fail("No exception raised calling 'error'")
+
+            # Call undefined method
+            try:
+                svc.undefined()
+            except:
+                # The error has been propagated: OK
+                pass
+            else:
+                self.fail("No exception raised calling an undefined method")
         finally:
             # Stop everything (and delete the framework in any case
             FrameworkFactory.delete_framework(FrameworkFactory.get_framework())
