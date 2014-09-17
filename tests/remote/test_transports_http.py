@@ -37,7 +37,7 @@ __docformat__ = "restructuredtext en"
 
 # Pelix
 from pelix.framework import create_framework, FrameworkFactory
-from pelix.ipopo.constants import use_ipopo, BundleException
+from pelix.ipopo.constants import use_ipopo
 import pelix.http
 import pelix.remote
 
@@ -186,8 +186,9 @@ class TransportsTest(unittest.TestCase):
         """
         Runs a remote service call test
 
-        :param transport: Transport implementation bundle to use
-        :param components: Tuples (factory, name) of instances to start
+        :param transport_bundle: Transport implementation bundle to use
+        :param exporter_factory: Name of the RS exporter factory
+        :param importer_factory: Name of the RS importer factory
         :raise queue.Empty: Peer took to long to answer
         :raise ValueError: Test failed
         """

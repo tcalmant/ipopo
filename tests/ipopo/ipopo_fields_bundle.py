@@ -9,7 +9,7 @@ from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
     Requires, Validate, Invalidate, Unbind, Bind, BindField, \
     UnbindField, Update, UpdateField
 
-from pelix.framework import OBJECTCLASS
+from pelix.constants import OBJECTCLASS
 
 # ------------------------------------------------------------------------------
 

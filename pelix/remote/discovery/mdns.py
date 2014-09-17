@@ -137,7 +137,7 @@ class ZeroconfDiscovery(object):
         Component validated
         """
         # Get the framework UID
-        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
+        self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
         # Get the host address
         self._address = socket.inet_aton(

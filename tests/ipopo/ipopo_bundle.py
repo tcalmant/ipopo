@@ -120,8 +120,10 @@ class ComponentFactoryA(TestComponentFactory, IEchoService):
         """"
         Constructor
         """
-        super(ComponentFactoryA, self).__init__()
+        TestComponentFactory.__init__(self)
+        self.usable = True
         self.prop_1 = 10
+        self._test_ctrl = True
 
     def echo(self, value):
         """

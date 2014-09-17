@@ -37,10 +37,9 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-# Wild import of constants (to stay compatible with previous version)
-from pelix.constants import *
-
-# Pelix beans
+# Pelix beans and constants
+from pelix.constants import ACTIVATOR, ACTIVATOR_LEGACY, FRAMEWORK_UID, \
+    BundleException, FrameworkException
 from pelix.internals.events import BundleEvent, ServiceEvent
 from pelix.internals.registry import EventDispatcher, ServiceRegistry, \
     ServiceReference, ServiceRegistration
@@ -51,6 +50,7 @@ from pelix.utilities import SynchronizedClassMethod, is_string
 # Standard library
 import imp
 import importlib
+import inspect
 import logging
 import os
 import pkgutil
@@ -1185,7 +1185,7 @@ class BundleContext(object):
 
            def bundle_changed(self, bundle_event):
                '''
-               :param bundle_event: A BundleEvent object
+               bundle_event: A BundleEvent object
                '''
                # ...
 
@@ -1227,7 +1227,7 @@ class BundleContext(object):
                '''
                Called by Pelix when some service properties changes
 
-               :param event: A ServiceEvent object
+               event: A ServiceEvent object
                '''
                # ...
 

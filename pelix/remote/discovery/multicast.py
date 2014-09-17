@@ -44,6 +44,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Pelix utilities
+import pelix.constants
 from pelix.ipv6utils import ipproto_ipv6
 from pelix.utilities import to_bytes, to_str
 
@@ -521,7 +522,7 @@ class MulticastDiscovery(object):
         self._port = int(self._port)
 
         # Get the framework UID
-        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
+        self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
         # Create the socket
         self._socket, address = create_multicast_socket(self._group,

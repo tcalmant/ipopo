@@ -37,17 +37,17 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-# Remote Services constants
-import pelix.remote
-import pelix.remote.beans as beans
-
-# HTTP constants
-import pelix.http
-
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
     BindField, Property, Validate, Invalidate, Instantiate, UnbindField
 from pelix.utilities import to_str
+
+# Pelix constants
+import pelix.constants
+import pelix.framework
+import pelix.http
+import pelix.remote
+import pelix.remote.beans as beans
 
 # Standard library
 import json
@@ -118,7 +118,7 @@ class Dispatcher(object):
         Component validated
         """
         # Get the framework UID
-        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
+        self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
         self._context = context
 
         # Prepare the export LDAP filter
@@ -530,7 +530,7 @@ class RegistryServlet(object):
         Component validated
         """
         # Get the framework UID
-        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
+        self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
         # Normalize the path
         self._path = '/{0}/'.format('/'.join(part

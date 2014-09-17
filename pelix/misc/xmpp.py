@@ -110,7 +110,7 @@ class BasicBot(sleekxmpp.ClientXMPP):
 # ------------------------------------------------------------------------------
 
 
-class InviteMixIn(object):
+class InviteMixIn(sleekxmpp.BaseXMPP):
     """
     A bot that automatically accepts invites from other participants
     """
@@ -154,7 +154,7 @@ class InviteMixIn(object):
 # ------------------------------------------------------------------------------
 
 
-class ServiceDiscoveryMixin(object):
+class ServiceDiscoveryMixin(sleekxmpp.BaseXMPP):
     """
     Adds utility methods to a bot to look for services
     """

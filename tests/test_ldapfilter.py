@@ -102,7 +102,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
             conv_operator = pelix.ldapfilter.operator2str(operator)
             self.assertEqual("<unknown>", conv_operator,
                              "Invalid operator conversion '{0}': '{1}'"
-                             .format(str_operator, conv_operator))
+                             .format(operator, conv_operator))
 
     def testEscapeLDAP(self):
         """
@@ -233,10 +233,6 @@ class LDAPUtilitiesTest(unittest.TestCase):
         for empty in (None, [], tuple(), (None, None, None)):
             self.assertIsNone(pelix.ldapfilter.combine_filters(empty),
                               "Can't combine an empty list of filters")
-
-        # Empty sub filters
-        self.assertIsNone(pelix.ldapfilter.combine_filters(empty),
-                          "Empty sub filters: return None")
 
         # Invalid types
         for invalid in ("Filters", get_ldap_filter("(!(test=True))")):
@@ -497,10 +493,10 @@ class LDAPCriteriaTest(unittest.TestCase):
 
         filters["(string=*middle*)"] = (("middle", "aaamiddle1234",
                                          "middle456", "798middle"),
-                                        ("miDDle"))
+                                        ("miDDle",))
 
         filters["(string=*mi*ed*)"] = (("mixed", "mixed1234", "798mixed",
-                                        "mi O_O ed"), ("Mixed"))
+                                        "mi O_O ed"), ("Mixed",))
 
         # List test
         filters["(string=*li*ed*)"] = ((["listed"], ["toto", "aaaliXed123"]),

@@ -278,7 +278,7 @@ class RemoteShellTest(unittest.TestCase):
                 remote = ipopo.instantiate(FACTORY_REMOTE_SHELL,
                                            "remoteShell_test",
                                            {'pelix.shell.address': address,
-                                            'pelix.shell.port': port})
+                                            'pelix.shell.port': 0})
 
                 # Check that the address has been selected anyway
                 self.assertTrue(remote.get_access()[0])

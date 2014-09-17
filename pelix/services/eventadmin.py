@@ -39,6 +39,7 @@ __docformat__ = "restructuredtext en"
 from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
     Validate, Invalidate
 from pelix.utilities import to_iterable
+import pelix.constants
 import pelix.framework
 import pelix.ldapfilter
 import pelix.services
@@ -104,7 +105,7 @@ class EventAdmin(object):
                 svc_ref.get_property(pelix.services.PROP_EVENT_FILTER)
             if self.__match_filter(properties, ldap_filter):
                 # Get the service ID
-                svc_id = svc_ref.get_property(pelix.framework.SERVICE_ID)
+                svc_id = svc_ref.get_property(pelix.constants.SERVICE_ID)
 
                 # Filter matches the event, test the topic
                 topics = to_iterable(svc_ref.get_property(
@@ -150,7 +151,7 @@ class EventAdmin(object):
         """
         try:
             # Prepare the filter
-            ldap_filter = "({0}={1})".format(pelix.framework.SERVICE_ID,
+            ldap_filter = "({0}={1})".format(pelix.constants.SERVICE_ID,
                                              service_id)
 
             # Get the reference

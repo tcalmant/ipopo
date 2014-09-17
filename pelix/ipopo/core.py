@@ -851,7 +851,7 @@ class _IPopoService(object):
 
            def handle_ipopo_event(self, event):
                '''
-               :param event: A IPopoEvent object
+               event: A IPopoEvent object
                '''
                # ...
 

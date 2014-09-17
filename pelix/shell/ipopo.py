@@ -181,9 +181,9 @@ class IPopoCommands(object):
                                   name, ex)
             return
 
-        lines = []
-        lines.append("Name  : {0}".format(details["name"]))
-        lines.append("Bundle: {0}".format(details["bundle"]))
+        lines = [
+            "Name  : {0}".format(details["name"]),
+            "Bundle: {0}".format(details["bundle"])]
 
         properties = details.get('properties', None)
         if properties:
@@ -233,15 +233,14 @@ class IPopoCommands(object):
             return
 
         # Basic information
-        lines = []
-        lines.append("Name.....: {0}".format(details["name"]))
-        lines.append("Factory..: {0}".format(details["factory"]))
-        lines.append("Bundle ID: {0}".format(details["bundle_id"]))
-        lines.append("State....: {0}".format(
-            ipopo_state_to_str(details["state"])))
+        lines = [
+            "Name.....: {0}".format(details["name"]),
+            "Factory..: {0}".format(details["factory"]),
+            "Bundle ID: {0}".format(details["bundle_id"]),
+            "State....: {0}".format(ipopo_state_to_str(details["state"])),
+            "Services.:"]
 
         # Provided services
-        lines.append("Services.:")
         lines.extend("\t{0}".format(svc_reference)
                      for svc_reference in details["services"].values())
 

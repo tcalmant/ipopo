@@ -667,7 +667,7 @@ def compute_exported_specifications(svc_ref):
     :param svc_ref: A ServiceReference
     :return: The list of exported specifications (or an empty list)
     """
-    specs = svc_ref.get_property(pelix.framework.OBJECTCLASS)
+    specs = svc_ref.get_property(pelix.constants.OBJECTCLASS)
     exported_specs = \
         svc_ref.get_property(pelix.remote.PROP_EXPORTED_INTERFACES)
 

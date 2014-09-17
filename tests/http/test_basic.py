@@ -96,7 +96,7 @@ def kill_server(ipopo_svc):
 
 
 def get_http_page(host=DEFAULT_HOST, port=DEFAULT_PORT,
-                  uri="/", method="GET", headers={}, content=None,
+                  uri="/", method="GET", headers=None, content=None,
                   only_code=True):
     """
     Retrieves the result of an HTTP request
@@ -111,7 +111,7 @@ def get_http_page(host=DEFAULT_HOST, port=DEFAULT_PORT,
     :return: A (code, content) tuple
     """
     conn = httplib.HTTPConnection(host, port)
-    conn.request(method, uri, content, headers)
+    conn.request(method, uri, content, headers or {})
     result = conn.getresponse()
     data = result.read()
     conn.close()

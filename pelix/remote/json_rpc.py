@@ -38,7 +38,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # JSON-RPC module
-import jsonrpclib
+import jsonrpclib.jsonrpc
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCDispatcher
 
 # iPOPO decorators

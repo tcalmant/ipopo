@@ -13,7 +13,7 @@ from tests.interfaces import IEchoService
 # Pelix
 from pelix.framework import FrameworkFactory, Bundle, BundleException, \
     BundleContext, ServiceReference
-import pelix.framework as pelix
+import pelix.constants
 
 # Standard library
 try:
@@ -229,28 +229,33 @@ class ServicesTest(unittest.TestCase):
                           self.framework, {})
         # ... no service ID
         self.assertRaises(BundleException, ServiceReference, self.framework,
-                          {pelix.OBJECTCLASS: "a"})
+                          {pelix.constants.OBJECTCLASS: "a"})
         # ... no object class
         self.assertRaises(BundleException, ServiceReference, self.framework,
-                          {pelix.SERVICE_ID: "b"})
+                          {pelix.constants.SERVICE_ID: "b"})
 
-        ref1b = ServiceReference(self.framework, {pelix.OBJECTCLASS: "ref1_b",
-                                                  pelix.SERVICE_ID: 1,
-                                                  pelix.SERVICE_RANKING: 0})
+        ref1b = ServiceReference(self.framework,
+                                 {pelix.constants.OBJECTCLASS: "ref1_b",
+                                  pelix.constants.SERVICE_ID: 1,
+                                  pelix.constants.SERVICE_RANKING: 0})
 
-        ref1 = ServiceReference(self.framework, {pelix.OBJECTCLASS: "ref1",
-                                                 pelix.SERVICE_ID: 1})
+        ref1 = ServiceReference(self.framework,
+                                {pelix.constants.OBJECTCLASS: "ref1",
+                                 pelix.constants.SERVICE_ID: 1})
 
-        ref2 = ServiceReference(self.framework, {pelix.OBJECTCLASS: "ref2",
-                                                 pelix.SERVICE_ID: 2})
+        ref2 = ServiceReference(self.framework,
+                                {pelix.constants.OBJECTCLASS: "ref2",
+                                 pelix.constants.SERVICE_ID: 2})
 
-        ref3 = ServiceReference(self.framework, {pelix.OBJECTCLASS: "ref3",
-                                                 pelix.SERVICE_ID: 3,
-                                                 pelix.SERVICE_RANKING:-20})
+        ref3 = ServiceReference(self.framework,
+                                {pelix.constants.OBJECTCLASS: "ref3",
+                                 pelix.constants.SERVICE_ID: 3,
+                                 pelix.constants.SERVICE_RANKING: -20})
 
-        ref4 = ServiceReference(self.framework, {pelix.OBJECTCLASS: "ref4",
-                                                 pelix.SERVICE_ID: 4,
-                                                 pelix.SERVICE_RANKING: 128})
+        ref4 = ServiceReference(self.framework,
+                                {pelix.constants.OBJECTCLASS: "ref4",
+                                 pelix.constants.SERVICE_ID: 4,
+                                 pelix.constants.SERVICE_RANKING: 128})
 
         # Tests
         self.assertEqual(ref1, ref1, "ID1 == ID1")
@@ -282,20 +287,20 @@ class ServicesTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
 
         # Register service
-        base_props = {pelix.OBJECTCLASS: "titi",
-                      pelix.SERVICE_ID:-1,
+        base_props = {pelix.constants.OBJECTCLASS: "titi",
+                      pelix.constants.SERVICE_ID: -1,
                       "test": 42}
 
         reg = context.register_service("class", self, base_props)
         ref = reg.get_reference()
 
         # Ensure that reserved properties have been overridden
-        object_class = ref.get_property(pelix.OBJECTCLASS)
+        object_class = ref.get_property(pelix.constants.OBJECTCLASS)
         self.assertListEqual(object_class, ["class"],
                              "Invalid objectClass property '{0}'"
                              .format(object_class))
 
-        svc_id = ref.get_property(pelix.SERVICE_ID)
+        svc_id = ref.get_property(pelix.constants.SERVICE_ID)
         self.assertGreater(svc_id, 0, "Invalid service ID")
 
         # Ensure the reference uses a copy of the properties
@@ -304,17 +309,17 @@ class ServicesTest(unittest.TestCase):
                          "Property updated by the dictionary reference")
 
         # Update the properties
-        update_props = {pelix.OBJECTCLASS: "ref2",
-                        pelix.SERVICE_ID: 20,
+        update_props = {pelix.constants.OBJECTCLASS: "ref2",
+                        pelix.constants.SERVICE_ID: 20,
                         "test": 21}
 
         reg.set_properties(update_props)
 
         # Ensure that reserved properties have been kept
-        self.assertListEqual(ref.get_property(pelix.OBJECTCLASS), object_class,
-                             "Modified objectClass property")
+        self.assertListEqual(ref.get_property(pelix.constants.OBJECTCLASS),
+                             object_class, "Modified objectClass property")
 
-        self.assertEqual(ref.get_property(pelix.SERVICE_ID), svc_id,
+        self.assertEqual(ref.get_property(pelix.constants.SERVICE_ID), svc_id,
                          "Modified service ID")
 
         self.assertEqual(ref.get_property("test"), 21,

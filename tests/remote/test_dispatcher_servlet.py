@@ -515,7 +515,9 @@ class DispatcherTest(unittest.TestCase):
 
         # Test with a servlet error (no error should be raised)
         servlet.error = True
-        self.assertFalse(self.servlet.send_discovered("localhost", port, path))
+        self.assertFalse(self.servlet.send_discovered("localhost", port,
+                                                      servlet_path))
 
         # Test with a connection error
-        self.assertFalse(self.servlet.send_discovered("localhost", -1, path))
+        self.assertFalse(self.servlet.send_discovered("localhost", -1,
+                                                      servlet_path))

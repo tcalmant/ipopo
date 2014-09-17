@@ -399,7 +399,7 @@ class UtilitiesTest(unittest.TestCase):
         self.assertIsNone(utilities.to_iterable(None, True),
                           "None value refused")
         self.assertListEqual(utilities.to_iterable(None, False), [],
-                          "None value accepted")
+                             "None value accepted")
 
         # Check iterable types
         for clazz in (list, tuple, set, frozenset):

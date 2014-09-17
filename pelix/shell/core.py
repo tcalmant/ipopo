@@ -890,15 +890,15 @@ class Shell(object):
             io_handler.write_line('Service not found: {0}', service_id)
             return
 
-        lines = []
-        lines.append("ID............: {0}"
-                     .format(svc_ref.get_property(constants.SERVICE_ID)))
-        lines.append("Rank..........: {0}"
-                     .format(svc_ref.get_property(constants.SERVICE_RANKING)))
-        lines.append("Specifications: {0}"
-                     .format(svc_ref.get_property(constants.OBJECTCLASS)))
-        lines.append("Bundle........: {0}".format(svc_ref.get_bundle()))
-        lines.append("Properties....:")
+        lines = [
+            "ID............: {0}".format(
+                svc_ref.get_property(constants.SERVICE_ID)),
+            "Rank..........: {0}".format(
+                svc_ref.get_property(constants.SERVICE_RANKING)),
+            "Specifications: {0}".format(
+                svc_ref.get_property(constants.OBJECTCLASS)),
+            "Bundle........: {0}".format(svc_ref.get_bundle()),
+            "Properties....:"]
         for key, value in sorted(svc_ref.get_properties().items()):
             lines.append("\t{0} = {1}".format(key, value))
 

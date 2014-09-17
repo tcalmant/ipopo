@@ -186,7 +186,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
 # ------------------------------------------------------------------------------
 
 
-class _RequestHandler(BaseHTTPRequestHandler):
+class _RequestHandler(BaseHTTPRequestHandler, object):
     """
     Basic HTTP server request handler
     """

@@ -889,9 +889,9 @@ class BindField(object):
            '''
            Method called when a service is bound to the component
 
-           :param field: Field wherein the dependency is injected
-           :param service: The injected service instance.
-           :param service_reference: The injected service ServiceReference
+           field: Field wherein the dependency is injected
+           service: The injected service instance.
+           service_reference: The injected service ServiceReference
            '''
            # ...
 
@@ -946,9 +946,9 @@ class UpdateField(object):
            '''
            Method called when a service is bound to the component
 
-           :param service: The injected service instance.
-           :param service_reference: The injected service ServiceReference
-           :param old_properties: Previous service properties
+           service: The injected service instance.
+           service_reference: The injected service ServiceReference
+           old_properties: Previous service properties
            '''
            # ...
 
@@ -997,9 +997,9 @@ class UnbindField(object):
            '''
            Method called when a service is bound to the component
 
-           :param field: Field wherein the dependency is injected
-           :param service: The injected service instance.
-           :param service_reference: The injected service ServiceReference
+           field: Field wherein the dependency is injected
+           service: The injected service instance.
+           service_reference: The injected service ServiceReference
            '''
            # ...
 
@@ -1052,8 +1052,8 @@ def Bind(method):
            '''
            Method called when a service is bound to the component
 
-           :param service: The injected service instance.
-           :param service_reference: The injected service ServiceReference
+           service: The injected service instance.
+           service_reference: The injected service ServiceReference
            '''
            # ...
 
@@ -1091,9 +1091,9 @@ def Update(method):
            '''
            Method called when a service is bound to the component
 
-           :param service: The injected service instance.
-           :param service_reference: The injected service ServiceReference
-           :param old_properties: Previous service properties
+           service: The injected service instance.
+           service_reference: The injected service ServiceReference
+           old_properties: Previous service properties
            '''
            # ...
 
@@ -1125,8 +1125,8 @@ def Unbind(method):
            '''
            Method called when a service is bound to the component
 
-           :param service: The injected service instance.
-           :param service_reference: The injected service ServiceReference
+           service: The injected service instance.
+           service_reference: The injected service ServiceReference
            '''
            # ...
 
@@ -1161,7 +1161,7 @@ def Validate(method):
            '''
            Method called when the component is validated
 
-           :param bundle_context: The component's bundle context
+           bundle_context: The component's bundle context
            '''
            # ...
 
@@ -1197,7 +1197,7 @@ def Invalidate(method):
            '''
            Method called when the component is invalidated
 
-           :param bundle_context: The component's bundle context
+           bundle_context: The component's bundle context
            '''
            # ...
 

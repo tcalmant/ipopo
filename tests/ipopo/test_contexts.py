@@ -11,7 +11,8 @@ from tests.ipopo import install_bundle
 
 # Pelix
 from pelix.framework import FrameworkFactory
-import pelix.framework as pelix
+import pelix.constants
+import pelix.framework
 
 # iPOPO
 import pelix.ipopo.constants as constants
@@ -35,7 +36,7 @@ __version__ = "1.0.0"
 FACTORY_PARENT = 'parent'
 FACTORY_ALL = "child.all"
 FACTORY_NO_PROVIDE = "factory.child.no_provide"
-FACTORY_EXTEND_PROVIDE = FACTORY_REPLACE_PROVIDE = "child.extend_provide"
+FACTORY_EXTEND_PROVIDE = "child.extend_provide"
 FACTORY_REPLACE_PROVIDE = "child.replace_provide"
 
 SPEC_PARENT = 'spec.parent'
@@ -168,14 +169,14 @@ class ContextsTests(unittest.TestCase):
                          "Should never match with None")
 
         for invalid in (None, "False", False, [False]):
-            props = {pelix.OBJECTCLASS: "spec", "test": invalid}
+            props = {pelix.constants.OBJECTCLASS: "spec", "test": invalid}
             self.assertTrue(without_filter.matches(props),
                             "Should match without filter: {0}".format(props))
             self.assertFalse(with_filter.matches(props),
                              "Shouldn't match with filter: {0}".format(props))
 
         for valid in ("True", True, [True]):
-            props = {pelix.OBJECTCLASS: "spec", "test": valid}
+            props = {pelix.constants.OBJECTCLASS: "spec", "test": valid}
             self.assertTrue(without_filter.matches(props),
                             "Should match without filter: {0}".format(props))
             self.assertTrue(with_filter.matches(props),

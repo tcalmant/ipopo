@@ -36,6 +36,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Remote Services constants
+import pelix.constants
 import pelix.remote
 
 # iPOPO decorators
@@ -234,7 +235,7 @@ class ImportsRegistry(object):
         Component validated
         """
         # Get the framework UID
-        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
+        self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
     @Invalidate
     def invalidate(self, context):

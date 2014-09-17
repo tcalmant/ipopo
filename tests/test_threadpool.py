@@ -48,7 +48,7 @@ class FutureTest(unittest.TestCase):
         """
         Method that returns the 3 given arguments in a tuple
         """
-        return (pos1, pos2, result)
+        return pos1, pos2, result
 
     def _raise_call(self):
         """
@@ -179,6 +179,8 @@ class FutureTest(unittest.TestCase):
         except Exception as ex:
             # Store it
             exception = ex
+        else:
+            self.fail("Exception wasn't propagated")
 
         # Check event content
         self.assertTrue(flag.is_set(), "Callback method not called")

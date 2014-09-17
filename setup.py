@@ -44,14 +44,13 @@ except ImportError:
 
 # ------------------------------------------------------------------------------
 
+
 def read(fname):
     """
     Utility method to read the content of a whole file
     """
     with open(os.path.join(os.path.dirname(__file__), fname)) as fd:
         return fd.read()
-
-# ------------------------------------------------------------------------------
 
 setup(
     name='iPOPO',
@@ -96,5 +95,5 @@ setup(
         'MQTT': ['paho-mqtt'],
         'JSONRPC': ['jsonrpclib-pelix'],
         'XMPP': ['sleekxmpp'],
-        'zeroconf' : ['pyzeroconf']}
+        'zeroconf': ['pyzeroconf']}
 )

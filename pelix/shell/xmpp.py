@@ -279,7 +279,7 @@ class IPopoXMPPShell(object):
         """
         # Prepare an event
         event = pelix.utilities.EventData()
-        self.__waiting.setdefault(jid, collections.deque).append(event)
+        self.__waiting.setdefault(jid, collections.deque()).append(event)
 
         # Wait for the event to be set...
         event.wait()

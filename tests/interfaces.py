@@ -10,12 +10,17 @@ __version__ = (1, 0, 0)
 
 
 class IEchoService:
-
     """
     Interface of an echo service
     """
+    def __init__(self):
+        """
+        Empty constructor
+        """
+        pass
 
     def echo(self, value):
         """
         Returns the given value
         """
+        pass
