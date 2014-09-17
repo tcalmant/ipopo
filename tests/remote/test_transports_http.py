@@ -27,8 +27,6 @@ Tests remote services transports based on HTTP
 """
 
 # Module version
-import unittest
-
 __version_info__ = (0, 0, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
@@ -38,16 +36,16 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Pelix
-from pelix.framework import create_framework
-from pelix.ipopo.constants import use_ipopo
+from pelix.framework import create_framework, FrameworkFactory
+from pelix.ipopo.constants import use_ipopo, BundleException
 import pelix.http
 import pelix.remote
 
 # Standard library
 from multiprocessing import Process, Queue
-import logging
 import time
 import threading
+import unittest
 
 try:
     import queue
@@ -200,13 +198,13 @@ class TransportsTest(unittest.TestCase):
         peer.start()
 
         try:
-            # Load the local framework (after the fork)
-            framework = load_framework(transport_bundle, components)
-            context = framework.get_bundle_context()
-
             # Wait for the ready state
             state = status_queue.get(4)
             self.assertEqual(state, "ready")
+
+            # Load the local framework (after the fork)
+            framework = load_framework(transport_bundle, components)
+            context = framework.get_bundle_context()
 
             # Look for the remote service
             for _ in range(10):
@@ -248,8 +246,8 @@ class TransportsTest(unittest.TestCase):
             else:
                 self.fail("No exception raised calling 'error'")
         finally:
-            # Stop everything
-            pelix.framework.FrameworkFactory.delete_framework(framework)
+            # Stop everything (and delete the framework in any case
+            FrameworkFactory.delete_framework(FrameworkFactory.get_framework())
             peer.terminate()
             status_queue.close()
 
