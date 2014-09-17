@@ -105,6 +105,10 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         thread1 = threading.Thread(target=sleeper, args=(.5, 1))
         thread1.start()
 
+        # Wait a little before starting 2nd thread: on Windows, thread 2
+        # can start before thread 1
+        time.sleep(.1)
+
         # Launch second waiter
         thread2 = threading.Thread(target=sleeper, args=(0, 2))
         thread2.start()
