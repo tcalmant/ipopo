@@ -99,7 +99,6 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
         try:
             # Internal method
             return self.funcs[name](*params)
-
         except KeyError:
             # Other method
             pass
@@ -107,12 +106,6 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
         # Avoid calling this method in the "except" block, as it would be in
         # an exception state (logs will consider the KeyError as a failure)
         return self._dispatch_method(name, params)
-
-    def do_GET(self, request, response):
-        """
-        Handles a GET request
-        """
-        response.send_content(200, "Jabsorb-RPC servlet", "text/plain")
 
     def do_POST(self, request, response):
         """

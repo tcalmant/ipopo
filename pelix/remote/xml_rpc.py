@@ -102,10 +102,13 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher):
         try:
             # Internal method
             return self.funcs[name](*params)
-
         except KeyError:
             # Other method
-            return self._dispatch_method(name, params)
+            pass
+
+        # Call the other method outside the except block, to avoid messy logs
+        # in case of error
+        return self._dispatch_method(name, params)
 
     def do_POST(self, request, response):
         """
