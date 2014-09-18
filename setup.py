@@ -91,9 +91,9 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Topic :: Software Development :: Libraries :: Application Frameworks'
     ],
+    requires=['jsonrpclib-pelix>=0.2.1'],
     extras_require={
         'MQTT': ['paho-mqtt'],
-        'JSONRPC': ['jsonrpclib-pelix'],
         'XMPP': ['sleekxmpp'],
         'zeroconf': ['pyzeroconf']}
 )
