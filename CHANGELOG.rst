@@ -1,6 +1,81 @@
 Release notes
 #############
 
+iPOPO 0.5.7
+***********
+
+Project
+=======
+
+* Code review to be more PEP-8 compliant
+* `jsonrpclib-pelix <https://pypi.python.org/pypi/jsonrpclib-pelix>`_ is now an
+  install requirement (instead of an optional one)
+
+Framework
+=========
+
+* Forget about previous global members when calling ``Bundle.update()``. This
+  ensures to have a fresh dictionary of members after a bundle update
+* Removed ``from pelix.constants import *`` in ``pelix.framework``:
+  only use ``pelix.constants`` to access constants
+
+
+Remote Services
+===============
+
+* Added support for endpoint name reuse
+* Added support for synonyms: specifications that can be used on the remote
+  side, or which describe a specification of another language
+  (e.g. a Java interface)
+* Added support for a *pelix.remote.export.reject* service property: the
+  specifications it contains won't be exported, event if indicated in
+  *service.exported.interfaces*.
+* Jabsorb-RPC:
+
+  * Use the common dispatch() method, like JSON-RPC
+
+* MQTT(-RPC):
+
+  * Explicitly stop the reading loop when the MQTT client is disconnecting
+  * Handle unknown correlation ID
+
+
+Shell
+=====
+
+* Added a ``loglevel`` shell command, to update the log level of any logger
+* Added a ``--verbose`` argument to the shell console script
+* Remote shell module can be ran as a script
+
+
+HTTP
+====
+
+* Remove double-slashes when looking for a servlet
+
+
+XMPP
+====
+
+* Added base classes to write a XMPP client based on
+  `SleekXMPP <http://sleekxmpp.com/>`_
+* Added a XMPP shell interface, to control Pelix/iPOPO from XMPP
+
+
+Miscellaneous
+=============
+
+* Added an IPv6 utility module, to setup double-stack and to avoids missing
+  constants bugs in Windows versions of Python
+* Added a ``EventData`` class: it acts like ``Event``, but it allows to store
+  a data when setting the event, or to raise an exception in all callers of
+  ``wait()``
+* Added a ``CountdownEvent`` class, an ``Event`` which is set until a given
+   number of calls to ``step()`` is reached
+* ``threading.Future`` class now supports a callback methods, to avoid to
+  actively wait for a result.
+
+
 iPOPO 0.5.6
 ***********
 
