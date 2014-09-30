@@ -715,7 +715,7 @@ class Requires(object):
     """ ID of the handler configured by this decorator """
 
     def __init__(self, field, specification, aggregate=False, optional=False,
-                 spec_filter=None):
+                 spec_filter=None, immediate_rebind=False):
         """
         Sets up the requirement
 
@@ -725,6 +725,9 @@ class Requires(object):
         :param optional: If true, this injection is optional
         :param spec_filter: An LDAP query to filter injected services upon
                             their properties
+        :param immediate_rebind: If True, the component won't be invalidated
+        then re-validated if a matching service is available when the injected
+        dependency is unbound
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter or an
                            argument is incorrect
@@ -746,8 +749,9 @@ class Requires(object):
         self.__multi_specs = len(specifications) > 1
 
         # Construct the requirement object
-        self.__requirement = Requirement(specifications[0],
-                                         aggregate, optional, spec_filter)
+        self.__requirement = Requirement(specifications[0], aggregate,
+                                         optional, spec_filter,
+                                         immediate_rebind)
 
     def __call__(self, clazz):
         """

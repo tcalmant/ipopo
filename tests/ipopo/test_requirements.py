@@ -541,6 +541,63 @@ class RequirementTest(unittest.TestCase):
                              "Component not invalidated...")
         compo.reset()
 
+    def test_immediate_rebind(self):
+        """
+        Tests the immediate_rebind flag of @Requires
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+
+        # Instantiate the consumer
+        consumer = self.ipopo.instantiate(module.FACTORY_IMMEDIATE, NAME_A)
+        self.assertListEqual([IPopoEvent.INSTANTIATED], consumer.states,
+                             "Invalid component states: {0}"
+                             .format(consumer.states))
+        consumer.reset()
+
+        # Instantiate a service
+        svc1 = object()
+        reg1 = context.register_service(IEchoService, svc1, {})
+
+        # The consumer must have been validated
+        self.assertListEqual([IPopoEvent.BOUND, IPopoEvent.VALIDATED],
+                             consumer.states, "Invalid component states: {0}"
+                             .format(consumer.states))
+        self.assertIs(consumer.service, svc1, "Wrong service injected")
+        consumer.reset()
+
+        # Register a second service
+        svc2 = object()
+        reg2 = context.register_service(IEchoService, svc2, {})
+
+        # No modification for the consumer
+        self.assertListEqual([], consumer.states,
+                             "Invalid component states: {0}"
+                             .format(consumer.states))
+        self.assertIs(consumer.service, svc1, "Wrong service injected")
+        consumer.reset()
+
+        # Unregister service 1
+        reg1.unregister()
+
+        # Component must not have been invalidated, and the second service must
+        # have been injected
+        self.assertListEqual([IPopoEvent.UNBOUND, IPopoEvent.BOUND],
+                             consumer.states, "Invalid component states: {0}"
+                             .format(consumer.states))
+        self.assertIs(consumer.service, svc2, "Wrong service injected")
+        consumer.reset()
+
+        # Unregister service 2
+        reg2.unregister()
+
+        # Component must have been invalidated
+        self.assertListEqual([IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
+                             consumer.states, "Invalid component states: {0}"
+                             .format(consumer.states))
+        self.assertIsNone(consumer.service, "Service still injected")
+        consumer.reset()
+
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":

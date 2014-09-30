@@ -54,10 +54,11 @@ class Requirement(object):
     Represents a component requirement
     """
     # The dictionary form fields (filter is a special case)
-    __stored_fields__ = ('specification', 'aggregate', 'optional')
+    __stored_fields__ = ('specification', 'aggregate', 'optional',
+                         'immediate_rebind')
 
     def __init__(self, specification, aggregate=False, optional=False,
-                 spec_filter=None):
+                 spec_filter=None, immediate_rebind=False):
         """
         Sets up the requirement
 
@@ -66,7 +67,9 @@ class Requirement(object):
         :param aggregate: If true, this requirement represents a list
         :param optional: If true, this requirement is optional
         :param spec_filter: A filter to select dependencies
-
+        :param immediate_rebind: If True, the component won't be invalidated
+        then re-validated if a matching service is available when the injected
+        dependency is unbound
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter
         """
@@ -79,6 +82,7 @@ class Requirement(object):
         self.specification = specification
         self.aggregate = aggregate
         self.optional = optional
+        self.immediate_rebind = immediate_rebind
 
         # Original filter keeper
         self.__original_filter = None
@@ -136,7 +140,7 @@ class Requirement(object):
         :return: A copy of this instance
         """
         return Requirement(self.specification, self.aggregate, self.optional,
-                           self.__original_filter)
+                           self.__original_filter, self.immediate_rebind)
 
     def matches(self, properties):
         """

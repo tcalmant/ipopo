@@ -325,12 +325,16 @@ class SimpleDependency(_RuntimeDependency):
         # We have only one reference to keep
         self.reference = None
 
+        # Pending reference (to avoid double-lookup)
+        self._pending_ref = None
+
     def clear(self):
         """
         Cleans up the manager. The manager can't be used after this method has
         been called
         """
         self.reference = None
+        self._pending_ref = None
         super(SimpleDependency, self).clear()
 
     def get_bindings(self):
@@ -370,9 +374,15 @@ class SimpleDependency(_RuntimeDependency):
             if svc_ref is self.reference:
                 service = self._value
 
-                # Clean the instance values
+                # Clear the instance values
                 self._value = None
                 self.reference = None
+
+                if self.requirement.immediate_rebind:
+                    # Look for a replacement
+                    self._pending_ref = self._context.get_service_reference(
+                        self.requirement.specification,
+                        self.requirement.filter)
 
                 self._ipopo_instance.unbind(self, service, svc_ref)
                 return True
@@ -405,6 +415,14 @@ class SimpleDependency(_RuntimeDependency):
             # Return a list
             return [(self._value, self.reference)]
 
+    def is_valid(self):
+        """
+        Tests if the dependency is in a valid state
+        """
+        return super(SimpleDependency, self).is_valid() \
+            or (self.requirement.immediate_rebind
+                and self._pending_ref is not None)
+
     def try_binding(self):
         """
         Searches for the required service if needed
@@ -416,10 +434,15 @@ class SimpleDependency(_RuntimeDependency):
                 # Already bound
                 return
 
-            # Get all matching services
-            ref = self._context \
-                .get_service_reference(self.requirement.specification,
-                                       self.requirement.filter)
+            if self._pending_ref is not None:
+                # Get the reference we chose to keep this component valid
+                ref = self._pending_ref
+                self._pending_ref = None
+            else:
+                # Get the first matching service
+                ref = self._context \
+                    .get_service_reference(self.requirement.specification,
+                                           self.requirement.filter)
             if ref is not None:
                 # Found a service
                 self.on_service_arrival(ref)

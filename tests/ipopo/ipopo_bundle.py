@@ -31,6 +31,7 @@ FACTORY_MAP = "ipopo.tests.map"
 FACTORY_A = "ipopo.tests.a"
 FACTORY_B = "ipopo.tests.b"
 FACTORY_C = "ipopo.tests.c"
+FACTORY_IMMEDIATE = "ipopo.tests.immediate"
 PROP_USABLE = "usable"
 
 # ------------------------------------------------------------------------------
@@ -255,6 +256,29 @@ class MapComponentFactory(TestComponentFactory):
 
         self.single_none = None
         self.multiple_none = None
+
+# ------------------------------------------------------------------------------
+
+
+@ComponentFactory(FACTORY_IMMEDIATE)
+@Requires('service', IEchoService, immediate_rebind=True)
+class ImmediateComponentFactory(TestComponentFactory):
+    """
+    Component factory with a immediate_rebind flag
+    """
+    @Bind
+    def bind(self, svc, svc_ref):
+        """
+        Bound
+        """
+        self.states.append(IPopoEvent.BOUND)
+
+    @Unbind
+    def unbind(self, svc, svc_ref):
+        """
+        Unbound
+        """
+        self.states.append(IPopoEvent.UNBOUND)
 
 # ------------------------------------------------------------------------------
 
