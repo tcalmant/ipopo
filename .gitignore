@@ -3,15 +3,15 @@
 *.pyo
 __pycache__/
 
-# Eclipse settings
+# IDE
 .settings/
-
-# PyCharm
 .idea/
 
-# When installed in develop mode
+# Python build
+build/
 dist/
 iPOPO.egg-info/
+target/
 
 # Module generated during tests
 generated_bundle.py
@@ -35,7 +35,4 @@ conf/
 # Epydoc Help
 api/
 html/
-
-# Sphinx build
-build/
 
