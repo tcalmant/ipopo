@@ -638,7 +638,8 @@ class Framework(Bundle):
         :return: the list of all installed bundles
         """
         with self.__bundles_lock:
-            return list(self.__bundles.values())
+            return list(self.__bundles[bundle_id]
+                        for bundle_id in sorted(self.__bundles.keys()))
 
     def get_properties(self):
         """
