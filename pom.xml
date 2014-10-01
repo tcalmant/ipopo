@@ -1,0 +1,75 @@
+<project
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>net.coderxpress.ipopo</groupId>
+	<artifactId>pelix</artifactId>
+	<version>0.5.7</version>
+	<packaging>jar</packaging>
+
+	<name>Pelix/iPOPO</name>
+	<url>https://ipopo.coderxpress.net/</url>
+	<description>iPOPO is a Service-Oriented Component Model for Python, inspired from iPOJO in Java.</description>
+
+	<organization>
+		<name>isandlaTech</name>
+		<url>http://www.isandlatech.com/</url>
+	</organization>
+
+	<issueManagement>
+		<url>https://github.com/tcalmant/ipopo/issues</url>
+		<system>Github</system>
+	</issueManagement>
+
+	<properties>
+		<pkg-name>pelix</pkg-name>
+		<pkg-version>0.5.7</pkg-version>
+	</properties>
+
+	<build>
+		<plugins>
+			<!-- Copy Python package -->
+			<plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>2.6</version>
+				<executions>
+					<execution>
+						<id>copy-resources</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${basedir}/target/classes/</outputDirectory>
+							<includeEmptyDirs>true</includeEmptyDirs>
+							<resources>
+								<resource>
+									<directory>${basedir}</directory>
+									<includes>
+										<include>${pkg-name}/**/*.py</include>
+									</includes>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Create OSGi-like bundle manifest -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>2.5</version>
+				<configuration>
+					<archive>
+						<manifestEntries>
+							<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
+							<Bundle-Version>${project.version}</Bundle-Version>
+							<Export-Package>pelix;version=${pkg-version},pelix.http;version=${pkg-version},pelix.internals;version=${pkg-version},pelix.framework;version=${pkg-version},pelix.ipopo;version=${pkg-version},pelix.ipopo.handlers;version=${pkg-version},pelix.misc;version=${pkg-version},pelix.remote;version=${pkg-version},pelix.remote.discovery;version=${pkg-version},pelix.remote.transport;version=${pkg-version},pelix.services;version=${pkg-version},pelix.shell;version=${pkg-version}</Export-Package>
+						</manifestEntries>
+					</archive>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>
