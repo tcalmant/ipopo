@@ -119,11 +119,10 @@ def _make_args(args_list, session=None):
     if session:
         args = [string.Template(arg).safe_substitute(session.variables)
                 for arg in args]
-        kwargs = {
-            key:string.Template(value).safe_substitute(session.variables)
-            for key, value in kwargs.items()
-        }
-
+        kwargs = dict((key,
+                       string.Template(value).safe_substitute(
+                           session.variables))
+                      for key, value in kwargs.items())
     return args, kwargs
 
 
