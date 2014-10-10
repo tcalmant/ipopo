@@ -1469,13 +1469,16 @@ class FrameworkFactory(object):
             return cls.__singleton == framework
 
     @classmethod
-    def delete_framework(cls, framework):
+    def delete_framework(cls, framework=None):
         """
         Removes the framework singleton
 
         :return: True on success, else False
         """
-        if cls.__singleton is framework:
+        if framework is None:
+            framework = cls.__singleton
+
+        if framework is cls.__singleton:
             # Stop the framework
             try:
                 framework.stop()
