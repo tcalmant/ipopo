@@ -50,7 +50,7 @@ class LifeCycleTest(unittest.TestCase):
         Called after each test
         """
         self.framework.stop()
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
 
     def testSingleNormal(self):
         """

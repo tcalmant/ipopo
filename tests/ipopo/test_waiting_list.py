@@ -57,7 +57,7 @@ class WaitingListTest(unittest.TestCase):
         Called after each test
         """
         # Destroy the framework
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
         self.framework = None
         self.waiting = None
 

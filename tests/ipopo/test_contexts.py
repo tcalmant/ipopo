@@ -105,7 +105,7 @@ class ContextsTests(unittest.TestCase):
         """
         Called after each test
         """
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
 
     def assertProvides(self, specification, provider):
         """

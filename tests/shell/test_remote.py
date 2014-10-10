@@ -149,7 +149,7 @@ class RemoteShellTest(unittest.TestCase):
         Cleans up the framework
         """
         self.framework.stop()
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
         self.remote = None
         self.shell = None
         self.framework = None

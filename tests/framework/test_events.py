@@ -51,7 +51,7 @@ class BundleEventTest(unittest.TestCase):
         Called after each test
         """
         self.framework.stop()
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
 
     def reset_state(self):
         """
@@ -146,7 +146,7 @@ class ServiceEventTest(unittest.TestCase):
         Called after each test
         """
         self.framework.stop()
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
 
     def reset_state(self):
         """

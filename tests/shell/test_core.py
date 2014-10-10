@@ -62,7 +62,7 @@ class ShellUtilsTest(unittest.TestCase):
         Cleans up the framework
         """
         self.framework.stop()
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
         self.utility = None
         self.context = None
         self.framework = None
@@ -173,7 +173,7 @@ class ShellCoreTest(unittest.TestCase):
         Cleans up the framework
         """
         self.framework.stop()
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
         self.shell = None
         self.context = None
         self.framework = None
@@ -340,7 +340,7 @@ class ShellCommandTest(unittest.TestCase):
         Cleans up the framework
         """
         self.framework.stop()
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
         self.shell = None
         self.context = None
         self.framework = None
@@ -481,7 +481,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         Cleans up the framework
         """
         self.framework.stop()
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
         self.shell = None
         self.context = None
         self.framework = None

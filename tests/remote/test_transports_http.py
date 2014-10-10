@@ -289,7 +289,7 @@ class TransportsTest(unittest.TestCase):
             time.sleep(.1)
         finally:
             # Stop everything (and delete the framework in any case
-            FrameworkFactory.delete_framework(FrameworkFactory.get_framework())
+            FrameworkFactory.delete_framework()
             peer.terminate()
             status_queue.close()
 

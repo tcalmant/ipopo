@@ -41,7 +41,7 @@ class UtilityMethodsTest(unittest.TestCase):
         Called after each test
         """
         if self.framework is not None:
-            FrameworkFactory.delete_framework(self.framework)
+            FrameworkFactory.delete_framework()
             self.framework = None
 
     def testCreateFrameworkBasic(self):
@@ -84,7 +84,7 @@ class UtilityMethodsTest(unittest.TestCase):
         self.assertEqual(self.framework.get_bundles(), [],
                          'Framework is not empty')
         # Clean up
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
 
         # With bundles
         self.framework = pelix.create_framework([self.test_bundle_name],

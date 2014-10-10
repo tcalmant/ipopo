@@ -47,7 +47,7 @@ class InstantiateTest(unittest.TestCase):
         Called after each test
         """
         self.framework.stop()
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
 
         # Clean up
         self.ipopo = None

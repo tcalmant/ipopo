@@ -53,7 +53,7 @@ class BundlesTest(unittest.TestCase):
         Called after each test
         """
         self.framework.stop()
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
 
     def testImportError(self):
         """
@@ -414,7 +414,7 @@ class LocalBundleTest(unittest.TestCase):
         Called after each test
         """
         self.framework.stop()
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
 
     def testLocalBundle(self):
         """

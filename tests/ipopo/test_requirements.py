@@ -52,7 +52,7 @@ class RequirementTest(unittest.TestCase):
         Called after each test
         """
         self.framework.stop()
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
 
     def testCycleInner(self):
         """

@@ -151,7 +151,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         Cleans up the test environment
         """
         # Stop the framework
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
         self.framework = None
 
     def testBlank(self):
@@ -517,7 +517,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         Cleans up the test environment
         """
         # Stop the framework
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
         self.framework = None
 
     def testGetServerInfo(self):

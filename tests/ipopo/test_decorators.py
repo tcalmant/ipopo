@@ -48,7 +48,7 @@ class DecoratorsTest(unittest.TestCase):
         Called after each test
         """
         self.framework.stop()
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
 
     def testCallbacks(self):
         """
@@ -333,7 +333,7 @@ class SimpleDecoratorsTests(unittest.TestCase):
         Called after each test
         """
         self.framework.stop()
-        FrameworkFactory.delete_framework(self.framework)
+        FrameworkFactory.delete_framework()
 
     def testGetFactoryContext(self):
         """

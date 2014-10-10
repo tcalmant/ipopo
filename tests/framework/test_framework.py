@@ -78,7 +78,7 @@ class FrameworkTest(unittest.TestCase):
         self.assertIs(framework, framework.get_bundle_by_name(pelix_name),
                       "Invalid system bundle name")
 
-        FrameworkFactory.delete_framework(framework)
+        FrameworkFactory.delete_framework()
 
     def testBundleStart(self):
         """
@@ -117,7 +117,7 @@ class FrameworkTest(unittest.TestCase):
         self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
                          "Bundle should be in RESOLVED state")
 
-        FrameworkFactory.delete_framework(framework)
+        FrameworkFactory.delete_framework()
 
     def testFrameworkDoubleStart(self):
         """
@@ -140,7 +140,7 @@ class FrameworkTest(unittest.TestCase):
         self.assertFalse(framework.stop(), "Framework stopped twice")
         self.assertFalse(self.stopping, "Stop listener called twice")
 
-        FrameworkFactory.delete_framework(framework)
+        FrameworkFactory.delete_framework()
 
     def testFrameworkRestart(self):
         """
@@ -166,7 +166,7 @@ class FrameworkTest(unittest.TestCase):
                          "Framework hasn't been restarted")
 
         framework.stop()
-        FrameworkFactory.delete_framework(framework)
+        FrameworkFactory.delete_framework()
 
     def testFrameworkStartRaiser(self):
         """
@@ -219,7 +219,7 @@ class FrameworkTest(unittest.TestCase):
 
         self.assertTrue(self.stopping, "Stop listener not called")
 
-        FrameworkFactory.delete_framework(framework)
+        FrameworkFactory.delete_framework()
 
     def testFrameworkStopRaiser(self):
         """
@@ -259,7 +259,7 @@ class FrameworkTest(unittest.TestCase):
 
         # Stop framework
         framework.stop()
-        FrameworkFactory.delete_framework(framework)
+        FrameworkFactory.delete_framework()
 
     def testFrameworkStopper(self):
         """
@@ -314,7 +314,7 @@ class FrameworkTest(unittest.TestCase):
                          "Bundle should be stopped")
         log_on()
 
-        FrameworkFactory.delete_framework(framework)
+        FrameworkFactory.delete_framework()
 
     def testPropertiesWithPreset(self):
         """
@@ -337,7 +337,7 @@ class FrameworkTest(unittest.TestCase):
                          "Invalid property value (preset has priority)")
         del os.environ[pelix_test_name]
 
-        FrameworkFactory.delete_framework(framework)
+        FrameworkFactory.delete_framework()
 
     def testPropertiesWithoutPreset(self):
         """
@@ -357,7 +357,7 @@ class FrameworkTest(unittest.TestCase):
                          "Invalid property value")
         del os.environ[pelix_test_name]
 
-        FrameworkFactory.delete_framework(framework)
+        FrameworkFactory.delete_framework()
 
     def testAddedProperty(self):
         """
@@ -387,7 +387,7 @@ class FrameworkTest(unittest.TestCase):
         self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
                          "Invalid property value")
 
-        FrameworkFactory.delete_framework(framework)
+        FrameworkFactory.delete_framework()
 
     def framework_stopping(self):
         """
@@ -434,7 +434,7 @@ class FrameworkTest(unittest.TestCase):
                          "Stop listener unregistered twice")
         log_on()
 
-        FrameworkFactory.delete_framework(framework)
+        FrameworkFactory.delete_framework()
 
     def testUninstall(self):
         """
@@ -449,7 +449,7 @@ class FrameworkTest(unittest.TestCase):
         self.assertRaises(BundleException, framework.uninstall)
         framework.stop()
 
-        FrameworkFactory.delete_framework(framework)
+        FrameworkFactory.delete_framework()
 
     def testWaitForStop(self):
         """
@@ -477,7 +477,7 @@ class FrameworkTest(unittest.TestCase):
         end = time.time()
         self.assertLess(end - start, 1, "Wait should be less than 1 sec")
 
-        FrameworkFactory.delete_framework(framework)
+        FrameworkFactory.delete_framework()
 
     def testWaitForStopTimeout(self):
         """
@@ -515,7 +515,7 @@ class FrameworkTest(unittest.TestCase):
         # Wait for framework to really stop
         framework.wait_for_stop()
 
-        FrameworkFactory.delete_framework(framework)
+        FrameworkFactory.delete_framework()
 
 # ------------------------------------------------------------------------------
 

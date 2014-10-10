@@ -45,7 +45,7 @@ class ManipulatedClassTest(unittest.TestCase):
         Called after each test
         """
         if self.framework is not None:
-            FrameworkFactory.delete_framework(self.framework)
+            FrameworkFactory.delete_framework()
 
     def testOutsideFramework(self):
         """
