@@ -69,7 +69,9 @@ class ShellSession(object):
         self.write_line = io_handler.write_line
         self.write_line_no_feed = io_handler.write_line_no_feed
 
-        # Prompt is defined in IOHandler.__init__
+        # Those are defined in IOHandler.__init__
+        self.write = io_handler.write
+        self.flush = io_handler.flush
         self.prompt = io_handler.prompt
 
     @property
