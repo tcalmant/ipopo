@@ -9,7 +9,7 @@ available.
 :author: Thomas Calmant
 :copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.5.7
+:version: 0.5.8
 :status: Beta
 
 ..
@@ -30,7 +30,7 @@ available.
 """
 
 # Module version
-__version_info__ = (0, 5, 7)
+__version_info__ = (0, 5, 8)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -40,7 +40,8 @@ __docformat__ = "restructuredtext en"
 
 # Shell constants
 from pelix.constants import BundleActivator
-from pelix.shell import SERVICE_SHELL
+from . import SERVICE_SHELL
+from .beans import IOHandler, ShellSession
 import pelix.framework as pelix
 
 # Standard library
@@ -126,6 +127,9 @@ class InteractiveShell(object):
         :param on_quit: A call back method, called without argument when the
                         shell session has ended
         """
+        # Set the session up
+        session = ShellSession(IOHandler(sys.stdin, sys.stdout), {})
+
         try:
             first_prompt = True
 
@@ -149,7 +153,7 @@ class InteractiveShell(object):
                     with self._lock:
                         if self._shell_event.is_set():
                             # Execute it
-                            self._shell.execute(line, sys.stdin, sys.stdout)
+                            self._shell.execute(line, session)
 
                         elif not self._stop_event.is_set():
                             # Shell service lost while not stopping

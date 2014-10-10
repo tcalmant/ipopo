@@ -9,7 +9,7 @@ telnet or netcat.
 :author: Thomas Calmant
 :copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.5.7
+:version: 0.5.8
 :status: Beta
 
 ..
@@ -30,7 +30,7 @@ telnet or netcat.
 """
 
 # Module version
-__version_info__ = (0, 5, 7)
+__version_info__ = (0, 5, 8)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -44,6 +44,7 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
 
 # Shell constants
 import pelix.shell
+import pelix.shell.beans as beans
 import pelix.ipv6utils
 
 # Standard library
@@ -140,6 +141,11 @@ class RemoteConsole(socketserver.StreamRequestHandler):
         _logger.info("RemoteConsole client connected: [%s]:%d",
                      self.client_address[0], self.client_address[1])
 
+        # Prepare the session
+        session = beans.ShellSession(
+            beans.IOHandler(self.rfile, self.wfile),
+            {"remote_client_ip": self.client_address[0]})
+
         # Print the banner
         ps1 = self._shell.get_ps1()
         self.send(self._shell.get_banner())
@@ -166,28 +172,24 @@ class RemoteConsole(socketserver.StreamRequestHandler):
 
                 # Execute it
                 try:
-                    self._shell.handle_line(self.rfile, self.wfile, line)
-
+                    self._shell.handle_line(line, session)
                 except KeyboardInterrupt:
                     # Stop there on interruption
                     self.send("\nInterruption received.")
                     return
-
                 except IOError as ex:
                     # I/O errors are fatal
-                    _logger.exception("Error communicating with a client: %s",
-                                      ex)
+                    _logger.exception(
+                        "Error communicating with a client: %s", ex)
                     break
-
                 except Exception as ex:
                     # Other exceptions are not important
                     import traceback
-                    self.send("\nError during last command: %s\n" % ex)
+                    self.send("\nError during last command: {0}\n".format(ex))
                     self.send(traceback.format_exc())
 
                 # Print the prompt
                 self.send(ps1)
-
         finally:
             _logger.info("RemoteConsole client gone: [%s]:%d",
                          self.client_address[0], self.client_address[1])
@@ -328,18 +330,17 @@ class IPopoRemoteShell(object):
         """
         return self._shell.get_ps1()
 
-    def handle_line(self, rfile, wfile, line):
+    def handle_line(self, line, session):
         """
         Handles the command line.
 
         **Does not catch exceptions !**
 
-        :param rfile: Input file-like object
-        :param wfile: Output file-like object
         :param line: The command line
+        :param session: The current shell session
         :return: The execution result (True on success, else False)
         """
-        return self._shell.execute(line, rfile, wfile)
+        return self._shell.execute(line, session)
 
     @Validate
     def validate(self, context):
@@ -355,7 +356,6 @@ class IPopoRemoteShell(object):
             if self._port < 0 or self._port > 65535:
                 # Invalid port value
                 self._port = 0
-
         except (ValueError, TypeError):
             # Invalid port string: use a random port
             self._port = 0

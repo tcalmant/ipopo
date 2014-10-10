@@ -8,7 +8,7 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 :author: Thomas Calmant
 :copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.5.7
+:version: 0.5.8
 :status: Beta
 
 ..
@@ -29,7 +29,7 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 """
 
 # Module version
-__version_info__ = (0, 5, 7)
+__version_info__ = (0, 5, 8)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -38,8 +38,9 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Shell constants
-from pelix.shell import SERVICE_SHELL, SERVICE_SHELL_COMMAND, \
+from . import SERVICE_SHELL, SERVICE_SHELL_COMMAND, \
     SERVICE_SHELL_UTILS
+from .beans import ShellSession
 
 # Pelix modules
 from pelix.utilities import to_str, to_bytes
@@ -52,16 +53,10 @@ import linecache
 import logging
 import os
 import shlex
+import string
 import sys
 import traceback
 import threading
-
-# Before Python 3, input() was raw_input()
-if sys.version_info[0] < 3:
-    safe_input = raw_input
-
-else:
-    safe_input = input
 
 # ------------------------------------------------------------------------------
 
@@ -94,13 +89,14 @@ def _find_assignment(arg_token):
     return -1
 
 
-def _make_args(args_list):
+def _make_args(args_list, session=None):
     """
     Converts the given list of arguments into a list (args) and a
     dictionary (kwargs).
     All arguments with an assignment are put into kwargs, others in args.
 
     :param args_list: The list of arguments to be treated
+    :param session: The current shell session
     :return: The (arg_token, kwargs) tuple.
     """
     args = []
@@ -113,10 +109,18 @@ def _make_args(args_list):
             key = arg_token[:idx]
             value = arg_token[idx + 1:]
             kwargs[key] = value
-
         else:
             # Direct argument
             args.append(arg_token)
+
+    # Expand variables
+    if session:
+        args = [string.Template(arg).safe_substitute(session.variables)
+                for arg in args]
+        kwargs = {
+            key:string.Template(value).safe_substitute(session.variables)
+            for key, value in kwargs.items()
+        }
 
     return args, kwargs
 
@@ -145,127 +149,6 @@ def _split_ns_command(cmd_token):
 
     # Use lower case values only
     return namespace.lower(), command.lower()
-
-# ------------------------------------------------------------------------------
-
-
-class IOHandler(object):
-    """
-    Handles I/O operations between the command handler and the client
-    It automatically converts the given data to bytes in Python 3.
-    """
-    def __init__(self, in_stream, out_stream, encoding='UTF-8'):
-        """
-        Sets up the printer
-
-        :param in_stream: Input stream
-        :param out_stream: Output stream
-        :param encoding: Output encoding
-        """
-        self.input = in_stream
-        self.output = out_stream
-        self.encoding = encoding
-
-        # Standard behavior
-        self.flush = self.output.flush
-        self.write = self.output.write
-
-        # Specific behavior
-        if sys.version_info[0] >= 3:
-            if 'b' in getattr(out_stream, 'mode', ''):
-                # Bytes conversion
-                self.write = self._write_bytes
-            else:
-                # Strings accepted
-                self.write = self._write_str
-
-        # Very specific
-        if in_stream is sys.stdin:
-            # Warning: conflicts with the console
-            self.prompt = safe_input
-        else:
-            self.prompt = self._prompt
-
-    def _prompt(self, prompt=None):
-        """
-        Reads a line written by the user
-
-        :param prompt: An optional prompt message
-        :return: The read line, after a conversion to str
-        """
-        if prompt:
-            # Print the prompt
-            self.write(prompt)
-            self.output.flush()
-
-        # Read the line
-        return to_str(self.input.readline())
-
-    def _write_bytes(self, data):
-        """
-        Converts the given data then writes it
-
-        :param data: Data to be written
-        :return: The result of ``self.output.write()``
-        """
-        self.output.write(to_bytes(data, self.encoding))
-
-    def _write_str(self, data):
-        """
-        Converts the given data then writes it
-
-        :param data: Data to be written
-        :return: The result of ``self.output.write()``
-        """
-        self.output.write(to_str(data, self.encoding))
-
-    def write_line(self, line, *args, **kwargs):
-        """
-        Formats and writes a line to the output
-        """
-        if line is None:
-            # Empty line
-            self.write('\n')
-
-        else:
-            # Format the line, if arguments have been given
-            if args or kwargs:
-                line = line.format(*args, **kwargs)
-
-            # Write it
-            self.write(line)
-
-            try:
-                if line[-1] != '\n':
-                    # Add the trailing new line
-                    self.write('\n')
-
-            except IndexError:
-                # Got an empty string
-                self.write('\n')
-
-        self.flush()
-
-    def write_line_no_feed(self, line, *args, **kwargs):
-        """
-        Formats and writes a line to the output
-        """
-        if line is None:
-            # Empty line
-            line = ""
-
-        else:
-            # Format the line, if arguments have been given
-            if args or kwargs:
-                line = line.format(*args, **kwargs)
-
-            # Remove the trailing line feed
-            if line[-1] == '\n':
-                line = line[:-1]
-
-        # Write it
-        self.write(line)
-        self.flush()
 
 # ------------------------------------------------------------------------------
 
@@ -404,6 +287,9 @@ class Shell(object):
 
         self.register_command(None, "sd", self.service_details)
         self.register_command(None, "sl", self.services_list)
+
+        self.register_command(None, "set", self.var_set)
+        self.register_command(None, "unset", self.var_unset)
 
         self.register_command(None, "start", self.start)
         self.register_command(None, "stop", self.stop)
@@ -649,10 +535,12 @@ class Shell(object):
         # Command found
         return namespace, command
 
-    def execute(self, cmdline, stdin=sys.stdin, stdout=sys.stdout):
+    def execute(self, cmdline, session):
         """
         Executes the command corresponding to the given line
         """
+        assert isinstance(session, ShellSession)
+
         # Split the command line
         if not cmdline:
             return False
@@ -660,14 +548,10 @@ class Shell(object):
         # Convert the line into a string
         cmdline = to_str(cmdline)
 
-        # Prepare the I/O handler
-        io_handler = IOHandler(stdin, stdout)
-
         try:
             line_split = shlex.split(cmdline, True, True)
-
         except ValueError as ex:
-            io_handler.write_line("Error reading line: {0}", ex)
+            session.write_line("Error reading line: {0}", ex)
             return False
 
         if not line_split:
@@ -676,52 +560,47 @@ class Shell(object):
         try:
             # Extract command information
             namespace, command = self.get_ns_command(line_split[0])
-
         except ValueError as ex:
             # Unknown command
-            io_handler.write_line(str(ex))
+            session.write_line(str(ex))
             return False
 
         # Get the content of the name space
         space = self._commands.get(namespace, None)
         if not space:
-            io_handler.write_line("Unknown name space {0}", namespace)
+            session.write_line("Unknown name space {0}", namespace)
             return False
 
         # Get the method object
         method = space.get(command, None)
         if method is None:
-            io_handler.write_line("Unknown command: {0}.{1}", namespace,
-                                  command)
+            session.write_line("Unknown command: {0}.{1}", namespace, command)
             return False
 
         # Make arguments and keyword arguments
-        args, kwargs = _make_args(line_split[1:])
+        args, kwargs = _make_args(line_split[1:], session)
 
         # Execute it
         try:
-            result = method(io_handler, *args, **kwargs)
+            result = method(session, *args, **kwargs)
             # None is considered as a success
             return result is None or result
-
         except TypeError as ex:
             # Invalid arguments...
             _logger.error("Error calling %s.%s: %s", namespace, command, ex)
-            io_handler.write_line("Invalid method call: {0}", ex)
-            self.__print_namespace_help(io_handler, namespace, command)
+            session.write_line("Invalid method call: {0}", ex)
+            self.__print_namespace_help(session, namespace, command)
             return False
-
         except Exception as ex:
             # Error
             _logger.exception("Error calling %s.%s: %s",
                               namespace, command, ex)
-            io_handler.write_line("{0}: {1}", type(ex).__name__, str(ex))
+            session.write_line("{0}: {1}", type(ex).__name__, str(ex))
             return False
-
         finally:
             # Try to flush in any case
             try:
-                io_handler.flush()
+                session.flush()
             except:
                 pass
 
@@ -775,6 +654,32 @@ class Shell(object):
         Echoes the given words
         """
         io_handler.write_line(' '.join(words))
+
+    def var_set(self, session, **kwargs):
+        """
+        Sets the given variables or prints the current ones. "set answer=42"
+        """
+        if not kwargs:
+            session.write_line(
+                self._utils.make_table(('Name', 'Value'),
+                                       session.variables.items()))
+        else:
+            for name, value in kwargs.items():
+                name = name.strip()
+                session.set(name, value)
+                session.write_line("{0}={1}", name, value)
+
+    def var_unset(self, session, name):
+        """
+        Unsets the given variable
+        """
+        name = name.strip()
+        try:
+            session.unset(name)
+        except KeyError:
+            session.write_line("Unknown variable: {0}", name)
+        else:
+            session.write_line("Variable {0} unset.", name)
 
     def bundle_details(self, io_handler, bundle_id):
         """
