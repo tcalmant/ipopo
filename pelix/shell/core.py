@@ -29,6 +29,8 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 """
 
 # Module version
+from pelix.shell.beans import IOHandler
+
 __version_info__ = (0, 5, 8)
 __version__ = ".".join(str(x) for x in __version_info__)
 
@@ -535,10 +537,14 @@ class Shell(object):
         # Command found
         return namespace, command
 
-    def execute(self, cmdline, session):
+    def execute(self, cmdline, session=None):
         """
         Executes the command corresponding to the given line
         """
+        if session is None:
+            # Default session
+            session = ShellSession(IOHandler(sys.stdin, sys.stdout), {})
+
         assert isinstance(session, ShellSession)
 
         # Split the command line
