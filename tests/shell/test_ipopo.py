@@ -10,6 +10,7 @@ Tests the iPOPO shell commands
 from pelix.ipopo.constants import use_ipopo
 import pelix.framework
 import pelix.shell
+import pelix.shell.beans as beans
 
 # Standard library
 try:
@@ -65,7 +66,8 @@ class IPopoShellTest(unittest.TestCase):
             command = command.format(*args)
 
         # Run command
-        self.shell.execute(command, stdout=str_output)
+        session = beans.ShellSession(beans.IOHandler(None, str_output))
+        self.shell.execute(command, session)
         return str_output.getvalue()
 
     def tearDown(self):

@@ -13,6 +13,7 @@ import pelix.constants as constants
 # Shell constants
 from pelix.shell import SERVICE_SHELL, SERVICE_SHELL_COMMAND, \
     SERVICE_SHELL_UTILS
+import pelix.shell.beans as beans
 
 # Standard library
 import os
@@ -498,7 +499,8 @@ class ShellCoreCommandsTest(unittest.TestCase):
             command = command.format(*args)
 
         # Run command
-        self.shell.execute(command, stdout=str_output)
+        session = beans.ShellSession(beans.IOHandler(None, str_output))
+        self.shell.execute(command, session)
         return str_output.getvalue()
 
     def testHelp(self):

@@ -10,6 +10,7 @@ Tests the ConfigurationAdmin shell commands
 import pelix.framework
 import pelix.services
 import pelix.shell
+import pelix.shell.beans as beans
 
 # Standard library
 try:
@@ -77,7 +78,8 @@ class ConfigAdminShellTest(unittest.TestCase):
         command = 'config.{0}'.format(command)
 
         # Run command
-        self.shell.execute(command, stdout=str_output)
+        session = beans.ShellSession(beans.IOHandler(None, str_output))
+        self.shell.execute(command, session)
         return str_output.getvalue()
 
     def tearDown(self):
@@ -89,7 +91,7 @@ class ConfigAdminShellTest(unittest.TestCase):
             config.delete()
 
         # Stop the framework
-        pelix.framework.FrameworkFactory.delete_framework(self.framework)
+        pelix.framework.FrameworkFactory.delete_framework()
         self.framework = None
 
     def testLifeCycle(self):

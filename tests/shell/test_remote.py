@@ -13,6 +13,7 @@ from pelix.ipopo.constants import use_ipopo
 
 # Shell constants
 from pelix.shell import SERVICE_SHELL, FACTORY_REMOTE_SHELL
+import pelix.shell.beans as beans
 
 # Standard library
 import socket
@@ -166,7 +167,8 @@ class RemoteShellTest(unittest.TestCase):
             command = command.format(*args)
 
         # Run command
-        self.shell.execute(command, stdout=str_output)
+        session = beans.ShellSession(beans.IOHandler(None, str_output))
+        self.shell.execute(command, session)
         return str_output.getvalue().strip()
 
     def testCoreVsRemoteCommands(self):
