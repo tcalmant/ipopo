@@ -36,6 +36,7 @@ __docformat__ = "restructuredtext en"
 
 from pelix.utilities import to_bytes, to_str
 import sys
+import threading
 
 # Before Python 3, input() was raw_input()
 if sys.version_info[0] < 3:
@@ -119,6 +120,9 @@ class IOHandler(object):
         self.output = out_stream
         self.encoding = encoding
 
+        # Thread safety
+        self.__lock = threading.RLock()
+
         # Standard behavior
         self.flush = self.output.flush
         self.write = self.output.write
@@ -161,7 +165,8 @@ class IOHandler(object):
         :param data: Data to be written
         :return: The result of ``self.output.write()``
         """
-        self.output.write(to_bytes(data, self.encoding))
+        with self.__lock:
+            self.output.write(to_bytes(data, self.encoding))
 
     def _write_str(self, data):
         """
@@ -170,7 +175,8 @@ class IOHandler(object):
         :param data: Data to be written
         :return: The result of ``self.output.write()``
         """
-        self.output.write(to_str(data, self.encoding))
+        with self.__lock:
+            self.output.write(to_str(data, self.encoding))
 
     def write_line(self, line, *args, **kwargs):
         """
@@ -184,16 +190,16 @@ class IOHandler(object):
             if args or kwargs:
                 line = line.format(*args, **kwargs)
 
-            # Write it
-            self.write(line)
-
-            try:
-                if line[-1] != '\n':
-                    # Add the trailing new line
+            with self.__lock:
+                # Write it
+                self.write(line)
+                try:
+                    if line[-1] != '\n':
+                        # Add the trailing new line
+                        self.write('\n')
+                except IndexError:
+                    # Got an empty string
                     self.write('\n')
-            except IndexError:
-                # Got an empty string
-                self.write('\n')
 
         self.flush()
 
