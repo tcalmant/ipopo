@@ -29,8 +29,6 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 """
 
 # Module version
-from pelix.shell.beans import IOHandler
-
 __version_info__ = (0, 5, 8)
 __version__ = ".".join(str(x) for x in __version_info__)
 
@@ -42,7 +40,7 @@ __docformat__ = "restructuredtext en"
 # Shell constants
 from . import SERVICE_SHELL, SERVICE_SHELL_COMMAND, \
     SERVICE_SHELL_UTILS
-from .beans import ShellSession
+from .beans import ShellSession, IOHandler
 
 # Pelix modules
 from pelix.utilities import to_str, to_bytes
@@ -50,6 +48,7 @@ import pelix.constants as constants
 import pelix.framework as pelix
 
 # Standard library
+import collections
 import inspect
 import linecache
 import logging
@@ -117,11 +116,11 @@ def _make_args(args_list, session=None):
 
     # Expand variables
     if session:
-        args = [string.Template(arg).safe_substitute(session.variables)
+        variables = collections.defaultdict(str)
+        variables.update(session.variables)
+        args = [string.Template(arg).safe_substitute(variables)
                 for arg in args]
-        kwargs = dict((key,
-                       string.Template(value).safe_substitute(
-                           session.variables))
+        kwargs = dict((key, string.Template(value).safe_substitute(variables))
                       for key, value in kwargs.items())
     return args, kwargs
 
