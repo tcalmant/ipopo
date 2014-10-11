@@ -66,6 +66,9 @@ class ShellSession(object):
             initial_vars = {}
         self.__variables = initial_vars.copy()
 
+        # Special variable: "result"
+        self.__variables["result"] = ""
+
         # Set I/O handler methods aliases
         self.write_line = io_handler.write_line
         self.write_line_no_feed = io_handler.write_line_no_feed

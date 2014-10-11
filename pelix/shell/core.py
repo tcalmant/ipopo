@@ -538,6 +538,10 @@ class Shell(object):
     def execute(self, cmdline, session=None):
         """
         Executes the command corresponding to the given line
+
+        :param cmdline: Command line to parse
+        :param session: Current shell session
+        :return: True if command succeeded, else False
         """
         if session is None:
             # Default session
@@ -584,11 +588,16 @@ class Shell(object):
         # Make arguments and keyword arguments
         args, kwargs = _make_args(line_split[1:], session)
 
-        # Execute it
         try:
+            # Execute it
             result = method(session, *args, **kwargs)
-            # None is considered as a success
-            return result is None or result
+
+            # Store the result as $?
+            if result is not None:
+                session.set("result", result)
+
+            # 0, None are considered as success, so don't use not nor bool
+            return result is not False
         except TypeError as ex:
             # Invalid arguments...
             _logger.error("Error calling %s.%s: %s", namespace, command, ex)
@@ -1323,6 +1332,7 @@ class Shell(object):
         """
         bundle = self._context.install_bundle(module_name)
         io_handler.write_line("Bundle ID: {0}", bundle.get_bundle_id())
+        return bundle.get_bundle_id()
 
     def uninstall(self, io_handler, bundle_id):
         """
