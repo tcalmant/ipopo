@@ -178,7 +178,7 @@ class IPopoCommands(object):
         except ValueError as ex:
             session.write_line("Error getting details about '{0}': {1}",
                                name, ex)
-            return
+            return False
 
         lines = [
             "Name  : {0}".format(details["name"]),
@@ -228,7 +228,7 @@ class IPopoCommands(object):
         except ValueError as ex:
             session.write_line("Error getting details about '{0}': {1}",
                                name, ex)
-            return
+            return False
 
         # Basic information
         lines = [
@@ -274,6 +274,8 @@ class IPopoCommands(object):
         try:
             self._ipopo.instantiate(factory, name, kwargs)
             session.write_line("Component '{0}' instantiated.", name)
+            # Return the instance name as a result
+            return name
         except ValueError as ex:
             session.write_line("Invalid parameter: {0}", ex)
         except TypeError as ex:
@@ -281,9 +283,9 @@ class IPopoCommands(object):
         except Exception as ex:
             session.write_line("Error instantiating the component: {0}", ex)
             _logger.exception("Error instantiating the component")
-        else:
-            # Return the instance name as a result
-            return name
+
+        # We're here if an exception occurred
+        return False
 
     def kill(self, session, name):
         """
@@ -294,3 +296,4 @@ class IPopoCommands(object):
             session.write_line("Component '{0}' killed.", name)
         except ValueError as ex:
             session.write_line("Invalid parameter: {0}", ex)
+            return False

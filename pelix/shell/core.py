@@ -702,6 +702,7 @@ class Shell(object):
             session.unset(name)
         except KeyError:
             session.write_line("Unknown variable: {0}", name)
+            return False
         else:
             session.write_line("Variable {0} unset.", name)
 
@@ -740,7 +741,6 @@ class Shell(object):
         try:
             # Convert the given ID into an integer
             bundle_id = int(bundle_id)
-
         except ValueError:
             # Not an integer, suppose it's a bundle name
             for bundle in self._context.get_bundles():
@@ -749,7 +749,6 @@ class Shell(object):
             else:
                 # Bundle not found
                 bundle = None
-
         else:
             # Integer ID: direct access
             try:
@@ -760,7 +759,7 @@ class Shell(object):
         if bundle is None:
             # No matching bundle
             io_handler.write_line("Unknown bundle ID: {0}", bundle_id)
-            return
+            return False
 
         lines = ["ID......: {0}".format(bundle.get_bundle_id()),
                  "Name....: {0}".format(bundle.get_symbolic_name()),
@@ -776,7 +775,6 @@ class Shell(object):
                     lines.append("\t{0}".format(svc_ref))
             else:
                 lines.append("\tn/a")
-
         except constants.BundleException as ex:
             # Bundle in a invalid state
             lines.append("\tError: {0}".format(ex))
@@ -787,10 +785,8 @@ class Shell(object):
             if services:
                 for svc_ref in services:
                     lines.append("\t{0}".format(svc_ref))
-
             else:
                 lines.append("\tn/a")
-
         except constants.BundleException as ex:
             # Bundle in a invalid state
             lines.append("\tError: {0}".format(ex))
@@ -831,7 +827,6 @@ class Shell(object):
 
         if name is None:
             io_handler.write_line("{0} bundles installed", len(lines))
-
         else:
             io_handler.write_line("{0} filtered bundles", len(lines))
 
@@ -843,7 +838,7 @@ class Shell(object):
             None, '({0}={1})'.format(constants.SERVICE_ID, service_id))
         if svc_ref is None:
             io_handler.write_line('Service not found: {0}', service_id)
-            return
+            return False
 
         lines = [
             "ID............: {0}".format(
@@ -895,6 +890,7 @@ class Shell(object):
         if not lines and specification:
             # No matching service found
             io_handler.write_line("No service provides '{0}'", specification)
+            return False
         else:
             # Print'em all
             io_handler.write(self._utils.make_table(headers, lines))
@@ -942,7 +938,6 @@ class Shell(object):
 
         # Get the documentation string
         doc = inspect.getdoc(method) or "(Documentation missing)"
-
         return ' '.join(args), ' '.join(doc.split())
 
     def __print_command_help(self, io_handler, namespace, cmd_name):
@@ -1305,7 +1300,6 @@ class Shell(object):
                 name,
                 logging.getLevelName(logger.getEffectiveLevel()),
                 logging.getLevelName(logger.level))
-
         else:
             # Set the logger level
             try:
@@ -1348,6 +1342,8 @@ class Shell(object):
             if bundle is not None:
                 io_handler.write_line("Starting bundle {0}...", bid)
                 bundle.start()
+            else:
+                return False
 
     def stop(self, io_handler, bundle_id, *bundles_ids):
         """
@@ -1358,6 +1354,8 @@ class Shell(object):
             if bundle is not None:
                 io_handler.write_line("Stopping bundle {0}...", bid)
                 bundle.stop()
+            else:
+                return False
 
     def update(self, io_handler, bundle_id, *bundles_ids):
         """
@@ -1368,6 +1366,8 @@ class Shell(object):
             if bundle is not None:
                 io_handler.write_line("Updating bundle {0}...", bid)
                 bundle.update()
+            else:
+                return False
 
     def install(self, io_handler, module_name):
         """
@@ -1386,6 +1386,8 @@ class Shell(object):
             if bundle is not None:
                 io_handler.write_line("Uninstalling bundle {0}...", bid)
                 bundle.uninstall()
+            else:
+                return False
 
 # ------------------------------------------------------------------------------
 
