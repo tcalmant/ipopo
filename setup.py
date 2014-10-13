@@ -36,6 +36,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 import os
+import sys
 
 try:
     from setuptools import setup
@@ -91,9 +92,12 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Topic :: Software Development :: Libraries :: Application Frameworks'
     ],
+    requires=['importlib'] if sys.version_info < (2, 7) else [],
     install_requires=['jsonrpclib-pelix >= 0.2.1'],
+    test_requires=['unittest2'] if sys.version_info < (2, 7) else [],
     extras_require={
         'MQTT': ['paho-mqtt'],
         'XMPP': ['sleekxmpp'],
-        'zeroconf': ['pyzeroconf']}
+        'zeroconf': ['pyzeroconf']
+    }
 )
