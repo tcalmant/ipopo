@@ -725,11 +725,13 @@ class Shell(object):
                     if not self.execute(line, session):
                         session.write_line(
                             "Command at line {0} failed. Abandon.", lineno + 1)
-                        break
-                else:
-                    session.write_line("Script execution succeeded")
+                        return False
+
+                session.write_line("Script execution succeeded")
+
         except IOError as ex:
             session.write_line("Error reading file {0}: {1}", filename, ex)
+            return False
 
 
     def bundle_details(self, io_handler, bundle_id):
