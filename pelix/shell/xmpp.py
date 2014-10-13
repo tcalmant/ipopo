@@ -8,7 +8,7 @@ This module depends on the sleekxmpp package: http://sleekxmpp.com/
 :author: Thomas Calmant
 :copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.5.7
+:version: 0.5.8
 :status: Beta
 
 ..
@@ -29,7 +29,7 @@ This module depends on the sleekxmpp package: http://sleekxmpp.com/
 """
 
 # Module version
-__version_info__ = (0, 5, 7)
+__version_info__ = (0, 5, 8)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -43,6 +43,7 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
 
 # Shell constants
 import pelix.shell
+import pelix.shell.beans as beans
 
 # Pelix utilities
 import pelix.misc.xmpp
@@ -52,6 +53,7 @@ import pelix.utilities
 # Standard library
 import collections
 import logging
+import sys
 
 try:
     # Python 2
@@ -153,6 +155,9 @@ class IPopoXMPPShell(object):
         # XMPP Bot
         self.__bot = None
 
+        # Shell sessions: JID -> ShellSession
+        self.__sessions = {}
+
         # Waiting for a message from the given JID
         self.__waiting = {}
 
@@ -195,6 +200,7 @@ class IPopoXMPPShell(object):
         self.__bot.add_event_handler("session_start", self.__on_start)
         self.__bot.add_event_handler("session_end", self.__on_end)
         self.__bot.add_event_handler("socket_error", self.__on_error)
+        self.__bot.add_event_handler("got_offline", self.__on_offline)
 
         # Connect to the server
         self.__bot.connect(self._host, self._port, False,
@@ -211,6 +217,9 @@ class IPopoXMPPShell(object):
         # Disconnect the bot
         self.__bot.disconnect()
         self.__bot = None
+
+        # Clean up
+        self.__sessions.clear()
 
     def __on_error(self, error):
         """
@@ -234,13 +243,29 @@ class IPopoXMPPShell(object):
         _logger.info("XMPP shell disconnected from %s",
                      self.__bot.boundjid.full)
 
+    def __on_offline(self, data):
+        """
+        XMPP client got offline
+        :param data: Message stanza
+        """
+        source_jid = data['from'].full
+        try:
+            # Unsubscribe to presence events
+            self.__bot.sendPresence(pto=source_jid, ptype='unsubscribe')
+
+            # Delete the corresponding session
+            del self.__sessions[source_jid]
+        except KeyError:
+            # Unknown JID
+            pass
+
     def __on_message(self, data):
         """
         Got an XMPP message
 
         :param data: Message stanza (see SleekXMPP)
         """
-        if data['type'] in ('normal', 'chat', 'groupchat'):
+        if data['type'] in ('normal', 'chat'):
             # Got a message
             body = data['body'].strip()
             if body:
@@ -249,12 +274,10 @@ class IPopoXMPPShell(object):
                 try:
                     # Are we listening to this JID ?
                     event = self.__waiting[sender].popleft()
-
                 except (KeyError, IndexError):
                     # Not waiting for a message from this JID,
                     # treat the message in a the task thread
                     self.__pool.enqueue(self.handle_message, sender, body)
-
                 else:
                     # Set the event, with the content of the message as data
                     event.set(body)
@@ -266,9 +289,21 @@ class IPopoXMPPShell(object):
         :param source_jid: JID of the message sender
         :param content: Content of the message
         """
-        self._shell.execute(content,
-                            _XmppInStream(self, source_jid),
-                            _XmppOutStream(self.__bot, source_jid))
+        try:
+            # Use the existing session
+            session = self.__sessions[source_jid]
+        except KeyError:
+            # Subscribe to presence messages
+            self.__bot.sendPresence(pto=source_jid, ptype='subscribe')
+
+            # Create and store the session
+            session = self.__sessions[source_jid] = beans.ShellSession(
+                beans.IOHandler(
+                    _XmppInStream(self, source_jid),
+                    _XmppOutStream(self.__bot, source_jid)),
+                {"xmpp.jid": source_jid})
+
+        self._shell.execute(content, session)
 
     def read_from(self, jid):
         """
@@ -357,8 +392,12 @@ if __name__ == '__main__':
         logging.basicConfig(level=logging.INFO)
         logging.getLogger("sleekxmpp").setLevel(logging.WARNING)
 
+    if not args.server and not args.jid:
+        _logger.error("No JID nor server given. Abandon.")
+        sys.exit(1)
+
     # Get the password if necessary
-    password = args.password
+    _password = args.password
     if args.jid and not args.password:
         try:
             import getpass
@@ -367,15 +406,15 @@ if __name__ == '__main__':
                           "command line")
         else:
             try:
-                password = getpass.getpass()
+                _password = getpass.getpass()
             except getpass.GetPassWarning:
                 pass
 
     # Get the server from the JID, if necessary
-    server = args.server
-    if not server and args.jid:
+    _server = args.server
+    if not _server:
         import sleekxmpp
-        server = sleekxmpp.JID(args.jid).domain
+        _server = sleekxmpp.JID(args.jid).domain
 
     # Run the entry point
-    main(server, args.port, args.jid, password, args.use_tls, args.use_ssl)
+    main(_server, args.port, args.jid, _password, args.use_tls, args.use_ssl)
