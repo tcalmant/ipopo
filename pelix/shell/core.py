@@ -1305,36 +1305,40 @@ class Shell(object):
         try:
             bundle_id = int(bundle_id)
             return self._context.get_bundle(bundle_id)
-
         except (TypeError, ValueError):
             io_handler.write_line("Invalid bundle ID: {0}", bundle_id)
-
         except constants.BundleException:
             io_handler.write_line("Unknown bundle: {0}", bundle_id)
 
-    def start(self, io_handler, bundle_id):
+    def start(self, io_handler, bundle_id, *bundles_ids):
         """
-        Starts the bundle with the given ID
+        Starts the bundles with the given IDs. Stops on first failure.
         """
-        bundle = self.__get_bundle(io_handler, bundle_id)
-        if bundle is not None:
-            bundle.start()
+        for bid in (bundle_id,) + bundles_ids:
+            bundle = self.__get_bundle(io_handler, bid)
+            if bundle is not None:
+                io_handler.write_line("Starting bundle {0}...", bid)
+                bundle.start()
 
-    def stop(self, io_handler, bundle_id):
+    def stop(self, io_handler, bundle_id, *bundles_ids):
         """
-        Stops the bundle with the given ID
+        Stops the bundles with the given IDs. Stops on first failure.
         """
-        bundle = self.__get_bundle(io_handler, bundle_id)
-        if bundle is not None:
-            bundle.stop()
+        for bid in (bundle_id,) + bundles_ids:
+            bundle = self.__get_bundle(io_handler, bid)
+            if bundle is not None:
+                io_handler.write_line("Stopping bundle {0}...", bid)
+                bundle.stop()
 
-    def update(self, io_handler, bundle_id):
+    def update(self, io_handler, bundle_id, *bundles_ids):
         """
-        Updates the bundle with the given ID
+        Updates the bundles with the given IDs. Stops on first failure.
         """
-        bundle = self.__get_bundle(io_handler, bundle_id)
-        if bundle is not None:
-            bundle.update()
+        for bid in (bundle_id,) + bundles_ids:
+            bundle = self.__get_bundle(io_handler, bid)
+            if bundle is not None:
+                io_handler.write_line("Updating bundle {0}...", bid)
+                bundle.update()
 
     def install(self, io_handler, module_name):
         """
@@ -1344,13 +1348,15 @@ class Shell(object):
         io_handler.write_line("Bundle ID: {0}", bundle.get_bundle_id())
         return bundle.get_bundle_id()
 
-    def uninstall(self, io_handler, bundle_id):
+    def uninstall(self, io_handler, bundle_id, *bundles_ids):
         """
-        Uninstalls the bundle with the given ID
+        Uninstalls the bundles with the given IDs. Stops on first failure.
         """
-        bundle = self.__get_bundle(io_handler, bundle_id)
-        if bundle is not None:
-            bundle.uninstall()
+        for bid in (bundle_id,) + bundles_ids:
+            bundle = self.__get_bundle(io_handler, bid)
+            if bundle is not None:
+                io_handler.write_line("Uninstalling bundle {0}...", bid)
+                bundle.uninstall()
 
 # ------------------------------------------------------------------------------
 
