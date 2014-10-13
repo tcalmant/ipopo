@@ -146,11 +146,9 @@ class ShellUtilsTest(unittest.TestCase):
 
 
 class ShellCoreTest(unittest.TestCase):
-
     """
     Tests the shell core service
     """
-
     def setUp(self):
         """
         Starts a framework and install the shell bundle
@@ -316,11 +314,9 @@ class ShellCoreTest(unittest.TestCase):
 
 
 class ShellCommandTest(unittest.TestCase):
-
     """
     Tests the shell core service
     """
-
     def setUp(self):
         """
         Starts a framework and install the shell bundle
@@ -468,11 +464,9 @@ class ShellCommandTest(unittest.TestCase):
 
 
 class ShellCoreCommandsTest(unittest.TestCase):
-
     """
     Tests the shell core commands
     """
-
     def setUp(self):
         """
         Starts a framework and install the shell bundle
