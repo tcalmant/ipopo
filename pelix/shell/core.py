@@ -299,6 +299,7 @@ class Shell(object):
 
         self.register_command(None, "set", self.var_set)
         self.register_command(None, "unset", self.var_unset)
+        self.register_command(None, "run", self.run_file)
 
         self.register_command(None, "start", self.start)
         self.register_command(None, "stop", self.stop)
@@ -703,6 +704,32 @@ class Shell(object):
             session.write_line("Unknown variable: {0}", name)
         else:
             session.write_line("Variable {0} unset.", name)
+
+    def run_file(self, session, filename):
+        """
+        Runs the given "script" file
+        """
+        try:
+            with open(filename, "r") as filep:
+                for lineno, line in enumerate(filep):
+                    line = line.strip()
+                    if line.startswith("#"):
+                        # Ignore comments
+                        continue
+
+                    # Print out the executed line
+                    session.write_line("[{0:02d}] >> {1}", lineno, line)
+
+                    # Execute the line
+                    if not self.execute(line, session):
+                        session.write_line(
+                            "Command at line {0} failed. Abandon.", lineno + 1)
+                        break
+                else:
+                    session.write_line("Script execution succeeded")
+        except IOError as ex:
+            session.write_line("Error reading file {0}: {1}", filename, ex)
+
 
     def bundle_details(self, io_handler, bundle_id):
         """
