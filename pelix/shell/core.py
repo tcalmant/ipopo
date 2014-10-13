@@ -94,7 +94,7 @@ class _ArgTemplate(string.Template):
     """
     Argument string template class
     """
-    pass
+    idpattern = r'[_a-z\?][_a-z0-9\.]*'
 
 
 def _make_args(args_list, session, fw_props):
