@@ -40,7 +40,7 @@ __docformat__ = "restructuredtext en"
 # Shell constants
 from . import SERVICE_SHELL, SERVICE_SHELL_COMMAND, \
     SERVICE_SHELL_UTILS
-from .beans import ShellSession, IOHandler
+import pelix.shell.beans as beans
 
 # Pelix modules
 from pelix.utilities import to_str, to_bytes
@@ -554,9 +554,10 @@ class Shell(object):
         """
         if session is None:
             # Default session
-            session = ShellSession(IOHandler(sys.stdin, sys.stdout), {})
+            session = beans.ShellSession(
+                beans.IOHandler(sys.stdin, sys.stdout), {})
 
-        assert isinstance(session, ShellSession)
+        assert isinstance(session, beans.ShellSession)
 
         # Split the command line
         if not cmdline:
@@ -603,7 +604,7 @@ class Shell(object):
 
             # Store the result as $?
             if result is not None:
-                session.set("result", result)
+                session.set(beans.RESULT_VAR_NAME, result)
 
             # 0, None are considered as success, so don't use not nor bool
             return result is not False

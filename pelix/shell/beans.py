@@ -46,6 +46,9 @@ else:
 
 # ------------------------------------------------------------------------------
 
+RESULT_VAR_NAME = "?"
+""" Name of the result variable """
+
 
 class ShellSession(object):
     """
@@ -66,8 +69,8 @@ class ShellSession(object):
             initial_vars = {}
         self.__variables = initial_vars.copy()
 
-        # Special variable: "result"
-        self.__variables["result"] = None
+        # Special variable for the last result
+        self.__variables[RESULT_VAR_NAME] = None
 
         # Set I/O handler methods aliases
         self.write_line = io_handler.write_line
@@ -90,7 +93,7 @@ class ShellSession(object):
         """
         Returns the content of $result
         """
-        return self.__variables["result"]
+        return self.__variables[RESULT_VAR_NAME]
 
     def get(self, name):
         """
