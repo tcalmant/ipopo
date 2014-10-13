@@ -495,19 +495,38 @@ class ShellCoreCommandsTest(unittest.TestCase):
         self.context = None
         self.framework = None
 
-    def _run_command(self, command, *args):
+    def _make_session(self):
         """
-        Runs the given command and returns the output stream
+        Prepares a ShellSession object for _run_command
         """
         # String output
         str_output = StringIO()
 
+        # Session bean
+        session = beans.ShellSession(beans.IOHandler(None, str_output))
+        return session, str_output
+
+    def _run_command(self, command, *args, **kwargs):
+        """
+        Runs the given command and returns the output stream. A keyword
+        argument 'session' can be given to use a custom ShellSession.
+        """
         # Format command
         if args:
             command = command.format(*args)
 
+        try:
+            # Get the given session
+            session = kwargs['session']
+            str_output = kwargs['output']
+            str_output.truncate(0)
+            str_output.seek(0)
+        except KeyError:
+            # No session given
+            str_output = StringIO()
+            session = beans.ShellSession(beans.IOHandler(None, str_output))
+
         # Run command
-        session = beans.ShellSession(beans.IOHandler(None, str_output))
         self.shell.execute(command, session)
         return str_output.getvalue()
 
@@ -546,6 +565,55 @@ class ShellCoreCommandsTest(unittest.TestCase):
         echo_value = "Hello, World !"
         output = self._run_command("echo {0}", echo_value)
         self.assertEqual(output.strip(), echo_value)
+
+    def test_variables(self):
+        """
+        Tests the set and unset commands. Also tests the substitution of
+        variables
+        """
+        var_name = 'toto'
+
+        session, str_output = self._make_session()
+        kwargs = {"session": session, "output": str_output}
+
+        # No value set yet
+        output = self._run_command("set", **kwargs)
+        self.assertNotIn(var_name, output)
+        self.assertRaises(KeyError, session.get, var_name)
+
+        output = self._run_command("echo ${0}", var_name, **kwargs)
+        self.assertEqual(output.strip(), "")
+
+        old_value = None
+        for value in ("Some value", "Another value"):
+            # Set a value
+            output = self._run_command("set {0}='{1}'".format(var_name, value),
+                                       **kwargs)
+            self.assertEqual(session.get(var_name), value)
+
+            self.assertIn(var_name, output)
+            self.assertIn(value, output)
+
+            output = self._run_command("set", **kwargs)
+            self.assertIn(var_name, output)
+            self.assertIn(value, output)
+            if old_value is not None:
+                self.assertNotIn(old_value, output)
+
+            # Test the output
+            output = self._run_command("echo ${0}", var_name, **kwargs)
+            self.assertEqual(output.strip(), value)
+            old_value = value
+
+        # Unset the value
+        self._run_command("unset {0}", var_name, **kwargs)
+        self.assertRaises(KeyError, session.get, var_name)
+
+        output = self._run_command("echo ${0}", var_name, **kwargs)
+        self.assertEqual(output.strip(), "")
+
+        output = self._run_command("set", **kwargs)
+        self.assertNotIn(var_name, output)
 
     def testBundlesInfo(self):
         """
