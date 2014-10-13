@@ -40,12 +40,14 @@ __docformat__ = "restructuredtext en"
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
     Validate, Invalidate
+from pelix.ipopo.constants import use_ipopo
 
 # Shell constants
 import pelix.shell
 import pelix.shell.beans as beans
 
 # Pelix utilities
+import pelix.framework
 import pelix.misc.xmpp
 import pelix.threadpool
 import pelix.utilities
@@ -336,9 +338,6 @@ def main(server, port, jid=None, password=None, use_tls=False, use_ssl=False):
     :param use_tls: Use STARTTLS
     :param use_ssl: Use an SSL connection
     """
-    from pelix.ipopo.constants import use_ipopo
-    import pelix.framework
-
     # Start a Pelix framework
     framework = pelix.framework.create_framework(('pelix.ipopo.core',
                                                   'pelix.shell.core',
