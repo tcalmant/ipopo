@@ -12,7 +12,7 @@ https://github.com/isandlaTech/cohorte-org.jabsorb.ng
 :author: Thomas Calmant
 :copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.5.7
+:version: 0.5.8
 :status: Beta
 
 ..
