@@ -536,7 +536,7 @@ class CountdownEvent(object):
         Sets up the counter
 
         :param value: The initial value of the counter, which must be greater
-        than 0.
+                      than 0.
         :raise ValueError: The value is not greater than 0
         """
         if value <= 0:

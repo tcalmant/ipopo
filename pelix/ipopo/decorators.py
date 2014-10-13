@@ -726,8 +726,9 @@ class Requires(object):
         :param spec_filter: An LDAP query to filter injected services upon
                             their properties
         :param immediate_rebind: If True, the component won't be invalidated
-        then re-validated if a matching service is available when the injected
-        dependency is unbound
+                                 then re-validated if a matching service is
+                                 available when the injected dependency is
+                                 unbound
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter or an
                            argument is incorrect

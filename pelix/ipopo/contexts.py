@@ -68,8 +68,9 @@ class Requirement(object):
         :param optional: If true, this requirement is optional
         :param spec_filter: A filter to select dependencies
         :param immediate_rebind: If True, the component won't be invalidated
-        then re-validated if a matching service is available when the injected
-        dependency is unbound
+                                 then re-validated if a matching service is
+                                 available when the injected dependency is
+                                 unbound
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter
         """
