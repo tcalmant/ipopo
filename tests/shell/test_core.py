@@ -17,6 +17,7 @@ import pelix.shell.beans as beans
 
 # Standard library
 import os
+import sys
 try:
     from StringIO import StringIO
 except ImportError:
@@ -360,16 +361,16 @@ class ShellCommandTest(unittest.TestCase):
         self.shell.register_command('test', 'command', command)
 
         # Valid execution
-        result = self.shell.execute('test.command a 2')
-        self.assertEqual(result, ('a', '2'),
-                         "Invalid result: {0}".format(result))
+        session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout))
+        self.assertTrue(self.shell.execute('test.command a 2', session))
+        result = session.last_result
+        self.assertEqual(result, ('a', '2'))
 
         # Invalid call
         for invalid in ([1], (1, 2, 3)):
             args = ' '.join(str(arg) for arg in invalid)
-            self.assertFalse(self.shell.execute('test.command {0}'
-                                                .format(args)),
-                             "Invalid call passed")
+            self.assertFalse(self.shell.execute(
+                'test.command {0}'.format(args)), "Invalid call passed")
 
     def testKeywords(self):
         """
@@ -384,22 +385,29 @@ class ShellCommandTest(unittest.TestCase):
         # Register the command
         self.shell.register_command('test', 'command', command)
 
+        # Prepare the session
+        session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout))
+
         # Valid execution
-        result = self.shell.execute('test.command arg1=12 a=2 b=abc')
+        self.shell.execute('test.command arg1=12 a=2 b=abc', session)
+        result = session.last_result
         self.assertEqual(result, ('12', {'a': '2', 'b': 'abc'}),
                          "Invalid result: {0}".format(result))
 
-        result = self.shell.execute('test.command 12')
+        self.shell.execute('test.command 12', session)
+        result = session.last_result
         self.assertEqual(result, ('12', {}),
                          "Invalid result: {0}".format(result))
 
-        result = self.shell.execute('test.command a=12')
+        self.shell.execute('test.command a=12', session)
+        result = session.last_result
         self.assertEqual(result, ('15', {'a': '12'}),
                          "Invalid result: {0}".format(result))
 
         # First '=' sign is the assignment  one,
         # shlex.split removes slashes
-        result = self.shell.execute('test.command a=a=b b\=a=b')
+        self.shell.execute('test.command a=a=b b\=a=b', session)
+        result = session.last_result
         self.assertEqual(result, ('15', {'a': 'a=b', 'b': 'a=b'}),
                          "Invalid result: {0}".format(result))
 
