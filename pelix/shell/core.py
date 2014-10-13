@@ -1076,8 +1076,12 @@ class Shell(object):
         """
         Lists the active threads and their current code line
         """
-        # Extract frames
-        frames = sys._current_frames()
+        try:
+            # Extract frames
+            frames = sys._current_frames()
+        except AttributeError:
+            io_handler.write_line("sys._current_frames() is not available.")
+            return
 
         # Get the thread ID -> Thread mapping
         names = threading._active.copy()
@@ -1101,8 +1105,8 @@ class Shell(object):
             # Construct the code position
             lines.append('Thread ID: {0} - Name: {1}'.format(thread_id, name))
             lines.append('Line:')
-            lines.extend((line.rstrip()
-                          for line in traceback.format_stack(stack, 1)))
+            lines.extend(line.rstrip()
+                         for line in traceback.format_stack(stack, 1))
             lines.append('')
 
         lines.append('')
@@ -1118,18 +1122,16 @@ class Shell(object):
             # Get the stack
             thread_id = int(thread_id)
             stack = sys._current_frames()[thread_id]
-
         except KeyError:
             io_handler.write_line("Unknown thread ID: {0}", thread_id)
-
         except ValueError:
             io_handler.write_line("Invalid thread ID: {0}", thread_id)
-
+        except AttributeError:
+            io_handler.write_line("sys._current_frames() is not available.")
         else:
             # Get the name
             try:
                 name = threading._active[thread_id].name
-
             except KeyError:
                 name = "<unknown>"
 
@@ -1173,8 +1175,8 @@ class Shell(object):
         try:
             # Try to get the type of the calling object
             instance = frame.f_locals['self']
-            method_name = '{0}::{1}'.format(type(instance).__name__,
-                                            method_name)
+            method_name = '{0}::{1}' \
+                .format(type(instance).__name__, method_name)
         except KeyError:
             # Not called from a bound method
             pass
@@ -1385,7 +1387,6 @@ class PelixActivator(object):
                     pelix.ServiceEvent.MODIFIED):
             # New or modified service
             self._shell._bind_handler(reference)
-
         else:
             # Service gone or not matching anymore
             self._shell._unbind_handler(reference)
@@ -1400,19 +1401,16 @@ class PelixActivator(object):
             # Prepare the shell utility service
             utils = ShellUtils()
             self._shell = Shell(context, utils)
-
-            self._shell_reg = context.register_service(SERVICE_SHELL,
-                                                       self._shell, {})
-
-            self._utils_reg = context.register_service(SERVICE_SHELL_UTILS,
-                                                       utils, {})
+            self._shell_reg = context.register_service(
+                SERVICE_SHELL, self._shell, {})
+            self._utils_reg = context.register_service(
+                SERVICE_SHELL_UTILS, utils, {})
 
             # Register the service listener
             context.add_service_listener(self, None, SERVICE_SHELL_COMMAND)
 
             # Register existing command services
-            refs = context.get_all_service_references(SERVICE_SHELL_COMMAND,
-                                                      None)
+            refs = context.get_all_service_references(SERVICE_SHELL_COMMAND)
             if refs is not None:
                 for ref in refs:
                     self._shell._bind_handler(ref)
