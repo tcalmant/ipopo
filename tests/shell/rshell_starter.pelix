@@ -1,6 +1,15 @@
+# Install the remote shell bundle
 install pelix.shell.remote
 start $?
+
+# Store its ID
 set rshell.bundle=$?
+
+# Instantiate a Remote Shell component, listening to the port defined
+# in session variables
 instantiate ipopo-remote-shell-factory rshell pelix.shell.port=$port
-instance $?
+# Store its name
 set rshell.name=$?
+
+# Print its details
+instance $?

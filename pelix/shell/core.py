@@ -714,8 +714,8 @@ class Shell(object):
             with open(filename, "r") as filep:
                 for lineno, line in enumerate(filep):
                     line = line.strip()
-                    if line.startswith("#"):
-                        # Ignore comments
+                    if not line or line.startswith("#"):
+                        # Ignore comments and empty lines
                         continue
 
                     # Print out the executed line
