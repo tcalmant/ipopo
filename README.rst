@@ -54,76 +54,39 @@ Release notes
 
 See the CHANGELOG.rst file to see what changed in previous releases.
 
-iPOPO 0.5.7
+iPOPO 0.5.8
 ***********
-
-Project
-=======
-
-* Code review to be more PEP-8 compliant
-* `jsonrpclib-pelix <https://pypi.python.org/pypi/jsonrpclib-pelix>`_ is now an
-  install requirement (instead of an optional one)
 
 Framework
 =========
 
-* Forget about previous global members when calling ``Bundle.update()``. This
-  ensures to have a fresh dictionary of members after a bundle update
-* Removed ``from pelix.constants import *`` in ``pelix.framework``:
-  only use ``pelix.constants`` to access constants
+* ``FrameworkFactory.delete_framework()`` can be called with ``None`` or
+  without argument. This simplifies the clean up afters tests, etc.
+* The list returned by ``Framework.get_bundles()`` is always sorted by
+  bundle ID.
 
 
-Remote Services
-===============
+iPOPO
+=====
 
-* Added support for endpoint name reuse
-* Added support for synonyms: specifications that can be used on the remote
-  side, or which describe a specification of another language
-  (e.g. a Java interface)
-* Added support for a *pelix.remote.export.reject* service property: the
-  specifications it contains won't be exported, event if indicated in
-  *service.exported.interfaces*.
-* Jabsorb-RPC:
-
-  * Use the common dispatch() method, like JSON-RPC
-
-* MQTT(-RPC):
-
-  * Explicitly stop the reading loop when the MQTT client is disconnecting
-  * Handle unknown correlation ID
+* Added the ``immediate_rebind`` option to the ``@Requires`` decorator.
+  This indicates iPOPO to not invalidate then revalidate a component if a
+  service can replace an unbound required one. This option inly applies to
+  non-optional, non-aggregate requirements.
 
 
 Shell
 =====
 
-* Added a ``loglevel`` shell command, to update the log level of any logger
-* Added a ``--verbose`` argument to the shell console script
-* Remote shell module can be ran as a script
-
-
-HTTP
-====
-
-* Remove double-slashes when looking for a servlet
-
-
-XMPP
-====
-
-* Added base classes to write a XMPP client based on
-  `SleekXMPP <http://sleekxmpp.com/>`_
-* Added a XMPP shell interface, to control Pelix/iPOPO from XMPP
-
-
-Miscellaneous
-=============
-
-* Added an IPv6 utility module, to setup double-stack and to avoids missing
-  constants bugs in Windows versions of Python
-* Added a ``EventData`` class: it acts like ``Event``, but it allows to store
-  a data when setting the event, or to raise an exception in all callers of
-  ``wait()``
-* Added a ``CountdownEvent`` class, an ``Event`` which is set until a given
-   number of calls to ``step()`` is reached
-* ``threading.Future`` class now supports a callback methods, to avoid to
-  actively wait for a result.
+* The I/O handler is now part of a ShellSession bean. The latter has the same
+  API as the I/O handler so there is no need to update existing commands.
+  I/O Handler write methods are now synchronized.
+* The shell supports variables as arguments, e.g. ``echo $var``.
+  See `string.Template <https://docs.python.org/3/library/string.html#template-strings>`_
+  for more information. The Template used in Pelix Shell allows ``.`` (dot)
+  in names.
+* A special variable ``$?`` stores the result of the last command which
+  returned a result, i.e. anything but None or False.
+* Added *set* and *unset* commands to work with variables
+* Added the *run* command to execute a script file.
+* Added protection against ``AttributeError`` in *threads* and *thread*

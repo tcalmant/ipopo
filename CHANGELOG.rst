@@ -1,6 +1,44 @@
 Release notes
 #############
 
+iPOPO 0.5.8
+***********
+
+Framework
+=========
+
+* ``FrameworkFactory.delete_framework()`` can be called with ``None`` or
+  without argument. This simplifies the clean up afters tests, etc.
+* The list returned by ``Framework.get_bundles()`` is always sorted by
+  bundle ID.
+
+
+iPOPO
+=====
+
+* Added the ``immediate_rebind`` option to the ``@Requires`` decorator.
+  This indicates iPOPO to not invalidate then revalidate a component if a
+  service can replace an unbound required one. This option inly applies to
+  non-optional, non-aggregate requirements.
+
+
+Shell
+=====
+
+* The I/O handler is now part of a ShellSession bean. The latter has the same
+  API as the I/O handler so there is no need to update existing commands.
+  I/O Handler write methods are now synchronized.
+* The shell supports variables as arguments, e.g. ``echo $var``.
+  See `string.Template <https://docs.python.org/3/library/string.html#template-strings>`_
+  for more information. The Template used in Pelix Shell allows ``.`` (dot)
+  in names.
+* A special variable ``$?`` stores the result of the last command which
+  returned a result, i.e. anything but None or False.
+* Added *set* and *unset* commands to work with variables
+* Added the *run* command to execute a script file.
+* Added protection against ``AttributeError`` in *threads* and *thread*
+
+
 iPOPO 0.5.7
 ***********
 
