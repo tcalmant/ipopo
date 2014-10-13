@@ -1,0 +1,6 @@
+install pelix.shell.remote
+start $?
+set rshell.bundle=$?
+instantiate ipopo-remote-shell-factory rshell pelix.shell.port=$port
+instance $?
+set rshell.name=$?

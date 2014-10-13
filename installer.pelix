@@ -1,4 +1,0 @@
-install pelix.shell.remote
-start $?
-instantiate ipopo-remote-shell-factory rshell pelix.shell.port=9001
-instance $?

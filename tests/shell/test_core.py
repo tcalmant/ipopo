@@ -9,6 +9,7 @@ Tests the shell core module
 # Pelix
 from pelix.framework import FrameworkFactory, create_framework, Bundle
 import pelix.constants as constants
+from pelix.ipopo.constants import use_ipopo
 
 # Shell constants
 from pelix.shell import SERVICE_SHELL, SERVICE_SHELL_COMMAND, \
@@ -608,6 +609,48 @@ class ShellCoreCommandsTest(unittest.TestCase):
 
         output = self._run_command("set", **kwargs)
         self.assertNotIn(var_name, output)
+
+    def test_run_file(self):
+        """
+        Tests the run shell command
+        """
+        # Check bad file error
+        self.assertFalse(self.shell.execute("run __fake_file__"))
+
+        # Compute test file name
+        filename = os.path.join(os.path.dirname(__file__),
+                                "rshell_starter.pelix")
+
+        # Install iPOPO
+        self.context.install_bundle('pelix.ipopo.core').start()
+        self.context.install_bundle('pelix.shell.ipopo').start()
+
+        # Prepare a session
+        port = 9001
+        session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout),
+                                     {"port": port})
+
+        # Run the file a first time
+        self.assertTrue(self.shell.execute("run {0}".format(filename),
+                                           session))
+
+        # Check the result
+        self.assertEqual(session.get("rshell.name"), "rshell")
+
+        # Check the bundle
+        rshell_bundle = int(session.get("rshell.bundle"))
+        bundle = self.context.get_bundle(rshell_bundle)
+        self.assertEqual(bundle.get_symbolic_name(), "pelix.shell.remote")
+
+        # Check the instance properties
+        with use_ipopo(self.context) as ipopo:
+            details = ipopo.get_instance_details(session.get("rshell.name"))
+            self.assertEqual(int(details["properties"]["pelix.shell.port"]),
+                             port)
+
+        # Run the file a second time: it must fail
+        self.assertFalse(self.shell.execute("run {0}".format(filename),
+                                            session))
 
     def testBundlesInfo(self):
         """
