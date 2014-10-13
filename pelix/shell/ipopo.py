@@ -8,7 +8,7 @@ Provides commands to the Pelix shell to get the state of iPOPO instances.
 :author: Thomas Calmant
 :copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
-:version: 0.5.7
+:version: 0.5.8
 :status: Beta
 
 ..
@@ -29,7 +29,7 @@ Provides commands to the Pelix shell to get the state of iPOPO instances.
 """
 
 # Module version
-__version_info__ = (0, 5, 7)
+__version_info__ = (0, 5, 8)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -104,7 +104,7 @@ class IPopoCommands(object):
                 ("instantiate", self.instantiate),
                 ("kill", self.kill)]
 
-    def list_factories(self, io_handler, name=None):
+    def list_factories(self, session, name=None):
         """
         Lists the available iPOPO component factories
         """
@@ -118,13 +118,13 @@ class IPopoCommands(object):
         lines = sorted((name, self._ipopo.get_factory_bundle(name))
                        for name in factories)
 
-        io_handler.write(self._utils.make_table(header, lines))
+        session.write(self._utils.make_table(header, lines))
         if name is None:
-            io_handler.write_line("{0} factories available", len(lines))
+            session.write_line("{0} factories available", len(lines))
         else:
-            io_handler.write_line("{0} filtered factories", len(lines))
+            session.write_line("{0} filtered factories", len(lines))
 
-    def list_instances(self, io_handler, name=None):
+    def list_instances(self, session, name=None):
         """
         Lists the active iPOPO component instances
         """
@@ -140,13 +140,13 @@ class IPopoCommands(object):
         lines = ((name, factory, ipopo_state_to_str(state))
                  for name, factory, state in instances)
 
-        io_handler.write(self._utils.make_table(headers, lines))
+        session.write(self._utils.make_table(headers, lines))
         if name is None:
-            io_handler.write_line("{0} components running", len(instances))
+            session.write_line("{0} components running", len(instances))
         else:
-            io_handler.write_line("{0} filtered components", len(instances))
+            session.write_line("{0} filtered components", len(instances))
 
-    def list_waitings(self, io_handler, name=None):
+    def list_waitings(self, session, name=None):
         """
         Lists the components waiting to be instantiated
         """
@@ -162,23 +162,22 @@ class IPopoCommands(object):
         lines = ((name, factory, ', '.join(missing))
                  for name, factory, missing in components)
 
-        io_handler.write(self._utils.make_table(headers, lines))
+        session.write(self._utils.make_table(headers, lines))
         if name is None:
-            io_handler.write_line("{0} components in the waiting queue",
-                                  len(components))
+            session.write_line("{0} components in the waiting queue",
+                               len(components))
         else:
-            io_handler.write_line("{0} filtered components", len(components))
+            session.write_line("{0} filtered components", len(components))
 
-    def factory_details(self, io_handler, name):
+    def factory_details(self, session, name):
         """
         Prints the details of the given component factory
         """
         try:
             details = self._ipopo.get_factory_details(name)
-
         except ValueError as ex:
-            io_handler.write_line("Error getting details about '{0}': {1}",
-                                  name, ex)
+            session.write_line("Error getting details about '{0}': {1}",
+                               name, ex)
             return
 
         lines = [
@@ -215,21 +214,20 @@ class IPopoCommands(object):
             lines.append("Handlers:")
             handlers_headers = ('ID', 'Configuration')
             handlers_lines = [(key, handlers[key]) for key in sorted(handlers)]
-            lines.append(self._utils.make_table(handlers_headers,
-                                                handlers_lines, '\t'))
+            lines.append(self._utils.make_table(
+                handlers_headers, handlers_lines, '\t'))
 
-        io_handler.write('\n'.join(lines))
+        session.write('\n'.join(lines))
 
-    def instance_details(self, io_handler, name):
+    def instance_details(self, session, name):
         """
         Prints the details of the given component instance
         """
         try:
             details = self._ipopo.get_instance_details(name)
-
         except ValueError as ex:
-            io_handler.write_line("Error getting details about '{0}': {1}",
-                                  name, ex)
+            session.write_line("Error getting details about '{0}': {1}",
+                               name, ex)
             return
 
         # Basic information
@@ -266,34 +264,33 @@ class IPopoCommands(object):
             ("Key", "Value"), sorted(details['properties'].items()), "\t"))
 
         lines.append("")
-        io_handler.write('\n'.join(lines))
+        session.write('\n'.join(lines))
 
-    def instantiate(self, io_handler, factory, name, **kwargs):
+    def instantiate(self, session, factory, name, **kwargs):
         """
         Instantiates a component of the given factory with the given name and
         properties
         """
         try:
             self._ipopo.instantiate(factory, name, kwargs)
-            io_handler.write_line("Component '{0}' instantiated.", name)
-
+            session.write_line("Component '{0}' instantiated.", name)
         except ValueError as ex:
-            io_handler.write_line("Invalid parameter: {0}", ex)
-
+            session.write_line("Invalid parameter: {0}", ex)
         except TypeError as ex:
-            io_handler.write_line("Invalid factory: {0}", ex)
-
+            session.write_line("Invalid factory: {0}", ex)
         except Exception as ex:
-            io_handler.write_line("Error instantiating the component: {0}", ex)
+            session.write_line("Error instantiating the component: {0}", ex)
             _logger.exception("Error instantiating the component")
+        else:
+            # Return the instance name as a result
+            return name
 
-    def kill(self, io_handler, name):
+    def kill(self, session, name):
         """
         Kills the given component instance
         """
         try:
             self._ipopo.kill(name)
-            io_handler.write_line("Component '{0}' killed.", name)
-
+            session.write_line("Component '{0}' killed.", name)
         except ValueError as ex:
-            io_handler.write_line("Invalid parameter: {0}", ex)
+            session.write_line("Invalid parameter: {0}", ex)
