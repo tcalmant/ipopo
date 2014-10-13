@@ -90,7 +90,14 @@ def _find_assignment(arg_token):
     return -1
 
 
-def _make_args(args_list, session=None):
+class _ArgTemplate(string.Template):
+    """
+    Argument string template class
+    """
+    pass
+
+
+def _make_args(args_list, session, fw_props):
     """
     Converts the given list of arguments into a list (args) and a
     dictionary (kwargs).
@@ -114,14 +121,15 @@ def _make_args(args_list, session=None):
             # Direct argument
             args.append(arg_token)
 
-    # Expand variables
-    if session:
-        variables = collections.defaultdict(str)
-        variables.update(session.variables)
-        args = [string.Template(arg).safe_substitute(variables)
-                for arg in args]
-        kwargs = dict((key, string.Template(value).safe_substitute(variables))
-                      for key, value in kwargs.items())
+    # Prepare the dictionary of variables
+    variables = collections.defaultdict(str)
+    variables.update(fw_props)
+    variables.update(session.variables)
+
+    # Replace variables
+    args = [_ArgTemplate(arg).safe_substitute(variables) for arg in args]
+    kwargs = dict((key, _ArgTemplate(value).safe_substitute(variables))
+                  for key, value in kwargs.items())
     return args, kwargs
 
 
@@ -273,6 +281,7 @@ class Shell(object):
         """
         self._commands = {}
         self._context = context
+        self._framework = context.get_bundle(0)
         self._utils = utilities
 
         # Bound services: reference -> service
@@ -586,8 +595,8 @@ class Shell(object):
             return False
 
         # Make arguments and keyword arguments
-        args, kwargs = _make_args(line_split[1:], session)
-
+        args, kwargs = _make_args(line_split[1:], session,
+                                  self._framework.get_properties())
         try:
             # Execute it
             result = method(session, *args, **kwargs)
@@ -614,7 +623,7 @@ class Shell(object):
             # Try to flush in any case
             try:
                 session.flush()
-            except:
+            except IOError:
                 pass
 
     def get_banner(self):
