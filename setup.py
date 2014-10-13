@@ -62,8 +62,6 @@ setup(
     author='Thomas Calmant',
     author_email='thomas.calmant@gmail.com',
     url='https://ipopo.coderxpress.net/',
-    download_url='https://ipopo.coderxpress.net/dl/ipopo-{0}.zip'
-        .format(__version__),
     packages=[
         'pelix',
         'pelix.http',
