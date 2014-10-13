@@ -67,7 +67,7 @@ class ShellSession(object):
         self.__variables = initial_vars.copy()
 
         # Special variable: "result"
-        self.__variables["result"] = ""
+        self.__variables["result"] = None
 
         # Set I/O handler methods aliases
         self.write_line = io_handler.write_line
@@ -84,6 +84,23 @@ class ShellSession(object):
         A copy of the session variables
         """
         return self.__variables.copy()
+
+    @property
+    def last_result(self):
+        """
+        Returns the content of $result
+        """
+        return self.__variables["result"]
+
+    def get(self, name):
+        """
+        Returns the value of a variable
+
+        :param name: Name of the variable
+        :return: The value of the variable
+        :raise KeyError: Unknown name
+        """
+        return self.__variables[name]
 
     def set(self, name, value):
         """
