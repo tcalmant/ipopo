@@ -622,9 +622,6 @@ class ShellCoreCommandsTest(unittest.TestCase):
         filename = os.path.join(os.path.dirname(__file__),
                                 "rshell_starter.pelix")
 
-        # Escape it (for Windows)
-        filename = shlex.quote(filename)
-
         # Install iPOPO
         self.context.install_bundle('pelix.ipopo.core').start()
         self.context.install_bundle('pelix.shell.ipopo').start()
@@ -635,7 +632,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
                                      {"port": port})
 
         # Run the file a first time
-        self.assertTrue(self.shell.execute("run {0}".format(filename),
+        self.assertTrue(self.shell.execute("run '{0}'".format(filename),
                                            session))
 
         # Check the result
@@ -653,7 +650,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
                              port)
 
         # Run the file a second time: it must fail
-        self.assertFalse(self.shell.execute("run {0}".format(filename),
+        self.assertFalse(self.shell.execute("run '{0}'".format(filename),
                                             session))
 
     def testBundlesInfo(self):
