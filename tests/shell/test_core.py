@@ -18,6 +18,7 @@ import pelix.shell.beans as beans
 
 # Standard library
 import os
+import shlex
 import sys
 try:
     from StringIO import StringIO
@@ -620,6 +621,9 @@ class ShellCoreCommandsTest(unittest.TestCase):
         # Compute test file name
         filename = os.path.join(os.path.dirname(__file__),
                                 "rshell_starter.pelix")
+
+        # Escape it (for Windows)
+        filename = shlex.quote(filename)
 
         # Install iPOPO
         self.context.install_bundle('pelix.ipopo.core').start()
