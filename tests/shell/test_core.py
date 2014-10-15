@@ -842,6 +842,12 @@ class ShellCoreCommandsTest(unittest.TestCase):
         """
         Tests the threads and thread commands
         """
+        try:
+            sys._current_frames
+        except AttributeError:
+            self.skipTest("sys._current_frames() isn't supported in this "
+                          "interpreter")
+
         output = self._run_command('threads')
 
         # Get all threads
