@@ -312,16 +312,22 @@ test_var = {test}
 def test_fct():
     return {test}
 """
-        bundle_name = "generated_bundle"
+
+        # Compute the bundle full path
+        simple_name = "generated_bundle"
+        bundle_name = '{0}.{1}'.format(__name__.rsplit('.', 1)[0],
+                                       simple_name)
+        bundle_fullname = os.path.join(os.path.dirname(__file__),
+                                       "{0}.py".format(simple_name))
 
         # 0/ Clean up existing files
-        for ext in ("py", "pyc"):
-            path = ".{sep}{0}.{1}".format(bundle_name, ext, sep=os.path.sep)
+        for suffix in ('', 'c', 'o'):
+            path = "{0}{1}".format(bundle_fullname, suffix)
             if os.path.exists(path):
                 os.remove(path)
 
         # 1/ Prepare the bundle, test variable is set to False
-        f = open(".{sep}{0}.py".format(bundle_name, sep=os.path.sep), "w")
+        f = open(bundle_fullname, "w")
         f.write(bundle_content.format(version="1.0.0", test=False))
         f.close()
 
@@ -331,11 +337,10 @@ def test_fct():
 
         # Also start the bundle
         bundle.start()
-
         self.assertFalse(module.test_var, "Test variable should be False")
 
         # 3/ Change the bundle file
-        f = open(".{sep}{0}.py".format(bundle_name, sep=os.path.sep), "w")
+        f = open(bundle_fullname, "w")
         f.write(bundle_content.format(version="1.0.1", test=True))
         f.close()
 
@@ -345,7 +350,7 @@ def test_fct():
         self.assertTrue(module.test_var, "Test variable should be True")
 
         # 5/ Change the bundle file, make it erroneous
-        f = open(".{sep}{0}.py".format(bundle_name, sep=os.path.sep), "w")
+        f = open(bundle_fullname, "w")
         f.write(bundle_content.format(version="1.0.2", test="\n"))
         f.close()
 
@@ -357,7 +362,7 @@ def test_fct():
 
         # Finally, change the test file to be a valid module
         # -> Used by coverage for its report
-        f = open(".{sep}{0}.py".format(bundle_name, sep=os.path.sep), "w")
+        f = open(bundle_fullname, "w")
         f.write(bundle_content.format(version="1.0.0", test=False))
         f.close()
 
