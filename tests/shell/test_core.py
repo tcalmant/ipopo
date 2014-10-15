@@ -18,7 +18,6 @@ import pelix.shell.beans as beans
 
 # Standard library
 import os
-import shlex
 import sys
 try:
     from StringIO import StringIO
