@@ -45,8 +45,8 @@ class BundlesTest(unittest.TestCase):
 
         self.test_bundle_name = SIMPLE_BUNDLE
         # File path, without extension
-        self.test_bundle_loc = os.path.abspath(
-            self.test_bundle_name.replace('.', os.sep))
+        self.test_bundle_loc = os.path.join(
+            os.path.dirname(__file__), self.test_bundle_name.rsplit('.', 1)[1])
 
     def tearDown(self):
         """
