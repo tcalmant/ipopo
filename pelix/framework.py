@@ -1088,8 +1088,20 @@ class Framework(Bundle):
             # Remove it from the system => avoid unintended behaviors and
             # forces a complete module reload if it is re-installed
             name = bundle.get_symbolic_name()
-            if name in sys.modules:
+            try:
                 del sys.modules[name]
+            except KeyError:
+                # Ignore
+                pass
+
+            # Clear reference in parent
+            parent, basename = name.rsplit('.', 1)
+            if parent:
+                try:
+                    delattr(sys.modules[parent], basename)
+                except (KeyError, AttributeError):
+                    # Ignore
+                    pass
 
     def unregister_service(self, registration):
         """
