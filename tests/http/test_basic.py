@@ -20,9 +20,8 @@ except ImportError:
 try:
     # Python 3
     import http.client as httplib
-
-except ImportError:
-    # Python 2
+except (ImportError, AttributeError):
+    # Python 2 or IronPython
     import httplib
 
 # HTTP service constants
@@ -32,7 +31,7 @@ import pelix.http as http
 
 __version__ = (1, 0, 0)
 
-DEFAULT_HOST = "localhost"
+DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
 
 # ------------------------------------------------------------------------------
@@ -77,8 +76,7 @@ def install_ipopo(framework):
     return context.get_service(ref)
 
 
-def instantiate_server(ipopo_svc, module,
-                       address=DEFAULT_HOST, port=DEFAULT_PORT):
+def instantiate_server(ipopo_svc, address=DEFAULT_HOST, port=DEFAULT_PORT):
     """
     Instantiates a basic server component
     """
@@ -111,6 +109,7 @@ def get_http_page(host=DEFAULT_HOST, port=DEFAULT_PORT,
     :return: A (code, content) tuple
     """
     conn = httplib.HTTPConnection(host, port)
+    conn.connect()
     conn.request(method, uri, content, headers or {})
     result = conn.getresponse()
     data = result.read()
@@ -140,7 +139,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         self.ipopo = install_ipopo(self.framework)
 
         # Install HTTP service
-        self.http_bundle = install_bundle(self.framework, "pelix.http.basic")
+        install_bundle(self.framework, "pelix.http.basic")
 
         # Install test bundle
         self.servlets = install_bundle(self.framework,
@@ -158,7 +157,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         """
         Tests the server when no servlet is active
         """
-        instantiate_server(self.ipopo, self.http_bundle)
+        instantiate_server(self.ipopo)
         self.assertEqual(get_http_page(only_code=True), 404,
                          "Received something other than a 404")
 
@@ -166,7 +165,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         """
         Tests the registration of a servlet object
         """
-        http_svc = instantiate_server(self.ipopo, self.http_bundle)
+        http_svc = instantiate_server(self.ipopo)
 
         # Register the servlet
         servlet = self.servlets.SimpleServlet()
@@ -235,7 +234,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         Tests the behavior of the HTTP service when a bound_to() method raises
         an exception
         """
-        http_svc = instantiate_server(self.ipopo, self.http_bundle)
+        http_svc = instantiate_server(self.ipopo)
 
         # Make the servlet raise an exception
         servlet = self.servlets.SimpleServlet(True)
@@ -254,7 +253,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         Tests the behavior of the HTTP service when a bound_to() method raises
         an exception
         """
-        http_svc = instantiate_server(self.ipopo, self.http_bundle)
+        http_svc = instantiate_server(self.ipopo)
 
         # Make the servlet to not raise an exception
         servlet = self.servlets.SimpleServlet(False)
@@ -282,7 +281,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         Tests the behavior of the HTTP service when a bound_to() method raises
         an exception
         """
-        http_svc = instantiate_server(self.ipopo, self.http_bundle)
+        http_svc = instantiate_server(self.ipopo)
 
         # Make the first servlet
         servlet = self.servlets.SimpleServlet(False)
@@ -331,7 +330,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         """
         Tests the whiteboard pattern with a simple path
         """
-        http_svc = instantiate_server(self.ipopo, self.http_bundle)
+        http_svc = instantiate_server(self.ipopo)
 
         # Instantiate the servlet component
         servlet_name = "test-whiteboard-simple"
@@ -377,7 +376,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         """
         Tests the whiteboard pattern with a multiple paths
         """
-        http_svc = instantiate_server(self.ipopo, self.http_bundle)
+        http_svc = instantiate_server(self.ipopo)
 
         # Instantiate the servlet component
         servlet_name = "test-whiteboard-multiple"
@@ -425,7 +424,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         Tests the whiteboard pattern with a simple path, which path property
         is updated
         """
-        http_svc = instantiate_server(self.ipopo, self.http_bundle)
+        http_svc = instantiate_server(self.ipopo)
 
         # Instantiate the servlet component
         servlet_name = "test-whiteboard-simple"
@@ -505,8 +504,8 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         self.ipopo = install_ipopo(self.framework)
 
         # Install HTTP service
-        self.http_bundle = install_bundle(self.framework, "pelix.http.basic")
-        self.http_svc = instantiate_server(self.ipopo, self.http_bundle)
+        install_bundle(self.framework, "pelix.http.basic")
+        self.http_svc = instantiate_server(self.ipopo)
 
         # Install test bundle
         self.servlets = install_bundle(self.framework,
@@ -529,8 +528,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         port = 8090
 
         kill_server(self.ipopo)
-        http_svc = instantiate_server(self.ipopo, self.http_bundle,
-                                      address, port)
+        http_svc = instantiate_server(self.ipopo, address, port)
 
         import socket
         self.assertEqual(http_svc.get_hostname(), socket.gethostname(),
@@ -543,8 +541,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         # (depends on test system)
         localhost_names = ("localhost", "127.0.0.1", "127.0.1.1", "::1")
         kill_server(self.ipopo)
-        http_svc = instantiate_server(self.ipopo, self.http_bundle,
-                                      None, port)
+        http_svc = instantiate_server(self.ipopo, None, port)
 
         access = http_svc.get_access()
         self.assertIn(access[0], localhost_names, "Address is not localhost")
@@ -552,8 +549,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
 
         # Given no port -> random port
         kill_server(self.ipopo)
-        http_svc = instantiate_server(self.ipopo, self.http_bundle,
-                                      None, None)
+        http_svc = instantiate_server(self.ipopo, None, None)
 
         address, port = http_svc.get_access()
         self.assertEqual(get_http_page(address, port, only_code=True), 404,

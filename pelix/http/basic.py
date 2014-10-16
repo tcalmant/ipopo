@@ -77,6 +77,9 @@ import pelix.http as http
 HTTP_SERVICE_EXTRA = "http.extra"
 """ HTTP service extra properties (dictionary) """
 
+DEFAULT_BIND_ADDRESS = "127.0.0.1"
+""" By default, bind to local host """
+
 # ------------------------------------------------------------------------------
 
 
@@ -393,7 +396,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 @ComponentFactory(http.FACTORY_HTTP_BASIC)
 @Provides(http.HTTP_SERVICE)
 @Requires("_servlets_services", http.HTTP_SERVLET, True, True)
-@Property("_address", http.HTTP_SERVICE_ADDRESS, "0.0.0.0")
+@Property("_address", http.HTTP_SERVICE_ADDRESS, DEFAULT_BIND_ADDRESS)
 @Property("_port", http.HTTP_SERVICE_PORT, 8080)
 @Property('_extra', HTTP_SERVICE_EXTRA, None)
 @Property("_instance_name", constants.IPOPO_INSTANCE_NAME)
@@ -739,8 +742,8 @@ class HttpService(object):
         Component validation
         """
         if not self._address:
-            # Local host by default
-            self._address = "localhost"
+            # Use the default bind address
+            self._address = DEFAULT_BIND_ADDRESS
 
         if self._port is None or self._port < 0:
             # Random port
