@@ -805,17 +805,14 @@ class RegistryServlet(object):
         # Request the end points
         try:
             conn = httplib.HTTPConnection(host, port)
-            conn.request("POST", path,
-                         json.dumps(endpoints),
+            conn.request("POST", path, json.dumps(endpoints),
                          {"Content-Type": "application/json"})
-
             result = conn.getresponse()
             data = result.read()
             conn.close()
-
         except Exception as ex:
-            _logger.error("Error sending endpoints to a discovered framework: "
-                          "%s", ex)
+            _logger.error("Error sending endpoints to the framework at "
+                          "%s:%s: %s", host, port, ex)
             return False
 
         else:
