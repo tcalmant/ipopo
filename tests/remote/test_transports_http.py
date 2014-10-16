@@ -131,11 +131,11 @@ def load_framework(transport, components):
         # Start a HTTP service on a random port
         ipopo.instantiate(pelix.http.FACTORY_HTTP_BASIC,
                           "http-server",
-                          {pelix.http.HTTP_SERVICE_PORT: 0})
+                          {pelix.http.HTTP_SERVICE_ADDRESS: "0.0.0.0",
+                           pelix.http.HTTP_SERVICE_PORT: 0})
 
         ipopo.instantiate(pelix.remote.FACTORY_REGISTRY_SERVLET,
-                          "dispatcher-servlet",
-                          {pelix.http.HTTP_SERVICE_PORT: 0})
+                          "dispatcher-servlet")
 
         # Start the multicast discovery
         ipopo.instantiate(pelix.remote.FACTORY_DISCOVERY_MULTICAST,
