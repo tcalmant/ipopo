@@ -42,7 +42,6 @@ import pelix.http
 import pelix.remote
 
 # Standard library
-from multiprocessing import Process, Queue
 import time
 import threading
 
@@ -50,6 +49,12 @@ try:
     import unittest2 as unittest
 except ImportError:
     import unittest
+
+try:
+    from multiprocessing import Process, Queue
+except ImportError:
+    # Some interpreters don't have support for multiprocessing
+    raise unittest.SkipTest("Interpreter doesn't support multiprocessing")
 
 try:
     import queue
