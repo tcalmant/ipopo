@@ -56,18 +56,17 @@ import traceback
 try:
     # Python 3
     # pylint: disable=F0401,E0611
-    import urllib.parse as urlparse
     from http.server import HTTPServer
     from http.server import BaseHTTPRequestHandler
     from socketserver import ThreadingMixIn, TCPServer
-
-except (ImportError, AttributeError):
+    import urllib.parse as urlparse
+except ImportError:
     # Python 2 or IronPython
     # pylint: disable=F0401
-    import urlparse
     from BaseHTTPServer import HTTPServer
     from BaseHTTPServer import BaseHTTPRequestHandler
     from SocketServer import ThreadingMixIn, TCPServer
+    import urlparse
 
 # ------------------------------------------------------------------------------
 

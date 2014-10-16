@@ -161,7 +161,7 @@ class DispatcherTest(unittest.TestCase):
         Cleans up for next test
         """
         # Stop the framework
-        pelix.framework.FrameworkFactory.delete_framework(self.framework)
+        pelix.framework.FrameworkFactory.delete_framework()
 
         self.framework = None
         self.service = None

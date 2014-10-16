@@ -203,7 +203,7 @@ class AbstractCommonExporterTest(unittest.TestCase):
         """
         # Stop the framework
         self.framework.stop()
-        pelix.framework.FrameworkFactory.delete_framework(self.framework)
+        pelix.framework.FrameworkFactory.delete_framework()
 
         # Clean up members
         self.framework = None
@@ -447,7 +447,7 @@ class AbstractCommonImporterTest(unittest.TestCase):
         """
         # Stop the framework
         self.framework.stop()
-        pelix.framework.FrameworkFactory.delete_framework(self.framework)
+        pelix.framework.FrameworkFactory.delete_framework()
 
         # Clean up members
         self.framework = None

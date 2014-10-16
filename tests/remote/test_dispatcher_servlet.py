@@ -23,12 +23,12 @@ import uuid
 
 try:
     # Python 3
-    import http.client as httplib
     from urllib.parse import urljoin
+    import http.client as httplib
 except ImportError:
     # Python 2
-    import httplib
     from urlparse import urljoin
+    import httplib
 
 # Tests
 try:
@@ -191,7 +191,7 @@ class DispatcherTest(unittest.TestCase):
         Cleans up for next test
         """
         # Stop the framework
-        pelix.framework.FrameworkFactory.delete_framework(self.framework)
+        pelix.framework.FrameworkFactory.delete_framework()
 
         self.framework = None
         self.dispatcher = None

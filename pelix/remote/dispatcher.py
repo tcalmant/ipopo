@@ -57,13 +57,13 @@ import threading
 try:
     # Python 3
     # pylint: disable=F0401,E0611
-    import http.client as httplib
     from urllib.parse import urljoin
+    import http.client as httplib
 except ImportError:
-    # Python 2
+    # Python 2 or IronPython
     # pylint: disable=F0401
-    import httplib
     from urlparse import urljoin
+    import httplib
 
 # ------------------------------------------------------------------------------
 

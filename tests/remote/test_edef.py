@@ -54,7 +54,7 @@ class EdefIOTest(unittest.TestCase):
         Cleans up for next test
         """
         # Stop the framework
-        pelix.framework.FrameworkFactory.delete_framework(self.framework)
+        pelix.framework.FrameworkFactory.delete_framework()
 
         self.framework = None
         self.svc_ref = None
@@ -161,7 +161,7 @@ class BeansTest(unittest.TestCase):
         Cleans up for next test
         """
         # Stop the framework
-        pelix.framework.FrameworkFactory.delete_framework(self.framework)
+        pelix.framework.FrameworkFactory.delete_framework()
 
         self.framework = None
         self.svc_ref = None
