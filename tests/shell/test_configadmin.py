@@ -13,6 +13,7 @@ import pelix.shell
 import pelix.shell.beans as beans
 
 # Standard library
+import os
 try:
     from StringIO import StringIO
 except ImportError:
@@ -38,12 +39,14 @@ class ConfigAdminShellTest(unittest.TestCase):
         """
         Prepares a framework and a registers a service to export
         """
+        # Use a local configuration folder
+        conf_folder = os.path.join(os.path.dirname(__file__), "conf")
+
         # Create the framework
         self.framework = pelix.framework.create_framework(
-            ('pelix.ipopo.core',
-             'pelix.shell.core',
-             'pelix.services.configadmin',
-             'pelix.shell.configadmin'))
+            ('pelix.ipopo.core', 'pelix.shell.core',
+             'pelix.services.configadmin', 'pelix.shell.configadmin'),
+            {'configuration.folder': conf_folder})
         self.framework.start()
 
         # Get the Shell service

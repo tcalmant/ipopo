@@ -14,6 +14,7 @@ from pelix.utilities import use_service
 # Standard library
 import json
 import os
+import shutil
 import time
 
 try:
@@ -30,6 +31,8 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+# Use a local configuration folder
+conf_folder = os.path.join(os.path.dirname(__file__), "conf")
 
 class ConfigurationAdminTest(unittest.TestCase):
     """
@@ -41,8 +44,8 @@ class ConfigurationAdminTest(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(
-            ('pelix.ipopo.core',
-             'pelix.services.configadmin'))
+            ('pelix.ipopo.core', 'pelix.services.configadmin'),
+            {'configuration.folder': conf_folder})
         self.framework.start()
         context = self.framework.get_bundle_context()
 
@@ -57,10 +60,16 @@ class ConfigurationAdminTest(unittest.TestCase):
         """
         # Release the service
         self.framework.get_bundle_context().unget_service(self.config_ref)
+        pelix.framework.FrameworkFactory.delete_framework()
         self.config = None
         self.config_ref = None
 
-        pelix.framework.FrameworkFactory.delete_framework(self.framework)
+    @classmethod
+    def tearDownClass(cls):
+        """
+        Cleans up after all tests have been executed
+        """
+        shutil.rmtree(conf_folder)
 
     def testCreateFactoryConfiguration(self):
         """
@@ -251,8 +260,8 @@ class ManagedServiceTest(unittest.TestCase):
         Sets up the test
         """
         self.framework = pelix.framework.create_framework(
-            ('pelix.ipopo.core',
-             'pelix.services.configadmin'))
+            ('pelix.ipopo.core', 'pelix.services.configadmin'),
+            {'configuration.folder': conf_folder})
         self.framework.start()
         context = self.framework.get_bundle_context()
 
@@ -280,10 +289,16 @@ class ManagedServiceTest(unittest.TestCase):
 
         # Release the service
         self.framework.get_bundle_context().unget_service(self.config_ref)
+        pelix.framework.FrameworkFactory.delete_framework()
         self.config = None
         self.config_ref = None
 
-        pelix.framework.FrameworkFactory.delete_framework(self.framework)
+    @classmethod
+    def tearDownClass(cls):
+        """
+        Cleans up after all tests have been executed
+        """
+        shutil.rmtree(conf_folder)
 
     def get_ref(self):
         """
@@ -467,8 +482,8 @@ class FileInstallTest(unittest.TestCase):
         Sets up the test
         """
         self.framework = pelix.framework.create_framework(
-            ('pelix.ipopo.core',
-             'pelix.services.configadmin'))
+            ('pelix.ipopo.core', 'pelix.services.configadmin'),
+            {'configuration.folder': conf_folder})
         self.framework.start()
         context = self.framework.get_bundle_context()
 
@@ -499,7 +514,7 @@ class FileInstallTest(unittest.TestCase):
             services.SERVICE_FILEINSTALL)
         with use_service(context, fileinstall_ref) as svc:
             svc._poll_time = .1
-            time.sleep(1)
+            time.sleep(.5)
 
     def tearDown(self):
         """
@@ -507,10 +522,16 @@ class FileInstallTest(unittest.TestCase):
         """
         # Release the service
         self.framework.get_bundle_context().unget_service(self.config_ref)
+        pelix.framework.FrameworkFactory.delete_framework()
         self.config = None
         self.config_ref = None
 
-        pelix.framework.FrameworkFactory.delete_framework(self.framework)
+    @classmethod
+    def tearDownClass(cls):
+        """
+        Cleans up after all tests have been executed
+        """
+        shutil.rmtree(conf_folder)
 
     def get_ref(self):
         """
@@ -541,10 +562,23 @@ class FileInstallTest(unittest.TestCase):
         with open(filepath, "w") as filep:
             filep.write(json.dumps(props))
 
+        try:
+            # Change modification time to bypass weak time resolution of
+            # the underlying file system
+            module_stat = os.stat(filepath)
+            os.utime(filepath, (module_stat.st_atime,
+                                module_stat.st_mtime + 1))
+        except OSError:
+            # Can't touch the file, hope that the OS will see the write update
+            pass
+
     def testAddUpdateDelete(self):
         """
         Tests a whole file life cycle
         """
+        import logging
+        logging.basicConfig(level=logging.DEBUG)
+
         # Start file install
         self.start_fileinstall()
 
@@ -578,7 +612,7 @@ class FileInstallTest(unittest.TestCase):
 
         # Check if the service has been updated
         with use_service(context, ref) as svc:
-            self.assertEqual(svc.value, value, "Incorrect value")
+            self.assertEqual(svc.value, value, "Incorrect initial value")
             self.check_call_count(svc, 1)
 
         # Update the properties
@@ -590,7 +624,7 @@ class FileInstallTest(unittest.TestCase):
 
         # Check if the service has been updated
         with use_service(context, ref) as svc:
-            self.assertEqual(svc.value, value, "Incorrect value")
+            self.assertEqual(svc.value, value, "Value not updated")
             self.check_call_count(svc, 1)
 
             # Reset the flags
