@@ -44,6 +44,7 @@ import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
 
 # Standard library
+import copy
 import logging
 import threading
 
@@ -262,7 +263,8 @@ class _RuntimeDependency(constants.DependencyHandler):
         """
         # Return a copy of the future value
         with self._lock:
-            return self._future_value.copy()
+            # IronPython can't copy dictionary with a None key
+            return copy.copy(self._future_value)
 
     def is_valid(self):
         """
