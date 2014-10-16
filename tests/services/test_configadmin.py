@@ -576,9 +576,6 @@ class FileInstallTest(unittest.TestCase):
         """
         Tests a whole file life cycle
         """
-        import logging
-        logging.basicConfig(level=logging.DEBUG)
-
         # Start file install
         self.start_fileinstall()
 
