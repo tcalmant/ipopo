@@ -225,7 +225,8 @@ def main(is_server, discoveries, transports, http_port, other_arguments):
         # Instantiate remote service components
         # ... HTTP server
         ipopo.add("pelix.http.service.basic.factory", "http-server",
-                  {"pelix.http.port": http_port})
+                  {"pelix.http.address": "0.0.0.0",
+                   "pelix.http.port": http_port})
 
         # ... servlet giving access to the registry
         ipopo.add(rs.FACTORY_REGISTRY_SERVLET,
