@@ -154,7 +154,7 @@ class RemoteConsole(socketserver.StreamRequestHandler):
         try:
             while self._active.get_value():
                 # Wait for data
-                rlist = select([self.rfile], [], [], .5)[0]
+                rlist = select([self.connection], [], [], .5)[0]
                 if not rlist:
                     # Nothing to do (poll timed out)
                     continue
