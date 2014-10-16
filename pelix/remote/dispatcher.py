@@ -165,11 +165,10 @@ class Dispatcher(object):
         :param name: The endpoint name to reuse
         """
         ldap_filter = "({0}={1})".format(pelix.remote.PROP_ENDPOINT_NAME, name)
-        _logger.info("Checking name reuse: %s", ldap_filter)
         svc_ref = self._context.get_service_reference(None, ldap_filter)
-        _logger.info("Found svc_ref=%s", svc_ref)
         if svc_ref is not None:
             # A service wants to be exported with the given endpoint name
+            _logger.debug("Reuse endpoint name %s with %s", name, svc_ref)
             self.__export_service(svc_ref)
 
     def service_changed(self, event):
