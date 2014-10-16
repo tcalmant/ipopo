@@ -59,15 +59,15 @@ try:
     import urllib.parse as urlparse
     from http.server import HTTPServer
     from http.server import BaseHTTPRequestHandler
-    from socketserver import ThreadingMixIn
+    from socketserver import ThreadingMixIn, TCPServer
 
-except ImportError:
-    # Python 2
+except (ImportError, AttributeError):
+    # Python 2 or IronPython
     # pylint: disable=F0401
     import urlparse
     from BaseHTTPServer import HTTPServer
     from BaseHTTPServer import BaseHTTPRequestHandler
-    from SocketServer import ThreadingMixIn
+    from SocketServer import ThreadingMixIn, TCPServer
 
 # ------------------------------------------------------------------------------
 
@@ -341,6 +341,8 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 
         # Set up the server, socket, ... but do not bind immediately
         HTTPServer.__init__(self, server_address, request_handler_class, False)
+        self.server_name = server_address[0]
+        self.server_port = server_address[1]
 
         if self.address_family == socket.AF_INET6:
             # Explicitly ask to be accessible both by IPv4 and IPv6
@@ -351,12 +353,27 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
                     logger.exception("System misses IPv6 constant: %s", ex)
             except socket.error as ex:
                 if logger is not None:
-                    logger.exception("Error setting up IPv6 double stack: %s",
-                                     ex)
+                    logger.exception(
+                        "Error setting up IPv6 double stack: %s", ex)
 
         # Bind & accept
         self.server_bind()
         self.server_activate()
+
+    def server_bind(self):
+        """
+        Override server_bind to store the server name, even in IronPython.
+
+        See https://ironpython.codeplex.com/workitem/29477
+        """
+        TCPServer.server_bind(self)
+        host, port = self.socket.getsockname()[:2]
+        self.server_port = port
+        try:
+            self.server_name = socket.getfqdn(host)
+        except ValueError:
+            # Use the local host name in case of error, like CPython does
+            self.server_name = socket.gethostname()
 
     def process_request(self, request, client_address):
         """
