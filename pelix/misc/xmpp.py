@@ -85,9 +85,6 @@ class BasicBot(sleekxmpp.ClientXMPP):
         :param use_ssl: Server connection is encrypted
         :return: True if connection succeeded
         """
-        # FIXME: see why TLS and SSL don't work with an OpenFire server
-        self['feature_mechanisms'].unencrypted_plain = True
-
         # Try to connect
         if super(BasicBot, self).connect((host, port), reattempt,
                                          use_tls, use_ssl):
