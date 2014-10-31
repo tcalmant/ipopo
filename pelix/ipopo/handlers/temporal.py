@@ -193,6 +193,19 @@ class TemporalDependency(requires.SimpleDependency):
         # The injected value is the proxy
         self._value = _TemporalProxy(self.__timeout)
 
+    def clear(self):
+        """
+        Cleans up the manager. The manager can't be used after this method has
+        been called
+        """
+        if self.__timer is not None:
+            self.__timer.cancel()
+            self.__timer = None
+
+        self.__still_valid = False
+        self._value = None
+        super(TemporalDependency, self).clear()
+
     def on_service_arrival(self, svc_ref):
         """
         Called when a service has been registered in the framework
@@ -253,10 +266,13 @@ class TemporalDependency(requires.SimpleDependency):
         """
         Calls the iPOPO unbind method
         """
-        # Timeout expired, we're not valid anymore
-        self.__timer = None
-        self.__still_valid = False
-        self._ipopo_instance.unbind(self, service, svc_ref)
+        with self._lock:
+            if self.__timer is not None:
+                # Timeout expired, we're not valid anymore
+                self.__timer = None
+                self.__still_valid = False
+                if self._ipopo_instance is not None:
+                    self._ipopo_instance.unbind(self, service, svc_ref)
 
     def is_valid(self):
         """
