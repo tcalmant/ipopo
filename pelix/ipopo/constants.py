@@ -59,6 +59,9 @@ HANDLER_REQUIRES = 'ipopo.requires'
 HANDLER_REQUIRES_MAP = 'ipopo.requires.map'
 """ The @RequiresMap handler ID """
 
+HANDLER_TEMPORAL = 'ipopo.temporal'
+""" The @Temporal handler ID """
+
 HANDLER_PROVIDES = 'ipopo.provides'
 """ The @Provides handler ID """
 

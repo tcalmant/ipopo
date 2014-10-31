@@ -199,6 +199,13 @@ class Handler(object):
         """
         pass
 
+
+class HandlerException(Exception):
+    """
+    Kind of exception used by handlers
+    """
+    pass
+
 # ------------------------------------------------------------------------------
 
 

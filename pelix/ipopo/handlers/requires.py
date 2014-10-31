@@ -440,9 +440,9 @@ class SimpleDependency(_RuntimeDependency):
                 self._pending_ref = None
             else:
                 # Get the first matching service
-                ref = self._context \
-                    .get_service_reference(self.requirement.specification,
-                                           self.requirement.filter)
+                ref = self._context.get_service_reference(
+                    self.requirement.specification, self.requirement.filter)
+
             if ref is not None:
                 # Found a service
                 self.on_service_arrival(ref)
