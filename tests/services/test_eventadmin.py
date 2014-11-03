@@ -212,12 +212,11 @@ class EventAdminTest(unittest.TestCase):
         # Register a new one
         handler_3, _ = self._register_handler('/titi/*')
 
-        # Wait a little: only handlers present during the 'post' must be
-        # notified
+        # Wait a little: only handlers present during the call to 'post'
+        # and still present during the notification loop must be notified
         handler.wait(2)
-        handler_2.wait(2)
         self.assertEqual(handler.pop_event(), topic)
-        self.assertEqual(handler_2.pop_event(), topic)
+        self.assertEqual(handler_2.pop_event(), None)
         self.assertEqual(handler_3.pop_event(), None)
 
     def testProperties(self):
