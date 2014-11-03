@@ -56,6 +56,9 @@ SERVICE_IPOPO_WAITING_LIST = "pelix.ipopo.waiting_list"
 HANDLER_REQUIRES = 'ipopo.requires'
 """ The @Requires handler ID """
 
+HANDLER_REQUIRES_BEST = 'ipopo.requires.best'
+""" The @RequiresBest handler ID """
+
 HANDLER_REQUIRES_MAP = 'ipopo.requires.map'
 """ The @RequiresMap handler ID """
 

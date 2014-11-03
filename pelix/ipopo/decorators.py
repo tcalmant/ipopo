@@ -790,6 +790,89 @@ class Requires(object):
 # ------------------------------------------------------------------------------
 
 
+class RequiresBest(object):
+    """
+    @RequiresBest decorator
+
+    Defines a requirement of the service with best ranking
+    """
+    HANDLER_ID = constants.HANDLER_REQUIRES_BEST
+    """ ID of the handler configured by this decorator """
+
+    def __init__(self, field, specification, optional=False, spec_filter=None,
+                 immediate_rebind=True):
+        """
+        Sets up the requirement
+
+        :param field: The injected field
+        :param specification: The injected service specification
+        :param optional: If true, this injection is optional
+        :param spec_filter: An LDAP query to filter injected services upon
+                            their properties
+        :param immediate_rebind: If True, the component won't be invalidated
+                                 then re-validated if a matching service is
+                                 available when the injected dependency is
+                                 unbound
+        :raise TypeError: A parameter has an invalid type
+        :raise ValueError: An error occurred while parsing the filter or an
+                           argument is incorrect
+        """
+        if not field:
+            raise ValueError("Empty field name.")
+
+        if not is_string(field):
+            raise TypeError("The field name must be a string, not {0}"
+                            .format(type(field).__name__))
+
+        if ' ' in field:
+            raise ValueError("Field name can't contain spaces.")
+
+        self.__field = field
+
+        # Be sure that there is only one required specification
+        specifications = _get_specifications(specification)
+        self.__multi_specs = len(specifications) > 1
+
+        # Construct the requirement object
+        self.__requirement = Requirement(specifications[0], False,
+                                         optional, spec_filter,
+                                         immediate_rebind)
+
+    def __call__(self, clazz):
+        """
+        Adds the requirement to the class iPOPO field
+
+        :param clazz: The class to decorate
+        :return: The decorated class
+        :raise TypeError: If *clazz* is not a type
+        """
+        if not inspect.isclass(clazz):
+            raise TypeError("@RequiresBest can decorate only classes, not '{0}'"
+                            .format(type(clazz).__name__))
+
+        if self.__multi_specs:
+            _logger.warning("Only one specification can be required: %s -> %s",
+                            clazz.__name__, self.__field)
+
+        # Set up the property in the class
+        context = get_factory_context(clazz)
+        if context.completed:
+            # Do nothing if the class has already been manipulated
+            _logger.warning("@RequiresBest: Already manipulated class: %s",
+                            get_method_description(clazz))
+            return clazz
+
+        # Store the requirement information
+        config = context.set_handler_default(self.HANDLER_ID, {})
+        config[self.__field] = self.__requirement
+
+        # Inject the field
+        setattr(clazz, self.__field, None)
+        return clazz
+
+# ------------------------------------------------------------------------------
+
+
 class RequiresMap(object):
     """
     @RequiresMap decorator
