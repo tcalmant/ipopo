@@ -165,7 +165,7 @@ class EventAdmin(object):
 
         except pelix.framework.BundleException:
             # Service disappeared
-            return None
+            return None, None
 
     def __notify_handlers(self, topic, properties, handlers_ids):
         """
@@ -188,11 +188,9 @@ class EventAdmin(object):
                 if handler is not None:
                     # Use a copy of the properties each time
                     handler.handle_event(topic, copy.deepcopy(properties))
-
             except Exception as ex:
                 _logger.exception("Error notifying event handler %d: %s (%s)",
                                   handler_id, ex, type(ex).__name__)
-
             finally:
                 if ref is not None:
                     self._context.unget_service(ref)
