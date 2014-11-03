@@ -702,7 +702,7 @@ class ServiceRegistry(object):
         self.__bundle_imports = {}
 
         # Locks
-        self.__svc_lock = threading.Lock()
+        self.__svc_lock = threading.RLock()
 
     def clear(self):
         """
