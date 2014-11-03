@@ -257,6 +257,23 @@ class ServiceReference(object):
         with self.__usage_lock:
             self.__using_bundles.setdefault(bundle, _UsageCounter()).inc()
 
+    def __compute_key(self):
+        """
+        Computes the sort key according to the service properties
+
+        :return: The sort key to use for this reference
+        """
+        return (-int(self.__properties.get(SERVICE_RANKING, 0)),
+                self.__service_id)
+
+    def needs_sort_update(self):
+        """
+        Checks if the sort key must be updated
+
+        :return: True if the sort key must be updated
+        """
+        return self.__sort_key != self.__compute_key()
+
     def update_sort_key(self):
         """
         Recomputes the sort key, based on the service ranking and ID
@@ -264,8 +281,7 @@ class ServiceReference(object):
         See: http://www.osgi.org/javadoc/r4v43/org/osgi/framework/
                           ServiceReference.html#compareTo%28java.lang.Object%29
         """
-        self.__sort_key = (int(self.__properties.get(SERVICE_RANKING, 0)),
-                           (-self.__service_id))
+        self.__sort_key = self.__compute_key()
 
 # ------------------------------------------------------------------------------
 
@@ -274,7 +290,7 @@ class ServiceRegistration(object):
     """
     Represents a service registration object
     """
-    def __init__(self, framework, reference, properties):
+    def __init__(self, framework, reference, properties, update_callback):
         """
         Sets up the service registration object
 
@@ -282,10 +298,12 @@ class ServiceRegistration(object):
         :param reference: A service reference
         :param properties: A reference to the ServiceReference properties
                            dictionary object
+        :param update_callback: Method to call when the sort key is modified
         """
         self.__framework = framework
         self.__reference = reference
         self.__properties = properties
+        self.__update_callback = update_callback
 
     def __str__(self):
         """
@@ -312,9 +330,7 @@ class ServiceRegistration(object):
             raise TypeError("Waiting for dictionary")
 
         # Keys that must not be updated
-        forbidden_keys = (OBJECTCLASS, SERVICE_ID)
-
-        for forbidden_key in forbidden_keys:
+        for forbidden_key in (OBJECTCLASS, SERVICE_ID):
             if forbidden_key in properties:
                 del properties[forbidden_key]
 
@@ -332,14 +348,24 @@ class ServiceRegistration(object):
             # Nothing to do
             return
 
+        # Ensure that the service has a valid service ranking
+        try:
+            properties[SERVICE_RANKING] = int(properties[SERVICE_RANKING])
+        except (ValueError, TypeError):
+            # Bad value: ignore update
+            del properties[SERVICE_RANKING]
+        except KeyError:
+            # Service ranking not updated: ignore
+            pass
+
         with self.__reference._props_lock:
             # Update the properties
             previous = self.__properties.copy()
             self.__properties.update(properties)
 
-            if SERVICE_RANKING in properties:
-                # Sort key updated
-                self.__reference.update_sort_key()
+            if self.__reference.needs_sort_update():
+                # The sort key and the registry must be updated
+                self.__update_callback(self.__reference)
 
             # Trigger a new computation in the framework
             event = ServiceEvent(ServiceEvent.MODIFIED, self.__reference,
@@ -706,12 +732,18 @@ class ServiceRegistry(object):
             properties[OBJECTCLASS] = classes
             properties[SERVICE_ID] = service_id
 
+            # Force to have a valid service ranking
+            try:
+                properties[SERVICE_RANKING] = int(properties[SERVICE_RANKING])
+            except (KeyError, ValueError, TypeError):
+                properties[SERVICE_RANKING] = 0
+
             # Make the service reference
             svc_ref = ServiceReference(bundle, properties)
 
             # Make the service registration
-            svc_registration = ServiceRegistration(self.__framework, svc_ref,
-                                                   properties)
+            svc_registration = ServiceRegistration(
+                self.__framework, svc_ref, properties, self.__sort_registry)
 
             # Store service information
             self.__svc_registry[svc_ref] = svc_instance
@@ -724,8 +756,37 @@ class ServiceRegistry(object):
             # Reverse map, to ease bundle/service association
             bundle_services = self.__bundle_svc.setdefault(bundle, [])
             bisect.insort_left(bundle_services, svc_ref)
-
             return svc_registration
+
+    def __sort_registry(self, svc_ref):
+        """
+        Sorts the registry, after the update of the sort key of given service
+        reference
+
+        :param svc_ref: A service reference with a modified sort key
+        """
+        with self.__svc_lock:
+            if svc_ref not in self.__svc_registry:
+                raise BundleException("Unknown service: {0}".format(svc_ref))
+
+            # Remove current references
+            bundle_services = self.__bundle_svc[svc_ref.get_bundle()]
+            idx = bisect.bisect_left(bundle_services, svc_ref)
+            del bundle_services[idx]
+            for spec in svc_ref.get_property(OBJECTCLASS):
+                # Use bisect to remove the reference (faster)
+                spec_refs = self.__svc_specs[spec]
+                idx = bisect.bisect_left(spec_refs, svc_ref)
+                del spec_refs[idx]
+
+            # ... use the new sort key
+            svc_ref.update_sort_key()
+
+            bisect.insort_left(bundle_services, svc_ref)
+            for spec in svc_ref.get_property(OBJECTCLASS):
+                # ... and insert it again
+                spec_refs = self.__svc_specs[spec]
+                bisect.insort_left(spec_refs, svc_ref)
 
     def unregister(self, svc_ref):
         """
@@ -784,7 +845,6 @@ class ServiceRegistry(object):
             if hasattr(clazz, '__name__'):
                 # Escape the type name
                 clazz = ldapfilter.escape_LDAP(clazz.__name__)
-
             elif is_string(clazz):
                 # Escape the class name
                 clazz = ldapfilter.escape_LDAP(clazz)
@@ -792,12 +852,10 @@ class ServiceRegistry(object):
             if clazz is None:
                 # Directly use the given filter
                 refs_set = sorted(self.__svc_registry.keys())
-
             else:
                 try:
                     # Only for references with the given specification
                     refs_set = iter(self.__svc_specs[clazz])
-
                 except KeyError:
                     # No matching specification
                     return None
@@ -805,7 +863,6 @@ class ServiceRegistry(object):
             # Parse the filter
             try:
                 new_filter = ldapfilter.get_ldap_filter(ldap_filter)
-
             except ValueError as ex:
                 raise BundleException(ex)
 
@@ -819,7 +876,6 @@ class ServiceRegistry(object):
                 # Return the first element in the list/generator
                 try:
                     return next(refs_set)
-
                 except StopIteration:
                     # No match
                     return None
@@ -873,9 +929,7 @@ class ServiceRegistry(object):
                 imports = self.__bundle_imports.setdefault(bundle, [])
                 bisect.insort(imports, reference)
                 reference.used_by(bundle)
-
                 return service
-
             except KeyError:
                 # Not found
                 raise BundleException("Service not found (reference: {0})"
@@ -897,7 +951,6 @@ class ServiceRegistry(object):
                 idx = bisect.bisect_left(imports, reference)
                 if imports[idx] == reference:
                     del imports[idx]
-
                     if not imports:
                         del self.__bundle_imports[bundle]
 

@@ -265,20 +265,20 @@ class ServicesTest(unittest.TestCase):
         self.assertGreaterEqual(ref1, ref1b, "ID1 >= ID1.0")
 
         # ID comparison
-        self.assertLess(ref2, ref1, "ID2 < ID1")
-        self.assertLessEqual(ref2, ref1, "ID2 <= ID1")
-        self.assertGreater(ref1, ref2, "ID2 > ID1")
-        self.assertGreaterEqual(ref1, ref2, "ID1 >= ID2")
+        self.assertGreater(ref2, ref1, "ID2 > ID1")
+        self.assertGreaterEqual(ref2, ref1, "ID2 >= ID1")
+        self.assertLess(ref1, ref2, "ID2 < ID1")
+        self.assertLessEqual(ref1, ref2, "ID1 <= ID2")
 
         # Ranking comparison
-        self.assertGreater(ref4, ref3, "ID4.128 > ID3.-20")
-        self.assertGreaterEqual(ref4, ref3, "ID4.128 >= ID3.-20")
-        self.assertLess(ref3, ref4, "ID3.-20 < ID4.128")
-        self.assertLessEqual(ref3, ref4, "ID3.-20 <= ID4.128")
+        self.assertLess(ref4, ref3, "ID4.128 < ID3.-20")
+        self.assertLessEqual(ref4, ref3, "ID4.128 <= ID3.-20")
+        self.assertGreater(ref3, ref4, "ID3.-20 > ID4.128")
+        self.assertGreaterEqual(ref3, ref4, "ID3.-20 >= ID4.128")
 
         # Ensure that comparison is not based on ID
-        self.assertLess(ref3, ref1, "ID3.-20 < ID1.0")
-        self.assertGreater(ref1, ref3, "ID3.-20 > ID1.0")
+        self.assertGreater(ref3, ref1, "ID3.-20 > ID1.0")
+        self.assertLess(ref1, ref3, "ID3.-20 < ID1.0")
 
     def testServiceRegistrationUpdate(self):
         """
