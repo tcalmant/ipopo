@@ -869,16 +869,8 @@ class Shell(object):
         headers = ('ID', 'Specifications', 'Bundle', 'Ranking')
 
         # Lines
-        references = self._context.get_all_service_references(None, None)
-
-        # Use the reverse order (ascending service IDs instead of descending)
-        references.reverse()
-
-        if specification is not None:
-            # Filter on specifications
-            references = [ref for ref in references
-                          if specification
-                          in ref.get_property(constants.OBJECTCLASS)]
+        references = self._context.get_all_service_references(
+            specification, None) or []
 
         # Construct the list of services
         lines = [[str(entry)
