@@ -37,7 +37,7 @@ __docformat__ = "restructuredtext en"
 
 # Pelix beans
 from pelix.constants import BundleActivator
-from pelix.utilities import EventData
+import pelix.utilities as utilities
 
 # iPOPO constants
 import pelix.ipopo.constants as ipopo_constants
@@ -127,7 +127,7 @@ class _TemporalProxy(object):
         """
         The temporal proxy
         """
-        self.__event = EventData()
+        self.__event = utilities.EventData()
         self.__timeout = timeout
 
     def set_service(self, service):
@@ -287,9 +287,6 @@ class TemporalDependency(requires.SimpleDependency):
         """
         # Don't use the parent method: it will return true as the "_value"
         # member is not None
-        import logging
-        logging.warning("Still valid=%s -- pending=%s",
-                        self.__still_valid, self._pending_ref is not None)
         return self.__still_valid \
             or self._pending_ref is not None \
             or self.requirement.optional
