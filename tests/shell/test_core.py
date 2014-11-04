@@ -827,7 +827,8 @@ class ShellCoreCommandsTest(unittest.TestCase):
 
         # Check their values
         for name, value in os.environ.items():
-            self.assertEqual(str(props[name]), value.strip())
+            if '\n' not in value and '\\n' not in value:
+                self.assertEqual(str(props[name]), value.strip())
 
         # Check each variable
         for name, value in props.items():
