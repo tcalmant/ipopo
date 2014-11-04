@@ -129,7 +129,10 @@ IPOPO_INSTANCE_NAME = "instance.name"
 """ Name of the component instance """
 
 IPOPO_REQUIRES_FILTERS = "requires.filters"
-""" Dictionary to override @Requires filters """
+""" Dictionary (field -> filter) to override @Requires filters """
+
+IPOPO_TEMPORAL_TIMEOUTS = "temporal.timeouts"
+""" Dictionary (field -> timeout) to override @Temporal timeouts """
 
 IPOPO_AUTO_RESTART = "pelix.ipopo.auto_restart"
 """

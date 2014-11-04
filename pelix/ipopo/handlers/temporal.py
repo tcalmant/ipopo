@@ -54,17 +54,25 @@ class _HandlerFactory(requires._HandlerFactory):
     """
     Factory service for service registration handlers
     """
-    def _prepare_requirements(self, configs, requires_filters):
+    def _prepare_configs(self, configs, requires_filters, temporal_timeouts):
         """
         Overrides the filters specified in the decorator with the given ones
 
         :param configs: Field -> (Requirement, key, allow_none) dictionary
         :param requires_filters: Content of the 'requires.filter' component
                                  property (field -> string)
+        :param temporal_timeouts: Content of the 'temporal.timeouts' component
+                                  property (field -> float)
         :return: The new configuration dictionary
         """
         if not requires_filters or not isinstance(requires_filters, dict):
-            # No explicit filter configured
+            requires_filters = {}
+
+        if not temporal_timeouts or not isinstance(temporal_timeouts, dict):
+            temporal_timeouts = {}
+
+        if not requires_filters and not temporal_timeouts:
+            # No explicit configuration given
             return configs
 
         # We need to change a part of the requirements
@@ -72,16 +80,31 @@ class _HandlerFactory(requires._HandlerFactory):
         for field, config in configs.items():
             # Extract values from tuple
             requirement, timeout = config
+            explicit_filter = requires_filters.get(field)
+            explicit_timeout = temporal_timeouts.get(field)
+
+            # Convert the timeout value
             try:
-                explicit_filter = requires_filters[field]
-                # Store an updated copy of the requirement
-                requirement_copy = requirement.copy()
-                requirement_copy.set_filter(explicit_filter)
-                new_configs[field] = (requirement_copy, timeout)
-            except (KeyError, TypeError, ValueError):
-                # No information for this one, or invalid filter:
-                # keep the factory requirement
+                explicit_timeout = int(explicit_timeout)
+                if explicit_timeout <= 0:
+                    explicit_timeout = timeout
+            except (ValueError, TypeError):
+                explicit_timeout = timeout
+
+            if not explicit_filter and not explicit_timeout:
+                # Nothing to do
                 new_configs[field] = config
+            else:
+                try:
+                    # Store an updated copy of the requirement
+                    requirement_copy = requirement.copy()
+                    if explicit_filter:
+                        requirement_copy.set_filter(explicit_filter)
+                    new_configs[field] = (requirement_copy, explicit_timeout)
+                except (TypeError, ValueError):
+                    # No information for this one, or invalid filter:
+                    # keep the factory requirement
+                    new_configs[field] = config
 
         return new_configs
 
@@ -98,9 +121,12 @@ class _HandlerFactory(requires._HandlerFactory):
             ipopo_constants.HANDLER_TEMPORAL)
         requires_filters = component_context.properties.get(
             ipopo_constants.IPOPO_REQUIRES_FILTERS, None)
+        temporal_timeouts = component_context.properties.get(
+            ipopo_constants.IPOPO_TEMPORAL_TIMEOUTS, None)
 
         # Prepare requirements
-        new_configs = self._prepare_requirements(configs, requires_filters)
+        new_configs = self._prepare_configs(configs, requires_filters,
+                                            temporal_timeouts)
 
         # Return handlers
         return [TemporalDependency(field, requirement, timeout)
