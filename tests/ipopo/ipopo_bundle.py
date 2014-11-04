@@ -329,6 +329,12 @@ class TemporalComponentFactory(TestComponentFactory):
         """
         self.states.append(IPopoEvent.UNBOUND)
 
+    def call(self):
+        """
+        Calls the service
+        """
+        return self.service.method()
+
 # ------------------------------------------------------------------------------
 
 @BundleActivator

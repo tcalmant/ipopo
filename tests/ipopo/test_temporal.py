@@ -1,0 +1,257 @@
+#!/usr/bin/env python
+# -- Content-Encoding: UTF-8 --
+"""
+Tests the iPOPO @Provides decorator.
+
+:author: Thomas Calmant
+"""
+
+# Tests
+from tests.interfaces import IEchoService
+from tests.ipopo import install_bundle, install_ipopo
+
+# Pelix
+from pelix.framework import FrameworkFactory, BundleContext
+from pelix.ipopo.handlers.temporal import _TemporalProxy
+from pelix.ipopo.constants import IPopoEvent
+
+# Standard library
+import random
+import time
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
+
+# ------------------------------------------------------------------------------
+
+__version__ = "1.0.0"
+
+NAME_A = "componentA"
+
+# ------------------------------------------------------------------------------
+
+
+class Dummy(object):
+    """
+    Dummy object for tests
+    """
+    def __init__(self):
+        """
+        Sets up members
+        """
+        self.value = random.random()
+        self.values = [random.random() for _ in range(3)]
+
+    def method(self):
+        return self.value
+
+    def __call__(self, *args, **kwargs):
+        return self.values
+
+
+class TemporalTest(unittest.TestCase):
+    """
+    Tests the component "provides" behavior
+    """
+    def setUp(self):
+        """
+        Called before each test. Initiates a framework.
+        """
+        self.framework = FrameworkFactory.get_framework()
+        self.framework.start()
+        self.ipopo = install_ipopo(self.framework)
+
+    def tearDown(self):
+        """
+        Called after each test
+        """
+        self.framework.stop()
+        FrameworkFactory.delete_framework()
+
+    def test_proxy(self):
+        """
+        Tests the TemporalProxy class
+        """
+        from pelix.ipopo.handlers.temporal import TemporalException
+        proxy = _TemporalProxy(.1)
+
+        # Try to call the object itself
+        try:
+            proxy()
+        except TemporalException:
+            # OK
+            pass
+        else:
+            self.fail("TemporalException not raised on call")
+
+        # Try to call a non-active proxy method
+        try:
+            # Exception getting the field
+            proxy.method
+        except TemporalException:
+             # OK
+            pass
+        else:
+            self.fail("TemporalException not raised on field access")
+
+        # Check boolean value
+        self.assertFalse(proxy)
+
+        # Set a service
+        svc = Dummy()
+        proxy.set_service(svc)
+        self.assertTrue(proxy)
+
+        # Access valid fields
+        self.assertEqual(proxy.method(), svc.method())
+        self.assertEqual(proxy(), svc())
+        self.assertIs(proxy.value, svc.value)
+        self.assertIs(proxy.values, svc.values)
+
+        # Access invalid fields
+        try:
+            proxy.invalid()
+        except AttributeError:
+            # OK
+            pass
+        else:
+            self.fail("AttributeError not raised")
+
+        # Unset the service
+        proxy.unset_service()
+        self.assertFalse(proxy)
+
+        # Try to call the object itself
+        try:
+            proxy()
+        except TemporalException:
+            # OK
+            pass
+        else:
+            self.fail("TemporalException not raised on call")
+
+        # Try to call a non-active proxy method
+        try:
+            # Exception getting the field
+            proxy.method
+        except TemporalException:
+             # OK
+            pass
+        else:
+            self.fail("TemporalException not raised on field access")
+
+    def test_temporal_lifecycle(self):
+        """
+        Tests the component life cycle
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+        assert isinstance(context, BundleContext)
+
+        # Assert that the service is not yet available
+        self.assertIsNone(context.get_service_reference(IEchoService),
+                          "Service is already registered")
+
+        from pelix.ipopo.handlers.temporal import TemporalException
+
+        # TODO: get the value from the configuration of the handler
+        timeout = 10
+
+        # Instantiate the component
+        consumer = self.ipopo.instantiate(module.FACTORY_TEMPORAL, NAME_A)
+
+        # Component must be invalid
+        self.assertListEqual([IPopoEvent.INSTANTIATED], consumer.states,
+                             "Invalid component states: {0}"
+                             .format(consumer.states))
+        consumer.reset()
+
+        # Instantiate a service
+        svc1 = Dummy()
+        reg1 = context.register_service(IEchoService, svc1, {})
+
+        # The consumer must have been validated
+        self.assertListEqual([IPopoEvent.BOUND, IPopoEvent.VALIDATED],
+                             consumer.states, "Invalid component states: {0}"
+                             .format(consumer.states))
+        consumer.reset()
+
+        # Make a call
+        self.assertEqual(consumer.call(), svc1.method())
+
+        # Register service 2
+        svc2 = Dummy()
+        reg2 = context.register_service(IEchoService, svc2, {})
+
+        # No modification
+        self.assertListEqual([], consumer.states,
+                             "Invalid component states: {0}"
+                             .format(consumer.states))
+        consumer.reset()
+
+        # Unregister service 1
+        reg1.unregister()
+        self.assertListEqual([IPopoEvent.UNBOUND, IPopoEvent.BOUND],
+                             consumer.states, "Invalid component states: {0}"
+                             .format(consumer.states))
+        self.assertEqual(consumer.call(), svc2.method())
+        consumer.reset()
+
+        # Unregister service 2
+        reg2.unregister()
+
+        # No modification yet
+        self.assertListEqual([], consumer.states,
+                             "Invalid component states: {0}"
+                             .format(consumer.states))
+        consumer.reset()
+
+        # Register a new service
+        svc3 = Dummy()
+        reg3 = context.register_service(IEchoService, svc3, {})
+
+        # Service must have been injected before invalidation
+        self.assertListEqual([IPopoEvent.UNBOUND, IPopoEvent.BOUND],
+                             consumer.states, "Invalid component states: {0}"
+                             .format(consumer.states))
+        self.assertEqual(consumer.call(), svc3.method())
+        consumer.reset()
+
+        # Unregister service 3
+        reg3.unregister()
+
+        # No modification yet
+        self.assertListEqual([], consumer.states,
+                             "Invalid component states: {0}"
+                             .format(consumer.states))
+        consumer.reset()
+
+        start = time.time()
+        try:
+            # Try to call the method
+            consumer.call()
+        except TemporalException:
+            # OK !
+            pass
+        else:
+            self.fail("No temporal exception raised during call")
+        end = time.time()
+
+        # Check timeout
+        self.assertLess(end-start, timeout * 2.)
+        self.assertGreater(end-start, timeout / 2.)
+
+        # Check state
+        self.assertListEqual([IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
+                             consumer.states, "Invalid component states: {0}"
+                             .format(consumer.states))
+        consumer.reset()
+
+# ------------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    # Set logging level
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    unittest.main()

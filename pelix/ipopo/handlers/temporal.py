@@ -161,15 +161,18 @@ class _TemporalProxy(object):
         """
         if self.__event.wait(self.__timeout):
             # We have a service: call it
-            self.__event.data.__call__(*args, **kwargs)
+            return self.__event.data.__call__(*args, **kwargs)
         else:
             raise TemporalException("No service found before timeout")
 
-    def __nonzero__(self):
+    def __bool__(self):
         """
         Boolean value of the proxy
         """
         return self.__event.is_set() and bool(self.__event.data)
+
+    # Python 2 compatibility
+    __nonzero__ = __bool__
 
 
 class TemporalDependency(requires.SimpleDependency):
@@ -188,6 +191,7 @@ class TemporalDependency(requires.SimpleDependency):
 
         # The delayed unbind timer
         self.__timer = None
+        self.__timer_args = None
         self.__still_valid = False
 
         # The injected value is the proxy
@@ -200,10 +204,11 @@ class TemporalDependency(requires.SimpleDependency):
         """
         if self.__timer is not None:
             self.__timer.cancel()
-            self.__timer = None
 
         self.__still_valid = False
         self._value = None
+        self.__timer = None
+        self.__timer_args = None
         super(TemporalDependency, self).clear()
 
     def on_service_arrival(self, svc_ref):
@@ -223,7 +228,8 @@ class TemporalDependency(requires.SimpleDependency):
                 # Cancel timer
                 if self.__timer is not None:
                     self.__timer.cancel()
-                    self.__unbind_call(*self.__timer.args)
+                    self.__unbind_call(True)
+                    self.__timer_args = None
                     self.__timer = None
 
                 # Bind the service
@@ -252,9 +258,9 @@ class TemporalDependency(requires.SimpleDependency):
                 if self._pending_ref is None:
                     # No replacement found yet, wait a little
                     self.__still_valid = True
+                    self.__timer_args = (self._value, svc_ref)
                     self.__timer = threading.Timer(
-                        self.__timeout,
-                        self.__unbind_call, (self._value, svc_ref))
+                        self.__timeout, self.__unbind_call, (False,))
                     self.__timer.start()
 
                 else:
@@ -262,7 +268,7 @@ class TemporalDependency(requires.SimpleDependency):
                     self._ipopo_instance.unbind(self, self._value, svc_ref)
                 return True
 
-    def __unbind_call(self, service, svc_ref):
+    def __unbind_call(self, still_valid):
         """
         Calls the iPOPO unbind method
         """
@@ -270,14 +276,20 @@ class TemporalDependency(requires.SimpleDependency):
             if self.__timer is not None:
                 # Timeout expired, we're not valid anymore
                 self.__timer = None
-                self.__still_valid = False
+                self.__still_valid = still_valid
                 if self._ipopo_instance is not None:
-                    self._ipopo_instance.unbind(self, service, svc_ref)
+                    self._ipopo_instance.unbind(self, self.__timer_args[0],
+                                                self.__timer_args[1])
 
     def is_valid(self):
         """
         Tests if the dependency is in a valid state
         """
+        # Don't use the parent method: it will return true as the "_value"
+        # member is not None
+        import logging
+        logging.warning("Still valid=%s -- pending=%s",
+                        self.__still_valid, self._pending_ref is not None)
         return self.__still_valid \
-            and (super(TemporalDependency, self).is_valid()
-                 or self._pending_ref is not None)
+            or self._pending_ref is not None \
+            or self.requirement.optional
