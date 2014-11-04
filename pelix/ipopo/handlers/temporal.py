@@ -50,7 +50,7 @@ import threading
 # ------------------------------------------------------------------------------
 
 
-class _HandlerFactory(requires._HandlerFactory):
+class _HandlerFactory(constants.HandlerFactory):
     """
     Factory service for service registration handlers
     """
