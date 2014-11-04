@@ -397,9 +397,8 @@ class SimpleDependency(_RuntimeDependency):
         with self._lock:
             if self.reference is None:
                 # A previously registered service now matches our filter
-                return self.on_service_arrival(svc_ref)
-
-            else:
+                self.on_service_arrival(svc_ref)
+            elif svc_ref is self.reference:
                 # Notify the property modification
                 self._ipopo_instance.update(self, self._value, svc_ref,
                                             old_properties)

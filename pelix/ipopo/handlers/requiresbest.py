@@ -205,8 +205,10 @@ class BestDependency(requires.SimpleDependency):
                     self.requirement.specification, self.requirement.filter)
                 if best_ref is self.reference:
                     # Still the best service: notify the property modification
-                    self._ipopo_instance.update(self, self._value, svc_ref,
-                                                old_properties)
+                    if svc_ref is self.reference:
+                        # Call update only if necessary
+                        self._ipopo_instance.update(self, self._value,
+                                                    svc_ref, old_properties)
                 else:
                     # A new service is now the best: start a departure loop
-                    self.on_service_departure(svc_ref)
+                    self.on_service_departure(self.reference)

@@ -12,7 +12,8 @@ from pelix.framework import BundleContext
 
 # iPOPO
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
-    Requires, Validate, Invalidate, Unbind, Bind, Instantiate, RequiresMap
+    Requires, Validate, Invalidate, Unbind, Bind, Instantiate, RequiresMap, \
+    RequiresBest, Temporal
 from pelix.ipopo.constants import IPOPO_INSTANCE_NAME, IPopoEvent
 
 # Tests
@@ -32,6 +33,8 @@ FACTORY_A = "ipopo.tests.a"
 FACTORY_B = "ipopo.tests.b"
 FACTORY_C = "ipopo.tests.c"
 FACTORY_IMMEDIATE = "ipopo.tests.immediate"
+FACTORY_REQUIRES_BEST = "ipopo.tests.best"
+FACTORY_TEMPORAL = "ipopo.tests.temporal"
 PROP_USABLE = "usable"
 
 # ------------------------------------------------------------------------------
@@ -282,6 +285,51 @@ class ImmediateComponentFactory(TestComponentFactory):
 
 # ------------------------------------------------------------------------------
 
+
+@ComponentFactory(FACTORY_REQUIRES_BEST)
+@RequiresBest('service', IEchoService)
+class RequiresBestComponentFactory(TestComponentFactory):
+    """
+    Component factory with a immediate_rebind flag
+    """
+    @Bind
+    def bind(self, svc, svc_ref):
+        """
+        Bound
+        """
+        self.states.append(IPopoEvent.BOUND)
+
+    @Unbind
+    def unbind(self, svc, svc_ref):
+        """
+        Unbound
+        """
+        self.states.append(IPopoEvent.UNBOUND)
+
+# ------------------------------------------------------------------------------
+
+
+@ComponentFactory(FACTORY_TEMPORAL)
+@Temporal('service', IEchoService)
+class TemporalComponentFactory(TestComponentFactory):
+    """
+    Component factory with a immediate_rebind flag
+    """
+    @Bind
+    def bind(self, svc, svc_ref):
+        """
+        Bound
+        """
+        self.states.append(IPopoEvent.BOUND)
+
+    @Unbind
+    def unbind(self, svc, svc_ref):
+        """
+        Unbound
+        """
+        self.states.append(IPopoEvent.UNBOUND)
+
+# ------------------------------------------------------------------------------
 
 @BundleActivator
 class ActivatorTest:
