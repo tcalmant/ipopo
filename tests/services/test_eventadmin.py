@@ -195,7 +195,8 @@ class EventAdminTest(unittest.TestCase):
         self.assertEqual(handler.pop_event(), topic)
 
         # Add a handler
-        handler_2, svc_reg = self._register_handler('/titi/*')
+        handler_2, handler_2_reg = self._register_handler('/titi/*')
+        handler_3, _ = self._register_handler('/titi/*')
 
         # Let the first handler sleep
         handler.sleep = 1
@@ -207,17 +208,19 @@ class EventAdminTest(unittest.TestCase):
         time.sleep(.2)
 
         # Unregister the second handler
-        svc_reg.unregister()
+        handler_2_reg.unregister()
 
         # Register a new one
-        handler_3, _ = self._register_handler('/titi/*')
+        handler_4, _ = self._register_handler('/titi/*')
 
         # Wait a little: only handlers present during the call to 'post'
         # and still present during the notification loop must be notified
         handler.wait(2)
+        handler_3.wait(2)
         self.assertEqual(handler.pop_event(), topic)
         self.assertEqual(handler_2.pop_event(), None)
-        self.assertEqual(handler_3.pop_event(), None)
+        self.assertEqual(handler_3.pop_event(), topic)
+        self.assertEqual(handler_4.pop_event(), None)
 
     def testProperties(self):
         """
