@@ -92,7 +92,7 @@ setup(
     ],
     requires=['importlib'] if sys.version_info < (2, 7) else [],
     install_requires=['jsonrpclib-pelix >= 0.2.1'],
-    test_requires=['unittest2'] if sys.version_info < (2, 7) else [],
+    tests_require=['unittest2'] if sys.version_info < (2, 7) else [],
     extras_require={
         'MQTT': ['paho-mqtt'],
         'XMPP': ['sleekxmpp'],
