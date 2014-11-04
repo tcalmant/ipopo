@@ -12,7 +12,6 @@ from tests.ipopo import install_bundle, install_ipopo
 
 # Pelix
 from pelix.framework import FrameworkFactory, BundleContext
-from pelix.ipopo.handlers.temporal import _TemporalProxy
 from pelix.ipopo.constants import IPopoEvent
 
 # Standard library
@@ -73,7 +72,14 @@ class TemporalTest(unittest.TestCase):
         """
         Tests the TemporalProxy class
         """
-        from pelix.ipopo.handlers.temporal import TemporalException
+        # Import TemporalException here, or the type will be different from the
+        # one loaded by the framework.
+        # Same for _TemporalProxy. Also, it would reference modules garbage
+        # collected by Python when the framework is deleted, therefore the
+        # types it uses from other modules would be None.
+        from pelix.ipopo.handlers.temporal import TemporalException, \
+            _TemporalProxy
+
         proxy = _TemporalProxy(.1)
 
         # Try to call the object itself
@@ -153,6 +159,8 @@ class TemporalTest(unittest.TestCase):
         self.assertIsNone(context.get_service_reference(IEchoService),
                           "Service is already registered")
 
+        # Import TemporalException here, or the type will be different from the
+        # one loaded by the framework.
         from pelix.ipopo.handlers.temporal import TemporalException
 
         # TODO: get the value from the configuration of the handler
