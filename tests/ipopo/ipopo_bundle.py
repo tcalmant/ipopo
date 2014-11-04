@@ -310,7 +310,7 @@ class RequiresBestComponentFactory(TestComponentFactory):
 
 
 @ComponentFactory(FACTORY_TEMPORAL)
-@Temporal('service', IEchoService)
+@Temporal('service', IEchoService, timeout=2)
 class TemporalComponentFactory(TestComponentFactory):
     """
     Component factory with a immediate_rebind flag

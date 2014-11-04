@@ -186,8 +186,8 @@ class RequiresBestTest(unittest.TestCase):
         # Modify the component factory
         module = install_bundle(self.framework)
         context = get_factory_context(module.RequiresBestComponentFactory)
-        reqs = context.get_handler(RequiresBest.HANDLER_ID)
-        reqs["service"].immediate_rebind = False
+        configs = context.get_handler(RequiresBest.HANDLER_ID)
+        configs["service"].immediate_rebind = False
 
         self.__internal_test(module,
                              [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND,

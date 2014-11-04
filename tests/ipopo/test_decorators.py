@@ -315,6 +315,18 @@ class DecoratorsTest(unittest.TestCase):
                               decorators.RequiresMap("field", "spec", "key"),
                               invalid)
 
+    def test_temporal(self):
+        """
+        @Temporal specific tests
+        """
+        for value in (-100, -10.0, 0):
+            temporal = decorators.Temporal("field", "spec", timeout=value)
+            self.assertGreater(temporal._timeout, 0)
+
+        for value in (0.1, 10, 100):
+            temporal = decorators.Temporal("field", "spec", timeout=value)
+            self.assertEqual(temporal._timeout, value)
+
 # ------------------------------------------------------------------------------
 
 

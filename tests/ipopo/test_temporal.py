@@ -12,6 +12,7 @@ from tests.ipopo import install_bundle, install_ipopo
 
 # Pelix
 from pelix.framework import FrameworkFactory, BundleContext
+from pelix.ipopo.decorators import get_factory_context, Temporal
 from pelix.ipopo.constants import IPopoEvent
 
 # Standard library
@@ -163,8 +164,10 @@ class TemporalTest(unittest.TestCase):
         # one loaded by the framework.
         from pelix.ipopo.handlers.temporal import TemporalException
 
-        # TODO: get the value from the configuration of the handler
-        timeout = 10
+        # Get the value from the configuration of the handler
+        factory_context = get_factory_context(module.TemporalComponentFactory)
+        configs = factory_context.get_handler(Temporal.HANDLER_ID)
+        timeout = configs["service"][1]
 
         # Instantiate the component
         consumer = self.ipopo.instantiate(module.FACTORY_TEMPORAL, NAME_A)
