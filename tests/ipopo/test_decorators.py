@@ -254,9 +254,9 @@ class DecoratorsTest(unittest.TestCase):
             self.assertRaises(TypeError, decorators.Provides("spec", "field"),
                               invalid)
 
-    def testRequires(self):
+    def test_requires_base(self):
         """
-        Tests the @Requires decorator
+        Tests the @Requires* decorators basic arguments checks
         """
         class DummyClass(object):
             pass
@@ -264,23 +264,24 @@ class DecoratorsTest(unittest.TestCase):
         def method():
             pass
 
-        # Empty field or specification
-        for empty in (None, "", "   "):
-            self.assertRaises(ValueError, decorators.Requires, empty, "spec")
-            self.assertRaises(ValueError, decorators.Requires, "field", empty)
+        for decorator in (decorators.Requires, decorators.RequiresBest,
+                          decorators.Temporal):
+            # Empty field or specification
+            for empty in (None, "", "   "):
+                self.assertRaises(ValueError, decorator, empty, "spec")
+                self.assertRaises(ValueError, decorator, "field", empty)
 
-        # Invalid field or specification type
-        for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
-            self.assertRaises(TypeError, decorators.Requires, invalid)
-            self.assertRaises(
-                ValueError, decorators.Requires, "field", invalid)
+            # Invalid field or specification type
+            for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
+                self.assertRaises(TypeError, decorator, invalid)
+                self.assertRaises(ValueError, decorator, "field", invalid)
 
-        # Invalid target
-        for invalid in (None, method, 123):
-            self.assertRaises(TypeError, decorators.Requires("field", "spec"),
-                              invalid)
+            # Invalid target
+            for invalid in (None, method, 123):
+                self.assertRaises(TypeError, decorator("field", "spec"),
+                                  invalid)
 
-    def testRequiresMap(self):
+    def test_requires_map(self):
         """
         Tests the @RequiresMap decorator
         """
@@ -304,13 +305,14 @@ class DecoratorsTest(unittest.TestCase):
 
         # Invalid field or specification type
         for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
-            self.assertRaises(TypeError, decorators.Requires, invalid)
-            self.assertRaises(
-                ValueError, decorators.Requires, "field", invalid)
+            self.assertRaises(TypeError, decorators.RequiresMap, invalid)
+            self.assertRaises(ValueError,
+                              decorators.RequiresMap, "field", invalid, "key")
 
         # Invalid target
         for invalid in (None, method, 123):
-            self.assertRaises(TypeError, decorators.Requires("field", "spec"),
+            self.assertRaises(TypeError,
+                              decorators.RequiresMap("field", "spec", "key"),
                               invalid)
 
 # ------------------------------------------------------------------------------
