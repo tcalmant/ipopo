@@ -202,13 +202,13 @@ class TemporalDependency(requires.SimpleDependency):
         Cleans up the manager. The manager can't be used after this method has
         been called
         """
-        if self.__timer is not None:
-            self.__timer.cancel()
+        # Cancel timer
+        self.__cancel_timer()
+        self.__timer = None
+        self.__timer_args = None
 
         self.__still_valid = False
         self._value = None
-        self.__timer = None
-        self.__timer_args = None
         super(TemporalDependency, self).clear()
 
     def on_service_arrival(self, svc_ref):
@@ -226,11 +226,7 @@ class TemporalDependency(requires.SimpleDependency):
                 self.__still_valid = True
 
                 # Cancel timer
-                if self.__timer is not None:
-                    self.__timer.cancel()
-                    self.__unbind_call(True)
-                    self.__timer_args = None
-                    self.__timer = None
+                self.__cancel_timer()
 
                 # Bind the service
                 self._ipopo_instance.bind(self, self._value, self.reference)
@@ -268,6 +264,17 @@ class TemporalDependency(requires.SimpleDependency):
                     self._ipopo_instance.unbind(self, self._value, svc_ref)
                 return True
 
+    def __cancel_timer(self):
+        """
+        Cancels the timer, and calls its target method immediately
+        """
+        if self.__timer is not None:
+            self.__timer.cancel()
+            self.__unbind_call(True)
+
+        self.__timer_args = None
+        self.__timer = None
+
     def __unbind_call(self, still_valid):
         """
         Calls the iPOPO unbind method
@@ -277,9 +284,8 @@ class TemporalDependency(requires.SimpleDependency):
                 # Timeout expired, we're not valid anymore
                 self.__timer = None
                 self.__still_valid = still_valid
-                if self._ipopo_instance is not None:
-                    self._ipopo_instance.unbind(self, self.__timer_args[0],
-                                                self.__timer_args[1])
+                self._ipopo_instance.unbind(
+                    self, self.__timer_args[0], self.__timer_args[1])
 
     def is_valid(self):
         """

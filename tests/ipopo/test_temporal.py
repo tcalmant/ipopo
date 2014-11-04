@@ -162,9 +162,7 @@ class TemporalTest(unittest.TestCase):
         consumer = self.ipopo.instantiate(module.FACTORY_TEMPORAL, NAME_A)
 
         # Component must be invalid
-        self.assertListEqual([IPopoEvent.INSTANTIATED], consumer.states,
-                             "Invalid component states: {0}"
-                             .format(consumer.states))
+        self.assertListEqual([IPopoEvent.INSTANTIATED], consumer.states)
         consumer.reset()
 
         # Instantiate a service
@@ -173,8 +171,7 @@ class TemporalTest(unittest.TestCase):
 
         # The consumer must have been validated
         self.assertListEqual([IPopoEvent.BOUND, IPopoEvent.VALIDATED],
-                             consumer.states, "Invalid component states: {0}"
-                             .format(consumer.states))
+                             consumer.states)
         consumer.reset()
 
         # Make a call
@@ -185,16 +182,13 @@ class TemporalTest(unittest.TestCase):
         reg2 = context.register_service(IEchoService, svc2, {})
 
         # No modification
-        self.assertListEqual([], consumer.states,
-                             "Invalid component states: {0}"
-                             .format(consumer.states))
+        self.assertListEqual([], consumer.states)
         consumer.reset()
 
         # Unregister service 1
         reg1.unregister()
         self.assertListEqual([IPopoEvent.UNBOUND, IPopoEvent.BOUND],
-                             consumer.states, "Invalid component states: {0}"
-                             .format(consumer.states))
+                             consumer.states)
         self.assertEqual(consumer.call(), svc2.method())
         consumer.reset()
 
@@ -202,9 +196,7 @@ class TemporalTest(unittest.TestCase):
         reg2.unregister()
 
         # No modification yet
-        self.assertListEqual([], consumer.states,
-                             "Invalid component states: {0}"
-                             .format(consumer.states))
+        self.assertListEqual([], consumer.states)
         consumer.reset()
 
         # Register a new service
@@ -213,8 +205,7 @@ class TemporalTest(unittest.TestCase):
 
         # Service must have been injected before invalidation
         self.assertListEqual([IPopoEvent.UNBOUND, IPopoEvent.BOUND],
-                             consumer.states, "Invalid component states: {0}"
-                             .format(consumer.states))
+                             consumer.states)
         self.assertEqual(consumer.call(), svc3.method())
         consumer.reset()
 
@@ -222,9 +213,7 @@ class TemporalTest(unittest.TestCase):
         reg3.unregister()
 
         # No modification yet
-        self.assertListEqual([], consumer.states,
-                             "Invalid component states: {0}"
-                             .format(consumer.states))
+        self.assertListEqual([], consumer.states)
         consumer.reset()
 
         start = time.time()
@@ -242,10 +231,12 @@ class TemporalTest(unittest.TestCase):
         self.assertLess(end-start, timeout * 2.)
         self.assertGreater(end-start, timeout / 2.)
 
+        # Wait a little
+        time.sleep(.2)
+
         # Check state
         self.assertListEqual([IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
-                             consumer.states, "Invalid component states: {0}"
-                             .format(consumer.states))
+                             consumer.states)
         consumer.reset()
 
 # ------------------------------------------------------------------------------
