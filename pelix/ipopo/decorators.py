@@ -901,14 +901,19 @@ class Temporal(Requires):
         :param optional: If true, this injection is optional
         :param spec_filter: An LDAP query to filter injected services upon
                             their properties
-        :param timeout: Temporal timeout (must be greater than 0)
+        :param timeout: Temporal timeout, in seconds (must be greater than 0)
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter or an
                            argument is incorrect
         """
         super(Temporal, self).__init__(field, specification, False, optional,
                                        spec_filter, True)
-        self._timeout = timeout if timeout > 0 else 10
+        if timeout <= 0:
+            _logger.warning("@Temporal timeout must be greater than 0. "
+                            "Using default value.")
+            self._timeout = 10
+        else:
+            self._timeout = timeout
 
     def __call__(self, clazz):
         """
@@ -924,8 +929,7 @@ class Temporal(Requires):
         context = get_factory_context(clazz)
         if not context.completed:
             config = context.set_handler_default(self.HANDLER_ID, {})
-            # TODO: update configuration to store the timeout
-            config[self._field] = self._requirement
+            config[self._field] = (self._requirement, self._timeout)
         return clazz
 
 # ------------------------------------------------------------------------------

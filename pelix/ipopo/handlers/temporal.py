@@ -54,6 +54,37 @@ class _HandlerFactory(requires._HandlerFactory):
     """
     Factory service for service registration handlers
     """
+    def _prepare_requirements(self, configs, requires_filters):
+        """
+        Overrides the filters specified in the decorator with the given ones
+
+        :param configs: Field -> (Requirement, key, allow_none) dictionary
+        :param requires_filters: Content of the 'requires.filter' component
+                                 property (field -> string)
+        :return: The new configuration dictionary
+        """
+        if not requires_filters or not isinstance(requires_filters, dict):
+            # No explicit filter configured
+            return configs
+
+        # We need to change a part of the requirements
+        new_configs = {}
+        for field, config in configs.items():
+            # Extract values from tuple
+            requirement, timeout = config
+            try:
+                explicit_filter = requires_filters[field]
+                # Store an updated copy of the requirement
+                requirement_copy = requirement.copy()
+                requirement_copy.set_filter(explicit_filter)
+                new_configs[field] = (requirement_copy, timeout)
+            except (KeyError, TypeError, ValueError):
+                # No information for this one, or invalid filter:
+                # keep the factory requirement
+                new_configs[field] = config
+
+        return new_configs
+
     def get_handlers(self, component_context, instance):
         """
         Sets up service providers for the given component
@@ -63,18 +94,17 @@ class _HandlerFactory(requires._HandlerFactory):
         :return: The list of handlers associated to the given component
         """
         # Extract information from the context
-        requirements = component_context.get_handler(
+        configs = component_context.get_handler(
             ipopo_constants.HANDLER_TEMPORAL)
         requires_filters = component_context.properties.get(
             ipopo_constants.IPOPO_REQUIRES_FILTERS, None)
 
         # Prepare requirements
-        requirements = self._prepare_requirements(
-            requirements, requires_filters)
+        new_configs = self._prepare_requirements(configs, requires_filters)
 
         # Return handlers
-        return [TemporalDependency(field, requirement)
-                for field, requirement in requirements.items()]
+        return [TemporalDependency(field, requirement, timeout)
+                for field, (requirement, timeout) in new_configs.items()]
 
 
 @BundleActivator
@@ -179,15 +209,18 @@ class TemporalDependency(requires.SimpleDependency):
     """
     Manages a temporal dependency field
     """
-    def __init__(self, field, requirement):
+    def __init__(self, field, requirement, timeout):
         """
         Sets up the dependency
+
+        :param field: Field where to inject the proxy
+        :param requirement: Description of the required dependency
+        :param timeout: Time to wait for a service (greater than 0, in seconds)
         """
         super(TemporalDependency, self).__init__(field, requirement)
 
         # Internal timeout
-        # FIXME: use a customizable timeout
-        self.__timeout = 10
+        self.__timeout = timeout
 
         # The delayed unbind timer
         self.__timer = None
