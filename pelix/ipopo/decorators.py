@@ -743,16 +743,16 @@ class Requires(object):
         if ' ' in field:
             raise ValueError("Field name can't contain spaces.")
 
-        self.__field = field
+        self._field = field
 
         # Be sure that there is only one required specification
         specifications = _get_specifications(specification)
-        self.__multi_specs = len(specifications) > 1
+        self._multi_specs = len(specifications) > 1
 
         # Construct the requirement object
-        self.__requirement = Requirement(specifications[0], aggregate,
-                                         optional, spec_filter,
-                                         immediate_rebind)
+        self._requirement = Requirement(specifications[0], aggregate,
+                                        optional, spec_filter,
+                                        immediate_rebind)
 
     def __call__(self, clazz):
         """
@@ -763,34 +763,34 @@ class Requires(object):
         :raise TypeError: If *clazz* is not a type
         """
         if not inspect.isclass(clazz):
-            raise TypeError("@Requires can decorate only classes, not '{0}'"
-                            .format(type(clazz).__name__))
+            raise TypeError("@{0} can decorate only classes, not '{1}'"
+                            .format(type(self).__name__, type(clazz).__name__))
 
-        if self.__multi_specs:
-            _logger.warning("Only one specification can be required: %s -> %s",
-                            clazz.__name__, self.__field)
+        if self._multi_specs:
+            _logger.warning("%s: Only one specification can be required: "
+                            "%s -> %s", type(self).__name__, clazz.__name__,
+                            self._field)
 
         # Set up the property in the class
         context = get_factory_context(clazz)
         if context.completed:
             # Do nothing if the class has already been manipulated
-            _logger.warning("@Requires: Already manipulated class: %s",
-                            get_method_description(clazz))
+            _logger.warning("@%s: Already manipulated class: %s",
+                            type(self).__name__, get_method_description(clazz))
             return clazz
 
         # Store the requirement information
         config = context.set_handler_default(self.HANDLER_ID, {})
-        config[self.__field] = self.__requirement
+        config[self._field] = self._requirement
 
         # Inject the field
-        setattr(clazz, self.__field, None)
-
+        setattr(clazz, self._field, None)
         return clazz
 
 # ------------------------------------------------------------------------------
 
 
-class RequiresBest(object):
+class RequiresBest(Requires):
     """
     @RequiresBest decorator
 
@@ -817,63 +817,14 @@ class RequiresBest(object):
         :raise ValueError: An error occurred while parsing the filter or an
                            argument is incorrect
         """
-        if not field:
-            raise ValueError("Empty field name.")
-
-        if not is_string(field):
-            raise TypeError("The field name must be a string, not {0}"
-                            .format(type(field).__name__))
-
-        if ' ' in field:
-            raise ValueError("Field name can't contain spaces.")
-
-        self.__field = field
-
-        # Be sure that there is only one required specification
-        specifications = _get_specifications(specification)
-        self.__multi_specs = len(specifications) > 1
-
-        # Construct the requirement object
-        self.__requirement = Requirement(specifications[0], False,
-                                         optional, spec_filter,
-                                         immediate_rebind)
-
-    def __call__(self, clazz):
-        """
-        Adds the requirement to the class iPOPO field
-
-        :param clazz: The class to decorate
-        :return: The decorated class
-        :raise TypeError: If *clazz* is not a type
-        """
-        if not inspect.isclass(clazz):
-            raise TypeError("@RequiresBest can decorate only classes, not '{0}'"
-                            .format(type(clazz).__name__))
-
-        if self.__multi_specs:
-            _logger.warning("Only one specification can be required: %s -> %s",
-                            clazz.__name__, self.__field)
-
-        # Set up the property in the class
-        context = get_factory_context(clazz)
-        if context.completed:
-            # Do nothing if the class has already been manipulated
-            _logger.warning("@RequiresBest: Already manipulated class: %s",
-                            get_method_description(clazz))
-            return clazz
-
-        # Store the requirement information
-        config = context.set_handler_default(self.HANDLER_ID, {})
-        config[self.__field] = self.__requirement
-
-        # Inject the field
-        setattr(clazz, self.__field, None)
-        return clazz
+        super(RequiresBest, self).__init__(field, specification, False,
+                                           optional, spec_filter,
+                                           immediate_rebind)
 
 # ------------------------------------------------------------------------------
 
 
-class RequiresMap(object):
+class RequiresMap(Requires):
     """
     @RequiresMap decorator
 
@@ -899,34 +850,15 @@ class RequiresMap(object):
         :raise ValueError: An error occurred while parsing the filter or an
                            argument is incorrect
         """
-        # Check if field is valid
-        if not field:
-            raise ValueError("Empty field name.")
-
-        if not is_string(field):
-            raise TypeError("The field name must be a string, not {0}"
-                            .format(type(field).__name__))
-
-        if ' ' in field:
-            raise ValueError("Field name can't contain spaces.")
-
-        self.__field = field
-
-        # Be sure that there is only one required specification
-        specifications = _get_specifications(specification)
-        self.__multi_specs = len(specifications) > 1
-
+        super(RequiresMap, self).__init__(field, specification, aggregate,
+                                          optional, spec_filter, False)
         # Check if key is valid
         if not key:
             raise ValueError("No property key given")
 
         # Store the flags
-        self.__key = key
-        self.__allow_none = allow_none
-
-        # Construct the requirement object
-        self.__requirement = Requirement(specifications[0],
-                                         aggregate, optional, spec_filter)
+        self._key = key
+        self._allow_none = allow_none
 
     def __call__(self, clazz):
         """
@@ -936,35 +868,21 @@ class RequiresMap(object):
         :return: The decorated class
         :raise TypeError: If *clazz* is not a type
         """
-        if not inspect.isclass(clazz):
-            raise TypeError("@RequiresMap can decorate only classes, not '{0}'"
-                            .format(type(clazz).__name__))
-
-        if self.__multi_specs:
-            _logger.warning("Only one specification can be required: %s -> %s",
-                            get_method_description(clazz), self.__field)
+        clazz = super(RequiresMap, self).__call__(clazz)
 
         # Set up the property in the class
         context = get_factory_context(clazz)
-        if context.completed:
-            # Do nothing if the class has already been manipulated
-            _logger.warning("@RequiresMap: Already manipulated class: %s",
-                            get_method_description(clazz))
-            return clazz
-
-        # Store the requirement information
-        config = context.set_handler_default(self.HANDLER_ID, {})
-        config[self.__field] = (self.__requirement,
-                                self.__key, self.__allow_none)
-
-        # Inject the field
-        setattr(clazz, self.__field, None)
+        if not context.completed:
+            # Store the requirement information
+            config = context.set_handler_default(self.HANDLER_ID, {})
+            config[self._field] = (self._requirement, self._key,
+                                   self._allow_none)
         return clazz
 
 # ------------------------------------------------------------------------------
 
 
-class Temporal(object):
+class Temporal(Requires):
     """
     @Temporal decorator
 
@@ -973,7 +891,8 @@ class Temporal(object):
     HANDLER_ID = constants.HANDLER_TEMPORAL
     """ ID of the handler configured by this decorator """
 
-    def __init__(self, field, specification, optional=False, spec_filter=None):
+    def __init__(self, field, specification, optional=False, spec_filter=None,
+                 timeout=10):
         """
         Sets up the requirement
 
@@ -982,29 +901,14 @@ class Temporal(object):
         :param optional: If true, this injection is optional
         :param spec_filter: An LDAP query to filter injected services upon
                             their properties
+        :param timeout: Temporal timeout (must be greater than 0)
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter or an
                            argument is incorrect
         """
-        if not field:
-            raise ValueError("Empty field name.")
-
-        if not is_string(field):
-            raise TypeError("The field name must be a string, not {0}"
-                            .format(type(field).__name__))
-
-        if ' ' in field:
-            raise ValueError("Field name can't contain spaces.")
-
-        self.__field = field
-
-        # Be sure that there is only one required specification
-        specifications = _get_specifications(specification)
-        self.__multi_specs = len(specifications) > 1
-
-        # Construct the requirement object
-        self.__requirement = Requirement(specifications[0], False,
-                                         optional, spec_filter, True)
+        super(Temporal, self).__init__(field, specification, False, optional,
+                                       spec_filter, True)
+        self._timeout = timeout if timeout > 0 else 10
 
     def __call__(self, clazz):
         """
@@ -1014,28 +918,14 @@ class Temporal(object):
         :return: The decorated class
         :raise TypeError: If *clazz* is not a type
         """
-        if not inspect.isclass(clazz):
-            raise TypeError("@Temporal can decorate only classes, not '{0}'"
-                            .format(type(clazz).__name__))
-
-        if self.__multi_specs:
-            _logger.warning("Only one specification can be required: %s -> %s",
-                            clazz.__name__, self.__field)
-
-        # Set up the property in the class
-        context = get_factory_context(clazz)
-        if context.completed:
-            # Do nothing if the class has already been manipulated
-            _logger.warning("@Temporal: Already manipulated class: %s",
-                            get_method_description(clazz))
-            return clazz
+        clazz = super(Temporal, self).__call__(clazz)
 
         # Store the requirement information
-        config = context.set_handler_default(self.HANDLER_ID, {})
-        config[self.__field] = self.__requirement
-
-        # Inject the field
-        setattr(clazz, self.__field, None)
+        context = get_factory_context(clazz)
+        if not context.completed:
+            config = context.set_handler_default(self.HANDLER_ID, {})
+            # TODO: update configuration to store the timeout
+            config[self._field] = self._requirement
         return clazz
 
 # ------------------------------------------------------------------------------
