@@ -1094,14 +1094,14 @@ class Framework(Bundle):
                 # Ignore
                 pass
 
-            # Clear reference in parent
-            parent, basename = name.rsplit('.', 1)
-            if parent:
-                try:
+            try:
+                # Clear reference in parent
+                parent, basename = name.rsplit('.', 1)
+                if parent:
                     delattr(sys.modules[parent], basename)
-                except (KeyError, AttributeError):
-                    # Ignore
-                    pass
+            except (KeyError, AttributeError, ValueError):
+                # Ignore errors
+                pass
 
     def unregister_service(self, registration):
         """
