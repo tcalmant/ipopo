@@ -62,6 +62,9 @@ HTTP_SERVLET = "pelix.http.servlet"
 HTTP_SERVLET_PATH = "pelix.http.path"
 """ HTTP Servlet path(s) (string or list or tuple of strings) """
 
+# Service to provide custom 404 and 500 error pages
+HTTP_ERROR_PAGES = "pelix.http.error.pages"
+
 # ------------------------------------------------------------------------------
 
 FACTORY_HTTP_BASIC = "pelix.http.service.basic.factory"
@@ -94,6 +97,21 @@ PARAM_PORT = "http.port"
 Entry in the parameters dictionary of ``bound_to`` and ``unbound_from``.
 Contains the listening port of the HTTP server binding the servlet
 """
+
+# ------------------------------------------------------------------------------
+
+
+def make_html_list(items, tag="ul"):
+    """
+    Makes a HTML list from the given iterable
+
+    :param items: The items to list
+    :param tag: The tag to use (ul or ol)
+    :return: The HTML list code
+    """
+    html_list = "\n".join('<li><a href="{0}">{0}</a></li>'.format(item)
+                          for item in items)
+    return "<{0}>\n{1}\n</{0}>".format(tag, html_list)
 
 # ------------------------------------------------------------------------------
 

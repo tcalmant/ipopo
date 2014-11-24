@@ -370,22 +370,10 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 # ------------------------------------------------------------------------------
 
 
-def make_list(items, tag="ul"):
-        """
-        Makes a HTML list from the given iterable
-
-        :param items: The items to list
-        :param tag: The tag to use (ul or ol)
-        :return: The HTML list code
-        """
-        html_list = "\n".join('<li><a href="{0}">{0}</a></li>'.format(item)
-                              for item in items)
-        return "<{0}>\n{1}\n</{0}>".format(tag, html_list)
-
-
 @ComponentFactory(http.FACTORY_HTTP_BASIC)
 @Provides(http.HTTP_SERVICE)
 @Requires("_servlets_services", http.HTTP_SERVLET, True, True)
+@Requires("_error_handler", http.HTTP_ERROR_PAGES, optional=True)
 @Property("_address", http.HTTP_SERVICE_ADDRESS, DEFAULT_BIND_ADDRESS)
 @Property("_port", http.HTTP_SERVICE_PORT, 8080)
 @Property('_extra', HTTP_SERVICE_EXTRA, None)
@@ -420,8 +408,9 @@ class HttpService(object):
         # Path -> (servlet, parameters)
         self._servlets = {}
 
-        # Field injected by iPOPO
+        # Fields injected by iPOPO
         self._servlets_services = None
+        self._error_handler = None
 
         # Servlet -> ServiceReference
         self._servlets_refs = {}
@@ -490,7 +479,7 @@ class HttpService(object):
                 self.register_servlet(path, service, None)
 
     @BindField("_servlets_services")
-    def _bind(self, field, service, service_reference):
+    def _bind(self, _, service, service_reference):
         """
         Called by iPOPO when a service is bound
         """
@@ -502,7 +491,7 @@ class HttpService(object):
                 self.__register_servlet_service(service, service_reference)
 
     @UpdateField('_servlets_services')
-    def _update(self, field, service, service_reference, old_properties):
+    def _update(self, _, service, service_reference, old_properties):
         """
         Called by iPOPO when the properties of a service have been updated
         """
@@ -522,7 +511,7 @@ class HttpService(object):
                 self.__register_servlet_service(service, service_reference)
 
     @UnbindField("_servlets_services")
-    def _unbind(self, field, service, service_reference):
+    def _unbind(self, _, service, service_reference):
         """
         Called by iPOPO when a service is gone
         """
@@ -607,7 +596,12 @@ class HttpService(object):
         :param path: Request path
         :return: A HTML page
         """
-        return """<html>
+        page = None
+        if self._error_handler is not None:
+            page = self._error_handler.make_not_found_page(path)
+
+        if not page:
+            page = """<html>
 <head>
 <title>404 - Page not found</title>
 </head>
@@ -618,7 +612,9 @@ class HttpService(object):
 <h2>Registered paths:</h2>
 {1}
 </body>
-</html>""".format(path, make_list(self.get_registered_paths()))
+</html>""".format(path, http.make_html_list(self.get_registered_paths()))
+
+        return page
 
     def make_exception_page(self, path, stack):
         """
@@ -628,7 +624,12 @@ class HttpService(object):
         :param stack: Exception stack trace
         :return: A HTML page
         """
-        return """<html>
+        page = None
+        if self._error_handler is not None:
+            page = self._error_handler.make_exception_page(path, stack)
+
+        if not page:
+            page = """<html>
 <head>
 <title>500 - Internal Server Error</title>
 </head>
@@ -640,6 +641,8 @@ class HttpService(object):
 </pre>
 </body>
 </html>""".format(path, stack)
+
+        return page
 
     def register_servlet(self, path, servlet, parameters=None):
         """
@@ -776,7 +779,7 @@ class HttpService(object):
             self._logger.exception(message, *args, **kwargs)
 
     @Validate
-    def validate(self, context):
+    def validate(self, _):
         """
         Component validation
         """
@@ -839,7 +842,7 @@ class HttpService(object):
                  self._address, self._port)
 
     @Invalidate
-    def invalidate(self, context):
+    def invalidate(self, _):
         """
         Component invalidation
         """
