@@ -269,19 +269,10 @@ class _RequestHandler(BaseHTTPRequestHandler, object):
         """
         Default response sent when no servlet is found for the requested path
         """
-        page = """<html>
-<head>
-<title>404 - Page not found</title>
-</head>
-<body>
-<h1>Page not found</h1>
-<p>No servlet is associated to this path: <pre>{0}</pre></p>
-</body>
-</html>""".format(self.path)
-
         # Use the helper to send the error page
         response = _HTTPServletResponse(self)
-        response.send_content(404, page)
+        response.send_content(404,
+                              self._service.make_not_found_page(self.path))
 
     def send_exception(self, response):
         """
@@ -297,22 +288,9 @@ class _RequestHandler(BaseHTTPRequestHandler, object):
         self.log_error("Error handling request upon: %s\n%s\n",
                        self.path, stack)
 
-        # Prepare the page content
-        page = """<html>
-<head>
-<title>500 - Internal Server Error</title>
-</head>
-<body>
-<h1>Internal Server Error</h1>
-<p>Error handling request upon: {0}</p>
-<pre>
-{1}
-</pre>
-</body>
-</html>""".format(self.path, stack)
-
         # Send the page
-        response.send_content(500, page)
+        response.send_content(
+            500, self._service.make_exception_page(self.path, stack))
 
 # ------------------------------------------------------------------------------
 
@@ -390,6 +368,19 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
         thread.start()
 
 # ------------------------------------------------------------------------------
+
+
+def make_list(items, tag="ul"):
+        """
+        Makes a HTML list from the given iterable
+
+        :param items: The items to list
+        :param tag: The tag to use (ul or ol)
+        :return: The HTML list code
+        """
+        html_list = "\n".join('<li><a href="{0}">{0}</a></li>'.format(item)
+                              for item in items)
+        return "<{0}>\n{1}\n</{0}>".format(tag, html_list)
 
 
 @ComponentFactory(http.FACTORY_HTTP_BASIC)
@@ -559,6 +550,14 @@ class HttpService(object):
         """
         return socket.gethostname()
 
+    def get_registered_paths(self):
+        """
+        Returns the paths registered by servlets
+
+        :return: The paths registered by servlets (sorted list)
+        """
+        return sorted(self._servlets)
+
     def get_servlet(self, path):
         """
         Retrieves the servlet matching the given path and its parameters.
@@ -580,7 +579,7 @@ class HttpService(object):
 
         with self._lock:
             longest_match = ""
-            for servlet_path in self._servlets.keys():
+            for servlet_path in self._servlets:
                 tested_path = servlet_path
                 if tested_path[-1] != '/':
                     # Add a trailing slash
@@ -600,6 +599,47 @@ class HttpService(object):
             else:
                 # Retrieve the stored information
                 return self._servlets[longest_match]
+
+    def make_not_found_page(self, path):
+        """
+        Prepares a "page not found" page for a 404 error
+
+        :param path: Request path
+        :return: A HTML page
+        """
+        return """<html>
+<head>
+<title>404 - Page not found</title>
+</head>
+<body>
+<h1>Page not found</h1>
+<p>No servlet is associated to this path:</p>
+<pre>{0}</pre>
+<h2>Registered paths:</h2>
+{1}
+</body>
+</html>""".format(path, make_list(self.get_registered_paths()))
+
+    def make_exception_page(self, path, stack):
+        """
+        Prepares a page printing an exception stack trace in a 500 error
+
+        :param path: Request path
+        :param stack: Exception stack trace
+        :return: A HTML page
+        """
+        return """<html>
+<head>
+<title>500 - Internal Server Error</title>
+</head>
+<body>
+<h1>Internal Server Error</h1>
+<p>Error handling request upon: {0}</p>
+<pre>
+{1}
+</pre>
+</body>
+</html>""".format(path, stack)
 
     def register_servlet(self, path, servlet, parameters=None):
         """
@@ -702,7 +742,7 @@ class HttpService(object):
 
             with self._lock:
                 # Notify the servlet
-                servlet_info = self._servlets.get(path, None)
+                servlet_info = self._servlets.get(path)
                 if servlet_info is None:
                     # Unknown path
                     return False
