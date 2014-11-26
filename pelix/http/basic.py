@@ -76,8 +76,13 @@ import pelix.http as http
 HTTP_SERVICE_EXTRA = "http.extra"
 """ HTTP service extra properties (dictionary) """
 
-DEFAULT_BIND_ADDRESS = "127.0.0.1"
-""" By default, bind to local host """
+DEFAULT_BIND_ADDRESS = "0.0.0.0"
+""" By default, bind to all IPv4 interfaces """
+
+LOCALHOST_ADDRESS = "127.0.0.1"
+"""
+Local address, if None is given as binding address, instead of the default one
+"""
 
 # ------------------------------------------------------------------------------
 
@@ -784,8 +789,8 @@ class HttpService(object):
         Component validation
         """
         if not self._address:
-            # Use the default bind address
-            self._address = DEFAULT_BIND_ADDRESS
+            # No address given, use the localhost address
+            self._address = LOCALHOST_ADDRESS
 
         if self._port is None or self._port < 0:
             # Random port
