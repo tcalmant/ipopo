@@ -1277,3 +1277,61 @@ def Invalidate(method):
     _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
                          constants.IPOPO_CALLBACK_INVALIDATE)
     return method
+
+
+def PostRegistration(method):
+    """
+    Post service registration callback decorator, called when a service of the
+    component has been registered.
+
+    The decorated method must have the following prototype :
+
+    .. python::
+       def callback_method(self, service_reference):
+           '''
+           Method called when a service of the component has been registered
+
+           service_reference: The ServiceReference of the provided service
+           '''
+           # ...
+
+    :param method: The decorated method
+    :raise TypeError: The decorated element is not a valid function
+    """
+    if not isinstance(method, types.FunctionType):
+        raise TypeError("@PostRegistration can only be applied on functions")
+
+    # Tests the number of parameters
+    validate_method_arity(method, "service_reference")
+    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
+                         constants.IPOPO_CALLBACK_POST_REGISTRATION)
+    return method
+
+
+def PostUnregistration(method):
+    """
+    Post service unregistration callback decorator, called when a service of
+    the component has been unregistered.
+
+    The decorated method must have the following prototype :
+
+    .. python::
+       def callback_method(self, service_reference):
+           '''
+           Method called when a service of the component has been unregistered
+
+           service_reference: The ServiceReference of the provided service
+           '''
+           # ...
+
+    :param method: The decorated method
+    :raise TypeError: The decorated element is not a valid function
+    """
+    if not isinstance(method, types.FunctionType):
+        raise TypeError("@PostUnregistration can only be applied on functions")
+
+    # Tests the number of parameters
+    validate_method_arity(method, "service_reference")
+    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
+                         constants.IPOPO_CALLBACK_POST_UNREGISTRATION)
+    return method

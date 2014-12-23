@@ -114,7 +114,7 @@ IPOPO_CALLBACK_UNBIND = "UNBIND"
 
 IPOPO_CALLBACK_UNBIND_FIELD = "UNBIND_FIELD"
 """
-UnbindFielld: called when a dependency is about to be removed from the given
+UnbindField: called when a dependency is about to be removed from the given
 field
 """
 
@@ -123,6 +123,17 @@ IPOPO_CALLBACK_VALIDATE = "VALIDATE"
 
 IPOPO_CALLBACK_INVALIDATE = "INVALIDATE"
 """ Invalidate: Called when one the mandatory dependencies is unbound """
+
+IPOPO_CALLBACK_POST_REGISTRATION = "POST_REGISTRATION"
+"""
+Post-Registration: called when a service of the component has been registered
+"""
+
+IPOPO_CALLBACK_POST_UNREGISTRATION = "POST_UNREGISTRATION"
+"""
+Post-Unregistration: called when a service of the component has been
+unregistered.
+"""
 
 # Properties
 IPOPO_INSTANCE_NAME = "instance.name"

@@ -289,6 +289,11 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
                 self.specifications, self._ipopo_instance.instance, properties)
             self._svc_reference = self._registration.get_reference()
 
+            # Notify the component
+            self._ipopo_instance.safe_callback(
+                ipopo_constants.IPOPO_CALLBACK_POST_REGISTRATION,
+                self._svc_reference)
+
     def _unregister_service(self):
         """
         Unregisters the provided service, if needed
@@ -297,12 +302,16 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
             # Ignore error
             try:
                 self._registration.unregister()
-
             except BundleException as ex:
                 # Only log the error at this level
                 logger = logging.getLogger('-'.join((self._ipopo_instance.name,
                                                      'ServiceRegistration')))
                 logger.error("Error unregistering a service: %s", ex)
+
+            # Notify the component (even in case of error)
+            self._ipopo_instance.safe_callback(
+                ipopo_constants.IPOPO_CALLBACK_POST_UNREGISTRATION,
+                self._svc_reference)
 
             self._registration = None
             self._svc_reference = None
