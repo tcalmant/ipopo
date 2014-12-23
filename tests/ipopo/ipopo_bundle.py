@@ -13,7 +13,7 @@ from pelix.framework import BundleContext
 # iPOPO
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
     Requires, Validate, Invalidate, Unbind, Bind, Instantiate, RequiresMap, \
-    RequiresBest, Temporal
+    RequiresBest, Temporal, PostRegistration, PostUnregistration
 from pelix.ipopo.constants import IPOPO_INSTANCE_NAME, IPopoEvent
 
 # Tests
@@ -128,6 +128,8 @@ class ComponentFactoryA(TestComponentFactory, IEchoService):
         self.usable = True
         self.prop_1 = 10
         self._test_ctrl = True
+        self.calls_register = []
+        self.calls_unregister = []
 
     def echo(self, value):
         """
@@ -146,6 +148,20 @@ class ComponentFactoryA(TestComponentFactory, IEchoService):
         Change the controller value
         """
         self._test_ctrl = value
+
+    @PostRegistration
+    def post_reg(self, svc_ref):
+        """
+        Tests the Post-Registration decorator
+        """
+        self.calls_register.append(svc_ref)
+
+    @PostUnregistration
+    def post_unreg(self, svc_ref):
+        """
+        Tests the Post-Unregistration decorator
+        """
+        self.calls_unregister.append(svc_ref)
 
 
 @ComponentFactory(name=FACTORY_B)

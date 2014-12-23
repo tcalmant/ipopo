@@ -95,7 +95,6 @@ class ProvidesTest(unittest.TestCase):
             # Service should not be there anymore
             self.assertIsNone(context.get_service_reference(IEchoService),
                               "Service is still registered")
-
         finally:
             try:
                 self.ipopo.kill(NAME_A)
@@ -158,9 +157,95 @@ class ProvidesTest(unittest.TestCase):
 
             # Clean up
             context.unget_service(ref)
-            svc = None
-            ref = None
+        finally:
+            try:
+                self.ipopo.kill(NAME_A)
+            except:
+                pass
 
+    def test_post_un_registration(self):
+        """
+        Tests the Post(Un)Registration decorator
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+        assert isinstance(context, BundleContext)
+
+        # Assert that the service is not yet available
+        self.assertIsNone(context.get_service_reference(IEchoService),
+                          "Service is already registered")
+        self.assertIsNone(context.get_service_reference("TestService"),
+                          "TestService is already registered")
+
+        # Instantiate the component
+        component = self.ipopo.instantiate(module.FACTORY_A, NAME_A)
+
+        try:
+            # Service should be there (controller default value is True)
+            ref_echo = context.get_service_reference(IEchoService)
+            self.assertIsNotNone(ref_echo,
+                                 "EchoService hasn't been registered")
+
+            ref = context.get_service_reference("TestService")
+            self.assertIsNotNone(ref, "TestService hasn't been registered")
+
+            # Check if the component has been notified
+            self.assertCountEqual(component.calls_register, [ref_echo, ref])
+            self.assertListEqual(component.calls_unregister, [])
+            del component.calls_register[:]
+            del component.calls_unregister[:]
+
+            # Get the service instance
+            svc = context.get_service(ref)
+
+            # Change the value of the controller
+            svc.change_controller(False)
+            self.assertIsNone(context.get_service_reference("TestService"),
+                              "TestService hasn't been unregistered")
+            self.assertIsNotNone(context.get_service_reference(IEchoService),
+                                 "EchoService has been unregistered")
+
+            self.assertListEqual(component.calls_register, [])
+            self.assertListEqual(component.calls_unregister, [ref])
+            del component.calls_register[:]
+            del component.calls_unregister[:]
+
+            # Re-change the value
+            svc.change_controller(True)
+            ref2 = context.get_service_reference("TestService")
+            self.assertIsNotNone(ref2,
+                                 "TestService hasn't been re-registered")
+            self.assertIsNotNone(context.get_service_reference(IEchoService),
+                                 "EchoService has been unregistered")
+
+            self.assertListEqual(component.calls_register, [ref2])
+            self.assertListEqual(component.calls_unregister, [])
+            del component.calls_register[:]
+            del component.calls_unregister[:]
+
+            # Invalidate the component
+            self.ipopo.invalidate(NAME_A)
+
+            self.assertListEqual(component.calls_register, [])
+            self.assertCountEqual(component.calls_unregister, [ref_echo, ref2])
+            del component.calls_register[:]
+            del component.calls_unregister[:]
+
+            # Re-change the value (once invalidated)
+            svc.change_controller(True)
+
+            # Service should not be there anymore
+            self.assertIsNone(context.get_service_reference("TestService"),
+                              "TestService is still registered")
+            self.assertIsNone(context.get_service_reference(IEchoService),
+                              "EchoService is still registered")
+
+            # No notification here
+            self.assertListEqual(component.calls_register, [])
+            self.assertListEqual(component.calls_unregister, [])
+
+            # Clean up
+            context.unget_service(ref)
         finally:
             try:
                 self.ipopo.kill(NAME_A)
