@@ -14,6 +14,7 @@ from tests.ipopo import install_bundle, install_ipopo
 from pelix.framework import FrameworkFactory, BundleContext
 
 # Standard library
+import sys
 try:
     import unittest2 as unittest
 except ImportError:
@@ -39,6 +40,10 @@ class ProvidesTest(unittest.TestCase):
         self.framework = FrameworkFactory.get_framework()
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
+
+        # Compatibility issue
+        if sys.version_info[0] < 3:
+            self.assertCountEqual = self.assertItemsEqual
 
     def tearDown(self):
         """
