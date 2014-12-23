@@ -318,8 +318,8 @@ class StoredInstance(object):
 
             # Call the component
             if callback:
-                self.__safe_callback(constants.IPOPO_CALLBACK_INVALIDATE,
-                                     self.bundle_context)
+                self.safe_callback(constants.IPOPO_CALLBACK_INVALIDATE,
+                                   self.bundle_context)
 
                 # Trigger an "Invalidated" event
                 self._ipopo_service._fire_ipopo_event(
@@ -403,8 +403,8 @@ class StoredInstance(object):
             if safe_callback:
                 # Safe call back needed and not yet passed
                 self.state = StoredInstance.VALIDATING
-                if not self.__safe_callback(constants.IPOPO_CALLBACK_VALIDATE,
-                                            self.bundle_context):
+                if not self.safe_callback(constants.IPOPO_CALLBACK_VALIDATE,
+                                          self.bundle_context):
                     # Stop there if the callback failed
                     self.invalidate(True)
                     return
@@ -473,7 +473,7 @@ class StoredInstance(object):
 
         return result
 
-    def __safe_callback(self, event, *args, **kwargs):
+    def safe_callback(self, event, *args, **kwargs):
         """
         Calls the registered method in the component for the given event,
         ignoring raised exceptions
@@ -487,7 +487,6 @@ class StoredInstance(object):
 
         try:
             return self.__callback(event, *args, **kwargs)
-
         except FrameworkException as ex:
             # Important error
             self._logger.exception("Critical error calling back %s: %s",
@@ -502,7 +501,6 @@ class StoredInstance(object):
                                    "stopped.", self.name)
                 self.bundle_context.get_bundle(0).stop()
             return False
-
         except:
             self._logger.exception("Component '%s' : error calling "
                                    "callback method for event %s",
@@ -674,7 +672,7 @@ class StoredInstance(object):
         setattr(self.instance, dependency.get_field(), dependency.get_value())
 
         # Call the component back
-        self.__safe_callback(constants.IPOPO_CALLBACK_BIND, service, reference)
+        self.safe_callback(constants.IPOPO_CALLBACK_BIND, service, reference)
 
         self.__safe_field_callback(dependency.get_field(),
                                    constants.IPOPO_CALLBACK_BIND_FIELD,
@@ -702,8 +700,8 @@ class StoredInstance(object):
                                    constants.IPOPO_CALLBACK_UPDATE_FIELD,
                                    service, reference, old_properties)
 
-        self.__safe_callback(constants.IPOPO_CALLBACK_UPDATE, service,
-                             reference, old_properties)
+        self.safe_callback(constants.IPOPO_CALLBACK_UPDATE, service,
+                           reference, old_properties)
 
     def __unset_binding(self, dependency, service, reference):
         """
@@ -718,8 +716,7 @@ class StoredInstance(object):
                                    constants.IPOPO_CALLBACK_UNBIND_FIELD,
                                    service, reference)
 
-        self.__safe_callback(constants.IPOPO_CALLBACK_UNBIND, service,
-                             reference)
+        self.safe_callback(constants.IPOPO_CALLBACK_UNBIND, service, reference)
 
         # Update the injected field
         setattr(self.instance, dependency.get_field(), dependency.get_value())
