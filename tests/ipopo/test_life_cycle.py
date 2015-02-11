@@ -15,6 +15,7 @@ from pelix.framework import FrameworkFactory
 # iPOPO
 from pelix.ipopo.constants import IPopoEvent
 import pelix.ipopo.constants as constants
+import pelix.ipopo.decorators as decorators
 
 # Standard library
 try:
@@ -152,6 +153,51 @@ class LifeCycleTest(unittest.TestCase):
 
         # Clean up
         self.ipopo.kill(NAME_A)
+
+    def testSingleton(self):
+        """
+        Tests singleton factory handling
+        """
+        factory_name = "singleton-factory"
+        name_a = "singleton.A"
+        name_b = "singleton.B"
+
+        @decorators.SingletonFactory(factory_name)
+        class Singleton(object):
+            pass
+
+        # Register factory
+        self.ipopo.register_factory(self.framework.get_bundle_context(),
+                                    Singleton)
+
+        # Instantiate once
+        self.ipopo.instantiate(factory_name, name_a, {})
+
+        # Assert it is in the registry
+        self.assertTrue(self.ipopo.is_registered_instance(name_a),
+                        "Instance A is not in the registry")
+
+        # Try instantiate twice
+        self.assertRaises(ValueError, self.ipopo.instantiate, factory_name,
+                          name_b, {})
+        self.assertFalse(self.ipopo.is_registered_instance(name_b),
+                         "Instance B is in the registry")
+
+        # Kill the instance
+        self.ipopo.kill(name_a)
+        self.assertFalse(self.ipopo.is_registered_instance(name_a),
+                         "Instance A is still in the registry")
+
+        # Re-instantiate with same name and different name
+        for name in (name_a, name_b):
+            self.ipopo.instantiate(factory_name, name, {})
+            self.assertTrue(self.ipopo.is_registered_instance(name),
+                            "Instance is not in the registry")
+
+            # Kill the instance
+            self.ipopo.kill(name)
+            self.assertFalse(self.ipopo.is_registered_instance(name),
+                             "Instance is still in the registry")
 
 # ------------------------------------------------------------------------------
 

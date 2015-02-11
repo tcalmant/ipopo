@@ -471,6 +471,7 @@ class ComponentFactory(object):
             # Update the factory context
             context.name = self.__factory_name
             context.inherit_handlers(self.__excluded_inheritance)
+            context.is_singleton = False
             context.completed = True
 
             # Find callbacks
@@ -493,6 +494,28 @@ class ComponentFactory(object):
                           " Keeping the old name.",
                           get_method_description(factory_class), context.name)
 
+        return factory_class
+
+
+class SingletonFactory(ComponentFactory):
+    """
+    Decorator that sets up a component factory class which supports only one
+    instantiated component at a time
+    """
+    def __call__(self, factory_class):
+        """
+        Sets up and registers the factory class
+
+        :param factory_class: The class to decorate
+        :return: The decorated class
+        :raise TypeError: The given object is not a class
+        """
+        # Manipulate the class
+        factory_class = super(SingletonFactory, self).__call__(factory_class)
+
+        # Set the singleton flag
+        context = get_factory_context(factory_class)
+        context.is_singleton = True
         return factory_class
 
 # ------------------------------------------------------------------------------

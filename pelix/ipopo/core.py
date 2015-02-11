@@ -680,14 +680,26 @@ class _IPopoService(object):
                 factory, factory_context = \
                     self.__get_factory_with_context(factory_name)
 
-            # Create component instance
-            try:
-                instance = factory()
-            except:
-                _logger.exception("Error creating the instance '%s' "
-                                  "from factory '%s'", name, factory_name)
-                raise TypeError("Factory '{0}' failed to create '{1}'"
-                                .format(factory_name, name))
+                # Check if the factory is singleton and if a component is
+                # already started
+                if factory_context.is_singleton and \
+                        factory_context.is_singleton_active:
+                    raise ValueError("{0} is a singleton: {1} can't be "
+                                     "instantiated."
+                                     .format(factory_name, name))
+
+                # Create component instance
+                try:
+                    instance = factory()
+                except:
+                    _logger.exception("Error creating the instance '%s' "
+                                      "from factory '%s'", name, factory_name)
+                    raise TypeError("Factory '{0}' failed to create '{1}'"
+                                    .format(factory_name, name))
+
+                # Instantiation succeeded: update singleton status
+                if factory_context.is_singleton:
+                    factory_context.is_singleton_active = True
 
             # Normalize the given properties
             properties = \
@@ -698,10 +710,10 @@ class _IPopoService(object):
             component_context = ComponentContext(factory_context, name,
                                                  properties)
 
-        # Try to instantiate the component immediately
-        if not self.__try_instantiate(component_context, instance):
-            # A handler is missing, put the component in the queue
-            self.__waiting_handlers[name] = (component_context, instance)
+            # Try to instantiate the component immediately
+            if not self.__try_instantiate(component_context, instance):
+                # A handler is missing, put the component in the queue
+                self.__waiting_handlers[name] = (component_context, instance)
 
         return instance
 
@@ -756,13 +768,22 @@ class _IPopoService(object):
                 # Running instance
                 stored_instance = self.__instances.pop(name)
 
+                # Store the reference to the factory context
+                factory_context = stored_instance.context.factory_context
+
                 # Kill it
                 stored_instance.kill()
 
+                # Update the singleton state flag
+                factory_context.is_singleton_active = False
             except KeyError:
                 # Queued instance
                 try:
-                    del self.__waiting_handlers[name]
+                    # Extract the component context
+                    context, _ = self.__waiting_handlers.pop(name)
+
+                    # Update the singleton state flag
+                    context.factory_context.is_singleton_active = False
                 except KeyError:
                     raise ValueError("Unknown component instance '{0}'"
                                      .format(name))

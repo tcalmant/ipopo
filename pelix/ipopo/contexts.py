@@ -234,6 +234,12 @@ class FactoryContext(object):
         # Properties fields : Field name -> Property name
         self.properties_fields = {}
 
+        # Singleton factory
+        self.is_singleton = False
+
+        # Singleton active
+        self.is_singleton_active = False
+
         # The factory manipulation has been completed
         self.completed = False
 
@@ -284,6 +290,7 @@ class FactoryContext(object):
 
         # Remove instances in any case
         new_context.__instances.clear()
+        new_context.is_singleton_active = False
         return new_context
 
     def inherit_handlers(self, excluded_handlers):
