@@ -1,21 +1,15 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 # -- Content-Encoding: UTF-8 --
 """
-Tests the thread pool module
+Cached thread pool tests
 
-:author: Thomas Calmant
+:license: Apache License 2.0
 """
-
-__version__ = (1, 0, 0)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
 # Tested module
-import pelix.threadpool as threadpool
-import pelix.utilities as utilities
+import jsonrpclib.threadpool as threadpool
 
 # Standard library
 import threading
@@ -30,12 +24,19 @@ except ImportError:
 # ------------------------------------------------------------------------------
 
 
-def _slow_call(wait, result):
+def _slow_call(wait, result=None):
     """
     Method that returns after the given time (in seconds)
     """
     time.sleep(wait)
     return result
+
+
+def _trace_call(result_list, result):
+    """
+    Methods stores the result in the result list
+    """
+    result_list.append(result)
 
 # ------------------------------------------------------------------------------
 
@@ -139,7 +140,7 @@ class FutureTest(unittest.TestCase):
         Tests the callback method
         """
         # Set the callback before calling the method
-        flag = utilities.EventData()
+        flag = threadpool.EventData()
         future = threadpool.FutureResult()
         future.set_callback(self._callback, flag)
         self.assertFalse(flag.is_set(), "Flag already set")
@@ -168,7 +169,7 @@ class FutureTest(unittest.TestCase):
         Tests the callback method in case of exception
         """
         # Set the callback before calling the method
-        flag = utilities.EventData()
+        flag = threadpool.EventData()
         future = threadpool.FutureResult()
         future.set_callback(self._callback, flag)
         self.assertFalse(flag.is_set(), "Flag already set")
@@ -203,7 +204,7 @@ class FutureTest(unittest.TestCase):
         """
         future = threadpool.FutureResult()
         args = (1, 2, 3)
-        flag = utilities.EventData()
+        flag = threadpool.EventData()
 
         def dummy():
             """
@@ -253,9 +254,51 @@ class ThreadPoolTest(unittest.TestCase):
         """
         Tests the validity checks on thread pool creation
         """
-        # Invalid number of threads
-        for invalid_nb in (0, -1, 0.1):
+        # Invalid maximum number of threads
+        for invalid_nb in (0, -1, 0.1, "abc"):
+            # Invalid max threads
             self.assertRaises(ValueError, threadpool.ThreadPool, invalid_nb)
+
+        # Invalid minimum threads
+        self.assertRaises(ValueError, threadpool.ThreadPool, 10, "abc")
+
+        # Normalization of the minimum number of thread
+        # ... < 0 => 0
+        pool = threadpool.ThreadPool(10, -1)
+        self.assertEqual(pool._min_threads, 0)
+
+        # ... > max => max
+        pool = threadpool.ThreadPool(10, 100)
+        self.assertEqual(pool._min_threads, 10)
+
+        # Check queue size
+        for queue_size in (-1, 0, 0.1, "abc"):
+            pool = threadpool.ThreadPool(10, queue_size=queue_size)
+            self.assertLessEqual(pool._queue.maxsize, 0)
+
+    def testDoubleStartStop(self):
+        """
+        Check double call to start() and stop()
+        """
+        self.pool = threadpool.ThreadPool(1)
+        result_list = []
+
+        # Enqueue the call
+        future = self.pool.enqueue(_trace_call, result_list, None)
+
+        # Double start
+        self.pool.start()
+        self.pool.start()
+
+        # Wait for the result
+        future.result()
+
+        # Ensure the method has been called only once
+        self.assertEqual(len(result_list), 1)
+
+        # Double stop: shouldn't raise any error
+        self.pool.stop()
+        self.pool.stop()
 
     def testPreStartEnqueue(self):
         """
@@ -274,6 +317,30 @@ class ThreadPoolTest(unittest.TestCase):
         # Wait for the result
         self.assertIs(future.result(1), result, "Invalid result")
         self.assertTrue(future.done(), "Execution flag not updated")
+
+        # Stop the pool
+        self.pool.stop()
+
+        # Create a new pool
+        max_threads = 5
+        futures = []
+
+        # Prepare the pool
+        self.pool = threadpool.ThreadPool(max_threads)
+
+        # Enqueue more tasks than the maximum threads for the pool
+        for i in range(max_threads * 2):
+            futures.append(self.pool.enqueue(_slow_call, 0, result))
+
+        # Start the pool
+        self.pool.start()
+
+        # Ensure all methods are called
+        for future in futures:
+            future.result(2)
+
+        # Stop the pool
+        self.pool.stop()
 
     def testPreRestartEnqueue(self):
         """
@@ -303,8 +370,100 @@ class ThreadPoolTest(unittest.TestCase):
         self.pool.start()
 
         # Wait for the result
-        self.assertIs(future.result(1), result, "Invalid result")
+        self.assertIs(future.result(5), result, "Invalid result")
         self.assertTrue(future.done(), "Execution flag not updated")
+
+    def testException(self):
+        """
+        Tests if an exception is correctly hidden
+        """
+        # Define the exception
+        def thrower(ex):
+            raise ex
+
+        exception = ValueError("Some error")
+
+        # Start the pool
+        self.pool = threadpool.ThreadPool(1)
+        self.pool.start()
+
+        # Enqueue the method
+        future = self.pool.enqueue(thrower, exception)
+
+        # Wait for the method to be executed
+        self.pool.join()
+
+        # Method has been called
+        self.assertTrue(future.done())
+
+        try:
+            future.result()
+        except ValueError as catched_ex:
+            # result() must raise the exact exception
+            self.assertIs(catched_ex, exception)
+
+    def testJoin(self):
+        """
+        Tests the join() method
+        """
+        # Start the pool
+        self.pool = threadpool.ThreadPool(1)
+        self.pool.start()
+
+        # Empty, with or without timeout
+        self.assertTrue(self.pool.join())
+
+        start = time.time()
+        self.assertTrue(self.pool.join(5))
+        end = time.time()
+        self.assertLess(end - start, 1)
+
+        # Not empty, without timeout
+        self.pool.enqueue(_slow_call, 2)
+        start = time.time()
+        self.assertTrue(self.pool.join())
+        end = time.time()
+        self.assertLess(end - start, 3)
+
+        # Really join
+        self.pool.join()
+
+        # Not empty, with timeout not reached
+        self.pool.enqueue(_slow_call, 1)
+        start = time.time()
+        self.assertTrue(self.pool.join(5))
+        end = time.time()
+        self.assertLess(end - start, 3)
+
+        # Really join
+        self.pool.join()
+
+        # Not empty, with timeout reached
+        self.pool.enqueue(_slow_call, 4)
+        start = time.time()
+        self.assertFalse(self.pool.join(1))
+        end = time.time()
+        self.assertLess(end - start, 2)
+
+        # Really join
+        self.pool.join()
+
+    def testMaxThread(self):
+        """
+        Checks if the maximum number of threads is respected
+        """
+        # Start the pool
+        self.pool = threadpool.ThreadPool(3)
+        self.pool.start()
+
+        # Enqueue & check
+        for _ in range(10):
+            time.sleep(.1)
+            self.pool.enqueue(_slow_call, .8, None)
+            self.assertLessEqual(self.pool._ThreadPool__nb_threads,
+                                 self.pool._max_threads)
+
+        self.pool.join()
 
 # ------------------------------------------------------------------------------
 

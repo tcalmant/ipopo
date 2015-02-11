@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-Pelix Utilities: Task pool
+Pelix Utilities: Cached thread pool
 
 :author: Thomas Calmant
 :copyright: Copyright 2014, isandlaTech
 :license: Apache License 2.0
 :version: 0.5.8
-:status: Beta
 
 ..
 
-    Copyright 2014 isandlaTech
+    Copyright 2015 isandlaTech
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -30,7 +29,7 @@ Pelix Utilities: Task pool
 __docformat__ = "restructuredtext en"
 
 # Module version
-__version_info__ = (0, 5, 8)
+__version_info__ = (0, 5, 9)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -156,21 +155,34 @@ class ThreadPool(object):
     """
     Executes the tasks stored in a FIFO in a thread pool
     """
-    def __init__(self, nb_threads, queue_size=0, timeout=5, logname=None):
+    def __init__(self, max_threads, min_threads=1, queue_size=0, timeout=60,
+                 logname=None):
         """
-        Sets up the task executor
+        Sets up the thread pool.
 
-        :param nb_threads: Size of the thread pool
+        Threads are kept alive 60 seconds (timeout argument).
+
+        :param max_threads: Maximum size of the thread pool
+        :param min_threads: Minimum size of the thread pool
         :param queue_size: Size of the task queue (0 for infinite)
-        :param timeout: Queue timeout (in seconds)
+        :param timeout: Queue timeout (in seconds, 60s by default)
         :param logname: Name of the logger
         :raise ValueError: Invalid number of threads
         """
         # Validate parameters
         try:
-            nb_threads = int(nb_threads)
-            if nb_threads < 1:
+            max_threads = int(max_threads)
+            if max_threads < 1:
                 raise ValueError("Pool size must be greater than 0")
+        except (TypeError, ValueError) as ex:
+            raise ValueError("Invalid pool size: {0}".format(ex))
+
+        try:
+            min_threads = int(min_threads)
+            if min_threads < 0:
+                min_threads = 0
+            elif min_threads > max_threads:
+                min_threads = max_threads
         except (TypeError, ValueError) as ex:
             raise ValueError("Invalid pool size: {0}".format(ex))
 
@@ -190,11 +202,19 @@ class ThreadPool(object):
 
         self._queue = queue.Queue(queue_size)
         self._timeout = timeout
-        self.__lock = threading.Lock()
+        self.__lock = threading.RLock()
 
         # The thread pool
-        self._nb_threads = nb_threads
+        self._min_threads = min_threads
+        self._max_threads = max_threads
         self._threads = []
+
+        # Thread count
+        self._thread_id = 0
+
+        # Current number of threads, active and alive
+        self.__nb_threads = 0
+        self.__nb_active_threads = 0
 
     def start(self):
         """
@@ -207,17 +227,41 @@ class ThreadPool(object):
         # Clear the stop event
         self._done_event.clear()
 
-        # Create the threads
-        i = 0
-        while i < self._nb_threads:
-            i += 1
-            name = "{0}-{1}".format(self._logger.name, i)
-            thread = threading.Thread(target=self.__run, name=name)
-            self._threads.append(thread)
+        # Compute the number of threads to start to handle pending tasks
+        nb_pending_tasks = self._queue.qsize()
+        if nb_pending_tasks > self._max_threads:
+            nb_threads = self._max_threads
+        elif nb_pending_tasks < self._min_threads:
+            nb_threads = self._min_threads
+        else:
+            nb_threads = nb_pending_tasks
 
-        # Start'em
-        for thread in self._threads:
+        # Create the threads
+        for _ in range(nb_threads):
+            self.__start_thread()
+
+    def __start_thread(self):
+        """
+        Starts a new thread, if possible
+        """
+        with self.__lock:
+            if self.__nb_threads >= self._max_threads:
+                # Can't create more threads
+                return False
+
+            if self._done_event.is_set():
+                # We're stopped: do nothing
+                return False
+
+            # Prepare thread and start it
+            name = "{0}-{1}".format(self._logger.name, self._thread_id)
+            self._thread_id += 1
+
+            thread = threading.Thread(target=self.__run, name=name)
+            thread.daemon = True
+            self._threads.append(thread)
             thread.start()
+            return True
 
     def stop(self):
         """
@@ -239,15 +283,18 @@ class ThreadPool(object):
                 # There is already something in the queue
                 pass
 
-            # Join threads
-            for thread in self._threads:
-                while thread.is_alive():
-                    # Wait 3 seconds
-                    thread.join(3)
-                    if thread.is_alive():
-                        # Thread is still alive: something might be wrong
-                        self._logger.warning("Thread %s is still alive...",
-                                             thread.name)
+            # Copy the list of threads to wait for
+            threads = self._threads[:]
+
+        # Join threads outside the lock
+        for thread in threads:
+            while thread.is_alive():
+                # Wait 3 seconds
+                thread.join(3)
+                if thread.is_alive():
+                    # Thread is still alive: something might be wrong
+                    self._logger.warning("Thread %s is still alive...",
+                                         thread.name)
 
         # Clear storage
         del self._threads[:]
@@ -255,7 +302,7 @@ class ThreadPool(object):
 
     def enqueue(self, method, *args, **kwargs):
         """
-        Enqueues a task in the pool
+        Queues a task in the pool
 
         :param method: Method to call
         :return: A FutureResult object, to get the result of the task
@@ -274,6 +321,10 @@ class ThreadPool(object):
             # Add the task to the queue
             self._queue.put((method, args, kwargs, future), True,
                             self._timeout)
+
+            if self.__nb_active_threads == self.__nb_threads:
+                # All threads are taken: start a new one
+                self.__start_thread()
 
         return future
 
@@ -313,12 +364,15 @@ class ThreadPool(object):
             # Wait for the condition
             with self._queue.all_tasks_done:
                 self._queue.all_tasks_done.wait(timeout)
-                return self._queue.empty()
+                return not bool(self._queue.unfinished_tasks)
 
     def __run(self):
         """
         The main loop
         """
+        with self.__lock:
+            self.__nb_threads += 1
+
         while not self._done_event.is_set():
             try:
                 # Wait for an action (blocking)
@@ -326,11 +380,16 @@ class ThreadPool(object):
                 if task is self._done_event:
                     # Stop event in the queue: get out
                     self._queue.task_done()
-                    return
+                    with self.__lock:
+                        self.__nb_threads -= 1
+                        return
             except queue.Empty:
-                # Nothing to do
+                # Nothing to do yet
                 pass
             else:
+                with self.__lock:
+                    self.__nb_active_threads += 1
+
                 # Extract elements
                 method, args, kwargs, future = task
                 try:
@@ -342,3 +401,14 @@ class ThreadPool(object):
                 finally:
                     # Mark the action as executed
                     self._queue.task_done()
+
+                    # Thread is not active anymore
+                    self.__nb_active_threads -= 1
+
+            # Clean up thread if necessary
+            with self.__lock:
+                if self.__nb_threads > self._min_threads:
+                    # No more work for this thread, and we're above the
+                    # minimum number of threads: stop this one
+                    self.__nb_threads -= 1
+                    return
