@@ -73,6 +73,9 @@ class StoredInstance(object):
     VALIDATING = 3
     """ This component is currently validating """
 
+    ERRONEOUS = 4
+    """ This component has failed while validating """
+
     def __init__(self, ipopo_service, context, instance, handlers):
         """
         Sets up the instance object
@@ -86,8 +89,8 @@ class StoredInstance(object):
         assert isinstance(context, ComponentContext)
 
         # The logger
-        self._logger = logging.getLogger('-'.join(("InstanceManager",
-                                                   context.name)))
+        self._logger = logging.getLogger(
+            '-'.join(("InstanceManager", context.name)))
 
         # The lock
         self._lock = threading.RLock()
@@ -390,7 +393,8 @@ class StoredInstance(object):
         """
         with self._lock:
             if self.state in (StoredInstance.VALID,
-                              StoredInstance.VALIDATING):
+                              StoredInstance.VALIDATING,
+                              StoredInstance.ERRONEOUS):
                 # No work to do (yet)
                 return
 
@@ -407,6 +411,9 @@ class StoredInstance(object):
                                           self.bundle_context):
                     # Stop there if the callback failed
                     self.invalidate(True)
+
+                    # Consider the component has erroneous
+                    self.state = StoredInstance.ERRONEOUS
                     return
 
             # All good

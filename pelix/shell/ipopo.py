@@ -63,7 +63,8 @@ def ipopo_state_to_str(state):
     ipopo_states = {0: "INVALID",
                     1: "VALID",
                     2: "KILLED",
-                    3: "VALIDATING"}
+                    3: "VALIDATING",
+                    4: "ERRONEOUS"}
 
     return ipopo_states.get(state, "Unknown state ({0})".format(state))
 
