@@ -717,6 +717,23 @@ class _IPopoService(object):
 
         return instance
 
+    def retry_erroneous(self, name):
+        """
+        Removes the ERRONEOUS state of the given component, and retries a
+        validation
+
+        :param name: Name of the component to retry
+        :return: The new state of the component
+        :raise ValueError: Invalid component name
+        """
+        with self.__instances_lock:
+            if name not in self.__instances:
+                raise ValueError("Unknown component instance '{0}'"
+                                 .format(name))
+
+            stored_instance = self.__instances[name]
+            return stored_instance.retry_erroneous()
+
     def invalidate(self, name):
         """
         Invalidates the given component

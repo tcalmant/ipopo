@@ -301,17 +301,38 @@ class StoredInstance(object):
         with self._lock:
             self.__safe_handlers_callback('start')
 
+    def retry_erroneous(self):
+        """
+        Removes the ERRONEOUS state from a component and retries a validation
+
+        :return: The new state of the component
+        """
+        with self._lock:
+            if self.state != StoredInstance.ERRONEOUS:
+                # Not in erroneous state: ignore
+                return self.state
+
+            # Reset state
+            self.state = StoredInstance.INVALID
+
+            # Retry
+            self.check_lifecycle()
+
+            # Check if the component is still erroneous
+            return self.state
+
     def invalidate(self, callback=True):
         """
         Applies the component invalidation.
 
         :param callback: If True, call back the component before the
                          invalidation
+        :return: False if the component wasn't valid
         """
         with self._lock:
             if self.state != StoredInstance.VALID:
                 # Instance is not running...
-                return
+                return False
 
             # Change the state
             self.state = StoredInstance.INVALID
@@ -331,6 +352,7 @@ class StoredInstance(object):
 
             # Call the handlers
             self.__safe_handlers_callback('post_invalidate')
+            return True
 
     def kill(self):
         """
@@ -338,15 +360,15 @@ class StoredInstance(object):
 
         When this method is called, this StoredInstance object must have
         been removed from the registry
+        :return: True if the component has been killed, False if it already was
         """
         with self._lock:
             # Already dead...
             if self.state == StoredInstance.KILLED:
-                return
+                return False
 
             try:
                 self.invalidate(True)
-
             except:
                 self._logger.exception("%s: Error invalidating the instance",
                                        self.name)
@@ -364,8 +386,8 @@ class StoredInstance(object):
                             self.__unset_binding(handler, binding[0],
                                                  binding[1])
                     except Exception as ex:
-                        self._logger.exception("Error stopping handler '%s': "
-                                               "%s", handler, ex)
+                        self._logger.exception(
+                            "Error stopping handler '%s': %s", handler, ex)
 
             # Call the handlers
             self.__safe_handlers_callback('clear')
@@ -383,12 +405,14 @@ class StoredInstance(object):
             self.context = None
             self.instance = None
             self._ipopo_service = None
+            return True
 
     def validate(self, safe_callback=True):
         """
         Ends the component validation, registering services
 
         :param safe_callback: If True, calls the component validation callback
+        :return: True if the component has been validated, else False
         :raise RuntimeError: You try to awake a dead component
         """
         with self._lock:
@@ -396,7 +420,7 @@ class StoredInstance(object):
                               StoredInstance.VALIDATING,
                               StoredInstance.ERRONEOUS):
                 # No work to do (yet)
-                return
+                return False
 
             if self.state == StoredInstance.KILLED:
                 raise RuntimeError("{0}: Zombies !".format(self.name))
@@ -410,11 +434,12 @@ class StoredInstance(object):
                 if not self.safe_callback(constants.IPOPO_CALLBACK_VALIDATE,
                                           self.bundle_context):
                     # Stop there if the callback failed
+                    self.state = StoredInstance.VALID
                     self.invalidate(True)
 
                     # Consider the component has erroneous
                     self.state = StoredInstance.ERRONEOUS
-                    return
+                    return False
 
             # All good
             self.state = StoredInstance.VALID
@@ -428,6 +453,7 @@ class StoredInstance(object):
                 self._ipopo_service._fire_ipopo_event(
                     constants.IPopoEvent.VALIDATED,
                     self.factory_name, self.name)
+        return True
 
     def __callback(self, event, *args, **kwargs):
         """
