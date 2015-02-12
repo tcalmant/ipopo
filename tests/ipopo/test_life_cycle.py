@@ -14,6 +14,7 @@ from pelix.framework import FrameworkFactory
 
 # iPOPO
 from pelix.ipopo.constants import IPopoEvent
+from pelix.ipopo.instance import StoredInstance
 import pelix.ipopo.constants as constants
 import pelix.ipopo.decorators as decorators
 
@@ -198,6 +199,49 @@ class LifeCycleTest(unittest.TestCase):
             self.ipopo.kill(name)
             self.assertFalse(self.ipopo.is_registered_instance(name),
                              "Instance is still in the registry")
+
+    def testErroneous(self):
+        """
+        Tests the handling of erroneous components
+        """
+        # The method must raise an error if the component is unknown
+        self.assertRaises(ValueError, self.ipopo.retry_erroneous, NAME_A)
+
+        # Instantiate an erroneous component
+        component = self.ipopo.instantiate(self.module.FACTORY_ERRONEOUS,
+                                           NAME_A, {})
+
+        # Assert it failed
+        self.assertEqual(self.ipopo.get_instance_details(NAME_A)['state'],
+                         StoredInstance.ERRONEOUS)
+
+        # => invalidate() must have been called
+        self.assertEqual(component.states,
+                         [IPopoEvent.INSTANTIATED, IPopoEvent.INVALIDATED])
+        component.reset()
+
+        # Retry immediately
+        self.ipopo.retry_erroneous(NAME_A)
+        self.assertEqual(self.ipopo.get_instance_details(NAME_A)['state'],
+                         StoredInstance.ERRONEOUS)
+        self.assertEqual(component.states, [IPopoEvent.INVALIDATED])
+        component.reset()
+
+        # Remove exception
+        component.raise_exception = False
+
+        # Retry immediately
+        self.ipopo.retry_erroneous(NAME_A)
+        self.assertEqual(self.ipopo.get_instance_details(NAME_A)['state'],
+                         StoredInstance.VALID)
+        self.assertEqual(component.states, [IPopoEvent.VALIDATED])
+        component.reset()
+
+        # Retry when valid => should not call validate again
+        self.ipopo.retry_erroneous(NAME_A)
+        self.assertEqual(self.ipopo.get_instance_details(NAME_A)['state'],
+                         StoredInstance.VALID)
+        self.assertEqual(component.states, [])
 
 # ------------------------------------------------------------------------------
 

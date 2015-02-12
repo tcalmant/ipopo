@@ -35,6 +35,7 @@ FACTORY_C = "ipopo.tests.c"
 FACTORY_IMMEDIATE = "ipopo.tests.immediate"
 FACTORY_REQUIRES_BEST = "ipopo.tests.best"
 FACTORY_TEMPORAL = "ipopo.tests.temporal"
+FACTORY_ERRONEOUS = "ipopo.tests.erroneous"
 PROP_USABLE = "usable"
 
 # ------------------------------------------------------------------------------
@@ -306,7 +307,7 @@ class ImmediateComponentFactory(TestComponentFactory):
 @RequiresBest('service', IEchoService)
 class RequiresBestComponentFactory(TestComponentFactory):
     """
-    Component factory with a immediate_rebind flag
+    Component factory with a RequiresBest requirement
     """
     @Bind
     def bind(self, svc, svc_ref):
@@ -329,7 +330,7 @@ class RequiresBestComponentFactory(TestComponentFactory):
 @Temporal('service', IEchoService, timeout=2)
 class TemporalComponentFactory(TestComponentFactory):
     """
-    Component factory with a immediate_rebind flag
+    Component factory with a temporal requirement
     """
     @Bind
     def bind(self, svc, svc_ref):
@@ -352,6 +353,32 @@ class TemporalComponentFactory(TestComponentFactory):
         return self.service.method()
 
 # ------------------------------------------------------------------------------
+
+
+@ComponentFactory(FACTORY_ERRONEOUS)
+class ErroneousComponentFactory(TestComponentFactory):
+    """
+    Component factory with a immediate_rebind flag
+    """
+    def __init__(self):
+        """
+        Sets up members
+        """
+        super(ErroneousComponentFactory, self).__init__()
+        self.raise_exception = True
+
+    @Validate
+    def validate(self, context):
+        """
+        Validation
+        """
+        if self.raise_exception:
+            raise OSError("Error raised")
+        else:
+            super(ErroneousComponentFactory, self).validate(context)
+
+# ------------------------------------------------------------------------------
+
 
 @BundleActivator
 class ActivatorTest:
