@@ -412,3 +412,7 @@ class ThreadPool(object):
                     # minimum number of threads: stop this one
                     self.__nb_threads -= 1
                     return
+
+        with self.__lock:
+            # Thread stops
+            self.__nb_threads -= 1
