@@ -103,7 +103,8 @@ class IPopoCommands(object):
                 ("waiting", self.list_waitings),
                 ("instance", self.instance_details),
                 ("instantiate", self.instantiate),
-                ("kill", self.kill)]
+                ("kill", self.kill),
+                ("retry", self.retry_erroneous)]
 
     def list_factories(self, session, name=None):
         """
@@ -295,6 +296,18 @@ class IPopoCommands(object):
         try:
             self._ipopo.kill(name)
             session.write_line("Component '{0}' killed.", name)
+        except ValueError as ex:
+            session.write_line("Invalid parameter: {0}", ex)
+            return False
+
+    def retry_erroneous(self, session, name):
+        """
+        Removes the erroneous flag from a component and retries to validate it
+        """
+        try:
+            new_state = self._ipopo.retry_erroneous(name)
+            session.write_line("Component '{0}' is now in state {1}.", name,
+                               ipopo_state_to_str(new_state))
         except ValueError as ex:
             session.write_line("Invalid parameter: {0}", ex)
             return False
