@@ -51,7 +51,10 @@ except ImportError:
     import unittest
 
 try:
+    # Try to import modules
     from multiprocessing import Process, Queue
+    # IronPython fails when creating a queue
+    Queue()
 except ImportError:
     # Some interpreters don't have support for multiprocessing
     raise unittest.SkipTest("Interpreter doesn't support multiprocessing")
