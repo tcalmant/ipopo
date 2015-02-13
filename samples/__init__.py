@@ -4,12 +4,12 @@
 Package containing samples for the iPOPO documentation
 
 :author: Thomas Calmant
-:copyright: Copyright 2014, isandlaTech
+:copyright: Copyright 2015, isandlaTech
 :license: Apache License 2.0
 
 ..
 
-    Copyright 2014 isandlaTech
+    Copyright 2015 isandlaTech
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.

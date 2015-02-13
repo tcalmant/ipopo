@@ -4,9 +4,9 @@
 Pelix Utilities: Cached thread pool
 
 :author: Thomas Calmant
-:copyright: Copyright 2014, isandlaTech
+:copyright: Copyright 2015, isandlaTech
 :license: Apache License 2.0
-:version: 0.5.8
+:version: 0.5.9
 
 ..
 
