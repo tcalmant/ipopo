@@ -17,7 +17,7 @@ iPOPO
   This avoids trying to validate them automatically.
 * The ``retry_erroneous()`` method of the iPOPO service and the ``retry`` shell
   command allows to retry the validation of an ERRONEOUS component.
-* The ``@SingletonFactory`` decortator can replace the ``@ComponentFactory``
+* The ``@SingletonFactory`` decorator can replace the ``@ComponentFactory``
   one.
   It ensures that only one component of this factory can be instantiated at a
   time.
