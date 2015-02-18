@@ -1,5 +1,5 @@
-iPOPO : A component model for Python
-####################################
+iPOPO: A component model for Python
+###################################
 
 .. image:: https://travis-ci.org/tcalmant/ipopo.svg?branch=master
      :target: https://travis-ci.org/tcalmant/ipopo
@@ -49,44 +49,48 @@ To execute iPOPO tests on this version, you also need to install the *unittest2*
 module.
 
 
-Release notes
-#############
+Release notes: 0.5.9
+####################
 
 See the CHANGELOG.rst file to see what changed in previous releases.
 
-iPOPO 0.5.8
-***********
+Project
+*******
 
-Framework
-=========
-
-* ``FrameworkFactory.delete_framework()`` can be called with ``None`` or
-  without argument. This simplifies the clean up afters tests, etc.
-* The list returned by ``Framework.get_bundles()`` is always sorted by
-  bundle ID.
-
+* iPOPO now works with IronPython (tested inside Unity 3D)
 
 iPOPO
-=====
+*****
 
-* Added the ``immediate_rebind`` option to the ``@Requires`` decorator.
-  This indicates iPOPO to not invalidate then revalidate a component if a
-  service can replace an unbound required one. This option inly applies to
-  non-optional, non-aggregate requirements.
+* Components raising an error during validation goes in the ERRONEOUS state,
+  instead of going back to INVALID.
+  This avoids trying to validate them automatically.
+* The ``retry_erroneous()`` method of the iPOPO service and the ``retry`` shell
+  command allows to retry the validation of an ERRONEOUS component.
+* The ``@SingletonFactory`` decortator can replace the ``@ComponentFactory``
+  one.
+  It ensures that only one component of this factory can be instantiated at a
+  time.
+* The ``@Temporal`` requirement decorator allows to require a service and to
+  wait a given amount of time for its replacement before invalidating the
+  component or while using the requirement.
+* ``@RequiresBest`` ensures that it is always the service with the best
+  ranking that is injected in the component.
+* The ``@PostRegistration`` and ``@PreUnregistration`` callbacks allows the
+  component to be notified right after one of its services has been registered
+  or will be unregistered.
 
+HTTP
+****
 
-Shell
-=====
+* The generated 404 page shows the list of registered servlets paths.
+* The 404 and 500 error pages can be customized by a hook service.
+* The default binding address is back to "0.0.0.0" instead of "localhost".
+  (for those who used the development version)
 
-* The I/O handler is now part of a ShellSession bean. The latter has the same
-  API as the I/O handler so there is no need to update existing commands.
-  I/O Handler write methods are now synchronized.
-* The shell supports variables as arguments, e.g. ``echo $var``.
-  See `string.Template <https://docs.python.org/3/library/string.html#template-strings>`_
-  for more information. The Template used in Pelix Shell allows ``.`` (dot)
-  in names.
-* A special variable ``$?`` stores the result of the last command which
-  returned a result, i.e. anything but None or False.
-* Added *set* and *unset* commands to work with variables
-* Added the *run* command to execute a script file.
-* Added protection against ``AttributeError`` in *threads* and *thread*
+Utilities
+*********
+
+* The ``ThreadPool`` class is now a cached thread pool. It now has a minimum
+  and maximum number of threads: only the required threads are alive.
+  A thread waits for a task during 60 seconds (by default) before stopping.

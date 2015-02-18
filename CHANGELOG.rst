@@ -1,6 +1,51 @@
 Release notes
 #############
 
+iPOPO 0.5.9
+***********
+
+Project
+=======
+
+* iPOPO now works with IronPython (tested inside Unity 3D)
+
+iPOPO
+=====
+
+* Components raising an error during validation goes in the ERRONEOUS state,
+  instead of going back to INVALID.
+  This avoids trying to validate them automatically.
+* The ``retry_erroneous()`` method of the iPOPO service and the ``retry`` shell
+  command allows to retry the validation of an ERRONEOUS component.
+* The ``@SingletonFactory`` decortator can replace the ``@ComponentFactory``
+  one.
+  It ensures that only one component of this factory can be instantiated at a
+  time.
+* The ``@Temporal`` requirement decorator allows to require a service and to
+  wait a given amount of time for its replacement before invalidating the
+  component or while using the requirement.
+* ``@RequiresBest`` ensures that it is always the service with the best
+  ranking that is injected in the component.
+* The ``@PostRegistration`` and ``@PreUnregistration`` callbacks allows the
+  component to be notified right after one of its services has been registered
+  or will be unregistered.
+
+HTTP
+====
+
+* The generated 404 page shows the list of registered servlets paths.
+* The 404 and 500 error pages can be customized by a hook service.
+* The default binding address is back to "0.0.0.0" instead of "localhost".
+  (for those who used the development version)
+
+Utilities
+=========
+
+* The ``ThreadPool`` class is now a cached thread pool. It now has a minimum
+  and maximum number of threads: only the required threads are alive.
+  A thread waits for a task during 60 seconds (by default) before stopping.
+
+
 iPOPO 0.5.8
 ***********
 
