@@ -87,7 +87,8 @@ class IPopoCommands(object):
         self._ipopo = None
         self._utils = None
 
-    def get_namespace(self):
+    @staticmethod
+    def get_namespace():
         """
         Retrieves the name space of this command handler
         """

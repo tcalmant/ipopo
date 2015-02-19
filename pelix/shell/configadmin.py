@@ -75,7 +75,8 @@ class ConfigAdminCommands(object):
         # Clean up
         self._configs.clear()
 
-    def get_namespace(self):
+    @staticmethod
+    def get_namespace():
         """
         Retrieves the name space of this command handler
         """

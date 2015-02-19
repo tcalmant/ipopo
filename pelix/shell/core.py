@@ -165,7 +165,8 @@ class ShellUtils(object):
     """
     Utility methods for the shell
     """
-    def bundlestate_to_str(self, state):
+    @staticmethod
+    def bundlestate_to_str(state):
         """
         Converts a bundle state integer to a string
         """
@@ -180,7 +181,8 @@ class ShellUtils(object):
 
         return states.get(state, "Unknown state ({0})".format(state))
 
-    def make_table(self, headers, lines, prefix=None):
+    @staticmethod
+    def make_table(headers, lines, prefix=None):
         """
         Generates an ASCII table according to the given headers and lines
 
@@ -628,13 +630,15 @@ class Shell(object):
             except IOError:
                 pass
 
-    def get_banner(self):
+    @staticmethod
+    def get_banner():
         """
         Returns the Shell banner
         """
         return "** Pelix Shell prompt **\n"
 
-    def get_ps1(self):
+    @staticmethod
+    def get_ps1():
         """
         Returns the PS1, the basic shell prompt
         """
@@ -673,7 +677,8 @@ class Shell(object):
             # Unknown name space
             return []
 
-    def echo(self, io_handler, *words):
+    @staticmethod
+    def echo(io_handler, *words):
         """
         Echoes the given words
         """
@@ -693,7 +698,8 @@ class Shell(object):
                 session.set(name, value)
                 session.write_line("{0}={1}", name, value)
 
-    def var_unset(self, session, name):
+    @staticmethod
+    def var_unset(session, name):
         """
         Unsets the given variable
         """
@@ -889,7 +895,8 @@ class Shell(object):
             io_handler.write(self._utils.make_table(headers, lines))
             io_handler.write_line("{0} services registered", len(lines))
 
-    def __extract_help(self, method):
+    @staticmethod
+    def __extract_help(method):
         """
         Formats the help string for the given method
 
@@ -1081,13 +1088,15 @@ class Shell(object):
         # Print the table
         io_handler.write(self._utils.make_table(headers, lines))
 
-    def environment_value(self, io_handler, name):
+    @staticmethod
+    def environment_value(io_handler, name):
         """
         Prints the value of the given environment variable
         """
         io_handler.write_line(os.getenv(name))
 
-    def threads_list(self, io_handler):
+    @staticmethod
+    def threads_list(io_handler):
         """
         Lists the active threads and their current code line
         """
@@ -1227,7 +1236,8 @@ class Shell(object):
 
         return '\n'.join(output_lines)
 
-    def __extract_lines(self, filename, f_globals, lineno, around):
+    @staticmethod
+    def __extract_lines(filename, f_globals, lineno, around):
         """
         Extracts a block of lines from the given file
 
@@ -1275,7 +1285,8 @@ class Shell(object):
         # Return the lines
         return lines
 
-    def log_level(self, io_handler, level=None, name=None):
+    @staticmethod
+    def log_level(io_handler, level=None, name=None):
         """
         Prints/Changes log level
         """
@@ -1302,7 +1313,8 @@ class Shell(object):
             except ValueError:
                 io_handler.write_line("Invalid log level: {0}", level)
 
-    def quit(self, io_handler):
+    @staticmethod
+    def quit(io_handler):
         """
         Stops the current shell session (raises a KeyboardInterrupt exception)
         """

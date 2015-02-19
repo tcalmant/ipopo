@@ -723,7 +723,8 @@ class ConfigurationAdmin(object):
                     self._pool.enqueue(svc.updated, configuration.get_pid(),
                                        configuration.get_properties())
 
-    def __notify_factories(self, factories, pid, properties):
+    @staticmethod
+    def __notify_factories(factories, pid, properties):
         """
         Calls the updated(pid, properties) method of managed service factories.
 
@@ -735,11 +736,11 @@ class ConfigurationAdmin(object):
             try:
                 # Only give the properties to the service
                 svc.updated(pid, properties)
-
             except Exception as ex:
                 _logger.exception("Error updating factory: %s", ex)
 
-    def __notify_factories_delete(self, factories, pid):
+    @staticmethod
+    def __notify_factories_delete(factories, pid):
         """
         Calls the deleted(pid) method of the given managed service factories.
 
@@ -749,11 +750,11 @@ class ConfigurationAdmin(object):
         for svc in factories:
             try:
                 svc.deleted(pid)
-
             except Exception as ex:
                 _logger.exception("Error notifying a factory: %s", ex)
 
-    def __notify_services(self, managed_services, properties):
+    @staticmethod
+    def __notify_services(managed_services, properties):
         """
         Calls the updated(properties) method of managed services.
         Logs errors if necessary.
@@ -765,7 +766,6 @@ class ConfigurationAdmin(object):
             try:
                 # Only give the properties to the service
                 svc.updated(properties)
-
             except Exception as ex:
                 _logger.exception("Error updating service: %s", ex)
 
@@ -968,7 +968,8 @@ class JsonPersistence(object):
         """
         return os.path.join(self._conf_folder, "{0}.config.js".format(pid))
 
-    def _get_pid(self, filename):
+    @staticmethod
+    def _get_pid(filename):
         """
         Extract the PID from the given file name
 
@@ -982,7 +983,6 @@ class JsonPersistence(object):
         try:
             ext_start = name.index('.config.js')
             return name[:ext_start] or None
-
         except IndexError:
             return None
 

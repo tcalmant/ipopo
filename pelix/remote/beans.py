@@ -401,7 +401,8 @@ class EndpointDescription(object):
                                             self.get_service_id(),
                                             self.get_framework_uuid())
 
-    def __check_properties(self, props):
+    @staticmethod
+    def __check_properties(props):
         """
         Checks that the given dictionary doesn't have export keys and has
         import keys

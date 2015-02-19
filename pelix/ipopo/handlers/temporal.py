@@ -54,7 +54,8 @@ class _HandlerFactory(constants.HandlerFactory):
     """
     Factory service for service registration handlers
     """
-    def _prepare_configs(self, configs, requires_filters, temporal_timeouts):
+    @staticmethod
+    def _prepare_configs(configs, requires_filters, temporal_timeouts):
         """
         Overrides the filters specified in the decorator with the given ones
 

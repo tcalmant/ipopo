@@ -252,7 +252,8 @@ class FileInstall(object):
             except Exception as ex:
                 _logger.exception("Error notifying a folder listener: %s", ex)
 
-    def __get_checksum(self, filepath):
+    @staticmethod
+    def __get_checksum(filepath):
         """
         Returns the checksum (Adler32) of the given file
 

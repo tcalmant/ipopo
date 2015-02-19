@@ -536,7 +536,8 @@ class HttpService(object):
         # Only keep the address and the port information
         return sock_info[0], sock_info[1]
 
-    def get_hostname(self):
+    @staticmethod
+    def get_hostname():
         """
         Retrieves the server host name
 

@@ -145,7 +145,8 @@ class Dispatcher(object):
         self._context = None
         self._fw_uid = None
 
-    def _compute_endpoint_name(self, properties):
+    @staticmethod
+    def _compute_endpoint_name(properties):
         """
         Computes the end point name according to service properties
 
@@ -547,7 +548,8 @@ class RegistryServlet(object):
         # Clean up
         self._fw_uid = None
 
-    def __grab_data(self, host, port, path):
+    @staticmethod
+    def __grab_data(host, port, path):
         """
         Sends a HTTP request to the server at (host, port), on the given path.
         Returns the parsed response.
@@ -603,7 +605,8 @@ class RegistryServlet(object):
                 "specifications": endpoint.specifications,
                 "properties": properties}
 
-    def _make_endpoint_bean(self, endpoint_dict, host=None):
+    @staticmethod
+    def _make_endpoint_bean(endpoint_dict, host=None):
         """
         Convers an endpoint dictionary into an ImportEndpoint bean
 

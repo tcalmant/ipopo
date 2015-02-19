@@ -166,7 +166,8 @@ class IPopoXMPPShell(object):
         # Task queue thread
         self.__pool = pelix.threadpool.ThreadPool(1, logname="XMPPShell")
 
-    def __normalize_int(self, value, default=0):
+    @staticmethod
+    def __normalize_int(value, default=0):
         """
         Normalizes an integer value
         """
@@ -223,7 +224,8 @@ class IPopoXMPPShell(object):
         # Clean up
         self.__sessions.clear()
 
-    def __on_error(self, error):
+    @staticmethod
+    def __on_error(error):
         """
         A socket error occurred
 

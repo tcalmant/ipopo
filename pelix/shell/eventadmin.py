@@ -63,7 +63,8 @@ class EventAdminCommands(object):
         # Injected services
         self._events = None
 
-    def get_namespace(self):
+    @staticmethod
+    def get_namespace():
         """
         Retrieves the name space of this command handler
         """

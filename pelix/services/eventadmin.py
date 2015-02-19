@@ -122,7 +122,8 @@ class EventAdmin(object):
 
         return handlers
 
-    def __match_filter(self, properties, ldap_filter):
+    @staticmethod
+    def __match_filter(properties, ldap_filter):
         """
         Tests if the given properties match the given filter
 

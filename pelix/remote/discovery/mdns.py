@@ -159,7 +159,8 @@ class ZeroconfDiscovery(object):
 
         _logger.debug("Zeroconf discovery validated")
 
-    def _serialize_properties(self, props):
+    @staticmethod
+    def _serialize_properties(props):
         """
         Converts properties values into strings
         """
@@ -186,7 +187,8 @@ class ZeroconfDiscovery(object):
 
         return new_props
 
-    def _deserialize_properties(self, props):
+    @staticmethod
+    def _deserialize_properties(props):
         """
         Converts properties values into their type
         """
@@ -293,7 +295,8 @@ class ZeroconfDiscovery(object):
         # Register the service
         self._zeroconf.registerService(info, self._ttl)
 
-    def endpoint_updated(self, endpoint, old_properties):
+    @staticmethod
+    def endpoint_updated(endpoint, old_properties):
         """
         An end point is updated
 

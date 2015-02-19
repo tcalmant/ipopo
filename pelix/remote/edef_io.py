@@ -181,7 +181,8 @@ class EDEFReader(object):
     """
     Reads an EDEF XML data. Inspired from EndpoitnDescriptionParser from ECF
     """
-    def _convert_value(self, vtype, value):
+    @staticmethod
+    def _convert_value(vtype, value):
         """
         Converts the given value string according to the given type
 
@@ -333,7 +334,8 @@ class EDEFWriter(object):
             if level and (not element.tail or not element.tail.strip()):
                 element.tail = element_prefix
 
-    def _add_container(self, props_node, tag, container):
+    @staticmethod
+    def _add_container(props_node, tag, container):
         """
         Walks through the given container and fills the node
 
@@ -346,7 +348,8 @@ class EDEFWriter(object):
             value_node = ElementTree.SubElement(values_node, TAG_VALUE)
             value_node.text = str(value)
 
-    def _get_type(self, name, value):
+    @staticmethod
+    def _get_type(name, value):
         """
         Returns the type associated to the given name or value
 
