@@ -91,7 +91,8 @@ setup(
         'Topic :: Software Development :: Libraries :: Application Frameworks'
     ],
     requires=['importlib'] if sys.version_info < (2, 7) else [],
-    install_requires=['jsonrpclib-pelix >= 0.2.1'],
+    install_requires=['jsonrpclib-pelix == 0.2.5']
+    if sys.version_info < (2, 7) else ['jsonrpclib-pelix >= 0.2.5'],
     tests_require=['unittest2'] if sys.version_info < (2, 7) else [],
     extras_require={
         'MQTT': ['paho-mqtt'],
