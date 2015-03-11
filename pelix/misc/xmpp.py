@@ -85,6 +85,12 @@ class BasicBot(sleekxmpp.ClientXMPP):
         :param use_ssl: Server connection is encrypted
         :return: True if connection succeeded
         """
+        if not self._expected_server_name:
+            # We seem to connect the server anonymously, so SleekXMPP
+            # coudln't find the server host name from the JID
+            # => give it the given server host name as the expected one
+            self._expected_server_name = host
+
         # Try to connect
         if super(BasicBot, self).connect((host, port), reattempt,
                                          use_tls, use_ssl):
