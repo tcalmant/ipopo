@@ -7,7 +7,7 @@ SERVER="coderxpress.net"
 REMOTE_DIR=www-ipopo
 
 # iPOPO Version
-VERSION="0.5.9"
+VERSION="0.6.0"
 
 # Directories
 API_HTML="api"
