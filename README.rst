@@ -38,18 +38,14 @@ Compatibility
 #############
 
 Pelix and iPOPO are tested using `Tox <http://testrun.org/tox/latest/>`_ and
-`Travis-CI <https://travis-ci.org/tcalmant/ipopo>`_ with Python 2.6, 2.7, 3.2
-and 3.3.
+`Travis-CI <https://travis-ci.org/tcalmant/ipopo>`_ with Pypy 2.5.0 and
+Python 2.7, 3.2, 3.3 and 3.4.
 
-It is also manually tested with Pypy 1.9 and Python 3.4.
+Most of the framework can work with Python 2.6 if the *importlib* package is
+installed, but there is no guarantee that the latest features will be
+compatible.
 
-To use iPOPO on Python 2.6, it is necessary to install the *importlib* module
-back-port, using ``pip install importlib``.
-To execute iPOPO tests on this version, you also need to install the *unittest2*
-module.
-
-
-Release notes: 0.5.9
+Release notes: 0.6.0
 ####################
 
 See the CHANGELOG.rst file to see what changed in previous releases.
@@ -57,40 +53,12 @@ See the CHANGELOG.rst file to see what changed in previous releases.
 Project
 *******
 
-* iPOPO now works with IronPython (tested inside Unity 3D)
-
-iPOPO
-*****
-
-* Components raising an error during validation goes in the ERRONEOUS state,
-  instead of going back to INVALID.
-  This avoids trying to validate them automatically.
-* The ``retry_erroneous()`` method of the iPOPO service and the ``retry`` shell
-  command allows to retry the validation of an ERRONEOUS component.
-* The ``@SingletonFactory`` decorator can replace the ``@ComponentFactory``
-  one.
-  It ensures that only one component of this factory can be instantiated at a
-  time.
-* The ``@Temporal`` requirement decorator allows to require a service and to
-  wait a given amount of time for its replacement before invalidating the
-  component or while using the requirement.
-* ``@RequiresBest`` ensures that it is always the service with the best
-  ranking that is injected in the component.
-* The ``@PostRegistration`` and ``@PreUnregistration`` callbacks allows the
-  component to be notified right after one of its services has been registered
-  or will be unregistered.
-
-HTTP
-****
-
-* The generated 404 page shows the list of registered servlets paths.
-* The 404 and 500 error pages can be customized by a hook service.
-* The default binding address is back to "0.0.0.0" instead of "localhost".
-  (for those who used the development version)
+* The support of Python 2.6 has been removed
 
 Utilities
 *********
 
-* The ``ThreadPool`` class is now a cached thread pool. It now has a minimum
-  and maximum number of threads: only the required threads are alive.
-  A thread waits for a task during 60 seconds (by default) before stopping.
+* The XMPP bot class now supports anonymous connections using SSL or StartTLS.
+  This is a workaround for
+  `issue 351 <https://github.com/fritzy/SleekXMPP/issues/351>`_
+  of SleekXMPP.

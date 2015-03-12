@@ -1,6 +1,23 @@
 Release notes
 #############
 
+iPOPO 0.6.0
+***********
+
+Project
+*******
+
+* The support of Python 2.6 has been removed
+
+Utilities
+*********
+
+* The XMPP bot class now supports anonymous connections using SSL or StartTLS.
+  This is a workaround for
+  `issue 351 <https://github.com/fritzy/SleekXMPP/issues/351>`_
+  of SleekXMPP.
+
+
 iPOPO 0.5.9
 ***********
 
