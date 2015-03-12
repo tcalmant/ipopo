@@ -1,11 +1,21 @@
 iPOPO: A component model for Python
 ###################################
 
+.. image:: https://pypip.in/version/ipopo/badge.svg?style=flat
+    :target: https://pypi.python.org/pypi/ipopo/
+    :alt: Latest Version
+
+.. image:: https://pypip.in/license/ipopo/badge.svg?style=flat
+    :target: https://pypi.python.org/pypi/ipopo/
+    :alt: License
+
 .. image:: https://travis-ci.org/tcalmant/ipopo.svg?branch=master
      :target: https://travis-ci.org/tcalmant/ipopo
+     :alt: Travis-CI status
 
 .. image:: https://coveralls.io/repos/tcalmant/ipopo/badge.svg?branch=master
      :target: https://coveralls.io/r/tcalmant/ipopo?branch=master
+     :alt: Coveralls status
 
 `iPOPO <https://ipopo.coderxpress.net/>`_ is a Python-based Service-Oriented
 Component Model (SOCM) based on Pelix, a dynamic service platform.
