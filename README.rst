@@ -31,6 +31,9 @@ lists :
 * User list:        http://groups.google.com/group/ipopo-users (don't be shy)
 * Development list: http://groups.google.com/group/ipopo-dev
 
+Bugs and features requests can be submitted on GitHub
+`tcalmant/ipopo <https://github.com/tcalmant/ipopo/issues>`_.
+
 More information at https://ipopo.coderxpress.net/
 
 
