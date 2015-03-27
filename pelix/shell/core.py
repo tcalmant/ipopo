@@ -186,6 +186,9 @@ class ShellService(parser.Shell):
         # Service reference -> (name space, [commands])
         self._reference_commands = {}
 
+        # Last working directory
+        self._previous_path = None
+
         # Register basic commands
         self.register_command(None, "bd", self.bundle_details)
         self.register_command(None, "bl", self.bundles_list)
@@ -209,6 +212,9 @@ class ShellService(parser.Shell):
         self.register_command(None, "thread", self.thread_details)
 
         self.register_command(None, "loglevel", self.log_level)
+
+        self.register_command(None, "cd", self.change_dir)
+        self.register_command(None, "pwd", self.print_dir)
 
     def bind_handler(self, svc_ref):
         """
@@ -712,6 +718,34 @@ class ShellService(parser.Shell):
 
             except ValueError:
                 io_handler.write_line("Invalid log level: {0}", level)
+
+    def change_dir(self, session, path):
+        """
+        Changes the working directory
+        """
+        if path == '-':
+            # Previous directory
+            path = self._previous_path or "."
+
+        try:
+            previous = os.getcwd()
+            os.chdir(path)
+        except IOError as ex:
+            # Can't change directory
+            session.write_line("Error changing directory: {0}", ex)
+        else:
+            # Store previous path
+            self._previous_path = previous
+            session.write_line(os.getcwd())
+
+    @staticmethod
+    def print_dir(session):
+        """
+        Prints the current working directory
+        """
+        pwd = os.getcwd()
+        session.write_line(pwd)
+        return pwd
 
     def __get_bundle(self, io_handler, bundle_id):
         """
