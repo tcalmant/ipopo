@@ -793,12 +793,15 @@ class HttpService(object):
             # No address given, use the localhost address
             self._address = LOCALHOST_ADDRESS
 
-        if self._port is None or self._port < 0:
+        if self._port is None:
             # Random port
             self._port = 0
         else:
             # Ensure we have an integer
             self._port = int(self._port)
+            if self._port < 0:
+                # Random port
+                self._port = 0
 
         # Normalize the extra properties
         if not isinstance(self._extra, dict):
@@ -814,7 +817,6 @@ class HttpService(object):
 
             if self._logger_level is None:
                 self._logger.level = logging.INFO
-
             else:
                 self._logger.level = int(self._logger_level)
 
@@ -863,17 +865,18 @@ class HttpService(object):
         self.log(logging.INFO, "Shutting down HTTP server: [%s]:%d ...",
                  self._address, self._port)
 
-        # Shutdown server
-        self._server.shutdown()
+        # Shutdown server (if active)
+        if self._server is not None:
+            self._server.shutdown()
 
-        # Wait for the thread to stop...
-        self.log(logging.INFO,
-                 "Waiting HTTP server ([%s]:%d) thread to stop...",
-                 self._address, self._port)
-        self._thread.join(2)
+            # Wait for the thread to stop...
+            self.log(logging.INFO,
+                     "Waiting HTTP server ([%s]:%d) thread to stop...",
+                     self._address, self._port)
+            self._thread.join(2)
 
-        # Close the server
-        self._server.server_close()
+            # Close the server
+            self._server.server_close()
 
         self.log(logging.INFO, "HTTP server down: [%s]:%d ...",
                  self._address, self._port)
