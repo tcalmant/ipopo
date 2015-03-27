@@ -142,7 +142,10 @@ class IOHandler(object):
         self.input = in_stream
         self.output = out_stream
         self.encoding = encoding
-        self.out_encoding = self.output.encoding or self.encoding
+        try:
+            self.out_encoding = self.output.encoding or self.encoding
+        except AttributeError:
+            self.out_encoding = self.encoding
 
         # Thread safety
         self.__lock = threading.RLock()
