@@ -142,6 +142,7 @@ class IOHandler(object):
         self.input = in_stream
         self.output = out_stream
         self.encoding = encoding
+        self.out_encoding = self.output.encoding or self.encoding
 
         # Thread safety
         self.__lock = threading.RLock()
@@ -200,7 +201,7 @@ class IOHandler(object):
         """
         with self.__lock:
             self.output.write(to_str(data, self.encoding).encode()
-                              .decode(self.output.encoding, errors="replace"))
+                              .decode(self.out_encoding, errors="replace"))
 
     def write_line(self, line, *args, **kwargs):
         """
