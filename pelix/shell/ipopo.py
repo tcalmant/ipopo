@@ -266,6 +266,12 @@ class IPopoCommands(object):
         lines.append(self._utils.make_table(
             ("Key", "Value"), sorted(details['properties'].items()), "\t"))
 
+        # Error trace, for erroneous components
+        error_trace = details["error_trace"]
+        if error_trace:
+            lines.append("Error trace:")
+            lines.append(error_trace)
+
         lines.append("")
         session.write('\n'.join(lines))
 

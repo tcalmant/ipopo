@@ -48,6 +48,7 @@ from pelix.ipopo.contexts import ComponentContext
 # Standard library
 import logging
 import threading
+import traceback
 
 # ------------------------------------------------------------------------------
 
@@ -59,7 +60,7 @@ class StoredInstance(object):
     # Try to reduce memory footprint (stored instances)
     __slots__ = ('bundle_context', 'context', 'factory_name', 'instance',
                  'name', 'state', '_controllers_state', '_handlers',
-                 '_ipopo_service', '_lock', '_logger')
+                 '_ipopo_service', '_lock', '_logger', 'error_trace')
 
     INVALID = 0
     """ This component has been invalidated """
@@ -112,6 +113,9 @@ class StoredInstance(object):
 
         # Set the instance state
         self.state = StoredInstance.INVALID
+
+        # Stack track of validation error
+        self.error_trace = None
 
         # Store the bundle context
         self.bundle_context = self.context.get_bundle_context()
@@ -314,6 +318,7 @@ class StoredInstance(object):
 
             # Reset state
             self.state = StoredInstance.INVALID
+            self.error_trace = None
 
             # Retry
             self.check_lifecycle()
@@ -425,6 +430,9 @@ class StoredInstance(object):
             if self.state == StoredInstance.KILLED:
                 raise RuntimeError("{0}: Zombies !".format(self.name))
 
+            # Clear the error trace
+            self.error_trace = None
+
             # Call the handlers
             self.__safe_handlers_callback('pre_validate')
 
@@ -528,6 +536,10 @@ class StoredInstance(object):
             # Kill the component
             self._ipopo_service.kill(self.name)
 
+            # Store the exception in case of a validation error
+            if event == constants.IPOPO_CALLBACK_VALIDATE:
+                self.error_trace = traceback.format_exc()
+
             if ex.needs_stop:
                 # Framework must be stopped...
                 self._logger.error("%s said that the Framework must be "
@@ -535,9 +547,13 @@ class StoredInstance(object):
                 self.bundle_context.get_bundle(0).stop()
             return False
         except:
-            self._logger.exception("Component '%s' : error calling "
-                                   "callback method for event %s",
-                                   self.name, event)
+            self._logger.exception("Component '%s': error calling callback "
+                                   "method for event %s", self.name, event)
+
+            # Store the exception in case of a validation error
+            if event == constants.IPOPO_CALLBACK_VALIDATE:
+                self.error_trace = traceback.format_exc()
+
             return False
 
     def __safe_field_callback(self, field, event, *args, **kwargs):

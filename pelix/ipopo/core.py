@@ -994,6 +994,9 @@ class _IPopoService(object):
                 # Component state
                 result["state"] = stored_instance.state
 
+                # Error details
+                result["error_trace"] = stored_instance.error_trace
+
                 # Provided service
                 result["services"] = {}
                 for handler in stored_instance.get_handlers(
