@@ -58,20 +58,31 @@ Most of the framework can work with Python 2.6 if the *importlib* package is
 installed, but there is no guarantee that the latest features will be
 compatible.
 
-Release notes: 0.6.0
+Release notes: 0.6.1
 ####################
 
 See the CHANGELOG.rst file to see what changed in previous releases.
 
-Project
-*******
+iPOPO
+*****
 
-* The support of Python 2.6 has been removed
+* The stack trace of the exception that caused a component to be in the
+  ERRONEOUS state is now kept, as a string. It can be seen throught the
+  ``instance`` shell command.
 
-Utilities
-*********
+Shell
+*****
 
-* The XMPP bot class now supports anonymous connections using SSL or StartTLS.
-  This is a workaround for
-  `issue 351 <https://github.com/fritzy/SleekXMPP/issues/351>`_
-  of SleekXMPP.
+* The command parser has been separated from the shell core service. This
+  allows to create custom shells without giving access to Pelix administration
+  commands.
+* Added ``cd`` and ``pwd`` shell commands, which allow changing the working
+  directory of the framework and printing the current one.
+* Corrected the encoding of the shell output string, to avoid exceptions when
+  printing special characters.
+
+Remote Services
+***************
+
+* Corrected a bug where an imported service with the same endpoint name as an
+  exported service could be exported after the unregistration of the latter.

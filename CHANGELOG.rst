@@ -1,16 +1,44 @@
 Release notes
 #############
 
+iPOPO 0.6.1
+***********
+
+iPOPO
+=====
+
+* The stack trace of the exception that caused a component to be in the
+  ERRONEOUS state is now kept, as a string. It can be seen throught the
+  ``instance`` shell command.
+
+Shell
+=====
+
+* The command parser has been separated from the shell core service. This
+  allows to create custom shells without giving access to Pelix administration
+  commands.
+* Added ``cd`` and ``pwd`` shell commands, which allow changing the working
+  directory of the framework and printing the current one.
+* Corrected the encoding of the shell output string, to avoid exceptions when
+  printing special characters.
+
+Remote Services
+===============
+
+* Corrected a bug where an imported service with the same endpoint name as an
+  exported service could be exported after the unregistration of the latter.
+
+
 iPOPO 0.6.0
 ***********
 
 Project
-*******
+=======
 
 * The support of Python 2.6 has been removed
 
 Utilities
-*********
+=========
 
 * The XMPP bot class now supports anonymous connections using SSL or StartTLS.
   This is a workaround for
