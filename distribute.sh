@@ -2,8 +2,7 @@
 
 export PYTHONPATH="."
 
-USER="coderxpress"
-SERVER="coderxpress.net"
+HOST="ipopo.coderxpress"
 REMOTE_DIR=www-ipopo
 
 # iPOPO Version
@@ -116,13 +115,13 @@ END
 echo "Sending files..."
 # Batch mode info :
 # http://www.derkeiler.com/Newsgroups/comp.security.ssh/2007-06/msg00142.html
-sftp -o "batchmode no" -b $BATCH_FILE $USER@$SERVER
+sftp -o "batchmode no" -b $BATCH_FILE $HOST
 rm $BATCH_FILE
 rm $REMOTE_SHELL
 
 # Remote script
 echo "Remote commands..."
-ssh $USER@$SERVER REMOTE_SHELL="$REMOTE_SHELL" "bash -s" <<'ENDSSH'
+ssh $HOST REMOTE_SHELL="$REMOTE_SHELL" "bash -s" <<'ENDSSH'
 echo "On remote site - REMOTE SHELL = $REMOTE_SHELL"
 bash "$REMOTE_SHELL"
 rm "$REMOTE_SHELL"
