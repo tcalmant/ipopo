@@ -8,7 +8,7 @@ Calls services according to the given method name and parameters
 :author: Thomas Calmant
 :copyright: Copyright 2015, isandlaTech
 :license: Apache License 2.0
-:version: 0.6.0
+:version: 0.6.1
 :status: Beta
 
 ..
@@ -165,7 +165,8 @@ class Dispatcher(object):
 
         :param name: The endpoint name to reuse
         """
-        ldap_filter = "({0}={1})".format(pelix.remote.PROP_ENDPOINT_NAME, name)
+        ldap_filter = "(&({0}={1})(!({2}=*)))".format(
+            pelix.remote.PROP_ENDPOINT_NAME, name, pelix.remote.PROP_IMPORTED)
         svc_ref = self._context.get_service_reference(None, ldap_filter)
         if svc_ref is not None:
             # A service wants to be exported with the given endpoint name
