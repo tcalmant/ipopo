@@ -1,6 +1,10 @@
 iPOPO: A component model for Python
 ###################################
 
+.. image:: https://badges.gitter.im/Join%20Chat.svg
+   :alt: Join the chat at https://gitter.im/tcalmant/ipopo
+   :target: https://gitter.im/tcalmant/ipopo?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+
 .. image:: https://pypip.in/version/ipopo/badge.svg?style=flat
     :target: https://pypi.python.org/pypi/ipopo/
     :alt: Latest Version
