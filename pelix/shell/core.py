@@ -771,7 +771,8 @@ class ShellService(parser.Shell):
         for bid in (bundle_id,) + bundles_ids:
             bundle = self.__get_bundle(io_handler, bid)
             if bundle is not None:
-                io_handler.write_line("Starting bundle {0}...", bid)
+                io_handler.write_line("Starting bundle {0} ({1})...",
+                                      bid, bundle.get_symbolic_name())
                 bundle.start()
             else:
                 return False
@@ -783,7 +784,8 @@ class ShellService(parser.Shell):
         for bid in (bundle_id,) + bundles_ids:
             bundle = self.__get_bundle(io_handler, bid)
             if bundle is not None:
-                io_handler.write_line("Stopping bundle {0}...", bid)
+                io_handler.write_line("Stopping bundle {0} ({1})...",
+                                      bid, bundle.get_symbolic_name())
                 bundle.stop()
             else:
                 return False
@@ -795,7 +797,8 @@ class ShellService(parser.Shell):
         for bid in (bundle_id,) + bundles_ids:
             bundle = self.__get_bundle(io_handler, bid)
             if bundle is not None:
-                io_handler.write_line("Updating bundle {0}...", bid)
+                io_handler.write_line("Updating bundle {0} ({1})...",
+                                      bid, bundle.get_symbolic_name())
                 bundle.update()
             else:
                 return False
@@ -815,7 +818,8 @@ class ShellService(parser.Shell):
         for bid in (bundle_id,) + bundles_ids:
             bundle = self.__get_bundle(io_handler, bid)
             if bundle is not None:
-                io_handler.write_line("Uninstalling bundle {0}...", bid)
+                io_handler.write_line("Uninstalling bundle {0} ({1})...",
+                                      bid, bundle.get_symbolic_name())
                 bundle.uninstall()
             else:
                 return False
