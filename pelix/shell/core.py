@@ -499,11 +499,18 @@ class ShellService(parser.Shell):
         """
         io_handler.write_line(os.getenv(name))
 
-    @staticmethod
-    def threads_list(io_handler):
+    def threads_list(self, io_handler, max_depth=1):
         """
         Lists the active threads and their current code line
         """
+        # Normalize maximum depth
+        try:
+            max_depth = int(max_depth)
+            if max_depth < 1:
+                max_depth = sys.maxint
+        except (ValueError, TypeError):
+            max_depth = sys.maxint
+
         # pylint: disable=W0212
         try:
             # Extract frames
@@ -527,15 +534,29 @@ class ShellService(parser.Shell):
             # Try to get the thread name
             try:
                 name = names[thread_id].name
-
             except KeyError:
                 name = "<unknown>"
 
             # Construct the code position
             lines.append('Thread ID: {0} - Name: {1}'.format(thread_id, name))
-            lines.append('Line:')
-            lines.extend(line.rstrip()
-                         for line in traceback.format_stack(stack, 1))
+            lines.append('Stack Trace:')
+
+            trace_lines = []
+            depth = 0
+            frame = stack
+            while frame is not None and depth < max_depth:
+                # Store the line information
+                trace_lines.append(self.__format_frame_info(frame))
+
+                # Previous frame...
+                frame = frame.f_back
+                depth += 1
+
+            # Reverse the lines
+            trace_lines.reverse()
+
+            # Add them to the printed lines
+            lines.extend(trace_lines)
             lines.append('')
 
         lines.append('')
@@ -543,10 +564,18 @@ class ShellService(parser.Shell):
         # Sort the lines
         io_handler.write('\n'.join(lines))
 
-    def thread_details(self, io_handler, thread_id):
+    def thread_details(self, io_handler, thread_id, max_depth=0):
         """
         Prints details about the thread with the given ID (not its name)
         """
+        # Normalize maximum depth
+        try:
+            max_depth = int(max_depth)
+            if max_depth < 1:
+                max_depth = sys.maxint
+        except (ValueError, TypeError):
+            max_depth = sys.maxint
+
         # pylint: disable=W0212
         try:
             # Get the stack
@@ -569,13 +598,15 @@ class ShellService(parser.Shell):
                      'Stack trace:']
 
             trace_lines = []
+            depth = 0
             frame = stack
-            while frame is not None:
+            while frame is not None and depth < max_depth:
                 # Store the line information
                 trace_lines.append(self.__format_frame_info(frame))
 
                 # Previous frame...
                 frame = frame.f_back
+                depth += 1
 
             # Reverse the lines
             trace_lines.reverse()
