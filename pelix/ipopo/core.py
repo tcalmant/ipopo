@@ -1017,9 +1017,7 @@ class _IPopoService(object):
                     # Requirement
                     req = dependency.requirement
                     info["specification"] = req.specification
-                    if req.filter:
-                        info["filter"] = str(req.filter)
-
+                    info["filter"] = str(req.filter) if req.filter else None
                     info["optional"] = req.optional
                     info["aggregate"] = req.aggregate
 
