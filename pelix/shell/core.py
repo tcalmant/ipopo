@@ -507,9 +507,9 @@ class ShellService(parser.Shell):
         try:
             max_depth = int(max_depth)
             if max_depth < 1:
-                max_depth = sys.maxint
+                max_depth = None
         except (ValueError, TypeError):
-            max_depth = sys.maxint
+            max_depth = None
 
         # pylint: disable=W0212
         try:
@@ -544,7 +544,8 @@ class ShellService(parser.Shell):
             trace_lines = []
             depth = 0
             frame = stack
-            while frame is not None and depth < max_depth:
+            while frame is not None \
+                    and (max_depth is None or depth < max_depth):
                 # Store the line information
                 trace_lines.append(self.__format_frame_info(frame))
 
@@ -572,9 +573,9 @@ class ShellService(parser.Shell):
         try:
             max_depth = int(max_depth)
             if max_depth < 1:
-                max_depth = sys.maxint
+                max_depth = None
         except (ValueError, TypeError):
-            max_depth = sys.maxint
+            max_depth = None
 
         # pylint: disable=W0212
         try:
@@ -600,7 +601,8 @@ class ShellService(parser.Shell):
             trace_lines = []
             depth = 0
             frame = stack
-            while frame is not None and depth < max_depth:
+            while frame is not None \
+                    and (max_depth is None or depth < max_depth):
                 # Store the line information
                 trace_lines.append(self.__format_frame_info(frame))
 
