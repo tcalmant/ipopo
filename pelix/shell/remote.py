@@ -366,7 +366,6 @@ class IPopoRemoteShell(object):
 
         # Property update (if port was 0)
         self._port = self._server.socket.getsockname()[1]
-
         _logger.info("RemoteShell validated on port: %d", self._port)
 
     @Invalidate
@@ -375,21 +374,21 @@ class IPopoRemoteShell(object):
         Component invalidation
         """
         # Stop the clients loops
-        self._server_flag.set_value(False)
+        if self._server is not None:
+            self._server_flag.set_value(False)
 
-        # Shutdown the server
-        self._server.shutdown()
-        self._thread.join(2)
+            # Shutdown the server
+            self._server.shutdown()
+            self._thread.join(2)
 
-        # Close the server socket (ignore errors)
-        self._server.server_close()
+            # Close the server socket (ignore errors)
+            self._server.server_close()
+            _logger.info("RemoteShell gone from port: %d", self._port)
 
         # Clean up
         self._thread = None
         self._server = None
         self._server_flag = None
-
-        _logger.info("RemoteShell gone from port: %d", self._port)
 
 # ------------------------------------------------------------------------------
 
