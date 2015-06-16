@@ -170,7 +170,7 @@ class AbstractHTTPServletRequest(object):
         """
         try:
             size = int(self.get_header('content-length'))
-        except ValueError:
+        except (ValueError, TypeError):
             size = -1
 
         return self.get_rfile().read(size)
