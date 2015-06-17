@@ -356,6 +356,7 @@ class TemporalComponentFactory(TestComponentFactory):
 
 
 @ComponentFactory(FACTORY_ERRONEOUS)
+@Property("raise_exception", "erroneous", True)
 class ErroneousComponentFactory(TestComponentFactory):
     """
     Component factory with a immediate_rebind flag

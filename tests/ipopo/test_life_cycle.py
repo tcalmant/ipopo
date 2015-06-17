@@ -221,7 +221,8 @@ class LifeCycleTest(unittest.TestCase):
         component.reset()
 
         # Retry immediately
-        self.ipopo.retry_erroneous(NAME_A)
+        new_state = self.ipopo.retry_erroneous(NAME_A)
+        self.assertEqual(new_state, StoredInstance.ERRONEOUS)
         self.assertEqual(self.ipopo.get_instance_details(NAME_A)['state'],
                          StoredInstance.ERRONEOUS)
         self.assertEqual(component.states, [IPopoEvent.INVALIDATED])
@@ -231,17 +232,50 @@ class LifeCycleTest(unittest.TestCase):
         component.raise_exception = False
 
         # Retry immediately
-        self.ipopo.retry_erroneous(NAME_A)
+        new_state = self.ipopo.retry_erroneous(NAME_A)
+        self.assertEqual(new_state, StoredInstance.VALID)
         self.assertEqual(self.ipopo.get_instance_details(NAME_A)['state'],
                          StoredInstance.VALID)
         self.assertEqual(component.states, [IPopoEvent.VALIDATED])
         component.reset()
 
         # Retry when valid => should not call validate again
-        self.ipopo.retry_erroneous(NAME_A)
+        new_state = self.ipopo.retry_erroneous(NAME_A)
+        self.assertEqual(new_state, StoredInstance.VALID)
         self.assertEqual(self.ipopo.get_instance_details(NAME_A)['state'],
                          StoredInstance.VALID)
         self.assertEqual(component.states, [])
+
+        # Kill instance
+        self.ipopo.kill(NAME_A)
+
+    def testErroneousProperty(self):
+        """
+        Tests the handling of erroneous components when updating properties
+        """
+        # Instantiate an erroneous component
+        component = self.ipopo.instantiate(self.module.FACTORY_ERRONEOUS,
+                                           NAME_A, {"erroneous": True})
+
+        # Assert it failed
+        self.assertEqual(self.ipopo.get_instance_details(NAME_A)['state'],
+                         StoredInstance.ERRONEOUS)
+
+        # => invalidate() must have been called
+        self.assertEqual(component.states,
+                         [IPopoEvent.INSTANTIATED, IPopoEvent.INVALIDATED])
+        component.reset()
+
+        # Retry with the new state
+        new_state = self.ipopo.retry_erroneous(NAME_A, {"erroneous": False})
+        self.assertEqual(new_state, StoredInstance.VALID)
+        self.assertEqual(self.ipopo.get_instance_details(NAME_A)['state'],
+                         StoredInstance.VALID)
+        self.assertEqual(component.states, [IPopoEvent.VALIDATED])
+        component.reset()
+
+        # Kill instance
+        self.ipopo.kill(NAME_A)
 
 # ------------------------------------------------------------------------------
 
