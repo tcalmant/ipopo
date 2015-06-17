@@ -717,12 +717,13 @@ class _IPopoService(object):
 
         return instance
 
-    def retry_erroneous(self, name):
+    def retry_erroneous(self, name, properties_update=None):
         """
         Removes the ERRONEOUS state of the given component, and retries a
         validation
 
         :param name: Name of the component to retry
+        :param properties_update: A dictionary to update component properties
         :return: The new state of the component
         :raise ValueError: Invalid component name
         """
@@ -732,7 +733,7 @@ class _IPopoService(object):
                                  .format(name))
 
             stored_instance = self.__instances[name]
-            return stored_instance.retry_erroneous()
+            return stored_instance.retry_erroneous(properties_update)
 
     def invalidate(self, name):
         """

@@ -305,16 +305,21 @@ class StoredInstance(object):
         with self._lock:
             self.__safe_handlers_callback('start')
 
-    def retry_erroneous(self):
+    def retry_erroneous(self, properties_update):
         """
         Removes the ERRONEOUS state from a component and retries a validation
 
+        :param properties_update: A dictionary to update component properties
         :return: The new state of the component
         """
         with self._lock:
             if self.state != StoredInstance.ERRONEOUS:
                 # Not in erroneous state: ignore
                 return self.state
+
+            # Update properties
+            if properties_update:
+                self.context.properties.update(properties_update)
 
             # Reset state
             self.state = StoredInstance.INVALID
