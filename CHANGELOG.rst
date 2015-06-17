@@ -1,6 +1,37 @@
 Release notes
 #############
 
+iPOPO 0.6.2
+***********
+
+iPOPO
+=====
+
+* The properties of a component can be updated when calling the
+  ``retry_erroneous()`` method. This allows to modifiy the configuration of
+  a component before trying to validate it again (HTTP port, ...).
+* The ``get_instance_details()`` dictionary now always contains a *filter*
+  entry for each of the component requirement description, even if not filter
+  has been set.
+
+
+Shell
+=====
+
+* The ``ipopo.retry`` shell command accepts properties to be reconfigure the
+  instance before trying to validate it again.
+* The bundle commands (*start*, *stop*, *update*, *uninstall*) now prints the
+  name of the bundle along with its ID.
+* The ``threads`` and ``threads`` shell commands now accept a stack depth limit
+  argument.
+
+HTTP
+====
+
+* Protect the ``ServletRequest.read_data()`` method against empty or invalid
+  *Content-Length* headers
+
+
 iPOPO 0.6.1
 ***********
 

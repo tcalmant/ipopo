@@ -42,7 +42,7 @@ Feedback
 Feel free to send feedback on your experience of Pelix/iPOPO, via the mailing
 lists :
 
-* User list:        http://groups.google.com/group/ipopo-users (don't be shy)
+* User list:        http://groups.google.com/group/ipopo-users
 * Development list: http://groups.google.com/group/ipopo-dev
 
 Bugs and features requests can be submitted on GitHub
@@ -62,7 +62,7 @@ Most of the framework can work with Python 2.6 if the *importlib* package is
 installed, but there is no guarantee that the latest features will be
 compatible.
 
-Release notes: 0.6.1
+Release notes: 0.6.2
 ####################
 
 See the CHANGELOG.rst file to see what changed in previous releases.
@@ -70,23 +70,26 @@ See the CHANGELOG.rst file to see what changed in previous releases.
 iPOPO
 *****
 
-* The stack trace of the exception that caused a component to be in the
-  ERRONEOUS state is now kept, as a string. It can be seen throught the
-  ``instance`` shell command.
+* The properties of a component can be updated when calling the
+  ``retry_erroneous()`` method. This allows to modifiy the configuration of
+  a component before trying to validate it again (HTTP port, ...).
+* The ``get_instance_details()`` dictionary now always contains a *filter*
+  entry for each of the component requirement description, even if not filter
+  has been set.
+
 
 Shell
 *****
 
-* The command parser has been separated from the shell core service. This
-  allows to create custom shells without giving access to Pelix administration
-  commands.
-* Added ``cd`` and ``pwd`` shell commands, which allow changing the working
-  directory of the framework and printing the current one.
-* Corrected the encoding of the shell output string, to avoid exceptions when
-  printing special characters.
+* The ``ipopo.retry`` shell command accepts properties to be reconfigure the
+  instance before trying to validate it again.
+* The bundle commands (*start*, *stop*, *update*, *uninstall*) now prints the
+  name of the bundle along with its ID.
+* The ``threads`` and ``threads`` shell commands now accept a stack depth limit
+  argument.
 
-Remote Services
-***************
+HTTP
+****
 
-* Corrected a bug where an imported service with the same endpoint name as an
-  exported service could be exported after the unregistration of the latter.
+* Protect the ``ServletRequest.read_data()`` method against empty or invalid
+  *Content-Length* headers
