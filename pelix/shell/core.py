@@ -9,7 +9,6 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 :copyright: Copyright 2015, isandlaTech
 :license: Apache License 2.0
 :version: 0.6.2
-:status: Beta
 
 ..
 

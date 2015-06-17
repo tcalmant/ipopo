@@ -7,7 +7,6 @@ iPOPO installation script
 :copyright: Copyright 2015, isandlaTech
 :license: Apache License 2.0
 :version: 0.6.2
-:status: Beta
 
 ..
 
@@ -74,7 +73,7 @@ setup(
         'pelix.services',
         'pelix.shell'],
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',

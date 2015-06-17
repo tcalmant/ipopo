@@ -7,7 +7,6 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 :copyright: Copyright 2015, isandlaTech
 :license: Apache License 2.0
 :version: 0.6.2
-:status: Beta
 
 ..
 
