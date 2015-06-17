@@ -114,7 +114,7 @@ class PropertiesHandler(constants.Handler):
         stored_instance = self._ipopo_instance
         properties = stored_instance.context.properties
 
-        def get_value(self, name):
+        def get_value(_, name):
             """
             Retrieves the property value, from the iPOPO dictionaries
 
@@ -123,7 +123,7 @@ class PropertiesHandler(constants.Handler):
             """
             return properties.get(name, None)
 
-        def set_value(self, name, new_value):
+        def set_value(_, name, new_value):
             """
             Sets the property value and trigger an update event
 
