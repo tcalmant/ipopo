@@ -5,11 +5,11 @@ iPOPO: A component model for Python
    :alt: Join the chat at https://gitter.im/tcalmant/ipopo
    :target: https://gitter.im/tcalmant/ipopo?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
-.. image:: https://pypip.in/version/ipopo/badge.svg?style=flat
+.. image:: https://img.shields.io/pypi/v/ipopo.svg
     :target: https://pypi.python.org/pypi/ipopo/
     :alt: Latest Version
 
-.. image:: https://pypip.in/license/ipopo/badge.svg?style=flat
+.. image:: https://img.shields.io/pypi/l/ipopo.svg
     :target: https://pypi.python.org/pypi/ipopo/
     :alt: License
 
