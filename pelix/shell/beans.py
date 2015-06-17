@@ -6,7 +6,7 @@ Definition of classes used by the Pelix shell service and its consumers
 :author: Thomas Calmant
 :copyright: Copyright 2015, isandlaTech
 :license: Apache License 2.0
-:version: 0.6.1
+:version: 0.6.2
 :status: Alpha
 
 ..
@@ -27,7 +27,7 @@ Definition of classes used by the Pelix shell service and its consumers
 """
 
 # Module version
-__version_info__ = (0, 6, 1)
+__version_info__ = (0, 6, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
