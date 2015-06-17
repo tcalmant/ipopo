@@ -85,8 +85,7 @@ class HandlerFactory(object):
     """
     Handler factory abstract class
     """
-    @staticmethod
-    def get_handlers(component_context, instance):
+    def get_handlers(self, component_context, instance):
         """
         Prepares handlers for the given component
 
@@ -94,7 +93,7 @@ class HandlerFactory(object):
         :param instance: The component instance
         :return: The list of handlers associated to the given component
         """
-        return None
+        pass
 
 # ------------------------------------------------------------------------------
 
@@ -103,24 +102,21 @@ class Handler(object):
     """
     Basic handler abstract class
     """
-    @staticmethod
-    def get_kinds():
+    def get_kinds(self):
         """
         Returns the kinds of this handler
 
         :return: A tuple of the kinds of this handler, or None
         """
-        return None
+        pass
 
-    @staticmethod
-    def manipulate(stored_instance, component_instance):
+    def manipulate(self, stored_instance, component_instance):
         """
         Manipulates the associated component instance
         """
         pass
 
-    @staticmethod
-    def check_event(event):
+    def check_event(self, event):
         """
         Tests if the given service event must be handled or ignored, based
         on the state of the iPOPO service and on the content of the event.
@@ -130,8 +126,7 @@ class Handler(object):
         """
         return True
 
-    @staticmethod
-    def is_valid():
+    def is_valid(self):
         """
         Checks this handler is valid. All handlers must be valid for a
         component to be validated
@@ -140,8 +135,7 @@ class Handler(object):
         """
         return True
 
-    @staticmethod
-    def on_controller_change(name, value):
+    def on_controller_change(self, name, value):
         """
         Notifies the change of state of the controller with the given name
 
@@ -150,8 +144,7 @@ class Handler(object):
         """
         pass
 
-    @staticmethod
-    def on_property_change(name, old_value, new_value):
+    def on_property_change(self, name, old_value, new_value):
         """
         Handles a property changed event
 
@@ -161,53 +154,46 @@ class Handler(object):
         """
         pass
 
-    @staticmethod
-    def start():
+    def start(self):
         """
         Starts the handler (listeners, ...). Called once, after the component
         has been manipulated by all handlers.
         """
         pass
 
-    @staticmethod
-    def stop():
+    def stop(self):
         """
         Stops the handler. Called once, just after the component has been
         killed
         """
         pass
 
-    @staticmethod
-    def clear():
+    def clear(self):
         """
         Called just after a component has been killed and all handlers have
         been stopped. The handler should release all its resources here.
         """
         pass
 
-    @staticmethod
-    def pre_validate():
+    def pre_validate(self):
         """
         Called just before a component is validated
         """
         pass
 
-    @staticmethod
-    def post_validate():
+    def post_validate(self):
         """
         Called just after a component has been validated
         """
         pass
 
-    @staticmethod
-    def pre_invalidate():
+    def pre_invalidate(self):
         """
         Called just before a component is invalidated
         """
         pass
 
-    @staticmethod
-    def post_invalidate():
+    def post_invalidate(self):
         """
         Called just after a component has been invalidated
         """
