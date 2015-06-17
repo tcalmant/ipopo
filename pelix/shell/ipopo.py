@@ -274,13 +274,13 @@ class IPopoCommands(object):
         lines.append("")
         session.write('\n'.join(lines))
 
-    def instantiate(self, session, factory, name, **kwargs):
+    def instantiate(self, session, factory, name, **properties):
         """
         Instantiates a component of the given factory with the given name and
         properties
         """
         try:
-            self._ipopo.instantiate(factory, name, kwargs)
+            self._ipopo.instantiate(factory, name, properties)
             session.write_line("Component '{0}' instantiated.", name)
             # Return the instance name as a result
             return name
@@ -306,12 +306,12 @@ class IPopoCommands(object):
             session.write_line("Invalid parameter: {0}", ex)
             return False
 
-    def retry_erroneous(self, session, name):
+    def retry_erroneous(self, session, name, **properties):
         """
         Removes the erroneous flag from a component and retries to validate it
         """
         try:
-            new_state = self._ipopo.retry_erroneous(name)
+            new_state = self._ipopo.retry_erroneous(name, properties)
             session.write_line("Component '{0}' is now in state {1}.", name,
                                ipopo_state_to_str(new_state))
         except ValueError as ex:
