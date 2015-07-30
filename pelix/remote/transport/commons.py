@@ -74,7 +74,7 @@ class AbstractRpcServiceExporter(object):
         self._framework_uid = None
 
         # Handled configurations
-        self._kinds = None
+        self._kinds = []
 
         # Exported services: Name -> ExportEndpoint
         self.__endpoints = {}
@@ -115,7 +115,10 @@ class AbstractRpcServiceExporter(object):
             raise RemoteServiceError("Unknown method {0}".format(method))
 
         # Call it (let the errors be propagated)
-        return method_ref(*params)
+        if isinstance(params, (list, tuple)):
+            return method_ref(*params)
+        else:
+            return method_ref(**params)
 
     def handles(self, configurations):
         """
@@ -161,13 +164,9 @@ class AbstractRpcServiceExporter(object):
 
             # Prepare the export endpoint
             try:
-                endpoint = pelix.remote.beans.ExportEndpoint(str(uuid.uuid4()),
-                                                             fw_uid,
-                                                             self._kinds,
-                                                             name,
-                                                             svc_ref,
-                                                             service,
-                                                             extra_props)
+                endpoint = pelix.remote.beans.ExportEndpoint(
+                    str(uuid.uuid4()), fw_uid, self._kinds,
+                    name, svc_ref, service, extra_props)
             except ValueError:
                 # No specification to export (specifications filtered, ...)
                 return None
@@ -175,8 +174,8 @@ class AbstractRpcServiceExporter(object):
             # Store information
             self.__endpoints[name] = endpoint
 
-        # Return the endpoint bean
-        return endpoint
+            # Return the endpoint bean
+            return endpoint
 
     def update_export(self, endpoint, new_name, old_properties):
         """

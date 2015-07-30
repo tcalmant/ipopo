@@ -97,10 +97,16 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
         """
         try:
             # Internal method
-            return self.funcs[name](*params)
+            func = self.funcs[name]
         except KeyError:
             # Other method
             pass
+        else:
+            # Internal method found
+            if isinstance(params, (list, tuple)):
+                return func(*params)
+            else:
+                return func(**params)
 
         # Avoid calling this method in the "except" block, as it would be in
         # an exception state (logs will consider the KeyError as a failure)
