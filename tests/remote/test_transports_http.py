@@ -96,6 +96,16 @@ class RemoteService(object):
         self.state_queue.put("call-echo")
         return value
 
+    def keywords(self, text, to_lower=False):
+        """
+        Return the string value in lower or upper case
+        """
+        self.state_queue.put("call-keyword")
+        if to_lower:
+            return text.lower()
+        else:
+            return text.upper()
+
     def error(self):
         """
         Raises an error
@@ -207,13 +217,15 @@ class TransportsTest(unittest.TestCase):
     """
     Tests Pelix built-in Remote Services transports
     """
-    def __run_test(self, transport_bundle, exporter_factory, importer_factory):
+    def __run_test(self, transport_bundle, exporter_factory, importer_factory,
+                   test_kwargs=True):
         """
         Runs a remote service call test
 
         :param transport_bundle: Transport implementation bundle to use
         :param exporter_factory: Name of the RS exporter factory
         :param importer_factory: Name of the RS importer factory
+        :param test_kwargs: Test keyword arguments
         :raise queue.Empty: Peer took to long to answer
         :raise ValueError: Test failed
         """
@@ -267,6 +279,34 @@ class TransportsTest(unittest.TestCase):
                 # Check result
                 self.assertEqual(result, value)
 
+            if test_kwargs:
+                # Keyword arguments
+                sample_text = "SomeSampleText"
+
+                # Test as-is with default arguments
+                result = svc.keywords(text=sample_text)
+                state = status_queue.get(2)
+                self.assertEqual(state, "call-keyword")
+                self.assertEqual(result, sample_text.upper())
+
+                # Test with keywords in the same order as positional arguments
+                result = svc.keywords(text=sample_text, to_lower=True)
+                state = status_queue.get(2)
+                self.assertEqual(state, "call-keyword")
+                self.assertEqual(result, sample_text.lower())
+
+                result = svc.keywords(text=sample_text, to_lower=False)
+                state = status_queue.get(2)
+                self.assertEqual(state, "call-keyword")
+                self.assertEqual(result, sample_text.upper())
+
+                # Test with keywords in a different order
+                # than positional arguments
+                result = svc.keywords(to_lower=True, text=sample_text)
+                state = status_queue.get(2)
+                self.assertEqual(state, "call-keyword")
+                self.assertEqual(result, sample_text.lower())
+
             # Exception handling
             try:
                 svc.error()
@@ -308,7 +348,8 @@ class TransportsTest(unittest.TestCase):
         try:
             self.__run_test("pelix.remote.xml_rpc",
                             pelix.remote.FACTORY_TRANSPORT_XMLRPC_EXPORTER,
-                            pelix.remote.FACTORY_TRANSPORT_XMLRPC_IMPORTER)
+                            pelix.remote.FACTORY_TRANSPORT_XMLRPC_IMPORTER,
+                            False)
         except queue.Empty:
             # Process error
             self.fail("Remote framework took to long to reply")
