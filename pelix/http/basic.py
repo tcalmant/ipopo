@@ -142,6 +142,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         :param request_handler: The basic request handler
         """
         self._handler = request_handler
+        self._headers = {}
 
     def set_response(self, code, message=None):
         """
@@ -161,12 +162,25 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         :param name: Header name
         :param value: Header value
         """
-        self._handler.send_header(name, value)
+        self._headers[name.lower()] = value
+
+    def is_header_set(self, name):
+        """
+        Checks if the given header has already been set
+
+        :param name: Header name
+        :return: True if it has already been set
+        """
+        return name.lower() in self._headers
 
     def end_headers(self):
         """
         Ends the headers part
         """
+        # Send them all at once
+        for name, value in self._headers.items():
+            self._handler.send_header(name, value)
+
         self._handler.end_headers()
 
     def get_wfile(self):

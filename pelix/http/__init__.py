@@ -125,7 +125,7 @@ class AbstractHTTPServletRequest(object):
 
         :return: A (host, port) tuple
         """
-        raise NotImplementedError("This method must be implemented by a child")
+        raise NotImplementedError("This method must be implemented by a child class")
 
     def get_header(self, name, default=None):
         """
@@ -135,7 +135,7 @@ class AbstractHTTPServletRequest(object):
         :param default: Default value if the header doesn't exist
         :return: The header value or the default one
         """
-        raise NotImplementedError("This method must be implemented by a child")
+        raise NotImplementedError("This method must be implemented by a child class")
 
     def get_headers(self):
         """
@@ -143,7 +143,7 @@ class AbstractHTTPServletRequest(object):
 
         :return: A dictionary-like object
         """
-        raise NotImplementedError("This method must be implemented by a child")
+        raise NotImplementedError("This method must be implemented by a child class")
 
     def get_path(self):
         """
@@ -151,7 +151,7 @@ class AbstractHTTPServletRequest(object):
 
         :return: A request full path (string)
         """
-        raise NotImplementedError("This method must be implemented by a child")
+        raise NotImplementedError("This method must be implemented by a child class")
 
     def get_rfile(self):
         """
@@ -159,7 +159,7 @@ class AbstractHTTPServletRequest(object):
 
         :return: A file-like input stream
         """
-        raise NotImplementedError("This method must be implemented by a child")
+        raise NotImplementedError("This method must be implemented by a child class")
 
     def read_data(self):
         """
@@ -187,7 +187,8 @@ class AbstractHTTPServletResponse(object):
         :param code: HTTP result code
         :param message: Associated message
         """
-        raise NotImplementedError("This method must be implemented by a child")
+        raise NotImplementedError("This method must be implemented "
+                                  "by a child class")
 
     def set_header(self, name, value):
         """
@@ -197,13 +198,25 @@ class AbstractHTTPServletResponse(object):
         :param name: Header name
         :param value: Header value
         """
-        raise NotImplementedError("This method must be implemented by a child")
+        raise NotImplementedError("This method must be implemented "
+                                  "by a child class")
+
+    def is_header_set(self, name):
+        """
+        Checks if the given header has already been set
+
+        :param name: Header name
+        :return: True if it has already been set
+        """
+        raise NotImplementedError("This method must be implemented "
+                                  "by a child class")
 
     def end_headers(self):
         """
         Ends the headers part
         """
-        raise NotImplementedError("This method must be implemented by a child")
+        raise NotImplementedError("This method must be implemented "
+                                  "by a child class")
 
     def get_wfile(self):
         """
@@ -213,7 +226,8 @@ class AbstractHTTPServletResponse(object):
 
         :return: A file-like output stream
         """
-        raise NotImplementedError("This method must be implemented by a child")
+        raise NotImplementedError("This method must be implemented "
+                                  "by a child class")
 
     def write(self, data):
         """
@@ -223,7 +237,8 @@ class AbstractHTTPServletResponse(object):
 
         :param data: Data to be written
         """
-        raise NotImplementedError("This method must be implemented by a child")
+        raise NotImplementedError("This method must be implemented "
+                                  "by a child class")
 
     def send_content(self, http_code, content, mime_type="text/html",
                      http_message=None, content_length=-1):
@@ -244,13 +259,14 @@ class AbstractHTTPServletResponse(object):
         :param content_length: Forced content length
         """
         self.set_response(http_code, http_message)
-        if mime_type:
+        if mime_type and not self.is_header_set("content-type"):
             self.set_header("content-type", mime_type)
 
         # Convert the content
         content = to_bytes(content)
 
-        if content_length is not None:
+        if content_length is not None \
+                and not self.is_header_set("content-length"):
             if content_length < 0:
                 # Compute the length
                 content_length = len(content)
