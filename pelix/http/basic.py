@@ -337,6 +337,9 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
         # Get the family of the first possibility
         self.address_family = addr_info[0][0]
 
+        # Set the queue size
+        self.request_queue_size = 50
+
         # Set up the server, socket, ... but do not bind immediately
         HTTPServer.__init__(self, server_address, request_handler_class, False)
         self.server_name = server_address[0]
