@@ -110,7 +110,7 @@ class Bundle(object):
         self._state = Bundle.RESOLVED
 
         # Registered services
-        self.__registered_services = []
+        self.__registered_services = set()
         self.__registration_lock = threading.Lock()
 
     def __str__(self):
@@ -155,7 +155,7 @@ class Bundle(object):
         :param registration: The service registration object
         """
         with self.__registration_lock:
-            self.__registered_services.append(registration)
+            self.__registered_services.add(registration)
 
     def _unregistered_service(self, registration):
         """
@@ -165,8 +165,7 @@ class Bundle(object):
         :param registration: The service registration object
         """
         with self.__registration_lock:
-            if registration in self.__registered_services:
-                self.__registered_services.remove(registration)
+            self.__registered_services.discard(registration)
 
     def get_bundle_context(self):
         """
@@ -390,22 +389,21 @@ class Bundle(object):
         """
         # Copy the services list, as it will be modified during the process
         with self.__registration_lock:
-            registered_services = self.__registered_services[:]
+            registered_services = self.__registered_services.copy()
 
         for registration in registered_services:
             try:
                 registration.unregister()
-
             except BundleException:
                 # Ignore errors at this level
                 pass
 
-        if len(self.__registered_services) != 0:
+        if self.__registered_services:
             _logger.warning("Not all services have been unregistered...")
 
         with self.__registration_lock:
             # Clear the list, just to be clean
-            del self.__registered_services[:]
+            self.__registered_services.clear()
 
     def uninstall(self):
         """
