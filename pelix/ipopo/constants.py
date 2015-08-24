@@ -225,12 +225,10 @@ def use_waiting_list(bundle_context):
     try:
         # Give the service
         yield bundle_context.get_service(ref)
-
     finally:
         try:
             # Release it
             bundle_context.unget_service(ref)
-
         except BundleException:
             # Service might have already been unregistered
             pass

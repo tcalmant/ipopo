@@ -65,10 +65,10 @@ class _HandlerFactory(constants.HandlerFactory):
                                   property (field -> float)
         :return: The new configuration dictionary
         """
-        if not requires_filters or not isinstance(requires_filters, dict):
+        if not isinstance(requires_filters, dict):
             requires_filters = {}
 
-        if not temporal_timeouts or not isinstance(temporal_timeouts, dict):
+        if not isinstance(temporal_timeouts, dict):
             temporal_timeouts = {}
 
         if not requires_filters and not temporal_timeouts:

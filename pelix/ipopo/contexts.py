@@ -437,7 +437,10 @@ class ComponentContext(object):
         :param event: A component life cycle event
         :return: The callback associated to the given event
         """
-        return self.factory_context.callbacks.get(event, None)
+        try:
+            return self.factory_context.callbacks.get(event)
+        except KeyError:
+            return None
 
     def get_field_callback(self, field, event):
         """
@@ -450,7 +453,10 @@ class ComponentContext(object):
                  event and flag indicating if the callback must be called in
                  valid state only
         """
-        return self.factory_context.field_callbacks.get(field, {}).get(event)
+        try:
+            return self.factory_context.field_callbacks[field][event]
+        except KeyError:
+            return None
 
     def get_factory_name(self):
         """

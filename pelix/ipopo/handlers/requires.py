@@ -299,9 +299,8 @@ class _RuntimeDependency(constants.DependencyHandler):
         """
         Starts the dependency manager
         """
-        self._context.add_service_listener(self,
-                                           self.requirement.filter,
-                                           self.requirement.specification)
+        self._context.add_service_listener(
+            self, self.requirement.filter, self.requirement.specification)
 
     def stop(self):
         """
@@ -411,8 +410,8 @@ class SimpleDependency(_RuntimeDependency):
         """
         super(SimpleDependency, self).stop()
         if self.reference is not None:
-            # Return a list
-            return [(self._value, self.reference)]
+            # Return a tuple of tuple
+            return (self._value, self.reference),
 
     def is_valid(self):
         """
@@ -470,11 +469,7 @@ class AggregateDependency(_RuntimeDependency):
         """
         self.services.clear()
         self.services = None
-
-        if self._future_value is not None:
-            del self._future_value[:]
-            self._future_value = None
-
+        self._future_value = None
         super(AggregateDependency, self).clear()
 
     def get_bindings(self):
@@ -595,9 +590,8 @@ class AggregateDependency(_RuntimeDependency):
                 return
 
             # Get all matching services
-            refs = self._context \
-                .get_all_service_references(self.requirement.specification,
-                                            self.requirement.filter)
+            refs = self._context.get_all_service_references(
+                self.requirement.specification, self.requirement.filter)
             if not refs:
                 # No match found
                 return
@@ -609,7 +603,6 @@ class AggregateDependency(_RuntimeDependency):
                     added = self.on_service_arrival(reference)
                     if added:
                         results.append(reference)
-
             except BundleException as ex:
                 # Get the logger for this instance
                 logger = logging.getLogger('-'.join((self._ipopo_instance.name,
@@ -620,7 +613,6 @@ class AggregateDependency(_RuntimeDependency):
                 for reference in results:
                     try:
                         self.on_service_departure(reference)
-
                     except BundleException as ex2:
                         logger.debug("Error cleaning up: %s", ex2)
 

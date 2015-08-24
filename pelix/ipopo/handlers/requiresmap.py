@@ -330,9 +330,8 @@ class _RuntimeDependency(constants.DependencyHandler):
         """
         Starts the dependency manager
         """
-        self._context.add_service_listener(self,
-                                           self.requirement.filter,
-                                           self.requirement.specification)
+        self._context.add_service_listener(
+            self, self.requirement.filter, self.requirement.specification)
 
     def stop(self):
         """
@@ -341,7 +340,6 @@ class _RuntimeDependency(constants.DependencyHandler):
         :return: The removed bindings (list) or None
         """
         self._context.remove_service_listener(self)
-
         if self.services:
             return [(service, reference)
                     for reference, service in self.services.items()]
@@ -359,9 +357,8 @@ class _RuntimeDependency(constants.DependencyHandler):
                 return
 
             # Get all matching services
-            refs = self._context \
-                .get_all_service_references(self.requirement.specification,
-                                            self.requirement.filter)
+            refs = self._context.get_all_service_references(
+                self.requirement.specification, self.requirement.filter)
             if not refs:
                 # No match found
                 return
@@ -373,7 +370,6 @@ class _RuntimeDependency(constants.DependencyHandler):
                     added = self.on_service_arrival(reference)
                     if added:
                         results.append(reference)
-
             except BundleException as ex:
                 # Get the logger for this instance
                 logger = logging.getLogger('-'.join((self._ipopo_instance.name,
@@ -450,7 +446,6 @@ class SimpleDependency(_RuntimeDependency):
             if svc_ref not in self.services:
                 # A previously registered service now matches our filter
                 return self.on_service_arrival(svc_ref)
-
             else:
                 # Get the property values
                 old_value = old_properties.get(self._key)
@@ -467,13 +462,11 @@ class SimpleDependency(_RuntimeDependency):
                         # Notify the property modification, with a value change
                         self._ipopo_instance.update(self, service, svc_ref,
                                                     old_properties, True)
-
                     else:
                         # Consider the service as gone
                         del self._future_value[old_value]
                         del self.services[svc_ref]
                         self._ipopo_instance.unbind(self, service, svc_ref)
-
                 else:
                     # Notify the property modification
                     self._ipopo_instance.update(self, service, svc_ref,
@@ -524,10 +517,8 @@ class AggregateDependency(_RuntimeDependency):
         with self._lock:
             # The value field must be a deep copy of our dictionary
             if self._future_value is not None:
-                return dict((key, value[:])
-                            for key, value in self._future_value.items())
-            else:
-                return None
+                return {key: value[:]
+                        for key, value in self._future_value.items()}
 
     def on_service_arrival(self, svc_ref):
         """
@@ -540,7 +531,6 @@ class AggregateDependency(_RuntimeDependency):
             if svc_ref not in self.services:
                 # Get the key property
                 prop_value = svc_ref.get_property(self._key)
-
                 if prop_value is not None or self._allow_none:
                     # Get the new service
                     service = self._context.get_service(svc_ref)
@@ -587,7 +577,6 @@ class AggregateDependency(_RuntimeDependency):
             if svc_ref not in self.services:
                 # A previously registered service now matches our filter
                 return self.on_service_arrival(svc_ref)
-
             else:
                 # Get the property values
                 service = self.services[svc_ref]
@@ -606,13 +595,11 @@ class AggregateDependency(_RuntimeDependency):
                         # Notify the property modification, with a value change
                         self._ipopo_instance.update(self, service, svc_ref,
                                                     old_properties, True)
-
                     else:
                         # Consider the service as gone
                         self.__remove_service(old_value, service)
                         del self.services[svc_ref]
                         self._ipopo_instance.unbind(self, service, svc_ref)
-
                 else:
                     # Simple property update
                     self._ipopo_instance.update(self, service, svc_ref,

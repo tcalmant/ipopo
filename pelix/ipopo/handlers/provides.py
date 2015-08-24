@@ -64,7 +64,7 @@ class _HandlerFactory(constants.HandlerFactory):
             ipopo_constants.HANDLER_PROVIDES)
         if not provides:
             # Nothing to do
-            return tuple()
+            return ()
 
         # 1 handler per provided service
         return [ServiceRegistrationHandler(specs, controller)

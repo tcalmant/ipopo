@@ -54,10 +54,10 @@ class _HandlerFactory(constants.HandlerFactory):
 
         :param component_context: The ComponentContext bean
         :param instance: The component instance
-        :return: The list of handlers associated to the given component
+        :return: The list/tuple of handlers associated to the given component
         """
         # 1 handler per provided service
-        return [PropertiesHandler()]
+        return PropertiesHandler(),
 
 
 @BundleActivator
@@ -120,7 +120,7 @@ class PropertiesHandler(constants.Handler):
             :param name: The property name
             :return: The property value
             """
-            return properties.get(name, None)
+            return properties.get(name)
 
         def set_value(_, name, new_value):
             """
@@ -132,7 +132,7 @@ class PropertiesHandler(constants.Handler):
             assert stored_instance.context is not None
 
             # Get the previous value
-            old_value = properties.get(name, None)
+            old_value = properties.get(name)
             if new_value != old_value:
                 # Change the property
                 properties[name] = new_value

@@ -140,8 +140,8 @@ class StoredInstance(object):
         """
         String representation
         """
-        return "StoredInstance(Name={0}, State={1})".format(self.name,
-                                                            self.state)
+        return "StoredInstance(Name={0}, State={1})" \
+            .format(self.name, self.state)
 
     def check_event(self, event):
         """
@@ -266,16 +266,15 @@ class StoredInstance(object):
                                               StoredInstance.VALID)
 
             # Test the validity of all handlers
-            handlers_valid = self.__safe_handlers_callback('is_valid',
-                                                           break_on_false=True)
+            handlers_valid = self.__safe_handlers_callback(
+                'is_valid', break_on_false=True)
 
-            # A dependency is missing
             if was_valid and not handlers_valid:
+                # A dependency is missing
                 self.invalidate(True)
-
-            # We're all good
             elif can_validate and handlers_valid \
                     and self._ipopo_service.running:
+                # We're all good
                 self.validate(True)
 
     def update_bindings(self):
@@ -286,15 +285,14 @@ class StoredInstance(object):
         """
         with self._lock:
             all_valid = True
-            for handler in self._handlers.get(handlers_const.KIND_DEPENDENCY,
-                                              tuple()):
+            for handler in self._handlers.get(
+                    handlers_const.KIND_DEPENDENCY, ()):
                 # Try to bind
                 self.__safe_handler_callback(handler, 'try_binding')
 
                 # Update the validity flag
-                all_valid &= self.__safe_handler_callback(handler, 'is_valid',
-                                                          only_boolean=True,
-                                                          none_as_true=True)
+                all_valid &= self.__safe_handler_callback(
+                    handler, 'is_valid', only_boolean=True, none_as_true=True)
             return all_valid
 
     def start(self):
@@ -575,7 +573,6 @@ class StoredInstance(object):
 
         try:
             return self.__field_callback(field, event, *args, **kwargs)
-
         except FrameworkException as ex:
             # Important error
             self._logger.exception("Critical error calling back %s: %s",
@@ -590,7 +587,6 @@ class StoredInstance(object):
                                    "stopped.", self.name)
                 self.bundle_context.get_bundle(0).stop()
             return False
-
         except:
             self._logger.exception("Component '%s' : error calling "
                                    "callback method for event %s",
@@ -632,7 +628,6 @@ class StoredInstance(object):
         except AttributeError:
             # Method not found
             result = None
-
         else:
             try:
                 # Call it
