@@ -302,7 +302,6 @@ class Bundle(object):
                 try:
                     # Call the start method
                     starter(self.__context)
-
                 except (FrameworkException, BundleException):
                     # Restore previous state
                     self._state = previous_state
@@ -311,7 +310,6 @@ class Bundle(object):
                     _logger.exception("Pelix error raised by %s while "
                                       "starting", self.__name)
                     raise
-
                 except Exception as ex:
                     # Restore previous state
                     self._state = previous_state
@@ -350,7 +348,6 @@ class Bundle(object):
                 try:
                     # Call the start method
                     stopper(self.__context)
-
                 except (FrameworkException, BundleException) as ex:
                     # Restore previous state
                     self._state = previous_state
@@ -359,7 +356,6 @@ class Bundle(object):
                     _logger.exception("Pelix error raised by %s while "
                                       "stopping", self.__name)
                     exception = ex
-
                 except Exception as ex:
                     _logger.exception("Error raised by %s while stopping",
                                       self.__name)
@@ -458,7 +454,7 @@ class Bundle(object):
         # Clean up the module constants (otherwise kept by reload)
         # Keep special members (__name__, __file__, ...)
         old_content = self.__module.__dict__.copy()
-        for name in tuple(self.__module.__dict__):
+        for name in list(self.__module.__dict__):
             if not (name.startswith('__') and name.endswith('__')):
                 del self.__module.__dict__[name]
 
@@ -476,8 +472,8 @@ class Bundle(object):
         if module_stat is not None:
             try:
                 # Reset times
-                os.utime(module_file, (module_stat.st_atime,
-                                       module_stat.st_mtime))
+                os.utime(module_file,
+                         (module_stat.st_atime, module_stat.st_mtime))
             except OSError:
                 # Shouldn't occur, since we succeeded before the update
                 _logger.debug("Failed to reset the modification time of '%s'",
@@ -724,11 +720,10 @@ class Framework(Bundle):
                     # Use the given path in priority
                     sys.path.insert(0, path)
 
-                if name in sys.modules:
+                try:
                     # The module has already been loaded
                     module = sys.modules[name]
-
-                else:
+                except KeyError:
                     # Load the module
                     #  __import__(name) -> package level
                     # import_module -> module level
@@ -842,7 +837,6 @@ class Framework(Bundle):
         # Validate the path
         if not path:
             raise ValueError("Empty path")
-
         elif not is_string(path):
             raise ValueError("Path must be a string")
 
@@ -883,7 +877,6 @@ class Framework(Bundle):
                                                       fullname)
                             bundles.update(sub_bundles)
                             failed.update(sub_failed)
-
                         else:
                             # Install the bundle
                             bundles.add(self.install_bundle(fullname, path))
@@ -915,7 +908,6 @@ class Framework(Bundle):
         if not isinstance(properties, dict):
             # Be sure we have a valid dictionary
             properties = {}
-
         else:
             # Use a copy of the given properties
             properties = properties.copy()
@@ -928,7 +920,6 @@ class Framework(Bundle):
         # Test the list content
         classes = []
         for svc_clazz in clazz:
-
             if inspect.isclass(svc_clazz):
                 # Keep the type name
                 svc_clazz = svc_clazz.__name__
@@ -974,14 +965,13 @@ class Framework(Bundle):
 
         # Starting...
         self._state = Bundle.STARTING
-        self._dispatcher.fire_bundle_event(BundleEvent(BundleEvent.STARTING,
-                                                       self))
+        self._dispatcher.fire_bundle_event(
+            BundleEvent(BundleEvent.STARTING, self))
 
         # Start all registered bundles (use a copy, just in case...)
         for bundle in self.__bundles.copy().values():
             try:
                 bundle.start()
-
             except FrameworkException as ex:
                 # Important error
                 _logger.exception("Important error starting bundle: %s",
@@ -1013,15 +1003,15 @@ class Framework(Bundle):
 
         # Stopping...
         self._state = Bundle.STOPPING
-        self._dispatcher.fire_bundle_event(BundleEvent(BundleEvent.STOPPING,
-                                                       self))
+        self._dispatcher.fire_bundle_event(
+            BundleEvent(BundleEvent.STOPPING, self))
 
         # Notify listeners that the bundle is stopping
         self._dispatcher.fire_framework_stopping()
 
         bid = self.__next_bundle_id - 1
         while bid > 0:
-            bundle = self.__bundles.get(bid, None)
+            bundle = self.__bundles.get(bid)
             bid -= 1
 
             if bundle is None or bundle.get_state() != Bundle.ACTIVE:
@@ -1030,7 +1020,6 @@ class Framework(Bundle):
 
             try:
                 bundle.stop()
-
             except Exception as ex:
                 # Just log exceptions
                 _logger.exception("Error stopping bundle %s: %s",
@@ -1038,8 +1027,8 @@ class Framework(Bundle):
 
         # Framework is now stopped
         self._state = Bundle.RESOLVED
-        self._dispatcher.fire_bundle_event(BundleEvent(BundleEvent.STOPPED,
-                                                       self))
+        self._dispatcher.fire_bundle_event(
+            BundleEvent(BundleEvent.STOPPED, self))
 
         # All bundles have been stopped, release "wait_for_stop"
         self._fw_stop_event.set()
@@ -1248,9 +1237,8 @@ class BundleContext(object):
                               (optional, None to accept all services)
         :return: True if the listener has been successfully registered
         """
-        return self.__framework._dispatcher.add_service_listener(listener,
-                                                                 specification,
-                                                                 ldap_filter)
+        return self.__framework._dispatcher.add_service_listener(
+            listener, specification, ldap_filter)
 
     def get_all_service_references(self, clazz, ldap_filter=None):
         """
@@ -1317,8 +1305,8 @@ class BundleContext(object):
         :param ldap_filter: A filter on service properties
         :return: A service reference, None if not found
         """
-        return self.__framework.find_service_references(clazz, ldap_filter,
-                                                        True)
+        return self.__framework.find_service_references(
+            clazz, ldap_filter, True)
 
     def get_service_references(self, clazz, ldap_filter=None):
         """
@@ -1398,9 +1386,8 @@ class BundleContext(object):
         :return: A ServiceRegistration object
         :raise BundleException: An error occurred while registering the service
         """
-        return self.__framework.register_service(self.__bundle, clazz,
-                                                 service, properties,
-                                                 send_event)
+        return self.__framework.register_service(
+            self.__bundle, clazz, service, properties, send_event)
 
     def remove_bundle_listener(self, listener):
         """
@@ -1436,8 +1423,8 @@ class BundleContext(object):
         :return: True if the bundle was using this reference, else False
         """
         # Lose the dependency
-        return self.__framework._registry.unget_service(self.__bundle,
-                                                        reference)
+        return self.__framework._registry.unget_service(
+            self.__bundle, reference)
 
 # ------------------------------------------------------------------------------
 
@@ -1558,7 +1545,6 @@ def create_framework(bundles, properties=None,
             # Wait for the framework to stop
             try:
                 framework.wait_for_stop(None)
-
             except KeyboardInterrupt:
                 # Stop keyboard interruptions
                 if framework.get_state() == Bundle.ACTIVE:

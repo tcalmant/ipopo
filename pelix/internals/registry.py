@@ -209,7 +209,7 @@ class ServiceReference(object):
         :return: The property value, None if not found
         """
         with self._props_lock:
-            return self.__properties.get(name, None)
+            return self.__properties.get(name)
 
     def get_property_keys(self):
         """
@@ -330,12 +330,14 @@ class ServiceRegistration(object):
 
         # Keys that must not be updated
         for forbidden_key in (OBJECTCLASS, SERVICE_ID):
-            if forbidden_key in properties:
+            try:
                 del properties[forbidden_key]
+            except KeyError:
+                pass
 
         to_delete = []
         for key, value in properties.items():
-            if self.__properties.get(key, None) == value:
+            if self.__properties.get(key) == value:
                 # No update
                 to_delete.append(key)
 
@@ -433,13 +435,13 @@ class EventDispatcher(object):
         Clears the event dispatcher
         """
         with self.__bnd_lock:
-            del self.__bnd_listeners[:]
+            self.__bnd_listeners = []
 
         with self.__svc_lock:
             self.__svc_listeners.clear()
 
         with self.__fw_lock:
-            del self.__fw_listeners[:]
+            self.__fw_listeners = []
 
     def add_bundle_listener(self, listener):
         """
@@ -509,7 +511,6 @@ class EventDispatcher(object):
 
             try:
                 ldap_filter = ldapfilter.get_ldap_filter(ldap_filter)
-
             except ValueError as ex:
                 raise BundleException("Invalid service filter: {0}"
                                       .format(ex))
@@ -541,11 +542,11 @@ class EventDispatcher(object):
         :return: True if the listener has been unregistered, else False
         """
         with self.__fw_lock:
-            if listener not in self.__fw_listeners:
+            try:
+                self.__fw_listeners.remove(listener)
+                return True
+            except ValueError:
                 return False
-
-            self.__fw_listeners.remove(listener)
-            return True
 
     def remove_service_listener(self, listener):
         """
@@ -559,10 +560,9 @@ class EventDispatcher(object):
                 data = self.__listeners_data.pop(listener)
                 spec_listeners = self.__svc_listeners[data.specification]
                 spec_listeners.remove(data)
-                if len(spec_listeners) == 0:
+                if not spec_listeners:
                     del self.__svc_listeners[data.specification]
                 return True
-
             except KeyError:
                 return False
 
@@ -595,7 +595,6 @@ class EventDispatcher(object):
         for listener in listeners:
             try:
                 listener.framework_stopping()
-
             except:
                 self._logger.exception("An error occurred calling one of the "
                                        "framework stop listeners")
@@ -656,7 +655,6 @@ class EventDispatcher(object):
             # Call'em
             try:
                 data.listener.service_changed(sent_event)
-
             except:
                 self._logger.exception("Error calling a service listener")
 
@@ -810,14 +808,14 @@ class ServiceRegistry(object):
                 # Use bisect to remove the reference (faster)
                 idx = bisect.bisect_left(spec_services, svc_ref)
                 del spec_services[idx]
-                if len(spec_services) == 0:
+                if not spec_services:
                     del self.__svc_specs[spec]
 
             # Delete bundle association
             bundle_services = self.__bundle_svc[bundle]
             idx = bisect.bisect_left(bundle_services, svc_ref)
             del bundle_services[idx]
-            if len(bundle_services) == 0:
+            if not bundle_services:
                 # Don't keep empty lists
                 del self.__bundle_svc[bundle]
 

@@ -289,8 +289,8 @@ class _RequestHandler(BaseHTTPRequestHandler, object):
         """
         # Use the helper to send the error page
         response = _HTTPServletResponse(self)
-        response.send_content(404,
-                              self._service.make_not_found_page(self.path))
+        response.send_content(
+            404, self._service.make_not_found_page(self.path))
 
     def send_exception(self, response):
         """
@@ -463,8 +463,9 @@ class HttpService(object):
             # Consider invalidity as a failure
             return False
 
-        callback = getattr(instance, method, None)
-        if callback is None:
+        try:
+            callback = getattr(instance, method)
+        except AttributeError:
             # Consider absence as a success
             return True
 
@@ -493,7 +494,6 @@ class HttpService(object):
         if utilities.is_string(paths):
             # Register the servlet to a single path
             self.register_servlet(paths, service, None)
-
         elif isinstance(paths, (list, tuple)):
             # Register the servlet to multiple paths
             for path in paths:
@@ -606,7 +606,6 @@ class HttpService(object):
             if not longest_match:
                 # No match found
                 return None
-
             else:
                 # Retrieve the stored information
                 return self._servlets[longest_match]
@@ -697,11 +696,9 @@ class HttpService(object):
                 if self._servlets[path][0] is servlet:
                     # Double-registration: Nothing to do
                     return True
-
                 else:
                     # Path is already taken by another servlet
                     already_taken = True
-
             else:
                 # Path is available
                 already_taken = False
