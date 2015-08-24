@@ -6,7 +6,7 @@ Defines some iPOPO constants
 :author: Thomas Calmant
 :copyright: Copyright 2015, isandlaTech
 :license: Apache License 2.0
-:version: 0.6.2
+:version: 0.6.3
 
 ..
 
@@ -25,7 +25,7 @@ Defines some iPOPO constants
     limitations under the License.
 """
 # Module version
-__version_info__ = (0, 6, 2)
+__version_info__ = (0, 6, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
