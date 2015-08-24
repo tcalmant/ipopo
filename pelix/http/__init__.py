@@ -125,7 +125,8 @@ class AbstractHTTPServletRequest(object):
 
         :return: A (host, port) tuple
         """
-        raise NotImplementedError("This method must be implemented by a child class")
+        raise NotImplementedError("This method must be implemented by a "
+                                  "child class")
 
     def get_header(self, name, default=None):
         """
@@ -135,7 +136,8 @@ class AbstractHTTPServletRequest(object):
         :param default: Default value if the header doesn't exist
         :return: The header value or the default one
         """
-        raise NotImplementedError("This method must be implemented by a child class")
+        raise NotImplementedError("This method must be implemented by a "
+                                  "child class")
 
     def get_headers(self):
         """
@@ -143,7 +145,8 @@ class AbstractHTTPServletRequest(object):
 
         :return: A dictionary-like object
         """
-        raise NotImplementedError("This method must be implemented by a child class")
+        raise NotImplementedError("This method must be implemented by a "
+                                  "child class")
 
     def get_path(self):
         """
@@ -151,7 +154,8 @@ class AbstractHTTPServletRequest(object):
 
         :return: A request full path (string)
         """
-        raise NotImplementedError("This method must be implemented by a child class")
+        raise NotImplementedError("This method must be implemented by a "
+                                  "child class")
 
     def get_rfile(self):
         """
@@ -159,7 +163,8 @@ class AbstractHTTPServletRequest(object):
 
         :return: A file-like input stream
         """
-        raise NotImplementedError("This method must be implemented by a child class")
+        raise NotImplementedError("This method must be implemented by a "
+                                  "child class")
 
     def read_data(self):
         """

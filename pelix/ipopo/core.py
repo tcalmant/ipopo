@@ -701,9 +701,8 @@ class _IPopoService(object):
                     factory_context.is_singleton_active = True
 
             # Normalize the given properties
-            properties = \
-                self._prepare_instance_properties(properties,
-                                                  factory_context.properties)
+            properties = self._prepare_instance_properties(
+                properties, factory_context.properties)
 
             # Set up the component instance context
             component_context = ComponentContext(factory_context, name,

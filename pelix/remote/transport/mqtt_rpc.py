@@ -187,7 +187,6 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         try:
             # Parse the message
             data = json.loads(to_str(msg.payload))
-
         except ValueError as ex:
             # Bad content
             _logger.error("Error reading MQTT-RPC request: %s", ex)
@@ -225,24 +224,20 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
             method = call_info[0]
             params = call_info[1:]
-
         except (KeyError, IndexError, ValueError) as ex:
             result[KEY_ERROR] = "Endpoint name is missing: {0}".format(ex)
-
         else:
             try:
                 # Call the service
                 result[KEY_DATA] = self.dispatch(method, params)
-
             except Exception as ex:
                 # An error occurred
                 result[KEY_ERROR] = str(ex)
 
         try:
             # Publish the result
-            self.__mqtt.publish(self.__reply_topic, json.dumps(result),
-                                qos=2)
-
+            self.__mqtt.publish(
+                self.__reply_topic, json.dumps(result), qos=2)
         except (ValueError, AttributeError) as ex:
             _logger.error("Error replying an RPC request: %s", ex)
 
@@ -458,7 +453,6 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         """
         An MQTT reply has been received
         """
-        correlation_id = None
         try:
             # Parse data
             data = json.loads(to_str(msg.payload))
@@ -474,21 +468,19 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
 
             # Extract the correlation ID
             correlation_id = data[KEY_CORRELATION_ID]
-
         except ValueError as ex:
             # Unreadable reply
             _logger.error("Error reading MQTT-RPC reply: %s", ex)
             return
-
         except KeyError as ex:
             # No correlation ID
             _logger.error("Incomplete MQTT-RPC reply: missing %s", ex)
+            return
 
         try:
             # Extract result
             result = data[KEY_DATA]
             error = data[KEY_ERROR]
-
         except KeyError as ex:
             # Incomplete result
             result = None
@@ -497,11 +489,9 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         try:
             # Find the matching proxy
             proxy = self.__waiting.pop(correlation_id)
-
         except KeyError:
             # No a correlation ID we know
             pass
-
         else:
             # Notify the proxy
             proxy.handle_result(result, error)
