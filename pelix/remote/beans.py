@@ -667,11 +667,16 @@ def compute_exported_specifications(svc_ref):
     :param svc_ref: A ServiceReference
     :return: The list of exported specifications (or an empty list)
     """
+    if svc_ref.get_property(pelix.remote.PROP_EXPORT_NONE):
+        # The export of this service is explicitly forbidden, stop here
+        return []
+
+    # Service specifications
     specs = svc_ref.get_property(pelix.constants.OBJECTCLASS)
+
+    # Exported specifications
     exported_specs = svc_ref.get_property(
         pelix.remote.PROP_EXPORTED_INTERFACES)
-    rejected_specs = pelix.utilities.to_iterable(
-        svc_ref.get_property(pelix.remote.PROP_EXPORT_REJECT), False)
 
     if exported_specs and exported_specs != "*":
         # A set of specifications is exported, replace "objectClass"
@@ -682,8 +687,21 @@ def compute_exported_specifications(svc_ref):
         # Export everything
         all_exported_specs = pelix.utilities.to_iterable(specs)
 
-    # Filter specifications
-    return [spec for spec in all_exported_specs if spec not in rejected_specs]
+    # Authorized and rejected specifications
+    export_only_specs = pelix.utilities.to_iterable(
+        svc_ref.get_property(pelix.remote.PROP_EXPORT_ONLY), False)
+
+    if export_only_specs:
+        # Filter specifications (keep authorized specifications)
+        return [spec for spec in all_exported_specs
+                if spec in export_only_specs]
+    else:
+        # Filter specifications (reject)
+        rejected_specs = pelix.utilities.to_iterable(
+            svc_ref.get_property(pelix.remote.PROP_EXPORT_REJECT), False)
+
+        return [spec for spec in all_exported_specs
+                if spec not in rejected_specs]
 
 
 def extract_specifications(specifications, properties):

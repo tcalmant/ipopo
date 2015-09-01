@@ -110,11 +110,28 @@ PROP_SYNONYMS = "pelix.remote.synonyms"
 Synonyms of the exported specifications. Used of multi-language applications.
 """
 
+PROP_EXPORT_NONE = "pelix.remote.export.none"
+"""
+A service with this property set to a non-false value (any value other than an
+empty string, False, ...) will never be exported.
+This can be used to avoid the export of a service due to properties of the
+component providing it.
+If this property is set, the other "pelix.remote.export" properties are ignored.
+"""
+
+PROP_EXPORT_ONLY = "pelix.remote.export.only"
+"""
+Only the specifications given in this property can be exported, if the service
+provides them.
+This property is used only if it has a non-false value.
+If given, the "pelix.remote.export.reject" is ignored.
+"""
+
 PROP_EXPORT_REJECT = "pelix.remote.export.reject"
 """
 List of specifications that must never exported. Acts as a filter when
 exporting all other specifications with the "service.exported.interfaces"
-property set to "*"
+property set to "*".
 """
 
 # ------------------------------------------------------------------------------
