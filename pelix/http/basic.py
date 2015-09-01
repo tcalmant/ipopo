@@ -321,12 +321,15 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
     Inspired from:
     http://www.arcfn.com/2011/02/ipv6-web-serving-with-arc-or-python.html
     """
-    def __init__(self, server_address, request_handler_class, logger=None):
+    def __init__(self, server_address, request_handler_class,
+                 request_queue_size=5, logger=None):
         """
         Proxy constructor
 
         :param server_address: The server address
         :param request_handler_class: The request handler class
+        :param request_queue_size: The size of the request queue
+                                   (clients waiting for treatment)
         :param logger: An optional logger, in case of ignored error
         """
         # Determine the address family
@@ -338,7 +341,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
         self.address_family = addr_info[0][0]
 
         # Set the queue size
-        self.request_queue_size = 50
+        self.request_queue_size = request_queue_size
 
         # Set up the server, socket, ... but do not bind immediately
         HTTPServer.__init__(self, server_address, request_handler_class, False)
@@ -401,6 +404,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 @Property("_instance_name", constants.IPOPO_INSTANCE_NAME)
 @Property("_logger_name", "pelix.http.logger.name", "")
 @Property("_logger_level", "pelix.http.logger.level", None)
+@Property('_request_queue_size', "pelix.http.request_queue_size", 5)
 class HttpService(object):
     """
     Basic HTTP service component
@@ -416,6 +420,7 @@ class HttpService(object):
         self._instance_name = None
         self._logger_name = None
         self._logger_level = None
+        self._request_queue_size = 5
 
         # Validation flag
         self._validated = False
@@ -816,6 +821,15 @@ class HttpService(object):
                 # Random port
                 self._port = 0
 
+        # Normalize the request queue size
+        try:
+            self._request_queue_size = int(self._request_queue_size)
+        except (ValueError, TypeError):
+            self._request_queue_size = 5
+
+        if self._request_queue_size <= 0:
+            self._request_queue_size = 5
+
         # Normalize the extra properties
         if not isinstance(self._extra, dict):
             self._extra = {}
@@ -837,9 +851,9 @@ class HttpService(object):
                  self._address, self._port)
 
         # Create the server
-        self._server = _HttpServerFamily((self._address, self._port),
-                                         lambda *x: _RequestHandler(self, *x),
-                                         self._logger)
+        self._server = _HttpServerFamily(
+            (self._address, self._port), lambda *x: _RequestHandler(self, *x),
+            self._request_queue_size, self._logger)
 
         # Property update (if port was 0)
         self._port = self._server.server_port
