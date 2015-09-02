@@ -39,8 +39,8 @@ __docformat__ = "restructuredtext en"
 
 # Shell constants
 from pelix.constants import BundleActivator
-from . import SERVICE_SHELL
-from .beans import IOHandler, ShellSession
+from pelix.shell import SERVICE_SHELL
+from pelix.shell.beans import IOHandler, ShellSession
 import pelix.framework as pelix
 
 # Standard library
