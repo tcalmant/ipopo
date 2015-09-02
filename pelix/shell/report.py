@@ -112,8 +112,8 @@ class ReportCommands(object):
         lines = []
         for level in levels:
             methods = sorted(method.__name__ for method in self.__levels[level])
-            lines.append('- ' + level + ': ')
-            lines.append('\t' + ', '.join(methods))
+            lines.append('- {0}:'.format(level))
+            lines.append('\t{0}'.format(', '.join(methods)))
         session.write_line('\n'.join(lines))
 
     @staticmethod
