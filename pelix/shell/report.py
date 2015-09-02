@@ -39,10 +39,120 @@ from pelix.ipopo.constants import use_ipopo
 from pelix.shell import SERVICE_SHELL_COMMAND
 
 # Standard library
+import inspect
 import json
+import linecache
 import os
 import platform
 import sys
+import threading
+
+# ------------------------------------------------------------------------------
+
+
+def _format_frame_info(frame):
+    """
+    Formats the given stack frame to show its position in the code and
+    part of its context
+
+    :param frame: A stack frame
+    """
+    # Same as in traceback.extract_stack
+    line_no = frame.f_lineno
+    code = frame.f_code
+    filename = code.co_filename
+    method_name = code.co_name
+    linecache.checkcache(filename)
+
+    try:
+        # Try to get the type of the calling object
+        instance = frame.f_locals['self']
+        method_name = '{0}::{1}'.format(type(instance).__name__, method_name)
+    except KeyError:
+        # Not called from a bound method
+        pass
+
+    # File & line
+    output_lines = ['  File "{0}", line {1}, in {2}'
+                    .format(filename, line_no, method_name)]
+
+    # Arguments
+    arg_info = inspect.getargvalues(frame)
+    for name in arg_info.args:
+        try:
+            output_lines.append(
+                '    - {0:s} = {1}'.format(name, repr(frame.f_locals[name])))
+        except TypeError:
+            # Happens in dict/list-comprehensions in Python 2.x
+            name = name[0]
+            output_lines.append(
+                '    - {0:s} = {1}'.format(name, repr(frame.f_locals[name])))
+
+    if arg_info.varargs:
+        output_lines.append(
+            '    - *{0:s} = {1}'.format(
+                arg_info.varargs, frame.f_locals[arg_info.varargs]))
+
+    if arg_info.keywords:
+        output_lines.append(
+            '    - **{0:s} = {1}'.format(
+                arg_info.keywords, frame.f_locals[arg_info.keywords]))
+
+    # Line block
+    lines = _extract_lines(filename, frame.f_globals, line_no, 3)
+    if lines:
+        output_lines.append('')
+        prefix = '      '
+        output_lines.append(
+            '{0}{1}'.format(prefix, '\n{0}'.format(prefix).join(lines)))
+    return '\n'.join(output_lines)
+
+
+def _extract_lines(filename, f_globals, line_no, around):
+    """
+    Extracts a block of lines from the given file
+
+    :param filename: Name of the source file
+    :param f_globals: Globals of the frame of the current code
+    :param line_no: Current line of code
+    :param around: Number of line to print before and after the current one
+    """
+    current_line = linecache.getline(filename, line_no, f_globals)
+    if not current_line:
+        # No data on this line
+        return ''
+
+    lines = []
+    # Add some lines before
+    for pre_line_no in range(line_no - around, line_no):
+        pre_line = linecache.getline(filename, pre_line_no, f_globals)
+        lines.append('{0}'.format(pre_line.rstrip()))
+
+    # The line itself
+    lines.append('{0}'.format(current_line.rstrip()))
+
+    # Add some lines after
+    for pre_line_no in range(line_no + 1, line_no + around + 1):
+        pre_line = linecache.getline(filename, pre_line_no, f_globals)
+        lines.append('{0}'.format(pre_line.rstrip()))
+
+    # Smart left strip
+    minimal_tab = None
+    for line in lines:
+        if line.strip():
+            tab = len(line) - len(line.lstrip())
+            if minimal_tab is None or tab < minimal_tab:
+                minimal_tab = tab
+
+    if minimal_tab > 0:
+        lines = [line[minimal_tab:] for line in lines]
+
+    # Add some place for a marker
+    marked_line = '>> {0}'.format(lines[around])
+    lines = ['   {0}'.format(line) for line in lines]
+    lines[around] = marked_line
+    lines.append('')
+    return lines
 
 # ------------------------------------------------------------------------------
 
@@ -77,7 +187,7 @@ class ReportCommands(object):
             'ipopo': (self.ipopo_instances, self.ipopo_factories),
             'ipopo_instances': (self.ipopo_instances,),
             'ipopo_factories': (self.ipopo_factories,),
-            # 'threads': (self.threads_details,),
+            'threads': (self.threads_list,),
             # 'memory': (self.memory_details,),
         }
 
@@ -288,28 +398,79 @@ class ReportCommands(object):
             return {instance[0]: ipopo.get_instance_details(instance[0])
                     for instance in ipopo.get_instances()}
 
+    @staticmethod
+    def threads_list():
+        """
+        Lists the active threads and their current code line
+        """
+        results = {}
+
+        # pylint: disable=W0212
+        try:
+            # Extract frames
+            frames = sys._current_frames()
+
+            # Get the thread ID -> Thread mapping
+            names = threading._active.copy()
+        except AttributeError:
+            # Extraction not available
+            return results
+
+        # Sort by thread ID
+        thread_ids = sorted(frames.keys())
+        for thread_id in thread_ids:
+            # Get the corresponding stack
+            stack = frames[thread_id]
+
+            # Try to get the thread name
+            try:
+                name = names[thread_id].name
+            except KeyError:
+                name = "<unknown>"
+
+            trace_lines = []
+            frame = stack
+            while frame is not None:
+                # Store the line information
+                trace_lines.append(_format_frame_info(frame))
+
+                # Previous frame...
+                frame = frame.f_back
+
+            # Construct the thread description
+            results[thread_id] = {
+                "name": name,
+                "stacktrace": '\n'.join(reversed(trace_lines))
+            }
+
+        return results
+
     def make_report(self, session, *levels):
         """
         Prepares the report
 
         :param levels: list of levels
         """
-        if not levels:
-            levels = ['full']
-
         try:
-            methods = {method
-                       for level in levels
-                       for method in self.__levels[level]}
-        except KeyError as ex:
-            session.write_line("Unknown report level: {0}", ex)
-            self.__report = None
-        else:
-            self.__report = {method.__name__: method() for method in methods}
-            self.__report['levels'] = levels
-        return self.__report
+            if not levels:
+                levels = ['full']
 
-    def clear_report(self, session):
+            try:
+                methods = {method
+                           for level in levels
+                           for method in self.__levels[level]}
+            except KeyError as ex:
+                session.write_line("Unknown report level: {0}", ex)
+                self.__report = None
+            else:
+                self.__report = {method.__name__: method() for method in methods}
+                self.__report['levels'] = levels
+            return self.__report
+        except Exception as ex:
+                import logging
+                logging.exception("Error: %s", ex)
+
+    def clear_report(self, _):
         """
         Deletes the report in memory
         """
@@ -383,7 +544,7 @@ class Activator(object):
         self._svc_reg = context.register_service(
             SERVICE_SHELL_COMMAND, ReportCommands(context), {})
 
-    def stop(self, context):
+    def stop(self, _):
         """
         Bundle stopping
         """
