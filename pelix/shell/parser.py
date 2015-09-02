@@ -517,7 +517,7 @@ class Shell(object):
             args.append('[<property=value> ...]')
 
         if argspec.varargs:
-            args.append("...")
+            args.append("[<{0} ...>]".format(argspec.varargs))
 
         # Get the documentation string
         doc = inspect.getdoc(method) or "(Documentation missing)"
