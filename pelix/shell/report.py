@@ -176,6 +176,7 @@ class ReportCommands(object):
             'branch': platform.python_branch(),
             'revision': platform.python_revision(),
             'implementation': platform.python_implementation(),
+            'version': '.'.join(str(v) for v in sys.version_info),
 
             # API version
             'api.version': sys.api_version,
@@ -215,7 +216,7 @@ class ReportCommands(object):
         Returns the content of sys.path
         """
         return {
-            'sys.path': sys.path.copy(),
+            'sys.path': sys.path[:],
             'sys.path_hooks': getattr(sys, 'path_hooks', None),
             'sys.meta_path': sys.meta_path
         }
