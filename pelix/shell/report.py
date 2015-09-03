@@ -550,7 +550,7 @@ class ReportCommands(object):
         """
         return str(obj)
 
-    def __dump_json(self, data):
+    def to_json(self, data):
         """
         Converts the given object to a pretty-formatted JSON string
 
@@ -570,7 +570,7 @@ class ReportCommands(object):
             self.make_report(session, *levels)
 
         if self.__report:
-            session.write_line(self.__dump_json(self.__report))
+            session.write_line(self.to_json(self.__report))
         else:
             session.write_line("No report to show")
 
@@ -584,7 +584,7 @@ class ReportCommands(object):
 
         try:
             with open(filename, "w+") as fp:
-                fp.write(self.__dump_json(self.__report))
+                fp.write(self.to_json(self.__report))
         except IOError as ex:
             session.write_line("Error writing to file: {0}", ex)
 
