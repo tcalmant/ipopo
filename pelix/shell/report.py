@@ -300,6 +300,7 @@ class ReportCommands(object):
             'executable': sys.executable,
             'argv': sys.argv,
             'encoding.default': sys.getdefaultencoding(),
+            'working.directory': os.getcwd(),
 
             # Other details, ...
             'recursion_limit': sys.getrecursionlimit()
@@ -341,9 +342,9 @@ class ReportCommands(object):
         for module_name, module in sys.modules.items():
             if module_name not in sys.builtin_module_names:
                 try:
-                    imported[module_name] = module.__file__
-                except AttributeError:
-                    imported[module_name] = "<no __file__ attribute :: {0}>" \
+                    imported[module_name] = inspect.getfile(module)
+                except TypeError:
+                    imported[module_name] = "<no file information :: {0}>" \
                         .format(repr(module))
 
         return results
