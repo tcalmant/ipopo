@@ -334,6 +334,9 @@ class ReportCommands(object):
         ipv4_addresses.extend(info[4][0] for info in socket.getaddrinfo(
             "localhost", None, socket.AF_INET))
 
+        # Filter addresses
+        ipv4_addresses = sorted(set(ipv4_addresses))
+
         try:
             # Get IPv6 details
             ipv6_addresses = [info[4][0] for info in socket.getaddrinfo(
@@ -342,6 +345,9 @@ class ReportCommands(object):
             # Add localhost
             ipv6_addresses.extend(info[4][0] for info in socket.getaddrinfo(
                 "localhost", None, socket.AF_INET6))
+
+            # Filter addresses
+            ipv6_addresses = sorted(set(ipv6_addresses))
         except (socket.gaierror, AttributeError):
             # AttributeError: AF_INET6 is missing in some versions of Python
             ipv6_addresses = None
