@@ -44,6 +44,7 @@ import json
 import linecache
 import os
 import platform
+import socket
 import sys
 import threading
 
@@ -174,21 +175,29 @@ class ReportCommands(object):
 
         # Level -> Methods
         self.__levels = {
+            # OS and machine details
             'os': (self.os_details,),
             'os_env': (self.os_env,),
+
+            # Python
             'python': (self.python_details,),
             'python_path': (self.python_path,),
             'python_modules': (self.python_modules,),
+            'process': (self.process_details,),
+
+            # Pelix
             'pelix_basic': (self.pelix_infos,),
             'pelix_bundles': (self.pelix_bundles,),
             'pelix_services': (self.pelix_services,),
+
+            # iPOPO
+            'ipopo_instances': (self.ipopo_instances,),
+            'ipopo_factories': (self.ipopo_factories,),
+
+            # Aliases
             'pelix': (self.pelix_infos, self.pelix_bundles,
                       self.pelix_services),
             'ipopo': (self.ipopo_instances, self.ipopo_factories),
-            'ipopo_instances': (self.ipopo_instances,),
-            'ipopo_factories': (self.ipopo_factories,),
-            'threads': (self.threads_list,),
-            # 'memory': (self.memory_details,),
         }
 
         # Full report: call all methods
@@ -196,6 +205,10 @@ class ReportCommands(object):
         for methods in self.__levels.values():
             full_reports.update(methods)
         self.__levels['full'] = tuple(full_reports)
+
+        # Extra reports, maybe too intrusive or too big to go in the full report
+        self.__levels['threads'] = (self.threads_list,)
+        self.__levels['network'] = (self.network_details,)
 
     @staticmethod
     def get_namespace():
@@ -243,12 +256,17 @@ class ReportCommands(object):
 
             # OS details
             'os.name': os.name,
+            'host.name': socket.gethostname(),
             'sys.platform': sys.platform,
             'platform.system': platform.system(),
             'platform.release': platform.release(),
             'platform.version': platform.version(),
             'encoding.filesystem': sys.getfilesystemencoding(),
         }
+
+        # Paths and line separators
+        for name in ('sep', 'altsep', 'pathsep', 'linesep'):
+            results['os.{0}'.format(name)] = getattr(os, name, None)
 
         try:
             # Available since Python 3.4
@@ -270,6 +288,56 @@ class ReportCommands(object):
         Returns a copy of the environment variables
         """
         return os.environ.copy()
+
+    @staticmethod
+    def process_details():
+        """
+        Returns details about the current process
+        """
+        results = {
+            'argv': sys.argv,
+            'working.directory': os.getcwd(),
+        }
+
+        # Process ID and execution IDs (UID, GID, Login, ...)
+        for key, method in {'pid': 'getpid', 'ppid': 'getppid',
+                            'login': 'getlogin', 'uid': 'getuid',
+                            'euid': 'geteuid', 'gid': 'getgid',
+                            'egid': 'getegid', 'groups': 'getgroups'}.items():
+            try:
+                results[key] = getattr(os, method)()
+            except AttributeError:
+                results[key] = None
+        return results
+
+    @staticmethod
+    def network_details():
+        """
+        Returns details about the network links
+        """
+        # Get IPv4 details
+        ipv4_addresses = [info[4][0] for info in socket.getaddrinfo(
+            socket.gethostname(), None, socket.AF_INET)]
+
+        # Add localhost
+        ipv4_addresses.extend(info[4][0] for info in socket.getaddrinfo(
+            "localhost", None, socket.AF_INET))
+
+        try:
+            # Get IPv6 details
+            ipv6_addresses = [info[4][0] for info in socket.getaddrinfo(
+                socket.gethostname(), None, socket.AF_INET6)]
+
+            # Add localhost
+            ipv6_addresses.extend(info[4][0] for info in socket.getaddrinfo(
+                "localhost", None, socket.AF_INET6))
+        except (socket.gaierror, AttributeError):
+            # AttributeError: AF_INET6 is missing in some versions of Python
+            ipv6_addresses = None
+
+        return {"IPv4": ipv4_addresses, "IPv6": ipv6_addresses,
+                "host.name": socket.gethostname(),
+                "host.fqdn": socket.getfqdn()}
 
     @staticmethod
     def python_details():
@@ -298,9 +366,7 @@ class ReportCommands(object):
 
             # Execution details
             'executable': sys.executable,
-            'argv': sys.argv,
             'encoding.default': sys.getdefaultencoding(),
-            'working.directory': os.getcwd(),
 
             # Other details, ...
             'recursion_limit': sys.getrecursionlimit()
@@ -317,7 +383,6 @@ class ReportCommands(object):
 
         # -X options (CPython only)
         results['x_options'] = getattr(sys, '_xoptions', None)
-
         return results
 
     @staticmethod
@@ -501,7 +566,7 @@ class ReportCommands(object):
         """
         Shows the report that has been generated
         """
-        if not self.__report:
+        if levels:
             self.make_report(session, *levels)
 
         if self.__report:
