@@ -619,7 +619,7 @@ class Activator(object):
         """
         # Prepare the shell utility service
         self._svc_reg = context.register_service(
-            (SERVICE_SHELL_COMMAND, SERVICE_SHELL_REPORT),
+            [SERVICE_SHELL_COMMAND, SERVICE_SHELL_REPORT],
             ReportCommands(context), {})
 
     def stop(self, _):
