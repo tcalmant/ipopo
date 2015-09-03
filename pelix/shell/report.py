@@ -36,7 +36,7 @@ __docformat__ = "restructuredtext en"
 import pelix.constants
 from pelix.constants import BundleActivator
 from pelix.ipopo.constants import use_ipopo
-from pelix.shell import SERVICE_SHELL_COMMAND
+from pelix.shell import SERVICE_SHELL_COMMAND, SERVICE_SHELL_REPORT
 
 # Standard library
 import inspect
@@ -225,15 +225,26 @@ class ReportCommands(object):
                 ('make', self.make_report),
                 ('clear', self.clear_report),
                 ('show', self.show_report),
-                ('write', self.write_report),]
+                ('write', self.write_report)]
+
+    def get_levels(self):
+        """
+        Returns a copy of the dictionary of levels.
+
+        The key is the name of the report level, the value is the tuple of
+        methods to call for that level.
+        Multiple levels can call the same method.
+
+        :return: A dictionary of lists of methods to call
+        """
+        return self.__levels.copy()
 
     def print_levels(self, session):
         """
         Lists available levels
         """
-        levels = sorted(self.__levels)
         lines = []
-        for level in levels:
+        for level in sorted(self.__levels):
             methods = sorted(method.__name__ for method in self.__levels[level])
             lines.append('- {0}:'.format(level))
             lines.append('\t{0}'.format(', '.join(methods)))
@@ -608,7 +619,8 @@ class Activator(object):
         """
         # Prepare the shell utility service
         self._svc_reg = context.register_service(
-            SERVICE_SHELL_COMMAND, ReportCommands(context), {})
+            (SERVICE_SHELL_COMMAND, SERVICE_SHELL_REPORT),
+            ReportCommands(context), {})
 
     def stop(self, _):
         """

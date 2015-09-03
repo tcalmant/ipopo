@@ -70,6 +70,18 @@ Remote shell service
   waiting clients.
 """
 
+SERVICE_SHELL_REPORT = "pelix.shell.report"
+"""
+Report command service: gives access to the report methods for a future reuse
+
+* get_levels():  Returns a copy of the dictionary of levels. The key is the
+  name of the report level, the value is the tuple of methods to call for that
+  level. Multiple levels can call the same method. The methods take no argument
+  and return a dictionary.
+* to_json(dict): Converts a dictionary to JSON, replacing inconvertible values
+  to their string representation.
+"""
+
 # ------------------------------------------------------------------------------
 # Temporary constants, for compatibility with previous shell developments
 
