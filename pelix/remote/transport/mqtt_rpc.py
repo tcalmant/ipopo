@@ -32,17 +32,18 @@ Eclipse Foundation: see http://www.eclipse.org/paho
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import json
+import logging
+import threading
+import uuid
 
 # MQTT client
 import pelix.misc.mqtt_client
+
+# iPOPO decorators
+from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
+    Validate, Invalidate
 
 # Pelix & Remote services
 from pelix.utilities import to_str
@@ -50,15 +51,14 @@ from pelix.remote import RemoteServiceError
 import pelix.remote
 import pelix.remote.transport.commons as commons
 
-# iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
-    Validate, Invalidate
+# ------------------------------------------------------------------------------
 
-# Standard library
-import json
-import logging
-import threading
-import uuid
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

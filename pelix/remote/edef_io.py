@@ -28,20 +28,6 @@ specifications, section 122.8.
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# Pelix
-import pelix.constants
-import pelix.remote
-from pelix.remote.beans import EndpointDescription
-
 # Standard library
 import xml.etree.ElementTree as ElementTree
 try:
@@ -50,6 +36,20 @@ try:
 except ImportError:
     # Python 3
     from io import StringIO
+
+# Pelix
+import pelix.constants
+import pelix.remote
+from pelix.remote.beans import EndpointDescription
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

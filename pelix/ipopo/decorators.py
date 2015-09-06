@@ -25,25 +25,25 @@ Defines the iPOPO decorators classes to manipulate component factory classes
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import inspect
+import logging
+import threading
+import types
 
 # Pelix modules
 from pelix.utilities import is_string, to_iterable
 from pelix.ipopo.contexts import FactoryContext, Requirement
 import pelix.ipopo.constants as constants
 
-# Standard library
-import inspect
-import logging
-import threading
-import types
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
@@ -482,11 +482,10 @@ class ComponentFactory(object):
 
             # Inject the properties getter and setter if needed
             if context.properties_fields:
-                setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX
-                        + constants.IPOPO_GETTER_SUFFIX, None)
-                setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX
-                        + constants.IPOPO_SETTER_SUFFIX, None)
-
+                setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX +
+                        constants.IPOPO_GETTER_SUFFIX, None)
+                setattr(factory_class, constants.IPOPO_PROPERTY_PREFIX +
+                        constants.IPOPO_SETTER_SUFFIX, None)
         else:
             # Manipulation already applied: do nothing more
             _logger.error("%s has already been manipulated with the name '%s'."
@@ -717,10 +716,10 @@ class Provides(object):
                         constants.IPOPO_CONTROLLER_PREFIX))
 
             # Inject the future controller methods
-            setattr(clazz, constants.IPOPO_CONTROLLER_PREFIX
-                    + constants.IPOPO_GETTER_SUFFIX, None)
-            setattr(clazz, constants.IPOPO_CONTROLLER_PREFIX
-                    + constants.IPOPO_SETTER_SUFFIX, None)
+            setattr(clazz, constants.IPOPO_CONTROLLER_PREFIX +
+                    constants.IPOPO_GETTER_SUFFIX, None)
+            setattr(clazz, constants.IPOPO_CONTROLLER_PREFIX +
+                    constants.IPOPO_SETTER_SUFFIX, None)
 
         return clazz
 

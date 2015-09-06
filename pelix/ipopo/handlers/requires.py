@@ -25,14 +25,9 @@ Dependency handler
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import logging
+import threading
 
 # Pelix beans
 from pelix.constants import BundleActivator, BundleException
@@ -42,9 +37,14 @@ from pelix.internals.events import ServiceEvent
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
 
-# Standard library
-import logging
-import threading
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
@@ -418,8 +418,8 @@ class SimpleDependency(_RuntimeDependency):
         Tests if the dependency is in a valid state
         """
         return super(SimpleDependency, self).is_valid() \
-            or (self.requirement.immediate_rebind
-                and self._pending_ref is not None)
+            or (self.requirement.immediate_rebind and
+                self._pending_ref is not None)
 
     def try_binding(self):
         """

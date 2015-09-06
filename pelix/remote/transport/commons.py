@@ -28,14 +28,10 @@ Pelix remote services: Abstract RPC implementation
 * "system" methods (list, help, ...)
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import logging
+import threading
+import uuid
 
 # iPOPO decorators
 from pelix.ipopo.decorators import Validate, Invalidate, Property, Provides
@@ -45,10 +41,14 @@ import pelix.constants as constants
 import pelix.remote.beans
 from pelix.remote import RemoteServiceError
 
-# Standard library
-import logging
-import threading
-import uuid
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

@@ -116,7 +116,8 @@ A service with this property set to a non-false value (any value other than an
 empty string, False, ...) will never be exported.
 This can be used to avoid the export of a service due to properties of the
 component providing it.
-If this property is set, the other "pelix.remote.export" properties are ignored.
+If this property is set, the other "pelix.remote.export" properties are
+ignored.
 """
 
 PROP_EXPORT_ONLY = "pelix.remote.export.only"

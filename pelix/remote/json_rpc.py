@@ -27,14 +27,8 @@ Based on a modified version of the 3rd-party package jsonrpclib-pelix.
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import logging
 
 # JSON-RPC module
 import jsonrpclib.jsonrpc
@@ -50,8 +44,14 @@ import pelix.http
 import pelix.remote
 import pelix.remote.transport.commons as commons
 
-# Standard library
-import logging
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

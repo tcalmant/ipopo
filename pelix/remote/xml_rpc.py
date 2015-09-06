@@ -27,14 +27,20 @@ Based on standard package xmlrpclib
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
+# Standard library
+import logging
 
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# XML RPC modules
+try:
+    # Python 3
+    # pylint: disable=F0401
+    from xmlrpc.server import SimpleXMLRPCDispatcher
+    import xmlrpc.client as xmlrpclib
+except ImportError:
+    # Python 2
+    # pylint: disable=F0401
+    from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
+    import xmlrpclib
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Validate, \
@@ -46,21 +52,14 @@ import pelix.http
 import pelix.remote
 import pelix.remote.transport.commons as commons
 
-# Standard library
-import logging
+# ------------------------------------------------------------------------------
 
-# XML RPC modules
-try:
-    # Python 3
-    # pylint: disable=F0401
-    from xmlrpc.server import SimpleXMLRPCDispatcher
-    import xmlrpc.client as xmlrpclib
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
 
-except ImportError:
-    # Python 2
-    # pylint: disable=F0401
-    from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
-    import xmlrpclib
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

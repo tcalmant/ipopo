@@ -27,27 +27,6 @@ Calls services according to the given method name and parameters
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    BindField, Property, Validate, Invalidate, Instantiate, UnbindField
-from pelix.utilities import to_str
-
-# Pelix constants
-import pelix.constants
-import pelix.framework
-import pelix.http
-import pelix.remote
-import pelix.remote.beans as beans
-
 # Standard library
 import json
 import logging
@@ -63,6 +42,27 @@ except ImportError:
     # pylint: disable=F0401
     from urlparse import urljoin
     import httplib
+
+# iPOPO decorators
+from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
+    BindField, Property, Validate, Invalidate, Instantiate, UnbindField
+from pelix.utilities import to_str
+
+# Pelix constants
+import pelix.constants
+import pelix.framework
+import pelix.http
+import pelix.remote
+import pelix.remote.beans as beans
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

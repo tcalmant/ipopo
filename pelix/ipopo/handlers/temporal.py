@@ -25,14 +25,8 @@ Temporal dependency handler
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import threading
 
 # Pelix beans
 from pelix.constants import BundleActivator
@@ -43,8 +37,14 @@ import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
 import pelix.ipopo.handlers.requires as requires
 
-# Standard library
-import threading
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

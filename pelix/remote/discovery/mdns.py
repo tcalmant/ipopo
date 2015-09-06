@@ -31,32 +31,32 @@ removed (around line 220)
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import json
+import logging
+import socket
 
 # Zeroconf
 import zeroconf.mdns as mdns
-
-# Remote services
-import pelix.remote
-import pelix.remote.beans as beans
-from pelix.utilities import is_string, to_str
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
     Invalidate, Validate, Property
 import pelix.constants
 
-# Standard library
-import json
-import logging
-import socket
+# Remote services
+import pelix.remote
+import pelix.remote.beans as beans
+from pelix.utilities import is_string, to_str
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

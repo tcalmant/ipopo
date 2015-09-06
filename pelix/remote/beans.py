@@ -25,22 +25,6 @@ Pelix remote services: Specifications handling utility methods
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# Pelix
-from pelix.utilities import is_string
-import pelix.constants
-import pelix.ldapfilter
-import pelix.remote
-import pelix.utilities
-
 # Standard library
 try:
     # Python 3
@@ -50,6 +34,22 @@ except ImportError:
     # Python 2
     # pylint: disable=F0401
     from urlparse import urlparse
+
+# Pelix
+from pelix.utilities import is_string
+import pelix.constants
+import pelix.ldapfilter
+import pelix.remote
+import pelix.utilities
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

@@ -25,14 +25,8 @@ Service providing handler
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import logging
 
 # Pelix beans
 from pelix.constants import BundleActivator, BundleException
@@ -41,8 +35,14 @@ from pelix.constants import BundleActivator, BundleException
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
 
-# Standard library
-import logging
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

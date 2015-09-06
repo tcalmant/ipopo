@@ -25,14 +25,8 @@ Definition of Factory and Component context classes
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import copy
 
 # Pelix utilities
 from pelix.constants import OBJECTCLASS
@@ -42,8 +36,14 @@ import pelix.ldapfilter as ldapfilter
 # iPOPO constants
 import pelix.ipopo.constants as constants
 
-# Standard library
-import copy
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
@@ -180,11 +180,10 @@ class Requirement(object):
         :param props_filter: The new requirement filter on service properties
         :raise TypeError: Unknown filter type
         """
-        if props_filter is not None \
-                and not (is_string(props_filter)
-                         or isinstance(props_filter,
-                                       (ldapfilter.LDAPFilter,
-                                        ldapfilter.LDAPCriteria))):
+        if props_filter is not None and \
+                not (is_string(props_filter) or
+                     isinstance(props_filter, (ldapfilter.LDAPFilter,
+                                               ldapfilter.LDAPCriteria))):
             # Unknown type
             raise TypeError("Invalid filter type {0}"
                             .format(type(props_filter).__name__))

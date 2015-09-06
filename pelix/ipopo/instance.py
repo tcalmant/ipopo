@@ -25,14 +25,10 @@ Instance manager class definition
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import logging
+import threading
+import traceback
 
 # Pelix
 from pelix.constants import FrameworkException
@@ -44,10 +40,14 @@ import pelix.ipopo.handlers.constants as handlers_const
 # iPOPO beans
 from pelix.ipopo.contexts import ComponentContext
 
-# Standard library
-import logging
-import threading
-import traceback
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

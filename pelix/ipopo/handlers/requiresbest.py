@@ -25,15 +25,6 @@ RequiresBest handler implementation
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
 # Pelix beans
 from pelix.constants import BundleActivator, SERVICE_RANKING
 
@@ -41,6 +32,15 @@ from pelix.constants import BundleActivator, SERVICE_RANKING
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
 import pelix.ipopo.handlers.requires as requires
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

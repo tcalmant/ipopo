@@ -28,14 +28,9 @@ components.
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import logging
+import threading
 
 # Pelix
 from pelix.constants import BundleException, BundleActivator
@@ -43,9 +38,14 @@ from pelix.internals.events import ServiceEvent
 from pelix.ipopo.constants import IPopoEvent, use_ipopo, \
     SERVICE_IPOPO, SERVICE_IPOPO_WAITING_LIST
 
-# Standard library
-import logging
-import threading
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

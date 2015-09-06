@@ -25,14 +25,9 @@ Pelix remote services: Imported end points registry
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import logging
+import threading
 
 # Remote Services constants
 import pelix.constants
@@ -42,9 +37,14 @@ import pelix.remote
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
     Instantiate, Invalidate, Validate, BindField
 
-# Standard library
-import logging
-import threading
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

@@ -25,14 +25,10 @@ RequiresMap handler implementation
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import copy
+import logging
+import threading
 
 # Pelix beans
 from pelix.constants import BundleActivator, BundleException
@@ -42,10 +38,14 @@ from pelix.internals.events import ServiceEvent
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
 
-# Standard library
-import copy
-import logging
-import threading
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

@@ -25,14 +25,11 @@ Core iPOPO implementation
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import copy
+import inspect
+import logging
+import threading
 
 # Pelix
 from pelix.constants import SERVICE_ID, BundleActivator
@@ -48,11 +45,14 @@ import pelix.ipopo.handlers.constants as handlers_const
 from pelix.ipopo.contexts import FactoryContext, ComponentContext
 from pelix.ipopo.instance import StoredInstance
 
-# Standard library
-import copy
-import inspect
-import logging
-import threading
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

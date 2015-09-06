@@ -24,20 +24,21 @@ Defines some iPOPO constants
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+
+# Standard library
+import contextlib
+
+# Pelix
+from pelix.constants import BundleException
+
+# ------------------------------------------------------------------------------
+
 # Module version
 __version_info__ = (0, 6, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# Pelix
-from pelix.constants import BundleException
-
-# Standard library
-import contextlib
 
 # ------------------------------------------------------------------------------
 

@@ -25,14 +25,8 @@ Pelix Remote Services: Java-compatible RPC, based on the Jabsorb library
     limitations under the License.
 """
 
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# ------------------------------------------------------------------------------
+# Standard library
+import logging
 
 # JSON-RPC
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCDispatcher, \
@@ -52,8 +46,14 @@ import pelix.http
 import pelix.remote
 import pelix.remote.transport.commons as commons
 
-# Standard library
-import logging
+# ------------------------------------------------------------------------------
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

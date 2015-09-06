@@ -33,14 +33,18 @@ when using remote services on the local host only.
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
+# Standard library
+import logging
+import json
+import os
+import select
+import socket
+import struct
+import threading
 
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# iPOPO decorators
+from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
+    Invalidate, Validate, Property
 
 # Pelix utilities
 import pelix.constants
@@ -50,18 +54,14 @@ from pelix.utilities import to_bytes, to_str
 # Remote services
 import pelix.remote
 
-# iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Invalidate, Validate, Property
+# ------------------------------------------------------------------------------
 
-# Standard library
-import logging
-import json
-import os
-import select
-import socket
-import struct
-import threading
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
