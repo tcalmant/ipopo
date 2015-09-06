@@ -27,6 +27,27 @@ Provides the basic command parsing and execution support to make a Pelix shell.
     limitations under the License.
 """
 
+# Standard library
+import logging
+import os
+import sys
+import threading
+
+# Pelix modules
+import pelix.constants as constants
+import pelix.framework as pelix
+
+# Shell constants
+from pelix.shell import SERVICE_SHELL, SERVICE_SHELL_COMMAND, \
+    SERVICE_SHELL_UTILS
+from pelix.shell.report import format_frame_info
+import pelix.shell.parser as parser
+
+# ------------------------------------------------------------------------------
+
+# Public API
+__all__ = ()
+
 # Module version
 __version_info__ = (0, 6, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -36,30 +57,11 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-# Shell constants
-from . import SERVICE_SHELL, SERVICE_SHELL_COMMAND, \
-    SERVICE_SHELL_UTILS
-from .report import _format_frame_info
-import pelix.shell.parser as parser
 
-# Pelix modules
-import pelix.constants as constants
-import pelix.framework as pelix
-
-# Standard library
-import logging
-import os
-import sys
-import threading
-
-# ------------------------------------------------------------------------------
-
-
-class ShellUtils(object):
+class _ShellUtils(object):
     """
     Utility methods for the shell
     """
-
     @staticmethod
     def bundlestate_to_str(state):
         """
@@ -165,18 +167,17 @@ class ShellUtils(object):
 # ------------------------------------------------------------------------------
 
 
-class ShellService(parser.Shell):
+class _ShellService(parser.Shell):
     """
     Provides the core shell service for Pelix
     """
-
     def __init__(self, context, utilities):
         """
         Sets up the shell
 
         :param context: The bundle context
         """
-        super(ShellService, self).__init__(context.get_bundle(0), __name__)
+        super(_ShellService, self).__init__(context.get_bundle(0), __name__)
         self._context = context
         self._utils = utilities
 
@@ -499,7 +500,8 @@ class ShellService(parser.Shell):
         """
         io_handler.write_line(os.getenv(name))
 
-    def threads_list(self, io_handler, max_depth=1):
+    @staticmethod
+    def threads_list(io_handler, max_depth=1):
         """
         Lists the active threads and their current code line
         """
@@ -545,7 +547,7 @@ class ShellService(parser.Shell):
             while frame is not None \
                     and (max_depth is None or depth < max_depth):
                 # Store the line information
-                trace_lines.append(_format_frame_info(frame))
+                trace_lines.append(format_frame_info(frame))
 
                 # Previous frame...
                 frame = frame.f_back
@@ -563,7 +565,8 @@ class ShellService(parser.Shell):
         # Sort the lines
         io_handler.write('\n'.join(lines))
 
-    def thread_details(self, io_handler, thread_id, max_depth=0):
+    @staticmethod
+    def thread_details(io_handler, thread_id, max_depth=0):
         """
         Prints details about the thread with the given ID (not its name)
         """
@@ -602,7 +605,7 @@ class ShellService(parser.Shell):
             while frame is not None \
                     and (max_depth is None or depth < max_depth):
                 # Store the line information
-                trace_lines.append(_format_frame_info(frame))
+                trace_lines.append(format_frame_info(frame))
 
                 # Previous frame...
                 frame = frame.f_back
@@ -755,11 +758,10 @@ class ShellService(parser.Shell):
 
 
 @constants.BundleActivator
-class PelixActivator(object):
+class _Activator(object):
     """
     Activator class for Pelix
     """
-
     def __init__(self):
         """
         Sets up the activator
@@ -792,8 +794,8 @@ class PelixActivator(object):
         """
         try:
             # Prepare the shell utility service
-            utils = ShellUtils()
-            self._shell = ShellService(context, utils)
+            utils = _ShellUtils()
+            self._shell = _ShellService(context, utils)
             self._shell_reg = context.register_service(
                 SERVICE_SHELL, self._shell, {})
             self._utils_reg = context.register_service(

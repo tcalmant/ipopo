@@ -1,6 +1,12 @@
 #!/usr/bin/python
 # -- Content-Encoding: UTF-8 --
 """
+Report generation service and shell command.
+
+This bundle provides a service and a shell command to generates reports, i.e.
+dictionaries containing the description of the current Pelix framework and of
+its environement.
+
 :author: Thomas Calmant
 :copyright: Copyright 2015, isandlaTech
 :license: Apache License 2.0
@@ -23,21 +29,6 @@
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# Pelix
-import pelix.constants
-from pelix.constants import BundleActivator
-from pelix.ipopo.constants import use_ipopo
-from pelix.shell import SERVICE_SHELL_COMMAND, SERVICE_SHELL_REPORT
-
 # Standard library
 import inspect
 import json
@@ -48,10 +39,28 @@ import socket
 import sys
 import threading
 
+# Pelix
+import pelix.constants
+from pelix.constants import BundleActivator
+from pelix.ipopo.constants import use_ipopo
+from pelix.shell import SERVICE_SHELL_COMMAND, SERVICE_SHELL_REPORT
+
+# ------------------------------------------------------------------------------
+
+# Public API
+__all__ = ('format_frame_info',)
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
 # ------------------------------------------------------------------------------
 
 
-def _format_frame_info(frame):
+def format_frame_info(frame):
     """
     Formats the given stack frame to show its position in the code and
     part of its context
@@ -158,7 +167,7 @@ def _extract_lines(filename, f_globals, line_no, around):
 # ------------------------------------------------------------------------------
 
 
-class ReportCommands(object):
+class _ReportCommands(object):
     """
     Registers report shell commands
     """
@@ -315,6 +324,7 @@ class ReportCommands(object):
 
         try:
             # Only for Unix
+            # pylint: disable=E1101
             results['sys.dlopenflags'] = sys.getdlopenflags()
         except AttributeError:
             results['sys.dlopenflags'] = None
@@ -543,7 +553,7 @@ class ReportCommands(object):
             frame = stack
             while frame is not None:
                 # Store the line information
-                trace_lines.append(_format_frame_info(frame))
+                trace_lines.append(format_frame_info(frame))
 
                 # Previous frame...
                 frame = frame.f_back
@@ -562,24 +572,21 @@ class ReportCommands(object):
 
         :param levels: list of levels
         """
-        try:
-            if not levels:
-                levels = ['full']
+        if not levels:
+            levels = ['full']
 
-            try:
-                methods = set()
-                for level in levels:
-                    methods.update(self.get_level_methods(level))
-            except KeyError as ex:
-                session.write_line("Unknown report level: {0}", ex)
-                self.__report = None
-            else:
-                self.__report = {method.__name__: method() for method in methods}
-                self.__report['levels'] = levels
-            return self.__report
-        except Exception as ex:
-                import logging
-                logging.exception("Error: %s", ex)
+        try:
+            methods = set()
+            for level in levels:
+                methods.update(self.get_level_methods(level))
+        except KeyError as ex:
+            session.write_line("Unknown report level: {0}", ex)
+            self.__report = None
+        else:
+            self.__report = {method.__name__: method()
+                             for method in methods}
+            self.__report['levels'] = levels
+        return self.__report
 
     def clear_report(self, _):
         """
@@ -628,8 +635,8 @@ class ReportCommands(object):
             return
 
         try:
-            with open(filename, "w+") as fp:
-                fp.write(self.to_json(self.__report))
+            with open(filename, "w+") as out_file:
+                out_file.write(self.to_json(self.__report))
         except IOError as ex:
             session.write_line("Error writing to file: {0}", ex)
 
@@ -637,7 +644,7 @@ class ReportCommands(object):
 
 
 @BundleActivator
-class Activator(object):
+class _Activator(object):
     """
     Activator class for Pelix
     """
@@ -654,7 +661,7 @@ class Activator(object):
         # Prepare the shell utility service
         self._svc_reg = context.register_service(
             [SERVICE_SHELL_COMMAND, SERVICE_SHELL_REPORT],
-            ReportCommands(context), {})
+            _ReportCommands(context), {})
 
     def stop(self, _):
         """
