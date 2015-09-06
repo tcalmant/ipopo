@@ -34,11 +34,6 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-# Pelix utility modules
-from pelix.utilities import Deprecated
-
-# ------------------------------------------------------------------------------
-
 
 class BundleEvent(object):
     """
@@ -172,14 +167,5 @@ class ServiceEvent(object):
         Returns the kind of service event (see the constants)
 
         :return: the kind of service event
-        """
-        return self.__kind
-
-    @Deprecated("ServiceEvent: get_type() must be replaced by get_kind()")
-    def get_type(self):
-        """
-        **DEPRECATED:** Use get_kind() instead
-
-        Retrieves the kind of service event.
         """
         return self.__kind
