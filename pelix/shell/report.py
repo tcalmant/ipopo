@@ -30,6 +30,7 @@ its environement.
 """
 
 # Standard library
+import datetime
 import inspect
 import json
 import linecache
@@ -38,10 +39,11 @@ import platform
 import socket
 import sys
 import threading
+import time
 
 # Pelix
 import pelix.constants
-from pelix.constants import BundleActivator
+from pelix.constants import BundleActivator, BundleException
 from pelix.ipopo.constants import use_ipopo
 from pelix.shell import SERVICE_SHELL_COMMAND, SERVICE_SHELL_REPORT
 
@@ -507,17 +509,25 @@ class _ReportCommands(object):
         """
         List of iPOPO factories
         """
-        with use_ipopo(self.__context) as ipopo:
-            return {name: ipopo.get_factory_details(name)
-                    for name in ipopo.get_factories()}
+        try:
+            with use_ipopo(self.__context) as ipopo:
+                return {name: ipopo.get_factory_details(name)
+                        for name in ipopo.get_factories()}
+        except BundleException:
+            # iPOPO is not available:
+            return None
 
     def ipopo_instances(self):
         """
         List of iPOPO instances
         """
-        with use_ipopo(self.__context) as ipopo:
-            return {instance[0]: ipopo.get_instance_details(instance[0])
-                    for instance in ipopo.get_instances()}
+        try:
+            with use_ipopo(self.__context) as ipopo:
+                return {instance[0]: ipopo.get_instance_details(instance[0])
+                        for instance in ipopo.get_instances()}
+        except BundleException:
+            # iPOPO is not available:
+            return None
 
     @staticmethod
     def threads_list():
@@ -576,16 +586,26 @@ class _ReportCommands(object):
             levels = ['full']
 
         try:
+            # List the methods to call, avoiding double-calls
             methods = set()
             for level in levels:
                 methods.update(self.get_level_methods(level))
         except KeyError as ex:
+            # Unknown level
             session.write_line("Unknown report level: {0}", ex)
             self.__report = None
         else:
+            # Call each method
             self.__report = {method.__name__: method()
                              for method in methods}
-            self.__report['levels'] = levels
+            # Describe the report
+            self.__report['report'] = {
+                'report.levels': levels,
+                'time.stamp': time.time(),
+                'time.local': str(datetime.datetime.now()),
+                'time.utc': str(datetime.datetime.utcnow())
+            }
+
         return self.__report
 
     def clear_report(self, _):
