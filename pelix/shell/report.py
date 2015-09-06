@@ -498,8 +498,10 @@ class _ReportCommands(object):
         List of registered services
         """
         return {svc_ref.get_property(pelix.constants.SERVICE_ID): {
-            "specifications": svc_ref.get_property(pelix.constants.OBJECTCLASS),
-            "ranking": svc_ref.get_property(pelix.constants.SERVICE_RANKING),
+            "specifications":
+                svc_ref.get_property(pelix.constants.OBJECTCLASS),
+            "ranking":
+                svc_ref.get_property(pelix.constants.SERVICE_RANKING),
             "properties": svc_ref.get_properties(),
             "bundle.id": svc_ref.get_bundle().get_bundle_id(),
             "bundle.name": svc_ref.get_bundle().get_symbolic_name(),
