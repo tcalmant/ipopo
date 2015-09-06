@@ -26,19 +26,6 @@ Common parser for shell implementations
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# Pelix modules
-from pelix.utilities import to_str
-import pelix.shell.beans as beans
-
 # Standard library
 import collections
 import inspect
@@ -46,6 +33,19 @@ import logging
 import shlex
 import string
 import sys
+
+# Pelix modules
+from pelix.utilities import to_str
+import pelix.shell.beans as beans
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

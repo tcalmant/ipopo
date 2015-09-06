@@ -25,18 +25,6 @@ Pelix Utilities: Cached thread pool
     limitations under the License.
 """
 
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# ------------------------------------------------------------------------------
-
-# Pelix
-import pelix.utilities
-
 # Standard library
 import logging
 import threading
@@ -49,6 +37,18 @@ except ImportError:
     # Python 2
     # pylint: disable=F0401
     import Queue as queue
+
+# Pelix
+import pelix.utilities
+
+# ------------------------------------------------------------------------------
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

@@ -26,14 +26,9 @@ MQTT
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+from pprint import pformat
+import logging
 
 # Pelix
 from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
@@ -41,9 +36,14 @@ from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
 import pelix.misc
 import pelix.services as services
 
-# Standard library
-from pprint import pformat
-import logging
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
@@ -92,7 +92,7 @@ class EventAdminPrinter(object):
         self._log = False
 
     @Validate
-    def _validate(self, context):
+    def _validate(self, _):
         """
         Component validated
         """

@@ -28,15 +28,6 @@ service
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# -----------------------------------------------------------------------------
-
 # Shell constants
 from pelix.shell import SERVICE_SHELL_COMMAND
 
@@ -46,6 +37,15 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
 import pelix.services
 
 # ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
+# -----------------------------------------------------------------------------
 
 
 @ComponentFactory("configadmin-shell-commands-factory")

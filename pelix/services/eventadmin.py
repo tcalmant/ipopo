@@ -25,14 +25,11 @@ An EventAdmin-like implementation for Pelix: a publish-subscribe service
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import copy
+import fnmatch
+import logging
+import time
 
 # Pelix
 from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
@@ -44,11 +41,14 @@ import pelix.ldapfilter
 import pelix.services
 import pelix.threadpool
 
-# Standard library
-import copy
-import fnmatch
-import logging
-import time
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

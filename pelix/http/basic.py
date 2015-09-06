@@ -28,23 +28,6 @@ Python library.
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# iPOPO
-from pelix.ipopo.decorators import ComponentFactory, Provides, Validate, \
-    Invalidate, Property, Requires, BindField, UnbindField, UpdateField
-
-import pelix.ipopo.constants as constants
-import pelix.ipv6utils
-import pelix.utilities as utilities
-
 # Standard library
 import logging
 import socket
@@ -67,10 +50,26 @@ except ImportError:
     from SocketServer import ThreadingMixIn, TCPServer
     import urlparse
 
-# ------------------------------------------------------------------------------
+# iPOPO
+from pelix.ipopo.decorators import ComponentFactory, Provides, Validate, \
+    Invalidate, Property, Requires, BindField, UnbindField, UpdateField
+import pelix.ipopo.constants as constants
+import pelix.ipv6utils
+import pelix.utilities as utilities
 
 # HTTP service constants
 import pelix.http as http
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
+# ------------------------------------------------------------------------------
 
 HTTP_SERVICE_EXTRA = "http.extra"
 """ HTTP service extra properties (dictionary) """

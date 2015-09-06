@@ -27,14 +27,16 @@ Pelix is a Python framework that aims to act as OSGi as much as possible
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import imp
+import importlib
+import inspect
+import logging
+import os
+import pkgutil
+import sys
+import threading
+import uuid
 
 # Pelix beans and constants
 from pelix.constants import ACTIVATOR, ACTIVATOR_LEGACY, FRAMEWORK_UID, \
@@ -46,16 +48,14 @@ from pelix.internals.registry import EventDispatcher, ServiceRegistry, \
 # Pelix utility modules
 from pelix.utilities import SynchronizedClassMethod, is_string
 
-# Standard library
-import imp
-import importlib
-import inspect
-import logging
-import os
-import pkgutil
-import sys
-import threading
-import uuid
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

@@ -25,17 +25,17 @@ Constants and exceptions for Pelix.
     limitations under the License.
 """
 
+# Standard library
+import inspect
+
+# ------------------------------------------------------------------------------
+
 # Module version
 __version_info__ = (0, 6, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# Standard library
-import inspect
 
 # ------------------------------------------------------------------------------
 

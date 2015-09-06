@@ -31,13 +31,6 @@ https://github.com/isandlaTech/cohorte-org.jabsorb.ng
     limitations under the License.
 """
 
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# Boot module version
-__version__ = "1.0.0"
-
-# ------------------------------------------------------------------------------
 
 # Standard library
 import inspect
@@ -51,6 +44,15 @@ except ImportError:
     # Python 3
     # pylint: disable=F0401
     import builtins
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

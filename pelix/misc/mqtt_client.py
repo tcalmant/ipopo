@@ -29,23 +29,23 @@ Eclipse Foundation: see http://www.eclipse.org/paho
     limitations under the License.
 """
 
+# Standard library
+import logging
+import os
+import sys
+import threading
+
+# MQTT client
+import paho.mqtt.client as paho
+
+# ------------------------------------------------------------------------------
+
 # Module version
 __version_info__ = (0, 6, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# MQTT client
-import paho.mqtt.client as paho
-
-# Standard library
-import logging
-import os
-import sys
-import threading
 
 # ------------------------------------------------------------------------------
 

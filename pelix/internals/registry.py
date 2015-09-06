@@ -25,14 +25,10 @@ Service registry and event dispatcher for Pelix.
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import bisect
+import logging
+import threading
 
 # Pelix beans
 from pelix.constants import OBJECTCLASS, SERVICE_ID, SERVICE_RANKING, \
@@ -43,10 +39,14 @@ from pelix.internals.events import ServiceEvent
 from pelix.utilities import is_string
 import pelix.ldapfilter as ldapfilter
 
-# Standard library
-import bisect
-import logging
-import threading
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

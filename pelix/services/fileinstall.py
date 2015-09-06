@@ -25,14 +25,11 @@ FileInstall: Polls for changes on files in a directory and notifies listeners
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import logging
+import os
+import threading
+import zlib
 
 # Pelix
 from pelix.ipopo.decorators import ComponentFactory, Provides, Requires, \
@@ -41,11 +38,14 @@ from pelix.ipopo.decorators import ComponentFactory, Provides, Requires, \
 import pelix.services as services
 import pelix.threadpool
 
-# Standard library
-import logging
-import os
-import threading
-import zlib
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

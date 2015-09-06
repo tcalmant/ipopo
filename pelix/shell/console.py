@@ -28,25 +28,25 @@ available.
     limitations under the License.
 """
 
+# Standard library
+import logging
+import sys
+import threading
+
+# Shell constants
+from pelix.constants import BundleActivator
+from pelix.shell import SERVICE_SHELL
+from pelix.shell.beans import IOHandler, ShellSession, safe_input
+import pelix.framework as pelix
+
+# ------------------------------------------------------------------------------
+
 # Module version
 __version_info__ = (0, 6, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# Shell constants
-from pelix.constants import BundleActivator
-from pelix.shell import SERVICE_SHELL
-from pelix.shell.beans import IOHandler, ShellSession
-import pelix.framework as pelix
-
-# Standard library
-import logging
-import sys
-import threading
 
 # ------------------------------------------------------------------------------
 
@@ -62,12 +62,6 @@ try:
 except ImportError:
     # Readline is missing, not critical
     readline = None
-
-# Before Python 3, input() was raw_input()
-if sys.version_info[0] < 3:
-    safe_input = raw_input
-else:
-    safe_input = input
 
 # ------------------------------------------------------------------------------
 

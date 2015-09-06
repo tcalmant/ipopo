@@ -27,30 +27,6 @@ This module depends on the sleekxmpp package: http://sleekxmpp.com/
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
-    Validate, Invalidate
-from pelix.ipopo.constants import use_ipopo
-
-# Shell constants
-import pelix.shell
-import pelix.shell.beans as beans
-
-# Pelix utilities
-import pelix.framework
-import pelix.misc.xmpp
-import pelix.threadpool
-import pelix.utilities
-
 # Standard library
 import collections
 import logging
@@ -62,6 +38,30 @@ try:
 except ImportError:
     # Python 3
     from io import StringIO
+
+# iPOPO decorators
+from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
+    Validate, Invalidate
+from pelix.ipopo.constants import use_ipopo
+
+# Pelix utilities
+import pelix.framework
+import pelix.misc.xmpp
+import pelix.threadpool
+import pelix.utilities
+
+# Shell constants
+import pelix.shell
+import pelix.shell.beans as beans
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 

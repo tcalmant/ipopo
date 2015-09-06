@@ -28,24 +28,6 @@ telnet or netcat.
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
-    Validate, Invalidate, Provides
-
-# Shell constants
-import pelix.shell
-import pelix.shell.beans as beans
-import pelix.ipv6utils
-
 # Standard library
 from select import select
 import logging
@@ -61,6 +43,24 @@ except ImportError:
     # Python 2
     # pylint: disable=F0401
     import SocketServer as socketserver
+
+# iPOPO decorators
+from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
+    Validate, Invalidate, Provides
+
+# Shell constants
+import pelix.shell
+import pelix.shell.beans as beans
+import pelix.ipv6utils
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
@@ -234,11 +234,11 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         Starts a new thread to process the request, adding the client address
         in its name.
         """
-        thread = threading.Thread(name="RemoteShell-{0}-Client-{1}"
-                                  .format(self.server_address[1],
-                                          client_address[:2]),
-                                  target=self.process_request_thread,
-                                  args=(request, client_address))
+        thread = threading.Thread(
+            name="RemoteShell-{0}-Client-{1}".format(self.server_address[1],
+                                                     client_address[:2]),
+            target=self.process_request_thread,
+            args=(request, client_address))
         thread.daemon = self.daemon_threads
         thread.start()
 
@@ -254,7 +254,9 @@ def _create_server(shell, server_address, port):
     """
     # Set up the request handler creator
     active_flag = SharedBoolean(True)
-    request_handler = lambda *args: RemoteConsole(shell, active_flag, *args)
+
+    def request_handler(*rh_args):
+        return RemoteConsole(shell, active_flag, *rh_args)
 
     # Set up the server
     server = ThreadingTCPServerFamily((server_address, port), request_handler)

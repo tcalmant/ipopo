@@ -28,14 +28,12 @@ TODO: Stabilize implementation of managed service factories
 FIXME: Add tests for the configuration of managed service factories
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
+# Standard library
+import json
+import logging
+import os
+import threading
+import uuid
 
 # Pelix
 from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
@@ -45,12 +43,14 @@ import pelix.ldapfilter as ldapfilter
 import pelix.services as services
 import pelix.threadpool
 
-# Standard library
-import json
-import logging
-import os
-import threading
-import uuid
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
@@ -677,9 +677,10 @@ class ConfigurationAdmin(object):
         :param factory_pid: A managed service factory PID
         :return: The list of matching factories
         """
-        return [svc for svc_ref, svc in self._factories_refs.items()
-                if svc_ref.get_property(pelix.constants.SERVICE_PID)
-                == factory_pid]
+        return [
+            svc for svc_ref, svc in self._factories_refs.items()
+            if svc_ref.get_property(pelix.constants.SERVICE_PID) == factory_pid
+        ]
 
     def __get_matching_services(self, pid):
         """

@@ -26,6 +26,15 @@ Definition of classes used by the Pelix shell service and its consumers
     limitations under the License.
 """
 
+# Standard library
+import sys
+import threading
+
+# Pelix
+from pelix.utilities import to_bytes, to_str
+
+# ------------------------------------------------------------------------------
+
 # Module version
 __version_info__ = (0, 6, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -33,21 +42,20 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-
-from pelix.utilities import to_bytes, to_str
-import sys
-import threading
+# ------------------------------------------------------------------------------
 
 # Before Python 3, input() was raw_input()
 if sys.version_info[0] < 3:
+    # pylint: disable=E0602,C0103
     safe_input = raw_input
 else:
+    # pylint: disable=C0103
     safe_input = input
-
-# ------------------------------------------------------------------------------
 
 RESULT_VAR_NAME = "?"
 """ Name of the result variable """
+
+# ------------------------------------------------------------------------------
 
 
 class ShellSession(object):

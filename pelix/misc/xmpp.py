@@ -28,17 +28,17 @@ This module depends on the sleekxmpp package: http://sleekxmpp.com/
     limitations under the License.
 """
 
+# XMPP, based on SleekXMPP
+import sleekxmpp
+
+# ------------------------------------------------------------------------------
+
 # Module version
 __version_info__ = (0, 6, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# XMPP
-import sleekxmpp
 
 # ------------------------------------------------------------------------------
 

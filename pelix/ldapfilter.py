@@ -210,8 +210,8 @@ class LDAPCriteria(object):
             raise ValueError("Invalid criterion parameter ({0}, {1}, {2})"
                              .format(name, value, comparator))
 
-        if not (inspect.ismethod(comparator)
-                or inspect.isfunction(comparator)):
+        if not (inspect.ismethod(comparator) or
+                inspect.isfunction(comparator)):
             # Ensure we have a valid comparator
             raise ValueError("Comparator must be a method: {0}", comparator)
 

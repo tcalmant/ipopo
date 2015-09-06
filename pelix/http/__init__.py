@@ -27,17 +27,17 @@ Defines the interfaces that must respect HTTP service implementations.
     limitations under the License.
 """
 
+# Pelix utility methods
+from pelix.utilities import to_bytes
+
+# ------------------------------------------------------------------------------
+
 # Module version
 __version_info__ = (0, 6, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# Pelix utility methods
-from pelix.utilities import to_bytes
 
 # ------------------------------------------------------------------------------
 
