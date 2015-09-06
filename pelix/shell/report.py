@@ -194,21 +194,30 @@ class ReportCommands(object):
             'ipopo_instances': (self.ipopo_instances,),
             'ipopo_factories': (self.ipopo_factories,),
 
-            # Aliases
-            'pelix': (self.pelix_infos, self.pelix_bundles,
-                      self.pelix_services),
-            'ipopo': (self.ipopo_instances, self.ipopo_factories),
+            # Extra reports
+            'threads': (self.threads_list,),
+            'network': (self.network_details,),
         }
 
-        # Full report: call all methods
-        full_reports = set()
-        for methods in self.__levels.values():
-            full_reports.update(methods)
-        self.__levels['full'] = tuple(full_reports)
+        # Aliases, to ease the generation of multiple reports at once
+        # Alias -> Levels
+        self.__aliases = {
+            # Full report
+            'full': tuple(self.__levels.keys()),
 
-        # Extra reports, maybe too intrusive or too big to go in the full report
-        self.__levels['threads'] = (self.threads_list,)
-        self.__levels['network'] = (self.network_details,)
+            # Pelix & iPOPO
+            'pelix': ('pelix_basic', 'pelix_bundles', 'pelix_services'),
+            'ipopo': ('ipopo_instances', 'ipopo_factories'),
+
+            # Application description
+            'app': ('os', 'process', 'python', 'python_path', 'os_env'),
+
+            # Standard description levels
+            'minimal': ('os', 'python', 'pelix_basic'),
+            'standard': ('minimal', 'python_path', 'python_modules',
+                         'process', 'pelix_bundles', 'ipopo_factories'),
+            'debug': ('standard', 'pelix_services', 'ipopo_instances'),
+        }
 
     @staticmethod
     def get_namespace():
@@ -227,6 +236,24 @@ class ReportCommands(object):
                 ('show', self.show_report),
                 ('write', self.write_report)]
 
+    def get_level_methods(self, level):
+        """
+        Returns the methods to call for the given level of report
+
+        :param level: The level of report
+        :return: The set of methods to call to fill the report
+        :raise KeyError: Unknown level or alias
+        """
+        try:
+            # Real name of the level
+            return set(self.__levels[level])
+        except KeyError:
+            # Alias
+            result = set()
+            for sub_level in self.__aliases[level]:
+                result.update(self.get_level_methods(sub_level))
+            return result
+
     def get_levels(self):
         """
         Returns a copy of the dictionary of levels.
@@ -237,15 +264,16 @@ class ReportCommands(object):
 
         :return: A dictionary of lists of methods to call
         """
-        return self.__levels.copy()
+        return set(self.__levels).union(self.__aliases)
 
     def print_levels(self, session):
         """
         Lists available levels
         """
         lines = []
-        for level in sorted(self.__levels):
-            methods = sorted(method.__name__ for method in self.__levels[level])
+        for level in sorted(self.get_levels()):
+            methods = sorted(method.__name__
+                             for method in self.get_level_methods(level))
             lines.append('- {0}:'.format(level))
             lines.append('\t{0}'.format(', '.join(methods)))
         session.write_line('\n'.join(lines))
@@ -539,9 +567,9 @@ class ReportCommands(object):
                 levels = ['full']
 
             try:
-                methods = {method
-                           for level in levels
-                           for method in self.__levels[level]}
+                methods = set()
+                for level in levels:
+                    methods.update(self.get_level_methods(level))
             except KeyError as ex:
                 session.write_line("Unknown report level: {0}", ex)
                 self.__report = None
