@@ -89,26 +89,30 @@ def format_frame_info(frame):
                     .format(filename, line_no, method_name)]
 
     # Arguments
-    arg_info = inspect.getargvalues(frame)
-    for name in arg_info.args:
-        try:
-            output_lines.append(
-                '    - {0:s} = {1}'.format(name, repr(frame.f_locals[name])))
-        except TypeError:
-            # Happens in dict/list-comprehensions in Python 2.x
-            name = name[0]
-            output_lines.append(
-                '    - {0:s} = {1}'.format(name, repr(frame.f_locals[name])))
+    if frame.f_locals:
+        # Pypy keeps f_locals as an empty dictionary
+        arg_info = inspect.getargvalues(frame)
+        for name in arg_info.args:
+            try:
+                output_lines.append(
+                    '    - {0:s} = {1}'.format(
+                        name, repr(frame.f_locals[name])))
+            except TypeError:
+                # Happens in dict/list-comprehensions in Python 2.x
+                name = name[0]
+                output_lines.append(
+                    '    - {0:s} = {1}'.format(
+                        name, repr(frame.f_locals[name])))
 
-    if arg_info.varargs:
-        output_lines.append(
-            '    - *{0:s} = {1}'.format(
-                arg_info.varargs, frame.f_locals[arg_info.varargs]))
+        if arg_info.varargs:
+            output_lines.append(
+                '    - *{0:s} = {1}'.format(
+                    arg_info.varargs, frame.f_locals[arg_info.varargs]))
 
-    if arg_info.keywords:
-        output_lines.append(
-            '    - **{0:s} = {1}'.format(
-                arg_info.keywords, frame.f_locals[arg_info.keywords]))
+        if arg_info.keywords:
+            output_lines.append(
+                '    - **{0:s} = {1}'.format(
+                    arg_info.keywords, frame.f_locals[arg_info.keywords]))
 
     # Line block
     lines = _extract_lines(filename, frame.f_globals, line_no, 3)
