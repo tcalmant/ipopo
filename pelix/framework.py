@@ -679,11 +679,11 @@ class Framework(Bundle):
             raise TypeError("Second argument must be a ServiceReference "
                             "object")
 
-        if reference in self.__unregistering_services:
+        try:
             # Unregistering service, just give it
             return self.__unregistering_services[reference]
-
-        return self._registry.get_service(bundle, reference)
+        except KeyError:
+            return self._registry.get_service(bundle, reference)
 
     def get_symbolic_name(self):
         """
