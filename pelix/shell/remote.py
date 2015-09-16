@@ -256,6 +256,9 @@ def _create_server(shell, server_address, port):
     active_flag = SharedBoolean(True)
 
     def request_handler(*rh_args):
+        """
+        Constructs a RemoteConsole as TCP request handler
+        """
         return RemoteConsole(shell, active_flag, *rh_args)
 
     # Set up the server

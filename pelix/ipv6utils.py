@@ -50,6 +50,7 @@ def ipproto_ipv6():
     :raise AttributeError: Python or system doesn't support IPv6
     """
     try:
+        # pylint: disable=E1101
         return socket.IPPROTO_IPV6
     except AttributeError:
         if os.name == 'nt':

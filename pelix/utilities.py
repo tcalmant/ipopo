@@ -381,6 +381,7 @@ else:
                  unicode object
         """
         # Python 2 also have unicode
+        # pylint: disable=E0602
         return isinstance(string, (str, unicode))
 
     def to_str(data, encoding="UTF-8"):
@@ -412,6 +413,7 @@ else:
         :param encoding: The encoding of data
         :return: The corresponding ``unicode`` string
         """
+        # pylint: disable=E0602
         if type(data) is unicode:
             # Nothing to do
             return data
