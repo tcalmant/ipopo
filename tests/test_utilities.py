@@ -337,7 +337,7 @@ class UtilitiesTest(unittest.TestCase):
 
     def testUseService(self):
         """
-        Tests utilies.use_service()
+        Tests utilities.use_service()
         """
         framework = pelix.framework.create_framework([])
         framework.start()
