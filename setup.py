@@ -87,10 +87,10 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Topic :: Software Development :: Libraries :: Application Frameworks'
     ],
-    install_requires=['jsonrpclib-pelix'],
+    install_requires=['jsonrpclib-pelix>=0.2.6'],
     extras_require={
-        'MQTT': ['paho-mqtt'],
-        'XMPP': ['sleekxmpp'],
+        'MQTT': ['paho-mqtt>=1.1'],
+        'XMPP': ['sleekxmpp>=1.3.1'],
         'zeroconf': ['pyzeroconf']
     }
 )

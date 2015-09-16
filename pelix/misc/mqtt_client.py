@@ -63,19 +63,17 @@ class MqttClient(object):
         Sets up members
 
         :param client_id: ID of the MQTT client
-        :raise ValueError: Too long client ID (between 1 and 23 characters)
         """
         # No ID
         if not client_id:
             # Randomize client ID
             self._client_id = self.generate_id()
-
         elif len(client_id) > 23:
             # ID too large
             _logger.warning("MQTT Client ID '%s' is too long (23 chars max): "
                             "generating a random one", client_id)
-            self._client_id = self.generate_id()
-
+            # Keep the client ID as it might be accepted
+            self._client_id = client_id
         else:
             # Keep the ID as is
             self._client_id = client_id
@@ -95,10 +93,35 @@ class MqttClient(object):
         self.__mqtt.on_message = self.__on_message
         self.__mqtt.on_publish = self.__on_publish
 
-        # User callbacks
-        self.on_connect = None
-        self.on_disconnect = None
-        self.on_message = None
+    @staticmethod
+    def on_connect(client, result_code):
+        """
+        User callback: called when the client is connected
+
+        :param client: The Pelix MQTT client which connected
+        :param result_code: The MQTT result code
+        """
+        pass
+
+    @staticmethod
+    def on_disconnect(client, result_code):
+        """
+        User callback: called when the client is disconnected
+
+        :param client: The Pelix MQTT client which disconnected
+        :param result_code: The MQTT result code
+        """
+        pass
+
+    @staticmethod
+    def on_message(client, message):
+        """
+        User callback: called when the client has received a message
+
+        :param client: The Pelix MQTT client which received a message
+        :param message: The MQTT message
+        """
+        pass
 
     @classmethod
     def generate_id(cls, prefix="pelix-"):
@@ -182,13 +205,10 @@ class MqttClient(object):
         self.disconnect()
 
         # Prepare the connection
-        self.__mqtt.connect_async(host, port, keepalive)
+        self.__mqtt.connect(host, port, keepalive)
 
         # Start the MQTT loop
         self.__mqtt.loop_start()
-
-        # Try to connect the server
-        self.__reconnect()
 
     def disconnect(self):
         """
@@ -290,29 +310,27 @@ class MqttClient(object):
                     .format(result_code, paho.error_string(result_code))
                 _logger.error(message)
                 raise ValueError(message)
-
         except Exception as ex:
             # Something went wrong: log it
             _logger.error("Exception connecting server: %s", ex)
-
         finally:
             # Prepare a reconnection timer. It will be cancelled by the
             # on_connect callback
             self.__start_timer(10)
 
-    def __on_connect(self, client, userdata, result_code):
+    def __on_connect(self, client, userdata, flags, result_code):
         """
         Client connected to the server
 
         :param client: Connected Paho client
         :param userdata: User data (unused)
+        :param flags: Response flags sent by the broker
         :param result_code: Connection result code (0: success, others: error)
         """
         if result_code:
             # result_code != 0: something wrong happened
-            _logger.error("Error connecting the MQTT server: %s",
-                          paho.connack_string(result_code))
-
+            _logger.error("Error connecting the MQTT server: %s (%d)",
+                          paho.connack_string(result_code), result_code)
         else:
             # Connection is OK: stop the reconnection timer
             self.__stop_timer()
@@ -334,7 +352,9 @@ class MqttClient(object):
         """
         if result_code:
             # rc != 0: unexpected disconnection
-            _logger.error("Unexpected disconnection from the MQTT server")
+            _logger.error(
+                "Unexpected disconnection from the MQTT server: %s (%d)",
+                paho.connack_string(result_code), result_code)
 
             # Try to reconnect
             self.__stop_timer()
