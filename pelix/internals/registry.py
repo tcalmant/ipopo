@@ -686,16 +686,16 @@ class ServiceRegistry(object):
         # Service reference -> Service instance
         self.__svc_registry = {}
 
-        # Specification -> Service references[]
+        # Specification -> Service references[] (always sorted)
         self.__svc_specs = {}
 
         # Service reference -> Bundle
         self.__svc_bundle = {}
 
-        # Bundle -> Service references[]
+        # Services published: Bundle -> set(Service references)
         self.__bundle_svc = {}
 
-        # Bundle -> Service references[]
+        # Services consumed: Bundle -> {Service reference -> UsageCounter}
         self.__bundle_imports = {}
 
         # Locks
@@ -751,8 +751,8 @@ class ServiceRegistry(object):
                 bisect.insort_left(spec_refs, svc_ref)
 
             # Reverse map, to ease bundle/service association
-            bundle_services = self.__bundle_svc.setdefault(bundle, [])
-            bisect.insort_left(bundle_services, svc_ref)
+            bundle_services = self.__bundle_svc.setdefault(bundle, set())
+            bundle_services.add(svc_ref)
             return svc_registration
 
     def __sort_registry(self, svc_ref):
@@ -767,9 +767,6 @@ class ServiceRegistry(object):
                 raise BundleException("Unknown service: {0}".format(svc_ref))
 
             # Remove current references
-            bundle_services = self.__bundle_svc[svc_ref.get_bundle()]
-            idx = bisect.bisect_left(bundle_services, svc_ref)
-            del bundle_services[idx]
             for spec in svc_ref.get_property(OBJECTCLASS):
                 # Use bisect to remove the reference (faster)
                 spec_refs = self.__svc_specs[spec]
@@ -779,7 +776,6 @@ class ServiceRegistry(object):
             # ... use the new sort key
             svc_ref.update_sort_key()
 
-            bisect.insort_left(bundle_services, svc_ref)
             for spec in svc_ref.get_property(OBJECTCLASS):
                 # ... and insert it again
                 spec_refs = self.__svc_specs[spec]
@@ -813,8 +809,7 @@ class ServiceRegistry(object):
 
             # Delete bundle association
             bundle_services = self.__bundle_svc[bundle]
-            idx = bisect.bisect_left(bundle_services, svc_ref)
-            del bundle_services[idx]
+            bundle_services.remove(svc_ref)
             if not bundle_services:
                 # Don't keep empty lists
                 del self.__bundle_svc[bundle]
@@ -895,7 +890,7 @@ class ServiceRegistry(object):
         :return: The references of the services used by this bundle
         """
         with self.__svc_lock:
-            return self.__bundle_imports.get(bundle, [])
+            return sorted(self.__bundle_imports.get(bundle, []))
 
     def get_bundle_registered_services(self, bundle):
         """
@@ -906,7 +901,7 @@ class ServiceRegistry(object):
         :return: The references to the services registered by the bundle
         """
         with self.__svc_lock:
-            return self.__bundle_svc.get(bundle, [])
+            return sorted(self.__bundle_svc.get(bundle, []))
 
     def get_service(self, bundle, reference):
         """
@@ -923,8 +918,8 @@ class ServiceRegistry(object):
                 service = self.__svc_registry[reference]
 
                 # Indicate the dependency
-                imports = self.__bundle_imports.setdefault(bundle, [])
-                bisect.insort(imports, reference)
+                imports = self.__bundle_imports.setdefault(bundle, {})
+                imports.setdefault(reference, _UsageCounter()).inc()
                 reference.used_by(bundle)
                 return service
             except KeyError:
@@ -944,20 +939,17 @@ class ServiceRegistry(object):
             try:
                 # Remove the service reference from the bundle
                 imports = self.__bundle_imports[bundle]
-
-                idx = bisect.bisect_left(imports, reference)
-                if imports[idx] == reference:
-                    del imports[idx]
-                    if not imports:
-                        del self.__bundle_imports[bundle]
-
-                    # Update the service reference
-                    reference.unused_by(bundle)
-                    return True
-
+                if not imports[reference].dec():
+                    # No more reference to it
+                    del imports[reference]
+            except KeyError:
                 # Unknown reference
                 return False
+            else:
+                # Clean up
+                if not imports:
+                    del self.__bundle_imports[bundle]
 
-            except KeyError:
-                # Unknown bundle
-                return False
+                # Update the service reference
+                reference.unused_by(bundle)
+                return True

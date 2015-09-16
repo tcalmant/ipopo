@@ -46,7 +46,7 @@ from pelix.internals.registry import EventDispatcher, ServiceRegistry, \
     ServiceReference, ServiceRegistration
 
 # Pelix utility modules
-from pelix.utilities import SynchronizedClassMethod, is_string
+from pelix.utilities import is_string
 
 # ------------------------------------------------------------------------------
 
@@ -415,81 +415,83 @@ class Bundle(object):
             # Call the framework
             self.__framework.uninstall_bundle(self)
 
-    @SynchronizedClassMethod('_lock')
     def update(self):
         """
         Updates the bundle
         """
-        # Was it active ?
-        restart = self._state == Bundle.ACTIVE
+        with self._lock:
+            # Was it active ?
+            restart = self._state == Bundle.ACTIVE
 
-        # Send the update event
-        self._fire_bundle_event(BundleEvent.UPDATE_BEGIN)
+            # Send the update event
+            self._fire_bundle_event(BundleEvent.UPDATE_BEGIN)
 
-        try:
-            # Stop the bundle
-            self.stop()
-        except:
-            # Something wrong occurred, notify listeners
-            self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
-            raise
-
-        # Change the source file age
-        module_stat = None
-        module_file = getattr(self.__module, "__file__", None)
-        if module_file is not None and os.path.isfile(module_file):
             try:
-                module_stat = os.stat(module_file)
-
-                # Change modification time to bypass weak time resolution of
-                # the underlying file system
-                os.utime(module_file, (module_stat.st_atime,
-                                       module_stat.st_mtime + 1))
-            except OSError:
-                # Can't touch the file
-                _logger.warning("Failed to update the modification time of "
-                                "'%s'. The bundle update might not reflect the"
-                                " latest changes.", module_file)
-
-        # Clean up the module constants (otherwise kept by reload)
-        # Keep special members (__name__, __file__, ...)
-        old_content = self.__module.__dict__.copy()
-        for name in list(self.__module.__dict__):
-            if not (name.startswith('__') and name.endswith('__')):
-                del self.__module.__dict__[name]
-
-        try:
-            # Reload the module
-            imp.reload(self.__module)
-        except (ImportError, SyntaxError) as ex:
-            # Exception raised if the file is unreadable
-            _logger.exception("Error updating %s: %s", self.__name, ex)
-
-            # Reset module content
-            self.__module.__dict__.clear()
-            self.__module.__dict__.update(old_content)
-
-        if module_stat is not None:
-            try:
-                # Reset times
-                os.utime(module_file,
-                         (module_stat.st_atime, module_stat.st_mtime))
-            except OSError:
-                # Shouldn't occur, since we succeeded before the update
-                _logger.debug("Failed to reset the modification time of '%s'",
-                              module_file)
-
-        if restart:
-            try:
-                # Re-start the bundle
-                self.start()
+                # Stop the bundle
+                self.stop()
             except:
                 # Something wrong occurred, notify listeners
                 self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
                 raise
 
-        # Bundle update finished
-        self._fire_bundle_event(BundleEvent.UPDATED)
+            # Change the source file age
+            module_stat = None
+            module_file = getattr(self.__module, "__file__", None)
+            if module_file is not None and os.path.isfile(module_file):
+                try:
+                    module_stat = os.stat(module_file)
+
+                    # Change modification time to bypass weak time resolution
+                    # of the underlying file system
+                    os.utime(module_file,
+                             (module_stat.st_atime, module_stat.st_mtime + 1))
+                except OSError:
+                    # Can't touch the file
+                    _logger.warning(
+                        "Failed to update the modification time of '%s'. "
+                        "The bundle update might not reflect the latest "
+                        "changes.", module_file)
+
+            # Clean up the module constants (otherwise kept by reload)
+            # Keep special members (__name__, __file__, ...)
+            old_content = self.__module.__dict__.copy()
+            for name in list(self.__module.__dict__):
+                if not (name.startswith('__') and name.endswith('__')):
+                    del self.__module.__dict__[name]
+
+            try:
+                # Reload the module
+                imp.reload(self.__module)
+            except (ImportError, SyntaxError) as ex:
+                # Exception raised if the file is unreadable
+                _logger.exception("Error updating %s: %s", self.__name, ex)
+
+                # Reset module content
+                self.__module.__dict__.clear()
+                self.__module.__dict__.update(old_content)
+
+            if module_stat is not None:
+                try:
+                    # Reset times
+                    os.utime(module_file,
+                             (module_stat.st_atime, module_stat.st_mtime))
+                except OSError:
+                    # Shouldn't occur, since we succeeded before the update
+                    _logger.debug(
+                        "Failed to reset the modification time of '%s'",
+                        module_file)
+
+            if restart:
+                try:
+                    # Re-start the bundle
+                    self.start()
+                except:
+                    # Something wrong occurred, notify listeners
+                    self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
+                    raise
+
+            # Bundle update finished
+            self._fire_bundle_event(BundleEvent.UPDATED)
 
 # ------------------------------------------------------------------------------
 
@@ -947,7 +949,6 @@ class Framework(Bundle):
 
         return registration
 
-    @SynchronizedClassMethod('_lock')
     def start(self):
         """
         Starts the framework
@@ -956,86 +957,87 @@ class Framework(Bundle):
                  running
         :raise BundleException: A bundle failed to start
         """
-        if self._state in (Bundle.STARTING, Bundle.ACTIVE):
-            # Already started framework
-            return
+        with self._lock:
+            if self._state in (Bundle.STARTING, Bundle.ACTIVE):
+                # Already started framework
+                return
 
-        # Reset the stop event
-        self._fw_stop_event.clear()
+            # Reset the stop event
+            self._fw_stop_event.clear()
 
-        # Starting...
-        self._state = Bundle.STARTING
-        self._dispatcher.fire_bundle_event(
-            BundleEvent(BundleEvent.STARTING, self))
+            # Starting...
+            self._state = Bundle.STARTING
+            self._dispatcher.fire_bundle_event(
+                BundleEvent(BundleEvent.STARTING, self))
 
-        # Start all registered bundles (use a copy, just in case...)
-        for bundle in self.__bundles.copy().values():
-            try:
-                bundle.start()
-            except FrameworkException as ex:
-                # Important error
-                _logger.exception("Important error starting bundle: %s",
-                                  bundle)
-                if ex.needs_stop:
-                    # Stop the framework (has to be in active state)
-                    self._state = Bundle.ACTIVE
-                    self.stop()
-                    return False
+            # Start all registered bundles (use a copy, just in case...)
+            for bundle in self.__bundles.copy().values():
+                try:
+                    bundle.start()
+                except FrameworkException as ex:
+                    # Important error
+                    _logger.exception("Important error starting bundle: %s",
+                                      bundle)
+                    if ex.needs_stop:
+                        # Stop the framework (has to be in active state)
+                        self._state = Bundle.ACTIVE
+                        self.stop()
+                        return False
 
-            except BundleException:
-                # A bundle failed to start : just log
-                _logger.exception("Error starting bundle: %s", bundle)
+                except BundleException:
+                    # A bundle failed to start : just log
+                    _logger.exception("Error starting bundle: %s", bundle)
 
-        # Bundle is now active
-        self._state = Bundle.ACTIVE
-        return True
+            # Bundle is now active
+            self._state = Bundle.ACTIVE
+            return True
 
-    @SynchronizedClassMethod('_lock')
     def stop(self):
         """
         Stops the framework
 
         :return: True if the framework stopped, False it wasn't running
         """
-        if self._state != Bundle.ACTIVE:
-            # Invalid state
-            return False
+        with self._lock:
+            if self._state != Bundle.ACTIVE:
+                # Invalid state
+                return False
 
-        # Stopping...
-        self._state = Bundle.STOPPING
-        self._dispatcher.fire_bundle_event(
-            BundleEvent(BundleEvent.STOPPING, self))
+            # Stopping...
+            self._state = Bundle.STOPPING
+            self._dispatcher.fire_bundle_event(
+                BundleEvent(BundleEvent.STOPPING, self))
 
-        # Notify listeners that the bundle is stopping
-        self._dispatcher.fire_framework_stopping()
+            # Notify listeners that the bundle is stopping
+            self._dispatcher.fire_framework_stopping()
 
-        bid = self.__next_bundle_id - 1
-        while bid > 0:
-            bundle = self.__bundles.get(bid)
-            bid -= 1
+            bid = self.__next_bundle_id - 1
+            while bid > 0:
+                bundle = self.__bundles.get(bid)
+                bid -= 1
 
-            if bundle is None or bundle.get_state() != Bundle.ACTIVE:
-                # Ignore inactive bundle
-                continue
+                if bundle is None or bundle.get_state() != Bundle.ACTIVE:
+                    # Ignore inactive bundle
+                    continue
 
-            try:
-                bundle.stop()
-            except Exception as ex:
-                # Just log exceptions
-                _logger.exception("Error stopping bundle %s: %s",
-                                  bundle.get_symbolic_name(), ex)
+                try:
+                    bundle.stop()
+                except Exception as ex:
+                    # Just log exceptions
+                    _logger.exception("Error stopping bundle %s: %s",
+                                      bundle.get_symbolic_name(), ex)
 
-        # Framework is now stopped
-        self._state = Bundle.RESOLVED
-        self._dispatcher.fire_bundle_event(
-            BundleEvent(BundleEvent.STOPPED, self))
+            # Framework is now stopped
+            self._state = Bundle.RESOLVED
+            self._dispatcher.fire_bundle_event(
+                BundleEvent(BundleEvent.STOPPED, self))
 
-        # All bundles have been stopped, release "wait_for_stop"
-        self._fw_stop_event.set()
+            # All bundles have been stopped, release "wait_for_stop"
+            self._fw_stop_event.set()
 
-        # Force the registry clean up
-        self._registry.clear()
-        return True
+            # Force the registry clean up
+            self._registry.clear()
+            return True
 
     def uninstall(self):
         """

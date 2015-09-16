@@ -532,12 +532,14 @@ class AggregateDependency(_RuntimeDependency):
                  else None
         """
         with self._lock:
-            if svc_ref in self.services:
+            try:
                 # Get the service instance
-                service = self.services[svc_ref]
-
+                service = self.services.pop(svc_ref)
+            except KeyError:
+                # Not a known service reference: ignore
+                pass
+            else:
                 # Clean the instance values
-                del self.services[svc_ref]
                 self._future_value.remove(service)
 
                 # Nullify the value if needed
@@ -557,12 +559,15 @@ class AggregateDependency(_RuntimeDependency):
                  been changed, else None
         """
         with self._lock:
-            if svc_ref not in self.services:
+            try:
+                # Look for the service
+                service = self.services[svc_ref]
+            except KeyError:
                 # A previously registered service now matches our filter
                 return self.on_service_arrival(svc_ref)
             else:
                 # Notify the property modification
-                self._ipopo_instance.update(self, self.services[svc_ref],
+                self._ipopo_instance.update(self, service,
                                             svc_ref, old_properties)
 
     def stop(self):
