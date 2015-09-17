@@ -275,7 +275,7 @@ This command requires a bundle ID, which has been given as a result of the
 ``install`` command and can be found using ``bl``.
 
 When updating a bundle, the framework stops it and reloads it (using
-```imp.reload`` <https://docs.python.org/3/library/imp.html#imp.reload>`_).
+`imp.reload <https://docs.python.org/3/library/imp.html#imp.reload>`_).
 If the update fails, the old version is kept.
 If the bundle was active before the update, it is restarted by the framework.
 
