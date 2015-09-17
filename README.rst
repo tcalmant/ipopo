@@ -1,4 +1,4 @@
-iPOPO: A service-oriented component model for Python
+iPOPO: A Service-Oriented Component Model for Python
 ####################################################
 
 .. image:: https://badges.gitter.im/Join%20Chat.svg
@@ -95,7 +95,6 @@ The container handles the interactions between the component and the Pelix
 framework.
 That way, the component contains only the code required for its task, not for
 its bindings with the framework.
-
 A component is an instance of a component factory, a class `manipulated <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:manipulation>`_
 by iPOPO `decorators <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:decorators>`_.
 
