@@ -29,7 +29,9 @@ available.
 """
 
 # Standard library
+import argparse
 import logging
+import os
 import sys
 import threading
 
@@ -51,6 +53,12 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 _logger = logging.getLogger(__name__)
+
+PROP_INIT_FILE = "pelix.shell.console.init_file"
+""" Shell script to execute before starting the console """
+
+PROP_RUN_FILE = "pelix.shell.console.script_file"
+""" Script to run as shell input """
 
 # ------------------------------------------------------------------------------
 
@@ -123,6 +131,44 @@ class InteractiveShell(object):
         # Set the session up
         session = ShellSession(IOHandler(sys.stdin, sys.stdout), {})
 
+        # Start the init script
+        self._run_script(session, self._context.get_property(PROP_INIT_FILE))
+
+        # Run the script
+        script_file = self._context.get_property(PROP_RUN_FILE)
+        if script_file:
+            self._run_script(session, script_file)
+        else:
+            # No script: run the main loop (blocking)
+            self._run_loop(session)
+
+        # Nothing more to do
+        self._stop_event.set()
+        sys.stdout.write('Bye !\n')
+        sys.stdout.flush()
+        if on_quit is not None:
+            # Call a handler if needed
+            on_quit()
+
+    def _run_script(self, session, file_path):
+        """
+        Runs the given script file
+
+        :param session: Current shell session
+        :param file_path: Path to the file to execute
+        :return: True if a file has been execute
+        """
+        if file_path:
+            # The 'run' command returns False in case of error
+            # The 'execute' method returns False if the run command fails
+            return self._shell.execute('run "{0}"'.format(file_path), session)
+
+    def _run_loop(self, session):
+        """
+        Runs the main input loop
+
+        :param session: Current shell session
+        """
         try:
             first_prompt = True
 
@@ -152,18 +198,9 @@ class InteractiveShell(object):
                             # Shell service lost while not stopping
                             sys.stdout.write('Shell service lost.')
                             sys.stdout.flush()
-
         except (EOFError, KeyboardInterrupt, SystemExit):
             # Input closed or keyboard interruption
             pass
-
-        self._stop_event.set()
-
-        sys.stdout.write('Bye !\n')
-        sys.stdout.flush()
-        if on_quit is not None:
-            # Call a handler if needed
-            on_quit()
 
     def readline_completer(self, text, state):
         """
@@ -370,21 +407,107 @@ class Activator(object):
 # ------------------------------------------------------------------------------
 
 
-def main():
+def _resolve_file(file_name):
+    """
+    Checks if the file exists.
+
+    If the file exists, the method returns its absolute path.
+    Else, it returns None
+
+    :param file_name: The name of the file to check
+    :return: An absolute path, or None
+    """
+    if not file_name:
+        return
+
+    path = os.path.realpath(file_name)
+    if os.path.isfile(path):
+        return path
+
+
+def main(argv=None):
     """
     Entry point
-    """
-    # Use the utility method to create, run and delete the framework
-    pelix.create_framework(('pelix.ipopo.core', 'pelix.shell.core',
-                            'pelix.shell.console', 'pelix.shell.ipopo'),
-                           None, True, True, True)
 
-if __name__ == '__main__':
-    # Prepare the logger
-    if '-v' in sys.argv or '--verbose' in sys.argv:
+    :param argv: Script arguments (None for sys.argv)
+    :return: An exit code (0 by default)
+    """
+    # Parse arguments
+    parser = argparse.ArgumentParser(description="Pelix Shell Console")
+
+    # Version number
+    parser.add_argument(
+        "--version", action="version",
+        version="Pelix {0} from {1}".format(pelix.__version__, pelix.__file__))
+
+    # Framework options
+    group = parser.add_argument_group("Framework options")
+    group.add_argument(
+        "-D", nargs="+", dest="properties", metavar="KEY=VALUE",
+        help="Sets framework properties")
+    group.add_argument(
+        "-v", "--verbose", action="store_true", dest="verbose",
+        help="Set loggers to DEBUG level")
+
+    # Initial script
+    group = parser.add_argument_group("Script execution arguments")
+    group.add_argument(
+        "--init", action="store", dest="init_script", metavar="SCRIPT",
+        help="Runs the given shell script before starting the console")
+    group.add_argument(
+        "--run", action="store", dest="run_script", metavar="SCRIPT",
+        help="Runs the given shell script then stops the framework")
+
+    # Parse arguments
+    args = parser.parse_args(argv)
+
+    # Setup the logger
+    if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.WARNING)
 
+    # Compute framework properties
+    fw_props = {}
+    if args.properties:
+        for prop_def in args.properties:
+            key, value = prop_def.split('=', 1)
+            fw_props[key] = value
+
+    # Check initial script(s)
+    if args.init_script:
+        init_file_path = _resolve_file(args.init_script)
+        if not init_file_path:
+            sys.stderr.write("Initial script file not found: {0}\n"
+                             .format(args.init_script))
+            sys.stderr.flush()
+            return 1
+        else:
+            fw_props[PROP_INIT_FILE] = init_file_path
+
+    if args.run_script:
+        run_file_path = _resolve_file(args.run_script)
+        if not run_file_path:
+            sys.stderr.write("Script file not found: {0}\n"
+                             .format(args.run_script))
+            sys.stderr.flush()
+            return 1
+        else:
+            fw_props[PROP_RUN_FILE] = run_file_path
+
+    # Use the utility method to create, run and delete the framework
+    framework = pelix.create_framework(
+        ('pelix.ipopo.core', 'pelix.shell.core',
+         'pelix.shell.console', 'pelix.shell.ipopo'),
+        fw_props)
+    framework.start()
+
+    try:
+        framework.wait_for_stop()
+    except KeyboardInterrupt:
+        framework.stop()
+    return 0
+
+if __name__ == '__main__':
     # Run the entry point
-    main()
+    sys.exit(main())
