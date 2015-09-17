@@ -73,7 +73,34 @@ To check if Pelix is installed correctly, run the following command:
 Concepts
 ########
 
-**TODO:** Reuse https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:concepts
+Pelix brings the concept of *bundle* in Python.
+A bundle is a module with a life cycle: it can be installed, started, stopped,
+updated and *uninstalled*.
+
+A bundle can declare a class acting as bundle activator, using the
+``@BundleActivator`` decorator.
+This class will be instantiated by the framework and its ``start()`` and
+``stop()`` method will be called to notify the bundle about its activation and
+deactivation.
+
+When it is active, a bundle can register services.
+A service is an object implementing a specification and associated to a set of
+properties.
+A component will then be able to select and consume a service according to the
+specification(s) it provides and to its properties.
+
+The components are a concept brought by iPOPO.
+A component, or component instance, is an object managed by a container.
+The container handles the interactions between the component and the Pelix
+framework.
+That way, the component contains only the code required for its task, not for
+its bindings with the framework.
+
+A component is an instance of a component factory, a class `manipulated <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:manipulation>`_
+by iPOPO `decorators <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:decorators>`_.
+
+For more information, see the `concepts page <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:concepts>`_
+on the wiki.
 
 
 Sample
