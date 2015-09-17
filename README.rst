@@ -75,11 +75,13 @@ Concepts
 
 **TODO:** Reuse https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:concepts
 
+
 Sample
 ######
 
 This sample gives a quick overview of the usage of iPOPO.
 For more information, take a look at `iPOPO in 10 minutes <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:ipopo_10min>`_.
+
 
 Service provider
 ================
@@ -121,6 +123,7 @@ It is also possible to instantiate a component using shell commands.
 
 Each component instance will provide a ``sample.hello`` service, which can be
 consumed by any bundle or any other component.
+
 
 Service consumer
 ================
@@ -290,7 +293,38 @@ and its service is injected in the consumer, which becomes valid again.
 Batteries included
 ##################
 
-**TODO:** list the services included in Pelix
+Pelix/iPOPO comes with some useful services:
+
+* Pelix Shell: a simple shell to control the framework (manage bundles,
+  show the state of components, ...).
+  The shell is split in 4 parts:
+
+  * the parser: a shell interpreter class, which can be reused to create other
+    shells (with a basic support of variables);
+  * the shell core service: callable from any bundle, it executes the given
+    command lines;
+  * the UIs: text UI (console) and remote shell (TCP, XMPP)
+  * the commands providers: iPOPO commands, report, EventAdmin, ...
+
+  See the `tutorial <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:shell>`_
+  and the `reference card <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:shell>`_
+  for more information.
+
+* An HTTP service, based on the HTTP server from the standard library.
+  It provides the concept of *servlet*, borrowed from Java.
+
+  See the `HTTP service tutorial <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:http_svc>`_
+  for more information.
+
+* Remote Services: export and import services to/from other Pelix framework or
+  event Java OSGi frameworks!
+
+  See the `tutorial <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:remote_svc>`_
+  and the `reference card <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:remotesvc>`_
+  for more information.
+
+Pelix also provides an implementation of the `EventAdmin service <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:eventadmin>`_,
+inspired from the `OSGi specification <http://www.osgi.org/Specifications/HomePage>`_.
 
 Feedback
 ########
@@ -303,6 +337,7 @@ lists:
 
 Bugs and features requests can be submitted using the `Issue Tracker <https://github.com/tcalmant/ipopo/issues>`_
 on GitHub.
+
 
 Contributing
 ############
@@ -325,6 +360,7 @@ All contributions are welcome!
 Please note that your contributions will be released under the project's license,
 which is the `Apache Software License 2.0 <http://www.apache.org/licenses/LICENSE-2.0>`_.
 
+
 Compatibility
 #############
 
@@ -333,6 +369,7 @@ Pelix and iPOPO are tested using `Tox <http://testrun.org/tox/latest/>`_ and
 Python 2.7, 3.3, 3.4 and 3.5.
 
 iPOPO doesn't support Python 2.6 anymore.
+
 
 License
 #######
