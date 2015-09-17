@@ -306,8 +306,8 @@ Pelix/iPOPO comes with some useful services:
   * the UIs: text UI (console) and remote shell (TCP, XMPP)
   * the commands providers: iPOPO commands, report, EventAdmin, ...
 
-  See the `tutorial <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:shell>`_
-  and the `reference card <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:shell>`_
+  See the `shell tutorial <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:shell>`_
+  and the `shell reference card <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:shell>`_
   for more information.
 
 * An HTTP service, based on the HTTP server from the standard library.
@@ -319,8 +319,8 @@ Pelix/iPOPO comes with some useful services:
 * Remote Services: export and import services to/from other Pelix framework or
   event Java OSGi frameworks!
 
-  See the `tutorial <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:remote_svc>`_
-  and the `reference card <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:remotesvc>`_
+  See the `remote services tutorial <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:remote_svc>`_
+  and the `remote services reference card <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:remotesvc>`_
   for more information.
 
 Pelix also provides an implementation of the `EventAdmin service <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:eventadmin>`_,
