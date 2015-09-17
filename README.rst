@@ -60,13 +60,26 @@ Option 2: From source
     $ python setup.py install
 
 
+Check install
+=============
+
+To check if Pelix is installed correctly, run the following command:
+
+.. code-block:: bash
+
+    $ python -m pelix.shell --version
+
+
 Concepts
 ########
 
 **TODO:** Reuse https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:concepts
 
-Samples
-#######
+Sample
+######
+
+This sample gives a quick overview of the usage of iPOPO.
+For more information, take a look at `iPOPO in 10 minutes <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:ipopo_10min>`_.
 
 Service provider
 ================
@@ -170,6 +183,109 @@ When a required service is unregistered by its provider, the component instances
 consuming it are invalidated.
 When the method decorated by ``@Invalidate`` is called, the service is still
 injected and should be usable (except for special cases, like remote services).
+
+
+Run!
+====
+
+To run this sample, you'll need to copy the snippets above in different files:
+
+* copy the *Service provider* snippet in a file called *provider.py*
+* copy the *Service consumer* snippet in a file called *consumer.py*
+
+Then, run a Pelix shell in the same folder as those files, and execute the
+commands listed in this trace:
+
+.. code-block:: bash
+
+    $ python -m pelix.shell
+    ** Pelix Shell prompt **
+    $ # Install the bundles
+    $ install provider
+    Bundle ID: 11
+    $ install consumer
+    Bundle ID: 12
+    $ # Start the bundles (the order isn't important here)
+    $ start 11 12
+    Starting bundle 11 (provider)...
+    Starting bundle 12 (consumer)...
+    Hello, Consumer !
+    $ # View iPOPO instances
+    $ instances
+    +----------------------+------------------------------+-------+
+    |         Name         |           Factory            | State |
+    +======================+==============================+=======+
+    | hello-consumer-auto  | hello-consumer-factory       | VALID |
+    +----------------------+------------------------------+-------+
+    | hello-provider-auto  | hello-provider-factory       | VALID |
+    +----------------------+------------------------------+-------+
+    | ipopo-shell-commands | ipopo-shell-commands-factory | VALID |
+    +----------------------+------------------------------+-------+
+    3 components running
+    $ # View details about the consumer
+    $ instance hello-consumer-auto
+    Name.....: hello-consumer-auto
+    Factory..: hello-consumer-factory
+    Bundle ID: 12
+    State....: VALID
+    Services.:
+    Dependencies:
+            Field: _svc
+                    Specification: sample.hello
+                    Filter......: None
+                    Optional.....: False
+                    Aggregate....: False
+                    Handler......: SimpleDependency
+                    Bindings:
+                            ServiceReference(ID=11, Bundle=11, Specs=['sample.hello'])
+    Properties:
+            +---------------+---------------------+
+            |      Key      |        Value        |
+            +===============+=====================+
+            | instance.name | hello-consumer-auto |
+            +---------------+---------------------+
+
+    $ # Modify the provider file (e.g. change the 'Hello' string by 'Hi')
+    $ # Update the provider bundle (ID: 11)
+    $ update 11
+    Updating bundle 11 (provider)...
+    Bye, Consumer !
+    Hi, Consumer !
+    $ # Play with other commands (see help)
+
+First, the ``install`` commands are used to install the bundle: they will be
+imported but their activator won't be called. If this command fails, the bundle
+is not installed and is not referenced by the framework.
+
+If the installation succeeded, the bundle can be started: it's activator is
+called (if any). Then, iPOPO detects the component factories provided by the
+bundle and instantiates the components declared using the ``@Instantiate``
+decorator.
+
+The ``instances`` and ``instance`` commands can be use to print the state and
+bindings of the components. Some other commands are very useful, like ``sl``
+and ``sd`` to list the registered services and print their details. Use the
+``help`` command to see which ones can be used.
+
+The last part of the trace shows what happens when updating a bundle.
+First, update the source code of the provider bundle, *e.g.* by changing the
+string it prints in the ``hello()`` method.
+Then, tell the framework to update the bundle using the ``update`` command.
+This command requires a bundle ID, which has been given as a result of the
+``install`` command and can be found using ``bl``.
+
+When updating a bundle, the framework stops it and reloads it (using
+```imp.reload`` <https://docs.python.org/3/library/imp.html#imp.reload>`_).
+If the update fails, the old version is kept.
+If the bundle was active before the update, it is restarted by the framework.
+
+Stopping a bundle causes iPOPO to kill the component instance(s) of the
+factories it provided.
+Therefore, no one provides the ``sample.hello`` service, which causes the
+consumer component to be invalidated.
+When the provider bundle is restarted, a new provider component is instantiated
+and its service is injected in the consumer, which becomes valid again.
+
 
 Batteries included
 ##################
