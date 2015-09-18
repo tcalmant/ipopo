@@ -1,3 +1,7 @@
+.. image:: _imgs/ipopo_logo.png
+   :alt: iPOPO logo
+   :target: https://ipopo.coderxpress.net
+
 iPOPO: A Service-Oriented Component Model for Python
 ####################################################
 
