@@ -68,7 +68,7 @@ To check if Pelix is installed correctly, run the following command:
 .. code-block:: bash
 
     $ python -m pelix.shell --version
-
+    Pelix 0.6.3 from /home/tcalmant/git/ipopo/pelix/framework.py
 
 Concepts
 ########
