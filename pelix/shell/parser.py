@@ -33,6 +33,7 @@ import logging
 import shlex
 import string
 import sys
+import types
 
 # Pelix modules
 from pelix.utilities import to_str
@@ -492,13 +493,21 @@ class Shell(object):
         # Get the arguments
         argspec = inspect.getargspec(method)
 
+        if isinstance(method, types.FunctionType):
+            # static method: the self argument is missing
+            # Ignore the session argument
+            start_arg = 1
+        else:
+            # instance method: ignore self and session arguments
+            start_arg = 2
+
         # Compute the number of arguments with default value
         if argspec.defaults is not None:
             nb_optional = len(argspec.defaults)
 
             # Let the mandatory arguments as they are
             args = ["<{0}>".format(arg)
-                    for arg in argspec.args[2:-nb_optional]]
+                    for arg in argspec.args[start_arg:-nb_optional]]
 
             # Add the other arguments
             for name, value in zip(argspec.args[-nb_optional:],
@@ -507,10 +516,9 @@ class Shell(object):
                     args.append('[<{0}>={1}]'.format(name, value))
                 else:
                     args.append('[<{0}>]'.format(name))
-
         else:
             # All arguments are mandatory
-            args = ["<{0}>".format(arg) for arg in argspec.args[2:]]
+            args = ["<{0}>".format(arg) for arg in argspec.args[start_arg:]]
 
         # Extra arguments
         if argspec.keywords:
