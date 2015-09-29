@@ -36,6 +36,7 @@ iPOPO enables to conceive long-running and modular IT services.
 
 See https://ipopo.coderxpress.net for documentation and more information.
 
+.. contents::
 
 Install
 #######
