@@ -689,9 +689,6 @@ class ServiceRegistry(object):
         # Specification -> Service references[] (always sorted)
         self.__svc_specs = {}
 
-        # Service reference -> Bundle
-        self.__svc_bundle = {}
-
         # Services published: Bundle -> set(Service references)
         self.__bundle_svc = {}
 
@@ -701,6 +698,9 @@ class ServiceRegistry(object):
         # Locks
         self.__svc_lock = threading.RLock()
 
+        # Pending unregistration: Service reference -> Service instance
+        self.__pending_services = {}
+
     def clear(self):
         """
         Clears the registry
@@ -708,9 +708,9 @@ class ServiceRegistry(object):
         with self.__svc_lock:
             self.__svc_registry.clear()
             self.__svc_specs.clear()
-            self.__svc_bundle.clear()
             self.__bundle_svc.clear()
             self.__bundle_imports.clear()
+            self.__pending_services.clear()
 
     def register(self, bundle, classes, properties, svc_instance):
         """
@@ -744,7 +744,6 @@ class ServiceRegistry(object):
 
             # Store service information
             self.__svc_registry[svc_ref] = svc_instance
-            self.__svc_bundle[svc_ref] = bundle
 
             for spec in classes:
                 spec_refs = self.__svc_specs.setdefault(spec, [])
@@ -790,11 +789,18 @@ class ServiceRegistry(object):
         :raise BundleException: Unknown service reference
         """
         with self.__svc_lock:
+            try:
+                # Try in pending services
+                return self.__pending_services.pop(svc_ref)
+            except KeyError:
+                # Not pending: continue
+                pass
+
             if svc_ref not in self.__svc_registry:
                 raise BundleException("Unknown service: {0}".format(svc_ref))
 
             # Get the owner
-            bundle = self.__svc_bundle.pop(svc_ref)
+            bundle = svc_ref.get_bundle()
 
             # Get the service instance
             service = self.__svc_registry.pop(svc_ref)
@@ -815,6 +821,40 @@ class ServiceRegistry(object):
                 del self.__bundle_svc[bundle]
 
             return service
+
+    def hide_bundle_services(self, bundle):
+        """
+        Hides the services of the given bundle (removes them from lists, but
+        lets them be unregistered)
+
+        :param bundle: The bundle providing services
+        :return: The references of the hidden services
+        """
+        with self.__svc_lock:
+            try:
+                svc_refs = self.__bundle_svc.pop(bundle)
+            except KeyError:
+                # Nothing to do
+                return set()
+            else:
+                # Clean the registry
+                specs = set()
+                for svc_ref in svc_refs:
+                    # Remove direct references
+                    self.__pending_services[svc_ref] = \
+                        self.__svc_registry.pop(svc_ref)
+                    specs.update(svc_ref.get_property(OBJECTCLASS))
+
+                    # Clean the specifications cache
+                    for spec in svc_ref.get_property(OBJECTCLASS):
+                        spec_services = self.__svc_specs[spec]
+                        # Use bisect to remove the reference (faster)
+                        idx = bisect.bisect_left(spec_services, svc_ref)
+                        del spec_services[idx]
+                        if not spec_services:
+                            del self.__svc_specs[spec]
+
+            return svc_refs
 
     def find_service_references(self, clazz=None, ldap_filter=None,
                                 only_one=False):
