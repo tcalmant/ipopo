@@ -17,6 +17,8 @@ import pelix.shell.beans as beans
 
 # Standard library
 import socket
+import sys
+import threading
 import time
 try:
     from StringIO import StringIO
@@ -61,10 +63,11 @@ class ShellClient(object):
         # Connect to the server
         self._socket = socket.create_connection(access)
 
-        # Ignore the banner
-        banner = to_str(self._socket.recv(len(self._banner)))
-        if banner != self._banner:
-            self.fail("Incorrect banner read from remote shell")
+        # Check the banner
+        if self._banner:
+            banner = to_str(self._socket.recv(len(self._banner)))
+            if banner != self._banner:
+                self.fail("Incorrect banner read from remote shell")
 
     def close(self):
         """
@@ -116,6 +119,68 @@ class ShellClient(object):
         # Get its result
         data = self.wait_prompt(False)
         return data.strip()
+
+# ------------------------------------------------------------------------------
+
+
+try:
+    import subprocess
+except ImportError:
+    # Can't run the test if we can't start another process
+    pass
+else:
+    class RemoteShellStandaloneTest(unittest.TestCase):
+        """
+        Tests the remote shell when started as a script
+        """
+        def test_remote_main(self):
+            """
+            Tests the remote shell 'main' method
+            """
+            # Get shell PS1 (static method)
+            import pelix.shell.core
+            ps1 = pelix.shell.core._ShellService.get_ps1()
+
+            # Start the remote shell process
+            port = 9000
+            process = subprocess.Popen(
+                [sys.executable, '-m', 'coverage', 'run', '-m',
+                 'pelix.shell.remote', '-p', str(port)],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+            try:
+                # Check if the remote shell port has been opened
+                client = ShellClient(None, ps1, self.fail)
+                client.connect(("localhost", port))
+
+                test_string = "running"
+                self.assertEqual(
+                    client.run_command("echo {0}".format(test_string)),
+                    test_string)
+
+                # Good enough: stop there
+                client.close()
+
+                # Avoid being blocked...
+                timer = threading.Timer(1, process.terminate)
+                timer.start()
+
+                # Stop the interpreter with a result code
+                rc_code = 42
+                stop_line = "import sys; sys.exit({0})".format(rc_code)
+                process.communicate(to_bytes(stop_line))
+
+                # We're should be good
+                timer.cancel()
+
+                # Check result code
+                self.assertEqual(process.returncode, rc_code)
+
+                # The ShellClient must fail a new connection
+                self.assertRaises(IOError, client.connect, ("localhost", port))
+            finally:
+                # Kill it in any case
+                process.terminate()
 
 # ------------------------------------------------------------------------------
 
