@@ -13,6 +13,7 @@ before_install:
   - pip install tox
   - pip install coverage
   - pip install coveralls
+  - pip install pytest>=2.7.3 --upgrade
 
 script:
   - tox -e $TOX_ENV
