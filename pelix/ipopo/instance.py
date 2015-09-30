@@ -246,9 +246,12 @@ class StoredInstance(object):
         """
         with self._lock:
             if kind is not None:
-                return self._handlers.get(kind, [])
+                try:
+                    return self._handlers[kind].copy()
+                except KeyError:
+                    return []
 
-            return self.__all_handlers
+            return self.__all_handlers.copy()
 
     def check_lifecycle(self):
         """
