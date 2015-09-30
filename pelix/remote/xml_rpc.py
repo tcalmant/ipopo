@@ -262,7 +262,6 @@ class XmlRpcServiceImporter(commons.AbstractRpcServiceImporter):
         if endpoint.server is not None:
             # Server information given
             access_url = access_url.format(server=endpoint.server)
-
         else:
             # Use the local IP as the source server, just in case
             local_server = "localhost"

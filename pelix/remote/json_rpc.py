@@ -121,7 +121,6 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
 
             # Send the result
             response.send_content(200, result, 'application/json-rpc')
-
         except Exception as ex:
             response.send_content(500, "Internal error:\n{0}\n".format(ex),
                                   'text/plain')
@@ -264,7 +263,6 @@ class JsonRpcServiceImporter(commons.AbstractRpcServiceImporter):
         if endpoint.server is not None:
             # Server information given
             access_url = access_url.format(server=endpoint.server)
-
         else:
             # Use the local IP as the source server, just in case
             local_server = "localhost"

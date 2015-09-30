@@ -128,7 +128,6 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
         # Dispatch
         try:
             result = self._unmarshaled_dispatch(data, self._simple_dispatch)
-
         except NoMulticallResult:
             # No result (never happens, but who knows...)
             result = None
@@ -140,7 +139,6 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
 
             # Store JSON
             result = jsonrpclib.jdumps(result)
-
         else:
             # It was a notification
             result = ''
@@ -326,7 +324,6 @@ class JabsorbRpcServiceImporter(commons.AbstractRpcServiceImporter):
         if endpoint.server is not None:
             # Server information given
             access_url = access_url.format(server=endpoint.server)
-
         else:
             # Use the local IP as the source server, just in case
             local_server = "localhost"
