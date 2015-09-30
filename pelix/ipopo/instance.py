@@ -59,7 +59,8 @@ class StoredInstance(object):
     # Try to reduce memory footprint (stored instances)
     __slots__ = ('bundle_context', 'context', 'factory_name', 'instance',
                  'name', 'state', '_controllers_state', '_handlers',
-                 '_ipopo_service', '_lock', '_logger', 'error_trace')
+                 '_ipopo_service', '_lock', '_logger', 'error_trace',
+                 '__all_handlers')
 
     INVALID = 0
     """ This component has been invalidated """
@@ -124,6 +125,7 @@ class StoredInstance(object):
 
         # Handlers: kind -> [handlers]
         self._handlers = {}
+        self.__all_handlers = set(handlers)
         for handler in handlers:
             kinds = handler.get_kinds()
             if kinds:
@@ -246,13 +248,7 @@ class StoredInstance(object):
             if kind is not None:
                 return self._handlers.get(kind, [])
 
-            # Prepare the list of handlers to call
-            result = set()
-            for handlers_list in self._handlers.values():
-                result.update(handlers_list)
-
-            # Always return a list
-            return list(result)
+            return self.__all_handlers
 
     def check_lifecycle(self):
         """
@@ -285,8 +281,7 @@ class StoredInstance(object):
         """
         with self._lock:
             all_valid = True
-            for handler in self._handlers.get(
-                    handlers_const.KIND_DEPENDENCY, ()):
+            for handler in self.get_handlers(handlers_const.KIND_DEPENDENCY):
                 # Try to bind
                 self.__safe_handler_callback(handler, 'try_binding')
 
@@ -408,7 +403,9 @@ class StoredInstance(object):
 
             # Clean up members
             self._handlers.clear()
+            self.__all_handlers.clear()
             self._handlers = None
+            self.__all_handlers = None
             self.context = None
             self.instance = None
             self._ipopo_service = None
