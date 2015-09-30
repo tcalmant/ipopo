@@ -4,4 +4,3 @@ parallel = True
 
 [report]
 include = pelix/*
-exclude = *
