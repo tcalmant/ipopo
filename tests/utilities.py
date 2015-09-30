@@ -41,11 +41,11 @@ except ImportError:
 try:
     # Trick to use coverage in sub-processes, from:
     # http://blog.schettino72.net/posts/python-code-coverage-multiprocessing.html
-    from coverage.control import coverage
+    import coverage
 
     class WrappedProcess(Process):
         def _bootstrap(self):
-            cov = coverage(data_suffix=True)
+            cov = coverage.Coverage(data_suffix=True)
             cov.start()
             try:
                 return Process._bootstrap(self)
