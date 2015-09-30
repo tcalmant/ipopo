@@ -182,8 +182,12 @@ else:
                 # The ShellClient must fail a new connection
                 self.assertRaises(IOError, client.connect, ("localhost", port))
             finally:
-                # Kill it in any case
-                process.terminate()
+                try:
+                    # Kill it in any case
+                    process.terminate()
+                except OSError:
+                    # Process was already stopped
+                    pass
 
 # ------------------------------------------------------------------------------
 
