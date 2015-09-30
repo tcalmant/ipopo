@@ -362,6 +362,9 @@ class Bundle(object):
                     # Store the exception (raised after service clean up)
                     exception = BundleException(ex)
 
+            # Hide remaining services
+            self.__framework._hide_bundle_services(self)
+
             # Intermediate bundle event : activator should have cleaned up
             # everything, but some element could stay (iPOPO components, ...)
             self._fire_bundle_event(BundleEvent.STOPPING_PRECLEAN)
@@ -1003,6 +1006,10 @@ class Framework(Bundle):
                 # Invalid state
                 return False
 
+            # Hide all services (they will be deleted by bundle.stop())
+            for bundle in self.__bundles.values():
+                self._registry.hide_bundle_services(bundle)
+
             # Stopping...
             self._state = Bundle.STOPPING
             self._dispatcher.fire_bundle_event(
@@ -1120,6 +1127,16 @@ class Framework(Bundle):
         # Remove the unregistering reference
         del self.__unregistering_services[reference]
         return True
+
+    def _hide_bundle_services(self, bundle):
+        """
+        Hides the services of the given bundle in the service registry
+
+        :param bundle: The bundle providing services
+        :return: The references of the hidden services
+        """
+        assert isinstance(bundle, Bundle)
+        return self._registry.hide_bundle_services(bundle)
 
     def update(self):
         """
