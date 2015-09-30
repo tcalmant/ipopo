@@ -247,7 +247,7 @@ class StoredInstance(object):
         with self._lock:
             if kind is not None:
                 try:
-                    return self._handlers[kind].copy()
+                    return self._handlers[kind][:]
                 except KeyError:
                     return []
 
