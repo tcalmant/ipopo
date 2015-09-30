@@ -145,13 +145,16 @@ else:
             port = 9000
             process = subprocess.Popen(
                 [sys.executable, '-m', 'coverage', 'run', '-m',
-                 'pelix.shell.remote', '-p', str(port)],
+                 'pelix.shell.remote', '-a', '127.0.0.1', '-p', str(port)],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+            # Wait a little to ensure that the socket is here
+            time.sleep(1)
 
             try:
                 # Check if the remote shell port has been opened
                 client = ShellClient(None, ps1, self.fail)
-                client.connect(("localhost", port))
+                client.connect(("127.0.0.1", port))
 
                 test_string = "running"
                 self.assertEqual(
@@ -162,7 +165,7 @@ else:
                 client.close()
 
                 # Avoid being blocked...
-                timer = threading.Timer(1, process.terminate)
+                timer = threading.Timer(5, process.terminate)
                 timer.start()
 
                 # Stop the interpreter with a result code
