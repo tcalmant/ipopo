@@ -26,15 +26,6 @@ Tests remote services transports based on HTTP
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 5, 9)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
 # Pelix
 from pelix.framework import create_framework, FrameworkFactory
 from pelix.ipopo.constants import use_ipopo
@@ -63,6 +54,18 @@ try:
     import queue
 except ImportError:
     import Queue as queue
+
+# Local utilities
+from tests.utilities import WrappedProcess
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 5, 9)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
@@ -194,23 +197,6 @@ def export_framework(state_queue, transport, components):
         state_queue.put("Error: {0}".format(ex))
 
 # ------------------------------------------------------------------------------
-
-try:
-    # Trick to use coverage in sub-processes, from:
-    # http://blog.schettino72.net/posts/python-code-coverage-multiprocessing.html
-    from coverage.control import coverage
-
-    class WrappedProcess(Process):
-        def _bootstrap(self):
-            cov = coverage(data_suffix=True)
-            cov.start()
-            try:
-                return Process._bootstrap(self)
-            finally:
-                cov.stop()
-                cov.save()
-except ImportError:
-    WrappedProcess = Process
 
 
 class TransportsTest(unittest.TestCase):
