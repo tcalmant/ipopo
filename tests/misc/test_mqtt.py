@@ -109,8 +109,7 @@ class MqttClientTest(unittest.TestCase):
         event_disconnect = threading.Event()
 
         def on_connect(clt, result_code):
-            if result_code == 0:
-                event_connect.set()
+            event_connect.set()
 
         def on_disconnect(clt, result_code):
             event_disconnect.set()
