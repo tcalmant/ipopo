@@ -120,11 +120,15 @@ class MqttClientTest(unittest.TestCase):
         client.on_disconnect = on_disconnect
 
         # Connect
-        client.connect(MQTT_SERVER, keepalive=5)
+        client.connect(MQTT_SERVER, 1883, 10)
         if not event_connect.wait(5):
             # Connection failed ?
             client.disconnect()
             self.fail("MQTT connection timeout")
+
+        # Send something
+        mid = client.publish("/pelix/test", "dummy", wait=True)
+        client.wait_publication(mid, 5)
 
         # Disconnect
         event_connect.clear()
