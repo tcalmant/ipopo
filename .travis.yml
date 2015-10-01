@@ -16,9 +16,6 @@ before_install:
   - pip install coveralls
   - pip install pytest>=2.7.3 --upgrade
 
-install:
-  - pip install paho-mqtt
-
 script:
   - tox -e $TOX_ENV
 
