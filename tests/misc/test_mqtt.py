@@ -40,6 +40,8 @@ def _disconnect_client(client):
     :param client: MQTT Client
     """
     # Close the socket
+    import socket
+    getattr(client, '_MqttClient__mqtt')._sock.shutdown(socket.SHUT_RDWR)
     getattr(client, '_MqttClient__mqtt')._sock.close()
 
     # Force Paho to write data to detect the error
