@@ -225,7 +225,13 @@ class MqttClient(object):
         self.__mqtt.disconnect()
 
         # Stop the MQTT loop thread
-        self.__mqtt.loop_stop()
+        # Use a thread to avoid a dead lock in Paho
+        thread = threading.Thread(target=self.__mqtt.loop_stop)
+        thread.daemon = True
+        thread.start()
+
+        # Give it some time
+        thread.join(4)
 
     def publish(self, topic, payload, qos=0, retain=False, wait=False):
         """
