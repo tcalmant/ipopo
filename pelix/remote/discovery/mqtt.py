@@ -147,7 +147,7 @@ class MqttDiscovery(object):
         """
         # Send the "lost" message
         mid = self.__send_message(EVENT_LOST, self._framework_uid, True)
-        self.__mqtt.wait_publication(mid)
+        self.__mqtt.wait_publication(mid, 10)
 
         # Disconnect from the server (this stops the loop)
         self.__mqtt.disconnect()
@@ -206,17 +206,13 @@ class MqttDiscovery(object):
                 endpoints = [endpoint.to_import()
                              for endpoint in endpoints_descr]
 
-                if not endpoints:
-                    # No enpoints to read
-                    return
-
-                if endpoints[0].framework == self._framework_uid:
-                    # Loopback message
+                if not endpoints or \
+                        endpoints[0].framework == self._framework_uid:
+                    # No enpoints to read or Loopback message
                     return
 
                 # Give the list of endpoints to the handler
                 parameter = endpoints
-
             else:
                 # Give the payload as is to other event handlers
                 parameter = msg.payload
