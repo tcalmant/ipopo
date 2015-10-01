@@ -6,8 +6,6 @@ Tests remote services transports based on HTTP
 :author: Thomas Calmant
 :copyright: Copyright 2015, isandlaTech
 :license: Apache License 2.0
-:version: 0.5.9
-:status: Alpha
 
 ..
 
@@ -59,10 +57,6 @@ except ImportError:
 from tests.utilities import WrappedProcess
 
 # ------------------------------------------------------------------------------
-
-# Module version
-__version_info__ = (0, 5, 9)
-__version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
@@ -199,7 +193,7 @@ def export_framework(state_queue, transport, components):
 # ------------------------------------------------------------------------------
 
 
-class TransportsTest(unittest.TestCase):
+class HttpTransportsTest(unittest.TestCase):
     """
     Tests Pelix built-in Remote Services transports
     """
