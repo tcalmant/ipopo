@@ -33,6 +33,15 @@ MQTT_SERVER = "test.mosquitto.org"
 # ------------------------------------------------------------------------------
 
 
+def _disconnect_client(client):
+    """
+    Disconnects the client (implementation specific)
+
+    :param client: MQTT Client
+    """
+    getattr(client, '_MqttClient__mqtt')._sock.close()
+
+
 class MqttClientTest(unittest.TestCase):
     """
     Tests the MQTT client provided by Pelix
@@ -48,13 +57,13 @@ class MqttClientTest(unittest.TestCase):
 
         def on_connect(clt, result_code):
             if result_code == 0:
-                event.set()
                 shared.append(clt)
+                event.set()
 
         def on_disconnect(clt, result_code):
             if result_code == 0:
-                event.set()
                 shared.append(clt)
+                event.set()
 
         client.on_connect = on_connect
         client.on_disconnect = on_disconnect
@@ -83,6 +92,50 @@ class MqttClientTest(unittest.TestCase):
 
         # Check client (and single call)
         self.assertListEqual(shared, [client])
+
+    def test_reconnect(self):
+        """
+        Tests client reconnection
+        """
+        # Create client
+        client = mqtt.MqttClient()
+        event_connect = threading.Event()
+        event_disconnect = threading.Event()
+
+        def on_connect(clt, result_code):
+            if result_code == 0:
+                event_connect.set()
+
+        def on_disconnect(clt, result_code):
+            if result_code > 0:
+                event_disconnect.set()
+
+        client.on_connect = on_connect
+        client.on_disconnect = on_disconnect
+
+        # Connect
+        client.connect(MQTT_SERVER, keepalive=5)
+        if not event_connect.wait(5):
+            # Connection failed ?
+            client.disconnect()
+            self.fail("MQTT connection timeout")
+
+        # Disconnect
+        event_connect.clear()
+        _disconnect_client(client)
+
+        # Wait for event
+        if not event_disconnect.wait(30):
+            client.disconnect()
+            self.fail("No disconnection event after 30 seconds")
+
+        # Wait for reconnection
+        if not event_connect.wait(30):
+            client.disconnect()
+            self.fail("No reconnected after 30 seconds")
+
+        # Clean up
+        client.disconnect()
 
     def test_will(self):
         """
@@ -154,9 +207,7 @@ class MqttClientTest(unittest.TestCase):
         time.sleep(5)
 
         # Disconnect client 1
-        # -- IMPLEMENTATION SPECIFIC --
-        getattr(client, '_MqttClient__mqtt')._sock.close()
-        # == IMPLEMENTATION SPECIFIC ==
+        _disconnect_client(client)
 
         # Check client 2
         if not event_2.wait(30):
@@ -188,8 +239,8 @@ class MqttClientTest(unittest.TestCase):
                 event.set()
 
         def on_message(clt, msg):
-            event.set()
             shared.append(msg)
+            event.set()
 
         client.on_connect = on_connect
         client.on_message = on_message
