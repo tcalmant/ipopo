@@ -253,9 +253,10 @@ class MqttClient(object):
 
         :param mid: Local message ID (result of publish)
         :param timeout: Wait timeout (in seconds)
+        :return: True if the message was published, False if timeout was raised
         :raise KeyError: Unknown waiting local message ID
         """
-        self.__in_flight[mid].wait(timeout)
+        return self.__in_flight[mid].wait(timeout)
 
     def subscribe(self, topic, qos=0):
         """

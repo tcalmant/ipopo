@@ -255,7 +255,8 @@ class MqttClientTest(unittest.TestCase):
 
         # Send message
         event.clear()
-        client.publish(msg_topic, msg_value, wait=True)
+        mid = client.publish(msg_topic, msg_value, wait=True)
+        client.wait_publication(mid)
 
         # Wait for the message to be received
         if not event.wait(5):
