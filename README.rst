@@ -412,4 +412,75 @@ iPOPO is released under the `Apache Software License 2.0 <http://www.apache.org/
 Release notes: 0.6.3
 ####################
 
+Project
+*******
+
+* iPOPO now has a logo ! (thanks to @debbabi)
+* README file has been rewritten
+* Better PEP-8 compliance
+* Updated *jsonrpclib* requirement version to 0.2.6
+
+
+Pelix
+*****
+
+* Optimization of the service registry (less dictionaries, use of sets, ...)
+* Added the ``hide_bundle_services()`` to the service registry.
+  It is by the framework to hide the services of a stopping bundle from
+  ``get_service_reference`` methods, and before those services will be
+  unregistered.
+* Removed the deprecated ``ServiceEvent.get_type()`` method
+
+
+iPOPO
+*****
+
+* Optimization of StoredInstance (handlers, use of sets, ...)
+
+
+HTTP
+****
+
+* Added a ``is_header_set()`` method to the HTTPServletResponse bean.
+* Response headers are now sent on ``end_headers()``, not on ``set_header()``,
+  to avoid duplicate headers.
+* The request queue size of the basic HTTP server can now be set as a component
+  property (``pelix.http.request_queue_size``)
+
+Shell
+*****
+
+* The ``pelix.shell.console`` module can now be run as a main script
+* Added the *report* shell command
+* Added the name of *varargs* in the signature of commands
+* Corrected the signature shown in the help description for static methods
+* Corrected the *thread* and *threads* shell commands for *pypy*
+
+
+Remote Services
+***************
+
+* Added support for keyword arguments in most of remote services transports
+  (all except XML-RPC)
+* Added support for ``pelix.remote.export.only`` and
+  ``pelix.remote.export.none`` service properties. ``..only`` tells the
+  exporter to export the given specifications only, while ``..none`` forbids
+  the export of the service.
+
+
+Utilities
+*********
+
+* Updated the MQTT client to follow the new API of Eclipse Paho MQTT Client
+
+
+Tests
+*****
+
+* Travis-CI: Added Python 3.5 and Pypy3 targets
+* Better configuration of coverage
+* Added tests for the remote shell
+* Added tests for the MQTT client and for *MQTT-RPC*
+
+
 See the CHANGELOG.rst file to see what changed in previous releases.
