@@ -26,7 +26,7 @@ iPOPO: A Service-Oriented Component Model for Python
      :target: https://coveralls.io/r/tcalmant/ipopo?branch=master
      :alt: Coveralls status
 
-`iPOPO <https://ipopo.coderxpress.net/>`_ is a Python-based Service-Oriented
+`iPOPO <https://ipopo.coderxpress.net/>`__ is a Python-based Service-Oriented
 Component Model (SOCM) based on Pelix, a dynamic service platform.
 They are inspired on two popular Java technologies for the development of
 long-lived applications: the
@@ -390,7 +390,7 @@ All contributions are welcome!
 #. Enjoy!
 
 Please note that your contributions will be released under the project's license,
-which is the `Apache Software License 2.0 <http://www.apache.org/licenses/LICENSE-2.0>`_.
+which is the `Apache Software License 2.0 <http://www.apache.org/licenses/LICENSE-2.0>`__.
 
 
 Compatibility
@@ -406,14 +406,14 @@ iPOPO doesn't support Python 2.6 anymore.
 License
 #######
 
-iPOPO is released under the `Apache Software License 2.0 <http://www.apache.org/licenses/LICENSE-2.0>`_.
+iPOPO is released under the `Apache Software License 2.0 <http://www.apache.org/licenses/LICENSE-2.0>`__.
 
 
 Release notes: 0.6.3
 ####################
 
 Project
-*******
+=======
 
 * iPOPO now has a logo ! (thanks to @debbabi)
 * README file has been rewritten
@@ -422,7 +422,7 @@ Project
 
 
 Pelix
-*****
+=====
 
 * Optimization of the service registry (less dictionaries, use of sets, ...)
 * Added the ``hide_bundle_services()`` to the service registry.
@@ -433,13 +433,13 @@ Pelix
 
 
 iPOPO
-*****
+=====
 
 * Optimization of StoredInstance (handlers, use of sets, ...)
 
 
 HTTP
-****
+====
 
 * Added a ``is_header_set()`` method to the HTTPServletResponse bean.
 * Response headers are now sent on ``end_headers()``, not on ``set_header()``,
@@ -448,7 +448,7 @@ HTTP
   property (``pelix.http.request_queue_size``)
 
 Shell
-*****
+=====
 
 * The ``pelix.shell.console`` module can now be run as a main script
 * Added the *report* shell command
@@ -458,7 +458,7 @@ Shell
 
 
 Remote Services
-***************
+===============
 
 * Added support for keyword arguments in most of remote services transports
   (all except XML-RPC)
@@ -469,13 +469,13 @@ Remote Services
 
 
 Utilities
-*********
+=========
 
 * Updated the MQTT client to follow the new API of Eclipse Paho MQTT Client
 
 
 Tests
-*****
+=====
 
 * Travis-CI: Added Python 3.5 and Pypy3 targets
 * Better configuration of coverage
