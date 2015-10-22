@@ -25,21 +25,21 @@ iPOPO installation script
     limitations under the License.
 """
 
-# Module version
-__version_info__ = (0, 6, 3)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
 import os
 
 try:
     from setuptools import setup
 except ImportError:
     from distutils.core import setup
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 3)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
