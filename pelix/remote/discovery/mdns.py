@@ -12,7 +12,7 @@ removed (around line 220)
 :author: Thomas Calmant
 :copyright: Copyright 2015, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.6.3
+:version: 0.6.4
 
 ..
 
@@ -52,7 +52,7 @@ from pelix.utilities import is_string, to_str
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 6, 3)
+__version_info__ = (0, 6, 4)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

@@ -6,7 +6,7 @@ HOST="ipopo.coderxpress"
 REMOTE_DIR=www-ipopo
 
 # iPOPO Version
-VERSION="0.6.3"
+VERSION="0.6.4"
 
 # Directories
 API_HTML="api"
