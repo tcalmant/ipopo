@@ -12,13 +12,13 @@ previous service properties (if the event is an update).
 when using remote services on the local host only.
 
 :author: Thomas Calmant
-:copyright: Copyright 2015, isandlaTech
+:copyright: Copyright 2015, Thomas Calmant
 :license: Apache License 2.0
 :version: 0.6.3
 
 ..
 
-    Copyright 2015 isandlaTech
+    Copyright 2015 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.

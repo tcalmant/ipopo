@@ -7,16 +7,16 @@ Jabsorb is a serialization library for Java, converting Java beans to JSON
 and vice versa.
 
 This module is compatible with the fork of Jabsorb available at
-https://github.com/isandlaTech/cohorte-org.jabsorb.ng
+https://github.com/Thomas Calmant/cohorte-org.jabsorb.ng
 
 :author: Thomas Calmant
-:copyright: Copyright 2015, isandlaTech
+:copyright: Copyright 2015, Thomas Calmant
 :license: Apache License 2.0
 :version: 0.6.3
 
 ..
 
-    Copyright 2015 isandlaTech
+    Copyright 2015 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
