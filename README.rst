@@ -1,4 +1,4 @@
-.. image:: _imgs/ipopo_logo.png
+.. image:: https://ipopo.coderxpress.net/wiki/lib/exe/fetch.php?w=200&tok=a7fc20&media=ipopo:logo_texte_500.png
    :alt: iPOPO logo
    :align: center
    :target: https://ipopo.coderxpress.net
