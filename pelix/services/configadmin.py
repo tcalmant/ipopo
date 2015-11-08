@@ -615,8 +615,8 @@ class ConfigurationAdmin(object):
                 pid = svc_ref.get_property(pelix.constants.SERVICE_PID)
                 try:
                     self.__notify_single(pid, svc)
-                except KeyError:
-                    print("PID error:", pid, "-", svc)
+                except KeyError as ex:
+                    _logger.error("Error configuring a service: %s", ex)
 
     @UnbindField('_managed')
     def _unbind_managed(self, _, svc, svc_ref):
