@@ -25,9 +25,6 @@ Definition of Factory and Component context classes
     limitations under the License.
 """
 
-# Standard library
-import copy
-
 # Pelix utilities
 from pelix.constants import OBJECTCLASS
 from pelix.utilities import is_string
@@ -127,12 +124,6 @@ class Requirement(object):
         """
         return not self.__eq__(other)
 
-    def __deepcopy__(self, memo):
-        """
-        Called by copy.deepcopy()
-        """
-        return self.copy()
-
     def copy(self):
         """
         Returns a copy of this instance
@@ -210,6 +201,11 @@ class FactoryContext(object):
     """
     Represents the data stored in a component factory (class)
     """
+    __slots__ = ('bundle_context', 'callbacks', 'completed', 'field_callbacks',
+                 'is_singleton', 'is_singleton_active', 'name', 'properties',
+                 'properties_fields', '__handlers',
+                 '__inherited_configuration', '__instances')
+
     def __init__(self):
         """
         Sets up the factory context
@@ -271,6 +267,27 @@ class FactoryContext(object):
         """
         return not self.__eq__(other)
 
+    def _deepcopy(self, data):
+        """
+        Deep copies the given object
+
+        :param data: Data to copy
+        :return: A copy of the data, if supported, else the data itself
+        """
+        if isinstance(data, dict):
+            # Copy dictionary values
+            return {key: self._deepcopy(value) for key, value in data.items()}
+        elif isinstance(data, (list, tuple, set, frozenset)):
+            # Copy sequence types values
+            return type(data)(self._deepcopy(value) for value in data)
+
+        try:
+            # Try to use a copy() method, if any
+            return data.copy()
+        except AttributeError:
+            # Can't copy the data, return it as is
+            return data
+
     def copy(self, inheritance=False):
         """
         Returns a deep copy of the current FactoryContext instance
@@ -278,12 +295,16 @@ class FactoryContext(object):
         :param inheritance: If True, current handlers configurations are stored
                             as inherited ones
         """
-        # Copy the context
-        new_context = copy.deepcopy(self)
+        # Create a new factory context and duplicate its values
+        new_context = FactoryContext()
+        for field in self.__slots__:
+            if not field.startswith('_'):
+                setattr(new_context, field,
+                        self._deepcopy(getattr(self, field)))
 
         if inheritance:
             # Store configuration as inherited one
-            new_context.__inherited_configuration = new_context.__handlers
+            new_context.__inherited_configuration = self.__handlers.copy()
             new_context.__handlers = {}
 
         # Remove instances in any case
@@ -345,7 +366,7 @@ class FactoryContext(object):
 
         :return: A dictionary: instance name -> instance properties
         """
-        return copy.deepcopy(self.__instances)
+        return self._deepcopy(self.__instances)
 
     def get_handlers_ids(self):
         """
