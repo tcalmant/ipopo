@@ -69,16 +69,16 @@ def is_from_parent(cls, attribute_name, value=None):
         try:
             # Get the current value
             value = getattr(cls, attribute_name)
-
         except AttributeError:
             # No need to go further: the attribute does not exist
             return False
 
     for base in cls.__bases__:
         # Look for the value in each parent class
-        if getattr(base, attribute_name, None) is value:
-            # Found !
-            return True
+        try:
+            return getattr(base, attribute_name) is value
+        except AttributeError:
+            pass
 
     # Attribute value not found in parent classes
     return False
