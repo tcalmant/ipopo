@@ -114,6 +114,10 @@ def _load_bundle_factories(bundle):
     for inspect_member in inspect.getmembers(module, inspect.isclass):
         # Get the class in the result tuple
         factory_class = inspect_member[1]
+        if inspect.getmodule(factory_class) is not module:
+            # Ignore classes imported from other modules
+            continue
+
         context = _set_factory_context(factory_class, bundle_context)
         if context is None:
             # Error setting up the factory context
@@ -485,6 +489,8 @@ class _IPopoService(object):
                 _logger.error("Cannot register factory '%s' of bundle %d (%s):"
                               " %s", context.name, bundle.get_bundle_id(),
                               bundle.get_symbolic_name(), ex)
+                _logger.error("class: %s -- module: %s", factory_class,
+                              factory_class.__module__)
             else:
                 # Instantiate components
                 for name, properties in context.get_instances().items():
