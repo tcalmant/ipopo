@@ -87,11 +87,21 @@ class MqttClient(object):
         # MQTT client
         self.__mqtt = paho.Client(self._client_id)
 
+        # Give access to Paho methods to configure TLS
+        self.tls_set = self.__mqtt.tls_set
+
         # Paho callbacks
         self.__mqtt.on_connect = self.__on_connect
         self.__mqtt.on_disconnect = self.__on_disconnect
         self.__mqtt.on_message = self.__on_message
         self.__mqtt.on_publish = self.__on_publish
+
+    @property
+    def raw_client(self):
+        """
+        Returns the raw client object, depending on the underlying library
+        """
+        return self.__mqtt
 
     @staticmethod
     def on_connect(client, result_code):
