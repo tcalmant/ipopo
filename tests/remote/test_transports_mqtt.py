@@ -54,6 +54,7 @@ except ImportError:
     import Queue as queue
 
 # Local utilities
+from tests.mqtt_utilities import find_mqtt_server
 from tests.utilities import WrappedProcess
 
 # ------------------------------------------------------------------------------
@@ -62,8 +63,11 @@ from tests.utilities import WrappedProcess
 __docformat__ = "restructuredtext en"
 
 APP_ID = str(uuid.uuid4())
-MQTT_SERVER = "test.mosquitto.org"
 SVC_SPEC = "pelix.test.remote"
+
+MQTT_SERVER = find_mqtt_server()
+if not MQTT_SERVER:
+    raise unittest.SkipTest("No valid MQTT server found")
 
 # ------------------------------------------------------------------------------
 

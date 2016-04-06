@@ -25,11 +25,15 @@ except ImportError:
     # Missing requirement: not a fatal error
     raise unittest.SkipTest("MQTT client dependency missing: skip test")
 
+from tests.mqtt_utilities import find_mqtt_server
+
 # ------------------------------------------------------------------------------
 
 __version__ = "1.0.0"
 
-MQTT_SERVER = "test.mosquitto.org"
+MQTT_SERVER = find_mqtt_server()
+if not MQTT_SERVER:
+    raise unittest.SkipTest("No valid MQTT server found")
 
 # ------------------------------------------------------------------------------
 
