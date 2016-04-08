@@ -1,6 +1,6 @@
 language: python
 python: 3.5
-sudo: false
+sudo: true
 
 env:
   - TOX_ENV=py27
@@ -10,11 +10,15 @@ env:
   - TOX_ENV=pypy
   - TOX_ENV=pypy3
 
-before_install:
-  - pip install tox
-  - pip install coverage
-  - pip install coveralls
-  - pip install pytest>=2.7.3 --upgrade
+install:
+  - sudo apt-get install mosquitto
+  - sudo pip install tox
+  - sudo pip install coverage
+  - sudo pip install coveralls
+  - sudo pip install pytest>=2.7.3 --upgrade
+
+before_script:
+  - sudo service mosquitto restart
 
 script:
   - tox -e $TOX_ENV

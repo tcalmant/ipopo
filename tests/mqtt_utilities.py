@@ -41,7 +41,7 @@ def find_mqtt_server():
     from pelix.misc.mqtt_client import MqttClient
     clt = MqttClient()
 
-    for server in ('test.mosquitto.org', 'iot.eclipse.org',
+    for server in ('localhost', 'test.mosquitto.org', 'iot.eclipse.org',
                    'broker.hivemq.com'):
         try:
             # Try to connect
