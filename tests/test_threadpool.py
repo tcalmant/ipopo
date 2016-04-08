@@ -24,13 +24,14 @@ except ImportError:
 # ------------------------------------------------------------------------------
 
 
-def _slow_call(wait, result=None):
+def _slow_call(wait, result=None, event=None):
     """
     Method that returns after the given time (in seconds)
     """
-    print("-->", time.time())
-    time.sleep(wait)
-    print("--<", time.time())
+    if event is not None:
+        event.wait(wait)
+    else:
+        time.sleep(wait)
     return result
 
 
@@ -441,13 +442,13 @@ class ThreadPoolTest(unittest.TestCase):
         self.pool.join()
 
         # Not empty, with timeout reached
-        print("-> enqueue at", time.time())
-        self.pool.enqueue(_slow_call, 4)
+        # Use an event to ensure that the thread stays alive
+        event = threading.Event()
+        self.pool.enqueue(_slow_call, 10, event=event)
         start = time.time()
-        print("-> start", start)
         self.assertFalse(self.pool.join(1))
         end = time.time()
-        print("-< end", end)
+        event.set()
         self.assertLess(end - start, 2)
 
         # Really join
