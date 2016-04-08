@@ -28,7 +28,9 @@ def _slow_call(wait, result=None):
     """
     Method that returns after the given time (in seconds)
     """
+    print("-->", time.time())
     time.sleep(wait)
+    print("--<", time.time())
     return result
 
 
@@ -439,10 +441,13 @@ class ThreadPoolTest(unittest.TestCase):
         self.pool.join()
 
         # Not empty, with timeout reached
+        print("-> enqueue at", time.time())
         self.pool.enqueue(_slow_call, 4)
         start = time.time()
+        print("-> start", start)
         self.assertFalse(self.pool.join(1))
         end = time.time()
+        print("-< end", end)
         self.assertLess(end - start, 2)
 
         # Really join
