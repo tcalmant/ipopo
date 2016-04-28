@@ -87,6 +87,7 @@ IPOPO_FACTORY_CONTEXT = "__ipopo_factory_context__"
 IPOPO_GETTER_SUFFIX = "_getter"
 IPOPO_SETTER_SUFFIX = "_setter"
 IPOPO_PROPERTY_PREFIX = "_ipopo_property"
+IPOPO_HIDDEN_PROPERTY_PREFIX = "_ipopo_hidden_property"
 IPOPO_CONTROLLER_PREFIX = "_ipopo_controller"
 
 # ------------------------------------------------------------------------------

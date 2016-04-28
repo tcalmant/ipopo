@@ -105,13 +105,25 @@ class PropertiesHandler(constants.Handler):
         """
         self._ipopo_instance = None
 
-    def _field_property_generator(self):
+    def _field_property_generator(self, public_properties):
         """
         Generates the methods called by the injected class properties
+
+        :param public_properties: If True, create a public property accessor,
+                                  else an hidden property accessor
+        :return: getter and setter methods
         """
         # Local variable, to avoid messing with "self"
         stored_instance = self._ipopo_instance
-        properties = stored_instance.context.properties
+
+        # Choose public or hidden properties
+        # and select the method to call to notify about the property update
+        if public_properties:
+            properties = stored_instance.context.properties
+            update_notifier = stored_instance.update_property
+        else:
+            properties = stored_instance.context.hidden_properties
+            update_notifier = stored_instance.update_hidden_property
 
         def get_value(_, name):
             """
@@ -138,11 +150,29 @@ class PropertiesHandler(constants.Handler):
                 properties[name] = new_value
 
                 # New value is different of the old one, trigger an event
-                stored_instance.update_property(name, old_value, new_value)
+                update_notifier(name, old_value, new_value)
 
             return new_value
 
         return get_value, set_value
+
+    @staticmethod
+    def get_methods_names(public_properties):
+        """
+        Generates the names of the fields where to inject the getter and setter
+        methods
+
+        :param public_properties: If True, returns the names of public property
+                                  accessors, else of hidden property ones
+        :return: getter and a setter field names
+        """
+        if public_properties:
+            prefix = ipopo_constants.IPOPO_PROPERTY_PREFIX
+        else:
+            prefix = ipopo_constants.IPOPO_HIDDEN_PROPERTY_PREFIX
+
+        return "{0}{1}".format(prefix, ipopo_constants.IPOPO_GETTER_SUFFIX), \
+            "{0}{1}".format(prefix, ipopo_constants.IPOPO_SETTER_SUFFIX),
 
     def manipulate(self, stored_instance, component_instance):
         """
@@ -154,15 +184,21 @@ class PropertiesHandler(constants.Handler):
         # Store the stored instance
         self._ipopo_instance = stored_instance
 
-        # Inject properties
-        getter, setter = self._field_property_generator()
+        # Public flags to generate (True for public accessors)
+        flags_to_generate = set()
+        if stored_instance.context.properties:
+            flags_to_generate.add(True)
 
-        # Prepare the methods names
-        getter_name = "{0}{1}".format(ipopo_constants.IPOPO_PROPERTY_PREFIX,
-                                      ipopo_constants.IPOPO_GETTER_SUFFIX)
-        setter_name = "{0}{1}".format(ipopo_constants.IPOPO_PROPERTY_PREFIX,
-                                      ipopo_constants.IPOPO_SETTER_SUFFIX)
+        # (False for hidden ones)
+        if stored_instance.context.hidden_properties:
+            flags_to_generate.add(False)
 
-        # Inject the getter and setter at the instance level
-        setattr(component_instance, getter_name, getter)
-        setattr(component_instance, setter_name, setter)
+        # Inject properties getters and setters
+        for public_flag in flags_to_generate:
+            # Prepare methods
+            getter, setter = self._field_property_generator(public_flag)
+
+            # Inject the getter and setter at the instance level
+            getter_name, setter_name = self.get_methods_names(public_flag)
+            setattr(component_instance, getter_name, getter)
+            setattr(component_instance, setter_name, setter)

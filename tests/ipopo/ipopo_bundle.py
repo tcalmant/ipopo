@@ -13,7 +13,8 @@ from pelix.framework import BundleContext
 # iPOPO
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
     Requires, Validate, Invalidate, Unbind, Bind, Instantiate, RequiresMap, \
-    RequiresBest, Temporal, PostRegistration, PostUnregistration
+    RequiresBest, Temporal, PostRegistration, PostUnregistration, \
+    HiddenProperty
 from pelix.ipopo.constants import IPOPO_INSTANCE_NAME, IPopoEvent
 
 # Tests
@@ -36,6 +37,7 @@ FACTORY_IMMEDIATE = "ipopo.tests.immediate"
 FACTORY_REQUIRES_BEST = "ipopo.tests.best"
 FACTORY_TEMPORAL = "ipopo.tests.temporal"
 FACTORY_ERRONEOUS = "ipopo.tests.erroneous"
+FACTORY_HIDDEN_PROPS = "ipopo.tests.properties.hidden"
 PROP_USABLE = "usable"
 
 # ------------------------------------------------------------------------------
@@ -377,6 +379,23 @@ class ErroneousComponentFactory(TestComponentFactory):
             raise OSError("Error raised")
         else:
             super(ErroneousComponentFactory, self).validate(context)
+
+# ------------------------------------------------------------------------------
+
+
+@ComponentFactory(FACTORY_HIDDEN_PROPS)
+@HiddenProperty("hidden", "hidden.prop", "hidden")
+@Property("public", "public.prop", "public")
+class HiddenPropTest(object):
+    """
+    Test for hidden properties
+    """
+    def __init__(self):
+        """
+        Sets up members
+        """
+        self.hidden = None
+        self.public = None
 
 # ------------------------------------------------------------------------------
 

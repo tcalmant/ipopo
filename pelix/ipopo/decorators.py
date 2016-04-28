@@ -558,9 +558,9 @@ class Property(object):
             # No name given: use the field name
             name = field
 
-        self.__field = field
-        self.__name = name
-        self.__value = value
+        self._field = field
+        self._name = name
+        self._value = value
 
     def __call__(self, clazz):
         """
@@ -584,19 +584,63 @@ class Property(object):
             return clazz
 
         # Set up the property in the class
-        context.properties[self.__name] = self.__value
+        context.properties[self._name] = self._value
 
         # Associate the field to the property name
-        context.properties_fields[self.__field] = self.__name
+        context.properties_fields[self._field] = self._name
 
         # Mark the handler in the factory context
         context.set_handler(self.HANDLER_ID, None)
 
         # Inject a property in the class. The property will call an instance
         # level getter / setter, injected by iPOPO after the instance creation
-        setattr(clazz, self.__field,
-                _ipopo_class_field_property(self.__name, self.__value,
+        setattr(clazz, self._field,
+                _ipopo_class_field_property(self._name, self._value,
                                             constants.IPOPO_PROPERTY_PREFIX))
+
+        return clazz
+
+
+class HiddenProperty(Property):
+    """
+    @HiddenProperty decorator
+
+    Defines a component property.
+    """
+    def __call__(self, clazz):
+        """
+        Adds the property to the class iPOPO properties field.
+        Creates the field if needed.
+
+        :param clazz: The class to decorate
+        :return: The decorated class
+        :raise TypeError: If *clazz* is not a type
+        """
+        if not inspect.isclass(clazz):
+            raise TypeError(
+                "@HiddenProperty can decorate only classes, not '{0}'"
+                .format(type(clazz).__name__))
+
+        # Get the factory context
+        context = get_factory_context(clazz)
+        if context.completed:
+            # Do nothing if the class has already been manipulated
+            _logger.warning("@HiddenProperty: Already manipulated class: %s",
+                            get_method_description(clazz))
+            return clazz
+
+        # Set up the property in the class
+        context.hidden_properties[self._name] = self._value
+
+        # Mark the handler in the factory context
+        context.set_handler(self.HANDLER_ID, None)
+
+        # Inject a property in the class. The property will call an instance
+        # level getter / setter, injected by iPOPO after the instance creation
+        setattr(clazz, self._field,
+                _ipopo_class_field_property(
+                    self._name, self._value,
+                    constants.IPOPO_HIDDEN_PROPERTY_PREFIX))
 
         return clazz
 

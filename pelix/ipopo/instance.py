@@ -236,6 +236,18 @@ class StoredInstance(object):
             self.__safe_handlers_callback('on_property_change', name,
                                           old_value, new_value)
 
+    def update_hidden_property(self, name, old_value, new_value):
+        """
+        Handles an hidden property changed event
+
+        :param name: The changed property name
+        :param old_value: The previous property value
+        :param new_value: The new property value
+        """
+        with self._lock:
+            self.__safe_handlers_callback(
+                'on_hidden_property_change', name, old_value, new_value)
+
     def get_handlers(self, kind=None):
         """
         Retrieves the handlers of the given kind. If kind is None, all handlers

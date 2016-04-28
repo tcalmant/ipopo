@@ -203,7 +203,7 @@ class FactoryContext(object):
     """
     __slots__ = ('bundle_context', 'callbacks', 'completed', 'field_callbacks',
                  'is_singleton', 'is_singleton_active', 'name', 'properties',
-                 'properties_fields', '__handlers',
+                 'hidden_properties', 'properties_fields', '__handlers',
                  '__inherited_configuration', '__instances')
 
     def __init__(self):
@@ -227,6 +227,9 @@ class FactoryContext(object):
 
         # Properties fields : Field name -> Property name
         self.properties_fields = {}
+
+        # Hidden Properties: Name -> Value
+        self.hidden_properties = {}
 
         # Singleton factory
         self.is_singleton = False
@@ -420,7 +423,7 @@ class ComponentContext(object):
     Represents the data stored in a component instance
     """
     # Try to reduce memory footprint (many instances)
-    __slots__ = ('factory_context', 'name', 'properties')
+    __slots__ = ('factory_context', 'name', 'properties', 'hidden_properties')
 
     def __init__(self, factory_context, name, properties):
         """
@@ -438,8 +441,20 @@ class ComponentContext(object):
         # Force the instance name property
         properties[constants.IPOPO_INSTANCE_NAME] = name
 
+        # Hidden properties
+        hidden_props_keys = set(properties).intersection(
+            factory_context.hidden_properties)
+
+        self.hidden_properties = factory_context.hidden_properties.copy()
+        self.hidden_properties.update({
+            key: value for key, value in properties.items()
+            if key in hidden_props_keys})
+
+        # Public properties
         self.properties = factory_context.properties.copy()
-        self.properties.update(properties)
+        self.properties.update({
+            key: value for key, value in properties.items()
+            if key not in hidden_props_keys})
 
     def get_bundle_context(self):
         """
