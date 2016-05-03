@@ -423,7 +423,7 @@ class ComponentContext(object):
     Represents the data stored in a component instance
     """
     # Try to reduce memory footprint (many instances)
-    __slots__ = ('factory_context', 'name', 'properties', 'hidden_properties')
+    __slots__ = ('factory_context', 'name', 'properties', '__hidden_properties')
 
     def __init__(self, factory_context, name, properties):
         """
@@ -445,8 +445,8 @@ class ComponentContext(object):
         hidden_props_keys = set(properties).intersection(
             factory_context.hidden_properties)
 
-        self.hidden_properties = factory_context.hidden_properties.copy()
-        self.hidden_properties.update({
+        self.__hidden_properties = factory_context.hidden_properties.copy()
+        self.__hidden_properties.update({
             key: value for key, value in properties.items()
             if key in hidden_props_keys})
 
@@ -510,3 +510,24 @@ class ComponentContext(object):
         :return: The handler configuration, or None
         """
         return self.factory_context.get_handler(handler_id, None)
+
+    def has_hidden_properties(self):
+        """
+        Returns True if the component must support hidden properties
+        """
+        return bool(self.__hidden_properties)
+
+    def grab_hidden_properties(self):
+        """
+        A one-shot access to hidden properties (the field is then destroyed)
+
+        :return: A copy of the hidden properties dictionary on the first call
+        :raise AttributeError: On any call after the first one
+        """
+        # Copy properties
+        result = self.__hidden_properties.copy()
+
+        # Destroy the field
+        self.__hidden_properties.clear()
+        del self.__hidden_properties
+        return result

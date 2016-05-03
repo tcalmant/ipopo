@@ -122,7 +122,8 @@ class PropertiesHandler(constants.Handler):
             properties = stored_instance.context.properties
             update_notifier = stored_instance.update_property
         else:
-            properties = stored_instance.context.hidden_properties
+            # Copy Hidden properties and remove them from the context
+            properties = stored_instance.context.grab_hidden_properties()
             update_notifier = stored_instance.update_hidden_property
 
         def get_value(_, name):
@@ -190,7 +191,7 @@ class PropertiesHandler(constants.Handler):
             flags_to_generate.add(True)
 
         # (False for hidden ones)
-        if stored_instance.context.hidden_properties:
+        if stored_instance.context.has_hidden_properties():
             flags_to_generate.add(False)
 
         # Inject properties getters and setters
