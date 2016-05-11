@@ -51,11 +51,13 @@ except ImportError:
     import urlparse
 
 # iPOPO
-from pelix.ipopo.decorators import ComponentFactory, Provides, Validate, \
-    Invalidate, Property, Requires, BindField, UnbindField, UpdateField
+from pelix.ipopo.decorators import ComponentFactory, Provides, Requires, \
+    Validate, Invalidate, Property, HiddenProperty, \
+    BindField, UpdateField, UnbindField
 import pelix.ipopo.constants as constants
 import pelix.ipv6utils
 import pelix.utilities as utilities
+import pelix.misc.ssl_wrap as ssl_wrap
 
 # HTTP service constants
 import pelix.http as http
@@ -399,6 +401,9 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 @Requires("_error_handler", http.HTTP_ERROR_PAGES, optional=True)
 @Property("_address", http.HTTP_SERVICE_ADDRESS, DEFAULT_BIND_ADDRESS)
 @Property("_port", http.HTTP_SERVICE_PORT, 8080)
+@Property('_cert_file', http.HTTPS_CERT_FILE, None)
+@Property('_key_file', http.HTTPS_KEY_FILE, None)
+@HiddenProperty('_key_password', http.HTTPS_KEY_PASSWORD, None)
 @Property('_extra', HTTP_SERVICE_EXTRA, None)
 @Property("_instance_name", constants.IPOPO_INSTANCE_NAME)
 @Property("_logger_name", "pelix.http.logger.name", "")
@@ -420,6 +425,11 @@ class HttpService(object):
         self._logger_name = None
         self._logger_level = None
         self._request_queue_size = 5
+
+        # SSL Parameters
+        self._cert_file = None
+        self._key_file = None
+        self._key_password = None
 
         # Validation flag
         self._validated = False
@@ -806,6 +816,9 @@ class HttpService(object):
         """
         Component validation
         """
+        # Check if we'll use an SSL connection
+        use_ssl = self._cert_file is not None
+
         if not self._address:
             # No address given, use the localhost address
             self._address = LOCALHOST_ADDRESS
@@ -846,13 +859,19 @@ class HttpService(object):
             else:
                 self._logger.level = int(self._logger_level)
 
-        self.log(logging.INFO, "Starting HTTP server: [%s]:%d ...",
-                 self._address, self._port)
+        self.log(logging.INFO, "Starting HTTP%s server: [%s]:%d ...",
+                 "S" if use_ssl else "", self._address, self._port)
 
         # Create the server
         self._server = _HttpServerFamily(
             (self._address, self._port), lambda *x: _RequestHandler(self, *x),
             self._request_queue_size, self._logger)
+
+        if use_ssl:
+            # Activate HTTPS if required
+            self._server.socket = ssl_wrap.wrap_socket(
+                self._server.socket, self._cert_file,
+                self._key_file, self._key_password)
 
         # Property update (if port was 0)
         self._port = self._server.server_port
@@ -872,8 +891,8 @@ class HttpService(object):
             for service, svc_ref in self._servlets_refs.items():
                 self.__register_servlet_service(service, svc_ref)
 
-        self.log(logging.INFO, "HTTP server started: [%s]:%d",
-                 self._address, self._port)
+        self.log(logging.INFO, "HTTP%s server started: [%s]:%d",
+                 "S" if use_ssl else "", self._address, self._port)
 
     @Invalidate
     def invalidate(self, _):

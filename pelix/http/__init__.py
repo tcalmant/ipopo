@@ -53,6 +53,16 @@ HTTP_SERVICE_ADDRESS = "pelix.http.address"
 HTTP_SERVICE_PORT = "pelix.http.port"
 """ HTTP Service binding port property (int) """
 
+# ... the certificate file for HTTPS servers
+HTTPS_CERT_FILE = "pelix.https.cert_file"
+
+# ... the key file for HTTPS servers
+HTTPS_KEY_FILE = "pelix.https.key_file"
+
+# ... the password of the key file for HTTPS servers
+# (supported since Python 3.3)
+HTTPS_KEY_PASSWORD = "pelix.https.key_password"
+
 # HTTP servlet constants
 HTTP_SERVLET = "pelix.http.servlet"
 """ HTTP Servlet service specification """
