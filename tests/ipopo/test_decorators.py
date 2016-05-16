@@ -265,7 +265,7 @@ class DecoratorsTest(unittest.TestCase):
             pass
 
         for decorator in (decorators.Requires, decorators.RequiresBest,
-                          decorators.Temporal):
+                          decorators.RequiresVarFilter, decorators.Temporal):
             # Empty field or specification
             for empty in (None, "", "   "):
                 self.assertRaises(ValueError, decorator, empty, "spec")
