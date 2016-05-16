@@ -62,6 +62,9 @@ HANDLER_REQUIRES_BEST = 'ipopo.requires.best'
 HANDLER_REQUIRES_MAP = 'ipopo.requires.map'
 """ The @RequiresMap handler ID """
 
+HANDLER_REQUIRES_VARIABLE_FILTER = 'ipopo.requires.variable_filter'
+""" The @RequiresVarFilter handler ID """
+
 HANDLER_TEMPORAL = 'ipopo.temporal'
 """ The @Temporal handler ID """
 

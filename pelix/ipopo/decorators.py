@@ -855,6 +855,17 @@ class Requires(object):
 # ------------------------------------------------------------------------------
 
 
+class RequiresVarFilter(Requires):
+    """
+    @RequiresVarFilter decorator: acts like @Requires but its filter adapts to
+    component properties
+    """
+    HANDLER_ID = constants.HANDLER_REQUIRES_VARIABLE_FILTER
+    """ ID of the handler configured by this decorator """
+
+# ------------------------------------------------------------------------------
+
+
 class RequiresBest(Requires):
     """
     @RequiresBest decorator
