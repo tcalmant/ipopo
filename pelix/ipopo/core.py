@@ -65,6 +65,7 @@ BUILTIN_HANDLERS = ('pelix.ipopo.handlers.properties',
                     'pelix.ipopo.handlers.requires',
                     'pelix.ipopo.handlers.requiresbest',
                     'pelix.ipopo.handlers.requiresmap',
+                    'pelix.ipopo.handlers.requiresvarfilter',
                     'pelix.ipopo.handlers.temporal')
 
 # ------------------------------------------------------------------------------
@@ -644,6 +645,7 @@ class _IPopoService(object):
 
         :param factory_name: Name of the component factory
         :param name: Name of the instance to be started
+        :param properties: Initial properties of the component instance
         :return: The component instance
         :raise TypeError: The given factory is unknown
         :raise ValueError: The given name or factory name is invalid, or an
