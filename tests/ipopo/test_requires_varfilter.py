@@ -246,8 +246,104 @@ class RequiresVarFilterTest(unittest.TestCase):
         self.assertListEqual([IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
                              consumer.states, "Invalid component states: {0}"
                              .format(consumer.states))
-        self.assertIs(consumer.service, None, "A service is injected")
         consumer.reset()
+        self.assertIs(consumer.service, None, "A service is injected")
+
+        # Check other invalid filters
+        for invalid in ("", "=", "("):
+            # Force the "answer" property to an invalid value
+            consumer.change(invalid)
+
+            # Instantiate a service, matching the filter
+            svc = object()
+            reg = context.register_service(
+                IEchoService, svc, {"s": random_static, "a": invalid})
+
+            # Nothing should happen
+            self.assertListEqual(
+                [], consumer.states,
+                "Invalid component states: {0}".format(consumer.states))
+            consumer.reset()
+
+            reg.unregister()
+
+    def test_no_change(self):
+        """
+        Test the behaviour when the LDAP filter doesn't change with the
+        property
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+        assert isinstance(context, BundleContext)
+
+        random_static = ''.join(random.choice(string.ascii_letters)
+                                for _ in range(50))
+
+        # Assert that the service is not yet available
+        self.assertIsNone(context.get_service_reference(IEchoService),
+                          "Service is already registered")
+
+        # Instantiate the component
+        consumer = self.ipopo.instantiate(
+            module.FACTORY_REQUIRES_VAR_FILTER, NAME_A,
+            {"static": random_static})
+
+        # Force the "answer" property to an int
+        consumer.change(42)
+
+        # Instantiate a service, matching the filter
+        svc1 = object()
+        context.register_service(
+            IEchoService, svc1, {"s": random_static, "a": consumer.answer})
+
+        # Component must be valid
+        self.assertListEqual(
+            [IPopoEvent.INSTANTIATED, IPopoEvent.BOUND, IPopoEvent.VALIDATED],
+            consumer.states,
+            "Invalid component states: {0}".format(consumer.states))
+        consumer.reset()
+
+        # Set the filter with a similar value (same once formatted)
+        consumer.change("42")
+
+        # The consumer should not be notified
+        self.assertListEqual(
+            [], consumer.states,
+            "Invalid component states: {0}".format(consumer.states))
+        self.assertIs(consumer.service, svc1, "A service is injected")
+        consumer.reset()
+
+    def test_incomplete_properties(self):
+        """
+        Tests the behaviour when a property is missing
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+        assert isinstance(context, BundleContext)
+
+        random_static = ''.join(random.choice(string.ascii_letters)
+                                for _ in range(50))
+
+        # Assert that the service is not yet available
+        self.assertIsNone(context.get_service_reference(IEchoService),
+                          "Service is already registered")
+
+        # Instantiate the component, without the static property
+        consumer = self.ipopo.instantiate(
+            module.FACTORY_REQUIRES_VAR_FILTER, NAME_A, {})
+
+        # Force the "answer" property to an int
+        consumer.change(42)
+
+        # Instantiate a service, matching the filter
+        svc1 = object()
+        context.register_service(
+            IEchoService, svc1, {"s": random_static, "a": consumer.answer})
+
+        # Component must be instantiated, but not valid
+        self.assertListEqual(
+            [IPopoEvent.INSTANTIATED], consumer.states,
+            "Invalid component states: {0}".format(consumer.states))
 
 # ------------------------------------------------------------------------------
 

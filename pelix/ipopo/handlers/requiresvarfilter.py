@@ -139,8 +139,12 @@ class _VariableFilterMixIn:
         # List the properties found in the filter
         self._keys = self._find_keys()
 
-        # Set the initial value of the filter
-        self.update_filter()
+        try:
+            # Set the initial value of the filter
+            self.update_filter()
+        except ValueError:
+            # The filter couldn't be initialized (reason already logged)
+            self.valid_filter = False
 
     def _find_keys(self):
         """
@@ -157,6 +161,7 @@ class _VariableFilterMixIn:
         Update the filter according to the new properties
 
         :return: True if the filter changed, else False
+        :raise ValueError: The filter is invalid
         """
         # Consider the filter invalid
         self.valid_filter = False
@@ -168,14 +173,14 @@ class _VariableFilterMixIn:
         except KeyError as ex:
             # An entry is missing: abandon
             logging.warning("Missing filter value: %s", ex)
-            return False
+            raise ValueError("Missing filter value")
 
         try:
             # Parse the new LDAP filter
             new_filter = ldapfilter.get_ldap_filter(filter_str)
         except (TypeError, ValueError) as ex:
             logging.warning("Error parsing filter: %s", ex)
-            return False
+            raise ValueError("Error parsing filter")
 
         # The filter is valid
         self.valid_filter = True
@@ -198,11 +203,12 @@ class _VariableFilterMixIn:
         :param new_value: New value of the property
         """
         if name in self._keys:
-            if self.update_filter():
-                # This is a key for the filter and the filter has changed
-                # => Force the handler to update its dependency
-                self._reset()
-            else:
+            try:
+                if self.update_filter():
+                    # This is a key for the filter and the filter has changed
+                    # => Force the handler to update its dependency
+                    self._reset()
+            except ValueError:
                 # Invalid filter: clear all references, this will invalidate
                 # the component
                 for svc_ref in self.get_bindings():
