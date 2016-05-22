@@ -36,6 +36,7 @@ FACTORY_C = "ipopo.tests.c"
 FACTORY_IMMEDIATE = "ipopo.tests.immediate"
 FACTORY_REQUIRES_BEST = "ipopo.tests.best"
 FACTORY_REQUIRES_VAR_FILTER = "ipopo.tests.var_filter"
+FACTORY_REQUIRES_VAR_FILTER_AGGREGATE = "ipopo.tests.var_filter.multiple"
 FACTORY_TEMPORAL = "ipopo.tests.temporal"
 FACTORY_ERRONEOUS = "ipopo.tests.erroneous"
 FACTORY_HIDDEN_PROPS = "ipopo.tests.properties.hidden"
@@ -334,6 +335,35 @@ class RequiresBestComponentFactory(TestComponentFactory):
                    spec_filter="(&(s={static})(a={answer}))")
 @Property('answer', 'answer', 42)
 class RequiresVarFilterComponentFactory(TestComponentFactory):
+    """
+    Component factory with a RequiresVarFilter requirement
+    """
+    @Bind
+    def bind(self, svc, svc_ref):
+        """
+        Bound
+        """
+        self.states.append(IPopoEvent.BOUND)
+
+    def change(self, new_value):
+        """
+        Changes the filter property
+        """
+        self.answer = new_value
+
+    @Unbind
+    def unbind(self, svc, svc_ref):
+        """
+        Unbound
+        """
+        self.states.append(IPopoEvent.UNBOUND)
+
+
+@ComponentFactory(FACTORY_REQUIRES_VAR_FILTER_AGGREGATE)
+@RequiresVarFilter('service', IEchoService, aggregate=True,
+                   spec_filter="(&(s={static})(a={answer}))")
+@Property('answer', 'answer', 42)
+class RequiresVarFilterAggregateComponentFactory(TestComponentFactory):
     """
     Component factory with a RequiresVarFilter requirement
     """
