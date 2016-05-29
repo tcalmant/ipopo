@@ -38,3 +38,35 @@ FACTORY_EVENT_ADMIN_PRINTER = "pelix-misc-eventadmin-printer-factory"
 """
 Name of the EventAdmin printer factory.
 """
+
+# ------------------------------------------------------------------------------
+
+PROPERTY_LOG_LEVEL = "pelix.log.level"
+"""
+The log level property, which can be an integer or a string from the logging
+module (default: logging.INFO)
+"""
+
+PROPERTY_LOG_MAX_ENTRIES = "pelix.log.max_entries"
+"""
+The maximum number of log entries to store in memory (default: 100)
+"""
+
+LOG_SERVICE = "pelix.log"
+"""
+The log service, providing:
+- log(level, message, exception=None, reference=None): logs an entry with
+  the given log level, human-readable message, exception (if any) and
+  associated service reference (if any)
+"""
+
+LOG_READER_SERVICE = "pelix.log.reader"
+"""
+The log reader service, providing:
+- add_log_listener(listener): subscribe a listener to log events
+- remove_log_listener(listener): unsubscribe a listener from log events
+- get_log(): returns the list of stored log entries
+
+Log listeners must provide a ``logged(entry)`` method, accepting a ``LogEntry``
+object as parameter.
+"""
