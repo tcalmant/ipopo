@@ -1463,6 +1463,9 @@ class FrameworkFactory(object):
 
         :return: A Pelix instance
         """
+        # Normalize sys.path
+        normalize_path()
+
         if cls.__singleton is None:
             cls.__singleton = Framework(properties)
 
@@ -1575,3 +1578,40 @@ def create_framework(bundles, properties=None,
                 framework = None
 
     return framework
+
+
+def _package_exists(path):
+    """
+    Checks if the given Python path matches a valid file or a valid container
+    file
+
+    :param path: A Python path
+    :return: True if the module or its container exists
+    """
+    name = path
+    while name:
+        if os.path.exists(name):
+            return True
+        else:
+            name = os.path.dirname(name)
+
+    return False
+
+
+def normalize_path():
+    """
+    Normalizes sys.path to avoid the use of relative folders
+    """
+    # Normalize Python paths
+    sys.path = [os.path.abspath(path) for path in sys.path
+                if os.path.exists(path)]
+
+    # Normalize paths in loaded modules
+    for name, module in sys.modules.items():
+        try:
+            module.__path__ = [
+                os.path.abspath(path) for path in module.__path__
+                if _package_exists(path)]
+        except AttributeError:
+            # builtin modules don't have a __path__
+            pass
