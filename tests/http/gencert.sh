@@ -1,14 +1,18 @@
-#!/bin/bash
+$#!/bin/bash
 
 # Required
-domain=$1
+domain=ipopo.coderxpress.net
 commonname=$domain
-outputDir=$2
+outputDir=$1
+
+# Generate a random string as locality
+# bash generate random 10 character alphanumeric string (lowercase only)
+random=$(cat /dev/urandom | env LC_CTYPE=C tr -dc 'a-z0-9' | fold -w 10 | head -n 1)
 
 #Change to your company details
 country=FR
 state=
-locality=
+locality=$random
 organization=coderxpress.net
 organizationalunit=ipopo
 email=abuse@coderxpress.net
@@ -16,23 +20,16 @@ email=abuse@coderxpress.net
 #Optional
 password=hyperpassword
  
-if [ -z "$domain" ]
+if [ -z "$outputDir" ]
 then
-    echo "domain argument not present."
-    echo "Usage $0 [domain] [outputDir]"
+    echo "outputDir argument not present."
+    echo "Usage $0 [outputDir]"
  
     exit 99
 fi
 
-if [ -z "$outputDir" ]
-then
-    echo "outputDir rgument not present."
-    echo "Usage $0 [domain] [outputDir]"
- 
-    exit 100
-fi
-
 mkdir -p $outputDir
+echo $random > $outputDir/random
 
 echo "Generating key request for $domain"
  
@@ -60,3 +57,6 @@ echo "-----Below is your Key-----"
 echo "---------------------------"
 echo
 cat $outputDir/$domain.key
+
+
+
