@@ -10,6 +10,10 @@ env:
   - TOX_ENV=pypy
   - TOX_ENV=pypy3
 
+before_install:
+  - sudo add-apt-repository ppa:mosquitto-dev/mosquitto-ppa -y
+  - sudo apt-get update
+
 install:
   - sudo apt-get install mosquitto
   - sudo pip install tox
