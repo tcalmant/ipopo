@@ -1,0 +1,194 @@
+#!/usr/bin/env python
+# -- Content-Encoding: UTF-8 --
+"""
+A utility script to generate test certificates for HTTPS
+
+:author: Thomas Calmant
+:copyright: Copyright 2016, Thomas Calmant
+:license: Apache License 2.0
+:version: 0.6.4
+
+..
+
+    Copyright 2016 Thomas Calmant
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+"""
+
+# Standard library
+import argparse
+import os
+import subprocess
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 4)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
+# ------------------------------------------------------------------------------
+
+
+def find_openssl():
+    """
+    Looks for the OpenSSL executable
+
+    :return: The absolute path to OpenSSL
+    """
+    name = "openssl"
+    paths = os.getenv("PATH").split(os.path.pathsep)
+
+    if os.name == 'nt':
+        # On Windows, look for openssl.exe
+        # Also look in the install path for "Git for Windows"
+        name += ".exe"
+        git_install = os.path.join(
+            os.path.expandvars("%PROGRAMFILES%"), "Git", "usr", "bin")
+        paths.append(git_install)
+
+    for path in paths:
+        exe = os.path.join(path, name)
+        if os.path.exists(exe):
+            return exe
+    else:
+        raise IOError("{0} not found in PATH".format(name))
+
+
+def call_openssl(*args):
+    """
+    Calls the openssl command
+
+    :param args: OpenSSL arguments
+    """
+    subprocess.check_output([find_openssl()] + [str(arg) for arg in args])
+
+
+def write_conf(out_dir):
+    """
+    Writes the configuration file for OpenSSL
+
+    :param out_dir: Output directory
+    :return: The path to the configuration file
+    """
+    config_file = os.path.join(out_dir, "openssl.cnf")
+    with open(config_file, "w+") as fp:
+        fp.write("""[ req ]
+prompt = yes
+distinguished_name = req_distinguished_name
+x509_extensions = v3_ca
+
+[ req_distinguished_name ]
+
+[ v3_ca ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+#basicConstraints = critical,CA:true
+basicConstraints = CA:true
+""")
+
+    return config_file
+
+
+def make_subj(common_name, encrypted=False):
+    """
+    Make a subject string
+
+    :param common_name: Common name used in certificate
+    :param encrypted: Add the encrypted flag to the organisation
+    :return: A subject string
+    """
+    return "/C=FR/ST=Auvergne-Rhone-Alpes/L=Grenoble/O=iPOPO Tests ({0})" \
+           "/CN={1}".format("encrypted" if encrypted else "plain", common_name)
+
+
+def make_certs(out_dir, key_password):
+    """
+    Generates a certificate chain and two certificates: one with a password and
+    one without
+
+    :param out_dir: Output directory
+    :param key_password: Password for the protected key
+    """
+    # Write the configuration file
+    config_file = write_conf(out_dir)
+
+    # Make CA key and certificate
+    print("--- Preparing CA key and certificate ---")
+    call_openssl("req", "-new", "-x509",
+                 "-days", 1,
+                 "-subj", make_subj("iPOPO Test CA"),
+                 "-keyout", os.path.join(out_dir, "ca.key"),
+                 "-out", os.path.join(out_dir, "ca.crt"),
+                 "-config", config_file,
+                 "-nodes")
+
+    # Make server keys
+    print("--- Preparing Server keys ---")
+    call_openssl("genrsa", "-out", os.path.join(out_dir, "server.key"), 2048)
+    call_openssl("genrsa", "-out", os.path.join(out_dir, "server_enc.key"),
+                 "-des3", "-passout", "pass:" + key_password, 2048)
+
+    # Make signing requests
+    print("--- Preparing Server certificate requests ---")
+    call_openssl("req", "-subj", make_subj("localhost"),
+                 "-out", os.path.join(out_dir, "server.csr"),
+                 "-key", os.path.join(out_dir, "server.key"),
+                 "-config", config_file,
+                 "-new")
+
+    call_openssl("req", "-subj", make_subj("localhost", True),
+                 "-out", os.path.join(out_dir, "server_enc.csr"),
+                 "-key", os.path.join(out_dir, "server_enc.key"),
+                 "-passin", "pass:" + key_password,
+                 "-config", config_file,
+                 "-new")
+
+    # Sign server certificates
+    print("--- Signing Server keys ---")
+    call_openssl("x509", "-req",
+                 "-in", os.path.join(out_dir, "server.csr"),
+                 "-CA", os.path.join(out_dir, "ca.crt"),
+                 "-CAkey", os.path.join(out_dir, "ca.key"),
+                 "-CAcreateserial",
+                 "-out", os.path.join(out_dir, "server.crt"),
+                 "-days", 1)
+
+    call_openssl("x509", "-req",
+                 "-in", os.path.join(out_dir, "server_enc.csr"),
+                 "-CA", os.path.join(out_dir, "ca.crt"),
+                 "-CAkey", os.path.join(out_dir, "ca.key"),
+                 "-CAcreateserial",
+                 "-out", os.path.join(out_dir, "server_enc.crt"),
+                 "-days", 1)
+
+
+def main(args=None):
+    """
+    Entry point
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-o", "--output", help="Output folder", default="tmp")
+    parser.add_argument("-p", "--password", help="Server key password",
+                        required=True)
+    options = parser.parse_args(args)
+
+    if not os.path.exists(options.output):
+        os.makedirs(options.output)
+
+    make_certs(options.output, options.password)
+
+if __name__ == '__main__':
+    main()
