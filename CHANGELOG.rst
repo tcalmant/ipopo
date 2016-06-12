@@ -1,6 +1,40 @@
 Release notes
 #############
 
+iPOPO 0.6.4
+***********
+
+iPOPO
+=====
+
+* Added support for the *hidden* properties. Those properties won't be seen
+  in the shell nor in the components and factories description API.
+  This is useful when giving password in component properties.
+
+* Added the ``RequiresVariableFilter`` handler: it works like ``Requires`` but
+  allows to use component properties in the LDAP filter. The filter is updated
+  each time a component property is updated.
+
+* iPOPO registers factories declared directly from a bundle, not those imported
+  by the bundle. This avoids factory re-definitions when installing bundles
+  which import each other.
+
+HTTP
+====
+
+* Added support for HTTPS. Works for Python 2.7.9+, as it is based upon
+  `SSLContext <https://docs.python.org/2/library/ssl.html#ssl-contexts>`_
+
+
+Miscellaneous
+=============
+
+* Added a log service and its shell commands. It allows to look from the shell
+  at what has been logged with its API or the ``logging`` module
+* The MQTT client gives access to the underlying Paho client API and to its
+  ``tls_set()`` method.
+
+
 iPOPO 0.6.3
 ***********
 
@@ -38,6 +72,7 @@ HTTP
   to avoid duplicate headers.
 * The request queue size of the basic HTTP server can now be set as a component
   property (``pelix.http.request_queue_size``)
+
 
 Shell
 =====
@@ -99,6 +134,7 @@ Shell
 * The ``threads`` and ``threads`` shell commands now accept a stack depth limit
   argument.
 
+
 HTTP
 ====
 
@@ -116,6 +152,7 @@ iPOPO
   ERRONEOUS state is now kept, as a string. It can be seen throught the
   ``instance`` shell command.
 
+
 Shell
 =====
 
@@ -126,6 +163,7 @@ Shell
   directory of the framework and printing the current one.
 * Corrected the encoding of the shell output string, to avoid exceptions when
   printing special characters.
+
 
 Remote Services
 ===============
@@ -141,6 +179,7 @@ Project
 =======
 
 * The support of Python 2.6 has been removed
+
 
 Utilities
 =========
@@ -158,6 +197,7 @@ Project
 =======
 
 * iPOPO now works with IronPython (tested inside Unity 3D)
+
 
 iPOPO
 =====
@@ -180,6 +220,7 @@ iPOPO
   component to be notified right after one of its services has been registered
   or will be unregistered.
 
+
 HTTP
 ====
 
@@ -187,6 +228,7 @@ HTTP
 * The 404 and 500 error pages can be customized by a hook service.
 * The default binding address is back to "0.0.0.0" instead of "localhost".
   (for those who used the development version)
+
 
 Utilities
 =========
@@ -243,6 +285,7 @@ Project
 * Code review to be more PEP-8 compliant
 * `jsonrpclib-pelix <https://pypi.python.org/pypi/jsonrpclib-pelix>`_ is now an
   install requirement (instead of an optional one)
+
 
 Framework
 =========
@@ -658,6 +701,7 @@ HTTP Service
 * The ``bound_to()`` method of a servlet is called only after the HTTP service
   is ready to accept clients.
 
+
 iPOPO 0.5
 *********
 
@@ -729,6 +773,7 @@ Services
 
 * EventAdmin: send events (a)synchronously
 
+
 iPOPO 0.4
 *********
 
@@ -741,6 +786,7 @@ Pelix
 * The framework has been refactored, allowing more efficient services and
   events handling
 
+
 iPOPO
 =====
 
@@ -750,12 +796,14 @@ iPOPO
 * Dependency injection and service providing mechanisms have been refactored,
   using a basic handler concept.
 
+
 Services
 ========
 
 * Added a HTTP service component, using the concept of *servlet*
 * Added an extensible shell, interactive and remote, simplifying the usage
   of a framework instance
+
 
 iPOPO 0.3
 *********
@@ -774,6 +822,7 @@ relations to isandlaTech projects anymore.
 +------------------------+------------------+
 | psem2m.component.ipopo | pelix.ipopo.core |
 +------------------------+------------------+
+
 
 iPOPO 0.2
 *********
