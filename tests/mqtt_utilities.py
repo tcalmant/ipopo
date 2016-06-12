@@ -39,17 +39,41 @@ def find_mqtt_server():
     :return: The host name of a working MQTT server, else None
     """
     from pelix.misc.mqtt_client import MqttClient
+    from threading import Event
+
+    evt = Event()
     clt = MqttClient()
+
+    def handle_disconnect(client, rc):
+        evt.set()
+
+    clt.on_disconnect = handle_disconnect
 
     for server in ('localhost', 'test.mosquitto.org', 'iot.eclipse.org',
                    'broker.hivemq.com'):
         try:
             # Try to connect
+            evt.clear()
             clt.connect(server)
         except IOError:
             # Not available
             pass
         else:
-            # Valid server found
-            clt.disconnect()
-            return server
+            try:
+                # Try publishing something
+                mid = clt.publish(
+                    "/ipopo/test/bootstrap", "initial.data", wait=True)
+
+                if not mid:
+                    # Error while publishing: next server
+                    continue
+
+                if clt.wait_publication(mid, 1):
+                    # Message sent without error and with a correct delay
+                    return server
+                elif evt.is_set():
+                    # Got disconnected while waiting
+                    continue
+            finally:
+                # Disconnect from the server
+                clt.disconnect()
