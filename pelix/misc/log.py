@@ -4,7 +4,7 @@
 Implementation of the OSGi LogService, based on Python standard logging
 
 :author: Thomas Calmant
-:copyright: Copyright 2015, Thomas Calmant
+:copyright: Copyright 2016, Thomas Calmant
 :license: Apache License 2.0
 :version: 0.6.4
 

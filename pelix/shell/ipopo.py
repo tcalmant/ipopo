@@ -6,13 +6,13 @@ iPOPO shell commands
 Provides commands to the Pelix shell to get the state of iPOPO instances.
 
 :author: Thomas Calmant
-:copyright: Copyright 2015, Thomas Calmant
+:copyright: Copyright 2016, Thomas Calmant
 :license: Apache License 2.0
 :version: 0.6.4
 
 ..
 
-    Copyright 2015 Thomas Calmant
+    Copyright 2016 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
