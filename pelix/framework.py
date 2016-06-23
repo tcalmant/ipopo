@@ -1606,6 +1606,12 @@ def normalize_path():
     sys.path = [os.path.abspath(path) for path in sys.path
                 if os.path.exists(path)]
 
+    # Add the "static" current path
+    sys.path.insert(0, os.getcwd())
+
+    # Keep the "dynamic" current folder indicator
+    sys.path.insert(0, '')
+
     # Normalize paths in loaded modules
     for name, module in sys.modules.items():
         try:
