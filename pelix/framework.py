@@ -1621,3 +1621,6 @@ def normalize_path():
         except AttributeError:
             # builtin modules don't have a __path__
             pass
+        except ImportError:
+            pass
+            
