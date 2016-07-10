@@ -20,6 +20,11 @@ Utility methods for MQTT tests
     limitations under the License.
 """
 
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
+
 # ------------------------------------------------------------------------------
 
 # Module version
@@ -38,7 +43,11 @@ def find_mqtt_server():
 
     :return: The host name of a working MQTT server, else None
     """
-    from pelix.misc.mqtt_client import MqttClient
+    try:
+        from pelix.misc.mqtt_client import MqttClient
+    except ImportError:
+        raise unittest.SkipTest("MQTT client library is missing")
+
     from threading import Event
 
     evt = Event()
