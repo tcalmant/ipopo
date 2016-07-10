@@ -10,7 +10,7 @@ Tests the iPOPO @Instantiate decorator.
 from tests.ipopo import install_ipopo
 
 # Pelix
-from pelix.framework import FrameworkFactory
+from pelix.framework import FrameworkFactory, BundleEvent
 
 # iPOPO
 from pelix.ipopo.constants import IPopoEvent
@@ -131,6 +131,37 @@ class InstantiateTest(unittest.TestCase):
         # iPOPO shouldn't be accessible, it must raise an exception
         self.assertRaises(ValueError, self.ipopo.instantiate,
                           'dummy', 'dummy', {})
+
+    def test_boot_order(self):
+        """
+        Tests when the @Validate and @Invalidate methods are called
+        """
+        # Install the bundle
+        context = self.framework.get_bundle_context()
+        bundle = context.install_bundle("tests.ipopo.ipopo_boot_order_bundle")
+        module = bundle.get_module()
+
+        # Clean up state
+        del module.STATES[:]
+
+        # Start the bundle
+        bundle.start()
+
+        # Check states
+        self.assertListEqual(
+            [BundleEvent.STARTED,
+             IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
+            module.STATES)
+
+        # Clean up
+        del module.STATES[:]
+
+        # Stop the bundle
+        bundle.stop()
+
+        # Check states
+        self.assertListEqual(
+            [IPopoEvent.INVALIDATED, BundleEvent.STOPPED], module.STATES)
 
 # ------------------------------------------------------------------------------
 

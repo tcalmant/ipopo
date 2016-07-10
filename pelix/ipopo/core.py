@@ -602,7 +602,7 @@ class _IPopoService(object):
             # components.
             self._unregister_bundle_factories(bundle)
 
-        elif kind == BundleEvent.STARTING:
+        elif kind == BundleEvent.STARTED:
             # A bundle is staring, register its factories before its activator
             # is called. That way, the activator can use the registered
             # factories.
