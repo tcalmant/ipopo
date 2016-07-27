@@ -129,6 +129,13 @@ class AbstractHTTPServletRequest(object):
     """
     Abstract HTTP Servlet request helper
     """
+    def get_command(self):
+        """
+        Returns the HTTP verb (GET, POST, ...) used for the request
+        """
+        raise NotImplementedError("This method must be implemented by a "
+                                  "child class")
+
     def get_client_address(self):
         """
         Returns the address of the client

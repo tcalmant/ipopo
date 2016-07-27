@@ -99,6 +99,12 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         """
         self._handler = request_handler
 
+    def get_command(self):
+        """
+        Returns the HTTP verb (GET, POST, ...) used for the request
+        """
+        return self._handler.command
+
     def get_client_address(self):
         """
         Retrieves the address of the client
