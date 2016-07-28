@@ -91,13 +91,20 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
     """
     HTTP Servlet request helper
     """
-    def __init__(self, request_handler):
+    def __init__(self, request_handler, prefix):
         """
         Sets up the request helper
 
         :param request_handler: The basic request handler
+        :param prefix: Teh path to the servlet root
         """
         self._handler = request_handler
+        self._prefix = prefix
+
+        # Compute the sub path
+        self._sub_path = self._handler.path[len(prefix):]
+        if not self._sub_path.startswith("/"):
+            self._sub_path = "/{0}".format(self._sub_path)
 
     def get_command(self):
         """
@@ -130,6 +137,22 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         Retrieves the request full path
         """
         return self._handler.path
+
+    def get_prefix_path(self):
+        """
+        Returns the path to the servlet root
+
+        :return: A request path (string)
+        """
+        return self._prefix
+
+    def get_sub_path(self):
+        """
+        Returns the servlet-relative path, i.e. after the prefix
+
+        :return: A request path (string)
+        """
+        return self._sub_path
 
     def get_rfile(self):
         """
@@ -252,12 +275,13 @@ class _RequestHandler(BaseHTTPRequestHandler, object):
         parsed_path = parsed_url.path
 
         # Get the corresponding servlet
-        servlet_info = self._service.get_servlet(parsed_path)
-        if servlet_info is not None:
+        found_servlet = self._service.get_servlet(parsed_path)
+        if found_servlet is not None:
+            servlet_info, prefix = found_servlet
             servlet = servlet_info[0]
             if hasattr(servlet, name):
                 # Prepare the helpers
-                request = _HTTPServletRequest(self)
+                request = _HTTPServletRequest(self, prefix)
                 response = _HTTPServletResponse(self)
 
                 # Create a wrapper to pass the handler to the servlet
@@ -513,11 +537,11 @@ class HttpService(object):
         paths = service_reference.get_property(http.HTTP_SERVLET_PATH)
         if utilities.is_string(paths):
             # Register the servlet to a single path
-            self.register_servlet(paths, service, None)
+            self.register_servlet(paths, service)
         elif isinstance(paths, (list, tuple)):
             # Register the servlet to multiple paths
             for path in paths:
-                self.register_servlet(path, service, None)
+                self.register_servlet(path, service)
 
     @BindField("_servlets_services")
     def _bind(self, _, service, service_reference):
@@ -595,7 +619,7 @@ class HttpService(object):
         Returns None if no servlet matches the given path.
 
         :param path: A request URI
-        :return: A tuple (servlet, parameters) or None
+        :return: A tuple ((servlet, parameters), prefix) or None
         """
         if not path or path[0] != "/":
             # No path, nothing to return
@@ -628,7 +652,7 @@ class HttpService(object):
                 return None
             else:
                 # Retrieve the stored information
-                return self._servlets[longest_match]
+                return self._servlets[longest_match], longest_match
 
     def make_not_found_page(self, path):
         """

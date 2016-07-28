@@ -174,6 +174,24 @@ class AbstractHTTPServletRequest(object):
         raise NotImplementedError("This method must be implemented by a "
                                   "child class")
 
+    def get_prefix_path(self):
+        """
+        Returns the path to the servlet root
+
+        :return: A request path (string)
+        """
+        raise NotImplementedError("This method must be implemented by a "
+                                  "child class")
+
+    def get_sub_path(self):
+        """
+        Returns the servlet-relative path, i.e. after the prefix
+
+        :return: A request path (string)
+        """
+        raise NotImplementedError("This method must be implemented by a "
+                                  "child class")
+
     def get_rfile(self):
         """
         Returns the request input as a file stream
