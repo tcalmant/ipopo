@@ -430,6 +430,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 @Requires("_error_handler", http.HTTP_ERROR_PAGES, optional=True)
 @Property("_address", http.HTTP_SERVICE_ADDRESS, DEFAULT_BIND_ADDRESS)
 @Property("_port", http.HTTP_SERVICE_PORT, 8080)
+@Property("_uses_ssl", http.HTTP_USES_SSL, False)
 @Property('_cert_file', http.HTTPS_CERT_FILE, None)
 @Property('_key_file', http.HTTPS_KEY_FILE, None)
 @HiddenProperty('_key_password', http.HTTPS_KEY_PASSWORD, None)
@@ -449,6 +450,7 @@ class HttpService(object):
         # Properties
         self._address = "0.0.0.0"
         self._port = 8080
+        self._uses_ssl = False
         self._extra = None
         self._instance_name = None
         self._logger_name = None
@@ -749,6 +751,7 @@ class HttpService(object):
             # Add server information in parameters
             parameters[http.PARAM_ADDRESS] = self._address
             parameters[http.PARAM_PORT] = self._port
+            parameters[http.PARAM_HTTPS] = self._uses_ssl
             parameters[http.PARAM_NAME] = self._instance_name
             parameters[http.PARAM_EXTRA] = self._extra.copy()
 
@@ -846,7 +849,7 @@ class HttpService(object):
         Component validation
         """
         # Check if we'll use an SSL connection
-        use_ssl = self._cert_file is not None
+        self._uses_ssl = self._cert_file is not None
 
         if not self._address:
             # No address given, use the localhost address
@@ -889,14 +892,14 @@ class HttpService(object):
                 self._logger.level = int(self._logger_level)
 
         self.log(logging.INFO, "Starting HTTP%s server: [%s]:%d ...",
-                 "S" if use_ssl else "", self._address, self._port)
+                 "S" if self._uses_ssl else "", self._address, self._port)
 
         # Create the server
         self._server = _HttpServerFamily(
             (self._address, self._port), lambda *x: _RequestHandler(self, *x),
             self._request_queue_size, self._logger)
 
-        if use_ssl:
+        if self._uses_ssl:
             # Activate HTTPS if required
             self._server.socket = ssl_wrap.wrap_socket(
                 self._server.socket, self._cert_file,
@@ -921,7 +924,7 @@ class HttpService(object):
                 self.__register_servlet_service(service, svc_ref)
 
         self.log(logging.INFO, "HTTP%s server started: [%s]:%d",
-                 "S" if use_ssl else "", self._address, self._port)
+                 "S" if self._uses_ssl else "", self._address, self._port)
 
     @Invalidate
     def invalidate(self, _):

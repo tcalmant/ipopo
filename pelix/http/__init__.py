@@ -53,11 +53,17 @@ HTTP_SERVICE_ADDRESS = "pelix.http.address"
 HTTP_SERVICE_PORT = "pelix.http.port"
 """ HTTP Service binding port property (int) """
 
+# ... server uses SSL (read-only flag)
+HTTP_USES_SSL = "pelix.https"
+""" Read-only flag indicating if the server is using SSL (HTTPS) """
+
 # ... the certificate file for HTTPS servers
 HTTPS_CERT_FILE = "pelix.https.cert_file"
+""" Path to the certificate file to configure a HTTPS server """
 
 # ... the key file for HTTPS servers
 HTTPS_KEY_FILE = "pelix.https.key_file"
+""" Path to the certificate key file to configure a HTTPS server """
 
 # ... the password of the key file for HTTPS servers
 # (supported since Python 3.3)
@@ -105,6 +111,12 @@ PARAM_PORT = "http.port"
 """
 Entry in the parameters dictionary of ``bound_to`` and ``unbound_from``.
 Contains the listening port of the HTTP server binding the servlet
+"""
+
+PARAM_HTTPS = "http.https"
+"""
+Entry in the parameters dictionary of ``bound_to`` and ``unbound_from``.
+Contains a boolean: if True, the connection to the server is encrypted (HTTPS)
 """
 
 # ------------------------------------------------------------------------------
