@@ -277,8 +277,7 @@ class _RequestHandler(BaseHTTPRequestHandler, object):
         # Get the corresponding servlet
         found_servlet = self._service.get_servlet(parsed_path)
         if found_servlet is not None:
-            servlet_info, prefix = found_servlet
-            servlet = servlet_info[0]
+            servlet, _, prefix = found_servlet
             if hasattr(servlet, name):
                 # Prepare the helpers
                 request = _HTTPServletRequest(self, prefix)
@@ -619,7 +618,7 @@ class HttpService(object):
         Returns None if no servlet matches the given path.
 
         :param path: A request URI
-        :return: A tuple ((servlet, parameters), prefix) or None
+        :return: A tuple (servlet, parameters, prefix) or None
         """
         if not path or path[0] != "/":
             # No path, nothing to return
@@ -652,7 +651,7 @@ class HttpService(object):
                 return None
             else:
                 # Retrieve the stored information
-                return self._servlets[longest_match], longest_match
+                return tuple(self._servlets[longest_match]) + (longest_match,)
 
     def make_not_found_page(self, path):
         """
