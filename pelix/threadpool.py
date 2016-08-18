@@ -24,6 +24,8 @@ Pelix Utilities: Cached thread pool
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+from  sys import dont_write_bytecode
+dont_write_bytecode
 
 # Standard library
 import logging
@@ -212,9 +214,10 @@ class ThreadPool(object):
         # Thread count
         self._thread_id = 0
 
-        # Current number of threads, active and alive
+        # Current number of threads, active and alive, and number of task waiting
         self.__nb_threads = 0
         self.__nb_active_threads = 0
+        self.__nb_pending_task = 0
 
     def start(self):
         """
@@ -231,15 +234,20 @@ class ThreadPool(object):
         nb_pending_tasks = self._queue.qsize()
         if nb_pending_tasks > self._max_threads:
             nb_threads = self._max_threads
+            nb_pending_tasks = self.max_threads
         elif nb_pending_tasks < self._min_threads:
             nb_threads = self._min_threads
         else:
             nb_threads = nb_pending_tasks
 
         # Create the threads
-        for _ in range(nb_threads):
+        for _ in range(0,nb_pending_tasks):
+            self.__nb_pending_task += 1
             self.__start_thread()
-
+        for _ in range(0,nb_threads-nb_pending_tasks):
+            self.__start_thread()
+        
+        
     def __start_thread(self):
         """
         Starts a new thread, if possible
@@ -259,9 +267,14 @@ class ThreadPool(object):
 
             thread = threading.Thread(target=self.__run, name=name)
             thread.daemon = True
-            self._threads.append(thread)
-            thread.start()
-            return True
+            try:
+                self.__nb_threads += 1
+                thread.start()
+                self._threads.append(thread)
+                return True
+            except (RuntimeError, OSError):
+                self.__nb_threads -= 1
+                return False
 
     def stop(self):
         """
@@ -321,8 +334,9 @@ class ThreadPool(object):
             # Add the task to the queue
             self._queue.put((method, args, kwargs, future), True,
                             self._timeout)
-
-            if self.__nb_active_threads == self.__nb_threads:
+            self.__nb_pending_task += 1
+            
+            if self.__nb_pending_task > self.__nb_threads:
                 # All threads are taken: start a new one
                 self.__start_thread()
 
@@ -370,9 +384,7 @@ class ThreadPool(object):
         """
         The main loop
         """
-        with self.__lock:
-            self.__nb_threads += 1
-
+            
         while not self._done_event.is_set():
             try:
                 # Wait for an action (blocking)
@@ -389,7 +401,6 @@ class ThreadPool(object):
             else:
                 with self.__lock:
                     self.__nb_active_threads += 1
-
                 # Extract elements
                 method, args, kwargs, future = task
                 try:
@@ -403,14 +414,18 @@ class ThreadPool(object):
                     self._queue.task_done()
 
                     # Thread is not active anymore
-                    self.__nb_active_threads -= 1
+                    with self.__lock:
+                        self.__nb_pending_task -= 1
+                        self.__nb_active_threads -= 1
 
             # Clean up thread if necessary
             with self.__lock:
-                if self.__nb_threads > self._min_threads:
-                    # No more work for this thread, and we're above the
-                    # minimum number of threads: stop this one
+                if self.__nb_threads > self._min_threads and self.__nb_threads - self.__nb_active_threads > self._queue.qsize():
+                    # No more work for this thread
+                    # if there are more non active_thread than task
+                    # and we're above the  minimum number of threads: stop this one
                     self.__nb_threads -= 1
+                    #print("fin lock remaining threads {}".format(self.__nb_threads))
                     return
 
         with self.__lock:
