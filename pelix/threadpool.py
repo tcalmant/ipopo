@@ -24,8 +24,6 @@ Pelix Utilities: Cached thread pool
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from  sys import dont_write_bytecode
-dont_write_bytecode
 
 # Standard library
 import logging
@@ -214,7 +212,8 @@ class ThreadPool(object):
         # Thread count
         self._thread_id = 0
 
-        # Current number of threads, active and alive, and number of task waiting
+        # Current number of threads, active and alive,
+        # and number of task waiting
         self.__nb_threads = 0
         self.__nb_active_threads = 0
         self.__nb_pending_task = 0
@@ -234,20 +233,19 @@ class ThreadPool(object):
         nb_pending_tasks = self._queue.qsize()
         if nb_pending_tasks > self._max_threads:
             nb_threads = self._max_threads
-            nb_pending_tasks = self.max_threads
+            nb_pending_tasks = self._max_threads
         elif nb_pending_tasks < self._min_threads:
             nb_threads = self._min_threads
         else:
             nb_threads = nb_pending_tasks
 
         # Create the threads
-        for _ in range(0,nb_pending_tasks):
+        for _ in range(nb_pending_tasks):
             self.__nb_pending_task += 1
             self.__start_thread()
-        for _ in range(0,nb_threads-nb_pending_tasks):
+        for _ in range(nb_threads-nb_pending_tasks):
             self.__start_thread()
-        
-        
+
     def __start_thread(self):
         """
         Starts a new thread, if possible
@@ -335,7 +333,7 @@ class ThreadPool(object):
             self._queue.put((method, args, kwargs, future), True,
                             self._timeout)
             self.__nb_pending_task += 1
-            
+
             if self.__nb_pending_task > self.__nb_threads:
                 # All threads are taken: start a new one
                 self.__start_thread()
@@ -384,7 +382,6 @@ class ThreadPool(object):
         """
         The main loop
         """
-            
         while not self._done_event.is_set():
             try:
                 # Wait for an action (blocking)
@@ -420,12 +417,14 @@ class ThreadPool(object):
 
             # Clean up thread if necessary
             with self.__lock:
-                if self.__nb_threads > self._min_threads and self.__nb_threads - self.__nb_active_threads > self._queue.qsize():
+                extra_threads = self.__nb_threads - self.__nb_active_threads
+                if self.__nb_threads > self._min_threads \
+                        and extra_threads > self._queue.qsize():
                     # No more work for this thread
                     # if there are more non active_thread than task
-                    # and we're above the  minimum number of threads: stop this one
+                    # and we're above the  minimum number of threads:
+                    # stop this one
                     self.__nb_threads -= 1
-                    #print("fin lock remaining threads {}".format(self.__nb_threads))
                     return
 
         with self.__lock:
