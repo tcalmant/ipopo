@@ -609,6 +609,14 @@ class HttpService(object):
         """
         return socket.gethostname()
 
+    def is_https(self):
+        """
+        Returns True if this is an HTTPS server
+
+        :return: True if this server uses SSL
+        """
+        return self._uses_ssl
+
     def get_registered_paths(self):
         """
         Returns the paths registered by servlets
