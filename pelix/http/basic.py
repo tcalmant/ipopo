@@ -106,6 +106,9 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         if not self._sub_path.startswith("/"):
             self._sub_path = "/{0}".format(self._sub_path)
 
+        while "//" in self._sub_path:
+            self._sub_path = self._sub_path.replace("//", "/")
+
     def get_command(self):
         """
         Returns the HTTP verb (GET, POST, ...) used for the request
