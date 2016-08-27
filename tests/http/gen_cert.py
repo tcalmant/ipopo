@@ -138,8 +138,10 @@ def make_certs(out_dir, key_password):
     # Make server keys
     print("--- Preparing Server keys ---")
     call_openssl("genrsa", "-out", os.path.join(out_dir, "server.key"), 2048)
-    call_openssl("genrsa", "-out", os.path.join(out_dir, "server_enc.key"),
-                 "-des3", "-passout", "pass:" + key_password, 2048)
+
+    if key_password:
+        call_openssl("genrsa", "-out", os.path.join(out_dir, "server_enc.key"),
+                     "-des3", "-passout", "pass:" + key_password, 2048)
 
     # Make signing requests
     print("--- Preparing Server certificate requests ---")
@@ -149,12 +151,13 @@ def make_certs(out_dir, key_password):
                  "-config", config_file,
                  "-new")
 
-    call_openssl("req", "-subj", make_subj("localhost", True),
-                 "-out", os.path.join(out_dir, "server_enc.csr"),
-                 "-key", os.path.join(out_dir, "server_enc.key"),
-                 "-passin", "pass:" + key_password,
-                 "-config", config_file,
-                 "-new")
+    if key_password:
+        call_openssl("req", "-subj", make_subj("localhost", True),
+                     "-out", os.path.join(out_dir, "server_enc.csr"),
+                     "-key", os.path.join(out_dir, "server_enc.key"),
+                     "-passin", "pass:" + key_password,
+                     "-config", config_file,
+                     "-new")
 
     # Sign server certificates
     print("--- Signing Server keys ---")
@@ -166,13 +169,14 @@ def make_certs(out_dir, key_password):
                  "-out", os.path.join(out_dir, "server.crt"),
                  "-days", 1)
 
-    call_openssl("x509", "-req",
-                 "-in", os.path.join(out_dir, "server_enc.csr"),
-                 "-CA", os.path.join(out_dir, "ca.crt"),
-                 "-CAkey", os.path.join(out_dir, "ca.key"),
-                 "-CAcreateserial",
-                 "-out", os.path.join(out_dir, "server_enc.crt"),
-                 "-days", 1)
+    if key_password:
+        call_openssl("x509", "-req",
+                     "-in", os.path.join(out_dir, "server_enc.csr"),
+                     "-CA", os.path.join(out_dir, "ca.crt"),
+                     "-CAkey", os.path.join(out_dir, "ca.key"),
+                     "-CAcreateserial",
+                     "-out", os.path.join(out_dir, "server_enc.crt"),
+                     "-days", 1)
 
 
 def main(args=None):
