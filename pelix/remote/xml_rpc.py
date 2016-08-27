@@ -159,7 +159,8 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
         Retrieves the URL to access this component
         """
         port = self._http.get_access()[1]
-        return "http://{{server}}:{0}{1}".format(port, self._path)
+        return "http{2}://{{server}}:{0}{1}".format(
+            port, self._path, "s" if self._http.is_https() else "")
 
     def make_endpoint_properties(self, svc_ref, name, fw_uid):
         """

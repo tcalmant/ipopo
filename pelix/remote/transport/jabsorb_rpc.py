@@ -210,7 +210,8 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
         # Return two accesses: with a {server} variable and with the
         # bound address
-        model = "http://{{server}}:{0}{1}".format(port, self._path)
+        model = "http{2}://{{server}}:{0}{1}".format(
+            port, self._path, "s" if self._http.is_https() else "")
         return ','.join((model, model.format(server=host)))
 
     @Validate

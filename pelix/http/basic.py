@@ -91,13 +91,29 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
     """
     HTTP Servlet request helper
     """
-    def __init__(self, request_handler):
+    def __init__(self, request_handler, prefix):
         """
         Sets up the request helper
 
         :param request_handler: The basic request handler
+        :param prefix: Teh path to the servlet root
         """
         self._handler = request_handler
+        self._prefix = prefix
+
+        # Compute the sub path
+        self._sub_path = self._handler.path[len(prefix):]
+        if not self._sub_path.startswith("/"):
+            self._sub_path = "/{0}".format(self._sub_path)
+
+        while "//" in self._sub_path:
+            self._sub_path = self._sub_path.replace("//", "/")
+
+    def get_command(self):
+        """
+        Returns the HTTP verb (GET, POST, ...) used for the request
+        """
+        return self._handler.command
 
     def get_client_address(self):
         """
@@ -124,6 +140,22 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         Retrieves the request full path
         """
         return self._handler.path
+
+    def get_prefix_path(self):
+        """
+        Returns the path to the servlet root
+
+        :return: A request path (string)
+        """
+        return self._prefix
+
+    def get_sub_path(self):
+        """
+        Returns the servlet-relative path, i.e. after the prefix
+
+        :return: A request path (string)
+        """
+        return self._sub_path
 
     def get_rfile(self):
         """
@@ -246,12 +278,12 @@ class _RequestHandler(BaseHTTPRequestHandler, object):
         parsed_path = parsed_url.path
 
         # Get the corresponding servlet
-        servlet_info = self._service.get_servlet(parsed_path)
-        if servlet_info is not None:
-            servlet = servlet_info[0]
+        found_servlet = self._service.get_servlet(parsed_path)
+        if found_servlet is not None:
+            servlet, _, prefix = found_servlet
             if hasattr(servlet, name):
                 # Prepare the helpers
-                request = _HTTPServletRequest(self)
+                request = _HTTPServletRequest(self, prefix)
                 response = _HTTPServletResponse(self)
 
                 # Create a wrapper to pass the handler to the servlet
@@ -401,6 +433,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 @Requires("_error_handler", http.HTTP_ERROR_PAGES, optional=True)
 @Property("_address", http.HTTP_SERVICE_ADDRESS, DEFAULT_BIND_ADDRESS)
 @Property("_port", http.HTTP_SERVICE_PORT, 8080)
+@Property("_uses_ssl", http.HTTP_USES_SSL, False)
 @Property('_cert_file', http.HTTPS_CERT_FILE, None)
 @Property('_key_file', http.HTTPS_KEY_FILE, None)
 @HiddenProperty('_key_password', http.HTTPS_KEY_PASSWORD, None)
@@ -420,6 +453,7 @@ class HttpService(object):
         # Properties
         self._address = "0.0.0.0"
         self._port = 8080
+        self._uses_ssl = False
         self._extra = None
         self._instance_name = None
         self._logger_name = None
@@ -507,11 +541,11 @@ class HttpService(object):
         paths = service_reference.get_property(http.HTTP_SERVLET_PATH)
         if utilities.is_string(paths):
             # Register the servlet to a single path
-            self.register_servlet(paths, service, None)
+            self.register_servlet(paths, service)
         elif isinstance(paths, (list, tuple)):
             # Register the servlet to multiple paths
             for path in paths:
-                self.register_servlet(path, service, None)
+                self.register_servlet(path, service)
 
     @BindField("_servlets_services")
     def _bind(self, _, service, service_reference):
@@ -575,6 +609,14 @@ class HttpService(object):
         """
         return socket.gethostname()
 
+    def is_https(self):
+        """
+        Returns True if this is an HTTPS server
+
+        :return: True if this server uses SSL
+        """
+        return self._uses_ssl
+
     def get_registered_paths(self):
         """
         Returns the paths registered by servlets
@@ -589,7 +631,7 @@ class HttpService(object):
         Returns None if no servlet matches the given path.
 
         :param path: A request URI
-        :return: A tuple (servlet, parameters) or None
+        :return: A tuple (servlet, parameters, prefix) or None
         """
         if not path or path[0] != "/":
             # No path, nothing to return
@@ -622,7 +664,7 @@ class HttpService(object):
                 return None
             else:
                 # Retrieve the stored information
-                return self._servlets[longest_match]
+                return tuple(self._servlets[longest_match]) + (longest_match,)
 
     def make_not_found_page(self, path):
         """
@@ -720,6 +762,7 @@ class HttpService(object):
             # Add server information in parameters
             parameters[http.PARAM_ADDRESS] = self._address
             parameters[http.PARAM_PORT] = self._port
+            parameters[http.PARAM_HTTPS] = self._uses_ssl
             parameters[http.PARAM_NAME] = self._instance_name
             parameters[http.PARAM_EXTRA] = self._extra.copy()
 
@@ -817,7 +860,7 @@ class HttpService(object):
         Component validation
         """
         # Check if we'll use an SSL connection
-        use_ssl = self._cert_file is not None
+        self._uses_ssl = self._cert_file is not None
 
         if not self._address:
             # No address given, use the localhost address
@@ -860,14 +903,14 @@ class HttpService(object):
                 self._logger.level = int(self._logger_level)
 
         self.log(logging.INFO, "Starting HTTP%s server: [%s]:%d ...",
-                 "S" if use_ssl else "", self._address, self._port)
+                 "S" if self._uses_ssl else "", self._address, self._port)
 
         # Create the server
         self._server = _HttpServerFamily(
             (self._address, self._port), lambda *x: _RequestHandler(self, *x),
             self._request_queue_size, self._logger)
 
-        if use_ssl:
+        if self._uses_ssl:
             # Activate HTTPS if required
             self._server.socket = ssl_wrap.wrap_socket(
                 self._server.socket, self._cert_file,
@@ -892,7 +935,7 @@ class HttpService(object):
                 self.__register_servlet_service(service, svc_ref)
 
         self.log(logging.INFO, "HTTP%s server started: [%s]:%d",
-                 "S" if use_ssl else "", self._address, self._port)
+                 "S" if self._uses_ssl else "", self._address, self._port)
 
     @Invalidate
     def invalidate(self, _):

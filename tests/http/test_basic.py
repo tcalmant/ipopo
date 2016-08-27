@@ -37,7 +37,7 @@ DEFAULT_PORT = 8080
 # ------------------------------------------------------------------------------
 
 
-def install_bundle(framework, bundle_name="tests.ipopo_bundle"):
+def install_bundle(framework, bundle_name):
     """
     Installs and starts the test bundle and returns its module
 
@@ -347,6 +347,8 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         # Test information
         self.assertIs(http_svc.get_servlet("/test")[0], servlet,
                       "get_servlet() didn't return the servlet")
+        self.assertEqual(http_svc.get_servlet("/test")[2], "/test",
+                         "get_servlet() didn't return the prefix correctly")
 
         # Test access to /test
         self.assertEqual(get_http_page(uri="/test", method="GET",
@@ -576,17 +578,24 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         servlet_2 = object()
 
         # Register'em
-        self.assertTrue(self.http_svc.register_servlet("/test", servlet_1))
-        self.assertTrue(self.http_svc.register_servlet("/test/sub", servlet_2))
+        path_1 = "/test"
+        path_2 = "/test/sub"
+
+        self.assertTrue(self.http_svc.register_servlet(path_1, servlet_1))
+        self.assertTrue(self.http_svc.register_servlet(path_2, servlet_2))
 
         # Test the get_servlet method
         for path in ("/test", "/test/", "/test/1"):
             self.assertIs(self.http_svc.get_servlet(path)[0], servlet_1,
                           "Servlet 1 should handle {0}".format(path))
+            self.assertEqual(self.http_svc.get_servlet(path)[2], path_1,
+                             "Servlet 1 path is not kept")
 
         for path in ("/test/sub", "/test/sub/", "/test/sub/1"):
             self.assertIs(self.http_svc.get_servlet(path)[0], servlet_2,
                           "Servlet 2 should handle {0}".format(path))
+            self.assertEqual(self.http_svc.get_servlet(path)[2], path_2,
+                             "Servlet 2 path is not kept")
 
     def testRegisterServlet(self):
         """
