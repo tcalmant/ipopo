@@ -37,7 +37,7 @@ DEFAULT_PORT = 8080
 # ------------------------------------------------------------------------------
 
 
-def install_bundle(framework, bundle_name="tests.ipopo_bundle"):
+def install_bundle(framework, bundle_name):
     """
     Installs and starts the test bundle and returns its module
 

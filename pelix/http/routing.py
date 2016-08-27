@@ -257,7 +257,7 @@ class RestDispatcher(object):
         best_args = None
         best_match = None
 
-        for route, method in self.__routes[http_verb].items():
+        for route, method in self.__routes.get(http_verb, {}).items():
             # Parse the request path
             match = route.search(sub_path)
             if not match:
