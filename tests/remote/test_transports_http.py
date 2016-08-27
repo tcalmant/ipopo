@@ -197,8 +197,13 @@ class HttpTransportsTest(unittest.TestCase):
     """
     Tests Pelix built-in Remote Services transports
     """
-    def __run_test(self, transport_bundle, exporter_factory, importer_factory,
-                   test_kwargs=True):
+    def __init__(self, *args, **kwargs):
+        super(HttpTransportsTest, self).__init__(*args, **kwargs)
+        self._load_framework = load_framework
+        self._export_framework = export_framework
+
+    def _run_test(self, transport_bundle, exporter_factory, importer_factory,
+                  test_kwargs=True):
         """
         Runs a remote service call test
 
@@ -215,7 +220,7 @@ class HttpTransportsTest(unittest.TestCase):
 
         # Start the remote framework
         status_queue = Queue()
-        peer = WrappedProcess(target=export_framework,
+        peer = WrappedProcess(target=self._export_framework,
                               args=(status_queue, transport_bundle,
                                     components))
         peer.start()
@@ -226,7 +231,7 @@ class HttpTransportsTest(unittest.TestCase):
             self.assertEqual(state, "ready")
 
             # Load the local framework (after the fork)
-            framework = load_framework(transport_bundle, components)
+            framework = self._load_framework(transport_bundle, components)
             context = framework.get_bundle_context()
 
             # Look for the remote service
@@ -326,10 +331,10 @@ class HttpTransportsTest(unittest.TestCase):
         Tests the XML-RPC transport
         """
         try:
-            self.__run_test("pelix.remote.xml_rpc",
-                            pelix.remote.FACTORY_TRANSPORT_XMLRPC_EXPORTER,
-                            pelix.remote.FACTORY_TRANSPORT_XMLRPC_IMPORTER,
-                            False)
+            self._run_test("pelix.remote.xml_rpc",
+                           pelix.remote.FACTORY_TRANSPORT_XMLRPC_EXPORTER,
+                           pelix.remote.FACTORY_TRANSPORT_XMLRPC_IMPORTER,
+                           False)
         except queue.Empty:
             # Process error
             self.fail("Remote framework took to long to reply")
@@ -339,9 +344,9 @@ class HttpTransportsTest(unittest.TestCase):
         Tests the JSON-RPC transport
         """
         try:
-            self.__run_test("pelix.remote.json_rpc",
-                            pelix.remote.FACTORY_TRANSPORT_JSONRPC_EXPORTER,
-                            pelix.remote.FACTORY_TRANSPORT_JSONRPC_IMPORTER)
+            self._run_test("pelix.remote.json_rpc",
+                           pelix.remote.FACTORY_TRANSPORT_JSONRPC_EXPORTER,
+                           pelix.remote.FACTORY_TRANSPORT_JSONRPC_IMPORTER)
         except queue.Empty:
             # Process error
             self.fail("Remote framework took to long to reply")
@@ -351,9 +356,9 @@ class HttpTransportsTest(unittest.TestCase):
         Tests the JABSORB-RPC transport
         """
         try:
-            self.__run_test("pelix.remote.transport.jabsorb_rpc",
-                            pelix.remote.FACTORY_TRANSPORT_JABSORBRPC_EXPORTER,
-                            pelix.remote.FACTORY_TRANSPORT_JABSORBRPC_IMPORTER)
+            self._run_test("pelix.remote.transport.jabsorb_rpc",
+                           pelix.remote.FACTORY_TRANSPORT_JABSORBRPC_EXPORTER,
+                           pelix.remote.FACTORY_TRANSPORT_JABSORBRPC_IMPORTER)
         except queue.Empty:
             # Process error
             self.fail("Remote framework took to long to reply")
