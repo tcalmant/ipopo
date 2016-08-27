@@ -29,6 +29,7 @@ of HTTP requests.
 # Standard library
 import inspect
 import re
+import uuid
 
 # ------------------------------------------------------------------------------
 
@@ -51,24 +52,39 @@ Name of the attribute injected in methods to indicate their configuration
 # int 	    accepts integers
 # float 	like int but for floating point values
 # path 	    like the default but also accepts slashes
+# uuid 	    accepts UUID strings
 
 # TODO: handle missing types
 # any 	    matches one of the items provided
-# uuid 	    accepts UUID strings
 
 # Type name -> regex pattern
 TYPE_PATTERNS = {
-    None: r"[\w\s]+",
-    "string": r"[\w\s]+",
-    "int": r"\d+",
-    "float": r"\d+\.?\d*",
-    "path": r"[\w\s/]+",
+    "string": r"(?:[^/]+)",
+    "int": r"(?:[+\-]?\d+)",
+    "float": r"(?:[+\-]?\d+\.?\d*)",
+    "path": r"(?:[\w\s/]+)",
+    "uuid": r'(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}'
+            r'-[0-9a-fA-F]{12})'
 }
+TYPE_PATTERNS[None] = TYPE_PATTERNS["string"]
+
+
+def path_filter(path):
+    """
+    Removes the trailing '/' of a path, if any
+
+    :param path: A parsed path
+    :return: The parsed path without its trailing /
+    """
+    return path[:-1] if path and path[-1] == '/' else path
+
 
 # Type name -> conversion method (for types other than str)
 TYPE_CONVERTERS = {
     "int": int,
-    "float": float
+    "float": float,
+    "path": path_filter,
+    "uuid": uuid.UUID,
 }
 
 # ------------------------------------------------------------------------------
@@ -92,7 +108,7 @@ class Http(object):
             # Remove surrounding spaces
             route = route.strip()
 
-        if methods and not isinstance(methods, (list, tuple)):
+        if methods and not isinstance(methods, (list, tuple, set, frozenset)):
             # Normalize methods
             raise TypeError("methods should be a list")
 
@@ -190,6 +206,31 @@ class HttpDelete(Http):
 
 # ------------------------------------------------------------------------------
 
+if hasattr(inspect, "signature"):
+    # Python 3.3+
+    def get_method_arguments(method):
+        """
+        inspect.signature()-based way to get the position of arguments
+
+        :param method: The method to extract the signature from
+        :return: The list of positional arguments (after self, request and response)
+        """
+        signature = inspect.signature(method)
+        # Ignore the first two paramters (request and response)
+        return [param.name for param in signature.parameters.values()
+                if param.kind in (inspect.Parameter.POSITIONAL_ONLY,
+                                  inspect.Parameter.POSITIONAL_OR_KEYWORD)][2:]
+else:
+    def get_method_arguments(method):
+        """
+        inspect.signature()-based way to get the position of arguments
+
+        :param method: The method to extract the signature from
+        :return: The list of positional arguments (after self, request and response)
+        """
+        # self is not part of args, and ignore request and response
+        return inspect.getargspec(method).args[2:]
+
 
 class RestDispatcher(object):
     """
@@ -259,7 +300,7 @@ class RestDispatcher(object):
 
         for route, method in self.__routes.get(http_verb, {}).items():
             # Parse the request path
-            match = route.search(sub_path)
+            match = route.match(sub_path)
             if not match:
                 continue
 
@@ -308,8 +349,18 @@ class RestDispatcher(object):
                                 # Use the string value as is
                                 kwargs[name] = str_value
 
+            # Prepare positional arguments
+            extra_pos_args = []
+            if kwargs:
+                method_args = get_method_arguments(best_method)
+                for pos_arg in method_args:
+                    try:
+                        extra_pos_args.append(kwargs.pop(pos_arg))
+                    except KeyError:
+                        pass
+
             # ... call the method (exceptions will be handled by the server)
-            best_method(request, response, **kwargs)
+            best_method(request, response, *extra_pos_args, **kwargs)
 
     def _setup_rest_dispatcher(self):
         """
