@@ -715,7 +715,8 @@ class _IPopoService(object):
         validation
 
         :param name: Name of the component to retry
-        :param properties_update: A dictionary to update component properties
+        :param properties_update: A dictionary to update the initial properties
+                                  of the component
         :return: The new state of the component
         :raise ValueError: Invalid component name
         """
@@ -878,9 +879,7 @@ class _IPopoService(object):
         """
         Register an iPOPO event listener.
 
-        The event listener must have a method with the following prototype :
-
-        .. python::
+        The event listener must have a method with the following prototype::
 
            def handle_ipopo_event(self, event):
                '''

@@ -1197,9 +1197,7 @@ class BundleContext(object):
         """
         Registers a bundle listener
 
-        The bundle listener must have a method with the following prototype :
-
-        .. python::
+        The bundle listener must have a method with the following prototype::
 
            def bundle_changed(self, bundle_event):
                '''
@@ -1217,9 +1215,7 @@ class BundleContext(object):
         Registers a listener that will be called back right before the
         framework stops
 
-        The framework listener must have a method with the following prototype:
-
-        .. python::
+        The framework listener must have a method with the following prototype::
 
            def framework_stopping(self):
                '''
@@ -1237,9 +1233,7 @@ class BundleContext(object):
         """
         Registers a service listener
 
-        The service listener must have a method with the following prototype:
-
-        .. python::
+        The service listener must have a method with the following prototype::
 
            def service_changed(self, event):
                '''
