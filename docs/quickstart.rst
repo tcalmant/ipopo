@@ -7,6 +7,8 @@ Eager to get started? This page gives a good introduction to iPOPO.
 It assumes you already have iPOPO installed. If you do not, head over
 to the :ref:`installation` section.
 
+.. _quick_shell:
+
 Play with the shell
 ===================
 
@@ -198,5 +200,90 @@ Finally, to stop the shell, simply run the ``exit`` command or press
 Hello World!
 ============
 
+In this section, we will create a service provider and its consumer using iPOPO.
+The consumer will use the provider to print a greeting message as soon as it
+is bound to it.
+To simplify this first sample, the consumer can only be bound to a single
+service and its life-cycle is highly tied to the availability of this service.
+
+Here is the code of the provider component, which should be store in the
+``provider`` module (``provider.py``).
+The component will provide a service with of the ``hello.world`` specification.
+
+.. code-block:: python
+
+   from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate
+
+   # Define the component factory, with a given name
+   @ComponentFactory("service-provider-factory")
+   # Defines the service to provide when the component is active
+   @Provides("hello.world")
+   # A component must be instantiated as soon as the bundle is active
+   @Instantiate("provider")
+   # Don't forget to inherit from object, for Python 2.x compatibility
+   class Greetings(object):
+         def hello(self, name="World"):
+             print("Hello,", name, "!")
+
+Start a Pelix shell like shown in the previous section, then install and start
+the provider bundle::
+
+    ** Pelix Shell prompt **
+    $ install provider
+    Bundle ID: 12
+    $ start 12
+    Starting bundle 12 (provider)...
+    $
+
+The consumer will require the ``hello.world`` service and use it when it is
+validated, *i.e.* once this service has been injected.
+Here is the code of this component, which should be store in the ``consumer``
+module (``consumer.py``).
+
+.. code-block:: python
+
+   from pelix.ipopo.decorators import ComponentFactory, Requires, Instantiate, \
+        Validate, Invalidate
+
+   # Define the component factory, with a given name
+   @ComponentFactory("service-consumer-factory")
+   # Defines the service required by the component to be active
+   # The service will be injected in the '_svc' field
+   @Requires("_svc", "hello.world")
+   # A component must be instantiated as soon as the bundle is active
+   @Instantiate("consumer")
+   # Don't forget to inherit from object, for Python 2.x compatibility
+   class Consumer(object):
+         @Validate
+         def validate(self, context):
+             print("Component validated, calling the service...")
+             self._svc.hello("World")
+             print("Done.")
+
+         @Invalidate
+         def invalidate(self, context):
+            print("Component invalidated, the service is gone")
+
+Install and start the ``consumer`` bundle in the active Pelix shell and play
+with the various commands described in the :ref:`previous section <quick_shell>`::
+
+    $ install consumer
+    Bundle ID: 13
+    $ start 13
+    Starting bundle 13 (consumer)...
+    Component validated, calling the service...
+    Hello, World !
+    Done.
+    $ update 12
+    Updating bundle 12 (provider)...
+    Component invalidated, the service is gone
+    Component validated, calling the service...
+    Hello, World !
+    Done.
+    $ uninstall 12
+    Uninstalling bundle 12 (provider)...
+    Component invalidated, the service is gone
+
 Hello from somewhere!
 =====================
+

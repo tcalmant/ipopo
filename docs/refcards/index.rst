@@ -12,6 +12,7 @@ Pelix/iPOPO.
    bundles
    services
    ipopo
+   ipopo_decorators
    log
    http
    remote
