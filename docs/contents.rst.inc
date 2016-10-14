@@ -10,7 +10,7 @@ This chapter details how to install and use iPOPO.
    installation
    quickstart
    tutorials/index
-
+   refcards/index
 
 API Reference
 =============

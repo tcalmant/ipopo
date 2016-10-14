@@ -3,10 +3,10 @@
 API
 ===
 
-.. module: pelix.framework
-
 This part of the documentation covers all the core classes and
 services of iPOPO.
+
+.. _api_bundlecontext:
 
 BundleContext Object
 -------------------- 

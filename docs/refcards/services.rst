@@ -1,0 +1,73 @@
+.. _refcard_services:
+.. module:: pelix.framework
+
+Services
+========
+
+A service is an object that is registered to the framework service registry,
+associated with a set of specifications it implements and to properties.
+
+The bundle that registers the service must keep the :class:`~ServiceRegistration`
+object returned by the framework.
+It allows to update the service properties and to unregister the service.
+This object **shall not** be accessible by other bundles/services.
+Finally, all services must be unregistered when their bundle is stopped.
+
+A consumer can look for a service in the framework that matches a specification and
+a set of properties.
+The framework will return a :class:`~ServiceReference` object, which provides a
+read-only access to the description of its associated service:
+properties, registering bundle, bundles using it...
+
+Properties
+----------
+
+When registered and while it is available, the properties of a service can be
+set and updated by its provider.
+
+Although, some properties are reserved for the framework; each service has at
+least the following properties:
+
+=========== =========== ========================================================
+Name        Type        Description
+=========== =========== ========================================================
+objectClass list of str List of the specifications implemented by this service
+service.id  int         Identifier of the service. Unique in a framework instance
+=========== =========== ========================================================
+
+The framework also uses the following property to sort the result of a service look up:
+
+=============== ==== ===========================================================
+Name            Type Description
+=============== ==== ===========================================================
+service.ranking int  The rank/priority of the service. The lower the rank, the more priority
+=============== ==== ===========================================================
+
+API
+---
+
+The service provider has access to the :class:`~ServiceRegistration` object
+created by the framework when :meth:`~BundleContext.register_service` is called.
+
+.. autoclass:: ServiceRegistration
+   :members:
+
+Consumers can access the service using its :class:`~ServiceReference` object,
+unique and constant for each service.
+This object can be retrieved using the :class:`~BundleContext` and its
+``get_service_reference*`` methods.
+A consumer can check the properties of a service through this object, before
+consuming it.
+
+.. autoclass:: ServiceReference
+   :members: get_bundle, get_properties, get_property, get_property_keys,
+             get_using_bundles
+
+
+Finally, here are the methods of the :ref:`BundleContext <api_bundlecontext>`
+class that can be used to handle services:
+
+.. autoclass:: BundleContext
+   :members: add_service_listener, remove_service_listener,
+             get_all_service_references, get_service, get_service_reference,
+             get_service_references, register_service, unget_service
