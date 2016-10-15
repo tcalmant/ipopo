@@ -11,8 +11,9 @@ Each bundle is associated to an ID, an integer that is unique for a framework
 instance, and to a symbolic name, *i.e.* its module name.
 The framework itself is seen as the bundle which ID is always 0.
 
-Except the definition of the ``activator`` variable and of the constants,
-**no code should be executed at module-level**.
+Because installing a bundle is in fact importing a module,
+**no code should be written to be executed at module-level** (except the
+definition of constants, the import of dependencies, ...).
 Initialization must be done in the bundle activator (see below).
 
 Life-cycle
@@ -50,9 +51,10 @@ The update process of a bundle is simple:
 Bundle Activator
 ----------------
 
-A bundle activator is a class with :meth:`~pelix.constants.BundleActivator.start`
-and :meth:`~pelix.constants.BundleActivator.stop` methods, which are
-called by the framework according to the bundle life-cycle.
+A bundle activator is a class defining the
+:meth:`~pelix.constants.BundleActivator.start` and
+:meth:`~pelix.constants.BundleActivator.stop` methods, which are called by the
+framework according to the bundle life-cycle.
 
 .. class:: pelix.constants.BundleActivator
 
@@ -105,9 +107,10 @@ A class is defined as the bundle activator if it is decorated with
             """
             print("Stop")
 
+.. note::
 
-The previous declaration of the activator, *i.e.* declaring an ``activator``
-module member, is deprecated.
+   The previous declaration of the activator, *i.e.* declaring an ``activator``
+   module member, is deprecated and its support will be removed in version 1.0.
 
 Bundle Context
 --------------

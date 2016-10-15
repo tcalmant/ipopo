@@ -1175,7 +1175,9 @@ class Framework(Bundle):
 
 class BundleContext(object):
     """
-    Represents a bundle context
+    The bundle context is the link between a bundle and the framework.
+    It is unique for a bundle and is created by the framework once the bundle
+    is installed.
     """
     def __init__(self, framework, bundle):
         """
@@ -1195,18 +1197,17 @@ class BundleContext(object):
 
     def add_bundle_listener(self, listener):
         """
-        Registers a bundle listener
+        Registers a bundle listener, which will be notified each time a bundle
+        is installed, started, stopped or updated.
 
-        The bundle listener must have a method with the following prototype::
+        The listener must be a callable accepting a single parameter:\
 
-           def bundle_changed(self, bundle_event):
-               '''
-               bundle_event: A BundleEvent object
-               '''
-               # ...
+           * **event** -- The description of the event
+             (a :class:`~BundleEvent` object).
 
-        :param listener: The bundle listener
-        :return: True if the listener has been registered
+        :param listener: The bundle listener to register
+        :return: True if the listener has been registered, False if it already
+                 was
         """
         return self.__framework._dispatcher.add_bundle_listener(listener)
 
@@ -1268,11 +1269,13 @@ class BundleContext(object):
 
     def get_bundle(self, bundle_id=None):
         """
-        Retrieves the bundle with the given ID. If no ID is given (None).
+        Retrieves the :class:`~pelix.framework.Bundle` object for the bundle
+        matching the given ID (int). If no ID is given (None), the bundle
+        associated to this context is returned.
 
-        :param bundle_id: A bundle ID
-        :return: The requested bundle
-        :raise BundleException: The given ID is invalid
+        :param bundle_id: A bundle ID (optional)
+        :return: The requested :class:`~pelix.framework.Bundle` object
+        :raise BundleException: The given ID doesn't exist or is invalid
         """
         if bundle_id is None:
             # Current bundle
@@ -1287,7 +1290,7 @@ class BundleContext(object):
         """
         Returns the list of all installed bundles
 
-        :return: the list of all installed bundles
+        :return: A list of :class:`~pelix.framework.Bundle` objects
         """
         return self.__framework.get_bundles()
 
@@ -1341,49 +1344,63 @@ class BundleContext(object):
 
     def install_bundle(self, name, path=None):
         """
-        Installs the bundle with the given name
+        Installs the bundle (module) with the given name.
 
-        *Note:* Before Pelix 0.5.0, this method returned the ID of the
-        installed bundle, instead of the Bundle object.
+        If a path is given, it is inserted in first place in the Python loading
+        path (``sys.path``). All modules loaded alongside this bundle, *i.e.*
+        by this bundle or its dependencies, will be looked after in this path
+        in priority.
 
-        **WARNING:** The behavior of the loading process is subject to changes,
-        as it does not allow to safely run multiple frameworks in the same
-        Python interpreter, as they might share global module values.
+        .. note::
+            Before Pelix 0.5.0, this method returned the ID of the installed
+            bundle, instead of the Bundle object.
+
+        .. warning::
+            The behavior of the loading process is subject to changes, as it
+            does not allow to safely run multiple frameworks in the same Python
+            interpreter, as they might share global module values.
 
         :param name: The name of the bundle to install
-        :param path: Preferred path to load the module
-        :return: The installed Bundle object
-        :raise BundleException: Something happened
+        :param path: Preferred path to load the module (optional)
+        :return: The :class:`~pelix.framework.Bundle` object of the installed
+                 bundle
+        :raise BundleException: Error importing the module or one of its
+                                dependencies
         """
         return self.__framework.install_bundle(name, path)
 
     def install_package(self, path, recursive=False):
         """
-        Installs all the modules found in the given package
+        Installs all the modules found in the given package (directory).
+        It is a utility method working like
+        :meth:`~pelix.framework.BundleContext.install_visiting`, with a visitor
+        accepting every module found.
 
         :param path: Path of the package (folder)
-        :param recursive: If True, install the sub-packages too
-        :return: A 2-tuple, with the list of installed bundles and the list
-                 of failed modules names
-        :raise ValueError: Invalid path
+        :param recursive: If True, installs the modules found in sub-directories
+        :return: A 2-tuple, with the list of installed bundles
+                 (:class:`~pelix.framework.Bundle`) and the list of the names
+                 of the modules which import failed.
+        :raise ValueError: The given path is invalid
         """
         return self.__framework.install_package(path, recursive)
 
     def install_visiting(self, path, visitor):
         """
-        Installs all the modules found in the given path if they are accepted
-        by the visitor.
+        Looks for modules in the given path and installs those accepted by the
+        given visitor.
 
-        The visitor must be a callable accepting 3 parameters:
+        The visitor must be a callable accepting 3 parameters:\
 
-           * fullname: The full name of the module
-           * is_package: If True, the module is a package
-           * module_path: The path to the module file
+           * **fullname** -- The full name of the module
+           * **is_package** -- If True, the module is a package
+           * **module_path** -- The path to the module file
 
-        :param path: Root search path
+        :param path: Root search path (folder)
         :param visitor: The visiting callable
-        :return: A 2-tuple, with the list of installed bundles and the list
-                 of failed modules names
+        :return: A 2-tuple, with the list of installed bundles
+                 (:class:`~pelix.framework.Bundle`) and the list of the names
+                 of the modules which import failed.
         :raise ValueError: Invalid path or visitor
         """
         return self.__framework.install_visiting(path, visitor)
@@ -1404,10 +1421,11 @@ class BundleContext(object):
 
     def remove_bundle_listener(self, listener):
         """
-        Unregisters a bundle listener
+        Unregisters the given bundle listener
 
-        :param listener: The bundle listener
-        :return: True if the listener has been unregistered
+        :param listener: The bundle listener to remove
+        :return: True if the listener has been unregistered,
+                 False if it wasn't registered
         """
         return self.__framework._dispatcher.remove_bundle_listener(listener)
 
