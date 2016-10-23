@@ -1016,9 +1016,8 @@ class BindField(object):
     BindField callback decorator, called when a component is bound to a
     dependency, injected in the given field.
 
-    The decorated method must have the following prototype :
+    The decorated method must have the following prototype::
 
-    .. python::
        def bind_method(self, field, service, service_reference):
            '''
            Method called when a service is bound to the component
@@ -1073,9 +1072,8 @@ class UpdateField(object):
     UpdateField callback decorator, called when a component dependency property
     has been modified.
 
-    The decorated method must have the following prototype :
+    The decorated method must have the following prototype::
 
-    .. python::
        def update_method(self, service, service_reference, old_properties):
            '''
            Method called when a service is bound to the component
@@ -1124,9 +1122,8 @@ class UnbindField(object):
     UnbindField callback decorator, called when a component is unbound to a
     dependency, removed from the given field.
 
-    The decorated method must have the following prototype :
+    The decorated method must have the following prototype::
 
-    .. python::
        def unbind_method(self, field, service, service_reference):
            '''
            Method called when a service is bound to the component
@@ -1179,9 +1176,8 @@ def Bind(method):
     """
     Bind callback decorator, called when a component is bound to a dependency.
 
-    The decorated method must have the following prototype :
+    The decorated method must have the following prototype::
 
-    .. python::
        def bind_method(self, service, service_reference):
            '''
            Method called when a service is bound to the component
@@ -1218,9 +1214,8 @@ def Update(method):
     Update callback decorator, called when a component dependency property has
     been modified.
 
-    The decorated method must have the following prototype :
+    The decorated method must have the following prototype::
 
-    .. python::
        def update_method(self, service, service_reference, old_properties):
            '''
            Method called when a service is bound to the component
@@ -1252,9 +1247,8 @@ def Unbind(method):
     """
     Unbind callback decorator, called when a component dependency is unbound.
 
-    The decorated method must have the following prototype :
+    The decorated method must have the following prototype::
 
-    .. python::
        def unbind_method(self, service, service_reference):
            '''
            Method called when a service is bound to the component
@@ -1288,9 +1282,8 @@ def Validate(method):
     Validation callback decorator, called when a component becomes valid,
     i.e. if all of its required dependencies has been injected.
 
-    The decorated method must have the following prototype :
+    The decorated method must have the following prototype::
 
-    .. python::
        def validation_method(self, bundle_context):
            '''
            Method called when the component is validated
@@ -1324,9 +1317,8 @@ def Invalidate(method):
     Invalidation callback decorator, called when a component becomes invalid,
     i.e. if one of its required dependencies disappeared
 
-    The decorated method must have the following prototype :
+    The decorated method must have the following prototype::
 
-    .. python::
        def invalidation_method(self, bundle_context):
            '''
            Method called when the component is invalidated
@@ -1360,9 +1352,8 @@ def PostRegistration(method):
     Post service registration callback decorator, called when a service of the
     component has been registered.
 
-    The decorated method must have the following prototype :
+    The decorated method must have the following prototype::
 
-    .. python::
        def callback_method(self, service_reference):
            '''
            Method called when a service of the component has been registered
@@ -1389,9 +1380,8 @@ def PostUnregistration(method):
     Post service unregistration callback decorator, called when a service of
     the component has been unregistered.
 
-    The decorated method must have the following prototype :
+    The decorated method must have the following prototype::
 
-    .. python::
        def callback_method(self, service_reference):
            '''
            Method called when a service of the component has been unregistered
