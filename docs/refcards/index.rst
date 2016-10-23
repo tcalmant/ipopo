@@ -15,7 +15,7 @@ Pelix/iPOPO.
    ipopo_decorators
    log
    http
-   remote
+   remote_services
    remote_shell
    configadmin
    fileinstall

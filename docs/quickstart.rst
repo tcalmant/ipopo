@@ -175,7 +175,7 @@ instantiate a new remote shell component::
     2 factories available
     $ instantiate ipopo-remote-shell-factory rshell pelix.shell.address=0.0.0.0 pelix.shell.port=9000
     Component 'rshell' instantiated.
-    
+
 A remote shell as been started on port 9000 and can be accessed using Netcat::
 
     bash$ nc localhost 9000
@@ -190,7 +190,7 @@ The remote shell gives access to the same commands as the console UI.
 Note that an XMPP version of the shell also exists.
 
 To stop the remote shell, you have to kill the component::
-    
+
     $ kill rshell
     Component 'rshell' killed.
 
@@ -287,3 +287,142 @@ with the various commands described in the :ref:`previous section <quick_shell>`
 Hello from somewhere!
 =====================
 
+This section reuses the bundles written in the *Hello World* sample, and install
+them in two distinct frameworks.
+To achieve that, we will use the *Pelix Remote Services*, a set of bundles
+intending to share services across multiple Pelix frameworks.
+A :ref:`reference card <refcard_remote_services>` provides more information
+about this feature.
+
+Core bundles
+------------
+
+First, we must install the core bundles of the *remote services* implementation:
+the *Imports Registry* (``pelix.remote.registry``) and the
+*Exports Dispatcher* (``pelix.remote.dispatcher``).
+Both handle the description of the shared services, not their link with the
+framework: it will be the job of discovery and transport providers.
+The discovery provider we will use requires to access the content of the
+*Exports Dispatcher* of the frameworks it finds, through HTTP requests.
+A component, the *dispatcher servlet*, must therefore be instantiate to answer
+to those requests::
+
+    bash$ python -m pelix.shell
+    ** Pelix Shell prompt **
+    $ install pelix.remote.registry
+    Bundle ID: 11
+    $ start 11
+    Starting bundle 11 (pelix.remote.registry)...
+    $ install pelix.remote.dispatcher
+    Bundle ID: 12
+    $ start 12
+    Starting bundle 12 (pelix.remote.dispatcher)...
+    $ instantiate pelix-remote-dispatcher-servlet-factory dispatcher-servlet
+    Component 'dispatcher-servlet' instantiated.
+
+The protocols we will use for discovery and transport depends on an HTTP server.
+As we are using two framework on the same machine, don't forget to use different
+HTTP ports for each framework::
+
+    $ install pelix.http.basic
+    Bundle ID: 13
+    $ start 13
+    Starting bundle 13 (pelix.http.basic)...
+    $ instantiate pelix.http.service.basic.factory httpd pelix.http.port=8000
+    INFO:httpd:Starting HTTP server: [0.0.0.0]:8000 ...
+    INFO:httpd:HTTP server started: [0.0.0.0]:8000
+    Component 'httpd' instantiated.
+
+The *dispatcher servlet* will be discovered by the newly started HTTP server
+and will be able to answer to clients.
+
+Discovery and Transport
+-----------------------
+
+Next, it is necessary to setup the remote service discovery layer. Here, we'll
+use a Pelix-specific protocol based on UDP multicast packets.
+By default, this protocol uses the UDP port 42000, which must therefore be
+accessible on any machine providing or consuming a remote service.
+
+Start two Pelix framework with their shell and, in each one, install the
+``pelix.remote.discovery.multicast`` bundle then instantiate the discovery
+component::
+
+
+    $ install pelix.remote.discovery.multicast
+    Bundle ID: 14
+    $ start 14
+    Starting bundle 14 (pelix.remote.discovery.multicast)...
+    $ instantiate pelix-remote-discovery-multicast-factory discovery
+    Component 'discovery' instantiated.
+
+Finally, you will have to install the transport layer that will be used to send
+requests and to wait for their responses.
+Here, we'll use the JSON-RPC protocol (``pelix.remote.json_rpc``), which is the
+easiest to use (*e.g.* XML-RPC has problems handling dictionaries of complex
+types).
+Transport providers often require to instantiate two components: one for the
+export and one for the import.
+This allows to instantiate the export part only, avoiding every single framework
+to know about all available services.
+
+    $ install pelix.remote.json_rpc
+    Bundle ID: 15
+    $ start 15
+    Starting bundle 15 (pelix.remote.json_rpc)...
+    $ instantiate pelix-jsonrpc-importer-factory importer
+    Component 'importer' instantiated.
+    $ instantiate pelix-jsonrpc-exporter-factory exporter
+    Component 'exporter' instantiated.
+
+Now, the frameworks you ran have all the necessary bundles and services to
+detect and use the services of their peers.
+
+Export a service
+----------------
+
+Exporting a service is as simple as providing it: just add the
+``service.exported.interfaces`` property while registering it and will be
+exported automatically.
+To avoid typos, this property is defined in the
+``pelix.remote.PROP_EXPORTED_INTERFACES`` constant.
+This property can contain either a list of names of interfaces/contracts or a
+star (``*``) to indicate that all services interfaces are exported.
+
+Here is the new version of the *hello world* provider, with the export property:
+
+.. code-block:: python
+
+   from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate, \
+        Property
+   from pelix.remote import PROP_EXPORTED_INTERFACES
+
+   @ComponentFactory("service-provider-factory")
+   @Provides("hello.world")
+   # Here is the new property, to authorize the export
+   @Property('_export_itfs', PROP_EXPORTED_INTERFACES, '*')
+   @Instantiate("provider")
+   class Greetings(object):
+         def hello(self, name="World"):
+             print("Hello,", name, "!")
+
+That's all!
+
+Now you can install this provider in a framework, using::
+
+    $ install provider
+    Bundle ID: 16
+    $ start 16
+    Starting bundle 16 (provider)...
+
+When installing a consumer in another framework, it will see the provider and
+use it::
+
+    $ install consumer
+    Bundle ID: 16
+    $ start 16
+    Component validated, calling the service...
+    Done.
+
+You should then see the greeting message (*Hello, World !*) in the shell of the
+provider that has been used by the consumer.
