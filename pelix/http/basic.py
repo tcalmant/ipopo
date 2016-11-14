@@ -58,6 +58,7 @@ import pelix.ipopo.constants as constants
 import pelix.ipv6utils
 import pelix.utilities as utilities
 import pelix.misc.ssl_wrap as ssl_wrap
+import pelix.remote
 
 # HTTP service constants
 import pelix.http as http
@@ -427,6 +428,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 # ------------------------------------------------------------------------------
 
 
+
 @ComponentFactory(http.FACTORY_HTTP_BASIC)
 @Provides(http.HTTP_SERVICE)
 @Requires("_servlets_services", http.HTTP_SERVLET, True, True)
@@ -552,6 +554,9 @@ class HttpService(object):
         """
         Called by iPOPO when a service is bound
         """
+        # Ignore imported services
+        if self.__is_imported(service_reference):
+            return
         with self._binding_lock:
             self._servlets_refs[service] = service_reference
 
@@ -564,6 +569,9 @@ class HttpService(object):
         """
         Called by iPOPO when the properties of a service have been updated
         """
+        # Ignore imported services
+        if self.__is_imported(service_reference):
+            return
         # Check if the property concerns the registration
         old_path = old_properties.get(http.HTTP_SERVLET_PATH)
         new_path = service_reference.get_property(http.HTTP_SERVLET_PATH)
@@ -584,6 +592,9 @@ class HttpService(object):
         """
         Called by iPOPO when a service is gone
         """
+        # Ignore imported services
+        if self.__is_imported(service_reference):
+            return
         with self._binding_lock:
             # Servlet gone: unregister all paths associated to this servlet
             self.unregister(None, service)
@@ -974,3 +985,7 @@ class HttpService(object):
         self._thread = None
         self._server = None
         self._logger = None
+
+    @staticmethod
+    def __is_imported(service_reference):
+        return service_reference.get_property(pelix.remote.PROP_IMPORTED)
