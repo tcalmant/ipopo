@@ -988,4 +988,10 @@ class HttpService(object):
 
     @staticmethod
     def __is_imported(service_reference):
+        """
+        Tests if the given service has been imported by Remote Services
+
+        :param service_reference: The reference of the service to check
+        :return: True if the service is flagged as imported
+        """
         return service_reference.get_property(pelix.remote.PROP_IMPORTED)
