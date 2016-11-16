@@ -6,7 +6,7 @@ Welcome to iPOPO
    :scale: 25%
    :align: right
 
-   Welcome to iPOPO's documentation. This documentation is divided in
+Welcome to iPOPO's documentation. This documentation is divided in
 three main parts.
 The :ref:`quickstart` will guide you to install iPOPO and write your
 first components.
