@@ -2,9 +2,9 @@ Welcome to iPOPO
 ################
 
 .. image:: ./_static/logo_texte_500.png
-:alt: iPOPO logo
+   :alt: iPOPO logo
    :scale: 25%
-      :align: right
+   :align: right
 
    Welcome to iPOPO's documentation. This documentation is divided in
 three main parts.
