@@ -35,6 +35,9 @@ import os
 import sys
 import threading
 
+# Initialization file handler
+from pelix.misc.init_handler import InitFileHandler, remove_duplicates
+
 # Shell constants
 from pelix.constants import BundleActivator
 from pelix.shell import SERVICE_SHELL
@@ -449,6 +452,20 @@ def main(argv=None):
         "-v", "--verbose", action="store_true", dest="verbose",
         help="Set loggers to DEBUG level")
 
+    # Initial configuration
+    group = parser.add_argument_group("Initial configuration")
+    group.add_argument(
+        "-c", "--conf", dest="init_conf", metavar="FILE",
+        help="Name of an initial configuration file to use "
+             "(default configuration is also loaded)")
+    group.add_argument(
+        "-C", "--exclusive-conf", dest="init_conf_exclusive", metavar="FILE",
+        help="Name of an initial configuration file to use "
+             "(without the default configuration)")
+    group.add_argument(
+        "-e", "--empty-conf", dest="init_empty", action="store_true",
+        help="Don't load any initial configuration")
+
     # Initial script
     group = parser.add_argument_group("Script execution arguments")
     group.add_argument(
@@ -467,8 +484,28 @@ def main(argv=None):
     else:
         logging.basicConfig(level=logging.WARNING)
 
-    # Compute framework properties
+    # Framework properties dictionary
     fw_props = {}
+
+    # Read the initial configuration script
+    init = InitFileHandler()
+    if not args.init_empty:
+        if not args.init_conf_exclusive:
+            # Load default configuration
+            init.load()
+
+        # Load the given configuration file
+        conf_file = args.init_conf_exclusive or args.init_conf
+        if conf_file:
+            init.load(conf_file)
+
+        # Normalize configuration
+        init.normalize()
+
+        # Prepare framework properties
+        fw_props.update(init.properties)
+
+    # Compute framework properties
     if args.properties:
         for prop_def in args.properties:
             key, value = prop_def.split('=', 1)
@@ -495,12 +532,17 @@ def main(argv=None):
         else:
             fw_props[PROP_RUN_FILE] = run_file_path
 
+    # Set the initial bundles
+    bundles = ['pelix.ipopo.core', 'pelix.shell.core',
+               'pelix.shell.console', 'pelix.shell.ipopo']
+    bundles.extend(init.bundles)
+
     # Use the utility method to create, run and delete the framework
-    framework = pelix.create_framework(
-        ('pelix.ipopo.core', 'pelix.shell.core',
-         'pelix.shell.console', 'pelix.shell.ipopo'),
-        fw_props)
+    framework = pelix.create_framework(remove_duplicates(bundles), fw_props)
     framework.start()
+
+    # Instantiate components
+    init.instantiate_components(framework.get_bundle_context())
 
     try:
         framework.wait_for_stop()
