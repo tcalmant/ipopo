@@ -1,7 +1,12 @@
 Welcome to iPOPO
 ################
 
-Welcome to iPOPO's documentation. This documentation is divided in
+.. image:: ./_static/logo_texte_500.png
+:alt: iPOPO logo
+   :scale: 25%
+      :align: right
+
+   Welcome to iPOPO's documentation. This documentation is divided in
 three main parts.
 The :ref:`quickstart` will guide you to install iPOPO and write your
 first components.
