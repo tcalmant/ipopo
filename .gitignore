@@ -39,3 +39,7 @@ html/
 
 # Sphinx
 _build/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
