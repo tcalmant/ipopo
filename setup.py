@@ -59,7 +59,7 @@ setup(
     long_description=read('README.rst'),
     author='Thomas Calmant',
     author_email='thomas.calmant@gmail.com',
-    url='https://ipopo.coderxpress.net/',
+    url='https://ipopo.readthedocs.io/',
     packages=[
         'pelix',
         'pelix.http',

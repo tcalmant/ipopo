@@ -1,7 +1,7 @@
-.. image:: https://ipopo.coderxpress.net/wiki/lib/exe/fetch.php?w=200&tok=a7fc20&media=ipopo:logo_texte_500.png
+.. image:: https://ipopo.readthedocs.io/en/latest/_images/logo_texte_500.png
    :alt: iPOPO logo
    :align: center
-   :target: https://ipopo.coderxpress.net
+       :target: https://ipopo.readthedocs.io/
 
 iPOPO: A Service-Oriented Component Model for Python
 ####################################################
@@ -26,7 +26,7 @@ iPOPO: A Service-Oriented Component Model for Python
      :target: https://coveralls.io/r/tcalmant/ipopo?branch=master
      :alt: Coveralls status
 
-`iPOPO <https://ipopo.coderxpress.net/>`__ is a Python-based Service-Oriented
+`iPOPO <https://ipopo.readthedocs.io/>`_ is a Python-based Service-Oriented
 Component Model (SOCM) based on Pelix, a dynamic service platform.
 They are inspired on two popular Java technologies for the development of
 long-lived applications: the
@@ -34,9 +34,20 @@ long-lived applications: the
 component model and the `OSGi <http://osgi.org/>`_ Service Platform.
 iPOPO enables to conceive long-running and modular IT services.
 
-See https://ipopo.coderxpress.net for documentation and more information.
+See https://ipopo.readthedocs.io/ for documentation and more information.
 
 .. contents::
+
+Note about the documentation
+############################
+
+As the server providing iPOPO (coderxpress.net) crashed, all the documentation
+is migrated to `Read the Docs <https://ipopo.readthedocs.io/>`_.
+Due to this situation, many pages, tutorials and reference cards are missing.
+Moreover, all links to the previous documentation are now invalid.
+
+To speed up the migration, all contributions to the documentation (now in the
+docs/ folder) are very welcome.
 
 Install
 #######
@@ -101,10 +112,10 @@ The container handles the interactions between the component and the Pelix
 framework.
 That way, the component contains only the code required for its task, not for
 its bindings with the framework.
-A component is an instance of a component factory, a class `manipulated <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:manipulation>`_
-by iPOPO `decorators <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:decorators>`_.
+A component is an instance of a component factory, a class `manipulated <https://ipopo.readthedocs.io/en/latest/refcards/ipopo.html>`_
+by iPOPO `decorators <https://ipopo.readthedocs.io/en/latest/refcards/ipopo_decorators.html>`_.
 
-For more information, see the `concepts page <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:concepts>`_
+For more information, see the `concepts page <https://ipopo.readthedocs.io/en/latest/refcards/index.html>`_
 on the wiki.
 
 
@@ -112,7 +123,7 @@ Sample
 ######
 
 This sample gives a quick overview of the usage of iPOPO.
-For more information, take a look at `iPOPO in 10 minutes <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:ipopo_10min>`_.
+For more information, take a look at `iPOPO in 10 minutes <https://ipopo.readthedocs.io/en/latest/quickstart.html>`_.
 
 
 Service provider
@@ -338,7 +349,7 @@ Pelix/iPOPO comes with some useful services:
   * the UIs: text UI (console) and remote shell (TCP, XMPP)
   * the commands providers: iPOPO commands, report, EventAdmin, ...
 
-  See the `shell tutorial <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:shell>`_
+  See the `shell tutorial <https://ipopo.readthedocs.io/en/latest/quickstart.html#play-with-the-shell>`_
   and the `shell reference card <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:shell>`_
   for more information.
 
@@ -351,8 +362,8 @@ Pelix/iPOPO comes with some useful services:
 * Remote Services: export and import services to/from other Pelix framework or
   event Java OSGi frameworks!
 
-  See the `remote services tutorial <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:remote_svc>`_
-  and the `remote services reference card <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:remotesvc>`_
+  See the `remote services tutorial <https://ipopo.readthedocs.io/en/latest/quickstart.html#hello-from-somewhere>`_
+  and the `remote services reference card <https://ipopo.readthedocs.io/en/latest/refcards/remote_services.html>`_
   for more information.
 
 Pelix also provides an implementation of the `EventAdmin service <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:eventadmin>`_,
