@@ -1635,4 +1635,3 @@ def normalize_path():
             pass
         except ImportError:
             pass
-            

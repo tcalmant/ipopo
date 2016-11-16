@@ -428,7 +428,6 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 # ------------------------------------------------------------------------------
 
 
-
 @ComponentFactory(http.FACTORY_HTTP_BASIC)
 @Provides(http.HTTP_SERVICE)
 @Requires("_servlets_services", http.HTTP_SERVLET, True, True)
