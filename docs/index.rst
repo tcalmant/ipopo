@@ -28,4 +28,26 @@ The documentation of this library is available on
 .. _jsonrpclib-pelix: https://github.com/tcalmant/jsonrpclib
 
 
+State of this documentation
+===========================
+
+This documentation is a work in progress, going nearly from scratch.
+
+The previous documentation was provided as a wiki on a dedicated server which I
+had to take down due to many reasons (DoS attacks, update issues, ...).
+As a result, the documentation is now hosted by
+`Read the Docs <https://readthedocs.org/>`_.
+The main advantages are that it is now included in the Git repository of the
+project, and it can include *docstrings* directly from the source code.
+
+Alas, the wiki content must be completely rewritten in reStructuredText format.
+I take this opportunity to update the documentation, but it takes a lot of time,
+and I can't work on this project as much as I'd like to.
+So, if you have any question which can't be answered in the current
+documentation, please ask on the
+`users mailing list <https://groups.google.com/forum/#!forum/ipopo-users>`_.
+
+As always, all contributions to the documentation and the code are very
+appreciated.
+
 .. include:: contents.rst.inc
