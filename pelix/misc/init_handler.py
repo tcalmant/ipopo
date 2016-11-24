@@ -256,7 +256,7 @@ class _Configuration(object):
 
 class InitFileHandler(object):
     """
-    Parses and handles the instructions of the initialization file
+    Parses and handles the instructions of initial configuration files
     """
     DEFAULT_PATH = ("/etc/default", "/etc", "/usr/local/etc",
                     "~/.local/pelix", "~/.config", "~", ".")
@@ -275,24 +275,20 @@ class InitFileHandler(object):
     @property
     def bundles(self):
         """
-        Returns the configured bundles
-
-        :return: The list of bundles to install and start
+        :return: The list of names of bundles to install and start
         """
         return self.__state.bundles
 
     @property
     def properties(self):
         """
-        Returns the configured framework properties
-
         :return: The initial framework properties
         """
         return self.__state.properties
 
     def clear(self):
         """
-        Clears the current internal state (cleans up loaded content)
+        Clears the current internal state (cleans up all loaded content)
         """
         # Reset the internal state
         self.__state = _Configuration()
@@ -355,8 +351,9 @@ class InitFileHandler(object):
         """
         Normalizes environment variables and the Python path.
 
-        This method updates the environment variables (``os.environ``) and
-        the Python path (``sys.path``).
+        This method first updates the environment variables (``os.environ``).
+        Then, it normalizes the Python path (``sys.path``) by resolving all
+        references to the user directory and environment variables.
         """
         # Normalize configuration
         self.__state.normalize()
@@ -375,7 +372,7 @@ class InitFileHandler(object):
         """
         Instantiate the defined components
 
-        :param context: A :class:`BundleContext` object
+        :param context: A :class:`~pelix.framework.BundleContext` object
         :raise BundleException: Error starting a component
         """
         with use_ipopo(context) as ipopo:
