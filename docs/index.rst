@@ -28,6 +28,18 @@ The documentation of this library is available on
 .. _jsonrpclib-pelix: https://github.com/tcalmant/jsonrpclib
 
 
+Usage survey
+============
+
+In order to have better knowing of the iPOPO community, I've put a
+`really short survey <https://docs.google.com/forms/d/1zx18_Rg27mjdGrlbtr9fWFmVnZNINo9XCfrYJbr4oJI/prefill>`_
+on Google Forms (no login required).
+
+Please, feel free to answer it, the more answers, the better.
+All feedback is really appreciated, and I'll write about the aggregated results
+on the users' mailing list, once enough answers will have been received.
+
+
 State of this documentation
 ===========================
 
