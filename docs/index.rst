@@ -31,7 +31,7 @@ The documentation of this library is available on
 Usage survey
 ============
 
-In order to have better knowing of the iPOPO community, I've put a
+In order to gain insight from the iPOPO community, I've put a
 `really short survey <https://docs.google.com/forms/d/1zx18_Rg27mjdGrlbtr9fWFmVnZNINo9XCfrYJbr4oJI/prefill>`_
 on Google Forms (no login required).
 

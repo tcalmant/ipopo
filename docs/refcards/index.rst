@@ -13,7 +13,7 @@ Pelix/iPOPO.
    services
    ipopo
    ipopo_decorators
-         init_config
+   init_config
    log
    http
    remote_services
