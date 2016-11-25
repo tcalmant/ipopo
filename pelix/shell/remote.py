@@ -28,8 +28,11 @@ telnet or netcat.
     limitations under the License.
 """
 
+from __future__ import print_function
+
 # Standard library
 from select import select
+import argparse
 import logging
 import threading
 import socket
@@ -44,14 +47,18 @@ except ImportError:
     # pylint: disable=F0401
     import SocketServer as socketserver
 
-# iPOPO decorators
+# iPOPO
+from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
     Validate, Invalidate, Provides
 
-# Shell constants
+# Pelix
+from pelix.shell.console import make_common_parser, handle_common_arguments
+import pelix.framework
+import pelix.ipv6utils
 import pelix.shell
 import pelix.shell.beans as beans
-import pelix.ipv6utils
+import pelix.utilities as utilities
 
 # ------------------------------------------------------------------------------
 
@@ -347,7 +354,7 @@ class IPopoRemoteShell(object):
         return self._shell.execute(line, session)
 
     @Validate
-    def validate(self, context):
+    def validate(self, _):
         """
         Component validation
         """
@@ -373,7 +380,7 @@ class IPopoRemoteShell(object):
         _logger.info("RemoteShell validated on port: %d", self._port)
 
     @Invalidate
-    def invalidate(self, context):
+    def invalidate(self, _):
         """
         Component invalidation
         """
@@ -397,55 +404,6 @@ class IPopoRemoteShell(object):
 # ------------------------------------------------------------------------------
 
 
-def main(address="localhost", port=9000):
-    """
-    Starts a framework with a remote shell and starts an interactive console.
-
-    :param address: Shell binding address
-    :param port: Shell binding port
-    """
-    from pelix.ipopo.constants import use_ipopo
-    import pelix.framework
-
-    # Start a Pelix framework
-    framework = pelix.framework.create_framework(('pelix.ipopo.core',
-                                                  'pelix.shell.core',
-                                                  'pelix.shell.ipopo',
-                                                  'pelix.shell.remote'))
-    framework.start()
-    context = framework.get_bundle_context()
-
-    # Instantiate a Remote Shell
-    with use_ipopo(context) as ipopo:
-        rshell = ipopo.instantiate(pelix.shell.FACTORY_REMOTE_SHELL,
-                                   "remote-shell",
-                                   {"pelix.shell.address": address,
-                                    "pelix.shell.port": port})
-
-    # Prepare interpreter variables
-    variables = {'__name__': '__console__',
-                 '__doc__': None,
-                 '__package__': None,
-                 'framework': framework,
-                 'context': context,
-                 'use_ipopo': use_ipopo}
-
-    # Prepare a banner
-    host, port = rshell.get_access()
-    banner = "{lines}\nPython interpreter with Pelix Remote Shell\n" \
-        "Remote shell bound to: {host}:{port}\n{lines}\n" \
-        "Python version: {version}\n" \
-        .format(lines='-' * 80, version=sys.version,
-                host=host, port=port)
-
-    try:
-        # Run an interpreter
-        _run_interpreter(variables, banner)
-    finally:
-        # Stop the framework
-        framework.stop()
-
-
 def _run_interpreter(variables, banner):
     """
     Runs a Python interpreter console and blocks until the user exits it.
@@ -460,7 +418,6 @@ def _run_interpreter(variables, banner):
         import rlcompleter
         readline.set_completer(rlcompleter.Completer(variables).complete)
         readline.parse_and_bind("tab: complete")
-
     except ImportError:
         # readline is not available: ignore
         pass
@@ -469,27 +426,104 @@ def _run_interpreter(variables, banner):
     shell = code.InteractiveConsole(variables)
     shell.interact(banner)
 
-# ------------------------------------------------------------------------------
 
-if __name__ == '__main__':
+def main(argv=None):
+    """
+    Script entry point
+
+    :param argv: Script arguments (None for sys.argv)
+    :return: An exit code or None
+    """
     # Prepare arguments
-    import argparse
-    parser = argparse.ArgumentParser(description="Pelix Remote Shell")
-    parser.add_argument("-v", "--verbose", action="store_true", dest="verbose",
-                        help="Set loggers at debug level")
-    parser.add_argument("-a", "--address", dest="address", default="localhost",
-                        help="The remote shell binding address")
-    parser.add_argument("-p", "--port", dest="port", type=int, default=9000,
-                        help="The remote shell binding port")
+    parser = argparse.ArgumentParser(
+        prog="pelix.shell.remote", parents=[make_common_parser()],
+        description="Pelix Remote Shell")
+
+    # Remote shell options
+    group = parser.add_argument_group("Remote Shell options")
+    group.add_argument("-a", "--address", default="localhost",
+                       help="The remote shell binding address")
+    group.add_argument("-p", "--port", type=int, default=9000,
+                       help="The remote shell binding port")
+
+    # Local options
+    group = parser.add_argument_group("Local options")
+    group.add_argument("--no-input", action="store_true",
+                       help="Run without input (for daemon mode)")
 
     # Parse them
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
-    # Prepare the logger
-    if args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.WARNING)
+    # Handle arguments
+    init = handle_common_arguments(args)
 
+    # Set the initial bundles
+    bundles = ['pelix.ipopo.core', 'pelix.shell.core', 'pelix.shell.ipopo',
+               'pelix.shell.remote']
+    bundles.extend(init.bundles)
+
+    # Start a Pelix framework
+    framework = pelix.framework.create_framework(
+        utilities.remove_duplicates(bundles), init.properties)
+    framework.start()
+    context = framework.get_bundle_context()
+
+    # Instantiate configured components
+    init.instantiate_components(framework.get_bundle_context())
+
+    # Instantiate a Remote Shell, if necessary
+    with use_ipopo(context) as ipopo:
+        rshell_name = "remote-shell"
+        try:
+            ipopo.get_instance_details(rshell_name)
+        except ValueError:
+            # Component doesn't exist, we can instantiate it
+            rshell = ipopo.instantiate(
+                pelix.shell.FACTORY_REMOTE_SHELL, rshell_name,
+                {"pelix.shell.address": args.address,
+                 "pelix.shell.port": args.port})
+        else:
+            logging.error("A remote shell component (%s) is already "
+                          "configured. Abandon.", rshell_name)
+            return 1
+
+    # Prepare a banner
+    host, port = rshell.get_access()
+    try:
+        if args.no_input:
+            # No input required: just print the access to the shell
+            print("Remote shell bound to:", host, "- port:", port)
+
+            try:
+                while not framework.wait_for_stop(1):
+                    # Awake from wait every second to let KeyboardInterrupt
+                    # exception to raise
+                    pass
+            except KeyboardInterrupt:
+                print("Got Ctrl+C: exiting.")
+                return 127
+        else:
+            # Prepare interpreter variables
+            variables = {'__name__': '__console__',
+                         '__doc__': None,
+                         '__package__': None,
+                         'framework': framework,
+                         'context': context,
+                         'use_ipopo': use_ipopo}
+
+            banner = "{lines}\nPython interpreter with Pelix Remote Shell\n" \
+                     "Remote shell bound to: {host}:{port}\n{lines}\n" \
+                     "Python version: {version}\n" \
+                .format(lines='-' * 80, version=sys.version,
+                        host=host, port=port)
+
+            # Run an interpreter
+            _run_interpreter(variables, banner)
+    finally:
+        # Stop the framework
+        framework.stop()
+
+
+if __name__ == '__main__':
     # Run the entry point
-    main(args.address, args.port)
+    sys.exit(main() or 0)
