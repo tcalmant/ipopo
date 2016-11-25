@@ -378,7 +378,7 @@ class Activator(object):
         self._thread.daemon = True
         self._thread.start()
 
-    def stop(self, context):
+    def stop(self, _):
         """
         Bundle stopped
         """
@@ -428,15 +428,17 @@ def _resolve_file(file_name):
         return path
 
 
-def main(argv=None):
+def make_common_parser():
     """
-    Entry point
+    Creates an argument parser (argparse module) with the options that should
+    be common to all shells.
 
-    :param argv: Script arguments (None for sys.argv)
-    :return: An exit code (0 by default)
+    The result can be used as a parent parser (``parents`` argument in
+    ``argparse.ArgumentParser``)
+
+    :return: An ArgumentParser object
     """
-    # Parse arguments
-    parser = argparse.ArgumentParser(description="Pelix Shell Console")
+    parser = argparse.ArgumentParser(add_help=False)
 
     # Version number
     parser.add_argument(
@@ -449,7 +451,7 @@ def main(argv=None):
         "-D", nargs="+", dest="properties", metavar="KEY=VALUE",
         help="Sets framework properties")
     group.add_argument(
-        "-v", "--verbose", action="store_true", dest="verbose",
+        "-v", "--verbose", action="store_true",
         help="Set loggers to DEBUG level")
 
     # Initial configuration
@@ -474,71 +476,95 @@ def main(argv=None):
     group.add_argument(
         "--run", action="store", dest="run_script", metavar="SCRIPT",
         help="Runs the given shell script then stops the framework")
+    return parser
 
-    # Parse arguments
-    args = parser.parse_args(argv)
 
+def handle_common_arguments(parsed_args):
+    """
+    Handles the arguments defined by :meth:`~make_common_parser`
+
+    :param parsed_args: Argument parsed with ``argparse`` (``Namespace``)
+    :return: An :class:`~InitFileHandler` object
+    :raise IOError: Initial or run script not found
+    """
     # Setup the logger
-    if args.verbose:
+    if parsed_args.verbose:
         logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.WARNING)
 
     # Framework properties dictionary
-    fw_props = {}
+    props = {}
 
     # Read the initial configuration script
     init = InitFileHandler()
-    if not args.init_empty:
-        if not args.init_conf_exclusive:
+    if not parsed_args.init_empty:
+        if not parsed_args.init_conf_exclusive:
             # Load default configuration
             init.load()
 
         # Load the given configuration file
-        conf_file = args.init_conf_exclusive or args.init_conf
+        conf_file = parsed_args.init_conf_exclusive or parsed_args.init_conf
         if conf_file:
             init.load(conf_file)
 
         # Normalize configuration
         init.normalize()
 
-        # Prepare framework properties
-        fw_props.update(init.properties)
+        # Set initial framework properties
+        props.update(init.properties)
 
     # Compute framework properties
-    if args.properties:
-        for prop_def in args.properties:
+    if parsed_args.properties:
+        for prop_def in parsed_args.properties:
             key, value = prop_def.split('=', 1)
-            fw_props[key] = value
+            props[key] = value
 
-    # Check initial script(s)
-    if args.init_script:
-        init_file_path = _resolve_file(args.init_script)
-        if not init_file_path:
-            sys.stderr.write("Initial script file not found: {0}\n"
-                             .format(args.init_script))
-            sys.stderr.flush()
-            return 1
-        else:
-            fw_props[PROP_INIT_FILE] = init_file_path
+    # Check initial run script(s)
+    if parsed_args.init_script:
+        path = props[PROP_INIT_FILE] = _resolve_file(parsed_args.init_script)
+        if not path:
+            raise IOError("Initial script file not found: {0}"
+                          .format(parsed_args.init_script))
 
-    if args.run_script:
-        run_file_path = _resolve_file(args.run_script)
-        if not run_file_path:
-            sys.stderr.write("Script file not found: {0}\n"
-                             .format(args.run_script))
-            sys.stderr.flush()
-            return 1
-        else:
-            fw_props[PROP_RUN_FILE] = run_file_path
+    if parsed_args.run_script:
+        # Find the file
+        path = props[PROP_RUN_FILE] = _resolve_file(parsed_args.run_script)
+        if not path:
+            raise IOError("Script file not found: {0}"
+                          .format(parsed_args.run_script))
+
+    # Update the stored configuration
+    init.properties.update(props)
+    return init
+
+
+def main(argv=None):
+    """
+    Entry point
+
+    :param argv: Script arguments (None for sys.argv)
+    :return: An exit code or None
+    """
+    # Parse arguments
+    parser = argparse.ArgumentParser(
+        prog="pelix.shell.console", parents=[make_common_parser()],
+        description="Pelix Shell Console")
+
+    # Parse arguments
+    args = parser.parse_args(argv)
+
+    # Handle arguments
+    init = handle_common_arguments(args)
 
     # Set the initial bundles
-    bundles = ['pelix.ipopo.core', 'pelix.shell.core',
-               'pelix.shell.console', 'pelix.shell.ipopo']
+    bundles = ['pelix.ipopo.core', 'pelix.shell.core', 'pelix.shell.ipopo',
+               'pelix.shell.console']
     bundles.extend(init.bundles)
 
     # Use the utility method to create, run and delete the framework
-    framework = pelix.create_framework(remove_duplicates(bundles), fw_props)
+    framework = pelix.create_framework(
+        remove_duplicates(bundles), init.properties)
     framework.start()
 
     # Instantiate components
@@ -548,8 +574,7 @@ def main(argv=None):
         framework.wait_for_stop()
     except KeyboardInterrupt:
         framework.stop()
-    return 0
 
 if __name__ == '__main__':
     # Run the entry point
-    sys.exit(main())
+    sys.exit(main() or 0)
