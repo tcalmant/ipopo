@@ -35,6 +35,7 @@ import sys
 
 # Pelix
 from pelix.ipopo.constants import use_ipopo
+from pelix.utilities import remove_duplicates
 
 # ------------------------------------------------------------------------------
 
@@ -47,23 +48,6 @@ __docformat__ = "restructuredtext en"
 
 
 # -----------------------------------------------------------------------------
-
-
-def remove_duplicates(items):
-    """
-    Returns a list without duplicates
-
-    :param items: A list of items
-    :return: The list without duplicates
-    """
-    if not items:
-        return items
-    else:
-        new_list = []
-        for item in items:
-            if item not in new_list:
-                new_list.append(item)
-        return new_list
 
 
 class _Configuration(object):
@@ -326,8 +310,8 @@ class InitFileHandler(object):
             for name in self.find_default(".pelix.conf"):
                 self.load(name)
         else:
-            with open(filename, "r") as fp:
-                self.__parse(json.load(fp))
+            with open(filename, "r") as filep:
+                self.__parse(json.load(filep))
 
     def __parse(self, configuration):
         """

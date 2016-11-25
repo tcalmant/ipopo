@@ -25,9 +25,6 @@ Utility methods and decorators
     limitations under the License.
 """
 
-# Pelix constants
-import pelix.constants
-
 # Standard library
 import collections
 import contextlib
@@ -36,6 +33,9 @@ import logging
 import sys
 import threading
 import traceback
+
+# Pelix constants
+import pelix.constants
 
 # ------------------------------------------------------------------------------
 
@@ -286,6 +286,23 @@ def remove_all_occurrences(sequence, item):
 
     while item in sequence:
         sequence.remove(item)
+
+
+def remove_duplicates(items):
+    """
+    Returns a list without duplicates, keeping elements order
+
+    :param items: A list of items
+    :return: The list without duplicates, in the same order
+    """
+    if items is None:
+        return items
+
+    new_list = []
+    for item in items:
+        if item not in new_list:
+            new_list.append(item)
+    return new_list
 
 # ------------------------------------------------------------------------------
 
