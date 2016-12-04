@@ -1,0 +1,5 @@
+  * [[:start|Main page]]
+  * [[ipopo:install|Installation]]
+  * [[ipopo:refcarfds|Reference cards]]
+  * [[ipopo:tutorials|Tutorials]]
+  * [[wiki:map|Site map]]

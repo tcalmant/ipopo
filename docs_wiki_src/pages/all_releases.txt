@@ -1,0 +1,107 @@
+====== All releases ======
+
+===== Latest release =====
+
+Version 0.6.3:
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-latest.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-latest-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-latest-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-latest-doc-pdf.zip|PDF]]
+
+===== Previous versions =====
+
+==== 0.6.3 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.6.3.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.6.3-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.6.3-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.6.3-doc-pdf.zip|PDF]]
+
+
+==== 0.6.2 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.6.2.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.6.2-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.6.2-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.6.2-doc-pdf.zip|PDF]]
+
+==== 0.6.1 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.6.1.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.6.1-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.6.1-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.6.1-doc-pdf.zip|PDF]]
+
+==== 0.6.0 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.6.0.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.6.0-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.6.0-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.6.0-doc-pdf.zip|PDF]]
+
+==== 0.5.9 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.9.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.9-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.5.9-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.5.9-doc-pdf.zip|PDF]]
+
+==== 0.5.8 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.8.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.8-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.5.8-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.5.8-doc-pdf.zip|PDF]]
+
+==== 0.5.7 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.7.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.7-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.5.7-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.5.7-doc-pdf.zip|PDF]]
+
+==== 0.5.6 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.6.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.6-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.5.6-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.5.6-doc-pdf.zip|PDF]]
+
+==== 0.5.5 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.5.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.5-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.5.5-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.5.5-doc-pdf.zip|PDF]]
+
+==== 0.5.4 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.4.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.4-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.5.4-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.5.4-doc-pdf.zip|PDF]]
+
+==== 0.5.3 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.3.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.3-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.5.3-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.5.3-doc-pdf.zip|PDF]]
+
+==== 0.5.2 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.2.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.2-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.5.2-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.5.2-doc-pdf.zip|PDF]]
+
+==== 0.5.1 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.1.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.1-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.5.1-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.5.1-doc-pdf.zip|PDF]]
+
+==== 0.5.0 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.5-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.5-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.5-doc-pdf.zip|PDF]]
+
+==== 0.4.0 ====
+
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.4.zip|Sources]]
+  * [[https://ipopo.coderxpress.net/dl/ipopo-0.4-tests.zip|Tests]]
+  * Documentation: [[https://ipopo.coderxpress.net/dl/ipopo-0.4-doc-html.zip|HTML]], [[https://ipopo.coderxpress.net/dl/ipopo-0.4-doc-pdf.zip|PDF]]
+
+<note>
+  * Version 0.1 was private to isandlaTech and have been deleted during the public release of iPOPO 0.2
+  * Version 0.2 and 0.3 are too buggy to be released
+</note>

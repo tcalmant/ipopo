@@ -1,0 +1,116 @@
+====== iPOPO Concepts ======
+
+===== Bundle =====
+
+A bundle is a Python module installed using a Pelix Framework instance or a BundleContext object.
+
+Each bundle is associated to an ID, an integer that is unique for a framework instance, and to a symbolic name, i.e. its module name.
+The framework itself is seen has a bundle which ID is 0.
+
+Except the definition of the ''activator'' variable and of the constants, **no code should be executed at module-level**.
+Initialization must be done in the bundle activator (see below).
+
+==== Life-cycle ====
+
+{{ :ipopo:refcards:bundle_lifecycle.png?200|Bundle life cycle}}
+
+Unlike a module, a bundle has a life-cycle.
+A bundle can be in one of the following states:
+
+^ State        ^ Description                                                                                         ^
+| INSTALLED    | The Python module has been correctly imported, the bundle goes to the RESOLVED state                |
+| RESOLVED     | The bundle has not been started yet or has been stopped                                             |
+| //STARTING// | The ''start()'' method of the bundle activator is being called (transition to ACTIVE or RESOLVED)   |
+| ACTIVE       | The bundle activator has been called and didn't raise any error                                     |
+| //STOPPING// | The ''stop()'' method of the bundle activator is being called (transition to RESOLVED)              |
+| UNINSTALLED  | The bundle has been removed from the framework (only visible by remaining references to the bundle) |
+
+The update process of a bundle is simple:
+
+  - if it was active, the bundle is stopped: other bundles are notified of this transition, and its services are unregistered
+  - the module is updated, using the ''imp.reload()'' method
+    * if the update fails, the previous version of the module is kept, but the bundle is not restarted.
+  - if the update succeeds and the bundle was active, the bundle its restarted
+
+==== Bundle activator ====
+
+A bundle activator is a class with ''start(context)'' and ''stop(context)'' methods, which are called by the framework according to the bundle life-cycle.
+
+A class is defined as the bundle activator if it is decorated with ''@pelix.constants.BundleActivator'', as shown in the following snippet:
+
+<code python>
+import pelix.constants
+
+@pelix.constants.BundleActivator
+class Activator(object):
+   """
+   Bundle activator template
+   """
+   def start(self, context):
+       """
+       Bundle is starting
+       """
+       print("Start")
+   
+   def stop(self, context):
+       """
+       Bundle is stopping
+       """
+       print("Stop")
+</code>
+
+<note>
+The previous declaration of the activator, i.e. declaring an ''activator'' module member, is deprecated.
+</note>
+
+==== Bundle context ====
+
+A context is associated to each bundle, and allows it to interact with the framework.
+It is unique for a bundle until it is removed from the framework.
+It must be used to register and to look up services, to request framework information, etc.
+===== Service =====
+
+A service is an object that is registered to the framework service registry, associated with a set of specifications it implements and to properties.
+
+The bundle that registers the service must keep the ''ServiceRegistration'' object returned by the framework.
+It allows to update the service properties and to unregister the service.
+This object //shall not// be accessible by other bundles/services.
+All services must be unregistered when their bundle is stopped.
+
+A consumer can look for a service in the framework that matches a specification and a set of properties.
+The framework will return a ''ServiceReference'' object, which provides a read-only access to the description of its associated service: properties, registering bundle, bundles using it...
+
+Each service has at least the following properties:
+
+^ Name        ^ Type        ^ Description                                                ^
+| objectClass | List of str | List of the specifications implemented by this service     |
+| service.id  | int         | Identifier of the service. Unique in a framework instance. |
+
+The framework also uses the following property to sort the result of a service look up:
+
+^ Name            ^ Type ^ Description                                                             ^
+| service.ranking | int  | The rank/priority of the service. The lower the rank, the more priority |
+===== Component =====
+
+A component is an object with a life-cycle, requiring services and providing ones, and associated to properties.
+The code of a component is reduced to its functional purpose: life-cycle, dependencies, etc, are handled by iPOPO.
+In iPOPO, a component is an instance of component factory, i.e. a Python class manipulated with the iPOPO decorators.
+
+<note>
+Due to the use of Python properties, all component factories must be new-style classes.
+It is the case of all Python 3 classes, but Python 2.x classes must explicitly inherit from object.
+</note>
+
+==== Life-cycle ====
+
+{{ :ipopo:refcards:component_lifecycle.png?200|}}
+
+The component life cycle is handled by an instance manager created by the iPOPO service.
+This instance manager will inject control methods, run-time dependencies, and will register the component services.
+All changes will be notified to the component using the callback methods it decorated.
+
+^ State        ^ Description                                                                                                                               ^
+| INSTANTIATED | The component has been instantiated. Its constructor has been called and the control methods have been injected                           |
+| VALIDATED    | All required dependencies have been injected. All services provided by the component will be registered right after this method returned. |
+| KILLED       | The component has been invalidated and won’t be usable again.                                                                             |
+| ERRONEOUS    | The component raised an error during its validation. It is not destroyed and a validation can be retried manually.                       |

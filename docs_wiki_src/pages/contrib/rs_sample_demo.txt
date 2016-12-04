@@ -1,0 +1,133 @@
+====== Remote Services sample ======
+
+===== Download =====
+
+  - Open a terminal and go to a temporary folder
+  - Download the {{:contrib:rs-sample-full.zip|demonstration ZIP file}}: it contains [[https://pypi.python.org/pypi/iPOPO|Pelix/iPOPO]], the [[https://pypi.python.org/pypi/paho-mqtt|Eclipse Paho MQTT Client]], [[https://pypi.python.org/pypi/jsonrpclib-pelix/|jsonrpclib-pelix]] and [[https://github.com/mcfletch/pyzeroconf|pyzeroconf]].
+    * ''curl -o rs-sample-full.zip https://ipopo.coderxpress.net/wiki/lib/exe/fetch.php?media=contrib:rs-sample-full.zip''
+  - Check if the package is usable:
+    * ''PYTHONPATH=rs-sample-full.zip python -m samples.run_remote -h''
+    
+You should have the following output:
+<code>
+bash$ PYTHONPATH=rs-sample-full.zip python -m samples.run_remote -h
+usage: run_remote.py [-h] [-s] [-d [DISCOVERY [DISCOVERY ...]]]
+                     [-t [TRANSPORT [TRANSPORT ...]]] [-p HTTP_PORT]
+                     [--uid FW_UID] [--mqtt-host MQTT_HOST]
+                     [--mqtt-port MQTT_PORT]
+
+Pelix Remote Services sample
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -s, --server, --provider
+                        Runs the framework with a service provider
+  -d [DISCOVERY [DISCOVERY ...]], --discovery [DISCOVERY [DISCOVERY ...]]
+                        Discovery protocols to use (one of multicast, mqtt,
+                        mdns)
+  -t [TRANSPORT [TRANSPORT ...]], --transport [TRANSPORT [TRANSPORT ...]]
+                        Transport protocols to use (one of xmlrpc, jsonrpc,
+                        mqttrpc, jabsorbrpc)
+  -p HTTP_PORT, --port HTTP_PORT
+                        Port of the framework HTTP server (can be 0)
+  --uid FW_UID          Forces the framework UID
+
+Framework Configuration:
+  Configuration of the Pelix framework
+
+MQTT Configuration:
+  Configuration of the MQTT discovery and RPC components
+
+  --mqtt-host MQTT_HOST
+                        MQTT server host (default: test.mosquitto.org)
+  --mqtt-port MQTT_PORT
+                        MQTT server port (default: 1883)
+
+</code>
+
+
+===== Parameters =====
+
+The ''run_remote'' can be used either as a service provider (with the ''-s'' argument) or as a consumer (without ''-s'').
+By default, it uses the ''multicast'' discovery protocol and the ''jsonrpc'' transport.
+
+The discovery protocol can be changed using the ''-d'' option, and the transport protocol can be changed using the ''-t'' option.
+
+
+==== Local protocols ====
+
+<note>
+These protocols requires the firewall to be turned off, and might not work on filtered networks
+</note>
+
+=== Discovery ===
+
+^ Protocol  ^ Demo Argument ^ Description ^
+| Multicast | -d multicast  | Preferred protocol for local networks, if the router doesn't filter it. It can be used with local transports only. It publishes events on UDP port 42000, on multicast group 239.0.0.1 |
+| mDNS      | -d mdns       | This protocol supports service addition and removal only. This discovery provider is still under development. It can be used with local transports only. |
+
+=== Transport ===
+
+^ Protocol    ^ Demo Argument ^ Description ^
+| XML-RPC     | -t xmlrpc     | Provided by the Python Standard Library, it is embedded in nearly all Python installations |
+| JSON-RPC    | -t jsonrpc    | Preferred protocol, as it supports bean serialization                                      |
+| JABSORB-RPC | -t jabsorbrpc | an extension of the JSON-RPC protocol, compatible with the Java library [[https://github.com/isandlaTech/cohorte-org.jabsorb.ng|org.jabsorb.ng]] |
+
+
+==== MQTT ====
+
+<note>
+We are using [[http://test.mosquitto.org/|test.mosquitto.org]] as MQTT server.
+It is a public test server which might not always be available.
+
+Use ''--mqtt-host'' and ''--mqtt-port'' to change the MQTT server to use.
+</note>
+
+=== Discovery ===
+
+^ Protocol ^ Demo Argument ^ Description ^
+| MQTT     | -d mqtt       | Home-made MQTT discovery protocol |
+
+
+=== Transport ===
+
+^ Protocol ^ Demo Argument ^ Description ^
+| MQTT-RPC | -t mqttrpc    | RPC over MQTT, based on two topics (request/reply) per service. Should be compatible with node.js [[https://github.com/wolfeidau/mqtt-rpc|mqtt-rpc]] |
+
+
+===== Demonstration =====
+
+<note>
+You can add a ''--uid My-UID'' argument to force the framework UID and have an easier identification of the service caller.
+Note that a framework UID must be unique in its working area (local network or MQTT server).
+</note>
+
+  * Using the default MQTT server (test.mosquitto.org):
+
+<code bash>
+# On provider:
+bash$ PYTHONPATH=rs-sample-full.zip python -m samples.run_remote -d mqtt -t mqttrpc -s
+
+# On consumer:
+bash$ PYTHONPATH=rs-sample-full.zip python -m samples.run_remote -d mqtt -t mqttrpc
+</code>
+
+  * Using the MQTT server on coderxpress.net:
+
+<code bash>
+# On provider:
+bash$ PYTHONPATH=rs-sample-full.zip python -m samples.run_remote -d mqtt -t mqttrpc -s --mqtt-host coderxpress.net --mqtt-port 8080
+
+# On consumer:
+bash$ PYTHONPATH=rs-sample-full.zip python -m samples.run_remote -d mqtt -t mqttrpc --mqtt-host coderxpress.net --mqtt-port 8080
+</code>
+
+  * Using the multicast discovery with XML-RPC:
+
+<code bash>
+# On provider:
+bash$ PYTHONPATH=rs-sample-full.zip python -m samples.run_remote -t xmlrpc -s
+
+# On consumer:
+bash$ PYTHONPATH=rs-sample-full.zip python -m samples.run_remote -t xmlrpc
+</code>

@@ -1,0 +1,27 @@
+====== Wiki map ======
+
+//root// namespace :
+
+  * [[:start|iPOPO : A component model for Python]]
+
+===== iPOPO =====
+
+Namespace //ipopo//:
+
+  * [[ipopo:install|Installation]]
+  * [[this>../api|API Documentation]]
+  * [[ipopo:refcarfds|Reference Cards]]
+  * [[ipopo:tutorials|Tutorials]]
+  * [[ipopo:release_notes|Release Notes]]
+  * [[ipopo:workinprogress|Work in progress]]
+  * [[ipopo:roadmap|Road map]]
+  * [[ipopo:who-uses-ipopo|Who uses iPOPO ?]]
+===== Contributions =====
+
+Namespace //contrib//:
+
+  * [[contrib:faq|FAQ]]
+  * [[contrib:proposal|Proposals]]
+
+  * [[contrib:eclipse_iot_2014|Eclipse IoT Day 2014]]
+  * [[contrib:rs_sample_demo|Remote Services demonstration]]

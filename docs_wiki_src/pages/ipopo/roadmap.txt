@@ -1,0 +1,28 @@
+====== Road map ======
+
+This road map is given as an indication of the future features of iPOPO, but it might not be fully respected.
+Feel free to post feature requests or contributions on [[https://github.com/tcalmant/ipopo/issues?state=open|GitHub]] or on the [[http://groups.google.com/group/ipopo-users|users mailing list]].
+You can take a look to the [[ipopo:workinprogress|]] page to see what I am currently working on.
+
+
+===== High-priority features =====
+
+  * Enhance Remote Services discovery process
+  * Package installation: Enhance the ''install_package()'' method semantic and implementation
+
+
+===== Medium-priority features =====
+
+  * Documentation: Add more documentation and tutorials on the iPOPO website
+  * Finder/Loader: Implement a PEP-302 Finder/Loader to control the whole module import process
+  * Prepare an ADL (Architecture Description Language) to describe a composition
+    * <del>''@Forge'': Instantiate a component if the required service is not present</del> (replaced by the ADL)
+
+
+===== Low-priority features =====
+
+  * Implement some of the OSGi core and compedium [[http://www.osgi.org/Specifications/HomePage|specifications]] services:
+    * LogService: Replace the direct usage of the logging package by a set of services: LogService (used by writers), LogListeners, LogWriter, ...
+  * C-Bridge: Define a standard/easy way to use C libraries as bundles
+  * Interfaces: Provide more specification tools, to validate that a service implements the specifications it claims
+  * BundleLevel: Add a bundle start level, as described in this [[http://eclipsesource.com/blogs/2009/06/10/osgi-and-start-levels/|blog]]

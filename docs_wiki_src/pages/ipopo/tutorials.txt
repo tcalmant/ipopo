@@ -1,0 +1,27 @@
+====== Tutorials ======
+
+Don't forget to look at the [[this>../api|API Documentation]] ([[this>../dl/ipopo-latest-doc-html.zip|zip]])
+
+===== Pelix =====
+
+  * [[ipopo:tutorials:pelix_soa|Pelix: Service Oriented Architecture]]
+
+===== iPOPO =====
+
+  * [[ipopo:tutorials:ipopo|iPOPO: The component framework]]
+  * [[ipopo:tutorials:ipopo_10min|iPOPO in 10 minutes]]
+  * [[ipopo:tutorials:qt|Mixing iPOPO and Qt]]
+  * [[ipopo:tutorials:handlers|Write an iPOPO Handler]]
+===== Services =====
+
+  * [[ipopo:tutorials:eventadmin|EventAdmin]]
+  * [[ipopo:tutorials:configadmin|ConfigurationAdmin]]
+  * [[ipopo:tutorials:http_svc|HTTP Service]]
+  * [[ipopo:tutorials:shell|Shell Service]]
+  * [[ipopo:tutorials:remote_svc|Remote Services]]
+
+===== Miscellaneous =====
+
+  * [[ipopo:tutorials:android|Install iPOPO on Android]]
+  * [[ipopo:tutorials:pelix_java|Run a Java OSGi framework inside Pelix]]
+

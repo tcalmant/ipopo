@@ -1,0 +1,25 @@
+====== Contribution proposals ======
+
+===== Rules =====
+
+This page is editable by all registered users.
+
+  - Each proposal must be a subsection of one of the existing sections:
+    * Wiki: addition/modification/removal of a Wiki page, organization, ...
+    * Features: iPOPO source code feature proposal
+    * Project: Every other proposal (talk, support, ...) (//iPOPO is still missing a logo// ;))
+  - To add your opinion about a proposal, create or edit a section of this proposal in the [[talk:contrib:proposal|discussion page]].
+
+===== Wiki contributions =====
+
+Here are the contributions about the iPOPO wiki site.
+
+===== Features contributions =====
+
+Here are the contributions about the iPOPO features and source code.
+
+  * [[contrib:shell_v2|Pelix Shell v2]]
+
+===== Project contributions =====
+
+Here are the contributions about the iPOPO project itself (everything else).

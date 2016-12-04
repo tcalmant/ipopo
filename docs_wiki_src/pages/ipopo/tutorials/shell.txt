@@ -1,0 +1,226 @@
+====== Shell Service ======
+
+See the [[ipopo:refcards:shell|Shell reference card]] for more information about available commands.
+
+===== Description =====
+
+In order to interact with the Pelix framework and its components, the shell service allows to register a set of commands that will be used by shell interfaces.
+
+The core shell module stores the command regrouped into namespaces.
+The name to use in a console to access a command is ''namespace.command''.
+
+Pelix/iPOPO distribution comes with four bundles:
+
+^ Bundle                  ^ Description                                                                         ^
+| pelix.shell.core        | Provides the core shell service, the commands registry and the basic Pelix commands |
+| pelix.shell.ipopo       | Provides iPOPO shell commands                                                       |
+| pelix.shell.console     | An interactive console based on *readline*                                          |
+| pelix.shell.remote      | Provides a raw-TCP access to the shell                                              |
+| pelix.shell.configadmin | Provides commands to manage configurations (see [[configadmin|ConfigAdmin]])        |
+| pelix.shell.eventadmin  | Provides commands to send or post events (see [[eventadmin|EventAdmin]])            |
+
+
+===== Usage =====
+
+==== Using the interactive console ====
+
+The ''pelix.shell.console'' module can be used as standard bundle and installed in a framework instance, but it can also be used as a script to start a framework instance, with only iPOPO and the shell bundles pre-installed.
+
+For example:
+
+<code>
+$ python -m pelix.shell.console
+** Pelix Shell prompt **
+$ bl
++----+---------------------+--------+-----------+
+| ID | Name                | State  | Version   |
++====+=====================+========+===========+
+| 0  | org.psem2m.pelix    | ACTIVE | (0, 4, 0) |
++----+---------------------+--------+-----------+
+| 1  | pelix.shell.core    | ACTIVE | (0, 1, 0) |
++----+---------------------+--------+-----------+
+| 2  | pelix.shell.console | ACTIVE | (0, 1, 0) |
++----+---------------------+--------+-----------+
+| 3  | pelix.shell.ipopo   | ACTIVE | (0, 1, 0) |
++----+---------------------+--------+-----------+
+$ quit
+Bye !
+</code>
+
+<note>
+Pelix must be correctly installed (i.e. accessible in your Python path) for this command to work.
+</note>
+
+The commands that you can execute are described in the [[ipopo:refcards:shell|Shell reference card]].
+
+If you are running the script on a platform that provides the ''readline'' module (most of Unix platforms), the interactive console can complete command names using the //tab// key.
+
+
+==== Instantiation ====
+
+The Pelix core shell service and the iPOPO shell commands are available as soon as their respective bundle is started.
+
+<code python>
+from pelix.framework import FrameworkFactory
+
+# Start the framework
+framework = FrameworkFactory.get_framework()
+framework.start()
+context = framework.get_bundle_context()
+
+# Install & start iPOPO
+context.install_bundle('pelix.ipopo.core').start()
+
+# Install & start the Pelix core shell
+context.install_bundle('pelix.shell.core').start()
+
+# Install & start the iPOPO commands
+context.install_bundle('pelix.shell.ipopo').start()
+</code>
+
+The remote shell must be instantiated using iPOPO, using the ''ipopo-remote-shell-factory'' factory:
+
+<code python>
+# Get the iPOPO service
+from pelix.ipopo.constants import use_ipopo
+
+# Install & start the remote shell bundle
+context.install_bundle('pelix.shell.remote').start()
+
+with use_ipopo(context) as ipopo:
+   # Instantiate a remote shell
+   ipopo.instantiate('ipopo-remote-shell-factory', 'ipopo-remote-shell', {})
+</code>
+
+By default, the remote shell listens on port 9000, you can access it using software like //telnet// or //netcat//.
+
+
+==== Configuration ====
+
+The core shell service and the iPOPO commands component are not configurable.
+
+The remote shell component can be configured using the following properties:
+
+^ Property            ^ Default value ^ Description                             ^
+| pelix.shell.address | localhost     | Address the server will be bound to     |
+| pelix.shell.port    | 9000          | TCP port that the server will listen to |
+
+
+==== Interface ====
+
+Core shell service
+------------------
+
+The core shell service provides the following interface:
+
+^ Method                                       ^ Description                                                                                        ^
+| register_command(namespace, command, method) | Associates the given method to the given name in the given name space                              |
+| unregister(namespace, command)               | Unregister the given command from the given name space, or the whole name space if command is None |
+| execute(cmdline, stdin, stdout)              | Parses and executes the given command line with given input and output streams                     |
+| get_banner()                                 | Retrieves the welcome banner for the shell                                                         |
+| get_ps1()                                    | Retrieves the prompt string                                                                        |
+
+
+=== Utility shell service ===
+
+The utility shell service can be used to ease commands implementations.
+It provides the following methods:
+
+^ Method                     ^ Description                                                                                               ^
+| bundlestate_to_str(state)  | Retrieves the string representation of the state of a bundle                                              |
+| make_table(headers, lines) | Generates an ASCII table using the given column headers (N-tuple) and the given lines (array of N-tuples) |
+
+
+=== Command method ===
+
+A command method must accept an ''IOHandler'' object as its first parameter and must use it to interact with the client.
+The remote shell is based on this behavior, given the client socket as the input and output of the commands to execute.
+
+Also, a command method should have a documentation, that will be used as its help message.
+
+Here is the implementation of the //start// method, which starts a bundle with the given ID:
+
+<code python>
+def start(self, io_handler, bundle_id):
+   """
+   start <bundle_id> - Starts the given bundle ID
+   """
+   bundle_id = int(bundle_id)
+   bundle = self._context.get_bundle(bundle_id)
+   if bundle is None:
+       io_handler.write_line("Unknown bundle: {0}", bundle_id)
+
+   bundle.start()
+</code>
+
+=== Command service ===
+
+The core shell service automatically registers all services providing the ''pelix.shell.command'' specification.
+
+Those services must implement the following methods:
+
+^ Method              ^ Description                                         ^
+| get_namespace()     | Retrieves the name space of the provided commands   |
+| get_methods()       | Retrieves the list of (command, method) tuples      |
+
+<note>
+The ''get_methods_names()'' method has been removed with iPOPO 0.5.4
+</note>
+
+
+===== How to write a command provider =====
+
+This snippet shows how to write a component providing the command service:
+
+<code python>
+from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate
+
+@ComponentFactory(name='simple-command-factory')
+@Instantiate('simple-command')
+@Provides(specifications='pelix.shell.command')
+class SimpleServletFactory(object):
+  """
+  Simple command factory
+  """
+  def __init__(self):
+      """
+      Set up the component
+      """
+      self.counter = 0
+
+  def get_namespace(self):
+      """
+      Retrieves the commands name space
+      """
+      return "counter"
+
+  def get_methods(self):
+      """
+      Retrieves the commands - methods association
+      """
+      return [("more", self.increment),
+              ("less", self.decrement),
+              ("print", self.print)]
+
+  def increment(self, io_handler, value=1):
+      """
+      Increments the counter of [value]
+      """
+      self.counter += value
+
+
+  def decrement(self, io_handler, value=2):
+      """
+      Decrements the counter of [value]
+      """
+      self.counter -= value
+
+
+  def print(self, io_handler):
+      """
+      Prints the value of the counter
+      """
+      io_handler.write_line('Counter = {0}', self.counter)
+</code>
+
+Now you can install this bundle and use the commands //counter.more//, //counter.less// and //counter.print//.

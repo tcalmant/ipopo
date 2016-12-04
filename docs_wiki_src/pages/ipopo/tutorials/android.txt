@@ -1,0 +1,198 @@
+====== iPOPO on Android ======
+
+Pelix and iPOPO can be installed on Android too.
+
+===== Using QPython (recommended) =====
+
+[[http://wiki.qpython.org/:QPython]] is an Android application which simplifies Python development on Android.
+It allows to run an interactive Python interpreter and to run scripts from the SD Card, using a pre-configured version of SL4A.
+
+Pelix and iPOPO have been tested with QPython 0.9.8.2.
+
+  - Install [[https://play.google.com/store/apps/details?id=com.hipipal.qpyplus|QPython from the Play Store]]
+  - Start QPython
+  - Go to ''My QPython''
+  - Run the ''pip_console.py'' script
+  - Execute the command: <code>pip install iPOPO</code>
+  - Close the window
+
+
+==== Test the QPython installation ====
+
+You can download the following snippet and push it to your Android device, or write it using the Python interpreter in QPython.
+The output of the script will appear in a log file, accessible from a notification by QPython.
+
+To be visible in QPython, this file must be copied in the ///sdcard/com.hipipal.qpyplus/scripts// folder:
+<code bash>
+adb push ipopo_check.py /sdcard/com.hipipal.qpyplus/scripts
+</code>
+
+<code python ipopo_check.py>
+# Start a framework
+import pelix.framework
+framework = pelix.framework.FrameworkFactory.get_framework()
+framework.start()
+
+# Install & start iPOPO
+context = framework.get_bundle_context()
+context.install_bundle('pelix.ipopo.core').start()
+
+print("iPOPO can work on this device !")
+
+# ... iPOPO is ready, see the tutorials to write your components
+
+framework.stop()
+</code>
+
+
+===== Using SL4A =====
+
+<note warning>This section hasn't been updated for a long time. Meanwhile, iPOPO has become incompatible with Python 2.6</note>
+
+[[http://code.google.com/p/android-scripting/|SL4A]] allows to run an interactive Python interpreter, or scripts stored on the SD card.
+
+==== Install Python on your Android device ====
+
+Pelix has been tested with [[http://code.google.com/p/android-scripting/|SL4A]] r6 and its default Python 2.6.2 interpreter.
+
+  - Your Android must accept unsigned applications
+    * On Android, check the box in //Parameters > Security > Unknown sources//
+  - Install the SL4A application, using the barcode on the [[http://code.google.com/p/android-scripting/|SL4A]] project page
+  - Install its Python interpreter
+     - Run //SL4A// on your Android
+     - //Menu// > View > Interpreters
+     - //Menu// > Add > Python 2.6.2, it will download //Python4Android//
+     - Install the downloaded APK, it should be visible in the notification bar or in the downloads directory
+     - Run the //Python for Android// application
+     - Press //Install//, it will download the Python interpreter and its library (don't touch the screen during download, or it will abort the installation)
+  - Test the installation
+     - Run //SL4A//
+     - //Menu// > View > Interpreters
+     - Select //Python 2.6.2//: it should start a Python console
+     - Enter ''exit()'' to stop the interpreter
+     - Choose //yes// to close the terminal.
+
+
+==== Install ''importlib'' ====
+
+To work on Python 2.6, Pelix needs the ''importlib'' module.
+
+The easiest way to get it is to download it from PyPI and push it to the SL4A scripts directory.
+
+  - Download ''importlib'' sources from PyPI: [[http://pypi.python.org/pypi/importlib]]
+  - Extract the //%%importlib/__init__.py%%// file and rename it //importlib.py//
+  - Push it to the //extras// folder of Python for Android: <code>adb push importlib.py /sdcard/com.googlecode.pythonforandroid/extras/python</code>
+
+
+The previous version of this documentation said to push //importlib.py// to the Android folder ///sdcard/sl4a//.
+This makes the ''importlib'' available for the Python interpreter in SL4A, as it is its working directory.
+  * You can do it using a removable SD card and storing the file in the //sl4a// folder
+  * Or, if you installed the Android SDK, you can do it with //adb//: <code>adb push importlib.py /sdcard/sl4a</code>
+
+==== Install the Pelix-iPOPO egg file ====
+
+You can create the Python Egg file from the sources, with the following command:
+
+<code bash>
+python setup.py bdist_egg
+</code>
+
+<note>
+You will need the setuptools package up to date for this to work:
+
+<code bash>
+$ sudo easy_install -U setuptools
+</code>
+</note>
+
+The egg file will be created in the //dist// directory, and you will need to push it in the download folder of your Android, namely ///sdcard/download//
+(using //adb// or copying it on a removable SD card):
+
+<code bash>
+# Using adb
+adb push dist/iPOPO-0.5.6-py2.7.egg /sdcard/download
+</code>
+
+Finally, you'll have to install the egg file with //Python4Android//:
+
+  - Run the //Python for Android// application
+  - Press //Import Modules//
+  - Select //iPOPO-0.5-py2.7.egg//
+
+
+==== Test the SL4A installation ====
+
+You can download the following snippet and push it to your Android device, or write it using the Python interpreter in SL4A.
+To be visible in SL4A, this file must be copied in the ///sdcard/sl4a/scripts// folder:
+
+<code bash>
+adb push ipopo_check.py /sdcard/sl4a/scripts
+</code>
+
+<code python ipopo_check.py>
+# Start a framework
+import pelix.framework
+framework = pelix.framework.FrameworkFactory.get_framework()
+framework.start()
+
+# Install & start iPOPO
+context = framework.get_bundle_context()
+context.install_bundle('pelix.ipopo.core').start()
+
+print("iPOPO can work on this device !")
+
+# ... iPOPO is ready, see the tutorials to write your components
+
+framework.stop()
+</code>
+
+===== Using Kivy =====
+
+[[http://kivy.org/|Kivy]] is a Python library which allows to write graphical applications that can be run on multiple devices (Android, iOS, Windows, Linux, ...).
+
+The instructions of Kivy to build an Android application are a good starting point:
+
+  * [[http://kivy.org/docs/guide/basic.html|Kivy Basics]]
+  * [[http://kivy.org/docs/guide/packaging-android.html|Create a package for Android]]
+
+==== Install Kivy and Python-for-Android ====
+
+<note>
+Python-for-Android is based on a set of Linux scripts. I don't know if the Windows/MacOS equivalent exists.
+
+It requires matching Android SDK and NDK. I use SDK API v14 and NDK r8.
+</note>
+
+  - Install the [[http://python-for-android.readthedocs.org/en/latest/prerequisites/|Prerequisites]]
+  - Download Python-for-Android
+  - Compile the tool chain: this will build a Python interpreter, the Kivy library (for UI), the ''android'' utility module and PyJNIus, which allows to access Java classes from Python.
+<code bash>
+# In the Python-for-android folder
+# This might take several minutes
+./distribute.sh -m "kivy android pyjnius" -d "my-distribution"
+</code>
+
+==== Build an APK ====
+
+  - Write your code in a folder, which we will call **$SRC**. The entry point of your application must be in a file called ''main.py''.
+  - Build the APK, for example: <code bash>
+# In the Python-for-android folder
+cd dist/my-distribution
+./build.py --dir "$SRC" \
+           --package "my.application.package.name" \
+           --name "My Application Name" \
+           --version "1.0.0" \
+           --permission INTERNET \
+           --permission CHANGE_WIFI_MULTICAST_STATE \
+           --permission ACCESS_WIFI_STATE \
+           debug
+    </code>This will build an APK in the *bin* folder, named //MyApplicationName-1.0.0-debug.apk//, that can be installed using ''adb''. \\ The given permissions are necessary to use the Pelix Remote Services:
+       * INTERNET: gives access to the socket API
+       * ACCESS_WIFI_STATE: gives access to the Wifi API
+       * CHANGE_WIFI_MULTICAST_STATE: allows to get a Wifi Multicast Lock, necessary to listen to multicast packets on the Wifi network.
+  - Run the application on the phone.
+
+<note>
+The first execution takes around 20 seconds to start, as the whole Python library is extracted in the application cache.
+The following executions takes around 3 seconds to start.
+</note>

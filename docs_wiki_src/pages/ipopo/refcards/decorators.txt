@@ -1,0 +1,336 @@
+====== iPOPO Decorators ======
+
+===== Class decorators =====
+
+Those decorators describe the component. They must decorate the class itself.
+
+==== @ComponentFactory ====
+
+Manipulates the component class according to a FactoryContext object filled by other decorators.
+This **must** be the last executed decorator, i.e. the one on top of others in the source code
+
+^ Attribute ^ Type   ^ Description                   ^
+| name      | str    | Name of the component factory |
+
+If no factory name is given, it will be generated as ''ClassNameFactory'', e.g. a ''Foo'' class will be named ''FooFactory''.
+
+The ''%%__init__()%%'' method of a component factory must not require any parameter.
+
+<code python>
+@ComponentFactory()
+class Foo(object):
+   def __init__(self):
+      pass
+
+@ComponentFactory('my-factory')
+class Bar(object):
+   pass
+</code>
+
+==== @Property ====
+
+Defines a property that will be associated to component.
+A component property is automatically visible as a property of the services provided by the component.
+
+^ Attribute ^ Type    ^ Description                                     ^
+| field     | str     | Field where the property value will be injected |
+| name      | str     | Name of the property (as seen by the framework) |
+| value     | //any// | Default value of the property                   |
+
+If no default value is given, the value stored in the component ''%%__init__()%%'' method will be used.
+
+=== Special properties ===
+
+Some properties have a special meaning for iPOPO and Pelix.
+
+^ Name            ^ Type ^ Description                                                ^
+| instance.name   | str  | Name of the iPOPO component instance                       |
+| service.ranking | int  | Forces the rank of the services provided by this component |
+
+<code python>
+@ComponentFactory()
+@Property('_name', 'instance.name')    # Special property
+@Property('_value', 'my.value')        # Some property
+@Property('_answer', 'the.answer', 42) # Some property, with a default value
+class Foo(object):
+   def __init__(self):
+       self._name = None    # This will overwritten by iPOPO
+       self._value = 12     # 12 will be used if this property is not configured
+       self._answer = None  # 42 will be used by default
+</code>
+
+==== @Provides ====
+
+Indicates that this component provides a service.
+This service will be registered (visible) in the Pelix service registry while the component is valid and the service controller is set to ''True''.
+
+A service control flag can be declared, in order to let the component choose when to provide the service.
+
+^ Attribute      ^ Type               ^ Description                           ^
+| specifications | str or list of str | List of provided interface(s) name(s) |
+| controller     | str                | Name of the service controller field  |
+
+All the properties of the component will be visible in the service properties.
+
+The controller is a Python ''property'' that must contain a boolean. By default, the controller is set to ''True'', i.e. the service will be provided by the component.
+
+<code python>
+@ComponentFactory()
+@Property('_answer', 'answer') # 'answer' will be a property of the service
+@Provides('hello.world')
+class Foo(object):
+   pass
+
+@ComponentFactory()
+@Provides(['hello.world', 'hello.world.extended'], '_svc_flag')
+class Bar(object):
+   # self._svc_flag = False ; to forbid the service to be provided
+   # self._svc_flag = True  ; to provide the service
+   pass
+</code>
+
+==== @Requires ====
+
+Indicates that the component depends on a service to be validated.
+The service must be registered in the Pelix service registry in order to be injected by iPOPO.
+
+^ Attribute        ^ Type    ^ Description                                                                                                    ^
+| field            | str     | Name of the field where to inject the dependency                                                               |
+| specification    | str     | Specification that must provide the injected dependency                                                        |
+| aggregate        | boolean | If True, the list of matching dependencies will be injected, else only the first one will be directly injected |
+| optional         | boolean | If True, the component can be validated whereas this requirement is not satisfied.                             |
+| spec_filter      | boolean | The LDAP filter string to filter the injected services according to their properties                           |
+| immediate_rebind | boolean | If True, the component won't be invalidated during the replacement of the injected service                     |
+
+The ''field'' and ''specification'' attributes are mandatory.
+By default, a requirement is neither aggregated nor optional (both are set to ''False'') and no specification filter is used.
+
+<note>
+Since iPOPO 0.5.4, only one specification can be given.
+</note>
+
+<code python>
+@ComponentFactory()
+@Requires('_hello', 'hello.world')
+class Foo(object):
+   pass
+
+@ComponentFactory()
+@Requires('_hello', 'hello.world', aggregate=True, optional=False, spec_filter='(language=fr)')
+class Bar(object):
+   pass
+</code>
+==== @Instantiate ====
+
+Tells iPOPO to instantiate a component from this factory as soon as its bundle has been started.
+
+^ Attribute  ^ Type ^ Description                    ^
+| name       | str  | Name of the component instance |
+| properties | dict | Configuration of the instance  |
+
+The instance name is mandatory.
+
+If no properties are given, the default value declared by ''@Property'' will be used.
+
+<code python>
+@ComponentFactory()
+@Instantiate('compoent-1')
+@Instantiate('component-2', {'name': 'toto'})
+class Foo(object):
+   pass
+</code>
+
+===== Method decorators =====
+
+Those decorators store behavior information on component methods. They must decorate methods in the component class.
+
+==== @Validate ====
+
+Tells iPOPO to call back this method once all of the mandatory dependencies have been injected.
+This method is called before the service(s) provided by this component to be registered and after the dependencies have been injected inside the component.
+
+This decorator takes no argument.
+
+The decorated method must accept the following argument:
+
+^ Position ^ Type                                                                                   ^ Description                                                         ^
+| 1        | [[this>../api/pelix.framework.BundleContext-class.html|pelix.framework.BundleContext]] | The BundleContext associated to the bundle of the component factory |
+
+<code python>
+@ComponentFactory()
+@Requires('_svc', 'hello.world')
+class Foo(object):
+   @Validate
+   def start(self, context):
+      self._svc.hello() # you can call your dependency from there
+</code>
+==== @Invalidate ====
+
+Tells iPOPO to call back this method as soon as one of the mandatory dependencies have been lost.
+This method is called after the service(s) provided by this component have been unregistered and before the dependency is removed from the component.
+
+This decorator takes no argument.
+
+The decorated method must accept the following argument:
+
+^ Position ^ Type                                                                                   ^ Description                                                         ^
+| 1        | [[this>../api/pelix.framework.BundleContext-class.html|pelix.framework.BundleContext]] | The BundleContext associated to the bundle of the component factory |
+
+<code python>
+@ComponentFactory()
+@Requires('_svc', 'hello.world')
+class Foo(object):
+   @Invalidate
+   def stop(self, context):
+      self._svc.bye() # you can still call your dependency from there, but be aware of errors
+</code>
+
+==== @Bind ====
+
+Tells iPOPO to call back this method when a dependency is injected, after the injection.
+If this dependency allows the validation of the component, this method will be called before the one decorated with @Validate.
+If the requirement has the //aggregate// flag, it is called for each injected service.
+
+This decorator takes no argument.
+
+The decorated method must accept the following argument:
+
+^ Position ^ Type                                                                                                           ^ Description                                    ^
+| 1        | object                                                                                                         | The injected service instance                  |
+| 2        | [[this>../api/pelix.internals.registry.ServiceReference-class.html|pelix.internals.registry.ServiceReference]] | The reference to this service in the framework |
+
+<code python>
+@ComponentFactory()
+@Requires('_svc', 'hello.world')
+class Foo(object):
+   @Bind
+   def on_bind(self, svc, svc_ref):
+      print('New service bound: {0}'.format(svc))
+</code>
+
+==== @BindField ====
+
+Tells iPOPO to call back this method when a specific dependency is injected, after the injection.
+If this dependency allows the validation of the component, this method will be called before the one decorated with @Validate.
+If the requirement has the //aggregate// flag, it is called for each injected service.
+
+This decorator takes the following arguments:
+
+^ Attribute ^ Type ^ Description                                        ^
+| field     | str  | Name of the field where the dependency is injected |
+
+The decorated method must accept the following argument:
+
+^ Position ^ Type                                                                                                           ^ Description                                                ^
+| 1        | str                                                                                                            | Name of the field wherein the dependency has been injected |
+| 2        | object                                                                                                         | The injected service instance                              |
+| 3        | [[this>../api/pelix.internals.registry.ServiceReference-class.html|pelix.internals.registry.ServiceReference]] | The reference to this service in the framework             |
+
+<code python>
+@ComponentFactory()
+@Requires('_svc', 'hello.world')
+class Foo(object):
+   @BindField('_svc')
+   def on_bind_hello(self, field, svc, svc_ref):
+      print('New service bound for Hello World: {0}'.format(svc))
+</code>
+
+==== @Update ====
+
+Tells iPOPO to call back this method when the properties of an injected dependency have been updated.
+If the property change invalidates the component, e.g. due to a requirement filter, then the @Invalidate method is called, but not the @Update one.
+
+This decorator takes no argument.
+
+The decorated method must accept the following argument:
+
+^ Position ^ Type                                                                                                           ^ Description                                    ^
+| 1        | object                                                                                                         | The injected service instance                  |
+| 2        | [[this>../api/pelix.internals.registry.ServiceReference-class.html|pelix.internals.registry.ServiceReference]] | The reference to this service in the framework |
+| 3        | dict                                                                                                           | The properties before the update               |
+
+<code python>
+@ComponentFactory()
+@Requires('_svc', 'hello.world')
+class Foo(object):
+   @Update
+   def on_update(self, svc, svc_ref, old_props):
+      print('Service update: {0} -> {1}'.format(svc_ref.get_properties(), old_props))
+</code>
+
+==== @UpdateField ====
+
+Tells iPOPO to call back this method when the properties of an injected dependency have been updated.
+If the property change invalidates the component, e.g. due to a requirement filter, then the @Invalidate method is called, but not the @UpdateField one.
+
+This decorator takes the following arguments:
+
+^ Attribute ^ Type ^ Description                                        ^
+| field     | str  | Name of the field where the dependency is injected |
+
+The decorated method must accept the following argument:
+
+^ Position ^ Type                                                                                                           ^ Description                                                ^
+| 1        | str                                                                                                            | Name of the field wherein the dependency has been injected |
+| 2        | object                                                                                                         | The injected service instance                              |
+| 3        | [[this>../api/pelix.internals.registry.ServiceReference-class.html|pelix.internals.registry.ServiceReference]] | The reference to this service in the framework             |
+| 4        | dict                                                                                                           | The properties before the update                           |
+
+<code python>
+@ComponentFactory()
+@Requires('_svc', 'hello.world')
+class Foo(object):
+   @UpdateField('_svc')
+   def on_update_hello(self, field, svc, svc_ref, old_props):
+      print('Service update: {0} -> {1}'.format(svc_ref.get_properties(), old_props))
+</code>
+
+==== @Unbind ====
+
+Tells iPOPO to call back this method when a dependency is removed from the component, before the removal.
+If this removal implies the invalidation of the component, this method will be called after the one decorated with ''@Invalidate''.
+If the requirement has the //aggregate// flag, it is called for each removed service.
+
+This decorator takes no argument.
+
+The decorated method must accept the following argument:
+
+^ Position ^ Type                                                                                                           ^ Description                                    ^
+| 1        | object                                                                                                         | The injected service instance                  |
+| 2        | [[this>../api/pelix.internals.registry.ServiceReference-class.html|pelix.internals.registry.ServiceReference]] | The reference to this service in the framework |
+
+<code python>
+@ComponentFactory()
+@Requires('_svc', 'hello.world')
+class Foo(object):
+   @Unbind
+   def on_unbind(self, svc, svc_ref):
+      print('Service gone: {0}'.format(svc.bye()))
+</code>
+
+==== @UnbindField ====
+
+Tells iPOPO to call back this method when a specific dependency is removed from the component, before the removal.
+If this removal implies the invalidation of the component, this method will be called after the one decorated with ''@Invalidate''.
+If the requirement has the //aggregate// flag, it is called for each removed service.
+
+This decorator takes the following arguments:
+
+^ Attribute ^ Type ^ Description                                         ^
+| field     | str  | Name of the field where the dependency was injected |
+
+The decorated method must accept the following argument:
+
+^ Position ^ Type                                                                                                           ^ Description                                                ^
+| 1        | str                                                                                                            | Name of the field wherein the dependency had been injected |
+| 2        | object                                                                                                         | The injected service instance                              |
+| 3        | [[this>../api/pelix.internals.registry.ServiceReference-class.html|pelix.internals.registry.ServiceReference]] | The reference to this service in the framework             |
+
+<code python>
+@ComponentFactory()
+@Requires('_svc', 'hello.world')
+class Foo(object):
+   @UnbindField('_svc')
+   def on_unbind_hello(self, field, svc, svc_ref):
+      print('Hello World service going away: {0}'.format(svc.bye()))
+</code>

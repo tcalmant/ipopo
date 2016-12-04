@@ -1,0 +1,127 @@
+====== Work in progress ======
+
+Parts of the iPOPO project I'm working on.
+You can take a look to the [[ipopo:roadmap|]] page to see which features I will be working on later.
+
+===== For iPOPO 0.5.X =====
+
+These features will appear in the next releases of the 0.5 version.
+
+==== Enhance Remote Services ====
+
+Enhance Remote Services core and extra services.
+
+  * Support more discovery protocols, at least the EDEF file discovery and DNS-SD
+  * Enhance the MQTT discovery and RPC protocols
+  * Add a framework directory, associating a Framework UID with an host address: if a discovery provider gives multiple framework accesses, the directory will select and store a working one
+
+
+===== For iPOPO 0.6 =====
+
+These features will appear in the next releases of the 0.6 version.
+
+
+==== Named Service Registries ====
+
+The framework can create on-demand service registries, to avoid mixing services.
+
+This is a good solution for iPOPO handler factories handling: they will be registered in a specific registry, avoiding the overhead caused by looking into the services of the application.
+
+It could also provide the capacity to keep private bonds between components of a same brotherhood, and be used in ''@Provides'' and ''@Requires'' handlers.
+By indicating that components are a sub-registry, some of them can provide and require services from the application layer, while isolating those registered in the sub-registry only.
+
+
+==== Component Private Properties ====
+
+It should be possible for a component to hide some of its properties, by not propagating them in properties of the services it provides.
+
+This can be implemented in two ways:  
+  * Add a ''propagate'' flag to ''@Property'' decorators: if True, the property will be visible in the services
+  * Consider properties starting with a dot (''.'') are hidden/private
+
+==== iPOPO Manipulation process ====
+
+Update the component factory manipulation process, in order to manipulate the class in the @ComponentFactory decorator only, at once.
+
+  * Decorators will return a tuple (class, FactoryContext), instead of a modified class
+  * This might speed up the manipulation process in Pypy
+
+This task is related to the refactoring of iPOPO handlers, as it might be necessary to store more information about the decorations applied to a component.
+
+
+===== Future versions =====
+
+Features and tasks that are not blocking a release or specific to a version of iPOPO.
+
+==== Architecture Description (ADL) ====
+
+Describe the composition of an application in a file instead of instantiating components programmatically.
+This will simplify the maintenance of iPOPO applications, letting iPOPO manage the start-up code.
+
+
+==== Wiki ====
+
+  * Write documentation about iPOPO handlers (how to write a new one)
+  * Remove the static web site from the git repository
+  * Update the "Concepts" reference card
+  * Write the tutorial "iPOPO in 10 minutes"
+
+
+==== Optimizations ====
+
+During September, in relation with the project of the G2ELab (see [[ipopo:who-uses-ipopo]]), the performances of iPOPO have been greatly improved.
+In this project, the framework is able to start 10,000 components in less than 15 seconds (instead of 1h), and to destroy them all in less than 5 seconds.
+
+Next step will be to work the memory consumption.
+
+
+====== Work done ======
+
+==== Remote Services inter-operability ====
+
+After meeting people from [[http://www.eclipse.org/ecf/|ECF]] and [[http://incubator.apache.org/celix/|Celix]] at EclipseCon Europe 2013, the three projects are trying to specify a common way to implement the remote services specification.
+This would allow iPOPO to export and use services from Java (OSGi/Equinox) and C (Celix Remote Services).
+
+After the [[http://wiki.eclipse.org/ECF_Conference_Call_11.12.2013|Conference call of 11.12.2013]], an [[https://bugs.eclipse.org/bugs/show_bug.cgi?id=421558|improvement request]] has been created on Eclipse ECF Bugzilla.
+
+<note>
+There is now a Jabsorb-RPC implementation for both Pelix/iPOPO (included) and ECF (from [[https://github.com/isandlaTech/cohorte-remote-services/tree/master/org.cohorte.ecf.provider.jabsorb|Cohorte Remote Services]]).
+The mDNS/Zeroconf discovery provider can be used to let frameworks interact.
+</note>
+
+
+==== iPOPO Handlers ====
+
+Enhance the concept of handlers in iPOPO:
+
+  * Allow custom decorators and handlers
+  * Handlers or HandlerFactories should be registered as services, used by iPOPO
+  * A component could be validated only if all of its required handlers are registered
+
+=== Update 1 ===
+
+The modules of Pelix and iPOPO have been split, and the iPOPO handlers are now in a separate package, with one handler per module.
+
+The next step is to specify an HandlerFactory service or an HandlerRegistry, which iPOPO would use instead of directly instantiating the Handler class.
+This would simplify the creation of new handlers, like @Forge below.
+
+=== Update 2 ===
+
+Handlers mechanism implemented and used for ''@Requires'', ''@Provides'' and ''@Property''.
+Each decorator has an ID, which is used to identify the corresponding ''HandlerFactory'' service.
+This service returns a list of handlers to be associated to a given component instance.
+
+The next step is to write some documentation about handlers on the wiki.
+
+
+====== Work cancelled ======
+
+==== @Forge decorator ====
+
+Declares a dependency, like @Requires, but with a set of configuration parameters:
+The dependency is created by the handler, with the given properties, if no matching one is available.
+
+<note>
+This could be written as a iPOPO handler along with the iPOPO Waiting List service.
+To avoid tricky cases, it is preferred to work on an ADL.
+</note>

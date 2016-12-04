@@ -1,0 +1,15 @@
+====== Current tasks ======
+
+===== Update wiki pages =====
+
+  * [[:start]]: Add a sample code, side by side with a schema of the components it represents
+  * [[ipopo:tutorials:android]]: Check versions, remove references to Python 2.6 or tell that won't work after release 0.5.9
+  * [[ipopo:refcards:decorators]] and [[ipopo:tutorials:ipopo]]: Add missing decorators (singleton, postregistration, ...)
+  * [[ipopo:refcards:manipulation]]: Check if still true and if some things are missing
+  * [[ipopo:refcards:remotesvc]]: Add the list of bundles to install, and of supported transports
+  * [[ipopo:tutorials:ipopo]]: Add the ERRONEOUS state + update Schema
+  * [[ipopo:tutorials:ipopo_10min]]: Look for potential updates
+  * [[ipopo:tutorials:qt]]: Check with latest version of iPOPO and Qt
+  * [[ipopo:tutorials:handlers]]: Implementation part not written
+
+  * Check if there is a documentation for ''@Temporal''

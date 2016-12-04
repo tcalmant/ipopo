@@ -1,0 +1,50 @@
+====== Who uses iPOPO ? ======
+
+If you want to add your name here, send a mail on the [[http://groups.google.com/group/ipopo-users|ipopo-users]] mailing list.
+
+===== isandlaTech =====
+
+[[http://isandlatech.com/|{{:ipopo:isandlatech_logo.png|isandlaTech}}]]
+~~SP~~~~SP~~ ~~SP~~~~SP~~
+[[http://cohorte.github.io/|{{:ipopo:cohorte_logo.png|Cohorte}}]]
+
+[[http://isandlatech.com/|isandlaTech]] is the main developer and user of iPOPO.
+It uses iPOPO as the basis of all its core developments, like the [[http://cohorte.github.io/|Cohorte Platform]].
+
+===== G2ELab / G-Scop =====
+
+[[http://www.g2elab.grenoble-inp.fr/|{{:ipopo:logo_g2elab.jpg?200|G2ELab}}]]
+~~SP~~~~SP~~ ~~SP~~~~SP~~
+[[http://www.g-scop.grenoble-inp.fr/|{{:ipopo:logo_gscop.jpg?200|G-Scop}}]]
+
+[[http://www.g2elab.grenoble-inp.fr/plateformes/plateforme-predis-196107.kjsp|PREDIS]] is a complex of several platforms dedicated for research and education.
+These platforms gather many industrials and academic partners working around emerging axes of electrical engineering and energy management.
+PREDIS platforms are part of the Ense3 school which trains high-level engineers and doctors able to take up the challenges associated with the new energy order, with the increasing demand of water, both in quantity and quality, and with the sustainable development and country planning.
+
+The [[http://www.g2elab.grenoble-inp.fr/plateformes/plateforme-predis-196107.kjsp|PREDIS Smart Building platform]] is mainly focused on energy management in buildings such as offices.
+Two laboratories are developing their research activities in Predis, the [[http://www.g2elab.grenoble-inp.fr/|Grenoble Electrical Engineering lab (G2Elab)]] and the [[http://www.g-scop.grenoble-inp.fr/|Design and Production Sciences laboratories (G-Scop)]].
+
+The main topics studied in PREDIS SB are:
+  * Multi-sensor monitoring
+  * User activities and their energy impact analysis
+  * Multi-physical modelling, measurement handle and sensitivity analysing
+  * Optimal control strategies development.
+
+===== Polytech Grenoble / AIR =====
+
+[[http://www.polytech-grenoble.fr/|{{:ipopo:logo_polytech.png?200|Polytech Grenoble}}]]
+~~SP~~~~SP~~ ~~SP~~~~SP~~
+[[http://air.imag.fr/|{{:ipopo:logo_air_1.png?100|Ambient Intelligence Room}}]]
+
+[[http://air.imag.fr/|AIR]] means Ambient Intelligence Room
+
+Ambient intelligence (AmI) is now part of the everyday world of users.
+It is found in all areas of activity: intelligent building with energy control and maintenance, intelligent electrical grid (//smart grid//), health care with home care, transportation and supply chain, public and private security, culture and entertainment (//infotainment//) with serious games, ...
+The AmI applications development relies primarily pooling of expertise in many areas of computer science and electronics which are generally purchased separately in university curricula and engineering schools.
+AmI education focuses on developing applications for a wide range of smart objects (the IT server 3G user terminal and the on-board sensor Zigbee/6LoWPAN instrumenting the physical environment).
+This teaching can be done properly only in the context of experimental practice through group projects and student assignments for various application areas.
+The experiments can achieve scaled in specialized rooms.
+
+The AIR platform is a //fablab// ([[wp>Fab_lab|Fabrication Laboratory]]) for engineering students and Grenoble students to invent, create and implement projects and application objects ambient intelligence through their training.
+The platform of the [[http://www.ujf-grenoble.fr/|University Joseph Fourier - Grenoble 1]] is housed in the building [[http://www.polytech-grenoble.fr/|Polytech Grenoble]].
+AIR is an educational platforms [[http://www.persyval-lab.org/|labex Persyval]].

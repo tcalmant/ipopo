@@ -1,0 +1,87 @@
+====== Eclipse IoT Day - Grenoble 2014 ======
+
+External links:
+
+  * [[http://wiki.eclipse.org/Eclipse_IoT_Day_Grenoble_2014|IoT Day Wiki Page]]
+
+
+  * A presentation about the advantages of iPOPO frameworks for monitoring system in IoT Eclipse Day : {{:contrib:m2meclipseday-final.pdf | Demonstration NAO - OpenHAB using iPOPO }}
+
+  * A Poster for CNRS visit on 27 February 2014 :  {{:contrib:postersamrthomenao.pdf | Coupling Nao Robot and Smart-Home using iPOPO & OpenHAB platforms}}
+===== Bundles/API under development =====
+
+Small documentation about work-in-progress bundles
+
+==== MQTT Connector Factory ====
+
+The bundle ''pelix.services.mqtt'' provides a MQTT connector component.
+The component is automatically instantiated when the bundle starts.
+
+<note>QTT, and notifies ''pelix.mqtt.listener'' services when a message is received.
+This bundle depends on the [[https://pypi.python.org/pypi/paho-mqtt|paho-mqtt]] package:
+
+<code>sudo pip install paho-mqtt</code>
+</note>
+
+This connector uses the ConfigurationAdmin service to connect to MQTT servers.
+It provides a ''pelix.mqtt.factory'' service to publishash messages through MQTT, and notifies ''pelix.mqtt.listener'' services when a message is received.
+
+=== The MQTT Connector service ===
+
+The MQTT Connector service provides the ''pelix.mqtt.factory'' specification.
+
+It has the following method:
+
+^ Method                                                 ^ Description                                              ^
+| publish(topic, payload, qos=0, retain=False, pid=None) | <WRAP>Publishes a message using MQTT.
+                                                           * Topic: the message topic
+                                                           * payload: the message content
+                                                           * qos: The MQTT Quality of Service,
+                                                           * retain: if True, the server retains the service
+                                                           * pid: The PID of the configuration to a specific server
+                                                            </WRAP> |
+
+To connect to an MQTT server, you have to create a ''mqtt.connector'' factory configuration with the following properties:
+
+^ Property  ^ Default       ^ Description                                                        ^
+| host      | **Mandatory** | Host of the MQTT server                                            |
+| port      | 1883          | Port the server listens to                                         |
+| keepalive | 60            |  Maximum period in seconds between communications with the broker. |
+
+
+Example, using the shell command:
+
+<code>
+$ config.create mqtt.connector host=test.mosquitto.org
+</code>
+
+=== MQTT Listener ===
+
+MQTT listeners must provide ''pelix.mqtt.listener'' service, which has the following method:
+
+^ Method                                   ^ Description                               ^
+| handle_mqtt_message(topic, payload, qos) | An MQTT message has been received: <WRAP>
+                                             * topic: Message topic
+                                             * payload: Content of the message
+                                             * qos: Message Quality of Service
+                                             </WRAP> | 
+
+Listeners services must have the following property:
+
+^ Property          ^ Default       ^ Description                                          ^
+| pelix.mqtt.topics | **Mandatory** | A (list of) MQTT topic filters, e.g. ''foo/+/bar/#'' |
+
+==== EventAdmin MQTT Bridge ====
+
+The ''pelix.services.eventadmin_mqtt'' bundle provides a bridge that propagates EventAdmin events to other frameworks using MQTT.
+The bridge component is automatically instantiated when its bundle starts.
+
+To be propagated, the following property must be present in the properties of the event.
+
+^ Property        ^ Value             ^ Description                                                                    ^
+| event.propagate | Any (event False) | If present in the event properties, the event will be propagated by the bridge |
+
+At reception, the event will have the following property added, in order to determine the source of the event:
+
+^ Property                     ^ Description                                   ^
+| pelix.eventadmin.mqtt.source | The UID of the framework which sent the event |

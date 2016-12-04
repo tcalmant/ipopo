@@ -1,0 +1,528 @@
+====== iPOPO in 10 minutes ======
+This page presents how to use the iPOPO framework and its associated service-oriented component model. The concepts of the service-oriented component model are introduced, followed by a simple example that demonstrates the features of iPOPO. This framework uses decorators to describe components. 
+
+==== Introduction ====
+
+iPOPO aims to simplify service-oriented programming on OSGi frameworks in Python language; the name iPOPO is an abbreviation for //injected POPO//, where //POPO// stands for Plain Old Python Object.
+iPOPO provides a new way to develop OSGi/iPOJO-like service components in Python, simplifying service component implementation by transparently managing the dynamics of the environment as well as other non-functional requirements. The iPOPO framework allows developers to more clearly separate functional code (i.e. POPOs) from the non-functional code (i.e. dependency management, service provision, configuration, etc.). At run time, iPOPO combines the functional and non-functional aspects. To achieve this, iPOPO provides a simple and extensible service component model based on POPOs.
+
+==== Basic concepts ====
+
+iPOPO is separated into two parts:
+  * Pelix, the underlying bundle and service registry
+  * iPOPO, the service-oriented component framework
+
+A //bundle// is a single Python module, i.e. a ''.py'' file, that is loaded using the Pelix API.
+A //service// is a Python object that is registered to service registry using the Pelix API, associated to a set of specifications and to a dictionary of properties.
+A //component// is an instance of //component factory//, i.e. a class manipulated by iPOPO decorators. Those decorators injects information into the class that are later used by iPOPO to manage the components. Components are defined inside bundles.
+
+For more information, see [[ipopo:refcards:concepts]].
+
+==== Simple example ====
+
+In this tutorial we will present how to:
+  * Publish a service
+  * Require a service
+  * Use lifecycle callbacks to activate and deactivate components
+
+
+=== Presentation of the Spell application ===
+
+To illustrate some of iPOPO features, we will implement a very simple application. Three bundles compose this application: 
+  * A bundle that defines a component implementing a dictionary service (an English and a French dictionaries).
+  * One with a component requiring the dictionary service and providing a spell checker service.
+  * One that defines a component requiring the spell checker and providing a user line interface.
+
+{{:ipopo:tutorials:ipopo10min.png?500|Service hierarchy}}
+
+The spell dictionary components provide the ''spell_dictionary_service'' specification.
+The spell checker provides a ''spell_checker_service'' specification.
+
+====== Preparing the tutorial ======
+
+The example contains several bundles:
+  * ''spell_dictionary_EN.py'' defines a component that implements the Dictionary service, containing some English words.
+  * ''spell_dictionary_FR.py'' defines a component that implements the Dictionary service, containing some French words.
+  * ''spell_checker.py'' contains an implementation of a Spell Checker. The spell checker requires a dictionary service and checks if an input passage is correct, according to the words contained in the wished dictionary. 
+  * ''spell_client.py'' provides commands for the Pelix shell service. This component uses a spell checker service. The user can interact with the spell checker with this command line interface.
+
+Finally, a ''main_pelix_launcher.py'' script starts the Pelix framework. It is not considered as a bundle as it is not loaded by the framework, but it can control the latter.
+
+==== The English dictionary bundle: Providing a service ====
+
+The ''spell_dictionary_EN'' bundle is a simple implementation of the Dictionary service. It contains few English words.
+
+<code python spell_dictionary_EN.py>
+#!/usr/bin/python
+#-- Content-Encoding: UTF-8 --
+"""
+This bundle provides a component that is a simple implementation of the
+Dictionary service. It contains some English words.
+
+:authors: Shadi Abras, Thomas Calmant
+:copyright: Copyright 2013, isandlaTech
+:license:  Apache Software License 2.0
+"""
+
+# iPOPO decorators
+from pelix.ipopo.decorators import ComponentFactory,Property, Provides, \
+    Validate, Invalidate, Instantiate
+
+# Name the iPOPO component factory
+@ComponentFactory("spell_dictionary_en_factory")
+# This component provides a dictionary service
+@Provides("spell_dictionary_service")
+# It is the English dictionary
+@Property("_language","language","EN")
+# Automatically instantiate a component when this factory is loaded
+@Instantiate("spell_dictionary_en_instance")
+class SpellDictionary(object):
+    """
+    Implementation of a spell dictionary, for French language.
+    """
+    def __init__(self):
+        """
+        Declares members, to respect PEP-8.
+        """
+        self.dictionary = None
+
+
+    @Validate
+    def validate(self, context):
+        """
+        The component is validated. This method is called right before the
+        provided service is registered to the framework.
+        """
+        # All setup should be done here
+        self.dictionary = {"hello" , "world", "welcome", "to", "the", "ipopo",
+                           "tutorial"}
+        print('An English dictionary has been added')
+
+    @Invalidate
+    def invalidate(self, context):
+        """
+        The component has been invalidated. This method is called right after
+        the provided service has been removed from the framework.
+        """
+        self.dictionary = None
+
+    def check_word(self, word):
+        """
+        Determines if the given word is contained in the dictionary.
+
+        @param word the word to be checked.
+        @return True if the word is in the dictionary, False otherwise.
+        """
+        word = word.lower().strip()
+        return not word or word in self.dictionary
+</code>
+
+==== The French dictionary bundle: Providing a service ====
+
+The ''spell_dictionary_FR'' bundle is a similar to the ''spell_dictionary_EN'' one.
+It only differs in the ''language'' component property, as it checks some French words declared during component validatioN.
+
+<code python>
+# [...]
+
+# Name the iPOPO component factory
+@ComponentFactory("spell_dictionary_fr_factory")
+# This component provides a dictionary service
+@Provides("spell_dictionary_service")
+# It is the French dictionary
+@Property("_language","language","FR")
+# Automatically instantiate a component when this factory is loaded
+@Instantiate("spell_dictionary_fr_instance")
+class SpellDictionary(object):
+
+    # [...]
+
+    @Validate
+    def validate(self, context):
+        """
+        """
+        self.dictionary = {"bonjour", "le", "monde", "au", "a", "ipopo",
+                           "tutoriel"}
+        print('A French dictionary has been added')
+
+    # [...]
+</code>
+
+  * The ''@Component'' decorator is used to declare an iPOPO component. It must always be on top of other decorators.
+  * The ''@Provides'' decorator indicates that the component provides a service. 
+  * The ''@Instantiate'' decorator instructs iPOPO to automatically create an instance of our component. The relation between components and instances is the same than between classes and objects in the object-oriented programming.
+  * The ''@Property'' decorator indicates the properties associated to this component and to its services (e.g. French or English language).
+  * The method decorated with ''@Validate'' will be called when the instance becomes valid.
+  * The method decorated with ''@Invalidate'' will be called when the instance becomes invalid or stopped.
+
+For more information about decorators, see [[ipopo:refcards:decorators]].
+
+==== The spell checker bundle: Requiring a service ====
+
+The spell_checker bundle aims to provide a spell checker service. However, to serve this service, this implementation requires a dictionary service. During this step, we will create an iPOPO component requiring a Dictionary service and providing the Spell Checker service.
+
+<code python spell_checker.py>
+#!/usr/bin/python
+#-- Content-Encoding: UTF-8 --
+"""
+The spell_dictionary component is a simple dictionary implementation of the Dictionary service. It contains few English words.
+:authora: Shadi Abras, Thomas Calmant
+:copyright: Copyright 2013, isandlaTech
+:license:  Apache Software License 2.0
+"""
+
+# iPOPO decorators
+from pelix.ipopo.decorators import ComponentFactory,Property, Provides, \
+    Validate, Invalidate, Requires, Instantiate, BindField, UnbindField
+
+# Standard library
+import re
+
+# Name the component factory
+@ComponentFactory("spell_checker_factory")
+# Provide a Spell Checker service
+@Provides("spell_checker_service")
+# Consume all Spell Dictionary services available (aggregate them)
+@Requires("_spell_dictionaries", "spell_dictionary_service", aggregate=True)
+# Automatic instantiation
+@Instantiate("spell_checker_instance")
+class SpellChecker(object):
+    """
+    A component that uses spell dictionary services to check the spelling of
+    given texts.
+    """
+    def __init__(self):
+        """
+        Define class members
+        """
+        # the spell dictionary service, injected list
+        self._spell_dictionaries = []
+
+        # the list of available dictionaries, constructed
+        self.languages = {}
+
+        # list of some punctuation marks could be found in the given passage,
+        # internal
+        self.punctuation_marks = None
+
+
+    @BindField('_spell_dictionaries')
+    def bind_dict(self, field, service, svc_ref):
+        """
+        Called by iPOPO when a spell dictionary service is bound to this
+        component
+        """
+        # Extract the dictionary language from its properties
+        language = svc_ref.get_property('language')
+
+        # Store the service according to its language
+        self.languages[language] = service
+
+
+    @UnbindField('_spell_dictionaries')
+    def unbind_dict(self, field, service, svc_ref):
+        """
+        Called by iPOPO when a dictionary service has gone away
+        """
+        # Extract the dictionary language from its properties
+        language = svc_ref.get_property('language')
+
+        # Remove it from the computed storage
+        # The injected list of services is updated by iPOPO
+        del self.languages[language]
+
+
+    @Validate
+    def validate(self, context):
+        """
+        This spell checker has been validated, i.e. at least one dictionary
+        service has been bound.
+        """
+        # Set up internal members
+        self.punctuation_marks = set((',',';','.','?','!',':', ' '))
+        print('A dictionary checker has been started')
+
+
+    @Invalidate
+    def invalidate(self, context):
+        """
+        The component has been invalidated
+        """
+        self.punctuation_marks = None
+        print('A dictionary checker has been stopped')
+
+
+    def check(self, passage, language="EN"):
+        """
+        Checks the given passage for misspelled words.
+
+        @param passage the passage to spell check.
+        @param language language of the spell dictionary
+        @return An array of misspelled words or null if no words are misspelled.
+        @raise KeyError No dictionary for this language
+        """
+        # list of misspelled words in the given passage
+        error_list = []
+
+        # list of words to be checked in the given passage without the punctuation marks
+        checked_list = re.split("([!,?.:; ])", passage)
+
+        try:
+            # Get the dictionary corresponding to the requested language
+            dictionary = self.languages[language]
+
+        except KeyError:
+            # Not found
+            raise KeyError('Unknown language: {0}'.format(language))
+
+        # Do the job, calling the found service
+        return [word for word in checked_list
+                if word not in self.punctuation_marks \
+                and not dictionary.check_word(word)]
+</code>
+
+  * The ''@Component'' decorator is used to declare an iPOPO component. 
+  * The ''@Provides'' decorator indicates that the component provides a service. 
+  * The ''@Requires'' decorator specifies a service dependency. This service is injected in a local variable in this bundle. The attribute aggregate collects the list of bundles providing the required service service. 
+  * The ''@Instantiate'' decorator instructs iPOPO to create an instance of our component. The relation between components and instances is the same than between classes and objects in the object-oriented programming.
+  * The ''@BindField'' decorator indicates that a new required service bounded to the platform.
+  * The ''@UnbindField'' decorator indicates that one of required service has gone away.
+  * The ''@Validate'' decorator will be called when the instance becomes valid. 
+  * The ''@Invalidate'' decorator will be called when the instance becomes invalid or stopped. 
+  * The ''@Validate'' and ''@Invalidate'' decorators are used to specify these callbacks.
+
+For more information about decorators, see [[ipopo:refcards:decorators]].
+
+==== The spell client bundle ====
+
+The ''spell_client'' bundle contains a very simple user interface allowing a user to interact with a spell checker service.
+
+<code python spell_client.py>
+#!/usr/bin/python
+#-- Content-Encoding: UTF-8 --
+"""
+This bundle defines a component that consumes a spell checker.
+It provides a shell command service, registering a "spell" command that can be
+used in the shell of Pelix.
+
+It uses a dictionary service to check for the proper spelling of a word by check
+for its existence in the dictionary.
+
+:authors: Shadi Abras, Thomas Calmant
+:copyright: Copyright 2013, isandlaTech
+:license:  Apache Software License 2.0
+"""
+
+# iPOPO decorators
+from pelix.ipopo.decorators import ComponentFactory,Property, Provides, \
+    Validate, Invalidate, Requires, Instantiate
+
+# Specification of a command service for the Pelix shell
+from pelix.shell import SHELL_COMMAND_SPEC
+
+# Name the component factory
+@ComponentFactory("spell_client_factory")
+# Consume a single Spell Checker service
+@Requires("_spell_checker", "spell_checker_service")
+# Provide a shell command service
+@Provides(SHELL_COMMAND_SPEC)
+# Automatic instantiation
+@Instantiate("spell_client_instance")
+class SpellClient(object):
+    """
+    A component that provides a shell command (spell.spell), using a
+    Spell Checker service.
+    """
+    def __init__(self):
+        """
+        Defines class members
+        """
+        # the spell checker service
+        self._spell_checker = None
+
+
+    @Validate
+    def validate(self, context):
+        """
+        Component validated, just print a trace to visualize the event.
+        Between this call and the call to invalidate, the _spell_checker member
+        will point to a valid spell checker service.
+        """
+        print('A client for spell checker has been started')
+
+
+    @Invalidate
+    def invalidate(self, context):
+        """
+        Component invalidated, just print a trace to visualize the event
+        """
+        print('A spell client has been stopped')
+
+
+    def get_namespace(self):
+        """
+        Retrieves the name space of this shell command provider.
+        Look at the shell tutorial for more information.
+        """
+        return "spell"
+
+
+    def get_methods(self):
+        """
+        Retrieves the list of (command, method) tuples for all shell commands
+        provided by this component.
+        Look at the shell tutorial for more information.
+        """
+        return [("spell", self.spell)]
+
+
+    def spell(self, io_handler):
+        """
+        Reads words from the standard input and checks for their existence
+        from the selected dictionary.
+
+        @param io_handler: A utility object given by the shell to interact with
+                           the user.
+        """
+        # Request the language of the text to the user
+        passage = None
+        language = io_handler.prompt("Please enter your language, EN or FR: ")
+        language = language.upper()
+
+        while passage != 'quit':
+            # Request the text to check
+            misspelled_words= []
+            passage = io_handler.prompt("Please enter your paragraph, "
+                                        "or 'quit' to exit:\n")
+
+            if passage and passage != 'quit':
+                # A text has been given: call the spell checker, which have been
+                # injected by iPOPO.
+                misspelled_words = self._spell_checker.check(passage, language)
+                if not misspelled_words:
+                    io_handler.write_line("All words are well spelled !")
+                else:
+                    io_handler.write_line("The misspelled words are: {0}",
+                                          misspelled_words)
+</code>
+
+==== Main script: Launch the framework ====
+
+We have all the bundles required to start playing with the application.
+To run the example, start Pelix and then start all required bundles.
+
+<code python main_pelix_launcher.py>
+#!/usr/bin/python3
+# -- Content-Encoding: UTF-8 --
+"""
+Starts a Pelix framework
+
+:authora: Shadi Abras, Thomas Calmant
+:copyright: Copyright 2013, isandlaTech
+:license:  Apache Software License 2.0
+"""
+
+# Pelix framework module and utility methods
+import pelix.framework
+from pelix.utilities import use_service
+from pelix.ipopo.constants import get_ipopo_svc_ref
+
+# Standard library
+import logging
+
+def main():
+    """
+    Starts a Pelix framework and waits for it to stop
+    """
+    # Prepare the framework, with iPOPO and the shell console
+    # Warning: we only use the first argument of this method, a list of bundles
+    framework = pelix.framework.create_framework((# iPOPO
+                                                  "pelix.ipopo.core",
+                                                  # Shell core (engine)
+                                                  "pelix.shell.core",
+                                                  # Text console
+                                                  "pelix.shell.console"))
+
+    # Start the framework, and the pre-installed bundles
+    framework.start()
+
+    # Get the bundle context of the framework, i.e. the link between the
+    # framework starter and its content.
+    context = framework.get_bundle_context()
+
+    # Start the spell dictionary bundles, which provide the dictionary services
+    context.install_bundle("spell_dictionary_EN").start()
+    context.install_bundle("spell_dictionary_FR").start()
+
+    # Start the spell checker bundle, which provides the spell checker service.
+    context.install_bundle("spell_checker").start()
+
+    # Sample usage of the spell checker service
+    # 1. get its service reference, that describes the service itself
+    ref_config = context.get_service_reference("spell_checker_service")
+
+    # 2. the use_service method allows to grab a service and to use it inside a
+    # with block. It automatically releases the service when exiting the block,
+    # even if an exception was raised
+    with use_service(context, ref_config) as svc_config:
+        # Here, svc_config points to the spell checker service
+        passage = "Welcome to our framwork iPOPO"
+
+        print("1. Testing Spell Checker:", passage)
+        misspelled_words = svc_config.check(passage)
+        print(">  Misspelled_words are:", misspelled_words)
+
+    # Start the spell client bundle, which provides a shell command
+    context.install_bundle("spell_client").start()
+
+    # Wait for the framework to stop
+    framework.wait_for_stop()
+
+# Classic entry point...
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    main()
+</code>
+
+====== Running the application ======
+
+Launch the ''main_pelix_launcher.py'' script. When the framework is running, type in the console: **//spell//** to enter your language choice and then your passage.
+
+Sample run, calling ''python3 main_pelix_launcher.py'':
+<code console>
+INFO:pelix.shell.core:Shell services registered
+An English dictionary has been added
+** Pelix Shell prompt **
+A French dictionary has been added
+A dictionary checker has been started
+1. Testing Spell Checker: Welcome to our framwork iPOPO
+>  Misspelled_words are: ['our', 'framwork']
+A client for spell checker has been started
+
+$ spell
+Please enter your language, EN or FR: FR
+Please enter your paragraph, or 'quit' to exit:
+Bonjour le monde !
+All words are well spelled !
+Please enter your paragraph, or 'quit' to exit:
+quit
+$ spell
+Please enter your language, EN or FR: EN
+Please enter your paragraph, or 'quit' to exit:
+Hello, world !
+All words are well spelled !
+Please enter your paragraph, or 'quit' to exit:
+Bonjour le monde !
+The misspelled words are: ['Bonjour', 'le', 'monde']
+Please enter your paragraph, or 'quit' to exit:
+quit
+$ quit
+Bye !
+A spell client has been stopped
+INFO:pelix.shell.core:Shell services unregistered
+</code>
+====== Source code ======
+
+The source code of this demonstration is available here:
+
+{{:ipopo:tutorials:spell.zip|}} : spell application in iPOPO

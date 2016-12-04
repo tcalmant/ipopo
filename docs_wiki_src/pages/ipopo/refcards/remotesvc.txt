@@ -1,0 +1,9 @@
+====== Reference Card: Remote Services ======
+
+====== Export a service ======
+
+A service will be exported if it has one of the following properties:
+
+^ Property                    ^ Type                   ^ Description                                                                                                                                                                            ^
+| service.exported.configs    | List of strings        | A list of transport names. Transports that do not handle this name must ignored this service. This allows transport-specific features to be used.                                      |
+| service.exported.interfaces | '*' or list of strings | The list of services specifications to export. All specifications are exported if this property is missing. This allows to export only a part of the services provided by a component. |

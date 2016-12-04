@@ -1,0 +1,15 @@
+====== Reference cards ======
+
+Small pages that give basic information on a part of iPOPO.
+For more documentation, see the [[ipopo:tutorials|tutorials]].
+===== iPOPO =====
+
+  * [[ipopo:refcards:concepts|Concepts]]
+  * [[ipopo:refcards:decorators|iPOPO decorators]]
+  * [[ipopo:refcards:manipulation|iPOPO Manipulation]]
+
+===== Services =====
+
+  * [[ipopo:refcards:shell|Shell Commands]]
+  * [[ipopo:refcards:remotesvc|Remote Services]]
+  * [[ipopo:refcards:eventadmin|EventAdmin]]

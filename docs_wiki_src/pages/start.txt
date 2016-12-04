@@ -1,0 +1,330 @@
+====== iPOPO : A service-oriented component model for Python ======
+
+{{:ipopo:logo_texte_500.png?200 |iPOPO}}
+
+iPOPO is a Python-based Service-Oriented Component Model (SOCM) based on Pelix, a dynamic service platform. They are inspired on two popular Java technologies for the development of long-lived applications: the [[http://felix.apache.org/documentation/subprojects/apache-felix-ipojo.html|iPOJO]] component model and the [[http://osgi.org/|OSGi]] Service Platform.
+iPOPO enables to conceive long-running and modular IT services.
+
+The development of iPOPO is supported by [[http://www.isandlatech.com|isandlaTech]], in the context of the thesis of Thomas Calmant in the [[http://erods.liglab.fr/|ERODS team]], at the [[http://www.liglab.fr/|Laboratoire Informatique de Grenoble]].
+
+Since version 0.5.5, iPOPO is published under the [[http://www.apache.org/licenses/LICENSE-2.0.html|Apache Software License 2.0]].
+Previous public versions (from 0.2 to 0.5.4), were published under the [[http://www.gnu.org/licenses/gpl-3.0.txt|GPLv3]] license.
+
+===== Installation =====
+
+iPOPO is available on [[http://pypi.python.org/pypi/iPOPO|PyPI]] and can be installed using ''pip'':
+
+<code python>
+# Install system-wide
+$ sudo pip install iPOPO
+
+# ... or user-wide installation
+$ pip install --user iPOPO
+</code>
+
+The wiki also describes [[ipopo:install|other way to install]] iPOPO.
+===== Concepts =====
+
+Pelix brings the concept of bundle in Python. A bundle is a module with a life cycle: it can be installed, started, stopped, updated and //uninstalled//.
+A bundle can declare a class acting as bundle activator, using the  ''@BundleActivator''  decorator. This class will be instantiated by the framework and its ''start()'' and ''stop()'' methods will be called to notify the bundle about its activation and deactivation.
+When it is active, a bundle can register services. A service is an object implementing a specification and associated to a set of properties. A component will then be able to select and consume a service according to the specification(s) it provides and to its properties.
+
+The components are a concept brought by iPOPO. A component, or component instance, is an object managed by a container. The container handles the interactions between the component and the Pelix framework. That way, the component contains only the code required for its task, not for its bindings with the framework. A component is an instance of a component factory, a class [[ipopo:refcards:manipulation|manipulated]] by iPOPO [[ipopo:refcards:decorators|decorators]].
+
+For more information, see the [[ipopo:refcards:concepts|concepts page]] on the wiki.
+
+===== Documentation =====
+
+The API documentation is available in different formats:
+
+  * HTML: [[http://ipopo.coderxpress.net/api/|online]], [[http://ipopo.coderxpress.net/dl/ipopo-latest-doc-html.zip|archive (zip)]]
+  * [[http://ipopo.coderxpress.net/dl/ipopo-latest-doc-pdf.zip|PDF (zip)]]
+
+Older versions of the API can be downloaded here: [[all_releases]].
+
+==== Tutorials and Reference Cards ====
+
+  * The [[ipopo:tutorials|]] help to understand the concepts of iPOPO and how to use them
+  * The [[ipopo:refcarfds|]] are fast- and easy-to-read pages reminding the most important parts of the API
+
+===== Support =====
+
+Feedback and proposals are really appreciated, so feel free to send a message on
+the iPOPO Google groups:
+
+  * [[http://groups.google.com/group/ipopo-users|Users group]]: for questions about the usage of iPOPO
+  * [[http://groups.google.com/group/ipopo-dev|Developers group]]: for questions about the iPOPO implementation, extensions, ...
+
+The [[contrib:faq|FAQ]] waits for both questions and answers.
+
+Bugs and features requests can be submitted using the [[https://github.com/tcalmant/ipopo/issues|Issue Tracker]] on GitHub.
+
+
+===== Sample =====
+
+This sample gives a quick overview of the usage of iPOPO.
+For more information, take a look at [[ipopo:tutorials:ipopo_10min|]].
+
+==== Service Provider ====
+
+The following code defines a component factory (a class) which instances will provide a ''sample.hello'' service.
+
+<code python>
+# iPOPO decorators
+from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate
+
+# Manipulates the class and sets its (unique) factory name
+@ComponentFactory("hello-provider-factory")
+# Indicate that the components will provide a service
+@Provides("sample.hello")
+# Tell iPOPO to instantiate a component instance as soon as the file is loaded
+@Instantiate("hello-provider-auto")
+# A component class must always inherit from object (new-style class)
+class HelloProvider(object):
+    """
+    A sample service provider
+    """
+    def hello(self, name="world"):
+        """
+        Says hello
+        """
+        print("Hello,", name, "!")
+
+    def bye(self, name="cruel world"):
+        """
+        Says bye
+        """
+        print("Bye,", name, "!")
+</code>
+
+When the bundle providing this component factory will be started, iPOPO will
+automatically instantiate a component, due to the ''@Instantiate'' decorator.
+It is also possible to instantiate a component using shell commands.
+
+Each component instance will provide a ''sample.hello'' service, which can be
+consumed by any bundle or any other component.
+
+==== Service Consumer ====
+
+The following code defines a component factory (a class) which instances will
+consume a ''sample.hello'' service. If multiple services are available, iPOPO
+will select the one with the highest rank and the lowest service ID
+(//i.e.// the oldest service).
+
+<code python>
+# iPOPO decorators
+from pelix.ipopo.decorators import ComponentFactory, Requires, Instantiate, \
+    Validate, Invalidate
+
+# Manipulates the class and sets its (unique) factory name
+@ComponentFactory("hello-consumer-factory")
+# Indicate that the components require a sample.hello service to work
+# and to inject the found service in the _svc field
+@Requires('_svc', "sample.hello")
+# Tell iPOPO to instantiate a component instance as soon as the file is loaded
+@Instantiate("hello-consumer-auto")
+# A component class must always inherit from object (new-style class)
+class HelloConsumer(object):
+    """
+    A sample service consumer
+    """
+    def __init__(self):
+        """
+        Defines (injected) members
+        """
+        self._svc = None
+
+    @Validate
+    def validate(self, context):
+        """
+        Component validated: all its requirements have been injected
+        """
+        self._svc.hello("Consumer")
+
+    @Invalidate
+    def invalidate(self, context):
+        """
+        Component invalidated: one of its requirements is going away
+        """
+        self._svc.bye("Consumer")
+</code>
+
+When the bundle providing this component factory will be started, iPOPO will
+automatically instantiate a component, due to the ''@Instantiate'' decorator.
+
+Each component instance will require a ''sample.hello'' service. Once iPOPO
+has injected all the required services (here, a single ''sample.hello'' service)
+in a component instance, this instance will be considered //valid// and iPOPO
+will call its method decorated by ''@Validate''.
+There, the component can consume its dependencies, start threads, etc..
+It is recommended for this method to start threads and to return quickly, as it
+blocks iPOPO and the Pelix framework.
+
+When a required service is unregistered by its provider, the component instances
+consuming it are invalidated.
+When the method decorated by ''@Invalidate'' is called, the service is still
+injected and should be usable (except for special cases, like remote services).
+
+==== Run ! ====
+
+To run this sample, you'll need to copy the snippets above in different files:
+
+* copy the //Service provider// snippet in a file called //provider.py//
+* copy the //Service consumer// snippet in a file called //consumer.py//
+
+Then, run a Pelix shell in the same folder as those files, and execute the
+commands listed in this trace:
+
+<code bash>
+$ python -m pelix.shell
+** Pelix Shell prompt **
+$ # Install the bundles
+$ install provider
+Bundle ID: 11
+$ install consumer
+Bundle ID: 12
+$ # Start the bundles (the order isn't important here)
+$ start 11 12
+Starting bundle 11 (provider)...
+Starting bundle 12 (consumer)...
+Hello, Consumer !
+$ # View iPOPO instances
+$ instances
++----------------------+------------------------------+-------+
+|         Name         |           Factory            | State |
++======================+==============================+=======+
+| hello-consumer-auto  | hello-consumer-factory       | VALID |
++----------------------+------------------------------+-------+
+| hello-provider-auto  | hello-provider-factory       | VALID |
++----------------------+------------------------------+-------+
+| ipopo-shell-commands | ipopo-shell-commands-factory | VALID |
++----------------------+------------------------------+-------+
+3 components running
+$ # View details about the consumer
+$ instance hello-consumer-auto
+Name.....: hello-consumer-auto
+Factory..: hello-consumer-factory
+Bundle ID: 12
+State....: VALID
+Services.:
+Dependencies:
+        Field: _svc
+                Specification: sample.hello
+                Filter......: None
+                Optional.....: False
+                Aggregate....: False
+                Handler......: SimpleDependency
+                Bindings:
+                        ServiceReference(ID=11, Bundle=11, Specs=['sample.hello'])
+Properties:
+        +---------------+---------------------+
+        |      Key      |        Value        |
+        +===============+=====================+
+        | instance.name | hello-consumer-auto |
+        +---------------+---------------------+
+
+$ # Modify the provider file (e.g. change the 'Hello' string by 'Hi')
+$ # Update the provider bundle (ID: 11)
+$ update 11
+Updating bundle 11 (provider)...
+Bye, Consumer !
+Hi, Consumer !
+$ # Play with other commands (see help)
+</code>
+
+First, the ''install'' commands are used to install the bundle: they will be
+imported but their activator won't be called. If this command fails, the bundle
+is not installed and is not referenced by the framework.
+
+If the installation succeeded, the bundle can be started: it's activator is
+called (if any). Then, iPOPO detects the component factories provided by the
+bundle and instantiates the components declared using the ''@Instantiate''
+decorator.
+
+The ''instances'' and ''instance'' commands can be use to print the state and
+bindings of the components. Some other commands are very useful, like ''sl''
+and ''sd'' to list the registered services and print their details. Use the
+''help'' command to see which ones can be used.
+
+The last part of the trace shows what happens when updating a bundle.
+First, update the source code of the provider bundle, //e.g.// by changing the
+string it prints in the ''hello()'' method.
+Then, tell the framework to update the bundle using the ''update'' command.
+This command requires a bundle ID, which has been given as a result of the
+''install'' command and can be found using ''bl''.
+
+When updating a bundle, the framework stops it and reloads it (using
+[[https://docs.python.org/3/library/imp.html#imp.reload|imp.reload]].
+If the update fails, the old version is kept.
+If the bundle was active before the update, it is restarted by the framework.
+
+Stopping a bundle causes iPOPO to kill the component instance(s) of the
+factories it provided.
+Therefore, no one provides the ''sample.hello'' service, which causes the
+consumer component to be invalidated.
+When the provider bundle is restarted, a new provider component is instantiated
+and its service is injected in the consumer, which becomes valid again.
+
+===== Contribute ! =====
+
+All contributions are welcome!
+
+  - Create an issue to discuss about your idea or the problem you encounter
+  - Fork the project
+  - Develop your changes
+  - Check your code with pylint and pep8
+  - If necessary, write some unit tests
+  - Commit your changes, indicating in each commit a reference to the issue you're working on
+  - Push the commits on your repository
+  - Create a Pull Request
+  - Enjoy!
+
+[[:start?do=register|Register now]] to write your own tutorials or snippets in your user section and propose them in the [[contrib:proposal|Proposal]] page.
+You can also add both questions and answers on the [[contrib:faq|FAQ]]. \\
+Join those [[ipopo:who-uses-ipopo|who already use iPOPO]] !
+
+
+===== Download =====
+
+See the [[ipopo:install|Installation tutorial]] for more information.
+
+  * Latest stable release: [[http://ipopo.coderxpress.net/dl/ipopo-latest.zip]]
+  * Source code on GitHub: [[https://github.com/tcalmant/ipopo]]
+  * Nearly-stable version: [[https://github.com/tcalmant/ipopo/archive/master.zip]].
+  * Development version: [[https://github.com/tcalmant/ipopo/archive/dev.zip]].
+  * Older versions: [[all_releases]].
+
+The project is also accessible using the Python Package Index (PyPI): [[http://pypi.python.org/pypi/iPOPO]].
+
+===== News =====
+
+  * 12/06/2015: Release of iPOPO 0.6.4
+  * 25/10/2015: Release of iPOPO 0.6.3
+  * 17/06/2015: Release of iPOPO 0.6.2 -- Removed the "beta" classifer
+  * 20/04/2015: Release of iPOPO 0.6.1
+  * 12/03/2015: Release of iPOPO 0.6.0 -- iPOPO doesn't support Python 2.6 anymore
+  * 18/02/2015: Release of iPOPO 0.5.9
+  * 13/10/2014: Release of iPOPO 0.5.8
+  * 18/09/2014: Release of iPOPO 0.5.7
+  * 28/04/2014: Release of iPOPO 0.5.6
+  * 19/02/2014: iPOPO has been used in the Nao Robot during the [[contrib:eclipse_iot_2014|Eclipse IoT Day 2014]]
+  * 15/11/2013: Release of iPOPO 0.5.5, under the [[http://www.apache.org/licenses/LICENSE-2.0.html|Apache Software License 2.0]]
+  * 12/11/2013: iPOPO has been presented to [[http://wiki.eclipse.org/ECF|Eclipse ECF]] project members during their [[http://wiki.eclipse.org/ECF_Conference_Call_11.12.2013|conference call]].
+  * 04/11/2013: New iPOPO licence chosen: [[http://www.apache.org/licenses/LICENSE-2.0.html|Apache Software License 2.0]]. It will be applied on next release.
+  * 29/10/2013: iPOPO has been presented during [[http://www.eclipsecon.org/europe2013/osgi-lightning-talks|EclipseCon Europe 2013]]
+  * 01/10/2013: Release 0.5.4 (performance enhancements on large applications)
+  * 05/09/2013: iPOPO static web site replaced by a wiki
+  * 01/08/2013: Release 0.5.3 (small additions and bug fixes)
+  * 19/07/2013: Release 0.5.2 (small additions and bug fixes)
+  * 05/07/2013: Release 0.5.1 (bug fixes)
+  * 21/05/2013: Release 0.5 (**Warning:** API changes)
+  * 17/05/2013: iPOPO 0.5 has been presented at the [[http://france.osgiusers.org/Meeting/201305|OSGi User Group France meeting]] ([[http://ipopo.coderxpress.net/_static/slides/osgi-20130517/index.html|Slides]] and [[http://www.youtube.com/watch?v=umztzc6caO4|video]], in French)
+  * 26/06/2012: iPOPO 0.2 has been presented at [[http://comparch2012.dei.polimi.it/|CBSE'12]] ([[http://www.isandlatech.com/__FR/pdfs/20120429%20cbse30-calmant.pdf|article]])
+
+More information about the iPOPO versions in the [[ipopo:release_notes|release notes]].
+===== Conferences =====
+
+  * [[http://comparch2012.dei.polimi.it/|CBSE'2012]]: A Dynamic and Service-Oriented Component Model for Python Long-Lived Applications  ([[http://www.isandlatech.com/__FR/pdfs/20120429%20cbse30-calmant.pdf|article]])
+  * [[http://conference2014.ibpsa.fr| IBPSA'2014]]: Power Management of Laptops Batteries in Dynamic Heteroge- neous Environments Using iPOPO ({{:ibpsa2014.pdf| article}})
+  * (NOT PRESENTED) [[http://www.smartgreens.org/GuidelinesTemplates.aspx |Smart Energy'2014]]: Developing Dynamic Heterogeneous Environments in Smart Building Using iPOPO ({{:smartgreen2014.pdf| article}})
+

@@ -1,0 +1,27 @@
+====== Reference Card: EventAdmin ======
+
+===== EventAdmin service =====
+
+The EventAdmin service provides the ''pelix.services.eventadmin'' specification,which defines the following methods:
+
+^ Method                  ^ Description                                  ^
+| post(topic, properties) | Adds an event to asynchronous delivery queue |
+| send(topic, properties) | Notifies the event handlers synchronously    |
+
+Both methods get the topic as first parameter, which must be a URI-like string, e.g. //sensor/temperature/changed//, and a dictionary as second parameter, which can be None.
+
+When sending an event, each handler is notified with a different copy of the property dictionary, avoiding to propagate changes done by a handler.
+
+
+===== EventHandler service =====
+
+An event handler must provide the ''pelix.services.eventadmin.handler'' specification, which defines by the following method:
+
+^ Method                          ^ Description                         ^
+| handle_event(topic, properties) | The handler is notified of an event |
+
+An event handler must associate at least one the following properties to its service:
+
+^ Property     ^ Type            ^ Description                                                                                                                                                 ^
+| event.topics | List of strings | A list of strings that indicates the topics the topics this handler expects. EventAdmin supports "file name" filters, i.e. with  **%%*%%** or **?** jokers. |
+| event.filter | String          | A LDAP filter string that will be tested on the event properties.                                                                                           |

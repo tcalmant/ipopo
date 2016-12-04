@@ -1,0 +1,10 @@
+====== Thomas Calmant ======
+
+I'm a software Engineer at [[http://isandlatech.com/|isandlaTech]] and a PhD student at the [[http://liglab.fr/|Laboratoire Informatique de Grenoble]], in the [[http://erods.liglab.fr/|ERODS team]].
+
+Some links :
+
+  * [[http://fr.linkedin.com/in/thomascalmant/|LinkedIn]]
+  * [[https://twitter.com/tcalmant|Twitter]]
+  * [[https://www.openhub.net/accounts/calmant|OpenHub]]
+  * [[http://www.coderxpress.net/|Blog]] (not really active)

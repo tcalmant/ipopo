@@ -1,0 +1,54 @@
+====== Pelix shell v2 ======
+
+The current Pelix shell begins to show its limits, so a new version must be drafted.
+Here are the changes and new features that would be nice to have in the next version.
+
+===== Variables =====
+
+It would be nice to support variables in the shell, like:
+
+<code>
+$ set var="some.value"
+$ echo $var
+some.value
+$ install $var
+42
+$ unset $var
+$ echo $var
+
+$
+</code>
+
+
+===== Sessions =====
+
+Sessions would wrap the I/O Handler that is used to communicate with the client.
+It would contain the session dictionary to store variables.
+
+The session object would replace the I/O handler parameter in shell command, with full support of the previous API.
+
+
+===== Script files =====
+
+More a command than a feature, it should be possible to run a Pelix shell script file:
+<code>
+$ run installer.pelix
+</code>
+
+
+===== Result value =====
+
+Like in Unix shell, it would be interesting to keep the result of the last command in a variable, like ``$?``.
+This would allow to have script files like:
+
+<code>
+install sample.bundle
+start $?
+echo Installed bundle $?
+</code>
+
+This could then used in a script file:
+<code>
+$ run script.pelix
+Installed bundle 43
+</code>

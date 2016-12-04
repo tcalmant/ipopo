@@ -1,0 +1,124 @@
+====== Reference Card: Shell Commands ======
+
+Go to the [[ipopo:tutorials:shell|Shell service tutorial]] to see how to use the shell programmatically and how to provide new commands.
+
+===== Commands =====
+
+To use the shell service, the ''pelix.shell.core'' bundle must be installed and started.
+
+All commands are associated to a name space, in order to avoid name collisions.
+
+==== Core commands ====
+
+Core commands are provided by the core shell service itself.
+They are registered in the //default// name space.
+
+==== Shell commands ====
+
+^ Command    ^ Arguments    ^ Description                                                    ^
+| help       | [<command>]  | Prints the help for all commands, or only for the given one.   |
+| properties |              | Prints the properties of the framework (given at its creation) |
+| property   | <name>       | Prints the value of the given framework property               |
+| sysprops   |              | Prints the environment variables                               |
+| sysprop    | <name>       | Prints the value of the given environment variable             |
+| threads    |              | Prints the ID and the current line of code of each thread      |
+| thread     | <thread ID>  | Prints the stack trace of the given thread                     |
+
+
+=== Bundle commands ===
+
+^ Command   ^ Arguments    ^ Description                                                    ^
+| bl        | [<name>)     | Prints the list of installed bundles (can be filtered by name) |
+| bd        | <bundle ID>  | Prints the details about the given bundle (ID is an integer)   |
+| install   | <name>       | Installs the bundle with the given name. Prints the bundle ID  |
+| start     | <bundle ID>  | Starts the bundle with the given ID                            |
+| update    | <bundle ID>  | Updates the bundle with the given ID                           |
+| stop      | <bundle ID>  | Stops the bundle with the given ID                             |
+| uninstall | <bundle ID>  | Uninstalls the bundle with the given ID                        |
+
+
+=== Service commands ===
+
+^ Command ^ Arguments    ^ Description                                        ^
+| sl      | [<specification>] | Prints the list of registered services (can be filtered by specification) |
+| sd      | <service ID>      | Prints the details about the service with given ID                        |
+
+==== iPOPO commands ====
+
+The iPOPO commands are provided by the ''pelix.shell.ipopo'' bundle, which depends on the service provided by the ''pelix.ipopo.core'' bundle.
+
+^ Command           ^ Arguments                               ^ Description                                                                                  ^
+| ipopo.factories   | [<name>]                                | Prints the list of all registered iPOPO factories                                            |
+| ipopo.factory     | <factory>                               | Prints the details about the given factory                                                   |
+| ipopo.instances   | [<name>]                                | Prints the list of all instantiated iPOPO components                                         |
+| ipopo.instance    | <name>                                  | Prints the details about the given component                                                 |
+| ipopo.instantiate | <factory> <name> [<property=value> ...] | Creates a new component instance, from the given factory, with the given name and properties |
+| ipopo.kill        | <name>                                  | Kills the component with the given name                                                      |
+| ipopo.retry       | <name> [<property=value> ...]           | Tries to re-validate a component in ERRONEOUS state                                          |
+| ipopo.waiting     | [<name>]                                | Prints the list of components in the waiting list, waiting for a factory or a handler        |
+
+==== EventAdmin commands ====
+
+The ''pelix.shell.eventadmin'' bundle provides shell commands to send events using the EventAdmin service.
+It is based on the service provided by the EventAdmin component from ''pelix.services.eventadmin'' bundle.
+
+^ Command       ^ Arguments                      ^ Description                        ^
+| event.send    | <topic> [<property=value> ...] | Sends an event (blocking call)     |
+| event.post    | <topic> [<property=value> ...] | Posts an event (asynchronous call) |
+
+
+==== ConfigurationAdmin commands ===
+
+The ''pelix.shell.configadmin'' bundle provides shell commands to create, update and delete configurations, using the ConfigurationAdmin service.
+It requires the ''pelix.services.configadmin'' bundle to be installed and started to work.
+
+^ Command       ^ Arguments                    ^ Description                                                                                                       ^
+| config.create | <pid> [<property=value> ...] | Sets up a new configuration with the given Persistent ID                                                          |
+| config.update | <pid> [<property=value> ...] | Adds the given properties to the configuration with the given PID. Removes the properties which value is ''None'' |
+| config.reload | <pid>                        | Reloads/updates the properties of the configuration with the given PID from its storage                           |
+| config.delete | <pid>                        | Deletes the configuration with the given PID                                                                      |
+| config.list   | [<pid>]                      | List the available configurations or the one with the given PID                                                   |
+
+===== Consoles =====
+
+The Pelix shell core only parses and executes commands. It does not provide any user interface by itself.
+
+Pelix provides two consoles, a text UI and a TCP remote shell.
+As the shell core is thread-safe, all consoles can be used in parallel.
+
+==== Text console ====
+
+This console is provided by the ''pelix.shell.console'' bundle.
+It is based on ''readline'' (but can work without it), and it reads the standard input stream.
+
+This bundle doesn't need any configuration: it works as soon and as long as the bundle is started.
+
+==== Remote shell ====
+
+The TCP remote shell is provided by the ''pelix.shell.remote'' bundle.
+It is a basic server that can be accessed using NetCat or similar tools.
+
+Unlike the text console, this one is implemented as an iPOPO component that is not automatically instantiated.
+
+The ''ipopo-remote-shell-factory'' component factory allows to configure the remote shell instances with the following properties:
+
+^ Property            ^ Type ^ Default   ^ Description                         ^
+| pelix.shell.address | str  | localhost | The address the server is bound to  |
+| pelix.shell.port    | int  | 9000      | The port the server is listening to |
+
+The instantiatiation can be done programmatically, or using the text UI.
+Here is an example of the remote shell listening on the port 8000, accepting all IPv4 clients:
+
+^ Programmatically ^ Shell ^
+| <code python>
+# context: the BundleContext
+# ipopo  : the iPOPO core service
+context.install_bundle('pelix.shell.remote').start()
+props = {'pelix.shell.address': '0.0.0.0',
+         'pelix.shell.port': 8000}
+ipopo.instantiate('ipopo-remote-shell-factory', 'remote-shell', props)
+</code> | <code bash>
+$ install pelix.shell.remote
+Bundle ID: 5
+$ start 5
+$ instantiate ipopo-remote-shell-factory remote-shell pelix.shell.address=0.0.0.0 pelix.shell.port=8000</code> |

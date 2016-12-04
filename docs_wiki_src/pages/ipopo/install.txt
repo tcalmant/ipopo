@@ -1,0 +1,92 @@
+====== Installation ======
+
+This tutorial explains how to install iPOPO on a common OS (Windows, Linux, Mac OS X).
+For an installation on Android, see [[ipopo:tutorials:android]]
+===== Requirements =====
+
+iPOPO is tested on the following interpreters :
+
+  * Python 2.7, 3.2, 3.3, 3.4, 3.5
+  * Pypy 2.5
+
+<note>
+Since version 0.6.0, iPOPO doesn't support Python 2.6 anymore.
+However, the core parts of the framework might still be working, as long as the [[https://pypi.python.org/pypi/importlib|importlib]] package is installed.
+</note>
+
+===== From PyPI =====
+
+Since version 0.4, iPOPO is registered on the [[https://pypi.python.org/pypi/iPOPO|Python Package Index]].
+It can be installed using ''easy_install'' or ''pip'':
+
+<code bash>
+# Using pip
+sudo pip install --upgrade iPOPO
+
+# Using easy_install
+sudo easy_install -U iPOPO
+</code>
+
+
+===== From the source files =====
+
+The installation process is based on the ''setuptools'' package, but is still compatible with ''distutils''.
+
+  - Download a recent version of iPOPO:
+    * [[http://ipopo.coderxpress.net/dl/ipopo-latest.zip|Lastest stable release]]
+    * [[https://github.com/tcalmant/ipopo/archive/master.zip|Development version]] from the source repository
+    * Cloning the [[https://github.com/tcalmant/ipopo|source repository]]
+  - Extract the content and go into ''ipopo'' directory
+  - Run the installation file (''-f'' forces the installation, even if another version is already installed)
+<code bash>
+sudo python setup.py install -f
+</code>
+
+==== Development installation mode (''setuptools'') ====
+
+If you want to modify iPOPO or if you update it through the Git repository, you can use the following command to avoid re-installing iPOPO after every update:
+
+<code bash>
+sudo python setup.py develop
+</code>
+
+===== Validation of the installation =====
+
+If the installation is complete, you should bbe able to start the shell console via the command line:
+
+<code>
+user:~$ python -m pelix.shell.console
+** Pelix Shell prompt **
+$ bl
++----+-----------------------------------+--------+---------+
+| ID |               Name                | State  | Version |
++====+===================================+========+=========+
+| 0  | pelix.framework                   | ACTIVE | 0.6.3   |
++----+-----------------------------------+--------+---------+
+| 1  | pelix.ipopo.core                  | ACTIVE | 0.6.3   |
++----+-----------------------------------+--------+---------+
+| 2  | pelix.shell.core                  | ACTIVE | 0.6.3   |
++----+-----------------------------------+--------+---------+
+| 3  | pelix.shell.console               | ACTIVE | 0.6.3   |
++----+-----------------------------------+--------+---------+
+| 4  | pelix.shell.ipopo                 | ACTIVE | 0.6.3   |
++----+-----------------------------------+--------+---------+
+| 5  | pelix.ipopo.handlers.properties   | ACTIVE | 0.6.3   |
++----+-----------------------------------+--------+---------+
+| 6  | pelix.ipopo.handlers.provides     | ACTIVE | 0.6.3   |
++----+-----------------------------------+--------+---------+
+| 7  | pelix.ipopo.handlers.requires     | ACTIVE | 0.6.3   |
++----+-----------------------------------+--------+---------+
+| 8  | pelix.ipopo.handlers.requiresbest | ACTIVE | 0.6.3   |
++----+-----------------------------------+--------+---------+
+| 9  | pelix.ipopo.handlers.requiresmap  | ACTIVE | 0.6.3   |
++----+-----------------------------------+--------+---------+
+| 10 | pelix.ipopo.handlers.temporal     | ACTIVE | 0.6.3   |
++----+-----------------------------------+--------+---------+
+11 bundles installed
+$ exit
+Raising KeyboardInterrupt to stop main thread
+Bye !
+</code>
+
+You can now play with iPOPO with the [[ipopo:tutorials|Tutorials]].

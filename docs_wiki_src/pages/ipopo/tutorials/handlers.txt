@@ -1,0 +1,99 @@
+====== Write an iPOPO Handler ======
+
+In this tutorial, we will implement a Logger handler for iPOPO, which will inject a standard logger in the field given using an ''@Logger'' decorator.
+
+===== iPOPO Handlers =====
+
+iPOPO handlers are objects used by the framework to control a component.
+Some handlers have very visible effects on the component, like ''@Requires'', others depends on events from the component, like ''@Provides'', etc.
+
+A handler can be considered has a companion of the component, and might even have no effect at all it, e.g. a component tracing handler.
+
+==== Concepts ====
+
+  * An iPOPO Handler corresponds unique Handler ID
+  * This ID must be visible in the properties of an handler factory service
+  * Handlers are instantiated by their handler factory, once per component instance
+  * A handler factory can created multiple handler for a single component, or a single handler for all components, or no handler at all
+
+<note>It is recommended that handler factories inherits from ''pelix.ipopo.handlers.constants.HandlerFactory''</note>
+
+The way iPOPO handlers are used is pretty straightforward:
+
+  - The component factory class is manipulated by a decorator. At least, an entry is associated to the handler ID in the factory context using ''FactoryContext.set_handler(ID, configuration)''
+  - iPOPO looks for the handlers required by a component factory, matching the handlers IDs stored in the Factory context. If one is missing, the component instantiation fails, else it creates the component object (calling its ''__init__'' method)
+  - Then, it calls the ''get_handlers()'' method of all handler factories
+  - Finally it calls the ''manipulate'' then the ''start'' methods of those handlers
+
+If a handler or a handler factory fails during this process, the instantiation is canceled.
+
+==== Kinds ====
+
+iPOPO uses the concept of kinds to filter the ones to call in given circumstances.
+There are 3 predefined kinds, used internally, but a handler can be of any kind.
+A handler must have at least one kind, i.e. a non-None, non-empty string, or it won't be called back on events.
+
+The predefined kinds are defined in ''pelix.ipopo.handlers.constants'':
+
+^ Kind             ^ Description                                                                                                                                                                             ^
+| properties       | Notifies of changes in the component properties (handler -> iPOPO)                                                                                                                      |
+| dependency       | Handles injected dependencies. The handler **must** provide the ''get_bindings()'' and ''is_valid()'' methods                                                                           |
+| service_provider | Registers a service in the framework. It **must** provide a ''get_service_reference()'' method, and //should// provide ''on_controller_change()'' and ''on_property_change()'' methods. |
+
+
+==== Callbacks ====
+
+Handlers are called by the iPOPO core service and the stored instance (a.k.a. the instance manager).
+They can implement the following methods to be notified of component changes:
+
+=== Handler Factory ===
+
+^ Method                                                  ^ Returned value     ^  Description ^
+| ''get_handlers(component_context, component_instance)'' | A list of handlers | Creates and returns the handlers for the given component |
+
+=== Handlers basic methods ===
+
+^ Method          ^ Returned value ^ Presence        ^ Description ^
+| ''get_kinds()'' | A list         | **Mandatory**   | Returns the list of the kinds of the handler, at least one kind must be given |
+| ''manipulate(stored_instance, component_instance)'' | None | **Mandatory** | Lets the handler manipulate a component instance freshly instantiated |
+| ''start()''     | None           | Optional        | Called once all handlers have manipulated the component |
+| ''stop()''      | None           | Optional        | Called while the component is being killed  |
+| ''clear()''     | None           | //Recommended// | Called after all handlers have been stopped |
+
+
+=== Component control ===
+
+^ Method            ^ Returned value          ^ Description ^
+| ''check_event()'' | Boolean (default: True) | Checks if the given service event must be handled or ignored. It is used by ''dependency'' handlers to avoid handling events after being cleared |
+| ''is_valid()''    | Boolean (default: True) | Checks if the component can be validated                          |
+| ''try_binding()'' | None                    | Tells the ''dependency'' handlers to update dependencies bindings |
+
+The ''try_binding()'' method is called only for handlers with the ''dependency'' kind.
+
+
+=== Component events ===
+
+All those methods are optional.
+
+^ Method                ^ Returned value ^ Description ^
+| ''pre_invalidate()''  | None           | Called right before the ''@Invalidate'' method of the component is called |
+| ''post_invalidate()'' | None           | Called right after the ''@Invalidate'' method of the component is called  |
+| ''pre_validate()''    | None           | Called right before the ''@Validate'' method of the component is called   |
+| ''post_validate()''   | None           | Called right after the ''@Validate'' method of the component is called    |
+| ''on_property_change(name, old_value, new_value)'' | None | Called when a ''@Property'' field value has changed    |
+| ''on_controller_change(name, new_value)'' | None | Called when a ''@Provides'' controller value has changed        |
+
+
+===== Implementation =====
+
+==== Decorator ====
+
+==== Handler Factory ====
+
+==== Handler ====
+
+
+===== Sources =====
+
+Sources are available in the Git repository: [[https://github.com/tcalmant/ipopo/tree/dev/samples/handler|samples/handler]].
+A sample framework can be started using the ''samples/run_handler.py'' script.
