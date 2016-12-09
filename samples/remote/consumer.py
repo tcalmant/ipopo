@@ -23,6 +23,22 @@ Greeting service consumer
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+
+# Python 2 compatibility
+from __future__ import print_function
+
+# Standard library
+import threading
+
+# iPOPO decorators
+from pelix.ipopo.decorators import ComponentFactory, Requires, Instantiate, \
+    BindField, UnbindField, Validate
+
+# Pelix constants
+import pelix.constants
+
+# ------------------------------------------------------------------------------
+
 # Module version
 __version_info__ = (0, 5, 9)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -32,20 +48,8 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-# iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Instantiate, \
-    BindField, UnbindField, Validate
-
-# Pelix constants
-import pelix.constants
-
-# Standard library
-import threading
-
-# ------------------------------------------------------------------------------
-
 # Service specification
-SERVICE_SPECIFICATION = "sample.grettings"
+SERVICE_SPECIFICATION = "sample.greetings"
 
 # ------------------------------------------------------------------------------
 
@@ -113,7 +117,7 @@ class HelloWorldConsumer(object):
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
         # Print it
-        print("This framework has UID: {0}".format(self._fw_uid))
+        print("This framework has UID:", self._fw_uid)
 
         # Use existing services
         for service in self._services:

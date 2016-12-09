@@ -23,6 +23,16 @@ Greeting service provider
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+
+# Python 2 compatibility
+from __future__ import print_function
+
+# Pelix remote services constants
+from pelix.constants import BundleActivator
+import pelix.remote
+
+# ------------------------------------------------------------------------------
+
 # Module version
 __version_info__ = (0, 5, 9)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -32,14 +42,8 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-# Pelix remote services constants
-from pelix.constants import BundleActivator
-import pelix.remote
-
-# ------------------------------------------------------------------------------
-
 # Service specification
-SERVICE_SPECIFICATION = "sample.grettings"
+SERVICE_SPECIFICATION = "sample.greetings"
 
 # ------------------------------------------------------------------------------
 
@@ -54,7 +58,7 @@ class HelloWorldImpl(object):
 
         @param name Some name
         """
-        print("Python>> Hello, {0} !".format(name))
+        print("Python>> Hello,", name, "!")
 
 # ------------------------------------------------------------------------------
 
@@ -81,8 +85,8 @@ class Activator(object):
                  [SERVICE_SPECIFICATION]}
 
         # Register the service with the Java specification
-        self.__registration = context.register_service(SERVICE_SPECIFICATION,
-                                                       HelloWorldImpl(), props)
+        self.__registration = context.register_service(
+            SERVICE_SPECIFICATION, HelloWorldImpl(), props)
 
     def stop(self, context):
         """

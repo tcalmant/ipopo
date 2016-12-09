@@ -20,7 +20,7 @@ Usage: run_remote.py [-h] [-s] [-p HTTP_PORT] [-d [DISCOVERY [DISCOVERY ...]]]
 :author: Thomas Calmant
 :copyright: Copyright 2016, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.5.9
+:version: 0.6.4
 
 ..
 
@@ -38,17 +38,10 @@ Usage: run_remote.py [-h] [-s] [-p HTTP_PORT] [-d [DISCOVERY [DISCOVERY ...]]]
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-# Module version
-__version_info__ = (0, 5, 9)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
 
 # Pelix
 from pelix.ipopo.constants import use_waiting_list
+import pelix.constants
 import pelix.framework
 import pelix.remote as rs
 
@@ -56,6 +49,15 @@ import pelix.remote as rs
 import argparse
 import logging
 import sys
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (0, 6, 4)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
