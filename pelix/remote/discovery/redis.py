@@ -91,7 +91,6 @@ class RedisDiscovery(object):
     """
     Remote services discovery and notification using a Redis server
     """
-
     def __init__(self):
         """
         Sets up the component
@@ -102,6 +101,9 @@ class RedisDiscovery(object):
 
         # Framework UID
         self._fw_uid = None
+
+        # Hostname cache: Framework UID -> Hostname
+        self._frameworks_hosts = {}
 
         # Redis
         self._redis_host = "localhost"
@@ -142,6 +144,9 @@ class RedisDiscovery(object):
 
         # Stop the heart beat
         self._unregister_framework()
+
+        # Clean up
+        self._frameworks_hosts.clear()
         _logger.debug("Redis discovery invalidated")
 
     @Validate
@@ -330,14 +335,23 @@ class RedisDiscovery(object):
         :param data: Redis notification data
         """
         event = data['data'].decode('utf-8')
+
+        # Compute framework UID
+        # 1: remove the Redis channel prefix
+        # 2: remove the key prefix (pelix/remote/frameworks)
+        fw_uid = data['channel'].decode('utf-8') \
+            .split(':', 1)[1] \
+            .split('/', 3)[-1]
+
         if event == 'expired':
-            # A framework has expired: get its UID
-            # 1: remove the Redis channel prefix
-            # 2: remove the key prefix (pelix/remote/frameworks)
-            fw_uid = data['channel'].decode('utf-8') \
-                .split(':', 1)[1] \
-                .split('/', 3)[-1]
+            # A framework has expired: clean it up
             logging.warning("Framework %s has expired", fw_uid)
+
+            # Forget about its hostname
+            try:
+                del self._frameworks_hosts[fw_uid]
+            except KeyError:
+                pass
 
             # Forget all of its endpoints
             self._registry.lost_framework(fw_uid)
@@ -347,6 +361,9 @@ class RedisDiscovery(object):
                 PATTERN_ENDPOINT_KEY.format(fw_uid=fw_uid, endpoint_uid="*"))
             if keys:
                 self._redis.delete(*keys)
+        elif event == 'expire' and fw_uid not in self._frameworks_hosts:
+            # Unknown framework found: store its hostname
+            self._frameworks_hosts[fw_uid] = self._redis.get(data['channel'])
 
     def _handle_endpoint_event(self, data):
         """
@@ -388,9 +405,22 @@ class RedisDiscovery(object):
         fw_uid, _ = self._extract_uids(endpoint_key)
         if fw_uid != self._fw_uid:
             # Not an echo: handle the event
+            # 1. Get the framework hostname
+            try:
+                # Find in cache
+                hostname = self._frameworks_hosts[fw_uid]
+            except KeyError:
+                # Get it from Redis
+                hostname = self._frameworks_hosts[fw_uid] = self._redis.get(
+                    PATTERN_FRAMEWORK_KEY.format(fw_uid=fw_uid))
+
+            # 2. Read the EDEF content
             content = self._redis.get(endpoint_key).decode('utf-8')
             for endpoint in EDEFReader().parse(content):
+                # Convert to a Pelix ImportEndpoint, and set the server hostname
                 endpoint = endpoint.to_import()
+                endpoint.server = hostname
+
                 if self._registry.contains(endpoint):
                     # Update endpoint
                     self._registry.update(endpoint.uid, endpoint.properties)
