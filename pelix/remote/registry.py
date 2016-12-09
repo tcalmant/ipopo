@@ -32,6 +32,7 @@ import threading
 # Remote Services constants
 import pelix.constants
 import pelix.remote
+import pelix.remote.beans as beans
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
@@ -72,10 +73,10 @@ class ImportsRegistry(object):
         # Framework UID
         self._fw_uid = None
 
-        # Framework UID -> [Endpoints]
+        # Framework UID -> [ImportEndpoint]
         self._frameworks = {}
 
-        # End point UID -> Endpoint
+        # End point UID -> ImportEndpoint
         self._registry = {}
 
         # Lock
@@ -126,7 +127,6 @@ class ImportsRegistry(object):
                     listener.endpoint_added(endpoint)
                 except Exception as ex:
                     _logger.exception("Error calling listener: %s", ex)
-
         return True
 
     def update(self, uid, new_properties):
@@ -145,22 +145,35 @@ class ImportsRegistry(object):
                 # Replace the stored properties
                 old_properties = stored_endpoint.properties.copy()
                 stored_endpoint.properties = new_properties
-
         except KeyError:
             # Unknown end point: ignore it
             return False
-
         else:
             # Notify listeners
             if self._listeners:
                 for listener in self._listeners[:]:
                     try:
-                        listener.endpoint_updated(stored_endpoint,
-                                                  old_properties)
+                        listener.endpoint_updated(
+                            stored_endpoint, old_properties)
                     except Exception as ex:
                         _logger.exception("Error calling listener: %s", ex)
-
             return True
+
+    def contains(self, endpoint):
+        """
+        Checks if an endpoint is in the registry
+
+        :param endpoint: An endpoint UID or an
+                         :class:`~pelix.remote.ImportEndpoint` object
+        :return: True if the endpoint is known, else False
+        """
+        if isinstance(endpoint, beans.ImportEndpoint):
+            return endpoint.uid in self._registry
+        else:
+            return endpoint in self._registry
+
+    # Support for the 'in' keyword
+    __contains__ = contains
 
     def remove(self, uid):
         """
@@ -174,7 +187,7 @@ class ImportsRegistry(object):
             endpoint = self._registry.pop(uid)
         except KeyError:
             # Unknown end point
-            _logger.warning("Unknown end point UID: %s", uid)
+            _logger.debug("Unknown end point UID: %s", uid)
             return False
 
         # Remove it from its framework storage, if any
@@ -182,12 +195,10 @@ class ImportsRegistry(object):
             framework_endpoints = self._frameworks[endpoint.framework]
             if endpoint in framework_endpoints:
                 framework_endpoints.remove(endpoint)
-
                 if not framework_endpoints:
                     # Remove framework entry if there is no more endpoint
                     # from it
                     del self._frameworks[endpoint.framework]
-
         except (KeyError, ValueError):
             # Ignore the absence of reference in the framework storage
             pass
@@ -209,24 +220,23 @@ class ImportsRegistry(object):
         :param uid: The UID of a framework
         """
         # Get the end points of this framework
-        endpoints = self._frameworks.pop(uid, None)
-        if endpoints:
-            for endpoint in endpoints:
-                with self.__lock:
-                    # Remove endpoint from registry
-                    try:
-                        del self._registry[endpoint.uid]
-                    except KeyError:
-                        # The endpoint may have been removed by a listener
-                        pass
+        endpoints = self._frameworks.pop(uid, [])
+        for endpoint in endpoints:
+            with self.__lock:
+                # Remove endpoint from registry
+                try:
+                    del self._registry[endpoint.uid]
+                except KeyError:
+                    # The endpoint may have been removed by a listener
+                    pass
 
-                # Notify listeners
-                if self._listeners:
-                    for listener in self._listeners[:]:
-                        try:
-                            listener.endpoint_removed(endpoint)
-                        except Exception as ex:
-                            _logger.exception("Error calling listener: %s", ex)
+            # Notify listeners
+            if self._listeners:
+                for listener in self._listeners[:]:
+                    try:
+                        listener.endpoint_removed(endpoint)
+                    except Exception as ex:
+                        _logger.exception("Error calling listener: %s", ex)
 
     @Validate
     def validate(self, context):
@@ -237,7 +247,7 @@ class ImportsRegistry(object):
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
     @Invalidate
-    def invalidate(self, context):
+    def invalidate(self, _):
         """
         Component invalidated: clean up storage
         """

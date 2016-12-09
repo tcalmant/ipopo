@@ -49,6 +49,9 @@ FACTORY_DISCOVERY_MULTICAST = "pelix-remote-discovery-multicast-factory"
 FACTORY_DISCOVERY_ZEROCONF = "pelix-remote-discovery-zeroconf-factory"
 """ Name of the Zeroconf/mDNS discovery component factory """
 
+FACTORY_DISCOVERY_REDIS = "pelix-remote-discovery-redis-factory"
+""" Name of the Redis-based discovery component factory """
+
 
 FACTORY_TRANSPORT_JSONRPC_EXPORTER = "pelix-jsonrpc-exporter-factory"
 """ Name of the JSON-RPC exporter component factory """
