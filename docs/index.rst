@@ -32,7 +32,7 @@ Usage survey
 ============
 
 In order to gain insight from the iPOPO community, I've put a
-`really short survey <https://docs.google.com/forms/d/1zx18_Rg27mjdGrlbtr9fWFmVnZNINo9XCfrYJbr4oJI/prefill>`_
+`really short survey <https://docs.google.com/forms/d/1zx18_Rg27mjdGrlbtr9fWFmVnZNINo9XCfrYJbr4oJI>`_
 on Google Forms (no login required).
 
 Please, feel free to answer it, the more answers, the better.
