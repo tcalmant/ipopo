@@ -150,8 +150,8 @@ API
 ---
 
 .. autoclass:: InitFileHandler
-:members: clear, load, normalize, instantiate_components, bundles,
-                 properties
+   :members: clear, load, normalize, instantiate_components, bundles,
+             properties
 
 Sample API Usage
 ----------------
