@@ -402,6 +402,8 @@ class RedisDiscovery(object):
         An endpoint has been set or updated in Redis
 
         :param endpoint_key: Name of the Redis key describing the endpoint
+        :return: True if an endpoint was added, False if it was a pending
+                 endpoint and None if it was an echo
         """
         fw_uid, _ = self._extract_uids(endpoint_key)
         if fw_uid != self._fw_uid:
@@ -413,12 +415,25 @@ class RedisDiscovery(object):
             except KeyError:
                 # Get it from Redis
                 hostname = self._redis.get(
-                    PATTERN_FRAMEWORK_KEY.format(fw_uid=fw_uid)) \
-                    .decode('utf-8')
-                self._frameworks_hosts[fw_uid] = hostname
+                    PATTERN_FRAMEWORK_KEY.format(fw_uid=fw_uid))
+                if not hostname:
+                    # Endpoint's framework has been removed: ignore
+                    # (happens when two frameworks clear traces of an old one)
+                    logging.debug("Framework of endpoint key %s, doesn't "
+                                  "have a hostname", endpoint_key)
+                    return False
+                else:
+                    # Valid hostname found, convert it to a string
+                    hostname = self._frameworks_hosts[fw_uid] = \
+                        hostname.decode('utf-8')
 
             # 2. Read the EDEF content
-            content = self._redis.get(endpoint_key).decode('utf-8')
+            content = self._redis.get(endpoint_key)
+            if not content:
+                logging.debug("Endpoint description removed while handling it")
+                return False
+
+            content = content.decode('utf-8')
             for endpoint in EDEFReader().parse(content):
                 # Convert to a Pelix ImportEndpoint, and set the server hostname
                 endpoint = endpoint.to_import()
@@ -430,6 +445,7 @@ class RedisDiscovery(object):
                 else:
                     # New endpoint
                     self._registry.add(endpoint)
+            return True
 
     def _handle_del(self, endpoint_key):
         """
