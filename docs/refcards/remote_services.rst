@@ -23,6 +23,13 @@ Services, *i.e.*:
 * the discovery providers
 * the transport providers
 
+The big picture of the Pelix Remote Services can be seen as:
+
+.. image:: /_static/rs_arch.svg
+   :alt: Architecture of Pelix Remote Services
+   :align: center
+   :scale: 100%
+
 Note that Pelix Remote Services implementation has been inspired from the
 OSGi Remote Services specification, and tries to reuse most of its constants,
 to ease compatibility.
@@ -34,8 +41,19 @@ Services works.
 How does it work?
 -----------------
 
-When a service declares it can be exported, each *transport provider* tests
-if it can/must create an endpoint for it.
+The export and import of a service follows this sequence diagram, described
+below:
+
+.. image:: /_static/rs_sequence.svg
+   :alt: Sequence of the export and import of a service
+   :align: center
+   :scale: 100%
+
+When a service declares it can be exported, the *export dispatcher* detects
+it (as it is a service listener) notifies all *transport providers* which
+matches the service properties.
+Each transport provider then tests if it can/must create an endpoint for it and,
+if so, returns an *export endpoint* description to the *exports dispatcher*.
 The endpoint implementation is transport-dependent: it can be a servlet
 (HTTP-based procotols), a serial-port listener, ...
 As a result, there can be multiple *export endpoints* for a single service:
