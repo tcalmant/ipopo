@@ -100,7 +100,7 @@ class ImportsRegistry(object):
         Registers an end point and notifies listeners. Does nothing if the
         endpoint UID was already known.
 
-        :param endpoint: An ImportedEndpoint object
+        :param endpoint: An :class:`~pelix.remote.beans.ImportEndpoint` object
         :return: True if the end point has been added
         """
         with self.__lock:
@@ -164,7 +164,7 @@ class ImportsRegistry(object):
         Checks if an endpoint is in the registry
 
         :param endpoint: An endpoint UID or an
-                         :class:`~pelix.remote.ImportEndpoint` object
+                         :class:`~pelix.remote.beans.ImportEndpoint` object
         :return: True if the endpoint is known, else False
         """
         if isinstance(endpoint, beans.ImportEndpoint):
@@ -239,7 +239,7 @@ class ImportsRegistry(object):
                         _logger.exception("Error calling listener: %s", ex)
 
     @Validate
-    def validate(self, context):
+    def _validate(self, context):
         """
         Component validated
         """
@@ -247,7 +247,7 @@ class ImportsRegistry(object):
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
     @Invalidate
-    def invalidate(self, _):
+    def _invalidate(self, _):
         """
         Component invalidated: clean up storage
         """

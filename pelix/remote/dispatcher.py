@@ -460,7 +460,7 @@ class Dispatcher(object):
         Returns None if the UID is unknown.
 
         :param uid: UID of an end point
-        :return: The end point description
+        :return: An :class:`~pelix.remote.beans.ExportEndpoint` or None.
         """
         return self.__endpoints.get(uid)
 
@@ -470,7 +470,8 @@ class Dispatcher(object):
 
         :param kind: A kind of end point
         :param name: The name of the end point
-        :return: A list of end point matching the parameters
+        :return: A list of :class:`~pelix.remote.beans.ExportEndpoint`
+                 matching the parameters
         """
         with self.__endpoints_lock:
             # Get all endpoints
