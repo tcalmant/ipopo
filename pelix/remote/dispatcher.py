@@ -534,15 +534,14 @@ class RegistryServlet(object):
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
         # Normalize the path
-        self._path = '/{0}/'.format('/'.join(part
-                                             for part in self._path.split('/')
-                                             if part))
+        self._path = '/{0}/'.format(
+            '/'.join(part for part in self._path.split('/') if part))
 
-        _logger.debug("Dispatcher servlet for %s on %s", self._fw_uid,
-                      self._path)
+        _logger.debug(
+            "Dispatcher servlet for %s on %s", self._fw_uid, self._path)
 
     @Invalidate
-    def _invalidate(self, context):
+    def _invalidate(self, _):
         """
         Component invalidated
         """
@@ -568,7 +567,6 @@ class RegistryServlet(object):
             result = conn.getresponse()
             data = result.read()
             conn.close()
-
         except Exception as ex:
             _logger.error("Error accessing the dispatcher servlet: %s", ex)
             return
@@ -580,14 +578,12 @@ class RegistryServlet(object):
         try:
             # Convert the response to a string
             data = to_str(data)
-
             # Parse the JSON result
             return json.loads(data)
-
         except ValueError as ex:
             # Error parsing data
-            _logger.error("Error reading the response of the dispatcher: %s",
-                          ex)
+            _logger.error(
+                "Error reading the response of the dispatcher: %s", ex)
 
     def _make_endpoint_dict(self, endpoint):
         """
@@ -597,19 +593,17 @@ class RegistryServlet(object):
         :return: A dictionary
         """
         # Send import-side properties
-        properties = endpoint.make_import_properties()
-
         return {"sender": self._fw_uid,
                 "uid": endpoint.uid,
                 "configurations": endpoint.configurations,
                 "name": endpoint.name,
                 "specifications": endpoint.specifications,
-                "properties": properties}
+                "properties": endpoint.make_import_properties()}
 
     @staticmethod
     def _make_endpoint_bean(endpoint_dict, host=None):
         """
-        Convers an endpoint dictionary into an ImportEndpoint bean
+        Converts an endpoint dictionary into an ImportEndpoint bean
 
         :param endpoint_dict: Dictionary form of the endpoint
         :param host: The host of the endpoint (optional)
@@ -678,41 +672,35 @@ class RegistryServlet(object):
             # /framework: return the framework UID, let it be converted as a
             # JSON string
             data = self._fw_uid
-
         elif action == "endpoints":
             # /endpoints: all end points
             endpoints = self._dispatcher.get_endpoints()
             if not endpoints:
                 data = []
-
             else:
                 data = [self._make_endpoint_dict(endpoint)
                         for endpoint in endpoints]
-
         elif action == "endpoint":
             # /endpoint/<uid>: specific end point
             try:
                 uid = path_parts[1]
                 endpoint = self._dispatcher.get_endpoint(uid)
-
             except IndexError:
                 # UID not given
                 uid = "<unknown>"
                 endpoint = None
 
             if endpoint is None:
-                response.send_content(404, "Unknown UID: {0}".format(uid),
-                                      "text/plain")
+                response.send_content(
+                    404, "Unknown UID: {0}".format(uid), "text/plain")
                 return
-
             else:
                 data = self._make_endpoint_dict(endpoint)
-
         else:
             # Unknown
-            response.send_content(404,
-                                  "Unhandled path {0}"
-                                  .format(request.get_path()), "text/plain")
+            response.send_content(
+                404, "Unhandled path {0}".format(request.get_path()),
+                "text/plain")
             return
 
         # Convert the result to JSON
@@ -730,7 +718,6 @@ class RegistryServlet(object):
         """
         # Split the path
         path_parts = request.get_path().split('/')
-
         if path_parts[-1] != "endpoints":
             # Bad path
             response.send_content(404, "Unhandled path", "text/plain")
@@ -738,7 +725,6 @@ class RegistryServlet(object):
 
         # Read the content
         endpoints = json.loads(to_str(request.read_data()))
-
         if endpoints:
             # Got something
             sender = request.get_client_address()[0]
@@ -818,12 +804,10 @@ class RegistryServlet(object):
             _logger.error("Error sending endpoints to the framework at "
                           "%s:%s: %s", host, port, ex)
             return False
-
         else:
             if result.status != 200:
                 # Not a valid result
                 _logger.warning("Got an HTTP code %d when contacting a "
                                 "discovered framework: %s",
                                 result.status, data)
-
             return result.status == 200
