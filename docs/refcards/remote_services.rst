@@ -165,6 +165,28 @@ services:
   :class:`pelix.remote.registry <pelix.remote.registry.ImportsRegistry>` service.
 
 
+Dispatcher Servlet
+------------------
+
+The content of the *exports dispatcher* can be exposed by the
+*dispatcher servlet*, provided by the same bundle as the *exports dispatcher*,
+``pelix.remote.dispatcher``.
+Most discovery providers rely on this servlet as it allows to get the list of
+exported endpoints, or the details of a single one, in JSON format.
+
+This servlet must be instantiated explicitly using its
+``pelix-remote-dispatcher-servlet-factory`` factory.
+As it is a servlet, it requires the HTTP service to be up and running to provide
+it to clients.
+
+Its API is very simple:
+
+* ``/framework``: returns the framework UID as a JSON string
+* ``/endpoints``: returns the whole list of the export endpoints registered in
+  the exports dispatcher, as a JSON array of JSON objects.
+* ``/endpoint/<uid>``: returns the export endpoint with the given UID as a
+  JSON object.
+
 Discovery Providers
 -------------------
 
@@ -198,6 +220,410 @@ of the Pelix Remote Services.
 All those protocols require the HTTP service to be up and running to work.
 Finally, iPOPO also supports a kind of *MQTT-RPC* protocol, *i.e.* JSON-RPC over
 MQTT.
+
+
+Providers included with Pelix/iPOPO
+===================================
+
+This section gives more details about the usage of the discovery and transport
+providers included in Pelix/iPOPO.
+You'll need at least a discovery and a compatible transport provider for
+Pelix Remote Services to work.
+
+Apart MQTT, the discovery and transport providers are independent and can be
+used with one another.
+
+Multicast Discovery
+-------------------
+
+:Bundle: pelix.remote.discovery.multicast
+:Factory: pelix-remote-discovery-multicast-factory
+:Requires: HTTP Service, Dispatcher Servlet
+:Libraries: *nothing* (based on the Python Standard Library)
+
+Pelix comes with a home-made UDP multicast discovery protocol, implemented in
+the ``pelix.remote.discovery.multicast`` bundle.
+This is the original discovery protocol of Pelix/iPOPO and the most reliable
+one in small local area networks.
+A Java version of this protocol is provided by the
+`Cohorte Remote Services implementation <https://github.com/isandlaTech/cohorte-remote-services>`_.
+
+This protocol consists in minimalist packets on remote service registration,
+update and unregistration.
+They mainly contain the notification event type, the port of the HTTP server of
+the framework and the path to the dispatcher servlet.
+The IP of the framework is the source IP of the multicast packet: this allows
+to get a valid address for frameworks on servers with multiple network
+interfaces.
+
+This provider relies on the HTTP server and the *dispatcher servlet*.
+It doesn't have external dependencies.
+
+The bundle provides a ``pelix-remote-discovery-multicast-factory`` iPOPO
+factory, which **must** be instantiated to work.
+It can be configured with the following properties:
+
+=============== ============= ==================================================
+Property        Default value Description
+=============== ============= ==================================================
+multicast.group 239.0.0.1     The multicast group (address) to join to send and receive discovery messages.
+multicast.port  42000         The multicast port to listen to
+=============== ============= ==================================================
+
+To use this discovery provider, you'll need to install the following bundles
+and instantiate the associated components:
+
+.. code-block:: shell
+
+   # Start the HTTP service with default parameters
+   install pelix.http.basic
+   start $?
+   instantiate pelix.http.service.basic.factory httpd
+
+   # Install Remote Services Core
+   install pelix.remote.registry
+   start $?
+   install pelix.remote.dispatcher
+   start $?
+
+   # Instantiate the dispatcher servlet
+   instantiate pelix-remote-dispatcher-servlet-factory dispatcher-servlet
+
+   # Install and start the multicast discovery with the default parameters
+   install pelix.remote.discovery.multicast
+   start $?
+   instantiate pelix-remote-discovery-multicast-factory discovery-mcast
+
+
+mDNS Discovery
+--------------
+
+:Bundle: pelix.remote.discovery.mdns
+:Factory: pelix-remote-discovery-zeroconf-factory
+:Requires: HTTP Service, Dispatcher Servlet
+:Libraries: `pyzeroconf <https://github.com/mcfletch/pyzeroconf>`_
+
+The mDNS protocol, also known as Zeroconf, is a standard protocol based on
+multicast packets.
+It provides a Service Discovery layer (mDNS-SD) based on the DNS-SD
+specification.
+
+Unlike the home-made multicast protocol, this one doesn't support service
+updates and gives troubles with service unregistrations (frameworks lost, ...).
+As a result, it should be used only if it is required to interact with other
+mDNS devices.
+
+In order to work with the mDNS discovery from the
+Eclipse Communication Framework, the ``pyzeroconf`` library must be patched:
+the ``.local.`` check in ``zeroconf.mdns.DNSQuestion`` must be removed
+(around line 220).
+
+This provider is implemented in the ``pelix.remote.discovery.mdns`` bundle,
+which provides a ``pelix-remote-discovery-zeroconf-factory`` iPOPO
+factory, which **must** be instantiated to work.
+It can be configured with the following properties:
+
+===================== ===================== ====================================
+Property              Default value         Description
+===================== ===================== ====================================
+zeroconf.service.type _pelix_rs._tcp.local. Zeroconf service type of exported services
+zeroconf.ttl          60                    Time To Live of services (in seconds)
+===================== ===================== ====================================
+
+To use this discovery provider, you'll need to install the following bundles
+and instantiate the associated components:
+
+.. code-block:: shell
+
+   # Start the HTTP service with default parameters
+   install pelix.http.basic
+   start $?
+   instantiate pelix.http.service.basic.factory httpd
+
+   # Install Remote Services Core
+   install pelix.remote.registry
+   start $?
+   install pelix.remote.dispatcher
+   start $?
+
+   # Instantiate the dispatcher servlet
+   instantiate pelix-remote-dispatcher-servlet-factory dispatcher-servlet
+
+   # Install and start the mDNS discovery with the default parameters
+   install pelix.remote.discovery.mdns
+   start $?
+   instantiate pelix-remote-discovery-zeroconf-factory discovery-mdns
+
+
+Redis Discovery
+---------------
+
+:Bundle: pelix.remote.discovery.redis
+:Factory: pelix-remote-discovery-redis-factory
+:Requires: *nothing* (all is stored in the Redis database)
+:Libraries: `redis <https://pypi.python.org/pypi/redis>`_
+
+The Redis discovery is the only one working well in Docker (Swarm) networks.
+It uses a `Redis database <https://redis.io/>`_ to store the host name of each
+framework and the description of each exported endpoint of each framework.
+Those description are stored in the OSGi standard EDEF XML format, so it should
+be possible to implement a Java version of this discovery provider.
+The Redis discovery uses the *key events* of the database to be notified by
+the latter when a framework or an exported service is registered, updated,
+unregistered or timed out, which makes it both robust and reactive.
+
+This provider is implemented in the ``pelix.remote.discovery.redis`` bundle,
+which provides a ``pelix-remote-discovery-redis-factory`` iPOPO factory, which
+**must** be instantiated to work.
+It can be configured with the following properties:
+
+=============== ============= ==================================================
+Property        Default value Description
+=============== ============= ==================================================
+redis.host      localhost     The hostname of the Redis server
+redis.port      46379         The port the Redis server listens to
+redis.db        0             The Redis database to use (integer)
+redis.password  None          Password to access the Redis database
+heartbeat.delay 10            Delay in seconds between framework heart beats
+=============== ============= ==================================================
+
+To use this discovery provider, you'll need to install the following bundles
+and instantiate the associated components:
+
+.. code-block:: shell
+
+   # Install Remote Services Core
+   install pelix.remote.registry
+   start $?
+   install pelix.remote.dispatcher
+   start $?
+
+   # Install and start the Redis discovery with the default parameters
+   install pelix.remote.discovery.redis
+   start $?
+   instantiate pelix-remote-discovery-redis-factory discovery-redis
+
+
+XML-RPC Transport
+-----------------
+
+:Bundle: pelix.remote.xml_rpc
+:Factories: pelix-xmlrpc-exporter-factory, pelix-xmlrpc-importer-factory
+:Requires: HTTP Service
+:Libraries: *nothing* (based on the Python Standard Library)
+
+The XML-RPC transport is the first one having been implemented in Pelix/iPOPO.
+Its main advantage is that is doesn't depend on an external library, XML-RPC
+being supported by the Python Standard Library.
+
+It has some troubles with complex and custom types (dictionaries, ...), but can
+be used without problems on primitive types.
+The JSON-RPC transport can be preferred in most cases.
+
+Like most of the transport providers, this one is split in two components:
+the exporter and the importer.
+Both must be instantiated manually.
+
+The exporter instance can be configured with the following property:
+
+=============== ============= ==================================================
+Property        Default value Description
+=============== ============= ==================================================
+pelix.http.path /XML-RPC      The path to the XML-RPC exporter servlet
+=============== ============= ==================================================
+
+To use this transport provider, you'll need to install the following bundles
+and instantiate the associated components:
+
+.. code-block:: shell
+
+   # Start the HTTP service with default parameters
+   install pelix.http.basic
+   start $?
+   instantiate pelix.http.service.basic.factory httpd
+
+   # Install Remote Services Core
+   install pelix.remote.registry
+   start $?
+   install pelix.remote.dispatcher
+   start $?
+
+   # Install and start the XML-RPC importer and exporter with the default
+   # parameters
+   install pelix.remote.xml_rpc
+   start $?
+   instantiate pelix-xmlrpc-exporter-factory xmlrpc-exporter
+   instantiate pelix-xmlrpc-importer-factory xmlrpc-importer
+
+
+JSON-RPC Transport
+------------------
+
+:Bundle: pelix.remote.json_rpc
+:Factories: pelix-jsonrpc-exporter-factory, pelix-jsonrpc-importer-factory
+:Requires: HTTP Service
+:Libraries: `jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`_
+            (installation requirement of iPOPO)
+
+The JSON-RPC transport is the recommended one in Pelix/iPOPO.
+It depends on an external library, `jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`_
+which has no transient dependency.
+It has way less troubles with complex and custom types than the XML-RPC
+transport, which eases the development of most of Pelix/iPOPO applications.
+
+Like most of the transport providers, this one is split in two components:
+the exporter and the importer.
+Both must be instantiated manually.
+
+The exporter instance can be configured with the following property:
+
+=============== ============= ==================================================
+Property        Default value Description
+=============== ============= ==================================================
+pelix.http.path /JSON-RPC      The path to the JSON-RPC exporter servlet
+=============== ============= ==================================================
+
+To use this transport provider, you'll need to install the following bundles
+and instantiate the associated components:
+
+.. code-block:: shell
+
+   # Start the HTTP service with default parameters
+   install pelix.http.basic
+   start $?
+   instantiate pelix.http.service.basic.factory httpd
+
+   # Install Remote Services Core
+   install pelix.remote.registry
+   start $?
+   install pelix.remote.dispatcher
+   start $?
+
+   # Install and start the JSON-RPC importer and exporter with the default
+   # parameters
+   install pelix.remote.json_rpc
+   start $?
+   instantiate pelix-jsonrpc-exporter-factory jsonrpc-exporter
+   instantiate pelix-jsonrpc-importer-factory jsonrpc-importer
+
+
+Jabsorb-RPC Transport
+---------------------
+
+:Bundle: pelix.remote.transport.jabsorb_rpc
+:Factories: pelix-jabsorbrpc-exporter-factory, pelix-jabsorbrpc-importer-factory
+:Requires: HTTP Service
+:Libraries: `jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`_
+            (installation requirement of iPOPO)
+
+The JABSORB-RPC transport is based on a variant of the JSON-RPC protocol.
+It adds Java typing hints to ease unmarshalling on Java clients, like the
+`Cohorte Remote Services implementation <https://github.com/isandlaTech/cohorte-remote-services>`_.
+The additional information comes at small cost, but this transport shouldn't be
+used when no Java frameworks are expected: it doesn't provide more features
+than JSON-RPC in a 100% Python environment.
+
+Like the JSON-RPC transport, it depends on an external library,
+`jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`_ which has no
+transient dependency.
+
+Like most of the transport providers, this one is split in two components:
+the exporter and the importer.
+Both must be instantiated manually.
+
+The exporter instance can be configured with the following property:
+
+=============== ============= ==================================================
+Property        Default value Description
+=============== ============= ==================================================
+pelix.http.path /JABSORB-RPC  The path to the JABSORB-RPC exporter servlet
+=============== ============= ==================================================
+
+To use this transport provider, you'll need to install the following bundles
+and instantiate the associated components:
+
+.. code-block:: shell
+
+   # Start the HTTP service with default parameters
+   install pelix.http.basic
+   start $?
+   instantiate pelix.http.service.basic.factory httpd
+
+   # Install Remote Services Core
+   install pelix.remote.registry
+   start $?
+   install pelix.remote.dispatcher
+   start $?
+
+   # Install and start the JABSORB-RPC importer and exporter with the default
+   # parameters
+   install pelix.remote.transport.jabsorb_rpc
+   start $?
+   instantiate pelix-jabsorbrpc-exporter-factory jabsorbrpc-exporter
+   instantiate pelix-jabsorbrpc-importer-factory jabsorbrpc-importer
+
+
+MQTT discovery and MQTT-RPC Transport
+-------------------------------------
+
+:Bundle: pelix.remote.discovery.mqtt, pelix.remote.transport.mqtt_rpc
+:Factories: pelix-remote-discovery-mqtt-factory,
+            pelix-mqttrpc-exporter-factory, pelix-mqttrpc-importer-factory
+:Requires: *nothing* (everything goes through MQTT messages)
+:Libraries: `paho <https://www.eclipse.org/paho/>`_
+
+Finally, the MQTT discovery and transport protocols have been developped as a
+proof of concept with the `fabMSTIC <http://fabmstic.liglab.fr/>`_ fablab of the
+Grenoble Alps University.
+
+The idea was to rely on the lightweight MQTT messages to provide both discovery
+and transport mechanisms, and to let them be handled by low-power devices like
+small Arduino boards.
+Mixed results were obtained: it worked but the performances were not those
+intended, mainly in terms of latencies.
+
+Those providers are kept in Pelix/iPOPO as they work and provide a non-HTTP way
+to communicate, but they won't be updated without new contributions
+(pull requests, ...).
+
+They rely on the `Eclipse Paho <https://www.eclipse.org/paho/>`_ library,
+previously known as the `Mosquitto <http://mosquitto.org/>`_ library.
+
+The discovery instance can be configured with the following properties:
+
+============== ============================= ===================================
+Property       Default value Description
+============== ============================= ===================================
+mqtt.host      localhost                     Host of the MQTT server
+mqtt.port      1883                          Port of the MQTT server
+topic.prefix   pelix/{appid}/remote-services Prefix of all MQTT messages (format string accepting the ``appid`` entry)
+application.id None                          Application ID, to allow multiple applications on the same server
+============== ============================= ===================================
+
+The transport exporter and importer instances should be configured with the same
+``mqtt.host`` and ``mqtt.port`` properties as the discovery service.
+
+To use the MQTT providers, you'll need to install the following bundles and
+instantiate the associated components:
+
+.. code-block:: shell
+
+   # Install Remote Services Core
+   install pelix.remote.registry
+   start $?
+   install pelix.remote.dispatcher
+   start $?
+
+   # Install and start the MQTT discovery and the MQTT-RPC importer and exporter
+   # with the default parameters
+   install pelix.remote.discovery.mqtt
+   start $?
+   instantiate pelix-remote-discovery-mqtt-factory mqttrpc-discovery
+
+   install pelix.remote.transport.mqtt_rpc
+   start $?
+   instantiate pelix-mqttrpc-exporter-factory mqttrpc-exporter
+   instantiate pelix-mqttrpc-importer-factory mqttrpc-importer
 
 
 API
