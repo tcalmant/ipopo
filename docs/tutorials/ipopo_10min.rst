@@ -5,11 +5,11 @@ iPOPO in 10 minutes
 
 :Authors: Shadi Abras, Thomas Calmant
 
-    This tutorial presents how to use the iPOPO framework and its associated
-    service-oriented component model.
-    The concepts of the service-oriented component model are introduced, followed
-    by a simple example that demonstrates the features of iPOPO.
-    This framework uses decorators to describe components.
+This tutorial presents how to use the iPOPO framework and its associated
+service-oriented component model.
+The concepts of the service-oriented component model are introduced, followed
+by a simple example that demonstrates the features of iPOPO.
+This framework uses decorators to describe components.
 
 Introduction
 ============
@@ -52,6 +52,7 @@ It also defines three major concepts:
   iPOPO to manage the components.
   Components are defined inside bundles.
 
+
 Simple example
 ==============
 
@@ -76,11 +77,11 @@ application. Three bundles compose this application:
   line interface.
 
 .. image:: /_static/tutorials/spell_checker/spellchecker_arch.svg
-:align: center
+   :align: center
    :alt: Service hierarchy
-       :scale: 100%
+   :scale: 100%
 
-    The spell dictionary components provide the ``spell_dictionary_service``
+The spell dictionary components provide the ``spell_dictionary_service``
 specification.
 The spell checker provides a ``spell_checker_service`` specification.
 
@@ -118,10 +119,10 @@ The ``spell_dictionary_EN`` bundle is a simple implementation of the Dictionary
 service. It contains few English words.
 
 .. literalinclude:: /_static/tutorials/spell_checker/spell_dictionary_EN.py
-:language: python
-       :linenos:
+   :language: python
+   :linenos:
 
-    * The ``@Component`` decorator is used to declare an iPOPO component.
+* The ``@Component`` decorator is used to declare an iPOPO component.
   It must always be on top of other decorators.
 * The ``@Provides`` decorator indicates that the component provides a service. 
 * The ``@Instantiate`` decorator instructs iPOPO to automatically create an
@@ -145,14 +146,14 @@ one. It only differs in the ``language`` component property, as it checks some
 French words declared during component validation.
 
 .. literalinclude:: /_static/tutorials/spell_checker/spell_dictionary_FR.py
-:language: python
-       :linenos:
-       :emphasize-lines: 14,18,20,31-40
+   :language: python
+   :linenos:
+   :emphasize-lines: 14,18,20,31-40
 
-    It is important to note that the iPOPO factory name must be unique in a
-    framework: only the first one to be registered with a given name will be taken
-    into account.
-    The name of component instances follows the same rule.
+It is important to note that the iPOPO factory name must be unique in a
+framework: only the first one to be registered with a given name will be taken
+into account.
+The name of component instances follows the same rule.
 
 
 The spell checker bundle: Requiring a service
@@ -165,10 +166,10 @@ During this step, we will create an iPOPO component requiring a Dictionary
 service and providing the Spell Checker service.
 
 .. literalinclude:: /_static/tutorials/spell_checker/spell_checker.py
-:language: python
-       :linenos:
+   :language: python
+   :linenos:
 
-    * The ``@Requires`` decorator specifies a service dependency.
+* The ``@Requires`` decorator specifies a service dependency.
   This required service is injected in a local variable in this bundle.
   Its ``aggregate`` attribute tells iPOPO to collect the list of services
   providing the required specification, instead of the first one.
@@ -185,12 +186,12 @@ The ``spell_client`` bundle contains a very simple user interface allowing a
 user to interact with a spell checker service.
 
 .. literalinclude:: /_static/tutorials/spell_checker/spell_client.py
-:language: python
-       :linenos:
+   :language: python
+   :linenos:
 
-    The component defined here implements and provides a shell command service,
-    which will be consumed by the Pelix Shell Core Service.
-    It registers a ``spell`` shell command.
+The component defined here implements and provides a shell command service,
+which will be consumed by the Pelix Shell Core Service.
+It registers a ``spell`` shell command.
 
 
 Main script: Launching the framework
@@ -200,8 +201,8 @@ We have all the bundles required to start playing with the application.
 To run the example, we have to start Pelix, then all the required bundles.
 
 .. literalinclude:: /_static/tutorials/spell_checker/main_pelix_launcher.py
-:language: python
-       :linenos:
+   :language: python
+   :linenos:
 
 
 Running the application

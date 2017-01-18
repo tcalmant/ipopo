@@ -11,9 +11,9 @@ Cohorte Technologies (isandlaTech)
 ==================================
 
 .. image:: /_static/users/cohorte_technologies.svg
-:alt: Cohorte Techologies
+   :alt: Cohorte Techologies
    :width: 33%
-       :target: http://cohorte-technologies.com/
+   :target: http://cohorte-technologies.com/
 
 `Cohorte Technologies <http://cohorte-technologies.com/>`_ is the main sponsor
 and user of iPOPO.
@@ -25,15 +25,15 @@ G2ELab / G-Scop
 ===============
 
 .. image:: /_static/users/logo_g2elab.jpg
-:alt: G2ELab
+   :alt: G2ELab
    :target: http://www.g2elab.grenoble-inp.fr/
    :width: 33%
 
 .. image:: /_static/users/logo_gscop.jpg
-:alt: G2ELab
+   :alt: G2ELab
    :target: http://www.g-scop.grenoble-inp.fr/
    :width: 33%
-       :align: right
+   :align: right
 
 
 `PREDIS <http://www.g2elab.grenoble-inp.fr/plateformes/plateforme-predis-196107.kjsp>`_
@@ -63,15 +63,15 @@ Polytech Grenoble / AIR
 =======================
 
 .. image:: /_static/users/logo_polytech.png
-:alt: Polytech Grenoble
+   :alt: Polytech Grenoble
    :target: http://www.polytech-grenoble.fr/
    :width: 33%
 
 .. image:: /_static/users/logo_air_1.png
-:alt: Ambient Intelligence Room
+   :alt: Ambient Intelligence Room
    :target: http://air.imag.fr/
    :width: 15%
-       :align: right
+   :align: right
 
 `AIR <http://air.imag.fr/>`_ means Ambient Intelligence Room.
 
