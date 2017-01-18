@@ -1,0 +1,801 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg xmlns:osb="http://www.openswatchbook.org/uri/2009/osb"
+     xmlns:dc="http://purl.org/dc/elements/1.1/"
+     xmlns:cc="http://creativecommons.org/ns#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg"
+     xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+     xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+     width="335.47754mm" height="76.993576mm" id="svg3072" version="1.1"
+     inkscape:version="0.91 r13725"
+     sodipodi:docname="cohorte_logo_technologies_gris_adjusted_nofont.svg"
+     inkscape:export-filename="/Users/etiennepatin/ownCloud/Internal/Marketing/logos Cohorte/cohorte_logo_technologies_gris_adjusted.png"
+     inkscape:export-xdpi="90" inkscape:export-ydpi="90">
+    <defs id="defs3074">
+        <inkscape:perspective sodipodi:type="inkscape:persp3d"
+                              inkscape:vp_x="414.36459 : 308.39221 : 1"
+                              inkscape:vp_y="306.99342 : 345.28155 : 1"
+                              inkscape:vp_z="633.78583 : 760.94055 : 1"
+                              inkscape:persp3d-origin="372.04724 : 350.78739 : 1"
+                              id="perspective5070"/>
+        <filter style="color-interpolation-filters:sRGB"
+                inkscape:label="Oil painting" inkscape:menu="Image effects"
+                inkscape:menu-tooltip="Simulate oil painting style"
+                id="filter4622">
+            <feMorphology radius="2" in="SourceGraphic" result="result0"
+                          id="feMorphology4624"/>
+            <feTurbulence numOctaves="1" baseFrequency="0.078" result="result91"
+                          id="feTurbulence4626"/>
+            <feDisplacementMap in="result0" scale="6.3" xChannelSelector="R"
+                               yChannelSelector="G" in2="result91"
+                               id="feDisplacementMap4628"/>
+        </filter>
+        <filter style="color-interpolation-filters:sRGB"
+                inkscape:label="Motion blur, vertical" inkscape:menu="Blurs"
+                inkscape:menu-tooltip="Blur as if the object flies vertically; adjust Standard Deviation to vary force"
+                id="filter4823">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="0.01 5"
+                            id="feGaussianBlur4825"/>
+        </filter>
+        <clipPath clipPathUnits="userSpaceOnUse" id="clipPath5707">
+            <g id="g5709"
+               transform="matrix(-0.1880556,0,0,0.1880556,340.83548,412.21995)"
+               style="image-rendering:auto">
+                <g id="g5711"/>
+                <path id="path5713"
+                      d="m 375.327,270.254 0,61.983 -119.317,-61.983 0,61.983 -119.358,-61.983 0,61.983 -119.347,-61.983 0,201.278 477.389,0 0,-139.305 -119.368,-61.973 z m -205.537,175.821 -119.326,0 0,-70.103 119.326,0 0,70.103 z m 145.653,0 -118.876,0 0,-70.103 118.866,0 0,70.103 z m 146.095,0 -119.347,0 0,-70.103 119.347,0 0,70.103 z"
+                      inkscape:connector-curvature="0" style="fill:#000000"/>
+                <path id="path5715"
+                      d="m 330.731,77.435 -32.286,0 -9.329,200.038 52.224,27.577 z"
+                      inkscape:connector-curvature="0" style="fill:#000000"/>
+                <path id="path5717"
+                      d="m 212.244,40.468 -33.126,0 -9.328,237.005 52.194,27.577 z"
+                      inkscape:connector-curvature="0" style="fill:#000000"/>
+            </g>
+        </clipPath>
+        <linearGradient osb:paint="solid" id="linearGradient4476">
+            <stop id="stop4478" offset="0"
+                  style="stop-color:#ff0000;stop-opacity:1;"/>
+        </linearGradient>
+        <linearGradient osb:paint="solid" id="linearGradient4470">
+            <stop id="stop4472" offset="0"
+                  style="stop-color:#000000;stop-opacity:1;"/>
+        </linearGradient>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" inkscape:label="fonte 1"
+              id="font18613" horiz-adv-x="1024">
+            <font-face font-family="isandla fonte" id="font-face18615"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617" d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619" glyph-name="A"/>
+            <glyph id="glyph18621" glyph-name="B"/>
+            <glyph id="glyph18623" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625" glyph-name="glyphe 4"/>
+        </font>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" horiz-adv-x="1024"
+              id="font18613-1" inkscape:label="fonte 1">
+            <font-face units-per-em="1024" id="font-face18615-7"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z" id="missing-glyph18617-2"/>
+            <glyph glyph-name="A" id="glyph18619-2"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-1"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-9"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-6"/>
+        </font>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" inkscape:label="fonte 1"
+              id="font18613-8" horiz-adv-x="1024">
+            <font-face font-family="isandla fonte" id="font-face18615-5"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-0" d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-7" glyph-name="A"/>
+            <glyph id="glyph18621-4" glyph-name="B"/>
+            <glyph id="glyph18623-3" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-5" glyph-name="glyphe 4"/>
+        </font>
+        <filter inkscape:label="Motion blur, vertical" inkscape:menu="Blurs"
+                inkscape:menu-tooltip="Blur as if the object flies vertically; adjust Standard Deviation to vary force"
+                id="filter4823-8" style="color-interpolation-filters:sRGB">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="0.01 5"
+                            id="feGaussianBlur4825-6"/>
+        </filter>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" horiz-adv-x="1024"
+              id="font18613-84" inkscape:label="fonte 1">
+            <font-face units-per-em="1024" id="font-face18615-8"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z"
+                           id="missing-glyph18617-84"/>
+            <glyph glyph-name="A" id="glyph18619-9"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-45"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-6"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-50"/>
+        </font>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" inkscape:label="fonte 1"
+              id="font18613-1-1" horiz-adv-x="1024">
+            <font-face font-family="isandla fonte" id="font-face18615-7-8"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-2-1"
+                           d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-2-3" glyph-name="A"/>
+            <glyph id="glyph18621-1-7" glyph-name="B"/>
+            <glyph id="glyph18623-9-2" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-6-6" glyph-name="glyphe 4"/>
+        </font>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" horiz-adv-x="1024"
+              id="font18613-8-8" inkscape:label="fonte 1">
+            <font-face units-per-em="1024" id="font-face18615-5-9"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z"
+                           id="missing-glyph18617-0-8"/>
+            <glyph glyph-name="A" id="glyph18619-7-4"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-4-0"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-3-0"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-5-6"/>
+        </font>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" inkscape:label="fonte 1"
+              id="font18613-5" horiz-adv-x="1024">
+            <font-face font-family="isandla fonte" id="font-face18615-51"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-8" d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-3" glyph-name="A"/>
+            <glyph id="glyph18621-8" glyph-name="B"/>
+            <glyph id="glyph18623-2" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-4" glyph-name="glyphe 4"/>
+        </font>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" inkscape:label="fonte 1"
+              id="font18613-2" horiz-adv-x="1024">
+            <font-face font-family="isandla fonte" id="font-face18615-56"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-87"
+                           d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-6" glyph-name="A"/>
+            <glyph id="glyph18621-9" glyph-name="B"/>
+            <glyph id="glyph18623-35" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-3" glyph-name="glyphe 4"/>
+        </font>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" inkscape:label="fonte 1"
+              id="font18613-7" horiz-adv-x="1024">
+            <font-face font-family="isandla fonte" id="font-face18615-6"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-89"
+                           d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-67" glyph-name="A"/>
+            <glyph id="glyph18621-2" glyph-name="B"/>
+            <glyph id="glyph18623-38" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-1" glyph-name="glyphe 4"/>
+        </font>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" horiz-adv-x="1024"
+              id="font18613-1-4" inkscape:label="fonte 1">
+            <font-face units-per-em="1024" id="font-face18615-7-1"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z"
+                           id="missing-glyph18617-2-4"/>
+            <glyph glyph-name="A" id="glyph18619-2-0"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-1-71"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-9-1"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-6-5"/>
+        </font>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" inkscape:label="fonte 1"
+              id="font18613-8-6" horiz-adv-x="1024">
+            <font-face font-family="isandla fonte" id="font-face18615-5-1"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-0-86"
+                           d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-7-8" glyph-name="A"/>
+            <glyph id="glyph18621-4-5" glyph-name="B"/>
+            <glyph id="glyph18623-3-9" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-5-2" glyph-name="glyphe 4"/>
+        </font>
+        <filter inkscape:label="Motion blur, vertical" inkscape:menu="Blurs"
+                inkscape:menu-tooltip="Blur as if the object flies vertically; adjust Standard Deviation to vary force"
+                id="filter4823-6" style="color-interpolation-filters:sRGB">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="0.01 5"
+                            id="feGaussianBlur4825-7"/>
+        </filter>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" horiz-adv-x="1024"
+              id="font18613-84-4" inkscape:label="fonte 1">
+            <font-face units-per-em="1024" id="font-face18615-8-4"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z"
+                           id="missing-glyph18617-84-6"/>
+            <glyph glyph-name="A" id="glyph18619-9-7"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-45-0"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-6-1"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-50-8"/>
+        </font>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" inkscape:label="fonte 1"
+              id="font18613-1-1-9" horiz-adv-x="1024">
+            <font-face font-family="isandla fonte" id="font-face18615-7-8-1"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-2-1-7"
+                           d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-2-3-6" glyph-name="A"/>
+            <glyph id="glyph18621-1-7-9" glyph-name="B"/>
+            <glyph id="glyph18623-9-2-3" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-6-6-7" glyph-name="glyphe 4"/>
+        </font>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" horiz-adv-x="1024"
+              id="font18613-8-8-5" inkscape:label="fonte 1">
+            <font-face units-per-em="1024" id="font-face18615-5-9-9"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z"
+                           id="missing-glyph18617-0-8-6"/>
+            <glyph glyph-name="A" id="glyph18619-7-4-9"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-4-0-1"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-3-0-0"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-5-6-5"/>
+        </font>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" inkscape:label="fonte 1"
+              id="font18613-5-1" horiz-adv-x="1024">
+            <font-face font-family="isandla fonte" id="font-face18615-51-9"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-8-4"
+                           d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-3-4" glyph-name="A"/>
+            <glyph id="glyph18621-8-7" glyph-name="B"/>
+            <glyph id="glyph18623-2-0" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-4-0" glyph-name="glyphe 4"/>
+        </font>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" inkscape:label="fonte 1"
+              id="font18613-2-7" horiz-adv-x="1024">
+            <font-face font-family="isandla fonte" id="font-face18615-56-7"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-87-1"
+                           d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-6-9" glyph-name="A"/>
+            <glyph id="glyph18621-9-7" glyph-name="B"/>
+            <glyph id="glyph18623-35-4" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-3-7" glyph-name="glyphe 4"/>
+        </font>
+        <inkscape:perspective id="perspective5070-5"
+                              inkscape:persp3d-origin="372.04724 : 350.78739 : 1"
+                              inkscape:vp_z="633.78583 : 760.94055 : 1"
+                              inkscape:vp_y="306.99342 : 345.28155 : 1"
+                              inkscape:vp_x="414.36459 : 308.39221 : 1"
+                              sodipodi:type="inkscape:persp3d"/>
+        <filter style="color-interpolation-filters:sRGB" id="filter4622-1"
+                inkscape:menu-tooltip="Simulate oil painting style"
+                inkscape:menu="Image effects" inkscape:label="Oil painting">
+            <feMorphology id="feMorphology4624-6" result="result0"
+                          in="SourceGraphic" radius="2"/>
+            <feTurbulence id="feTurbulence4626-5" result="result91"
+                          baseFrequency="0.078" numOctaves="1"/>
+            <feDisplacementMap id="feDisplacementMap4628-5" in2="result91"
+                               yChannelSelector="G" xChannelSelector="R"
+                               scale="6.3" in="result0"/>
+        </filter>
+        <filter style="color-interpolation-filters:sRGB" id="filter4823-3"
+                inkscape:menu-tooltip="Blur as if the object flies vertically; adjust Standard Deviation to vary force"
+                inkscape:menu="Blurs" inkscape:label="Motion blur, vertical">
+            <feGaussianBlur id="feGaussianBlur4825-8" stdDeviation="0.01 5"
+                            in="SourceGraphic"/>
+        </filter>
+        <clipPath id="clipPath4319" clipPathUnits="userSpaceOnUse">
+            <rect y="952.38928" x="-2486.3564" height="407.69" width="395.41537"
+                  id="rect4321"
+                  style="opacity:1;fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.89631641;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"/>
+        </clipPath>
+        <clipPath id="clipPath4430" clipPathUnits="userSpaceOnUse">
+            <rect y="23.994556" x="-0.44537511" height="50.807114"
+                  width="101.37029" id="rect4432"
+                  style="opacity:1;fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.16945669;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"/>
+        </clipPath>
+        <font vert-adv-y="90" vert-origin-y="90" vert-origin-x="45"
+              horiz-origin-y="0" horiz-origin-x="0" horiz-adv-x="1024"
+              id="font18613-85" inkscape:label="fonte 1">
+            <font-face units-per-em="1024" id="font-face18615-2"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z" id="missing-glyph18617-9"/>
+            <glyph glyph-name="A" id="glyph18619-24"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-5"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-36"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-2"/>
+        </font>
+        <inkscape:perspective id="perspective5070-2"
+                              inkscape:persp3d-origin="372.04724 : 350.78739 : 1"
+                              inkscape:vp_z="633.78583 : 760.94055 : 1"
+                              inkscape:vp_y="306.99342 : 345.28155 : 1"
+                              inkscape:vp_x="414.36459 : 308.39221 : 1"
+                              sodipodi:type="inkscape:persp3d"/>
+        <filter id="filter4622-6"
+                inkscape:menu-tooltip="Simulate oil painting style"
+                inkscape:menu="Image effects" inkscape:label="Oil painting"
+                style="color-interpolation-filters:sRGB">
+            <feMorphology id="feMorphology4624-2" result="result0"
+                          in="SourceGraphic" radius="2"/>
+            <feTurbulence id="feTurbulence4626-0" result="result91"
+                          baseFrequency="0.078" numOctaves="1"/>
+            <feDisplacementMap id="feDisplacementMap4628-1" in2="result91"
+                               yChannelSelector="G" xChannelSelector="R"
+                               scale="6.3" in="result0"/>
+        </filter>
+        <filter id="filter4823-0"
+                inkscape:menu-tooltip="Blur as if the object flies vertically; adjust Standard Deviation to vary force"
+                inkscape:menu="Blurs" inkscape:label="Motion blur, vertical"
+                style="color-interpolation-filters:sRGB">
+            <feGaussianBlur id="feGaussianBlur4825-3" stdDeviation="0.01 5"
+                            in="SourceGraphic"/>
+        </filter>
+        <clipPath id="clipPath5707-6" clipPathUnits="userSpaceOnUse">
+            <g style="image-rendering:auto"
+               transform="matrix(-0.1880556,0,0,0.1880556,340.83548,412.21995)"
+               id="g5709-0">
+                <g id="g5711-7"/>
+                <path style="fill:#000000" inkscape:connector-curvature="0"
+                      d="m 375.327,270.254 0,61.983 -119.317,-61.983 0,61.983 -119.358,-61.983 0,61.983 -119.347,-61.983 0,201.278 477.389,0 0,-139.305 -119.368,-61.973 z m -205.537,175.821 -119.326,0 0,-70.103 119.326,0 0,70.103 z m 145.653,0 -118.876,0 0,-70.103 118.866,0 0,70.103 z m 146.095,0 -119.347,0 0,-70.103 119.347,0 0,70.103 z"
+                      id="path5713-2"/>
+                <path style="fill:#000000" inkscape:connector-curvature="0"
+                      d="m 330.731,77.435 -32.286,0 -9.329,200.038 52.224,27.577 z"
+                      id="path5715-8"/>
+                <path style="fill:#000000" inkscape:connector-curvature="0"
+                      d="m 212.244,40.468 -33.126,0 -9.328,237.005 52.194,27.577 z"
+                      id="path5717-9"/>
+            </g>
+        </clipPath>
+        <font horiz-adv-x="1024" id="font18613-56" inkscape:label="fonte 1"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face units-per-em="1024" id="font-face18615-85"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z" id="missing-glyph18617-5"/>
+            <glyph glyph-name="A" id="glyph18619-8"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-13"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-8"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-33"/>
+        </font>
+        <font inkscape:label="fonte 1" id="font18613-1-18" horiz-adv-x="1024"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face font-family="isandla fonte" id="font-face18615-7-4"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-2-9"
+                           d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-2-7" glyph-name="A"/>
+            <glyph id="glyph18621-1-3" glyph-name="B"/>
+            <glyph id="glyph18623-9-9" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-6-8" glyph-name="glyphe 4"/>
+        </font>
+        <font horiz-adv-x="1024" id="font18613-8-87" inkscape:label="fonte 1"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face units-per-em="1024" id="font-face18615-5-5"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z"
+                           id="missing-glyph18617-0-6"/>
+            <glyph glyph-name="A" id="glyph18619-7-6"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-4-3"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-3-4"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-5-64"/>
+        </font>
+        <filter style="color-interpolation-filters:sRGB" id="filter4823-8-3"
+                inkscape:menu-tooltip="Blur as if the object flies vertically; adjust Standard Deviation to vary force"
+                inkscape:menu="Blurs" inkscape:label="Motion blur, vertical">
+            <feGaussianBlur id="feGaussianBlur4825-6-6" stdDeviation="0.01 5"
+                            in="SourceGraphic"/>
+        </filter>
+        <font inkscape:label="fonte 1" id="font18613-84-5" horiz-adv-x="1024"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face font-family="isandla fonte" id="font-face18615-8-5"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-84-4"
+                           d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-9-71" glyph-name="A"/>
+            <glyph id="glyph18621-45-4" glyph-name="B"/>
+            <glyph id="glyph18623-6-8" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-50-4" glyph-name="glyphe 4"/>
+        </font>
+        <font horiz-adv-x="1024" id="font18613-1-1-0" inkscape:label="fonte 1"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face units-per-em="1024" id="font-face18615-7-8-11"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z"
+                           id="missing-glyph18617-2-1-8"/>
+            <glyph glyph-name="A" id="glyph18619-2-3-9"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-1-7-5"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-9-2-2"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-6-6-2"/>
+        </font>
+        <font inkscape:label="fonte 1" id="font18613-8-8-2" horiz-adv-x="1024"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face font-family="isandla fonte" id="font-face18615-5-9-2"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-0-8-5"
+                           d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-7-4-3" glyph-name="A"/>
+            <glyph id="glyph18621-4-0-5" glyph-name="B"/>
+            <glyph id="glyph18623-3-0-6" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-5-6-2" glyph-name="glyphe 4"/>
+        </font>
+        <font horiz-adv-x="1024" id="font18613-5-9" inkscape:label="fonte 1"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face units-per-em="1024" id="font-face18615-51-8"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z"
+                           id="missing-glyph18617-8-43"/>
+            <glyph glyph-name="A" id="glyph18619-3-1"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-8-70"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-2-4"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-4-7"/>
+        </font>
+        <font horiz-adv-x="1024" id="font18613-2-4" inkscape:label="fonte 1"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face units-per-em="1024" id="font-face18615-56-9"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z"
+                           id="missing-glyph18617-87-9"/>
+            <glyph glyph-name="A" id="glyph18619-6-0"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-9-8"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-35-5"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-3-3"/>
+        </font>
+        <font horiz-adv-x="1024" id="font18613-7-9" inkscape:label="fonte 1"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face units-per-em="1024" id="font-face18615-6-0"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z"
+                           id="missing-glyph18617-89-8"/>
+            <glyph glyph-name="A" id="glyph18619-67-3"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-2-1"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-38-4"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-1-8"/>
+        </font>
+        <font inkscape:label="fonte 1" id="font18613-1-4-8" horiz-adv-x="1024"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face font-family="isandla fonte" id="font-face18615-7-1-5"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-2-4-9"
+                           d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-2-0-6" glyph-name="A"/>
+            <glyph id="glyph18621-1-71-0" glyph-name="B"/>
+            <glyph id="glyph18623-9-1-0" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-6-5-2" glyph-name="glyphe 4"/>
+        </font>
+        <font horiz-adv-x="1024" id="font18613-8-6-5" inkscape:label="fonte 1"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face units-per-em="1024" id="font-face18615-5-1-0"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z"
+                           id="missing-glyph18617-0-86-2"/>
+            <glyph glyph-name="A" id="glyph18619-7-8-9"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-4-5-7"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-3-9-2"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-5-2-5"/>
+        </font>
+        <filter style="color-interpolation-filters:sRGB" id="filter4823-6-0"
+                inkscape:menu-tooltip="Blur as if the object flies vertically; adjust Standard Deviation to vary force"
+                inkscape:menu="Blurs" inkscape:label="Motion blur, vertical">
+            <feGaussianBlur id="feGaussianBlur4825-7-3" stdDeviation="0.01 5"
+                            in="SourceGraphic"/>
+        </filter>
+        <font inkscape:label="fonte 1" id="font18613-84-4-4" horiz-adv-x="1024"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face font-family="isandla fonte" id="font-face18615-8-4-3"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-84-6-5"
+                           d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-9-7-3" glyph-name="A"/>
+            <glyph id="glyph18621-45-0-8" glyph-name="B"/>
+            <glyph id="glyph18623-6-1-1" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-50-8-1" glyph-name="glyphe 4"/>
+        </font>
+        <font horiz-adv-x="1024" id="font18613-1-1-9-4" inkscape:label="fonte 1"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face units-per-em="1024" id="font-face18615-7-8-1-2"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z"
+                           id="missing-glyph18617-2-1-7-7"/>
+            <glyph glyph-name="A" id="glyph18619-2-3-6-7"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-1-7-9-9"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-9-2-3-9"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-6-6-7-7"/>
+        </font>
+        <font inkscape:label="fonte 1" id="font18613-8-8-5-3" horiz-adv-x="1024"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face font-family="isandla fonte" id="font-face18615-5-9-9-4"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-0-8-6-4"
+                           d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-7-4-9-7" glyph-name="A"/>
+            <glyph id="glyph18621-4-0-1-6" glyph-name="B"/>
+            <glyph id="glyph18623-3-0-0-1" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-5-6-5-7" glyph-name="glyphe 4"/>
+        </font>
+        <font horiz-adv-x="1024" id="font18613-5-1-5" inkscape:label="fonte 1"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face units-per-em="1024" id="font-face18615-51-9-3"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z"
+                           id="missing-glyph18617-8-4-0"/>
+            <glyph glyph-name="A" id="glyph18619-3-4-4"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-8-7-5"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-2-0-2"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-4-0-0"/>
+        </font>
+        <font horiz-adv-x="1024" id="font18613-2-7-2" inkscape:label="fonte 1"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face units-per-em="1024" id="font-face18615-56-7-1"
+                       font-family="isandla fonte"/>
+            <missing-glyph d="M0,0h1000v1024h-1000z"
+                           id="missing-glyph18617-87-1-6"/>
+            <glyph glyph-name="A" id="glyph18619-6-9-7"
+                   d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"/>
+            <glyph glyph-name="B" id="glyph18621-9-7-7"/>
+            <glyph glyph-name="glyphe 3" id="glyph18623-35-4-4"/>
+            <glyph glyph-name="glyphe 4" id="glyph18625-3-7-8"/>
+        </font>
+        <inkscape:perspective sodipodi:type="inkscape:persp3d"
+                              inkscape:vp_x="414.36459 : 308.39221 : 1"
+                              inkscape:vp_y="306.99342 : 345.28155 : 1"
+                              inkscape:vp_z="633.78583 : 760.94055 : 1"
+                              inkscape:persp3d-origin="372.04724 : 350.78739 : 1"
+                              id="perspective5070-5-9"/>
+        <filter inkscape:label="Oil painting" inkscape:menu="Image effects"
+                inkscape:menu-tooltip="Simulate oil painting style"
+                id="filter4622-1-2" style="color-interpolation-filters:sRGB">
+            <feMorphology radius="2" in="SourceGraphic" result="result0"
+                          id="feMorphology4624-6-7"/>
+            <feTurbulence numOctaves="1" baseFrequency="0.078" result="result91"
+                          id="feTurbulence4626-5-3"/>
+            <feDisplacementMap in="result0" scale="6.3" xChannelSelector="R"
+                               yChannelSelector="G" in2="result91"
+                               id="feDisplacementMap4628-5-0"/>
+        </filter>
+        <filter inkscape:label="Motion blur, vertical" inkscape:menu="Blurs"
+                inkscape:menu-tooltip="Blur as if the object flies vertically; adjust Standard Deviation to vary force"
+                id="filter4823-3-6" style="color-interpolation-filters:sRGB">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="0.01 5"
+                            id="feGaussianBlur4825-8-2"/>
+        </filter>
+        <clipPath clipPathUnits="userSpaceOnUse" id="clipPath4319-5">
+            <rect style="opacity:1;fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.89631641;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+                  id="rect4321-3" width="395.41537" height="407.69"
+                  x="-2486.3564" y="952.38928"/>
+        </clipPath>
+        <clipPath clipPathUnits="userSpaceOnUse" id="clipPath4430-3">
+            <rect style="opacity:1;fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.16945669;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+                  id="rect4432-0" width="101.37029" height="50.807114"
+                  x="-0.44537511" y="23.994556"/>
+        </clipPath>
+        <font inkscape:label="fonte 1" id="font18613-85-9" horiz-adv-x="1024"
+              horiz-origin-x="0" horiz-origin-y="0" vert-origin-x="45"
+              vert-origin-y="90" vert-adv-y="90">
+            <font-face font-family="isandla fonte" id="font-face18615-2-1"
+                       units-per-em="1024"/>
+            <missing-glyph id="missing-glyph18617-9-1"
+                           d="M0,0h1000v1024h-1000z"/>
+            <glyph d="m -378.90114,851.99927 -17.11425,-36.534 4.79196,0 4.81407,9.94098 21.7738,0 c 1.75528,-3.51512 3.4738,-6.91984 4.96871,-9.92303 l 0,-0.0185 0.022,0 0.0221,0 3.33904,3.04319 -15.81593,33.49079 -6.80156,0 z m 3.68789,-3.48115 c 1.82923,-5.10908 5.21694,-12.31156 8.72272,-19.41541 l -18.13006,0 c 3.02538,6.47181 6.04816,12.9436 9.40734,19.41541 z"
+                   id="glyph18619-24-0" glyph-name="A"/>
+            <glyph id="glyph18621-5-0" glyph-name="B"/>
+            <glyph id="glyph18623-36-4" glyph-name="glyphe 3"/>
+            <glyph id="glyph18625-2-0" glyph-name="glyphe 4"/>
+        </font>
+    </defs>
+    <sodipodi:namedview inkscape:document-units="mm" pagecolor="#ffffff"
+                        bordercolor="#666666" borderopacity="1.0"
+                        inkscape:pageopacity="0.0" inkscape:pageshadow="2"
+                        inkscape:zoom="0.6" inkscape:cx="514.73117"
+                        inkscape:cy="-64.383427" inkscape:current-layer="g7652"
+                        id="namedview3076" showgrid="false" units="mm"
+                        inkscape:window-width="1556"
+                        inkscape:window-height="1031" inkscape:window-x="1280"
+                        inkscape:window-y="23" inkscape:window-maximized="0"
+                        width="300mm" fit-margin-left="0.5" fit-margin-top="0.5"
+                        fit-margin-right="0.5" fit-margin-bottom="0.5"/>
+    <metadata id="metadata3078">
+        <rdf:RDF>
+            <cc:Work rdf:about="">
+                <dc:format>image/svg+xml</dc:format>
+                <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+                <dc:title/>
+            </cc:Work>
+        </rdf:RDF>
+    </metadata>
+    <g inkscape:label="Layer 1" inkscape:groupmode="layer" id="layer1"
+       transform="translate(-5.954668,-330.27888)">
+        <flowRoot xml:space="preserve" id="flowRoot8230" style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" transform="matrix(1.4920084,0,0,1.4920084,4365.2531,1446.6509)"><flowRegion id="flowRegion8232"><rect id="rect8234" width="223" height="96" x="504" y="860.36218"/></flowRegion><flowPara id="flowPara8236"/></flowRoot>    <flowRoot xml:space="preserve" id="flowRoot8238" style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" transform="matrix(1.4920084,0,0,1.4920084,4365.2531,1446.6509)"><flowRegion id="flowRegion8240"><rect id="rect8242" width="228" height="102" x="500" y="856.36218"/></flowRegion><flowPara id="flowPara8244"/></flowRoot>    <flowRoot transform="matrix(0.69802069,0,0,0.69802069,4690.5943,1247.2987)" style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none" id="flowRoot4748" xml:space="preserve"><flowRegion id="flowRegion4750"><rect y="860.36218" x="504" height="96" width="223" id="rect4752"/></flowRegion><flowPara id="flowPara4754"/></flowRoot>    <flowRoot style="font-style:normal;font-weight:normal;font-size:27.92082787px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none" id="flowRoot4756" xml:space="preserve"><flowRegion id="flowRegion4758"><rect y="1845.0573" x="5039.6045" height="71.198105" width="159.14873" id="rect4760"/></flowRegion><flowPara id="flowPara4762"/></flowRoot>    <flowRoot style="font-style:normal;font-weight:normal;font-size:46.76280594px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" id="flowRoot4352" xml:space="preserve"><flowRegion id="flowRegion4354"><rect y="967.02747" x="239.98756" height="1037.4696" width="2108.4961" id="rect4356"/></flowRegion><flowPara id="flowPara4358"/></flowRoot>
+        <g transform="matrix(1.4920084,0,0,1.4920084,4365.2531,1797.3719)"
+           id="g7450">
+            <g transform="translate(36.567753,9.0373295e-6)" id="g7670">
+                <g transform="translate(19.588794,-1205.6812)" id="g7767">
+                    <g id="g7792">
+                        <g transform="translate(-41.269081,299.1907)"
+                           id="g7652">
+                            <g transform="matrix(0.67023751,0,0,0.67023751,-2941.8313,-298.17558)"
+                               id="layer1-0" inkscape:label="Layer 1">
+                                <flowRoot transform="matrix(1.4920084,0,0,1.4920084,4365.2531,1446.6509)" style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" id="flowRoot8230-0" xml:space="preserve"><flowRegion id="flowRegion8232-6"><rect y="860.36218" x="504" height="96" width="223" id="rect8234-1"/></flowRegion><flowPara id="flowPara8236-5"/></flowRoot>                <flowRoot transform="matrix(1.4920084,0,0,1.4920084,4365.2531,1446.6509)" style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" id="flowRoot8238-8" xml:space="preserve"><flowRegion id="flowRegion8240-4"><rect y="856.36218" x="500" height="102" width="228" id="rect8242-9"/></flowRegion><flowPara id="flowPara8244-7"/></flowRoot>                <flowRoot xml:space="preserve" id="flowRoot4748-2" style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none" transform="matrix(0.69802069,0,0,0.69802069,4690.5943,1247.2987)"><flowRegion id="flowRegion4750-7"><rect id="rect4752-2" width="223" height="96" x="504" y="860.36218"/></flowRegion><flowPara id="flowPara4754-5"/></flowRoot>                <flowRoot xml:space="preserve" id="flowRoot4756-4" style="font-style:normal;font-weight:normal;font-size:27.92082787px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"><flowRegion id="flowRegion4758-1"><rect id="rect4760-3" width="159.14873" height="71.198105" x="5039.6045" y="1845.0573"/></flowRegion><flowPara id="flowPara4762-9"/></flowRoot>                <flowRoot xml:space="preserve" id="flowRoot4352-7" style="font-style:normal;font-weight:normal;font-size:46.76280594px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"><flowRegion id="flowRegion4354-8"><rect id="rect4356-8" width="2108.4961" height="1037.4696" x="239.98756" y="967.02747"/></flowRegion><flowPara id="flowPara4358-7"/></flowRoot>
+                                <g id="g7450-4"
+                                   transform="matrix(1.4920084,0,0,1.4920084,4365.2531,1797.3719)">
+                                    <g id="g7670-5"
+                                       transform="translate(36.567753,9.0373295e-6)">
+                                        <g id="g7767-7"
+                                           transform="translate(19.588794,-1205.6812)">
+                                            <g id="g7792-0">
+                                                <g id="text7624-8"
+                                                   style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:35.90061188px;line-height:125%;font-family:Awensys;-inkscape-font-specification:'Awensys, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#868889;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1">
+                                                    <path id="path4354"
+                                                          d="m -2506.2574,375.53666 25.7766,0 0,2.69254 -2.8002,0 -8.6162,0 0,25.74074 q -1.3283,0.0718 -2.9438,0 l 0,-25.74074 -8.5085,0 -2.9079,-2.69254 z"
+                                                          inkscape:connector-curvature="0"/>
+                                                    <path id="path4356"
+                                                          d="m -2477.4292,375.68026 25.8125,0 0,2.69255 -22.9046,0 0,9.94446 17.5554,0 0,2.87205 -17.5554,0 0,9.83677 22.9046,0 -2.6566,2.90795 -23.1559,0 0,-28.25378 z"
+                                                          inkscape:connector-curvature="0"/>
+                                                    <path id="path4358"
+                                                          d="m -2441.2571,375.60846 8.293,0 5.9595,0 q 1.9027,0.0718 3.7337,1.86683 1.8309,1.75913 2.1899,4.41578 l -2.6925,0 q -0.7539,-3.55417 -4.4876,-3.59007 l -4.6671,0 -6.9647,0 q -4.8466,0.14361 -4.3799,5.7082 l 0,5.6723 0,5.7082 q 0,0.0718 0,0.2513 0,0.82571 0,1.32832 0.036,0.46671 0.2513,1.36423 0.2513,0.86161 0.6462,1.40012 0.4308,0.50261 1.3284,0.93342 0.8975,0.4308 2.154,0.4308 l 6.9647,0 4.6671,0 q 3.7337,-0.0359 4.4517,-3.33875 l 2.7284,0 q -0.359,2.62074 -2.2617,4.41577 -1.8669,1.79503 -3.6619,1.86683 l -5.9595,0 -8.293,0 q -1.9028,-0.0718 -3.8773,-2.15403 -1.9745,-2.08224 -2.0822,-4.95429 l 0,-7.14422 0,-7.10832 q 0,-2.69255 1.9745,-4.77478 2.0104,-2.11814 3.985,-2.29764 z"
+                                                          inkscape:connector-curvature="0"/>
+                                                    <path id="path4360"
+                                                          d="m -2417.0214,375.75206 2.9079,0 0,2.65665 0,6.89291 0,2.94385 19.9249,0 0,-2.94385 0,-6.89291 0,-2.65665 2.8002,0 0,28.14608 -2.8002,-2.97975 0,-7.18012 0,-2.51305 -19.9249,0 0,2.51305 0,7.18012 0,2.90795 -2.9079,0 0,-28.07428 z"
+                                                          inkscape:connector-curvature="0"/>
+                                                    <path id="path4362"
+                                                          d="m -2386.4857,375.60846 q 2.8362,0 4.5594,0.0718 l 18.417,25.27403 0,0.0359 0,-16.01167 0,-6.67752 2.8002,-2.69254 0,28.25378 -4.6311,0 -18.2375,-25.56124 0,13.17553 0,9.47776 0,2.90795 -2.908,0 0,-28.25378 z"
+                                                          inkscape:connector-curvature="0"/>
+                                                    <path id="path4364"
+                                                          d="m -2350.1341,375.60846 8.0058,0 5.9596,0 q 1.9027,0.0718 3.6977,1.83093 1.8309,1.75913 2.19,4.41577 l -2.6926,0 q -0.2513,-1.50782 -1.3283,-2.51304 -1.0411,-1.00522 -3.1593,-1.04112 l -4.6312,0 -6.6775,0 q -4.8106,0.14361 -4.3798,5.6723 l 0,5.6723 0,5.70819 q 0,0.0718 0,0.25131 0,0.78981 0,1.29242 0.036,0.50261 0.2513,1.40012 0.2513,0.86162 0.6462,1.36423 0.4308,0.50261 1.3283,0.93341 0.8975,0.43081 2.154,0.43081 l 6.6775,0 4.6312,0 q 3.7337,-0.0359 4.4517,-3.33876 0.2513,-5.8518 0.036,-15.83217 l 2.6926,0 0,15.83217 q -0.3591,2.62075 -2.2259,4.41578 -1.8668,1.75913 -3.6618,1.83093 l -5.9596,0 -8.0058,0 q -1.8668,-0.0718 -3.8773,-2.11814 -1.9745,-2.08223 -2.0822,-4.95428 l 0,-7.10832 0,-7.07242 q 0,-2.69255 1.9745,-4.77478 2.0105,-2.11814 3.985,-2.29764 z"
+                                                          inkscape:connector-curvature="0"/>
+                                                    <path id="path4366"
+                                                          d="m -2326.6506,377.22399 0,-1.65143 2.7643,2.69254 0,22.83279 14.9347,0 2.6207,-0.0359 -2.8361,2.80025 -17.4836,0 0,-26.63825 z"
+                                                          inkscape:connector-curvature="0"/>
+                                                    <path id="path4368"
+                                                          d="m -2300.35,375.60846 8.0058,0 5.9595,0 q 1.9027,0.0718 3.6978,1.83093 1.8309,1.75913 2.1899,4.41577 l -2.6925,0 q -0.2513,-1.50782 -1.3284,-2.51304 -1.0411,-1.00522 -3.1592,-1.04112 l -4.6312,0 -6.6775,0 q -4.8107,0.14361 -4.3799,5.6723 l 0,5.6723 0,5.70819 q 0,0.0718 0,0.25131 0,0.78981 0,1.29242 0.036,0.50261 0.2513,1.40012 0.2513,0.86162 0.6462,1.36423 0.4308,0.50261 1.3284,0.93341 0.8975,0.43081 2.154,0.43081 l 6.6775,0 4.6312,0 q 3.7336,-0.0359 4.4517,-3.33876 0.2513,-5.8518 0.036,-15.83217 l 2.6925,0 0,15.83217 q -0.359,2.62075 -2.2258,4.41578 -1.8669,1.75913 -3.6619,1.83093 l -5.9595,0 -8.0058,0 q -1.8669,-0.0718 -3.8773,-2.11814 -1.9745,-2.08223 -2.0822,-4.95428 l 0,-7.10832 0,-7.07242 q 0,-2.69255 1.9745,-4.77478 2.0104,-2.11814 3.985,-2.29764 z"
+                                                          inkscape:connector-curvature="0"/>
+                                                    <path id="path4370"
+                                                          d="m -2270.3685,375.64436 7.7545,0 5.9595,0 q 1.9027,0.0718 3.6978,1.83093 1.8309,1.75913 2.1899,4.41578 l -2.6925,0 q -0.2513,-1.50783 -1.3284,-2.51305 -1.0411,-1.00521 -3.1592,-1.04112 l -4.6312,0 -6.4262,0 q -4.8107,0.14361 -4.3799,5.6723 l 0,5.6723 0,5.7082 q 0,0.0718 0,0.2513 0,0.78981 0,1.29242 0.036,0.50261 0.2513,1.40013 0.2513,0.86161 0.6462,1.36422 0.4308,0.50261 1.3284,0.93341 0.8975,0.43081 2.154,0.43081 l 6.4262,0 4.6312,0 q 3.7336,-0.0359 4.4517,-3.33875 0.1795,-1.36423 0.072,-4.77479 l -4.1286,-0.0359 -4.1286,-0.0359 -1.6873,-2.72844 12.6011,0 0,7.57503 q -0.359,2.62074 -2.2258,4.41577 -1.8669,1.75913 -3.6619,1.83093 l -5.9595,0 -7.7545,0 q -1.8669,-0.0718 -3.8773,-2.11813 -1.9745,-2.08224 -2.0822,-4.95429 l 0,-7.10832 0,-7.07242 q 0,-2.69255 1.9745,-4.77478 2.0104,-2.11814 3.985,-2.29764 z"
+                                                          inkscape:connector-curvature="0"/>
+                                                    <path id="path4372"
+                                                          d="m -2245.288,375.71616 2.8002,0 0,28.28968 -2.8002,-2.83615 0,-25.45353 z"
+                                                          inkscape:connector-curvature="0"/>
+                                                    <path id="path4374"
+                                                          d="m -2238.7463,375.68026 25.8126,0 0,2.69255 -22.9046,0 0,9.94446 17.5554,0 0,2.87205 -17.5554,0 0,9.83677 22.9046,0 -2.6567,2.90795 -23.1559,0 0,-28.25378 z"
+                                                          inkscape:connector-curvature="0"/>
+                                                    <path id="path4376"
+                                                          d="m -2201.7484,375.64436 6.4621,0 6.4621,0 q 0.8257,0.0359 1.9027,0.53851 1.077,0.50261 2.1182,1.36422 1.0411,0.86162 1.7232,2.26174 0.6821,1.40012 0.6821,2.94385 l 0,1.36422 -2.8003,0 0,-0.68211 q -0.036,-1.86683 -1.7232,-3.44646 -1.6873,-1.57962 -3.3028,-1.65143 l -5.0261,0 -5.0261,0 q -1.4719,-0.0718 -3.2311,1.54373 -1.7232,1.57963 -1.7591,3.55416 l 0,2.51304 q 0.036,0.68212 0.5026,1.18472 0.4667,0.50261 1.1847,0.78982 0.718,0.2872 1.4002,0.43081 0.718,0.1077 1.4001,0.1077 l 4.4876,0 4.5234,0 4.4876,0 q 1.6514,0 3.2311,1.57962 1.6155,1.54373 1.6514,3.30286 l 0,3.51826 q 0,1.43602 -0.718,2.80025 -0.718,1.36422 -1.7591,2.26174 -1.0053,0.89751 -2.0823,1.47192 -1.077,0.53851 -1.8668,0.53851 l -6.4621,0 -6.4621,0 q -0.7898,0 -1.8669,-0.50261 -1.077,-0.53851 -2.0822,-1.40012 -1.0052,-0.89752 -1.7232,-2.26174 -0.718,-1.40012 -0.7539,-2.90795 l 0,-1.36422 2.9079,0 0,0.57441 q 0,1.86683 1.8668,3.44646 1.8669,1.57962 3.1234,1.50782 l 5.0261,0 5.0261,0 q 1.3283,0 3.1233,-1.50782 1.8309,-1.50783 1.9027,-3.44646 l 0,-2.47715 q 0,-0.57441 -0.4308,-1.07701 -0.3949,-0.50261 -1.0411,-0.78982 -0.6103,-0.2872 -1.3283,-0.4308 -0.6821,-0.14361 -1.3283,-0.14361 l -4.1645,0 -4.1286,0 -4.1644,0 q -2.5131,0 -4.4158,-1.54372 -1.9027,-1.54373 -1.9745,-3.33876 l 0,-3.51826 q 0,-1.50783 0.6821,-2.87205 0.718,-1.40012 1.7232,-2.29764 1.0411,-0.89751 2.1181,-1.40012 1.077,-0.53851 1.9028,-0.53851 z"
+                                                          inkscape:connector-curvature="0"/>
+                                                </g>
+                                                <g id="g7628-9"
+                                                   transform="matrix(1.0590778,0,0,1.0590778,47.542231,784.1879)">
+                                                    <g id="g7630-3"
+                                                       transform="matrix(0.58310897,0,0,0.58310897,-2364.1122,-25.82601)">
+                                                        <rect style="fill:#868889;fill-opacity:1;stroke:none"
+                                                              id="rect7632-9"
+                                                              width="62.867382"
+                                                              height="62.168686"
+                                                              x="-153.06349"
+                                                              y="-771.66382"/>
+                                                        <rect y="-771.66382"
+                                                              x="-235.48976"
+                                                              height="62.168686"
+                                                              width="62.867382"
+                                                              id="rect7634-7"
+                                                              style="fill:#868889;fill-opacity:1;stroke:none"/>
+                                                        <rect style="fill:#868889;fill-opacity:1;stroke:none"
+                                                              id="rect7636-1"
+                                                              width="62.867382"
+                                                              height="62.168686"
+                                                              x="-318.61404"
+                                                              y="-771.66382"/>
+                                                    </g>
+                                                    <path inkscape:connector-curvature="0"
+                                                          id="path7638-8"
+                                                          d="m -2549.8989,-436.65382 0,14.8484 c 0.1477,21.59937 14.1687,35.79566 30.1275,35.82398 l 96.1725,0 c 12.6671,-0.3052 29.6332,-13.76607 29.868,-31.6715 l -0.074,-80.02286 -13.6315,0 c 0.5041,26.67593 0.9122,51.87238 -0.1901,78.54844 -1.8899,8.18884 -7.217,18.1139 -22.4009,18.37111 l -82.797,0 c -23.3525,-0.17757 -22.7628,-19.91253 -22.7628,-28.71543 l 0,-7.18214 m 0,-42.07633 0,-8.24272 c -0.2942,-8.2782 -1.1098,-27.91928 22.7628,-28.71556 l 23.5046,0 59.2924,0 c 15.5499,0.12221 21.1012,9.29834 22.5957,18.01748 l 13.6354,0 c 0.2008,-18.9118 -14.9008,-31.66995 -29.803,-31.67142 l -65.9801,0 -30.192,-0.005 c -15.2215,0.30948 -30.1275,14.6918 -30.1275,35.824 l 0,14.7935"
+                                                          style="fill:#e51d28;fill-opacity:1;stroke:none"
+                                                          sodipodi:nodetypes="ccccccccccccccccccccccsc"/>
+                                                </g>
+                                                <g id="g4428-3">
+                                                    <g id="text7640-1"
+                                                       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:141.21972656px;line-height:125%;font-family:Awensys;-inkscape-font-specification:'Awensys, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1">
+                                                        <path id="path4345"
+                                                              d="m -2479.6317,244.04137 26.2669,0 13.1334,0 36.011,0 q 4.9427,0.14122 9.4617,3.10683 4.5191,2.96562 7.6259,7.62587 3.2481,4.51903 5.0839,10.45026 1.8359,5.93122 1.8359,11.86245 0.1412,5.93123 -2.1183,11.72124 -2.2595,5.64879 -6.6374,9.74416 2.2596,2.54196 4.0954,5.64879 1.9771,3.10683 2.9656,6.63733 1.1298,3.53049 1.271,6.63733 l 0,37.70566 -11.2976,0 q 0,-5.64879 -0.2824,-20.0532 -0.1412,-14.54563 -0.1412,-20.19442 -1.1298,-4.66025 -3.1069,-7.20221 -1.977,-2.54195 -5.6487,-2.54195 l -67.3619,0 0,49.99178 -11.1563,0 0,-58.32374 0,-2.8244 13.8395,0 62.1367,0 q 5.5076,-1.55342 8.6144,-6.07245 3.2481,-4.66025 3.2481,-10.0266 0.1412,-5.50757 -1.5535,-10.7327 -1.5534,-5.22513 -5.79,-8.6144 -4.0953,-3.38927 -9.4617,-3.24805 l -60.0184,0 0,19.62954 -11.0151,8.04952 0,-0.98854 0,-37.9881 z"
+                                                              inkscape:connector-curvature="0"/>
+                                                    </g>
+                                                    <g id="text7644-0"
+                                                       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:140.76264954px;line-height:125%;font-family:Awensys;-inkscape-font-specification:'Awensys, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+                                                       transform="scale(1.0032472,0.99676332)">
+                                                        <path sodipodi:nodetypes="cccccccccc"
+                                                              inkscape:connector-curvature="0"
+                                                              id="path4348"
+                                                              d="m -2383.5979,244.70984 101.0676,0 0,10.5572 -10.9795,0 -33.7831,0 0,100.92682 -11.5425,0 0,-100.92682 -33.3607,0 z"/>
+                                                    </g>
+                                                    <g id="text7648-0"
+                                                       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:141.21972656px;line-height:125%;font-family:Awensys;-inkscape-font-specification:'Awensys, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1">
+                                                        <path id="path4351"
+                                                              d="m -2283.935,244.04138 101.537,0 0,10.59148 -90.0982,0 0,39.11787 69.0564,0 0,11.29757 -69.0564,0 0,38.69421 90.0982,0 -10.4503,11.4388 -91.0867,0 0,-111.13993 z"
+                                                              inkscape:connector-curvature="0"/>
+                                                    </g>
+                                                </g>
+                                                <g id="g7652-6"
+                                                   transform="translate(-41.269081,299.1907)">
+                                                    <g id="text7654-3"
+                                                       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:141.21972656px;line-height:125%;font-family:Awensys;-inkscape-font-specification:'Awensys, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1">
+                                                        <path id="path4342"
+                                                              d="m -2912.0229,-55.855368 32.6218,0 23.4424,0 q 7.4847,0.282439 14.6869,7.343425 7.2022,6.919767 8.6144,17.370027 l -10.5915,0 q -2.9656,-13.980753 -17.6525,-14.121973 l -18.3585,0 -27.3967,0 q -19.0646,0.564879 -17.2288,22.453937 l 0,22.31271647 0,22.45393653 q 0,0.282439 0,0.988538 0,3.248054 0,5.22513 0.1413,1.835856 0.9886,5.36635 0.9885,3.389273 2.5419,5.507569 1.6947,1.977076 5.2252,3.671713 3.5305,1.694637 8.4731,1.694637 l 27.3967,0 18.3585,0 q 14.6869,-0.14122 17.5113,-13.133435 l 10.7327,0 q -1.4122,10.30904 -8.8969,17.370026 -7.3434,7.060987 -14.4044,7.343426 l -23.4424,0 -32.6218,0 q -7.4846,-0.282439 -15.2517,-8.473184 -7.7671,-8.190744 -8.1908,-19.488322 l 0,-28.10272535 0,-27.96150565 q 0,-10.59148 7.7671,-18.782224 7.9083,-8.331964 15.6754,-9.038062 z"
+                                                              inkscape:connector-curvature="0"/>
+                                                    </g>
+                                                    <g id="text7658-7"
+                                                       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:141.21972656px;line-height:125%;font-family:Awensys;-inkscape-font-specification:'Awensys, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1">
+                                                        <path id="path4339"
+                                                              d="m -2805.5382,-55.431693 31.492,0 23.4424,0 q 7.4847,0.28244 14.5457,7.202206 7.2022,6.919767 8.6144,17.370027 l -10.5915,0 q -0.9885,-5.931229 -5.2251,-9.885381 -4.0954,-3.954153 -12.4274,-4.095372 l -18.2173,0 -26.2669,0 q -18.9234,0.564879 -17.2288,22.312716 l 0,22.31271728 0,22.45393672 q 0,0.282439 0,0.988538 0,3.106834 0,5.08391 0.1412,1.977076 0.9885,5.507569 0.9886,3.389274 2.542,5.36635 1.6946,1.977076 5.2251,3.671713 3.5305,1.694637 8.4732,1.694637 l 26.2669,0 18.2173,0 q 14.6869,-0.14122 17.5113,-13.133435 0.9885,-23.0188154 0.1412,-62.277899 l 10.5915,0 0,62.277899 q -1.4122,10.30904 -8.7557,17.370026 -7.3434,6.919767 -14.4044,7.202206 l -23.4424,0 -31.492,0 q -7.3435,-0.282439 -15.2518,-8.331963 -7.7671,-8.190745 -8.1907,-19.488323 l 0,-27.96150554 0,-27.82028646 q 0,-10.591479 7.7671,-18.782223 7.9083,-8.331964 15.6754,-9.038063 z"
+                                                              inkscape:connector-curvature="0"/>
+                                                    </g>
+                                                    <g id="text7662-6"
+                                                       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:141.21972656px;line-height:125%;font-family:Awensys;-inkscape-font-specification:'Awensys, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1">
+                                                        <path id="path4336"
+                                                              d="m -2719.745,-54.725609 11.4388,0 0,10.45026 0,27.114187 0,11.5800178 78.377,0 0,-11.5800178 0,-27.114187 0,-10.45026 11.0151,0 0,110.716266 -11.0151,-11.721238 0,-28.243945 0,-9.8853809 -78.377,0 0,9.8853809 0,28.243945 0,11.438798 -11.4388,0 0,-110.433826 z"
+                                                              inkscape:connector-curvature="0"/>
+                                                    </g>
+                                                    <g id="text7666-3"
+                                                       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:141.21972656px;line-height:125%;font-family:Awensys;-inkscape-font-specification:'Awensys, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1">
+                                                        <path id="path4333"
+                                                              d="m -2804.1977,-55.431693 31.492,0 23.4425,0 q 7.4847,0.28244 14.5456,7.202206 7.2023,6.919767 8.6144,17.370027 l -10.5914,0 q -0.9886,-5.931229 -5.2252,-9.885381 -4.0953,-3.954153 -12.4273,-4.095372 l -18.2173,0 -26.2669,0 q -18.9235,0.564879 -17.2288,22.312716 l 0,22.31271728 0,22.45393672 q 0,0.282439 0,0.988538 0,3.106834 0,5.08391 0.1412,1.977076 0.9885,5.507569 0.9886,3.389274 2.542,5.36635 1.6946,1.977076 5.2251,3.671713 3.5305,1.694637 8.4732,1.694637 l 26.2669,0 18.2173,0 q 14.6869,-0.14122 17.5112,-13.133435 0.9886,-23.0188154 0.1413,-62.277899 l 10.5914,0 0,62.277899 q -1.4121,10.30904 -8.7556,17.370026 -7.3434,6.919767 -14.4044,7.202206 l -23.4425,0 -31.492,0 q -7.3434,-0.282439 -15.2517,-8.331963 -7.7671,-8.190745 -8.1907,-19.488323 l 0,-27.96150554 0,-27.82028646 q 0,-10.591479 7.767,-18.782223 7.9084,-8.331964 15.6754,-9.038063 z"
+                                                              inkscape:connector-curvature="0"/>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                </g>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

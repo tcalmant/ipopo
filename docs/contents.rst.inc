@@ -32,6 +32,7 @@ interested.
 
 .. toctree::
    :maxdepth: 2
-   
+
+   users
    changelog
    license
