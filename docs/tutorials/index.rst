@@ -5,5 +5,7 @@ Tutorials
 
 This section provides tutorials for various parts of iPOPO.
 
-.. toctree:
+.. toctree::
    :maxdepth: 2
+
+         ipopo_10min
