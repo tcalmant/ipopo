@@ -31,7 +31,7 @@ Design notes, legal information and changelog are here for the
 interested.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    users
    changelog
