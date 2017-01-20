@@ -126,5 +126,6 @@ All the available methods are described in the
 Here are the most used ones concerning the handling of bundles:
 
 .. autoclass:: pelix.framework.BundleContext
+   :noindex:
    :members: get_bundle, get_bundles, install_bundle, add_bundle_listener,
              remove_bundle_listener, install_package, install_visiting

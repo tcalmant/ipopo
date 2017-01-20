@@ -68,6 +68,7 @@ Finally, here are the methods of the :ref:`BundleContext <api_bundlecontext>`
 class that can be used to handle services:
 
 .. autoclass:: BundleContext
+   :noindex:
    :members: add_service_listener, remove_service_listener,
              get_all_service_references, get_service, get_service_reference,
              get_service_references, register_service, unget_service
