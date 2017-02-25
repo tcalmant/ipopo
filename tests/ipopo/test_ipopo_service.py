@@ -50,7 +50,7 @@ class IPopoServiceTest(unittest.TestCase):
         self.framework.stop()
         FrameworkFactory.delete_framework()
 
-    def testFactoriesRegistration(self):
+    def test_factories_registration(self):
         """
         Tests the (un)register_factory and get_factories behavior
         """
@@ -122,34 +122,36 @@ class IPopoServiceTest(unittest.TestCase):
         # We can do it only once
         self.assertFalse(self.ipopo.unregister_factory(FACTORY))
 
-    def testGetFactoryBundle(self):
+    def test_get_factory_bundle(self):
         """
         Tests the get_factory_bundle() method
         """
-        FACTORY = "dummy-factory"
+        factory_name = "dummy-factory"
         context = self.framework.get_bundle_context()
 
-        @decorators.ComponentFactory(FACTORY)
+        @decorators.ComponentFactory(factory_name)
         class TestComponent(object):
             pass
 
         # We must have a ValueError
-        self.assertRaises(ValueError, self.ipopo.get_factory_bundle, FACTORY)
+        self.assertRaises(ValueError,
+                          self.ipopo.get_factory_bundle, factory_name)
 
         # Register the factory
         self.ipopo.register_factory(context, TestComponent)
 
         # Test the factory bundle
-        self.assertIs(self.ipopo.get_factory_bundle(FACTORY), self.framework,
-                      "Invalid factory bundle")
+        self.assertIs(self.ipopo.get_factory_bundle(factory_name),
+                      self.framework, "Invalid factory bundle")
 
         # Unregister it
-        self.ipopo.unregister_factory(FACTORY)
+        self.ipopo.unregister_factory(factory_name)
 
         # We must have a ValueError
-        self.assertRaises(ValueError, self.ipopo.get_factory_bundle, FACTORY)
+        self.assertRaises(ValueError,
+                          self.ipopo.get_factory_bundle, factory_name)
 
-    def testGetInstanceDetails(self):
+    def test_get_instance_details(self):
         """
         Instance details method test
         """
@@ -179,7 +181,7 @@ class IPopoServiceTest(unittest.TestCase):
         self.assertIs(type(details['dependencies']), dict,
                       "Dependencies details must be in a dictionary")
 
-    def testIPopoStartInstalled(self):
+    def test_ipopo_start_installed(self):
         """
         Tests if iPOPO starts instances of already installed bundles
         """
@@ -202,7 +204,7 @@ class IPopoServiceTest(unittest.TestCase):
             self.ipopo.is_registered_instance(module.BASIC_INSTANCE),
             "Component not created")
 
-    def testInstantiate(self):
+    def test_instantiate(self):
         """
         Tests the instantiate method
         """
@@ -249,7 +251,7 @@ class IPopoServiceTest(unittest.TestCase):
                           INSTANCE)
         log_on()
 
-    def testIPopoEvents(self):
+    def test_ipopo_events(self):
         """
         Tests iPOPO event listener
         """
