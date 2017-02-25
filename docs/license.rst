@@ -8,9 +8,9 @@ All contributions must comply with this license.
 File Header
 -----------
 
-This snippet must be added to the module-level documentation::
+This snippet is added to the module-level documentation::
 
-    Copyright 2016 Thomas Calmant
+    Copyright 2017 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.

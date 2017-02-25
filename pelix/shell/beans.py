@@ -4,14 +4,14 @@
 Definition of classes used by the Pelix shell service and its consumers
 
 :author: Thomas Calmant
-:copyright: Copyright 2016, Thomas Calmant
+:copyright: Copyright 2017, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.6.4
+:version: 0.6.5
 :status: Alpha
 
 ..
 
-    Copyright 2016 Thomas Calmant
+    Copyright 2017 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ from pelix.utilities import to_bytes, to_str
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 6, 4)
+__version_info__ = (0, 6, 5)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
