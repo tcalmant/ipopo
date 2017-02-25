@@ -54,6 +54,8 @@ HTTP
   to indicate that the server uses HTTPS.
 * Added a utility module, ``pelix.http.routing``, which eases the routing of
   HTTP requests whith decorators like ``@Http``, ``@HttpGet``...
+* Merged `pull request #70 <https://github.com/tcalmant/ipopo/pull/70>`_,
+  avoiding remote HTTP servlets to be used by the local HTTP server.
 
 Remote Services
 ---------------
