@@ -3,6 +3,72 @@
 Release Notes
 #############
 
+iPOPO 0.6.5 (Work in progress)
+==============================
+
+:Release Date: 2017-??-??
+
+Project
+-------
+
+* Project documentation migrated to
+  `Read The Docs <https://ipopo.readthedocs.io/>`_ as the previous documentation
+  server crashed.
+  All references to the previous server (``coderxpress.net``) have been removed.
+* The documentation is being completely rewritten while it is converted from
+  Dokuwiki to Sphinx.
+* Removed Pypy 3 from Travis-CI/Tox tests, as it is not compatible with pip.
+
+Pelix
+-----
+
+* The import path normalization now ensures that the full path of the initial
+  working directory is stored in the path, and that the current working
+  directory marker (empty string) is kept as the first entry of the Python path.
+* Merged `pull request #65 <https://github.com/tcalmant/ipopo/pull/65>`_,
+  to ignore import errors when normalizing the Python path.
+* Merged `pull request #68 <https://github.com/tcalmant/ipopo/pull/68>`_,
+  correcting the behaviour of the thread pool.
+
+iPOPO
+-----
+
+* The ``@Validate`` method of components is now always called after the bundle
+  activator has returned. (`#66 <https://github.com/tcalmant/ipopo/issues/66>`_)
+* Added a ``get_instance(name)`` method to access to the component instance
+  object by its name. (`#74 <https://github.com/tcalmant/ipopo/issues/74>`_)
+
+HTTP
+----
+
+* Added some utility methods to ``HttpServletRequest``:
+
+  * ``get_command()``: get the HTTP command of the request
+  * ``get_prefix_path()``: get the servlet prefix path
+  * ``get_sub_path()``: get the part of the path corresponding to the servlet
+    (*i.e.* without the prefix path)
+
+* ``get_servlet()`` now returns the servlet prefix along with the servlet and
+  the server parameters.
+* Added a ``pelix.https`` service property and an ``is_https()`` service method
+  to indicate that the server uses HTTPS.
+* Added a utility module, ``pelix.http.routing``, which eases the routing of
+  HTTP requests whith decorators like ``@Http``, ``@HttpGet``...
+
+Remote Services
+---------------
+
+* JSON-RPC and XML-RPC transports providers now support HTTPS.
+* Added a `Redis <https://redis.io/>`_-based discovery provider, working with
+  all HTTP-based transport providers.
+
+Shell
+-----
+
+* Added the *Configuration Handler*, which allows to give a JSON file to set
+  the initial configuration of a framework: properties, bundles, instances, ...
+
+
 iPOPO 0.6.4
 ===========
 
