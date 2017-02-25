@@ -914,6 +914,16 @@ class _IPopoService(object):
                 (name, stored_instance.factory_name, stored_instance.state)
                 for name, stored_instance in self.__instances.items())
 
+    def get_instance(self, name):
+        """
+        Returns the instance of the component with the given name
+
+        :param name: A component name
+        :return: The component instance
+        :raise KeyError: Unknown instance
+        """
+        return self.__instances[name].instance
+
     def get_waiting_components(self):
         """
         Returns the list of the instances waiting for their handlers

@@ -9,6 +9,7 @@ Tests the iPOPO core service.
 # Tests
 from tests import log_on, log_off
 from tests.ipopo import install_bundle, install_ipopo
+from tests.ipopo.ipopo_bundle import BASIC_INSTANCE
 
 # Pelix
 from pelix.framework import FrameworkFactory
@@ -345,6 +346,52 @@ class IPopoServiceTest(unittest.TestCase):
 
         self.assertFalse(self.ipopo.remove_listener(listener),
                          "Listener unregistered twice")
+
+    def test_get_instance(self):
+        """
+        Tests the get_instance(name) method
+        """
+        # Test if the framework is clean
+        self.assertEqual(len(self.ipopo.get_factories()), 0,
+                         "Some factories are already registered.")
+
+        # Test the KeyError behaviour
+        for name in (None, "", "unknown", 42):
+            self.assertRaises(KeyError, self.ipopo.get_instance, name)
+        self.assertRaises(KeyError, self.ipopo.get_instance, BASIC_INSTANCE)
+
+        # Start the test bundle
+        module = install_bundle(self.framework)
+
+        # Test the KeyError behaviour
+        for name in (None, "", "unknown", 42):
+            self.assertRaises(KeyError, self.ipopo.get_instance, name)
+
+        # Check if we got the object
+        self.assertIsInstance(self.ipopo.get_instance(BASIC_INSTANCE),
+                              module.BasicComponent)
+
+        # Check we got the good object
+        factory_name = "dummy-factory"
+        instance_name = "some-instance"
+        context = self.framework.get_bundle_context()
+
+        @decorators.ComponentFactory(factory_name)
+        class TestComponent(object):
+            pass
+
+        # Register the factory
+        self.ipopo.register_factory(context, TestComponent)
+
+        # Start a component
+        component = self.ipopo.instantiate(factory_name, instance_name)
+
+        # Check the behaviour
+        self.assertIs(self.ipopo.get_instance(instance_name), component)
+
+        # Clean up
+        self.ipopo.kill(instance_name)
+        self.ipopo.unregister_factory(factory_name)
 
 # ------------------------------------------------------------------------------
 
