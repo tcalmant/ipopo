@@ -206,7 +206,7 @@ Transport Providers
 The *remote services* implementation supports XML-RPC (using the
 `xmlrpc <https://docs.python.org/3/library/xmlrpc.html>`_ standard package), but
 it is recommended to use JSON-RPC instead (using the
-`jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib/>`_ third-party module).
+`jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib/>`__ third-party module).
 Indeed, the JSON-RPC layer has a better handling of dictionaries and custom
 types.
 iPOPO also supports a variant of JSON-RPC, *Jabsorb-RPC*, which adds Java type
@@ -361,10 +361,10 @@ Redis Discovery
 :Bundle: pelix.remote.discovery.redis
 :Factory: pelix-remote-discovery-redis-factory
 :Requires: *nothing* (all is stored in the Redis database)
-:Libraries: `redis <https://pypi.python.org/pypi/redis>`_
+:Libraries: `redis <https://pypi.python.org/pypi/redis>`__
 
 The Redis discovery is the only one working well in Docker (Swarm) networks.
-It uses a `Redis database <https://redis.io/>`_ to store the host name of each
+It uses a `Redis database <https://redis.io/>`__ to store the host name of each
 framework and the description of each exported endpoint of each framework.
 Those description are stored in the OSGi standard EDEF XML format, so it should
 be possible to implement a Java version of this discovery provider.
@@ -462,11 +462,12 @@ JSON-RPC Transport
 :Bundle: pelix.remote.json_rpc
 :Factories: pelix-jsonrpc-exporter-factory, pelix-jsonrpc-importer-factory
 :Requires: HTTP Service
-:Libraries: `jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`_
+:Libraries: `jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`__
             (installation requirement of iPOPO)
 
 The JSON-RPC transport is the recommended one in Pelix/iPOPO.
-It depends on an external library, `jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`_
+It depends on an external library,
+`jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`__
 which has no transient dependency.
 It has way less troubles with complex and custom types than the XML-RPC
 transport, which eases the development of most of Pelix/iPOPO applications.
@@ -513,7 +514,7 @@ Jabsorb-RPC Transport
 :Bundle: pelix.remote.transport.jabsorb_rpc
 :Factories: pelix-jabsorbrpc-exporter-factory, pelix-jabsorbrpc-importer-factory
 :Requires: HTTP Service
-:Libraries: `jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`_
+:Libraries: `jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`__
             (installation requirement of iPOPO)
 
 The JABSORB-RPC transport is based on a variant of the JSON-RPC protocol.
@@ -524,7 +525,7 @@ used when no Java frameworks are expected: it doesn't provide more features
 than JSON-RPC in a 100% Python environment.
 
 Like the JSON-RPC transport, it depends on an external library,
-`jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`_ which has no
+`jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`__ which has no
 transient dependency.
 
 Like most of the transport providers, this one is split in two components:

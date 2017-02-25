@@ -453,6 +453,7 @@ Remote Services
   `MQTT-RPC module <https://github.com/wolfeidau/mqtt-rpc>`_
 * Added a Jabsorb-RPC transport. Pelix can now use Java services and vice-versa,
   using:
+
     * `Cohorte Remote Services <https://github.com/isandlaTech/cohorte-remote-services>`_
     * `Eclipse ECF <http://wiki.eclipse.org/ECF>`_ and the
       `Jabsorb-RPC provider <https://github.com/isandlaTech/cohorte-remote-services/tree/master/org.cohorte.ecf.provider.jabsorb>`_
