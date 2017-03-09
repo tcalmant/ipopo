@@ -36,6 +36,18 @@ iPOPO enables to conceive long-running and modular IT services.
 
 See https://ipopo.readthedocs.io/ for documentation and more information.
 
+
+Usage survey
+============
+
+In order to gain insight from the iPOPO community, I've put a
+`really short survey <https://docs.google.com/forms/d/1zx18_Rg27mjdGrlbtr9fWFmVnZNINo9XCfrYJbr4oJI>`_
+on Google Forms (no login required).
+
+Please, feel free to answer it, the more answers, the better.
+All feedback is really appreciated, and I'll write about the aggregated results
+on the users' mailing list, once enough answers will have been received.
+
 .. contents::
 
 Note about the documentation
