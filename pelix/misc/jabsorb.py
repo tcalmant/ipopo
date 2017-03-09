@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-Python JSON <-> Java Jabsorb format converter
+Python JSON ↔ Java Jabsorb format converter
 
 Jabsorb is a serialization library for Java, converting Java beans to JSON
 and vice versa.

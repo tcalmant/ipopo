@@ -365,9 +365,9 @@ class FactoryContext(object):
 
     def get_instances(self):
         """
-        Returns the dictionary of instances to start: name -> properties
+        Returns the dictionary of instances to start: name → properties
 
-        :return: A dictionary: instance name -> instance properties
+        :return: A dictionary: instance name → instance properties
         """
         return self._deepcopy(self.__instances)
 

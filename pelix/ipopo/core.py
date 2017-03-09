@@ -951,7 +951,7 @@ class _IPopoService(object):
         * factory: The name of the component factory
         * bundle_id: The ID of the bundle providing the component factory
         * state: The current component state
-        * services: A {Service ID -> Service reference} dictionary, with all
+        * services: A {Service ID → Service reference} dictionary, with all
           services provided by the component
         * dependencies: A dictionary associating field names with the following
           dictionary:
@@ -964,9 +964,9 @@ class _IPopoService(object):
             services or not
           * binding: A list of the ServiceReference the component is bound to
 
-        * properties: A dictionary key -> value, with all properties of the
+        * properties: A dictionary key → value, with all properties of the
           component. The value is converted to its string representation, to
-          avoid unexcepted behaviors.
+          avoid unexpected behaviors.
 
         :param name: The name of a component instance
         :return: A dictionary of details
@@ -1069,15 +1069,18 @@ class _IPopoService(object):
         * bundle: The Bundle object of the bundle providing the factory
         * properties: Copy of the components properties defined by the factory
         * requirements: List of the requirements defined by the factory
+
           * id: Requirement ID (field where it is injected)
           * specification: Specification of the required service
           * aggregate: If True, multiple services will be injected
           * optional: If True, the requirement is optional
+
         * services: List of the specifications of the services provided by
           components of this factory
         * handlers: Dictionary of the non-built-in handlers required by this
           factory. The dictionary keys are handler IDs, and it contains a tuple
           with:
+
           * A copy of the configuration of the handler (0)
           * A flag indicating if the handler is present or not
 

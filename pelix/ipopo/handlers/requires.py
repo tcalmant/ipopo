@@ -58,9 +58,9 @@ class _HandlerFactory(constants.HandlerFactory):
         """
         Overrides the filters specified in the decorator with the given ones
 
-        :param requirements: Dictionary of requirements (field -> Requirement)
+        :param requirements: Dictionary of requirements (field → Requirement)
         :param requires_filters: Content of the 'requires.filter' component
-                                 property (field -> string)
+                                 property (field → string)
         :return: The new requirements
         """
         if not requires_filters or not isinstance(requires_filters, dict):

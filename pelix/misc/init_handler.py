@@ -101,7 +101,7 @@ class _Configuration(object):
         Keys are components names, whereas values are (factory, properties)
         tuples
 
-        :return: A name->(factory, properties) dictionary
+        :return: A name→(factory, properties) dictionary
         """
         return self._components
 

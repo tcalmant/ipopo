@@ -58,11 +58,11 @@ class _HandlerFactory(constants.HandlerFactory):
         """
         Overrides the filters specified in the decorator with the given ones
 
-        :param configs: Field -> (Requirement, key, allow_none) dictionary
+        :param configs: Field → (Requirement, key, allow_none) dictionary
         :param requires_filters: Content of the 'requires.filter' component
-                                 property (field -> string)
+                                 property (field → string)
         :param temporal_timeouts: Content of the 'temporal.timeouts' component
-                                  property (field -> float)
+                                  property (field → float)
         :return: The new configuration dictionary
         """
         if not isinstance(requires_filters, dict):
