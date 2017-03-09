@@ -56,7 +56,8 @@ The core service provides the ``pelix.ipopo.core`` specification.
       # ... considering "context" being a BundleContext object
       with use_ipopo(context) as ipopo:
           # use the iPOPO core service with the "ipopo" variable
-          ipopo.instantiate("my.factory", "my.component", {})
+          ipopo.instantiate("my.factory", "my.component",
+                            {"some.property": [1, 2, 3], "answer": 42})
 
       # ... out of the "with" context, the iPOPO service has been released
       # and shouldn't be used

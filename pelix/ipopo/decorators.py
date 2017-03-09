@@ -392,6 +392,15 @@ class Instantiate(object):
     If no properties are given, the default value declared in ``@Property``
     decorators will be used.
 
+    The properties are associated to the component instance but not added to it.
+    This means that new (meta-) properties can be added to add information to
+    the component (like the Remote Services export properties), but those won't
+    be accessible directly by the component.
+    Those extra properties will be visible in component's services properties
+    and in the instance properties returned by the iPOPO
+    ``get_instance_details()`` method, but no new field will be injected in the
+    component instance.
+
     .. code-block:: python
 
         @ComponentFactory()
@@ -597,8 +606,8 @@ class Property(object):
     If no initial value is given, the value stored in the field in the
     ``__init__()`` method will be used.
 
-    In Python 2, it is required that the component class inherits ``object``
-    for properties to work.
+    .. warning:: In Python 2, it is required that the component class inherits
+                 ``object`` for properties to work.
 
     .. code-block:: python
 
