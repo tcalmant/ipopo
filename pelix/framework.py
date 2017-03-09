@@ -716,7 +716,7 @@ class Framework(Bundle):
             # A bundle can't be installed twice
             for bundle in self.__bundles.values():
                 if bundle.get_symbolic_name() == name:
-                    _logger.warning('Already installed bundle: %s', name)
+                    _logger.debug('Already installed bundle: %s', name)
                     return bundle
 
             # Load the module
