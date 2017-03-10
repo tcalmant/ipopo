@@ -26,7 +26,6 @@ Shell commands for the log service
 """
 
 # Standard library
-import itertools
 import logging
 
 # Pelix
@@ -50,7 +49,7 @@ __docformat__ = "restructuredtext en"
 @ComponentFactory("pelix-shell-log-factory")
 @Provides(SERVICE_SHELL_COMMAND)
 @Requires("_logger", LOG_READER_SERVICE, optional=True)
-@Instantiate("pelix-shell-log-factory")
+@Instantiate("pelix-shell-log")
 class ShellLogCommand(object):
     """
     Provides shell commands to print the content of the log service

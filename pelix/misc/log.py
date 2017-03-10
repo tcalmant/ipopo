@@ -200,6 +200,17 @@ class LogService(logging.Handler):
         """
         Subscribes a listener to log events.
 
+        A log listener is an object providing with a ``logged`` method, with
+        the following signature:
+
+        .. code-block:: python
+
+            def logged(self, log_entry):
+                '''
+                A log entry (LogEntry) has been added to the log service
+                '''
+                # ...
+
         :param listener: A new listener
         """
         if listener is not None:
