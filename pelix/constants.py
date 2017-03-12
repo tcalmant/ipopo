@@ -70,6 +70,11 @@ Property containing the ID of a service.
 This ID is unique in a framework instance.
 """
 
+SERVICE_BUNDLEID = "service.bundleid"
+"""
+Property containing the ID of the bundle providing the service.
+"""
+
 SERVICE_PID = 'service.pid'
 """
 Property containing the Persistent ID of a service, i.e. a string identifier
@@ -85,12 +90,43 @@ Property that indicates the ranking of a service. It is used to sort the
 results of methods like get_service_references()
 """
 
+SERVICE_SCOPE = "service.scope"
+"""
+Property that indicates the service's scope, one of "singleton", "bundle" or
+"prototype".
+This allows the framework to detect service factories and prototype service
+factories.
+"""
+
 FRAMEWORK_UID = "framework.uid"
 """
 Framework instance "unique" identifier. Used in Remote Services to identify
 a framework from another.
 It can be generated or be forced using the framework initialization properties.
 This property is constant during the life of a framework instance.
+"""
+
+# ------------------------------------------------------------------------------
+
+SCOPE_SINGLETON = "singleton"
+"""
+Default service scope: the service is a singleton, which means that the service
+object is shared by all bundles
+"""
+
+SCOPE_BUNDLE = "bundle"
+"""
+Service factory scope: the service factory is called each time a new bundle
+requires the service.
+Each service can have its own version of the service, but will get the same
+version if it calls ``get_service()`` multiple times.
+"""
+
+SCOPE_PROTOTYPE = "prototype"
+"""
+Prototype service factory scope: the factory is called each time the caller
+gets the service.
+This allows all bundles to have multiples objects for the same service.
 """
 
 # ------------------------------------------------------------------------------

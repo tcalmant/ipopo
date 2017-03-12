@@ -32,7 +32,7 @@ import threading
 
 # Pelix beans
 from pelix.constants import OBJECTCLASS, SERVICE_ID, SERVICE_RANKING, \
-    BundleException
+    SERVICE_BUNDLEID, SERVICE_SCOPE, SCOPE_SINGLETON, BundleException
 from pelix.internals.events import ServiceEvent
 
 # Pelix utility modules
@@ -728,6 +728,8 @@ class ServiceRegistry(object):
             self.__next_service_id += 1
             properties[OBJECTCLASS] = classes
             properties[SERVICE_ID] = service_id
+            properties[SERVICE_BUNDLEID] = bundle.get_bundle_id()
+            properties[SERVICE_SCOPE] = SCOPE_SINGLETON
 
             # Force to have a valid service ranking
             try:
