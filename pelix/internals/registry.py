@@ -32,7 +32,8 @@ import threading
 
 # Pelix beans
 from pelix.constants import OBJECTCLASS, SERVICE_ID, SERVICE_RANKING, \
-    SERVICE_BUNDLEID, SERVICE_SCOPE, SCOPE_SINGLETON, BundleException
+    SERVICE_BUNDLEID, SERVICE_SCOPE, SCOPE_SINGLETON, SCOPE_BUNDLE, \
+    SCOPE_PROTOTYPE, BundleException
 from pelix.internals.events import ServiceEvent
 
 # Pelix utility modules
@@ -217,6 +218,23 @@ class ServiceReference(object):
         """
         with self._props_lock:
             return tuple(self.__properties.keys())
+
+    def is_factory(self):
+        """
+        Returns True if this reference points to a service factory
+        
+        :return: True if the service provides from a factory
+        """
+        return self.__properties[SERVICE_SCOPE] in \
+               (SCOPE_BUNDLE, SCOPE_PROTOTYPE)
+
+    def is_prototype(self):
+        """
+        Returns True if this reference points to a prototype service factory
+
+        :return: True if the service provides from a prototype factory
+        """
+        return self.__properties[SERVICE_SCOPE] == SCOPE_PROTOTYPE
 
     def unused_by(self, bundle):
         """
@@ -682,6 +700,9 @@ class ServiceRegistry(object):
         # Service reference -> Service instance
         self.__svc_registry = {}
 
+        # Service reference -> (Service factory, Service Registration)
+        self.__svc_factories = {}
+
         # Specification -> Service references[] (always sorted)
         self.__svc_specs = {}
 
@@ -703,12 +724,14 @@ class ServiceRegistry(object):
         """
         with self.__svc_lock:
             self.__svc_registry.clear()
+            self.__svc_factories.clear()
             self.__svc_specs.clear()
             self.__bundle_svc.clear()
             self.__bundle_imports.clear()
             self.__pending_services.clear()
 
-    def register(self, bundle, classes, properties, svc_instance):
+    def register(self, bundle, classes, properties, svc_instance,
+                 factory, prototype):
         """
         Registers a service.
 
@@ -716,6 +739,9 @@ class ServiceRegistry(object):
         :param classes: The classes implemented by the service
         :param properties: The properties associated to the service
         :param svc_instance: The instance of the service
+        :param factory: If True, the given service is a service factory
+        :param prototype: If True, the given service is a prototype service
+                          factory (the factory argument is considered True)
         :return: The ServiceRegistration object
         """
         with self.__svc_lock:
@@ -725,7 +751,14 @@ class ServiceRegistry(object):
             properties[OBJECTCLASS] = classes
             properties[SERVICE_ID] = service_id
             properties[SERVICE_BUNDLEID] = bundle.get_bundle_id()
-            properties[SERVICE_SCOPE] = SCOPE_SINGLETON
+
+            # Compute service scope
+            if prototype:
+                properties[SERVICE_SCOPE] = SCOPE_PROTOTYPE
+            elif factory:
+                properties[SERVICE_SCOPE] = SCOPE_BUNDLE
+            else:
+                properties[SERVICE_SCOPE] = SCOPE_SINGLETON
 
             # Force to have a valid service ranking
             try:
@@ -741,6 +774,10 @@ class ServiceRegistry(object):
                 self.__framework, svc_ref, properties, self.__sort_registry)
 
             # Store service information
+            if prototype or factory:
+                self.__svc_factories[svc_ref] = (svc_instance, svc_registration)
+
+            # Also store factories, as they must appear like any other service
             self.__svc_registry[svc_ref] = svc_instance
 
             for spec in classes:
@@ -802,6 +839,11 @@ class ServiceRegistry(object):
 
             # Get the service instance
             service = self.__svc_registry.pop(svc_ref)
+
+            # Remove the service factory
+            if svc_ref.is_factory():
+                # TODO: notify the factory ?
+                del self.__svc_factories[svc_ref]
 
             for spec in svc_ref.get_property(OBJECTCLASS):
                 spec_services = self.__svc_specs[spec]
@@ -950,6 +992,9 @@ class ServiceRegistry(object):
         :return: The requested service
         :raise BundleException: The service could not be found
         """
+        if reference.is_factory():
+            return self.__get_service_from_factory(bundle, reference)
+
         with self.__svc_lock:
             # Be sure to have the instance
             try:
@@ -960,6 +1005,28 @@ class ServiceRegistry(object):
                 imports.setdefault(reference, _UsageCounter()).inc()
                 reference.used_by(bundle)
                 return service
+            except KeyError:
+                # Not found
+                raise BundleException("Service not found (reference: {0})"
+                                      .format(reference))
+
+    def __get_service_from_factory(self, bundle, reference):
+        """
+        Returns a service instance from a service factory or a prototype
+        service factory 
+        
+        :param bundle: The bundle requiring the service
+        :param reference: A reference pointing to a factory
+        :return: The requested service
+        :raise BundleException: The service could not be found
+        """
+        with self.__svc_lock:
+            try:
+                # TODO: increase usage counter
+                # TODO: only one call per factory per bundle
+                # TODO; handle prototypes
+                factory, svc_reg = self.__svc_factories[reference]
+                return factory.get_service(bundle, svc_reg)
             except KeyError:
                 # Not found
                 raise BundleException("Service not found (reference: {0})"
@@ -984,6 +1051,12 @@ class ServiceRegistry(object):
                 # Unknown reference
                 return False
             else:
+                # Service factory
+                # TODO: better handling
+                if reference.is_factory():
+                    factory, svc_reg = self.__svc_factories[reference]
+                    factory.unget_service(bundle, svc_reg)
+
                 # Clean up
                 if not imports:
                     del self.__bundle_imports[bundle]

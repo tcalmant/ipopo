@@ -896,7 +896,8 @@ class Framework(Bundle):
 
         return bundles, failed
 
-    def register_service(self, bundle, clazz, service, properties, send_event):
+    def register_service(self, bundle, clazz, service, properties, send_event,
+                         factory=False, prototype=False):
         """
         Registers a service and calls the listeners
 
@@ -904,6 +905,9 @@ class Framework(Bundle):
         :param clazz: Name(s) of the interface(s) implemented by service
         :param properties: Service properties
         :param send_event: If not, doesn't trigger a service registered event
+        :param factory: If True, the given service is a service factory
+        :param prototype: If True, the given service is a prototype service
+                          factory (the factory argument is considered True)
         :return: A ServiceRegistration object
         :raise BundleException: An error occurred while registering the service
         """
@@ -938,8 +942,8 @@ class Framework(Bundle):
             classes.append(svc_clazz)
 
         # Make the service registration
-        registration = self._registry.register(bundle, classes, properties,
-                                               service)
+        registration = self._registry.register(
+            bundle, classes, properties, service, factory, prototype)
 
         # Update the bundle registration information
         bundle._registered_service(registration)
@@ -1403,7 +1407,8 @@ class BundleContext(object):
         """
         return self.__framework.install_visiting(path, visitor)
 
-    def register_service(self, clazz, service, properties, send_event=True):
+    def register_service(self, clazz, service, properties, send_event=True,
+                         factory=False, prototype=False):
         """
         Registers a service
 
@@ -1411,11 +1416,15 @@ class BundleContext(object):
         :param service: The service instance
         :param properties: The services properties (dictionary)
         :param send_event: If not, doesn't trigger a service registered event
+        :param factory: If True, the given service is a service factory
+        :param prototype: If True, the given service is a prototype service
+                          factory (the factory argument is considered True)
         :return: A ServiceRegistration object
         :raise BundleException: An error occurred while registering the service
         """
         return self.__framework.register_service(
-            self.__bundle, clazz, service, properties, send_event)
+            self.__bundle, clazz, service, properties, send_event,
+            factory, prototype)
 
     def remove_bundle_listener(self, listener):
         """
