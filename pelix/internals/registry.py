@@ -88,6 +88,86 @@ class _UsageCounter(object):
 # ------------------------------------------------------------------------------
 
 
+class _FactoryCounter(object):
+    """
+    A service factory usage counter per bundle and reference
+    """
+    def __init__(self, bundle):
+        """
+        Sets up members
+        
+        :param bundle: The bundle monitored by this counter
+        """
+        self.__bundle = bundle
+
+        # Service Factory Reference -> (Service instance, Usage counter)
+        self.__factored = {}
+
+    def is_used(self):
+        """
+        Checks if this counter has at least one value
+        
+        :return: True if a service is still referenced by this service
+        """
+        return bool(self.__factored)
+
+    def get_service(self, factory, svc_registration):
+        """
+        Returns the service required by the bundle. The Service Factory is
+        called only when necessary
+        
+        :param factory: The service factory
+        :param svc_registration: The ServiceRegistration object
+        :return: The requested service instance (created if necessary)
+        """
+        svc_ref = svc_registration.get_reference()
+        try:
+            # Use the existing service
+            service, counter = self.__factored[svc_ref]
+            counter.inc()
+        except KeyError:
+            # Create the service
+            service = factory.get_service(self.__bundle, svc_registration)
+            counter = _UsageCounter()
+            counter.inc()
+
+            # Store the counter
+            self.__factored[svc_ref] = (service, counter)
+
+        return service
+
+    def unget_service(self, factory, svc_registration):
+        """
+        Releases references to the given service reference
+        
+        :param factory: The service factory
+        :param svc_registration: The ServiceRegistration object
+        :return: True if all service references to this service factory
+                 have been released
+        """
+        svc_ref = svc_registration.get_reference()
+        try:
+            _, counter = self.__factored[svc_ref]
+        except KeyError:
+            logging.warning(
+                "Trying to release an unknown service factory: %s", svc_ref)
+        else:
+            if not counter.dec():
+                # All references have been released: clean up
+                del self.__factored[svc_ref]
+
+                # Call the factory
+                factory.unget_service(self.__bundle, svc_registration)
+
+                # No more reference to this service
+                return True
+
+        # Some references are still there
+        return False
+
+# ------------------------------------------------------------------------------
+
+
 class ServiceReference(object):
     """
     Represents a reference to a service
@@ -712,6 +792,9 @@ class ServiceRegistry(object):
         # Services consumed: Bundle -> {Service reference -> UsageCounter}
         self.__bundle_imports = {}
 
+        # Service factories consumption: Bundle -> _FactoryCounter
+        self.__factory_usage = {}
+
         # Locks
         self.__svc_lock = threading.RLock()
 
@@ -728,6 +811,7 @@ class ServiceRegistry(object):
             self.__svc_specs.clear()
             self.__bundle_svc.clear()
             self.__bundle_imports.clear()
+            self.__factory_usage.clear()
             self.__pending_services.clear()
 
     def register(self, bundle, classes, properties, svc_instance,
@@ -1013,7 +1097,7 @@ class ServiceRegistry(object):
     def __get_service_from_factory(self, bundle, reference):
         """
         Returns a service instance from a service factory or a prototype
-        service factory 
+        service factory
         
         :param bundle: The bundle requiring the service
         :param reference: A reference pointing to a factory
@@ -1022,11 +1106,23 @@ class ServiceRegistry(object):
         """
         with self.__svc_lock:
             try:
-                # TODO: increase usage counter
-                # TODO: only one call per factory per bundle
                 # TODO; handle prototypes
                 factory, svc_reg = self.__svc_factories[reference]
-                return factory.get_service(bundle, svc_reg)
+
+                # Indicate the dependency
+                imports = self.__bundle_imports.setdefault(bundle, {})
+                if reference not in imports:
+                    # New reference usage: store a single usage
+                    # The Factory counter will handle the rest
+                    counter = _UsageCounter()
+                    counter.inc()
+                    imports[reference] = counter
+                    reference.used_by(bundle)
+
+                # Check the per-bundle usage counter
+                counter = self.__factory_usage.setdefault(
+                    bundle, _FactoryCounter(bundle))
+                return counter.get_service(factory, svc_reg)
             except KeyError:
                 # Not found
                 raise BundleException("Service not found (reference: {0})"
@@ -1041,6 +1137,9 @@ class ServiceRegistry(object):
         :return: True if the bundle usage has been removed
         """
         with self.__svc_lock:
+            if reference.is_factory():
+                return self.__unget_service_from_factory(bundle, reference)
+
             try:
                 # Remove the service reference from the bundle
                 imports = self.__bundle_imports[bundle]
@@ -1051,12 +1150,6 @@ class ServiceRegistry(object):
                 # Unknown reference
                 return False
             else:
-                # Service factory
-                # TODO: better handling
-                if reference.is_factory():
-                    factory, svc_reg = self.__svc_factories[reference]
-                    factory.unget_service(bundle, svc_reg)
-
                 # Clean up
                 if not imports:
                     del self.__bundle_imports[bundle]
@@ -1064,3 +1157,40 @@ class ServiceRegistry(object):
                 # Update the service reference
                 reference.unused_by(bundle)
                 return True
+
+    def __unget_service_from_factory(self, bundle, reference):
+        """
+        Removes the usage of a a service factory or a prototype
+        service factory by a bundle
+
+        :param bundle: The bundle that used the service
+        :param reference: A service reference
+        :return: True if the bundle usage has been removed
+        """
+        factory, svc_reg = self.__svc_factories[reference]
+        # Check the per-bundle usage counter
+        try:
+            counter = self.__factory_usage[bundle]
+        except KeyError:
+            # Unknown reference to a factory
+            return False
+        else:
+            if counter.unget_service(factory, svc_reg):
+                try:
+                    # No more dependency
+                    reference.unused_by(bundle)
+
+                    # All references have been taken away: clean up
+                    if not self.__factory_usage[bundle].is_used():
+                        del self.__factory_usage[bundle]
+
+                    # Remove the service reference from the bundle
+                    imports = self.__bundle_imports[bundle]
+                    del imports[reference]
+                except KeyError:
+                    # Unknown reference
+                    return False
+                else:
+                    # Clean up
+                    if not imports:
+                        del self.__bundle_imports[bundle]
