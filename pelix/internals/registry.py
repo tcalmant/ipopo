@@ -1076,10 +1076,10 @@ class ServiceRegistry(object):
         :return: The requested service
         :raise BundleException: The service could not be found
         """
-        if reference.is_factory():
-            return self.__get_service_from_factory(bundle, reference)
-
         with self.__svc_lock:
+            if reference.is_factory():
+                return self.__get_service_from_factory(bundle, reference)
+
             # Be sure to have the instance
             try:
                 service = self.__svc_registry[reference]
@@ -1104,28 +1104,27 @@ class ServiceRegistry(object):
         :return: The requested service
         :raise BundleException: The service could not be found
         """
-        with self.__svc_lock:
-            try:
-                # TODO; handle prototypes
-                factory, svc_reg = self.__svc_factories[reference]
+        try:
+            # TODO: handle prototypes
+            factory, svc_reg = self.__svc_factories[reference]
 
-                # Indicate the dependency
-                imports = self.__bundle_imports.setdefault(bundle, {})
-                if reference not in imports:
-                    # New reference usage: store a single usage
-                    # The Factory counter will handle the rest
-                    counter = _UsageCounter()
-                    counter.inc()
-                    imports[reference] = counter
-                    reference.used_by(bundle)
+            # Indicate the dependency
+            imports = self.__bundle_imports.setdefault(bundle, {})
+            if reference not in imports:
+                # New reference usage: store a single usage
+                # The Factory counter will handle the rest
+                counter = _UsageCounter()
+                counter.inc()
+                imports[reference] = counter
+                reference.used_by(bundle)
 
-                # Check the per-bundle usage counter
-                counter = self.__factory_usage.setdefault(
-                    bundle, _FactoryCounter(bundle))
-                return counter.get_service(factory, svc_reg)
-            except KeyError:
-                # Not found
-                raise BundleException("Service not found (reference: {0})"
+            # Check the per-bundle usage counter
+            counter = self.__factory_usage.setdefault(
+                bundle, _FactoryCounter(bundle))
+            return counter.get_service(factory, svc_reg)
+        except KeyError:
+            # Not found
+            raise BundleException("Service not found (reference: {0})"
                                       .format(reference))
 
     def unget_service(self, bundle, reference):
