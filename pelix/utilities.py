@@ -65,15 +65,16 @@ def use_service(bundle_context, svc_reference):
     :raise BundleException: Service not found
     :raise TypeError: Invalid service reference
     """
+    if svc_reference is None:
+        raise TypeError("Invalid ServiceReference")
+
     try:
         # Give the service
         yield bundle_context.get_service(svc_reference)
-
     finally:
         try:
             # Release it
             bundle_context.unget_service(svc_reference)
-
         except pelix.constants.BundleException:
             # Service might have already been unregistered
             pass
