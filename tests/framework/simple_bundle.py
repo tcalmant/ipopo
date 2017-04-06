@@ -6,10 +6,10 @@ Simple bundle with an activator (no service registered).
 :author: Thomas Calmant
 """
 
-__version__ = (1, 0, 0)
-
 from pelix.constants import BundleActivator, FrameworkException
 from pelix.framework import BundleContext
+
+__version__ = (1, 0, 0)
 
 started = False
 stopped = False

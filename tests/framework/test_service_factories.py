@@ -8,9 +8,7 @@ handling and events.
 """
 
 # Pelix
-from pelix.framework import FrameworkFactory, Bundle, BundleException, \
-    BundleContext, ServiceReference
-import pelix.constants
+from pelix.framework import FrameworkFactory
 
 # Standard library
 try:
@@ -50,24 +48,57 @@ class ServicesTest(unittest.TestCase):
         """
         Tests the basic behaviour of a service factory
         """
-        context = self.framework.get_bundle_context()
-        bundle = context.install_bundle(self.test_bundle_name)
-        module = bundle.get_module()
-        bundle.start()
+        context_fw = self.framework.get_bundle_context()
+        id_fw = context_fw.get_bundle().get_bundle_id()
 
-        svc_ref = context.get_service_reference(module.SVC)
-        svc = context.get_service(svc_ref)
-        self.assertEqual(svc.show(), 0)
-        context.unget_service(svc_ref)
+        # Install the bundle providing a service factory
+        factory_bundle = context_fw.install_bundle(self.test_bundle_name)
+        factory_module = factory_bundle.get_module()
+        factory_bundle.start()
 
-        svc = context.get_service(svc_ref)
-        self.assertEqual(svc.show(), 0)
-        context.unget_service(svc_ref)
+        # Install another harmless bundle, to have two different contexts
+        bundle_a = context_fw.install_bundle(
+            "tests.framework.simple_bundle")
+        bundle_a.start()
+        context_a = bundle_a.get_bundle_context()
+        id_a = context_a.get_bundle().get_bundle_id()
 
-        bc = bundle.get_bundle_context()
-        svc = bc.get_service(svc_ref)
-        self.assertEqual(svc.show(), bundle.get_bundle_id())
-        bc.unget_service(svc_ref)
+        # Find the service
+        svc_ref = context_fw.get_service_reference(factory_module.SVC)
+
+        # Get the service from the Framework context
+        svc_fw = context_fw.get_service(svc_ref)
+        self.assertEqual(svc_fw.requester_id(),
+                         context_fw.get_bundle().get_bundle_id())
+        self.assertListEqual(factory_module.FACTORY.made_for, [id_fw])
+
+        # Get the service from the bundle context
+        svc_a = context_a.get_service(svc_ref)
+        self.assertEqual(svc_a.requester_id(), id_a, "Bad request bundle ID")
+        self.assertListEqual(factory_module.FACTORY.made_for, [id_fw, id_a])
+
+        # Get the service twice
+        svc_b = context_a.get_service(svc_ref)
+        self.assertEqual(svc_b.requester_id(), id_a, "Bad request bundle ID")
+
+        # Ensure per-bundle variety
+        self.assertListEqual(factory_module.FACTORY.made_for, [id_fw, id_a])
+        self.assertIs(svc_a, svc_b, "Got different instances for a bundle")
+        self.assertIsNot(
+            svc_a, svc_fw, "Got the same instance for two bundles")
+
+        # Release the service:
+        # the framework reference must be clean immediately
+        context_fw.unget_service(svc_ref)
+        self.assertListEqual(factory_module.FACTORY.made_for, [id_a])
+
+        # First release of second bundle: no change
+        context_a.unget_service(svc_ref)
+        self.assertListEqual(factory_module.FACTORY.made_for, [id_a])
+
+        # All references of second bundle gone: factory must have been notified
+        context_a.unget_service(svc_ref)
+        self.assertListEqual(factory_module.FACTORY.made_for, [])
 
 # ------------------------------------------------------------------------------
 

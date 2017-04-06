@@ -6,11 +6,12 @@ Simple bundle registering a service
 :author: Thomas Calmant
 """
 
+from pelix.constants import BundleActivator
+
 __version__ = (1, 0, 0)
 
 SVC = "greetings"
-
-from pelix.constants import BundleActivator
+FACTORY = None
 
 
 class Service:
@@ -20,7 +21,7 @@ class Service:
     def __init__(self, bundle_id):
         self.__id = bundle_id
 
-    def show(self):
+    def requester_id(self):
         return self.__id
 
 
@@ -28,11 +29,26 @@ class ServiceFactoryTest:
     """
     Simple test service
     """
+    def __init__(self):
+        """
+        Sets up members
+        """
+        self.made_for = []
+
     def get_service(self, bundle, registration):
         """
         Provide a new service
         """
-        return Service(bundle.get_bundle_id())
+        client_id = bundle.get_bundle_id()
+        self.made_for.append(client_id)
+        return Service(client_id)
+
+    def unget_service(self, bundle, registration):
+        """
+        Releases a service
+        """
+        client_id = bundle.get_bundle_id()
+        self.made_for.remove(client_id)
 
 
 @BundleActivator
@@ -60,9 +76,15 @@ class ActivatorService:
             SVC, self.factory, {"test": True, "answer": 0},
             factory=True)
 
-    def stop(self, context):
+        global FACTORY
+        FACTORY = self.factory
+
+    def stop(self, _):
         """
         Bundle stopped
         """
         self.reg.unregister()
         self.reg = None
+
+        global FACTORY
+        FACTORY = None
