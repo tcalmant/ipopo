@@ -1475,10 +1475,10 @@ class FrameworkFactory(object):
 
         :return: A Pelix instance
         """
-        # Normalize sys.path
-        normalize_path()
 
         if cls.__singleton is None:
+            # Normalize sys.path
+            normalize_path()
             cls.__singleton = Framework(properties)
 
         return cls.__singleton
@@ -1615,14 +1615,16 @@ def normalize_path():
     Normalizes sys.path to avoid the use of relative folders
     """
     # Normalize Python paths
-    sys.path = [os.path.abspath(path) for path in sys.path
-                if os.path.exists(path)]
+    whole_path = [os.path.abspath(path) for path in sys.path
+                  if os.path.exists(path)]
 
-    # Add the "static" current path
-    sys.path.insert(0, os.getcwd())
+    # Keep the "dynamic" current folder indicator and add the "static" current path
+    sys.path = [ '', os.getcwd() ]
 
-    # Keep the "dynamic" current folder indicator
-    sys.path.insert(0, '')
+    # Add original path entries
+    for path in whole_path:
+        if path not in sys.path:
+            sys.path.append(path)
 
     # Normalize paths in loaded modules
     for name, module in sys.modules.items():
