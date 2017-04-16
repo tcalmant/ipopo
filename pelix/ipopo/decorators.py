@@ -834,12 +834,16 @@ class Provides(object):
     __name__ + '.' + __qualname__
     """
 
-    def __init__(self, specifications=None, controller=None):
+    def __init__(self, specifications, controller=None, factory=False):
         """
+        Sets up a provided service.
+        A service controller can be defined to enable or disable the service.
+
         :param specifications: A list of provided interface(s) name(s)
                                (can't be empty)
         :param controller: Name of the service controller class field
                            (optional)
+        :param factory: If True, this service is a service factory
         :raise ValueError: If the specifications are invalid
         """
         if controller is not None:
@@ -856,6 +860,7 @@ class Provides(object):
 
         self.__specifications = specifications
         self.__controller = controller
+        self.__is_factory = factory
 
     def __call__(self, clazz):
         """
@@ -864,7 +869,8 @@ class Provides(object):
 
         :param clazz: The class to decorate
         :return: The decorated class
-        :raise TypeError: If *clazz* is not a type
+        :raise TypeError: If *clazz* is not a type or if the service factory
+                          methods are missing
         """
         if not inspect.isclass(clazz):
             raise TypeError("@Provides can decorate only classes, not '{0}'"
@@ -891,7 +897,7 @@ class Provides(object):
 
         # Store the service information
         config = context.set_handler_default(self.HANDLER_ID, [])
-        config.append((filtered_specs, self.__controller))
+        config.append((filtered_specs, self.__controller, self.__is_factory))
 
         if self.__controller:
             # Inject a property in the class. The property will call an
@@ -907,6 +913,17 @@ class Provides(object):
                     constants.IPOPO_GETTER_SUFFIX, None)
             setattr(clazz, constants.IPOPO_CONTROLLER_PREFIX +
                     constants.IPOPO_SETTER_SUFFIX, None)
+
+        if self.__is_factory:
+            # Ensure that the service factory methods exist
+            try:
+                validate_method_arity(clazz.get_service,
+                                      "bundle", "service_registration")
+                validate_method_arity(clazz.unget_service,
+                                      "bundle", "service_registration")
+            except AttributeError as ex:
+                raise TypeError("Service factories must provide an "
+                                "{} method".format(ex))
 
         return clazz
 

@@ -245,6 +245,40 @@ class DecoratorsTest(unittest.TestCase):
             self.assertRaises(TypeError, decorators.Provides("spec", "field"),
                               invalid)
 
+    def test_provides_factory(self):
+        """
+        Tests the @Provides decorator for a service factory
+        """
+        class DummyClass(object):
+            pass
+
+        def invalid_method(self, foo):
+            pass
+
+        def valid_method(self, bundle, svc_reg):
+            pass
+
+        # Missing method in class
+        self.assertRaises(
+            TypeError, decorators.Provides("spec", factory=True), DummyClass)
+
+        # One of two methods
+        DummyClass.get_service = valid_method
+        self.assertRaises(
+            TypeError, decorators.Provides("spec", factory=True), DummyClass)
+
+        # Both methods
+        DummyClass.unget_service = valid_method
+        try:
+            decorators.Provides("spec", factory=True)(DummyClass)
+        except TypeError:
+            self.fail("Error on valid class")
+
+        # Invalid arity
+        DummyClass.get_service = invalid_method
+        self.assertRaises(
+            TypeError, decorators.Provides("spec", factory=True), DummyClass)
+
     def test_requires_base(self):
         """
         Tests the @Requires* decorators basic arguments checks

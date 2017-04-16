@@ -257,6 +257,54 @@ class ProvidesTest(unittest.TestCase):
             except:
                 pass
 
+    def test_factory(self):
+        """
+        Tests @Provides service factory handling
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+
+        # Instantiate the provider
+        component = self.ipopo.instantiate(
+            module.FACTORY_PROVIDES_SVC_FACTORY, "provides.factory")
+
+        # Ensure the initial state
+        self.assertIsNone(component.caller, "Invalid initial state")
+        self.assertIsNone(component.registration, "Invalid initial state")
+
+        # Consume the service
+        svc_ref = context.get_service_reference("factory.service")
+        svc = context.get_service(svc_ref)
+
+        # Ensure the new state
+        self.assertIs(component.caller, self.framework)
+        self.assertIs(component.registration.get_reference(), svc_ref)
+        self.assertIs(component.service, svc)
+
+        # Reset state
+        component.caller = None
+        component.registration = None
+
+        # Try to re-get the service
+        svc2 = context.get_service(svc_ref)
+
+        # Ensure no sub call and same service
+        self.assertIsNone(component.caller)
+        self.assertIsNone(component.registration)
+        self.assertIs(svc, svc2)
+
+        # Unget the service
+        context.unget_service(svc_ref)
+        self.assertIsNone(component.caller)
+        self.assertIsNone(component.registration)
+        self.assertIs(svc, svc2)
+
+        # A second time
+        context.unget_service(svc_ref)
+        self.assertIs(component.caller, self.framework)
+        self.assertIs(component.registration.get_reference(), svc_ref)
+        self.assertIsNone(component.service)
+
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":

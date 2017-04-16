@@ -34,6 +34,7 @@ FACTORY_A = "ipopo.tests.a"
 FACTORY_B = "ipopo.tests.b"
 FACTORY_C = "ipopo.tests.c"
 FACTORY_IMMEDIATE = "ipopo.tests.immediate"
+FACTORY_PROVIDES_SVC_FACTORY = "ipopo.tests.provides.factory"
 FACTORY_REQUIRES_BEST = "ipopo.tests.best"
 FACTORY_REQUIRES_VAR_FILTER = "ipopo.tests.var_filter"
 FACTORY_REQUIRES_VAR_FILTER_AGGREGATE = "ipopo.tests.var_filter.multiple"
@@ -458,6 +459,34 @@ class HiddenPropTest(object):
         """
         self.hidden = None
         self.public = None
+
+# ------------------------------------------------------------------------------
+
+
+@ComponentFactory(FACTORY_PROVIDES_SVC_FACTORY)
+@Provides("factory.service", factory=True)
+class SvcFactoryProvider(object):
+    """
+    Test for providing a service factory
+    """
+    def __init__(self):
+        """
+        Sets up members
+        """
+        self.caller = None
+        self.registration = None
+        self.service = None
+
+    def get_service(self, bundle, svc_registration):
+        self.caller = bundle
+        self.registration = svc_registration
+        self.service = object()
+        return self.service
+
+    def unget_service(self, bundle, svc_registration):
+        self.caller = bundle
+        self.registration = svc_registration
+        self.service = None
 
 # ------------------------------------------------------------------------------
 
