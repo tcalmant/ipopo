@@ -42,7 +42,7 @@ Log Service
 The log service provides the following method:
 
 .. autoclass:: LogService
-:members: log
+   :members: log
 
 
 Log Reader Service
@@ -51,18 +51,18 @@ Log Reader Service
 The log reader provides the following methods:
 
 .. autoclass:: LogService
-:members: add_log_listener, remove_log_listener, get_log
+   :members: add_log_listener, remove_log_listener, get_log
 
-    The result of :meth:`~LogService.get_log` and the argument to listeners
-registered with :meth:`~LogService.add_log_listener` is a :class:`LogEntry`
-object, giving read-only access to the following properties:
+   The result of :meth:`~LogService.get_log` and the argument to listeners
+   registered with :meth:`~LogService.add_log_listener` is a :class:`LogEntry`
+   object, giving read-only access to the following properties:
 
 .. autoclass:: LogEntry
-:members: bundle, message, exception, level, osgi_level, reference, time
+   :members: bundle, message, exception, level, osgi_level, reference, time
 
 
 .. note:: ``LogEntry`` is a read-only bean which can't be un-marshalled by
-Pelix Remote Services transport providers. As a consequence, it is not
+   Pelix Remote Services transport providers. As a consequence, it is not
    possible to get the content of a remote log service as is.
 
 
