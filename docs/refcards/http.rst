@@ -86,8 +86,8 @@ The HTTP service provides the following interface:
    :members: get_access, get_hostname, is_https, get_registered_paths,
                  get_servlet, register_servlet, unregister
 
-    The service also provides two utility methods to ease the display of error
-    pages:
+The service also provides two utility methods to ease the display of error
+pages:
 
 .. autoclass:: HttpService
    :members: make_not_found_page, make_exception_page
@@ -103,7 +103,7 @@ It must also have a valid ``pelix.http.path`` property, or it will be ignored.
 The binding methods described below have a ``parameters`` argument, which
 represents a set of properties of the server, given as a dictionary.
 Some parameters can also be given when using the
-:meth:`~HttpService.register_servlet`` method, with the ``parameters`` argument.
+:meth:`~HttpService.register_servlet` method, with the ``parameters`` argument.
 
 In any case, the following entries must be set by all implementations of the
 HTTP service and can't be overridden when register a servlet.
@@ -121,6 +121,7 @@ Note that their content and liability is implementation-dependent:
 A servlet for the Pelix HTTP service has the following methods:
 
 .. py:class:: HttpServlet
+   :module:
 
    These are the methods that the HTTP service can call in a servlet. Note that
    it is not necessary to implement them all: the service has a default
@@ -137,26 +138,26 @@ A servlet for the Pelix HTTP service has the following methods:
       bound to it.
 
       :param str path: The path of the servlet in the server
-          :param dict parameters: The parameters of the server
+      :param dict parameters: The parameters of the server
 
-       .. py:method:: bound_to(path, parameters)
+   .. py:method:: bound_to(path, parameters)
 
       This method is called when the servlet is bound to a path.
       If it returns False or raises an Exception, the registration is aborted.
 
       :param str path: The path of the servlet in the server
-          :param dict parameters: The parameters of the server
+      :param dict parameters: The parameters of the server
 
-       .. py:method:: unbound_from(path, parameters)
+   .. py:method:: unbound_from(path, parameters)
 
       This method is called when the servlet is bound to a path.
       The parameters are the ones given in :meth:`~HttpServlet.accept_binding`
       and :meth:`~HttpServlet.bound_to`.
 
       :param str path: The path of the servlet in the server
-          :param dict parameters: The parameters of the server
+      :param dict parameters: The parameters of the server
 
-       .. py:method:: do_GET(request, response)
+   .. py:method:: do_GET(request, response)
 
       Each request is handled by the method call ``do_XXX`` where ``XXX`` is
       the name of an HTTP method (``do_GET``, ``do_POST``, ``do_PUT``,

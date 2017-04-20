@@ -96,8 +96,6 @@ class Http(object):
     """
     def __init__(self, route, methods=None):
         """
-        Sets up a route and methods handled by the decorated method
-
         :param route: Path handled by the method (beginning with a '/')
         :param methods: List of HTTP methods allowed (GET, POST, ...)
         """
@@ -144,8 +142,6 @@ class HttpGet(Http):
     """
     def __init__(self, route):
         """
-        Sets up a route accessible with the GET method
-
         :param route: Path handled by the method (beginning with a '/')
         """
         super(HttpGet, self).__init__(route, methods=["GET"])
@@ -157,8 +153,6 @@ class HttpHead(Http):
     """
     def __init__(self, route):
         """
-        Sets up a route accessible with the HEAD method
-
         :param route: Path handled by the method (beginning with a '/')
         """
         super(HttpHead, self).__init__(route, methods=["HEAD"])
@@ -170,8 +164,6 @@ class HttpPost(Http):
     """
     def __init__(self, route):
         """
-        Sets up a route accessible with the POST method
-
         :param route: Path handled by the method (beginning with a '/')
         """
         super(HttpPost, self).__init__(route, methods=["POST"])
@@ -181,11 +173,8 @@ class HttpPut(Http):
     """
     Decorates a method handling PUT requests
     """
-
     def __init__(self, route):
         """
-        Sets up a route accessible with the PUT method
-
         :param route: Path handled by the method (beginning with a '/')
         """
         super(HttpPut, self).__init__(route, methods=["PUT"])
@@ -195,11 +184,8 @@ class HttpDelete(Http):
     """
     Decorates a method handling DELETE requests
     """
-
     def __init__(self, route):
         """
-        Sets up a route accessible with the DELETE method
-
         :param route: Path handled by the method (beginning with a '/')
         """
         super(HttpDelete, self).__init__(route, methods=["DELETE"])

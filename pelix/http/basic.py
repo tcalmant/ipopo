@@ -448,9 +448,6 @@ class HttpService(object):
     Basic HTTP service component
     """
     def __init__(self):
-        """
-        Constructor
-        """
         # Properties
         self._address = "0.0.0.0"
         self._port = 8080
@@ -820,7 +817,6 @@ class HttpService(object):
                 result |= self.unregister(servlet_path)
 
             return result
-
         else:
             if not path:
                 # Invalid path
