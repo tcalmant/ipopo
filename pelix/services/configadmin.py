@@ -74,9 +74,11 @@ class Configuration(object):
     def __init__(self, pid, properties, config_admin, persistence,
                  factory_pid=None):
         """
-        Sets up members
-
         :param pid: The configuration PID
+        :param properties: The initial properties of the configuration
+        :param config_admin: The parent ConfigurationAdmin service
+        :param persistence: The configuration persistence handler
+        :param factory_pid: An optional factory PID
         """
         # Configuration PID
         self.__pid = pid
@@ -109,9 +111,8 @@ class Configuration(object):
         else:
             kind = "Configuration("
 
-        return "{0}pid={1}, updated={2}, deleted={3})".format(kind, self.__pid,
-                                                              self.__updated,
-                                                              self.__deleted)
+        return "{0}pid={1}, updated={2}, deleted={3})".format(
+            kind, self.__pid, self.__updated, self.__deleted)
 
     def get_bundle_location(self):
         """
@@ -411,14 +412,11 @@ class _ConfigurationDirectory(object):
         with self.__lock:
             if pid in self.__configurations:
                 raise KeyError("Already known configuration: {0}".format(pid))
-
             elif not pid:
                 raise ValueError("Configuration with an empty PID")
-
             elif pid in self.__factories:
                 raise KeyError("PID already used as a factory PID: {0}"
                                .format(pid))
-
             elif loader is None:
                 raise ValueError("No persistence service associated to {0}"
                                  .format(pid))
@@ -469,7 +467,6 @@ class _ConfigurationDirectory(object):
                 factory_confs.remove(config)
                 if not factory_confs:
                     del self.__factories[factory_pid]
-
             except KeyError:
                 # Wasn't a factory configuration
                 pass
@@ -496,9 +493,6 @@ class ConfigurationAdmin(object):
     ConfigurationAdmin basic implementation
     """
     def __init__(self):
-        """
-        Sets up members
-        """
         # Service controller
         self._controller = False
 
@@ -665,7 +659,6 @@ class ConfigurationAdmin(object):
                 if config.is_valid():
                     # Notify corresponding service
                     self._update(config)
-
             except (IOError, ValueError) as ex:
                 _logger.error("Error loading configuration %s: %s", pid, ex)
 
@@ -792,7 +785,6 @@ class ConfigurationAdmin(object):
                     # Call them from the pool
                     future = self._pool.enqueue(self.__notify_factories,
                                                 factories, pid, properties)
-
             else:
                 # Called corresponding managed services
                 managed = self.__get_matching_services(configuration.get_pid())
@@ -833,7 +825,6 @@ class ConfigurationAdmin(object):
                         # Call them from the pool
                         future = self._pool.enqueue(
                             self.__notify_factories_delete, factories, pid)
-
                 else:
                     # Called corresponding managed services
                     managed = self.__get_matching_services(pid)
@@ -864,7 +855,6 @@ class ConfigurationAdmin(object):
                 factory_pid = factory_pid.strip()
                 if not factory_pid:
                     raise ValueError("Empty factory PID")
-
             except AttributeError:
                 # .strip() doesn't exist
                 raise ValueError("Invalid type of PID: {0}"
@@ -888,7 +878,6 @@ class ConfigurationAdmin(object):
         with self.__lock:
             try:
                 return self._directory.get_configuration(pid)
-
             except KeyError:
                 # Unknown configuration, look for it
                 # (outside the exception block)
@@ -899,7 +888,6 @@ class ConfigurationAdmin(object):
                     # Load first existing one
                     properties = persistence.load(pid)
                     break
-
             else:
                 # New configuration, with the best ranked persistence
                 properties = {}
@@ -1026,12 +1014,10 @@ class JsonPersistence(object):
         try:
             # Load the properties
             properties = self.load(pid)
-
         except IOError as ex:
             # Can't read file
             _logger.error("Error reading %s: %s", filename, ex)
             return
-
         except ValueError as ex:
             # Bad JSON file
             _logger.error("Error parsing %s: %s", filename, ex)
@@ -1077,7 +1063,6 @@ class JsonPersistence(object):
             # Write the JSON data
             filep.write(json.dumps(properties, sort_keys=True,
                                    indent=4, separators=(',', ': ')))
-
             # Be nice, add a line feed
             filep.write('\n')
 
@@ -1092,7 +1077,6 @@ class JsonPersistence(object):
         try:
             os.remove(self._get_file(pid))
             return True
-
         except OSError:
             return False
 
@@ -1128,7 +1112,6 @@ class JsonPersistence(object):
             try:
                 # Delete the configuration
                 self._directory.delete(pid)
-
             except KeyError:
                 # Ignore unknown configuration
                 pass
@@ -1146,11 +1129,9 @@ class JsonPersistence(object):
                     try:
                         # Update the configuration
                         self._directory.update(pid, properties)
-
                     except KeyError:
                         # Configuration does not exist yet, create it
                         self._directory.add(pid, properties, self)
-
                 except (KeyError, ValueError, IOError) as ex:
                     # Log other errors
                     _logger.error("Error updating %s: %s", pid, ex)
