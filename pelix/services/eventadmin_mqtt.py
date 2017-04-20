@@ -175,7 +175,6 @@ class MqttEventAdminBridge(object):
         """
         try:
             self.handle_mqtt_message(msg.topic, msg.payload)
-
         except Exception as ex:
             _logger.exception("Error handling an MQTT EventAdmin message: %s",
                               ex)
@@ -188,7 +187,6 @@ class MqttEventAdminBridge(object):
         if EVENT_PROP_SOURCE_UID in properties:
             # A bridge posted this event, ignore it
             return
-
         elif services.EVENT_PROP_PROPAGATE not in properties:
             # Propagation flag is not set, ignore
             _logger.warning("No propagate")
@@ -226,9 +224,8 @@ class MqttEventAdminBridge(object):
 
             # Parse the event payload
             properties = json.loads(payload)
-
         except ValueError as ex:
-            # Oups...
+            # Oops...
             _logger.error("Error parsing the payload of %s: %s", evt_topic, ex)
             return
 
@@ -241,7 +238,6 @@ class MqttEventAdminBridge(object):
 
             # Set up source UID as an extra property
             properties[EVENT_PROP_SOURCE_UID] = sender_uid
-
         except KeyError:
             # Not sent by us... continue
             pass

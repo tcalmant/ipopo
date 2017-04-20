@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-A bridge to publish and subscribe to EventAdmin events over the network using
-MQTT
+An EventAdmin handler which prints to the standard output the events it receives
 
 :author: Thomas Calmant
 :copyright: Copyright 2017, Thomas Calmant
@@ -66,7 +65,6 @@ def _parse_boolean(value):
         # Lower string to check known "false" value
         value = value.lower()
         return value not in ("none", "0", "false", "no")
-
     except AttributeError:
         # Not a string, but has a value
         return True
