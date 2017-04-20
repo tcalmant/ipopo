@@ -137,8 +137,6 @@ class _IPopoService(object):
     """
     def __init__(self, bundle_context):
         """
-        Sets up the iPOPO registry
-
         :param bundle_context: The iPOPO bundle context
         """
         # Store the bundle context

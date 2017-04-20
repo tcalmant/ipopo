@@ -87,8 +87,6 @@ class LogEntry(object):
 
     def __init__(self, level, message, exception, bundle, reference):
         """
-        Sets up members
-
         :param level: The Python log level of the entry
         :param message: A human readable message
         :param exception: The exception associated to the entry
@@ -183,8 +181,6 @@ class LogService(logging.Handler):
     """
     def __init__(self, context, level, max_entries):
         """
-        Sets up members
-
         :param context: The bundle context
         :param level: The minimal log level of this handler
         :param max_entries: Maximum stored entries

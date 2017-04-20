@@ -66,8 +66,6 @@ class ExportEndpoint(object):
     def __init__(self, uid, fw_uid, configurations, name,
                  svc_ref, service, properties):
         """
-        Sets up the members
-
         :param uid: Unique identified of the end point
         :param fw_uid: The framework UID
         :param configurations: Kinds of end point (xmlrpc, ...)
@@ -243,8 +241,6 @@ class ImportEndpoint(object):
     def __init__(self, uid, framework, configurations, name, specifications,
                  properties):
         """
-        Sets up the members
-
         :param uid: Unique identified of the end point
         :param framework: UID of the framework exporting the end point
                           (can be None)

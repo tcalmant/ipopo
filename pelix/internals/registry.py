@@ -93,8 +93,6 @@ class ServiceReference(object):
     """
     def __init__(self, bundle, properties):
         """
-        Sets up the service reference
-
         :param bundle: The bundle registering the service
         :param properties: The service properties
         :raise BundleException: The properties doesn't contain mandatory
@@ -291,8 +289,6 @@ class ServiceRegistration(object):
     """
     def __init__(self, framework, reference, properties, update_callback):
         """
-        Sets up the service registration object
-
         :param framework: The host framework
         :param reference: A service reference
         :param properties: A reference to the ServiceReference properties

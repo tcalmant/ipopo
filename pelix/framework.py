@@ -1181,8 +1181,6 @@ class BundleContext(object):
     """
     def __init__(self, framework, bundle):
         """
-        Sets up the bundle context
-
         :param framework: Hosting framework
         :param bundle: The associated bundle
         """

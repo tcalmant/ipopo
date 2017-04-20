@@ -64,9 +64,6 @@ class ImportsRegistry(object):
     Registry of discovered end points. End points are identified by their UID
     """
     def __init__(self):
-        """
-        Sets up the component
-        """
         # Listeners (injected)
         self._listeners = []
 

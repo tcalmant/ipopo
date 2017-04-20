@@ -65,9 +65,6 @@ class EventAdmin(object):
     The EventAdmin implementation
     """
     def __init__(self):
-        """
-        Sets up the members
-        """
         # The bundle context
         self._context = None
 

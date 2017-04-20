@@ -54,7 +54,6 @@ class _Configuration(object):
     """
     Represents a configuration loaded from an initialization file
     """
-
     def __init__(self):
         """
         Sets up members
@@ -250,9 +249,6 @@ class InitFileHandler(object):
     """
 
     def __init__(self):
-        """
-        Sets up members
-        """
         # The internal state
         self.__state = _Configuration()
 

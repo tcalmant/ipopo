@@ -412,8 +412,6 @@ class Instantiate(object):
     """
     def __init__(self, name, properties=None):
         """
-        Sets up the decorator
-
         :param name: Instance name
         :param properties: Instance properties
         """
@@ -489,8 +487,6 @@ class ComponentFactory(object):
     """
     def __init__(self, name=None, excluded=None):
         """
-        Sets up the decorator
-
         :param name: Name of the component factory
         :param excluded: List of IDs of handlers which configuration must not
                          be inherited from the parent class
@@ -621,8 +617,6 @@ class Property(object):
 
     def __init__(self, field, name=None, value=None):
         """
-        Sets up the property
-
         :param field: The property field in the class (can't be None nor empty)
         :param name: The property name (if None, this will be the field name)
         :param value: The property value (None by default)
@@ -822,9 +816,6 @@ class Provides(object):
 
     def __init__(self, specifications, controller=None):
         """
-        Sets up a provided service.
-        A service controller can be defined to enable or disable the service.
-
         :param specifications: A list of provided interface(s) name(s)
                                (can't be empty)
         :param controller: Name of the service controller class field
@@ -942,8 +933,6 @@ class Requires(object):
     def __init__(self, field, specification, aggregate=False, optional=False,
                  spec_filter=None, immediate_rebind=False):
         """
-        Sets up the requirement
-
         :param field: The injected field
         :param specification: The injected service specification
         :param aggregate: If True, injects a list
@@ -1069,8 +1058,6 @@ class RequiresBest(Requires):
     def __init__(self, field, specification, optional=False, spec_filter=None,
                  immediate_rebind=True):
         """
-        Sets up the requirement
-
         :param field: The injected field
         :param specification: The injected service specification
         :param optional: If true, this injection is optional
@@ -1120,8 +1107,6 @@ class RequiresMap(Requires):
     def __init__(self, field, specification, key, allow_none=False,
                  aggregate=False, optional=False, spec_filter=None):
         """
-        Sets up the requirement
-
         :param field: The injected field
         :param specification: The injected service specification
         :param key: Name of the service property to use as a dictionary key
@@ -1199,8 +1184,6 @@ class Temporal(Requires):
     def __init__(self, field, specification, optional=False, spec_filter=None,
                  timeout=10):
         """
-        Sets up the requirement
-
         :param field: The injected field
         :param specification: The injected service specification
         :param optional: If true, this injection is optional
@@ -1274,8 +1257,6 @@ class BindField(object):
     """
     def __init__(self, field, if_valid=False):
         """
-        Sets up the decorator
-
         :param field: Field associated to the binding
         :param if_valid: Call the method only if the component is valid
         """
@@ -1332,8 +1313,6 @@ class UpdateField(object):
     """
     def __init__(self, field, if_valid=False):
         """
-        Sets up the decorator
-
         :param field: Field associated to the binding
         :param if_valid: Call the method only if the component is valid
         """
@@ -1394,8 +1373,6 @@ class UnbindField(object):
     """
     def __init__(self, field, if_valid=False):
         """
-        Sets up the decorator
-
         :param field: Field associated to the binding
         :param if_valid: Call the method only if the component is valid
         """

@@ -82,9 +82,6 @@ class Dispatcher(object):
     Common dispatcher for all exporters
     """
     def __init__(self):
-        """
-        Sets up the component
-        """
         # Remote Service providers
         self._exporters = []
 

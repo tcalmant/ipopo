@@ -393,8 +393,8 @@ Here is the new version of the *hello world* provider, with the export property:
 
 .. code-block:: python
 
-   from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate, \
-        Property
+   from pelix.ipopo.decorators import ComponentFactory, Provides, \
+       Instantiate, Property
    from pelix.remote import PROP_EXPORTED_INTERFACES
 
    @ComponentFactory("service-provider-factory")
