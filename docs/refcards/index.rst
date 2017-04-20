@@ -16,6 +16,7 @@ Pelix/iPOPO.
    init_config
    log
    http
+   http_routing
    remote_services
    remote_shell
    configadmin
