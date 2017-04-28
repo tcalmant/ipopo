@@ -750,11 +750,14 @@ def _get_specifications(specifications):
     :return: A list of strings
     :raise ValueError: Invalid specification found
     """
-    if not specifications:
+    if not specifications or specifications == object:
         raise ValueError("No specifications given")
     elif inspect.isclass(specifications):
         # Get the name of the class
-        return [specifications.__name__]
+        if not specifications.__module__:
+            return [specifications.__qualname__]
+        else:
+            return [specifications.__module__ + "." + specifications.__qualname__]
     elif is_string(specifications):
         # Specification name
         specifications = specifications.strip()
@@ -814,7 +817,7 @@ class Provides(object):
     HANDLER_ID = constants.HANDLER_PROVIDES
     """ ID of the handler configured by this decorator """
 
-    def __init__(self, specifications, controller=None):
+    def __init__(self, specifications = None, controller=None):
         """
         :param specifications: A list of provided interface(s) name(s)
                                (can't be empty)
@@ -860,9 +863,14 @@ class Provides(object):
 
         # Avoid duplicates (but keep the order)
         filtered_specs = []
-        for spec in self.__specifications:
-            if spec not in filtered_specs:
-                filtered_specs.append(spec)
+        if not self.__specifications:
+            filtered_specs = _get_specifications(clazz.__bases__)
+        else:
+            # Avoid duplicates (but keep the order)
+            specs = _get_specifications(self.__specifications)
+            for spec in specs:
+                if spec not in filtered_specs:
+                    filtered_specs.append(spec)
 
         # Store the service information
         config = context.set_handler_default(self.HANDLER_ID, [])
