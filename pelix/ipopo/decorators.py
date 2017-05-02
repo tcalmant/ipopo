@@ -837,7 +837,7 @@ class Provides(object):
             elif ' ' in controller:
                 raise ValueError("Controller name contains spaces")
 
-        self.__specifications = _get_specifications(specifications)
+        self.__specifications = specifications
         self.__controller = controller
 
     def __call__(self, clazz):
