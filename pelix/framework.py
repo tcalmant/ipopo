@@ -733,7 +733,7 @@ class Framework(Bundle):
                     #  __import__(name) -> package level
                     # import_module -> module level
                     module = importlib.import_module(name)
-            except (ImportError, IOError) as ex:
+            except (ImportError, IOError, ModuleNotFoundError) as ex:
                 # Error importing the module
                 raise BundleException("Error installing bundle {0}: {1}"
                                       .format(name, ex))
