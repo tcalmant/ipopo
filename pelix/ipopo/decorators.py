@@ -753,11 +753,15 @@ def _get_specifications(specifications):
     if not specifications or specifications == object:
         raise ValueError("No specifications given")
     elif inspect.isclass(specifications):
-        # Get the name of the class
-        if not specifications.__module__:
-            return [specifications.__qualname__]
+        if Provides.USE_MODULE_QUALNAME:
+            # Get the name of the class
+            if not specifications.__module__:
+                return [specifications.__qualname__]
+            else:
+                return [specifications.__module__ + "." + specifications.__qualname__]
         else:
-            return [specifications.__module__ + "." + specifications.__qualname__]
+            # Legacy behavior
+            return [specifications.__name__]
     elif is_string(specifications):
         # Specification name
         specifications = specifications.strip()
@@ -816,6 +820,9 @@ class Provides(object):
     """
     HANDLER_ID = constants.HANDLER_PROVIDES
     """ ID of the handler configured by this decorator """
+
+    USE_MODULE_QUALNAME = False
+    """ Selects the methodology to generate a specification from a class. A value of False uses __name__ (legacy), while True enables __name__ + '.' + __qualname__ """
 
     def __init__(self, specifications = None, controller=None):
         """
