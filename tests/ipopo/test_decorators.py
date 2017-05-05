@@ -237,7 +237,7 @@ class DecoratorsTest(unittest.TestCase):
 
         # Invalid specification type
         for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
-            self.assertRaises(ValueError, decorators.Provides, invalid)
+            self.assertRaises(ValueError, decorators._get_specifications, invalid)
             self.assertRaises(ValueError, decorators.Provides, "spec", invalid)
 
         # Invalid target
