@@ -750,7 +750,7 @@ def _get_specifications(specifications):
     :return: A list of strings
     :raise ValueError: Invalid specification found
     """
-    if not specifications or specifications == object:
+    if not specifications or specifications is object:
         raise ValueError("No specifications given")
     elif inspect.isclass(specifications):
         if Provides.USE_MODULE_QUALNAME:
@@ -824,7 +824,7 @@ class Provides(object):
     USE_MODULE_QUALNAME = False
     """ Selects the methodology to generate a specification from a class. A value of False uses __name__ (legacy), while True enables __name__ + '.' + __qualname__ """
 
-    def __init__(self, specifications = None, controller=None):
+    def __init__(self, specifications=None, controller=None):
         """
         :param specifications: A list of provided interface(s) name(s)
                                (can't be empty)
