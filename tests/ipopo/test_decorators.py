@@ -232,15 +232,6 @@ class DecoratorsTest(unittest.TestCase):
         def method():
             pass
 
-        # Empty specification
-        for empty in (None, "", "   "):
-            self.assertRaises(ValueError, decorators.Provides, empty)
-
-            # No error should be raised
-            log_off()
-            decorators.Provides("spec", empty)
-            log_on()
-
         # Field name with a space
         self.assertRaises(ValueError, decorators.Provides, "spec", "a space")
 
