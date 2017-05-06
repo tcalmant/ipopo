@@ -758,7 +758,8 @@ def _get_specifications(specifications):
             if not specifications.__module__:
                 return [specifications.__qualname__]
             else:
-                return [specifications.__module__ + "." + specifications.__qualname__]
+                return ["{0}.{1}".format(
+                    specifications.__module__, specifications.__qualname__)]
         else:
             # Legacy behavior
             return [specifications.__name__]
@@ -822,7 +823,11 @@ class Provides(object):
     """ ID of the handler configured by this decorator """
 
     USE_MODULE_QUALNAME = False
-    """ Selects the methodology to generate a specification from a class. A value of False uses __name__ (legacy), while True enables __name__ + '.' + __qualname__ """
+    """
+    Selects the methodology to generate a specification from a class.
+    A value of False uses __name__ (legacy), while True enables
+    __name__ + '.' + __qualname__
+    """
 
     def __init__(self, specifications=None, controller=None):
         """
