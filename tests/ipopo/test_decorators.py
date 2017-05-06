@@ -402,8 +402,14 @@ class SimpleDecoratorsTests(unittest.TestCase):
 
         # New behavior
         decorators.Provides.USE_MODULE_QUALNAME = True
-        specs = decorators._get_specifications(Child.__bases__)
-        self.assertCountEqual(full_names, specs)
+        try:
+            Child.__qualname__
+        except AttributeError:
+            self.assertRaises(ValueError, decorators._get_specifications,
+                              Child.__bases__)
+        else:
+            specs = decorators._get_specifications(Child.__bases__)
+            self.assertCountEqual(full_names, specs)
 
         # Legacy behavior
         decorators.Provides.USE_MODULE_QUALNAME = False

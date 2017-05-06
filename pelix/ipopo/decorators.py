@@ -28,6 +28,7 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 # Standard library
 import inspect
 import logging
+import sys
 import threading
 import types
 
@@ -754,6 +755,10 @@ def _get_specifications(specifications):
         raise ValueError("No specifications given")
     elif inspect.isclass(specifications):
         if Provides.USE_MODULE_QUALNAME:
+            if sys.version_info < (3, 3, 0):
+                raise ValueError("Qualified name capability requires "
+                                 "Python 3.3+")
+
             # Get the name of the class
             if not specifications.__module__:
                 return [specifications.__qualname__]
