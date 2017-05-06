@@ -19,6 +19,7 @@ import pelix.ipopo.decorators as decorators
 
 # Standard library
 import os
+import sys
 try:
     import unittest2 as unittest
 except ImportError:
@@ -328,6 +329,10 @@ class SimpleDecoratorsTests(unittest.TestCase):
         self.framework = FrameworkFactory.get_framework()
         self.framework.start()
         self.context = self.framework.get_bundle_context()
+
+        # Compatibility issue
+        if sys.version_info[0] < 3:
+            self.assertCountEqual = self.assertItemsEqual
 
     def tearDown(self):
         """
