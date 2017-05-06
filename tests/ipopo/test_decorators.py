@@ -244,32 +244,6 @@ class DecoratorsTest(unittest.TestCase):
             self.assertRaises(TypeError, decorators.Provides("spec", "field"),
                               invalid)
 
-    def test_provides_get_specifications(self):
-        """
-        Tests the _get_specifications method for the @Provides decorator
-        """
-        # Invalid entry
-        for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
-            self.assertRaises(ValueError,
-                              decorators._get_specifications, invalid)
-
-        # Test inheritance
-        from . import ipopo_bundle
-        from .ipopo_bundle import Child
-        base_names = ["Father", "Mother"]
-        full_names = ["{0}.{1}".format(ipopo_bundle.__name__, name)
-                      for name in base_names]
-
-        # New behavior
-        decorators.Provides.USE_MODULE_QUALNAME = True
-        specs = decorators._get_specifications(Child.__bases__)
-        self.assertCountEqual(full_names, specs)
-
-        # Legacy behavior
-        decorators.Provides.USE_MODULE_QUALNAME = False
-        specs = decorators._get_specifications(Child.__bases__)
-        self.assertCountEqual(base_names, specs)
-
     def test_requires_base(self):
         """
         Tests the @Requires* decorators basic arguments checks
@@ -409,13 +383,32 @@ class SimpleDecoratorsTests(unittest.TestCase):
                          decorators.get_method_description(os.getpid),
                          "Invalid description of getpid()")
 
-    def testGetSpecifications(self):
+    def test_provides_get_specifications(self):
         """
-        Tests the _get_specifications() method
+        Tests the _get_specifications method for the @Provides decorator
         """
-        for empty in (None, "", [], tuple()):
-            self.assertRaises(
-                ValueError, decorators._get_specifications, empty)
+        # Invalid entry
+        for invalid in (None, "", [], tuple(), {"spec": 1},
+                        [1, 2, 3], tuple((1, 2, 3)), 123):
+            self.assertRaises(ValueError,
+                              decorators._get_specifications, invalid)
+
+        # Test inheritance
+        from . import ipopo_bundle
+        from .ipopo_bundle import Child
+        base_names = ["Father", "Mother"]
+        full_names = ["{0}.{1}".format(ipopo_bundle.__name__, name)
+                      for name in base_names]
+
+        # New behavior
+        decorators.Provides.USE_MODULE_QUALNAME = True
+        specs = decorators._get_specifications(Child.__bases__)
+        self.assertCountEqual(full_names, specs)
+
+        # Legacy behavior
+        decorators.Provides.USE_MODULE_QUALNAME = False
+        specs = decorators._get_specifications(Child.__bases__)
+        self.assertCountEqual(base_names, specs)
 
         # Class specification
         class Spec(object):
@@ -438,11 +431,6 @@ class SimpleDecoratorsTests(unittest.TestCase):
         self.assertEqual(decorators._get_specifications(multiple_spec),
                          result_spec,
                          "Invalid conversion of multiple specifications")
-
-        # Unhandled types
-        for invalid in (123, {"spec": 1}):
-            self.assertRaises(ValueError, decorators._get_specifications,
-                              invalid)
 
 # ------------------------------------------------------------------------------
 
