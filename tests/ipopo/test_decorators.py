@@ -237,7 +237,6 @@ class DecoratorsTest(unittest.TestCase):
 
         # Invalid specification type
         for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
-            self.assertRaises(ValueError, decorators._get_specifications, invalid)
             self.assertRaises(ValueError, decorators.Provides, "spec", invalid)
 
         # Invalid target
@@ -245,13 +244,36 @@ class DecoratorsTest(unittest.TestCase):
             self.assertRaises(TypeError, decorators.Provides("spec", "field"),
                               invalid)
 
+    def test_provides_get_specifications(self):
+        """
+        Tests the _get_specifications method for the @Provides decorator
+        """
+        # Invalid entry
+        for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
+            self.assertRaises(ValueError,
+                              decorators._get_specifications, invalid)
+
+        # Test inheritance
+        from . import ipopo_bundle
+        from .ipopo_bundle import Child
+        base_names = ["Father", "Mother"]
+        full_names = ["{0}.{1}".format(ipopo_bundle.__name__, name)
+                      for name in base_names]
+
+        # New behavior
+        decorators.Provides.USE_MODULE_QUALNAME = True
+        specs = decorators._get_specifications(Child.__bases__)
+        self.assertCountEqual(full_names, specs)
+
+        # Legacy behavior
+        decorators.Provides.USE_MODULE_QUALNAME = False
+        specs = decorators._get_specifications(Child.__bases__)
+        self.assertCountEqual(base_names, specs)
+
     def test_requires_base(self):
         """
         Tests the @Requires* decorators basic arguments checks
         """
-        class DummyClass(object):
-            pass
-
         def method():
             pass
 

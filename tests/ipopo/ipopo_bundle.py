@@ -492,3 +492,34 @@ class ActivatorTest:
 
         global stopped
         stopped = True
+
+# ------------------------------------------------------------------------------
+# Inheritance tests
+
+
+class GrandMother(object):
+    """
+    Parent class of Mother class: must not appear in specifications
+    """
+    pass
+
+
+class Mother(GrandMother):
+    """
+    Direct parent class: must appear in specifications
+    """
+    pass
+
+
+class Father(object):
+    """
+    Direct parent class: must appear in specifications
+    """
+    pass
+
+
+class Child(Father, Mother):
+    """
+    Implementation class: must not appear in specifications
+    """
+    pass
