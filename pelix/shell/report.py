@@ -361,7 +361,7 @@ class _ReportCommands(object):
                             'egid': 'getegid', 'groups': 'getgroups'}.items():
             try:
                 results[key] = getattr(os, method)()
-            except AttributeError:
+            except (AttributeError, OSError):
                 results[key] = None
         return results
 
