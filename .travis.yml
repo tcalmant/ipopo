@@ -1,6 +1,6 @@
 language: python
 python: 3.5
-sudo: true
+sudo: false
 
 env:
   - TOX_ENV=py27
@@ -9,19 +9,20 @@ env:
   - TOX_ENV=py35
   - TOX_ENV=pypy
 
-before_install:
-  - sudo add-apt-repository ppa:mosquitto-dev/mosquitto-ppa -y
-  - sudo apt-get update
+addons:
+  apt:
+    sources:
+    - sourceline: 'ppa:mosquitto-dev/mosquitto-ppa'
+    packages:
+    - mosquitto
+
+services:
+  - mosquitto
+  - redis-server
 
 install:
-  - sudo apt-get install mosquitto
-  - sudo pip install tox
-  - sudo pip install coverage
-  - sudo pip install coveralls
-  - sudo pip install pytest>=2.7.3 --upgrade
-
-before_script:
-  - sudo service mosquitto restart
+  - pip install tox coverage coveralls
+  - pip install pytest>=2.7.3 --upgrade
 
 script:
   - tox -e $TOX_ENV
