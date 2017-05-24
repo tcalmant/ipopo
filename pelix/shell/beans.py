@@ -164,7 +164,11 @@ class IOHandler(object):
 
         # Specific behavior
         if sys.version_info[0] >= 3:
-            if 'b' in getattr(out_stream, 'mode', ''):
+            # In Python 3.6, the "mode" field is not available on file-like
+            # objects, but the "encoding" field seems to be present only in
+            # string compatible ones
+            if 'b' in getattr(out_stream, 'mode', '') \
+                    or not hasattr(out_stream, 'encoding'):
                 # Bytes conversion
                 self.write = self._write_bytes
             else:
