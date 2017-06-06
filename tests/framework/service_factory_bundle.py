@@ -6,12 +6,15 @@ Simple bundle registering a service
 :author: Thomas Calmant
 """
 
+import os
 from pelix.constants import BundleActivator
 
 __version__ = (1, 0, 0)
 
 SVC = "greetings"
 FACTORY = None
+
+SVC_NO_CLEAN = "factory.no.clean"
 
 
 class Service:
@@ -37,7 +40,7 @@ class ServiceFactoryTest:
 
     def get_service(self, bundle, registration):
         """
-        Provide a new service
+        Provides a new service
         """
         client_id = bundle.get_bundle_id()
         self.made_for.append(client_id)
@@ -49,6 +52,38 @@ class ServiceFactoryTest:
         """
         client_id = bundle.get_bundle_id()
         self.made_for.remove(client_id)
+
+
+
+class RegistrationKeeper:
+    """
+    Keeps track of factory registration
+    """
+    def __init__(self, real_reg, given_reg):
+        """
+        :param real_reg: Registration returned by register_factory
+        :param given_reg: Registration given to get_service()
+        """
+        self.real = real_reg
+        self.given = given_reg
+
+
+class ServiceFactoryCleanupTest:
+    """
+    Service not to be cleaned up by the
+    """
+    def __init__(self):
+        self.reg = None
+
+    def get_service(self, bundle, registration):
+        """
+        Provides a new service
+        """
+        os.environ['factory.get'] = "OK"
+        return RegistrationKeeper(self.reg, registration)
+
+    def unget_service(self, bundle, registration):
+        os.environ['factory.unget'] = "OK"
 
 
 @BundleActivator
@@ -78,6 +113,11 @@ class ActivatorService:
 
         global FACTORY
         FACTORY = self.factory
+
+        # Factory without clean up
+        svc2 = ServiceFactoryCleanupTest()
+        svc2.reg = context.register_service(
+            SVC_NO_CLEAN, svc2, {}, factory=True)
 
     def stop(self, _):
         """

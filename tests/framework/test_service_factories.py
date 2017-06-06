@@ -7,14 +7,15 @@ handling and events.
 :author: Thomas Calmant
 """
 
-# Pelix
-from pelix.framework import FrameworkFactory
-
 # Standard library
+import os
 try:
     import unittest2 as unittest
 except ImportError:
     import unittest
+
+# Pelix
+from pelix.framework import FrameworkFactory
 
 # ------------------------------------------------------------------------------
 
@@ -99,6 +100,52 @@ class ServicesTest(unittest.TestCase):
         # All references of second bundle gone: factory must have been notified
         context_a.unget_service(svc_ref)
         self.assertListEqual(factory_module.FACTORY.made_for, [])
+
+    def test_cleanup(self):
+        """
+        Tests the behavior of the framework when cleaning up a bundle
+        """
+        ctx = self.framework.get_bundle_context()
+
+        # Install the bundle providing a service factory
+        factory_bundle = ctx.install_bundle(self.test_bundle_name)
+        factory_module = factory_bundle.get_module()
+        factory_bundle.start()
+
+        self.assertIsNone(os.environ.get("factory.get"))
+        self.assertIsNone(os.environ.get("factory.unget"))
+
+        # Find the service
+        svc_ref = ctx.get_service_reference(factory_module.SVC_NO_CLEAN)
+
+        # Get the service from the Framework context
+        svc = ctx.get_service(svc_ref)
+
+        self.assertEquals(os.environ.get("factory.get"), "OK")
+        self.assertIsNone(os.environ.get("factory.unget"))
+
+        # Check if we got the registration correctly
+        self.assertIs(svc.real, svc.given)
+        self.assertListEqual(svc_ref.get_using_bundles(), [self.framework])
+        self.assertEquals(svc.real.get_reference(), svc_ref,
+                          "Wrong reference")
+
+        # Clean up environment
+        del os.environ['factory.get']
+
+        # Uninstall the bundle
+        factory_bundle.uninstall()
+
+        self.assertIsNone(os.environ.get("factory.get"))
+        self.assertEquals(os.environ.get("factory.unget"), "OK")
+
+        # Clean up environment
+        os.environ.pop('factory.get', None)
+        del os.environ['factory.unget']
+
+        # Check clean up
+        self.assertIs(svc.real, svc.given)
+        self.assertListEqual(svc_ref.get_using_bundles(), [])
 
 # ------------------------------------------------------------------------------
 

@@ -95,7 +95,7 @@ class _FactoryCounter(object):
     def __init__(self, bundle):
         """
         Sets up members
-        
+
         :param bundle: The bundle monitored by this counter
         """
         self.__bundle = bundle
@@ -106,7 +106,7 @@ class _FactoryCounter(object):
     def is_used(self):
         """
         Checks if this counter has at least one value
-        
+
         :return: True if a service is still referenced by this service
         """
         return bool(self.__factored)
@@ -115,7 +115,7 @@ class _FactoryCounter(object):
         """
         Returns the service required by the bundle. The Service Factory is
         called only when necessary
-        
+
         :param factory: The service factory
         :param svc_registration: The ServiceRegistration object
         :return: The requested service instance (created if necessary)
@@ -139,7 +139,7 @@ class _FactoryCounter(object):
     def unget_service(self, factory, svc_registration):
         """
         Releases references to the given service reference
-        
+
         :param factory: The service factory
         :param svc_registration: The ServiceRegistration object
         :return: True if all service references to this service factory
@@ -164,6 +164,28 @@ class _FactoryCounter(object):
 
         # Some references are still there
         return False
+
+    def cleanup_service(self, factory, svc_registration):
+        """
+        If this bundle used that factory, releases the reference; else does
+        nothing
+
+        :param factory: The service factory
+        :param svc_registration: The ServiceRegistration object
+        :return: True if the bundle was using the factory, else False
+        """
+        svc_ref = svc_registration.get_reference()
+        try:
+            _, counter = self.__factored.pop(svc_ref)
+        except KeyError:
+            return False
+        else:
+            # Call the factory
+            factory.unget_service(self.__bundle, svc_registration)
+
+            # No more associaton
+            svc_ref.unused_by(self.__bundle)
+            return True
 
 # ------------------------------------------------------------------------------
 
@@ -302,7 +324,7 @@ class ServiceReference(object):
     def is_factory(self):
         """
         Returns True if this reference points to a service factory
-        
+
         :return: True if the service provides from a factory
         """
         return self.__properties[SERVICE_SCOPE] in \
@@ -924,11 +946,6 @@ class ServiceRegistry(object):
             # Get the service instance
             service = self.__svc_registry.pop(svc_ref)
 
-            # Remove the service factory
-            if svc_ref.is_factory():
-                # TODO: notify the factory ?
-                del self.__svc_factories[svc_ref]
-
             for spec in svc_ref.get_property(OBJECTCLASS):
                 spec_services = self.__svc_specs[spec]
                 # Use bisect to remove the reference (faster)
@@ -937,12 +954,19 @@ class ServiceRegistry(object):
                 if not spec_services:
                     del self.__svc_specs[spec]
 
-            # Delete bundle association
-            bundle_services = self.__bundle_svc[bundle]
-            bundle_services.remove(svc_ref)
-            if not bundle_services:
-                # Don't keep empty lists
-                del self.__bundle_svc[bundle]
+            # Remove the service factory
+            if svc_ref.is_factory():
+                # Call unget_service for all client bundle
+                factory, svc_reg = self.__svc_factories.pop(svc_ref)
+                for counter in self.__factory_usage.values():
+                    counter.cleanup_service(factory, svc_reg)
+            else:
+                # Delete bundle association
+                bundle_services = self.__bundle_svc[bundle]
+                bundle_services.remove(svc_ref)
+                if not bundle_services:
+                    # Don't keep empty lists
+                    del self.__bundle_svc[bundle]
 
             return service
 
@@ -964,6 +988,9 @@ class ServiceRegistry(object):
                 # Clean the registry
                 specs = set()
                 for svc_ref in svc_refs:
+                    if svc_ref.is_factory():
+                        continue
+
                     # Remove direct references
                     self.__pending_services[svc_ref] = \
                         self.__svc_registry.pop(svc_ref)
@@ -1098,7 +1125,7 @@ class ServiceRegistry(object):
         """
         Returns a service instance from a service factory or a prototype
         service factory
-        
+
         :param bundle: The bundle requiring the service
         :param reference: A reference pointing to a factory
         :return: The requested service
