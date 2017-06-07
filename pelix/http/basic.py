@@ -653,17 +653,19 @@ class HttpService(object):
 
         with self._lock:
             longest_match = ""
+            longest_match_len = 0
             for servlet_path in self._servlets:
                 tested_path = servlet_path
                 if tested_path[-1] != '/':
                     # Add a trailing slash
                     tested_path += '/'
 
-                if path.startswith(tested_path):
+                if path.startswith(tested_path) \
+                        and len(servlet_path) > longest_match_len:
                     # Found a corresponding servlet
-                    if len(servlet_path) > len(longest_match):
-                        # And its deeper than the previous one
-                        longest_match = servlet_path
+                    # which is deeper than the previous one
+                    longest_match = servlet_path
+                    longest_match_len = len(longest_match)
 
             # Return the found servlet
             if not longest_match:

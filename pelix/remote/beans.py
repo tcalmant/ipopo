@@ -148,7 +148,7 @@ class ExportEndpoint(object):
         properties.update(self.__properties)
 
         # Some properties can't be merged
-        for key in (pelix.constants.OBJECTCLASS, pelix.constants.SERVICE_ID):
+        for key in pelix.constants.OBJECTCLASS, pelix.constants.SERVICE_ID:
             properties[key] = self.__reference.get_property(key)
 
         # Force the exported configurations

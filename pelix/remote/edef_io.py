@@ -474,7 +474,7 @@ class EDEFWriter(object):
         ElementTree.register_namespace("", EDEF_NAMESPACE)
 
         # Make the XML
-        for encoding in ('unicode', 'UTF-8'):
+        for encoding in 'unicode', 'UTF-8':
             # Prepare a StringIO output
             output = StringIO()
 

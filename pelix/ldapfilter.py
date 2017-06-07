@@ -183,16 +183,13 @@ class LDAPFilter(object):
         self.subfilters = new_filters
 
         size = len(self.subfilters)
-        if size > 1:
-            # Normal filter
+        if size > 1 or self.operator == NOT:
+            # Normal filter or NOT
+            # NOT is the only operator to accept 1 operand
             return self
         else:
-            if self.operator == NOT:
-                # NOT is the only operator to accept 1 operand
-                return self
-            else:
-                # Return the only child as the filter object
-                return self.subfilters[0].normalize()
+            # Return the only child as the filter object
+            return self.subfilters[0].normalize()
 
 
 class LDAPCriteria(object):
@@ -227,7 +224,7 @@ class LDAPCriteria(object):
             # Bad type
             return False
 
-        for member in ('name', 'comparator'):
+        for member in 'name', 'comparator':
             if getattr(self, member) != getattr(other, member):
                 # Difference found
                 return False

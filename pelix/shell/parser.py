@@ -66,10 +66,9 @@ def _find_assignment(arg_token):
     """
     idx = arg_token.find('=')
     while idx != -1:
-        if idx != 0:
-            if arg_token[idx - 1] != '\\':
-                # No escape character
-                return idx
+        if idx != 0 and arg_token[idx - 1] != '\\':
+            # No escape character
+            return idx
 
         idx = arg_token.find('=', idx + 1)
 
@@ -132,7 +131,6 @@ def _split_ns_command(cmd_token):
     if len(cmd_split) == 1:
         # No name space given
         command = cmd_split[0]
-
     else:
         # Got a name space and a command
         namespace = cmd_split[0]
@@ -248,7 +246,6 @@ class Shell(object):
             namespace = DEFAULT_NAMESPACE
 
         namespace = namespace.strip().lower()
-
         if namespace not in self._commands:
             self._logger.warning("Unknown name space: %s", namespace)
             return False
@@ -257,8 +254,8 @@ class Shell(object):
             # Remove the command
             command = command.strip().lower()
             if command not in self._commands[namespace]:
-                self._logger.warning("Unknown command: %s.%s",
-                                     namespace, command)
+                self._logger.warning(
+                    "Unknown command: %s.%s", namespace, command)
                 return False
 
             del self._commands[namespace][command]
@@ -266,7 +263,6 @@ class Shell(object):
             # Remove the name space if necessary
             if not self._commands[namespace]:
                 del self._commands[namespace]
-
         else:
             # Remove the whole name space
             del self._commands[namespace]
@@ -296,7 +292,6 @@ class Shell(object):
         try:
             namespaces.remove(DEFAULT_NAMESPACE)
             namespaces.insert(0, DEFAULT_NAMESPACE)
-
         except ValueError:
             # Default name space wasn't present
             pass
@@ -331,7 +326,6 @@ class Shell(object):
             commands = list(self._commands[namespace].keys())
             commands.sort()
             return commands
-
         except KeyError:
             # Unknown name space
             return []
@@ -352,7 +346,6 @@ class Shell(object):
             if not spaces:
                 # Unknown command
                 raise ValueError("Unknown command {0}".format(command))
-
             else:
                 # Return a sorted list of tuples
                 return sorted((namespace, command) for namespace in spaces)
@@ -376,7 +369,6 @@ class Shell(object):
             if not spaces:
                 # Unknown command
                 raise ValueError("Unknown command {0}".format(command))
-
             elif len(spaces) > 1:
                 # Multiple possibilities
                 if spaces[0] == DEFAULT_NAMESPACE:
@@ -566,7 +558,6 @@ class Shell(object):
         if cmd_name is None:
             names = [command for command in self._commands[namespace]]
             names.sort()
-
         else:
             names = [cmd_name]
 
@@ -597,14 +588,12 @@ class Shell(object):
             try:
                 # Extract command name space and name
                 possibilities = self.get_ns_commands(command)
-
             except ValueError as ex:
                 # Unknown command
                 if not was_namespace:
                     # ... and no name space were matching either -> error
                     session.write_line(str(ex))
                     return False
-
             else:
                 # Print the help of the found command
                 if was_namespace:
@@ -613,7 +602,6 @@ class Shell(object):
 
                 for namespace, cmd_name in possibilities:
                     self.__print_namespace_help(session, namespace, cmd_name)
-
         else:
             # Get all name spaces
             namespaces = list(self._commands.keys())
@@ -696,7 +684,6 @@ class Shell(object):
                         return False
 
                 session.write_line("Script execution succeeded")
-
         except IOError as ex:
             session.write_line("Error reading file {0}: {1}", filename, ex)
             return False

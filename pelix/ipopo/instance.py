@@ -272,7 +272,7 @@ class StoredInstance(object):
         """
         with self._lock:
             # Validation flags
-            was_valid = (self.state == StoredInstance.VALID)
+            was_valid = self.state == StoredInstance.VALID
             can_validate = self.state not in (StoredInstance.VALIDATING,
                                               StoredInstance.VALID)
 

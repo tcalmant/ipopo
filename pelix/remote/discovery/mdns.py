@@ -192,28 +192,23 @@ class ZeroconfDiscovery(object):
         Converts properties values into their type
         """
         new_props = {}
-
         for key, value in props.items():
             try:
                 try:
                     new_props[key] = json.loads(value)
-
                 except ValueError:
                     if value.startswith("pelix-type:"):
                         # Pseudo-serialized
                         value_type, value = value.split(":", 3)[2:]
-                        if '.' in value_type:
+                        if '.' in value_type and value_type not in value:
                             # Not a builtin type...
-                            if value_type not in value:
-                                _logger.warning("Won't work: %s (%s)",
-                                                value, value_type)
+                            _logger.warning(
+                                "Won't work: %s (%s)", value, value_type)
 
                         new_props[key] = eval(value)
-
                     else:
                         # String
                         new_props[key] = value
-
             except Exception as ex:
                 _logger.error("Can't deserialize %s: %s", value, ex)
 
@@ -283,10 +278,10 @@ class ZeroconfDiscovery(object):
                                         self._rs_type)
 
         # Prepare the mDNS entry
-        info = mdns.ServiceInfo(self._rs_type,  # Type
-                                svc_name,  # Name
-                                self._address,  # Access address
-                                access_port,  # Access port
+        info = mdns.ServiceInfo(self._rs_type, # Type
+                                svc_name,      # Name
+                                self._address, # Access address
+                                access_port,   # Access port
                                 properties=properties)
 
         self._export_infos[exp_endpoint.uid] = info
@@ -365,7 +360,6 @@ class ZeroconfDiscovery(object):
             if sender_uid == self._fw_uid:
                 # We sent this message
                 return
-
         except KeyError:
             # Not a Pelix message
             _logger.warning("Not a Pelix record: %s", properties)
@@ -375,10 +369,8 @@ class ZeroconfDiscovery(object):
             # Dispatcher servlet found, get source info
             address = to_str(socket.inet_ntoa(info.getAddress()))
             port = info.getPort()
-
-            self._access.send_discovered(address, port,
-                                         properties['pelix.access.path'])
-
+            self._access.send_discovered(
+                address, port, properties['pelix.access.path'])
         elif svc_type == self._rs_type:
             # Remote service
             # Get the first available configuration
@@ -397,13 +389,12 @@ class ZeroconfDiscovery(object):
                     properties[pelix.remote.PROP_ENDPOINT_ID],
                     properties[pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID],
                     [configuration], None, specs, properties)
-
             except KeyError as ex:
                 # Log a warning on incomplete endpoints
-                _logger.warning("Incomplete endpoint description, "
-                                "missing %s: %s", ex, properties)
+                _logger.warning(
+                    "Incomplete endpoint description, missing %s: %s",
+                    ex, properties)
                 return
-
             else:
                 # Register the endpoint
                 if self._registry.add(endpoint):

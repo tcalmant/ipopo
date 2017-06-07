@@ -349,7 +349,7 @@ class Activator(object):
         level_value = context.get_property(PROPERTY_LOG_LEVEL)
 
         if level_value:
-            for converter in (int, logging.getLevelName):
+            for converter in int, logging.getLevelName:
                 try:
                     parsed_level = converter(level_value)
                     if isinstance(parsed_level, int):

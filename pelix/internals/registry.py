@@ -202,7 +202,7 @@ class ServiceReference(object):
                                 entries
         """
         # Check properties
-        for mandatory in (SERVICE_ID, OBJECTCLASS):
+        for mandatory in SERVICE_ID, OBJECTCLASS:
             if mandatory not in properties:
                 raise BundleException(
                     "A Service must at least have a '{0}' entry"
@@ -445,7 +445,7 @@ class ServiceRegistration(object):
             raise TypeError("Waiting for dictionary")
 
         # Keys that must not be updated
-        for forbidden_key in (OBJECTCLASS, SERVICE_ID):
+        for forbidden_key in OBJECTCLASS, SERVICE_ID:
             try:
                 del properties[forbidden_key]
             except KeyError:
@@ -726,7 +726,7 @@ class EventDispatcher(object):
         svc_specs = properties[OBJECTCLASS]
         previous = None
         endmatch_event = None
-        svc_modified = (event.get_kind() == ServiceEvent.MODIFIED)
+        svc_modified = event.get_kind() == ServiceEvent.MODIFIED
 
         if svc_modified:
             # Modified service event : prepare the end match event

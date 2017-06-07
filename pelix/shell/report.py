@@ -319,7 +319,7 @@ class _ReportCommands(object):
         }
 
         # Paths and line separators
-        for name in ('sep', 'altsep', 'pathsep', 'linesep'):
+        for name in 'sep', 'altsep', 'pathsep', 'linesep':
             results['os.{0}'.format(name)] = getattr(os, name, None)
 
         try:

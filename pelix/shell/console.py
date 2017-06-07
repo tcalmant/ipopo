@@ -488,10 +488,8 @@ def handle_common_arguments(parsed_args):
     :raise IOError: Initial or run script not found
     """
     # Setup the logger
-    if parsed_args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.WARNING)
+    logging.basicConfig(
+        level=logging.DEBUG if parsed_args.verbose else logging.WARNING)
 
     # Framework properties dictionary
     props = {}
@@ -515,10 +513,9 @@ def handle_common_arguments(parsed_args):
         props.update(init.properties)
 
     # Compute framework properties
-    if parsed_args.properties:
-        for prop_def in parsed_args.properties:
-            key, value = prop_def.split('=', 1)
-            props[key] = value
+    for prop_def in parsed_args.properties or []:
+        key, value = prop_def.split('=', 1)
+        props[key] = value
 
     # Check initial run script(s)
     if parsed_args.init_script:

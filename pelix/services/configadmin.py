@@ -1117,7 +1117,7 @@ class JsonPersistence(object):
                 pass
 
         # Handle updated configurations
-        for filenames in (added, updated):
+        for filenames in added, updated:
             for filename in filenames:
                 pid_props = self.__load_file(filename)
                 if pid_props is None:

@@ -47,7 +47,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 # Using Python 3
-PYTHON_3 = (sys.version_info[0] == 3)
+PYTHON_3 = sys.version_info[0] == 3
 
 # ------------------------------------------------------------------------------
 
@@ -255,7 +255,7 @@ def is_lock(lock):
         # Don't do useless tests
         return False
 
-    for attr in ('acquire', 'release', '__enter__', '__exit__'):
+    for attr in 'acquire', 'release', '__enter__', '__exit__':
         if not hasattr(lock, attr):
             # Missing something
             return False
