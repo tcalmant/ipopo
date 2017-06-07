@@ -28,7 +28,6 @@ Implementation of the OSGi LogService, based on Python standard logging
 # Standard library
 import collections
 import datetime
-import inspect
 import logging
 import sys
 import time
@@ -175,20 +174,16 @@ class LogEntry(object):
         return self.__time
 
 
-class LogService(logging.Handler):
+class LogReaderService:
     """
-    Implementation of the log and log reader services
+    The LogReader service
     """
-    def __init__(self, context, level, max_entries):
+    def __init__(self, context, max_entries):
         """
         :param context: The bundle context
-        :param level: The minimal log level of this handler
         :param max_entries: Maximum stored entries
         """
-        logging.Handler.__init__(self, level)
-
         self._context = context
-        self._framework = context.get_bundle(0)
         self.__logs = collections.deque(maxlen=max_entries)
         self.__listeners = set()
 
@@ -255,21 +250,20 @@ class LogService(logging.Handler):
                 self.__logs.append(err_entry)
                 self.__logs.append(entry)
 
-    def _bundle_from_module(self, module):
-        """
-        Find the bundle associated to a module
 
-        :param module: A Python module object
-        :return: The Bundle object associated to the module, or None
-        """
-        try:
-            # Get the module name
-            module = module.__name__
-        except AttributeError:
-            # We got a string
-            pass
+class LogServiceInstance:
+    """
+    Instance of the log service given to a bundle by the factory
+    """
+    __slots__ = ('__reader', '__bundle')
 
-        return self._framework.get_bundle_by_name(module)
+    def __init__(self, reader, bundle):
+        """
+        :param reader: The Log Reader service
+        :param bundle: Bundle associated to this instance
+        """
+        self.__reader = reader
+        self.__bundle = bundle
 
     def log(self, level, message, exc_info=None, reference=None):
         """
@@ -280,23 +274,9 @@ class LogService(logging.Handler):
         :param exc_info: The exception context (sys.exc_info()), if any
         :param reference: The ServiceReference associated to the log
         """
-        # Try to find the bundle
-        if isinstance(reference, pelix.framework.ServiceReference):
-            # Use the bundle that registered the associated service
-            bundle = reference.get_bundle()
-        else:
-            # Sanitize
+        if not isinstance(reference, pelix.framework.ServiceReference):
+            # Ensure we have a clean Service Reference
             reference = None
-
-            # Use the caller as bundle, if possible
-            try:
-                # Stack[1]: caller
-                # caller[0]: Frame object
-                bundle = self._bundle_from_module(
-                    inspect.stack()[1][0].f_globals['__name__'])
-            except KeyError:
-                # No '__name__' in frame globals
-                bundle = None
 
         if exc_info is not None:
             # Format the exception to avoid memory leaks
@@ -308,8 +288,40 @@ class LogService(logging.Handler):
             exception_str = None
 
         # Store the LogEntry
-        entry = LogEntry(level, message, exception_str, bundle, reference)
-        self._store_entry(entry)
+        entry = LogEntry(
+            level, message, exception_str, self.__bundle, reference)
+        self.__reader._store_entry(entry)
+
+
+class LogServiceFactory(logging.Handler):
+    """
+    Log Service Factory: provides a logger per bundle
+    """
+    def __init__(self, context, reader, level):
+        """
+        :param context: The bundle context
+        :param reader: The Log Reader service
+        :param level: The minimal log level of this handler
+        """
+        logging.Handler.__init__(self, level)
+        self._framework = context.get_bundle(0)
+        self._reader = reader
+
+    def _bundle_from_module(self, module_object):
+        """
+        Find the bundle associated to a module
+
+        :param module_object: A Python module object
+        :return: The Bundle object associated to the module, or None
+        """
+        try:
+            # Get the module name
+            module_object = module_object.__name__
+        except AttributeError:
+            # We got a string
+            pass
+
+        return self._framework.get_bundle_by_name(module_object)
 
     def emit(self, record):
         """
@@ -322,7 +334,27 @@ class LogService(logging.Handler):
 
         # Convert to a LogEntry
         entry = LogEntry(record.levelno, record.message, None, bundle, None)
-        self._store_entry(entry)
+        self._reader._store_entry(entry)
+
+    def get_service(self, bundle, registration):
+        """
+        Returns an instance of the log service for the given bundle
+
+        :param bundle: Bundle consuming the service
+        :param registration: Service registration bean
+        :return: An instance of the logger
+        """
+        return LogServiceInstance(self._reader, bundle)
+
+    @staticmethod
+    def unget_service(bundle, registration):
+        """
+        Releases the service associated to the given bundle
+
+        :param bundle: Consuming bundle
+        :param registration: Service registration bean
+        """
+        pass
 
 
 @BundleActivator
@@ -331,11 +363,9 @@ class Activator(object):
     The bundle activator
     """
     def __init__(self):
-        """
-        Sets up members
-        """
-        self.__registration = None
-        self.__service = None
+        self.__reader_reg = None
+        self.__factory_reg = None
+        self.__factory = None
 
     @staticmethod
     def get_level(context):
@@ -375,33 +405,35 @@ class Activator(object):
         except (ValueError, TypeError):
             max_entries = 100
 
-        # Prepare the service
-        self.__service = LogService(
-            context, self.get_level(context), max_entries)
+        # Register the LogReader service
+        reader = LogReaderService(context, max_entries)
+        self.__reader_reg = context.register_service(
+            LOG_READER_SERVICE, reader, {})
+
+        # Register the LogService factory
+        self.__factory = LogServiceFactory(
+            context, reader, self.get_level(context))
+        self.__factory_reg = context.register_service(
+            LOG_SERVICE, self.__factory, {}, factory=True)
 
         # Register the log service as a log handler
-        logging.getLogger().addHandler(self.__service)
+        logging.getLogger().addHandler(self.__factory)
         # ... but not for our own logs
-        logger.removeHandler(self.__service)
-
-        try:
-            # Register the service
-            self.__registration = context.register_service(
-                [LOG_SERVICE, LOG_READER_SERVICE], self.__service, {})
-        except:
-            # In case of error remove the handler
-            logging.getLogger().removeHandler(self.__service)
-            raise
+        logger.removeHandler(self.__factory)
 
     def stop(self, _):
         """
         Bundle stopping
         """
         # Unregister the service
-        if self.__registration is not None:
-            self.__registration.unregister()
-            self.__registration = None
+        if self.__factory_reg is not None:
+            self.__factory_reg.unregister()
+            self.__factory_reg = None
+
+        if self.__reader_reg is not None:
+            self.__reader_reg.unregister()
+            self.__reader_reg = None
 
         # Unregister the handler
-        logging.getLogger().removeHandler(self.__service)
-        self.__service = None
+        logging.getLogger().removeHandler(self.__factory)
+        self.__factory = None

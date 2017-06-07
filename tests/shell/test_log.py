@@ -50,12 +50,9 @@ class LogShellTest(unittest.TestCase):
         svc_ref = context.get_service_reference(pelix.shell.SERVICE_SHELL)
         self.shell = context.get_service(svc_ref)
 
-        # Get the log service
-        svc_ref = context.get_service_reference(pelix.misc.LOG_SERVICE)
-
-        # Instantiate the EventAdmin component
-        context = self.framework.get_bundle_context()
-        self.logger = context.get_service(svc_ref)
+        # Get the log reader service
+        svc_ref = context.get_service_reference(pelix.misc.LOG_READER_SERVICE)
+        self.reader = context.get_service(svc_ref)
 
     def tearDown(self):
         """
@@ -110,7 +107,7 @@ class LogShellTest(unittest.TestCase):
                            ("error", logging.ERROR)):
             self._run_command("log.{0} some text".format(cmd))
 
-            latest = self.logger.get_log()[-1]
+            latest = self.reader.get_log()[-1]
             self.assertEqual(latest.level, level, "Wrong log level")
             self.assertEqual(latest.message, "some text")
 
@@ -132,7 +129,7 @@ class LogShellTest(unittest.TestCase):
             self._run_command("log.{0} some text for {0}".format(cmd))
 
         # Get all logs
-        logs = self.logger.get_log()
+        logs = self.reader.get_log()
 
         # Basic filter: >= warning
         output = self._run_command("log.log")

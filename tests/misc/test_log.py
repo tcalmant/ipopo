@@ -34,7 +34,6 @@ class LogServiceTest(unittest.TestCase):
     """
     Tests the log service
     """
-
     def setUp(self):
         """
         Prepares a framework and a registers a service to export
@@ -45,7 +44,8 @@ class LogServiceTest(unittest.TestCase):
         self.framework.start()
 
         # Get the service
-        self.service = self._get_service()
+        self.logger = self._get_logger()
+        self.reader = self._get_reader()
 
     def tearDown(self):
         """
@@ -53,15 +53,24 @@ class LogServiceTest(unittest.TestCase):
         """
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
-        self.service = None
+        self.logger = None
+        self.reader = None
         self.framework = None
 
-    def _get_service(self):
+    def _get_logger(self):
         """
         Returns the log service
         """
         context = self.framework.get_bundle_context()
         ref = context.get_service_reference(pelix.misc.LOG_SERVICE)
+        return context.get_service(ref)
+
+    def _get_reader(self):
+        """
+        Returns the log reader service
+        """
+        context = self.framework.get_bundle_context()
+        ref = context.get_service_reference(pelix.misc.LOG_READER_SERVICE)
         return context.get_service(ref)
 
     def test_log(self):
@@ -75,10 +84,10 @@ class LogServiceTest(unittest.TestCase):
                 (logging.WARNING, LOG_WARNING), (logging.ERROR, LOG_ERROR),
                 (logging.CRITICAL, LOG_ERROR)):
             # Log at the expected level
-            self.service.log(level, logging.getLevelName(level))
+            self.logger.log(level, logging.getLevelName(level))
 
             # Get new logs
-            new_logs = self.service.get_log()
+            new_logs = self.reader.get_log()
             latest = new_logs[-1]
 
             # Check time stamp
@@ -93,7 +102,7 @@ class LogServiceTest(unittest.TestCase):
                              "Wrong OSGi log level")
             self.assertEqual(latest.message, logging.getLevelName(level),
                              "Wrong log message")
-            self.assertIsNone(latest.bundle, "Unexpected bundle info")
+            self.assertIs(latest.bundle, self.framework, "No bundle info")
             self.assertIsNone(latest.exception, "Unexpected exception data")
             self.assertIsNone(latest.reference, "Unexpected reference data")
 
@@ -111,7 +120,7 @@ class LogServiceTest(unittest.TestCase):
         logging.debug("Some log message at %s",
                       logging.getLevelName(logging.DEBUG))
         self.assertListEqual(
-            list(self.service.get_log()), [], "Debug message logged")
+            list(self.reader.get_log()), [], "Debug message logged")
 
         # Try to log at various log levels
         prev_logs = []
@@ -123,7 +132,7 @@ class LogServiceTest(unittest.TestCase):
                         logging.getLevelName(level))
 
             # Get new logs
-            new_logs = self.service.get_log()
+            new_logs = self.reader.get_log()
             latest = new_logs[-1]
 
             # Check time stamp
@@ -172,7 +181,8 @@ class LogServiceTest(unittest.TestCase):
                         logging.getLevelName(filter_level))
 
                 self.framework.get_bundle_by_name("pelix.misc.log").update()
-                self.service = self._get_service()
+                self.logger = self._get_logger()
+                self.reader = self._get_reader()
 
                 # Log for each level
                 for level in (logging.DEBUG, logging.INFO, logging.WARNING,
@@ -182,7 +192,7 @@ class LogServiceTest(unittest.TestCase):
                                 logging.getLevelName(level))
 
                     try:
-                        latest = self.service.get_log()[-1]
+                        latest = self.reader.get_log()[-1]
                         if level >= filter_level:
                             self.assertIn(logging.getLevelName(level),
                                           latest.message)
@@ -201,7 +211,8 @@ class LogServiceTest(unittest.TestCase):
             self.framework.add_property(pelix.misc.PROPERTY_LOG_LEVEL, invalid)
 
             self.framework.get_bundle_by_name("pelix.misc.log").update()
-            self.service = self._get_service()
+            self.logger = self._get_logger()
+            self.reader = self._get_reader()
 
             # Log for each level
             for level in (logging.DEBUG, logging.INFO, logging.WARNING,
@@ -211,7 +222,7 @@ class LogServiceTest(unittest.TestCase):
                             logging.getLevelName(level))
 
                 try:
-                    latest = self.service.get_log()[-1]
+                    latest = self.reader.get_log()[-1]
                     if level >= filter_level:
                         self.assertIn(logging.getLevelName(level),
                                       latest.message)
@@ -234,17 +245,17 @@ class LogServiceTest(unittest.TestCase):
         listener = Listener()
 
         # Register it twice
-        self.service.add_log_listener(listener)
-        self.service.add_log_listener(listener)
+        self.reader.add_log_listener(listener)
+        self.reader.add_log_listener(listener)
 
         # Also, check with a null log listener
-        self.service.add_log_listener(None)
+        self.reader.add_log_listener(None)
 
         # Log something
-        self.service.log(logging.WARNING, "Some log")
+        self.logger.log(logging.WARNING, "Some log")
 
         # Get the log entry through the service
-        latest = self.service.get_log()[-1]
+        latest = self.reader.get_log()[-1]
 
         # Compare with what we stored
         self.assertListEqual(entries, [latest], "Bad content for the listener")
@@ -253,17 +264,17 @@ class LogServiceTest(unittest.TestCase):
         del entries[:]
 
         # Unregister the listener once
-        self.service.remove_log_listener(listener)
+        self.reader.remove_log_listener(listener)
 
         # Log something
-        self.service.log(logging.WARNING, "Some log")
+        self.logger.log(logging.WARNING, "Some log")
 
         # Nothing must have been logged
         self.assertListEqual(entries, [], "Something has been logged")
 
         # Nothing must happen if we unregister the listener twice
-        self.service.remove_log_listener(listener)
-        self.service.remove_log_listener(None)
+        self.reader.remove_log_listener(listener)
+        self.reader.remove_log_listener(None)
 
     def test_bad_listener(self):
         """
@@ -289,15 +300,15 @@ class LogServiceTest(unittest.TestCase):
         good2 = GoodListener()
 
         # Register listeners
-        self.service.add_log_listener(good1)
-        self.service.add_log_listener(bad)
-        self.service.add_log_listener(good2)
+        self.reader.add_log_listener(good1)
+        self.reader.add_log_listener(bad)
+        self.reader.add_log_listener(good2)
 
         # Log something
-        self.service.log(logging.WARNING, "Some log")
+        self.logger.log(logging.WARNING, "Some log")
 
         # Get the log entry through the service
-        latest = self.service.get_log()[-1]
+        latest = self.reader.get_log()[-1]
 
         self.assertEqual(latest.level, logging.WARNING)
         for listener in (good1, bad, good2):
@@ -313,20 +324,20 @@ class LogServiceTest(unittest.TestCase):
         svc_ref = svc_reg.get_reference()
 
         # Log something
-        self.service.log(logging.WARNING, "Some text", reference=svc_ref)
+        self.logger.log(logging.WARNING, "Some text", reference=svc_ref)
 
         # Check what has been stored
-        latest = self.service.get_log()[-1]
+        latest = self.reader.get_log()[-1]
         self.assertIs(latest.reference, svc_ref, "Wrong service reference")
         self.assertIs(latest.bundle, self.framework, "Wrong bundle found")
 
         # Log with wrong references
         for wrong_ref in (None, object(), svc_reg):
-            self.service.log(logging.WARNING, "Some text", reference=wrong_ref)
+            self.logger.log(logging.WARNING, "Some text", reference=wrong_ref)
 
-            latest = self.service.get_log()[-1]
+            latest = self.reader.get_log()[-1]
             self.assertIsNone(latest.reference, "Non-None service reference")
-            self.assertIsNone(latest.bundle, "Non-None bundle found")
+            self.assertIs(latest.bundle, self.framework, "No bundle info")
 
     def test_bundle(self):
         """
@@ -346,21 +357,26 @@ class LogServiceTest(unittest.TestCase):
         comp.log(logging.WARNING, "Some log")
 
         # Check the bundle
-        latest = self.service.get_log()[-1]
+        latest = self.reader.get_log()[-1]
         self.assertIs(latest.bundle, bnd, "Wrong bundle found")
 
         # Check if the bundle in the string representation
         self.assertIn(bnd.get_symbolic_name(), str(latest))
 
-        # Remove the name of the module
+        # Remove the name of the module: this should not mess with the result
         comp.remove_name()
 
         # Log something
         comp.log(logging.WARNING, "Some log")
 
         # Check the bundle
-        latest = self.service.get_log()[-1]
-        self.assertIsNone(latest.bundle, "Wrong bundle found")
+        latest = self.reader.get_log()[-1]
+        self.assertIs(latest.bundle, bnd, "Wrong bundle found")
+
+        # Call from the framework
+        self.logger.log(logging.WARNING, "final log")
+        latest = self.reader.get_log()[-1]
+        self.assertIs(latest.bundle, self.framework, "Wrong bundle")
 
     def test_exception(self):
         """
@@ -369,9 +385,9 @@ class LogServiceTest(unittest.TestCase):
         try:
             raise ValueError("Some error")
         except ValueError:
-            self.service.log(logging.ERROR, "Error !", sys.exc_info())
+            self.logger.log(logging.ERROR, "Error!", sys.exc_info())
 
-        latest = self.service.get_log()[-1]
+        latest = self.reader.get_log()[-1]
         self.assertTrue(isinstance(latest.exception, str),
                         "Exception info must be a string")
         self.assertIn(__file__, latest.exception, "Incomplete exception info")
@@ -381,6 +397,6 @@ class LogServiceTest(unittest.TestCase):
 
         # Check invalid exception info
         for invalid in ([], [1, 2], (4, 5, 6)):
-            self.service.log(logging.ERROR, "Error !", invalid)
-            latest = self.service.get_log()[-1]
+            self.logger.log(logging.ERROR, "Error!", invalid)
+            latest = self.reader.get_log()[-1]
             self.assertEqual(latest.exception, '<Invalid exc_info>')

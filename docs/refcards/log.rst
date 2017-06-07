@@ -33,7 +33,7 @@ Once install and started, the ``pelix.misc.log`` bundle provides two services:
 
 * ``pelix.log``: The main log service, which allows to log entries;
 * ``pelix.log.reader``: The log reader service, which gives a read-only access
-  to previous log entries. Those entries can have stored using either the log
+  to previous log entries. Those entries can be stored using either the log
   service or the Python logging system.
 
 Log Service
@@ -41,7 +41,7 @@ Log Service
 
 The log service provides the following method:
 
-.. autoclass:: LogService
+.. autoclass:: LogServiceInstance
    :members: log
 
 
@@ -50,12 +50,12 @@ Log Reader Service
 
 The log reader provides the following methods:
 
-.. autoclass:: LogService
+.. autoclass:: LogReaderService
    :members: add_log_listener, remove_log_listener, get_log
 
-   The result of :meth:`~LogService.get_log` and the argument to listeners
-   registered with :meth:`~LogService.add_log_listener` is a :class:`LogEntry`
-   object, giving read-only access to the following properties:
+The result of :meth:`~LogReaderService.get_log` and the argument to listeners
+registered with :meth:`~LogReaderService.add_log_listener` is a
+:class:`LogEntry` object, giving read-only access to the following properties:
 
 .. autoclass:: LogEntry
    :members: bundle, message, exception, level, osgi_level, reference, time
@@ -78,10 +78,11 @@ Using the shell is pretty straightforward, as it can be seen in the
 
    from pelix.ipopo.decorators import ComponentFactory, Requires, Instantiate, \
       Validate, Invalidate
-   from pelix.misc import LOG_SERVICE
+   from pelix.misc import LOG_SERVICE, LOG_READER_SERVICE
 
    @ComponentFactory("log-sample-factory")
    @Requires("_logger", LOG_SERVICE)
+   @Requires("_reader", LOG_READER_SERVICE)
    @Instantiate("log-sample")
    class SampleLog(object):
        """
@@ -89,34 +90,25 @@ Using the shell is pretty straightforward, as it can be seen in the
        """
        def __init__(self):
            self._logger = None
+           self._reader = None
 
        @Validate
        def _validate(self, context):
+           self._reader.add_log_listener(self)
            self._logger.log(logging.INFO, "Component validated")
 
        @Invalidate
        def _invalidate(self, context):
            self._logger.log(logging.WARNING, "Component invalidated")
+           self._reader.remove_log_listener(self)
 
-In the current implementation, both services are provided by the same object,
-which means that the methods of a service are accessible through the other.
-This is unlikely to change, due to the simplifications it provides in the
-source code.
-This means that the ``_logger`` member in the snippet gives access both to the
-:meth:`~LogService.log` and :meth:`~LogService.get_log` methods.
+       def logged(self, entry):
+           print("Got a log:", entry.message, "at level", entry.level)
 
-This means that the following code can be added easily to the previous snippet:
-
-.. code-block:: python
-
-   # [...]
-   @Validate
-   def _validate(self, context):
-       self._logger.log(logging.INFO, "Component validated")
-       self._logger.add_log_listener(self)
-
-   def logged(self, entry):
-       print("Got a log:", entry.message, "at level", entry.level)
+The log service is provided by a service factory, therefore the components of
+a same bundle share the same service, and each bundle has a different instance
+of the logger.
+The log reader service is a singleton service.
 
 
 Shell Commands

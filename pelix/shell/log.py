@@ -31,7 +31,7 @@ import logging
 # Pelix
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
     Instantiate, PostRegistration
-from pelix.misc import LOG_READER_SERVICE
+from pelix.misc import LOG_SERVICE, LOG_READER_SERVICE
 from pelix.shell import SERVICE_SHELL_COMMAND
 
 # ------------------------------------------------------------------------------
@@ -48,7 +48,8 @@ __docformat__ = "restructuredtext en"
 
 @ComponentFactory("pelix-shell-log-factory")
 @Provides(SERVICE_SHELL_COMMAND)
-@Requires("_logger", LOG_READER_SERVICE, optional=True)
+@Requires("_logger", LOG_SERVICE, optional=True)
+@Requires("_reader", LOG_READER_SERVICE, optional=True)
 @Instantiate("pelix-shell-log")
 class ShellLogCommand(object):
     """
@@ -59,6 +60,7 @@ class ShellLogCommand(object):
         Sets up members
         """
         self._logger = None
+        self._reader = None
         self.__svc_ref = None
 
     @PostRegistration
@@ -90,7 +92,7 @@ class ShellLogCommand(object):
         """
         Prints the content of the log
         """
-        if self._logger is None:
+        if self._reader is None:
             session.write_line("No LogService available.")
             return
 
@@ -111,7 +113,7 @@ class ShellLogCommand(object):
 
         # Filter the entries and keep the last ones only
         try:
-            for entry in [entry for entry in self._logger.get_log()
+            for entry in [entry for entry in self._reader.get_log()
                           if entry.level >= level][-count:]:
                 session.write_line(str(entry))
         except StopIteration:
