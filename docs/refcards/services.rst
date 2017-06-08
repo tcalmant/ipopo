@@ -48,6 +48,13 @@ service.ranking int  The rank/priority of the service. The lower the rank, the m
 Service Factory
 ---------------
 
+.. warning:: Service factories are a very recent feature of iPOPO and might be
+   prone to bugs: please report any bug encounter on
+   the `project GitHub <https://github.com/tcalmant/ipopo/issues>`_.
+
+.. note:: Even if the Prototype Service Factories flag is available in the API,
+   this kind of service factory is not yet handled by iPOPO.
+
 A service factory is a pseudo-service with a specific flag, which can create
 individual instances of service objects for different bundles.
 Sometimes a service needs to be differently configured depending on which
