@@ -420,8 +420,8 @@ Compatibility
 #############
 
 Pelix and iPOPO are tested using `Tox <http://testrun.org/tox/latest/>`_ and
-`Travis-CI <https://travis-ci.org/tcalmant/ipopo>`_ with Pypy 2.5.0 and
-Python 2.7, 3.3, 3.4 and 3.5.
+`Travis-CI <https://travis-ci.org/tcalmant/ipopo>`_ with Python 2.7, 3.3, 3.4
+and 3.5. Pypy is not tested anymore due to various bugs on tests themselves.
 
 iPOPO doesn't support Python 2.6 anymore.
 
