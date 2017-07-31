@@ -415,4 +415,7 @@ class RestDispatcher(object):
             # Copy trailing string
             final_pattern.append(route[last_idx:])
 
+        # Ensure we don't accept trailing values
+        final_pattern.append("$")
+
         return re.compile(''.join(final_pattern)), arguments
