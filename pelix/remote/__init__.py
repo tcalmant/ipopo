@@ -52,6 +52,9 @@ FACTORY_DISCOVERY_ZEROCONF = "pelix-remote-discovery-zeroconf-factory"
 FACTORY_DISCOVERY_REDIS = "pelix-remote-discovery-redis-factory"
 """ Name of the Redis-based discovery component factory """
 
+FACTORY_DISCOVERY_ZOOKEEPER = "pelix-remote-discovery-zookeeper-factory"
+""" Name of the ZooKeeper-based discovery component factory """
+
 
 FACTORY_TRANSPORT_JSONRPC_EXPORTER = "pelix-jsonrpc-exporter-factory"
 """ Name of the JSON-RPC exporter component factory """
