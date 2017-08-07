@@ -52,6 +52,7 @@ HTTP
   HTTP requests whith decorators like ``@Http``, ``@HttpGet``...
 * Merged `pull request #70 <https://github.com/tcalmant/ipopo/pull/70>`_,
   avoiding remote HTTP servlets to be used by the local HTTP server.
+* Fixed the way servlet are found according to their path
 
 Remote Services
 ===============
@@ -59,6 +60,8 @@ Remote Services
 * JSON-RPC and XML-RPC transports providers now support HTTPS.
 * Added a `Redis <https://redis.io/>`_-based discovery provider, working with
   all HTTP-based transport providers.
+* Added a `ZooKeeper <https://zookeeper.apache.org/>`_-based discovery provider,
+  working with all HTTP-based transport providers.
 
 Shell
 =====
