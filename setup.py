@@ -83,10 +83,13 @@ setup(
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Topic :: Software Development :: Libraries :: Application Frameworks'
     ],
     install_requires=['jsonrpclib-pelix>=0.2.6'],
     extras_require={
+        'Redis': ['redis>=2.10'],
+        'ZooKeeper': ['kazoo>=2.4'],
         'MQTT': ['paho-mqtt>=1.1'],
         'XMPP': ['sleekxmpp>=1.3.1'],
         'zeroconf': ['pyzeroconf']
