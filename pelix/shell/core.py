@@ -172,6 +172,7 @@ class _ShellService(parser.Shell):
     Provides the core shell service for Pelix
     """
     def __init__(self, context, utilities):
+        # type: (pelix.BundleContext, _ShellUtils) -> None
         """
         Sets up the shell
 
@@ -451,7 +452,7 @@ class _ShellService(parser.Shell):
         Lists the properties of the framework
         """
         # Get the framework
-        framework = self._context.get_bundle(0)
+        framework = self._context.get_bundle(0)  # type: pelix.Framework
 
         # Head of the table
         headers = ('Property Name', 'Value')
@@ -772,6 +773,7 @@ class _Activator(object):
         self._logger = logging.getLogger(__name__)
 
     def service_changed(self, event):
+        # type: (pelix.ServiceEvent) -> None
         """
         Called when a command provider service event occurred
         """
@@ -787,6 +789,7 @@ class _Activator(object):
             self._shell.unbind_handler(reference)
 
     def start(self, context):
+        # type: (pelix.BundleContext) -> None
         """
         Bundle starting
 
@@ -817,6 +820,7 @@ class _Activator(object):
                 "Error registering the shell service: %s", ex)
 
     def stop(self, context):
+        # type: (pelix.BundleContext) -> None
         """
         Bundle stopping
 

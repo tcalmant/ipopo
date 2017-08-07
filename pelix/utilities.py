@@ -110,10 +110,8 @@ class Deprecated(object):
             # Print only if not already done
             stack = '\n\t'.join(traceback.format_stack())
 
-            logging.getLogger(self.__logger).warning("%s: %s\n%s",
-                                                     method_name,
-                                                     self.__message,
-                                                     stack)
+            logging.getLogger(self.__logger).warning(
+                "%s: %s\n%s", method_name, self.__message, stack)
             self.__already_logged = True
 
     def __call__(self, method):
@@ -483,6 +481,7 @@ class EventData(object):
 
     @property
     def data(self):
+        # type: () -> object
         """
         Returns the associated value
         """
@@ -490,6 +489,7 @@ class EventData(object):
 
     @property
     def exception(self):
+        # type: () -> BaseException
         """
         Returns the exception used to stop the wait() method
         """
@@ -504,12 +504,14 @@ class EventData(object):
         self.__exception = None
 
     def is_set(self):
+        # type: () -> bool
         """
         Checks if the event is set
         """
         return self.__event.is_set()
 
     def set(self, data=None):
+        # type: (object) -> None
         """
         Sets the event
         """
@@ -518,6 +520,7 @@ class EventData(object):
         self.__event.set()
 
     def raise_exception(self, exception):
+        # type: (BaseException) -> None
         """
         Raises an exception in wait()
 
@@ -528,6 +531,7 @@ class EventData(object):
         self.__event.set()
 
     def wait(self, timeout=None):
+        # type: (int or None) -> object
         """
         Waits for the event or for the timeout
 
@@ -550,6 +554,7 @@ class CountdownEvent(object):
     (kind of the opposite of a semaphore)
     """
     def __init__(self, value):
+        # type: (int) -> None
         """
         Sets up the counter
 
@@ -565,12 +570,14 @@ class CountdownEvent(object):
         self.__event = threading.Event()
 
     def is_set(self):
+        # type: () -> bool
         """
         Checks if the event is set
         """
         return self.__event.is_set()
 
     def step(self):
+        # type: () -> bool
         """
         Decreases the internal counter. Raises an error if the counter goes
         below 0
@@ -591,6 +598,7 @@ class CountdownEvent(object):
         return False
 
     def wait(self, timeout=None):
+        # type: (int or None) -> bool
         """
         Waits for the event or for the timeout
 

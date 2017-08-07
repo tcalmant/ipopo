@@ -64,6 +64,7 @@ class ShellSession(object):
     to shell commands
     """
     def __init__(self, io_handler, initial_vars=None):
+        # type: (IOHandler, dict) -> None
         """
         Sets up the shell session
 
@@ -91,6 +92,7 @@ class ShellSession(object):
 
     @property
     def variables(self):
+        # type: () -> dict
         """
         A copy of the session variables
         """
@@ -98,12 +100,14 @@ class ShellSession(object):
 
     @property
     def last_result(self):
+        # type: () -> object
         """
         Returns the content of $result
         """
         return self.__variables[RESULT_VAR_NAME]
 
     def get(self, name):
+        # type: (str) -> object
         """
         Returns the value of a variable
 
@@ -114,6 +118,7 @@ class ShellSession(object):
         return self.__variables[name]
 
     def set(self, name, value):
+        # type: (str, object) -> None
         """
         Sets/overrides the value of a variable
 
@@ -123,6 +128,7 @@ class ShellSession(object):
         self.__variables[name] = value
 
     def unset(self, name):
+        # type: (str) -> None
         """
         Unsets the variable with the given name
 

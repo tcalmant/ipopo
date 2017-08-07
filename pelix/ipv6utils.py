@@ -62,6 +62,7 @@ def ipproto_ipv6():
 
 
 def set_double_stack(socket_obj, double_stack=True):
+    # type: (socket.socket, bool) -> None
     """
     Sets up the IPv6 double stack according to the operating system
 
