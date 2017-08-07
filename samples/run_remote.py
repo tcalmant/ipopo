@@ -62,7 +62,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Available discovery protocols
-DISCOVERIES = ('multicast', 'mqtt', 'mdns')
+DISCOVERIES = ('multicast', 'mqtt', 'mdns', 'redis', 'zookeeper')
 
 # Available transport protocols
 TRANSPORTS = ('xmlrpc', 'jsonrpc', 'mqttrpc', 'jabsorbrpc')
@@ -124,6 +124,35 @@ class InstallUtils(object):
                       {"application.id": "sample.rs",
                        "mqtt.host": self.arguments.mqtt_host,
                        "mqtt.port": self.arguments.mqtt_port})
+
+    def discovery_redis(self):
+        """
+        Installs the Redis discovery bundles and instantiates components
+        """
+        # Install the bundle
+        self.context.install_bundle('pelix.remote.discovery.redis').start()
+
+        with use_waiting_list(self.context) as ipopo:
+            # Instantiate the discovery
+            ipopo.add(rs.FACTORY_DISCOVERY_REDIS, "pelix-discovery-redis",
+                      {"application.id": "sample.rs",
+                       "redis.host": self.arguments.redis_host,
+                       "redis.port": self.arguments.redis_port})
+
+    def discovery_zookeeper(self):
+        """
+        Installs the ZooKeeper discovery bundles and instantiates components
+        """
+        # Install the bundle
+        self.context.install_bundle('pelix.remote.discovery.zookeeper').start()
+
+        with use_waiting_list(self.context) as ipopo:
+            # Instantiate the discovery
+            ipopo.add(rs.FACTORY_DISCOVERY_ZOOKEEPER,
+                      "pelix-discovery-zookeeper",
+                      {"application.id": "sample.rs",
+                       "zookeeper.hosts": self.arguments.zk_hosts,
+                       "zookeeper.prefix": self.arguments.zk_prefix})
 
     def transport_jsonrpc(self):
         """
@@ -308,11 +337,34 @@ if __name__ == "__main__":
                        type=int, default=1883,
                        help="MQTT server port (default: 1883)")
 
+    # Redis configuration
+    group = parser.add_argument_group("Redis Configuration",
+                                      "Configuration of Redis discovery")
+    # ... server
+    group.add_argument("--redis-host", dest="redis_host", default="localhost",
+                       help="Redis server host (default: localhost)")
+
+    # ... port
+    group.add_argument("--redis-port", dest="redis_port", default=6379,
+                       type=int, help="Redis server port (default: 6379)")
+
+    # ZooKeeper configuration
+    group = parser.add_argument_group("ZooKeeper Configuration",
+                                      "Configuration of ZooKeeper discovery")
+    # ... server
+    group.add_argument("--zk-hosts", dest="zk_hosts", default="localhost:2181",
+                       help="List of ZooKeeper servers (localhost:2181)")
+
+    # ... port
+    group.add_argument("--zk-prefix", dest="zk_prefix", default="/pelix",
+                       help="Prefix for ZooKeeper paths (/pelix)")
+
     # Parse arguments
     args = parser.parse_args(sys.argv[1:])
 
     # Configure the logging package
     logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger("kazoo.client").setLevel(logging.INFO)
 
     # Run the sample
     main(args.is_server, args.discoveries, args.transports,
