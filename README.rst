@@ -361,24 +361,25 @@ Pelix/iPOPO comes with some useful services:
   * the UIs: text UI (console) and remote shell (TCP, XMPP)
   * the commands providers: iPOPO commands, report, EventAdmin, ...
 
-  See the `shell tutorial <https://ipopo.readthedocs.io/en/latest/quickstart.html#play-with-the-shell>`_
-  and the `shell reference card <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:refcards:shell>`_
+  See the `shell tutorial <http://ipopo.readthedocs.io/en/latest/quickstart.html#play-with-the-shell>`_
   for more information.
 
 * An HTTP service, based on the HTTP server from the standard library.
   It provides the concept of *servlet*, borrowed from Java.
 
-  See the `HTTP service tutorial <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:http_svc>`_
+  See the `HTTP service reference <http://ipopo.readthedocs.io/en/latest/refcards/http.html>`_
   for more information.
+
+  There is also a `routing utility class <http://ipopo.readthedocs.io/en/latest/refcards/http_routing.html>`_,
+  based on decorators, which eases the development of REST-like servlets.
 
 * Remote Services: export and import services to/from other Pelix framework or
   event Java OSGi frameworks!
 
-  See the `remote services tutorial <https://ipopo.readthedocs.io/en/latest/quickstart.html#hello-from-somewhere>`_
-  and the `remote services reference card <https://ipopo.readthedocs.io/en/latest/refcards/remote_services.html>`_
+  See the `remote services reference <http://ipopo.readthedocs.io/en/latest/refcards/remote_services.html>`_
   for more information.
 
-Pelix also provides an implementation of the `EventAdmin service <https://ipopo.coderxpress.net/wiki/doku.php?id=ipopo:tutorials:eventadmin>`_,
+Pelix also provides an implementation of the `EventAdmin service <http://ipopo.readthedocs.io/en/latest/refcards/eventadmin.html>`_,
 inspired from the `OSGi specification <http://www.osgi.org/Specifications/HomePage>`_.
 
 Feedback
