@@ -14,10 +14,12 @@ addons:
     - sourceline: 'ppa:mosquitto-dev/mosquitto-ppa'
     packages:
     - mosquitto
+    - zookeeper
 
 services:
   - mosquitto
   - redis-server
+  - zookeeper
 
 install:
   - pip install tox coverage coveralls
