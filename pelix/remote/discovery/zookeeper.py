@@ -260,7 +260,7 @@ class ZooKeeperClient:
 @Requires('_dispatcher', pelix.remote.SERVICE_DISPATCHER)
 @Requires('_registry', pelix.remote.SERVICE_REGISTRY)
 @Property('_prefix', "zookeeper.prefix", "/pelix")
-@Property('_zk_hosts', "zookeeper.hosts")
+@Property('_zk_hosts', "zookeeper.hosts", "localhost:2181")
 class ZooKeeperDiscovery:
     """
     Pelix Remote Service discovery provider based on ZooKeeper
