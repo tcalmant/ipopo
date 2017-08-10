@@ -214,13 +214,13 @@ class RedisDiscovery(object):
             """
             # Register the framework once
             self._redis.set(
-                fw_key, hostname, math.ceil(self._heart_delay * 1.2))
+                fw_key, hostname, int(math.ceil(self._heart_delay * 1.2)))
 
             # Loop while we're up
             while not self._stop_event.wait(self._heart_delay):
                 # Re-set the key with a new time to live
                 self._redis.set(
-                    fw_key, hostname, math.ceil(self._heart_delay * 1.2))
+                    fw_key, hostname, int(math.ceil(self._heart_delay * 1.2)))
 
             # Stop event set: delete the key immediately
             self._redis.delete(fw_key)
