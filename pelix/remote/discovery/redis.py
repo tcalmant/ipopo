@@ -28,6 +28,9 @@ PyPI), and a Redis server.
     limitations under the License.
 """
 
+# Ensure that the redis package is imported and not this module
+from __future__ import absolute_import
+
 # Standard library
 import logging
 import math
