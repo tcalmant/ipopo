@@ -22,8 +22,8 @@ iPOPO: A Service-Oriented Component Model for Python
      :target: https://travis-ci.org/tcalmant/ipopo
      :alt: Travis-CI status
 
-.. image:: https://coveralls.io/repos/tcalmant/ipopo/badge.svg?branch=master
-     :target: https://coveralls.io/r/tcalmant/ipopo?branch=master
+.. image:: https://coveralls.io/repos/github/tcalmant/ipopo/badge.svg?branch=master
+     :target: https://coveralls.io/github/tcalmant/ipopo?branch=master
      :alt: Coveralls status
 
 `iPOPO <https://ipopo.readthedocs.io/>`_ is a Python-based Service-Oriented
