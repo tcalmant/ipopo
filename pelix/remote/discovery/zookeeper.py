@@ -37,7 +37,7 @@ import uuid
 
 # ZooKeeper library
 from kazoo.client import KazooClient, KazooState, EventType, WatchedEvent
-from kazoo.exceptions import KazooException
+from kazoo.exceptions import KazooException, NodeExistsError
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
@@ -390,7 +390,6 @@ class ZooKeeperDiscovery:
         """
         Called on first connection to ZooKeeper
         """
-        self._controller = True
         _logger.debug("Connected to ZooKeeper")
 
         # Ensure paths
@@ -400,6 +399,9 @@ class ZooKeeperDiscovery:
 
         # Register the framework
         self._register_framework()
+
+        # Listen to local events
+        self._controller = True
 
     def _register_framework(self):
         """
@@ -494,10 +496,15 @@ class ZooKeeperDiscovery:
             [beans.EndpointDescription.from_export(endpoint)]))
 
         try:
-            # Create an ephemeral node
-            self._zk.create(path, data, True)
+            try:
+                # Create an ephemeral node
+                self._zk.create(path, data, True)
+            except NodeExistsError:
+                # Service already exists: update it
+                self._zk.set(path, data)
         except KazooException as ex:
-            _logger.warning("Error registering local service: %s", ex)
+            _logger.warning("Error registering local service: %s",
+                            type(ex).__name__)
 
     def _unregister_service(self, endpoint):
         # type: (beans.ExportEndpoint) -> None
