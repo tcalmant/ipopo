@@ -267,6 +267,49 @@ class HttpTransportsTest(unittest.TestCase):
             peer.terminate()
             status_queue.close()
 
+    def test_multicast(self):
+        """
+        Tests the Multicast discovery
+        """
+        try:
+            self._run_test("pelix.remote.discovery.multicast",
+                           pelix.remote.FACTORY_DISCOVERY_MULTICAST)
+        except queue.Empty:
+            # Process error
+            self.fail("Remote framework took to long to reply")
+
+    def test_mdns(self):
+        """
+        Tests the mDNS/Zeroconf discovery
+        """
+        try:
+            import zeroconf
+        except ImportError:
+            self.skipTest("zeroconf is missing: can't test mDNS discovery")
+
+        try:
+            self._run_test("pelix.remote.discovery.mdns",
+                           pelix.remote.FACTORY_DISCOVERY_ZEROCONF)
+        except queue.Empty:
+            # Process error
+            self.fail("Remote framework took to long to reply")
+
+    def test_mqtt(self):
+        """
+        Tests the MQTT discovery
+        """
+        try:
+            import paho
+        except ImportError:
+            self.skipTest("paho is missing: can't test MQTT discovery")
+
+        try:
+            self._run_test("pelix.remote.discovery.mqtt",
+                           pelix.remote.FACTORY_DISCOVERY_MQTT)
+        except queue.Empty:
+            # Process error
+            self.fail("Remote framework took to long to reply")
+
     def test_redis(self):
         """
         Tests the Redis discovery
