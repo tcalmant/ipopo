@@ -73,7 +73,9 @@ def call_openssl(*args):
 
     :param args: OpenSSL arguments
     """
-    subprocess.check_output([find_openssl()] + [str(arg) for arg in args])
+    subprocess.check_output(
+        [find_openssl()] + [str(arg) for arg in args],
+        stderr=subprocess.STDOUT)
 
 
 def write_conf(out_dir):
