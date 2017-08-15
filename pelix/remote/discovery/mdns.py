@@ -233,8 +233,8 @@ class ZeroconfDiscovery(object):
         properties = self._serialize_properties(properties)
 
         # Prepare the service type
-        svc_name = "{0}.{1}".format(self._fw_uid,
-                                    ZeroconfDiscovery.DNS_DISPATCHER_TYPE)
+        svc_name = "{0}.{1}".format(
+            self._fw_uid, ZeroconfDiscovery.DNS_DISPATCHER_TYPE)
 
         # Prepare the mDNS entry
         info = zeroconf.ServiceInfo(
@@ -277,10 +277,8 @@ class ZeroconfDiscovery(object):
         properties = self._serialize_properties(properties)
 
         # Prepare the service name
-        svc_name = "{0}.{2}".format(
-            endpoint.get_id().replace('-', ''),
-            endpoint.get_framework_uuid().replace('-', ''),
-            self._rs_type)
+        svc_name = "{0}.{1}".format(
+            endpoint.get_id().replace('-', ''), self._rs_type)
 
         # Prepare the mDNS entry
         info = zeroconf.ServiceInfo(
@@ -428,3 +426,12 @@ class ZeroconfDiscovery(object):
             else:
                 # Remove it
                 self._registry.remove(uid)
+        elif svc_type == ZeroconfDiscovery.DNS_DISPATCHER_TYPE:
+            # A dispatcher servlet is gone
+            fw_uid = name.split('.', 1)[0]
+            if fw_uid == self._fw_uid:
+                # Local message: ignore
+                return
+
+            # Remote framework is lost
+            self._registry.lost_framework(fw_uid)
