@@ -43,7 +43,7 @@ import pelix.constants
 # Remote services
 import pelix.remote
 import pelix.remote.beans as beans
-from pelix.utilities import is_string, to_str
+from pelix.utilities import is_bytes, is_string, to_str
 
 # ------------------------------------------------------------------------------
 
@@ -189,12 +189,9 @@ class ZeroconfDiscovery(object):
         for key, value in props.items():
             key = to_str(key)
 
-            try:
-                # Convert value to string if possible
+            if is_bytes(value):
+                # Convert value to string if necessary
                 value = to_str(value)
-            except TypeError:
-                # Not a string nor bytes nor unicode
-                pass
 
             try:
                 try:

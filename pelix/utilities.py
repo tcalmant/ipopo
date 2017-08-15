@@ -339,6 +339,17 @@ def remove_listener(registry, listener):
 
 if PYTHON_3:
     # Python 3 interpreter : bytes & str
+    def is_bytes(string):
+        """
+        Utility method to test if the given parameter is a string
+        (Python 2.x) or a bytes (Python 3.x) object
+
+        :param string: A potential string object
+        :return: True if the given object is a bytes string
+        """
+        # str in Python 2 is bytes in Python 3
+        return isinstance(string, bytes)
+
     def is_string(string):
         """
         Utility method to test if the given parameter is a string
@@ -387,6 +398,17 @@ if PYTHON_3:
 
 else:
     # Python 2 interpreter : str & unicode
+    def is_bytes(string):
+        """
+        Utility method to test if the given parameter is a string
+        (Python 2.x) or a bytes (Python 3.x) object
+
+        :param string: A potential string object
+        :return: True if the given object is a bytes string
+        """
+        # str in Python 2 is bytes in Python 3
+        return isinstance(string, str)
+
     def is_string(string):
         """
         Utility method to test if the given parameter is a string
