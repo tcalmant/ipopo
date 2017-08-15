@@ -63,7 +63,7 @@ _logger = logging.getLogger(__name__)
 
 @ComponentFactory(pelix.remote.FACTORY_DISCOVERY_ZEROCONF)
 @Provides(pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER)
-@Property('_rs_type', pelix.remote.PROP_ZEROCONF_TYPE, '_pelix_rs._tcp.local.')
+@Property('_rs_type', pelix.remote.PROP_ZEROCONF_TYPE, '_pelix-rs._tcp.local.')
 @Property('_ttl', 'zeroconf.ttl', 60)
 @Requires('_access', pelix.remote.SERVICE_DISPATCHER_SERVLET)
 @Requires("_registry", pelix.remote.SERVICE_REGISTRY)
@@ -72,7 +72,7 @@ class ZeroconfDiscovery(object):
     Remote services discovery and notification using the module zeroconf
     """
     # Service type for the Pelix dispatcher servlet
-    DNS_DISPATCHER_TYPE = '_pelix_dispatcher_servlet._tcp.local.'
+    DNS_DISPATCHER_TYPE = '_rs-dispatcher._tcp.local.'
 
     def __init__(self):
         """
@@ -166,8 +166,8 @@ class ZeroconfDiscovery(object):
                 try:
                     new_props[key] = json.dumps(value)
                 except ValueError:
-                    new_props[key] = "pelix-type:{0}:{1}" \
-                                     .format(type(value).__name__, repr(value))
+                    new_props[key] = "pelix-type:{0}:{1}".format(
+                        type(value).__name__, repr(value))
 
         # FIXME: to simplify the usage with ECF, send single strings instead of
         # arrays
@@ -187,11 +187,20 @@ class ZeroconfDiscovery(object):
         """
         new_props = {}
         for key, value in props.items():
+            key = to_str(key)
+
+            try:
+                # Convert value to string if possible
+                value = to_str(value)
+            except TypeError:
+                # Not a string nor bytes nor unicode
+                pass
+
             try:
                 try:
                     new_props[key] = json.loads(value)
-                except ValueError:
-                    if value.startswith("pelix-type:"):
+                except (TypeError, ValueError):
+                    if is_string(value) and value.startswith("pelix-type:"):
                         # Pseudo-serialized
                         value_type, value = value.split(":", 3)[2:]
                         if '.' in value_type and value_type not in value:
@@ -268,8 +277,10 @@ class ZeroconfDiscovery(object):
         properties = self._serialize_properties(properties)
 
         # Prepare the service name
-        svc_name = "{0}.{1}.{2}".format(
-            endpoint.get_id(), endpoint.get_framework_uuid(), self._rs_type)
+        svc_name = "{0}.{2}".format(
+            endpoint.get_id().replace('-', ''),
+            endpoint.get_framework_uuid().replace('-', ''),
+            self._rs_type)
 
         # Prepare the mDNS entry
         info = zeroconf.ServiceInfo(
@@ -313,6 +324,7 @@ class ZeroconfDiscovery(object):
             self._zeroconf.unregister_service(info)
 
     def _get_service_info(self, svc_type, name, max_retries=10):
+        # type: (str, str, int) -> zeroconf.ServiceInfo
         """
         Tries to get information about the given mDNS service
 
@@ -348,7 +360,7 @@ class ZeroconfDiscovery(object):
             return
 
         # Read properties
-        properties = self._deserialize_properties(info.getProperties())
+        properties = self._deserialize_properties(info.properties)
 
         try:
             sender_uid = properties[pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID]
@@ -362,8 +374,8 @@ class ZeroconfDiscovery(object):
 
         if svc_type == ZeroconfDiscovery.DNS_DISPATCHER_TYPE:
             # Dispatcher servlet found, get source info
-            address = to_str(socket.inet_ntoa(info.getAddress()))
-            port = info.getPort()
+            address = to_str(socket.inet_ntoa(info.address))
+            port = info.port
             self._access.send_discovered(
                 address, port, properties['pelix.access.path'])
         elif svc_type == self._rs_type:

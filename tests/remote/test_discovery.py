@@ -289,7 +289,8 @@ class HttpTransportsTest(unittest.TestCase):
 
         try:
             self._run_test("pelix.remote.discovery.mdns",
-                           pelix.remote.FACTORY_DISCOVERY_ZEROCONF)
+                           pelix.remote.FACTORY_DISCOVERY_ZEROCONF,
+                           {"zeroconf.ttl": 10})
         except queue.Empty:
             # Process error
             self.fail("Remote framework took to long to reply")
