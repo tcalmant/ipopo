@@ -92,6 +92,6 @@ setup(
         'ZooKeeper': ['kazoo>=2.4'],
         'MQTT': ['paho-mqtt>=1.1'],
         'XMPP': ['sleekxmpp>=1.3.1'],
-        'zeroconf': ['pyzeroconf']
+        'zeroconf': ['zeroconf']
     }
 )

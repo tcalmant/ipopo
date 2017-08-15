@@ -3,11 +3,7 @@
 """
 Pelix remote services: Zeroconf (mDNS) discovery and event notification
 
-This module depends on the pyzeroconf project by Mike Fletcher, at
-https://github.com/mcfletch/pyzeroconf
-
-To work with ECF, the '.local.' checking in zeroconf.mdns.DNSQuestion must be
-removed (around line 220)
+This module depends on the zeroconf package
 
 :author: Thomas Calmant
 :copyright: Copyright 2017, Thomas Calmant
@@ -37,7 +33,7 @@ import logging
 import socket
 
 # Zeroconf
-import zeroconf.mdns as mdns
+import zeroconf
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
@@ -101,7 +97,7 @@ class ZeroconfDiscovery(object):
         self._address = None
 
         # Zeroconf
-        self._zeroconf = None
+        self._zeroconf = None  # type: zeroconf.Zeroconf
         self._browsers = []
 
         # Endpoint UID -> ServiceInfo
@@ -120,7 +116,7 @@ class ZeroconfDiscovery(object):
             browser.cancel()
 
         # Close Zeroconf
-        self._zeroconf.unregisterAllServices()
+        self._zeroconf.unregister_all_services()
         self._zeroconf.close()
 
         # Clean up
@@ -143,18 +139,16 @@ class ZeroconfDiscovery(object):
             socket.gethostbyname(socket.gethostname()))
 
         # Prepare Zeroconf
-        self._zeroconf = mdns.Zeroconf("0.0.0.0")
+        self._zeroconf = zeroconf.Zeroconf()
 
         # Register the dispatcher servlet as a service
         self.__register_servlet()
 
         # Listen to our types
-        self._browsers.append(
-            mdns.ServiceBrowser(self._zeroconf,
-                                ZeroconfDiscovery.DNS_DISPATCHER_TYPE,
-                                self))
-        self._browsers.append(
-            mdns.ServiceBrowser(self._zeroconf, self._rs_type, self))
+        self._browsers.append(zeroconf.ServiceBrowser(
+            self._zeroconf, ZeroconfDiscovery.DNS_DISPATCHER_TYPE, self))
+        self._browsers.append(zeroconf.ServiceBrowser(
+            self._zeroconf, self._rs_type, self))
 
         _logger.debug("Zeroconf discovery validated")
 
@@ -234,14 +228,15 @@ class ZeroconfDiscovery(object):
                                     ZeroconfDiscovery.DNS_DISPATCHER_TYPE)
 
         # Prepare the mDNS entry
-        info = mdns.ServiceInfo(ZeroconfDiscovery.DNS_DISPATCHER_TYPE,  # Type
-                                svc_name,  # Name
-                                self._address,  # Access address
-                                access[0],  # Access port
-                                properties=properties)
+        info = zeroconf.ServiceInfo(
+            ZeroconfDiscovery.DNS_DISPATCHER_TYPE,  # Type
+            svc_name,       # Name
+            self._address,  # Access address
+            access[0],      # Access port
+            properties=properties)
 
         # Register the service
-        self._zeroconf.registerService(info, self._ttl)
+        self._zeroconf.register_service(info, self._ttl)
 
     def endpoints_added(self, endpoints):
         """
@@ -273,21 +268,21 @@ class ZeroconfDiscovery(object):
         properties = self._serialize_properties(properties)
 
         # Prepare the service name
-        svc_name = "{0}.{1}.{2}".format(endpoint.get_id(),
-                                        endpoint.get_framework_uuid(),
-                                        self._rs_type)
+        svc_name = "{0}.{1}.{2}".format(
+            endpoint.get_id(), endpoint.get_framework_uuid(), self._rs_type)
 
         # Prepare the mDNS entry
-        info = mdns.ServiceInfo(self._rs_type, # Type
-                                svc_name,      # Name
-                                self._address, # Access address
-                                access_port,   # Access port
-                                properties=properties)
+        info = zeroconf.ServiceInfo(
+            self._rs_type,  # Type
+            svc_name,       # Name
+            self._address,  # Access address
+            access_port,    # Access port
+            properties=properties)
 
         self._export_infos[exp_endpoint.uid] = info
 
         # Register the service
-        self._zeroconf.registerService(info, self._ttl)
+        self._zeroconf.register_service(info, self._ttl)
 
     @staticmethod
     def endpoint_updated(endpoint, old_properties):
@@ -315,7 +310,7 @@ class ZeroconfDiscovery(object):
             _logger.debug("Unknown removed endpoint: %s", endpoint)
         else:
             # Unregister the service
-            self._zeroconf.unregisterService(info)
+            self._zeroconf.unregister_service(info)
 
     def _get_service_info(self, svc_type, name, max_retries=10):
         """
@@ -331,12 +326,12 @@ class ZeroconfDiscovery(object):
         while self._zeroconf is not None \
                 and info is None and retries < max_retries:
             # Try to get information about the service...
-            info = self._zeroconf.getServiceInfo(svc_type, name)
+            info = self._zeroconf.get_service_info(svc_type, name)
             retries += 1
 
         return info
 
-    def addService(self, zeroconf, svc_type, name):
+    def add_service(self, zeroconf, svc_type, name):
         """
         Called by Zeroconf when a record is updated
 
@@ -401,7 +396,7 @@ class ZeroconfDiscovery(object):
                     # Associate the mDNS name to the endpoint on success
                     self._imported_endpoints[name] = endpoint.uid
 
-    def removeService(self, zeroconf, svc_type, name):
+    def remove_service(self, zeroconf, svc_type, name):
         """
         Called by Zeroconf when a record is removed
 
