@@ -146,7 +146,8 @@ else:
             process = subprocess.Popen(
                 [sys.executable, '-m', 'coverage', 'run', '-m',
                  'pelix.shell.remote', '-a', '127.0.0.1', '-p', str(port)],
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE)
 
             # Wait a little to ensure that the socket is here
             time.sleep(1)
