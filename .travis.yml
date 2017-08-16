@@ -27,7 +27,7 @@ install:
   - pip install paho-mqtt kazoo redis zeroconf
 
 script:
-  - nosetests --with-coverage --cover-package=pelix tests
+  - nosetests -v --with-coverage --cover-package=pelix tests
 
 after_success:
   - coveralls
