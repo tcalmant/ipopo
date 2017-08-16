@@ -68,7 +68,12 @@ else:
             # Wait for prompt
             got = ""
             while ps1 not in got:
-                got += to_str(process.stdout.read(1))
+                char = to_str(process.stdout.read(1))
+                if not char:
+                    self.fail("Can't read from stdout ({})"
+                              .format(process.returncode))
+                else:
+                    got += char
 
             try:
                 # Try echoing
