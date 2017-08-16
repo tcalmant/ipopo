@@ -64,7 +64,8 @@ else:
             # Start the shell process
             process = subprocess.Popen(
                 [sys.executable, '-m', 'pelix.shell'],
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT)
 
             # Avoid being blocked...
             timer = threading.Timer(5, process.terminate)
