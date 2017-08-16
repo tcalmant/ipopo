@@ -200,9 +200,12 @@ class RemoteConsole(socketserver.StreamRequestHandler):
             _logger.info("RemoteConsole client gone: [%s]:%d",
                          self.client_address[0], self.client_address[1])
 
-            # Be polite
-            self.send("\nSession closed. Good bye.\n")
-            self.finish()
+            try:
+                # Be polite
+                self.send("\nSession closed. Good bye.\n")
+                self.finish()
+            except IOError as ex:
+                _logger.warning("Error cleaning up connection: %s", ex)
 
 # ------------------------------------------------------------------------------
 
