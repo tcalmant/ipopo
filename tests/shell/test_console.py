@@ -149,4 +149,9 @@ else:
 
                 self.assertEqual(found, 2, "Wrong number of properties")
             finally:
-                process.terminate()
+                try:
+                    # Kill it in any case
+                    process.terminate()
+                except OSError:
+                    # Process was already stopped
+                    pass
