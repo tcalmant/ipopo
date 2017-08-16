@@ -174,7 +174,7 @@ else:
                 stop_line = "import sys; sys.exit({0})".format(rc_code)
                 process.communicate(to_bytes(stop_line))
 
-                # We're should be good
+                # We should be good
                 timer.cancel()
 
                 # Check result code

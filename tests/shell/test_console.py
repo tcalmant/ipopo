@@ -13,6 +13,7 @@ from pelix.utilities import to_str, to_bytes
 import random
 import string
 import sys
+import threading
 import time
 
 # Tests
@@ -65,6 +66,10 @@ else:
                 [sys.executable, '-m', 'pelix.shell'],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
+            # Avoid being blocked...
+            timer = threading.Timer(5, process.terminate)
+            timer.start()
+
             # Wait for prompt
             got = ""
             while ps1 not in got:
@@ -74,6 +79,9 @@ else:
                               .format(process.returncode))
                 else:
                     got += char
+
+            # We should be good
+            timer.cancel()
 
             try:
                 # Try echoing
