@@ -13,6 +13,7 @@ from pelix.utilities import to_str, to_bytes
 import random
 import string
 import sys
+import time
 
 # Tests
 try:
@@ -84,9 +85,16 @@ else:
                 # Stop the process
                 process.stdin.write(to_bytes("exit\n"))
                 process.stdin.flush()
-                try:
-                    process.wait(1)
-                except subprocess.TimeoutExpired:
+
+                # Wait for the process to stop (1 second max)
+                delta = 0
+                start = time.time()
+                while delta <= 1:
+                    delta = time.time() - start
+                    if process.poll() is not None:
+                        break
+                    time.sleep(.1)
+                else:
                     self.fail("Process took too long to stop")
             finally:
                 try:
