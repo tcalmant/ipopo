@@ -120,14 +120,14 @@ class MqttConnectionFactory(object):
         self._context = context
 
         # Start the notification pool
-        self._pool = pelix.threadpool.ThreadPool(2,
-                                                 "mqtt-notifications")
+        self._pool = pelix.threadpool.ThreadPool(
+            2, logname="mqtt-notifications")
         self._pool.start()
 
         # Start the loop thread
         self.__stop_event.clear()
-        self._thread = threading.Thread(target=self.__clients_loop,
-                                        name="mqtt-clients-loop")
+        self._thread = threading.Thread(
+            target=self.__clients_loop, name="mqtt-clients-loop")
         self._thread.daemon = True
         self._thread.start()
 
@@ -175,7 +175,6 @@ class MqttConnectionFactory(object):
         try:
             # Get current listeners
             listeners = self._topics[topic]
-
         except KeyError:
             # New topic: subscribe to it
             listeners = self._topics[topic] = set()
@@ -195,7 +194,6 @@ class MqttConnectionFactory(object):
                 # No more reference to the topic, unsubscribe
                 del self._topics[topic]
                 self.__unsubscribe(topic)
-
         except KeyError:
             # Unused topic or listener not registered for it
             pass
@@ -232,8 +230,8 @@ class MqttConnectionFactory(object):
         """
         An MQTT listener is gone
         """
-        topics = to_iterable(svc_ref.get_property(services.PROP_MQTT_TOPICS),
-                             False)
+        topics = to_iterable(
+            svc_ref.get_property(services.PROP_MQTT_TOPICS), False)
         for topic in topics:
             self.__remove_listener(topic, listener)
 
@@ -253,9 +251,10 @@ class MqttConnectionFactory(object):
                 if rc != 0:
                     # Reconnect on error
                     # FIXME: do a better job
-                    _logger.warning("Loop error for client %s, "
-                                    "reconnecting it", pid)
-                    client.reconnect()
+                    _logger.warning(
+                        "Loop error for client %s, reconnecting it (%d)",
+                        pid, rc)
+                    # client.reconnect()
 
     def __on_message(self, client, obj, msg):
         """
@@ -278,7 +277,6 @@ class MqttConnectionFactory(object):
             # Notify them using the pool
             self._pool.enqueue(self.__notify_listeners, all_listeners,
                                topic, msg.payload, msg.qos)
-
         except KeyError:
             # No listener for this topic
             pass
@@ -325,18 +323,22 @@ class MqttConnectionFactory(object):
             # Extract properties
             host = properties['host']
             port = properties.get('port', 1883)
-            keepalive = properties.get('keepalive', 60)
+            keep_alive = properties.get('keepalive', 60)
 
-            # Connect to the server
-            client = paho.Client(self.__client_id)
-            rc = client.connect(host, port, keepalive)
-            if rc == 0:
+            # Reference holder for the service registration
+            class Holder:
+                registration = None
+
+            holder = Holder()
+
+            # Prepare operations once connected
+            def on_connect(client, userdata, flags, result_code):
+                """
+                Connected to the server
+                """
                 # Success !
                 _logger.debug("Connected to [%s]:%s (%s) - %s",
                               host, port, client, pid)
-
-                # Customize callbacks
-                client.on_message = self.__on_message
 
                 # Store PID -> Client
                 self._clients[pid] = client
@@ -346,19 +348,45 @@ class MqttConnectionFactory(object):
                 for topic in self._topics:
                     client.subscribe(topic, 0)
 
+                # Stop the Paho thread
+                client.loop_stop()
+
                 # Register an mqtt.connection service
                 svc = _MqttConnection(self, client)
                 props = {'id': pid, 'host': host, 'port': port}
-                svc_reg = self._context.register_service(
+                holder.registration = self._context.register_service(
                     services.SERVICE_MQTT_CONNECTION, svc, props)
 
                 # Store PID -> ServiceRegistration
-                self._services[pid] = svc_reg
+                self._services[pid] = holder.registration
 
-            else:
+            def on_disconnect(client, userdata, flags, result_code):
+                """
+                Disconnected from the server
+                """
+                _logger.warning("Disconnected from %s", host)
+
+                # Clear from the list of clients
+                del self._clients[pid]
+
+                # Unregister service and clear reference
+                holder.registration.unregister()
+                holder.registration = None
+
+            # Connect to the server
+            client = paho.Client()
+            client.on_connect = on_connect
+            client.on_disconnect = on_disconnect
+            client.on_message = self.__on_message
+
+            rc = client.connect(host, port, keep_alive)
+            if rc != 0:
                 # Can't connect to the server
                 _logger.error("Error connecting to the MQTT server: %d - %s",
                               rc, CONNECT_RC.get(rc, "Unknown error"))
+            else:
+                # Start a Paho loop, as it has a specific connection handling
+                client.loop_start()
 
     def deleted(self, pid):
         """
@@ -371,11 +399,9 @@ class MqttConnectionFactory(object):
                 # Pop from storage
                 client = self._clients.pop(pid)
                 reg = self._services.pop(pid)
-
             except KeyError:
                 # Not found...
                 _logger.error("Unknown connection ID: %s", pid)
-
             else:
                 # Unregister mqtt.connection service
                 reg.unregister()
@@ -394,7 +420,6 @@ class MqttConnectionFactory(object):
             # Targeted server
             # TODO: check for success
             self._clients[pid].publish(topic, payload, qos, retain)
-
         else:
             for client in self._clients.values():
                 # TODO: check for success of at least one publication
@@ -422,4 +447,4 @@ class _MqttConnection(object):
         Publishes an MQTT message
         """
         # TODO: check (full transmission) success
-        self._client.publish(topic, payload, qos, retain)
+        return self._client.publish(topic, payload, qos, retain)
