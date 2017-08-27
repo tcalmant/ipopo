@@ -26,6 +26,7 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 """
 
 # Standard library
+import collections
 import inspect
 import logging
 import sys
@@ -141,6 +142,46 @@ def get_method_description(method):
         return "'{0}'".format(method.__name__)
 
 
+if hasattr(inspect, "signature"):
+    # Python 3.3+
+    # => Mimic ArgSpec from getargspec()
+    ArgSpec = collections.namedtuple("ArgSpec", "args varargs keywords")
+
+    def get_method_arguments(method):
+        """
+        inspect.signature()-based way to get the position of arguments
+
+        :param method: The method to extract the signature from
+        :return: The arguments specification
+        """
+        signature = inspect.signature(method)
+
+        args = []
+        varargs = None
+        keywords = None
+
+        for param in signature.parameters.values():
+            kind = param.kind
+            if kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
+                args.append(param.name)
+            elif kind == inspect.Parameter.VAR_POSITIONAL:
+                varargs = param.name
+            elif kind == inspect.Parameter.VAR_KEYWORD:
+                keywords = param.name
+
+        return ArgSpec(args, varargs, keywords)
+else:
+    def get_method_arguments(method):
+        """
+        inspect.getargspec()-based way to get the position of arguments
+
+        :param method: The method to extract the signature from
+        :return: The arguments specification
+        """
+        # self is not part of args, and ignore request and response
+        return inspect.getargspec(method)
+
+
 def validate_method_arity(method, *needed_args):
     """
     Tests if the decorated method has a sufficient number of parameters.
@@ -154,18 +195,19 @@ def validate_method_arity(method, *needed_args):
     nb_needed_args = len(needed_args) + 1
 
     # Test the number of parameters
-    argspec = inspect.getargspec(method)
-    method_args = argspec.args
+    arg_spec = get_method_arguments(method)
+    method_args = arg_spec.args
 
     if len(method_args) == 0:
         # No argument at all
         raise TypeError("Decorated method {0} must have at least the 'self' "
                         "parameter".format(get_method_description(method)))
 
-    if argspec.varargs is not None:
+    if arg_spec.varargs is not None:
         # Variable arguments
         if len(method_args) != 1 or method_args[0] != "self":
             # Other arguments detected
+            print(method_args)
             raise TypeError("When using '*args', the decorated {0} method must"
                             " only accept the 'self' argument"
                             .format(get_method_description(method)))
