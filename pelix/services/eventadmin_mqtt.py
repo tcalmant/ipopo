@@ -113,8 +113,7 @@ class MqttEventAdminBridge(object):
             self._mqtt_topic = self._mqtt_topic[:-1]
 
         # Create the MQTT client
-        client_id = "pelix-eventadmin-{0}".format(self._framework_uid)
-        self._mqtt = pelix.misc.mqtt_client.MqttClient(client_id)
+        self._mqtt = pelix.misc.mqtt_client.MqttClient()
 
         # Customize callbacks
         self._mqtt.on_connect = self.__on_connect
