@@ -21,6 +21,8 @@ except ImportError:
 import pelix.framework
 import pelix.services as services
 
+from tests.mqtt_utilities import find_mqtt_server
+
 # ------------------------------------------------------------------------------
 
 __version__ = "1.0.0"
@@ -49,7 +51,7 @@ class MqttServiceTest(unittest.TestCase):
     """
     Tests the MQTT utility service
     """
-    HOST = "localhost"
+    HOST = find_mqtt_server()
     PORT = 1883
 
     def setUp(self):

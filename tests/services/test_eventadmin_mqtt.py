@@ -20,6 +20,9 @@ try:
 except ImportError:
     import unittest
 
+# Local utilities
+from tests.mqtt_utilities import find_mqtt_server
+
 # ------------------------------------------------------------------------------
 
 __version__ = "1.0.0"
@@ -144,7 +147,7 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
     """
     Tests the EventAdmin MQTT bridge service
     """
-    HOST = "test.mosquitto.org"
+    HOST = find_mqtt_server()
     PORT = 1883
 
     def assertDictContains(self, subset, container):
