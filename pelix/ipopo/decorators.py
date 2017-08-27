@@ -240,19 +240,19 @@ def _ipopo_setup_callback(cls, context):
 
     functions = inspect.getmembers(cls, inspect.isroutine)
 
-    for _, function in functions:
+    for _, func in functions:
 
-        if not hasattr(function, constants.IPOPO_METHOD_CALLBACKS):
+        if not hasattr(func, constants.IPOPO_METHOD_CALLBACKS):
             # No attribute, get the next member
             continue
 
-        method_callbacks = getattr(function, constants.IPOPO_METHOD_CALLBACKS)
+        method_callbacks = getattr(func, constants.IPOPO_METHOD_CALLBACKS)
 
         if not isinstance(method_callbacks, list):
             # Invalid content
             _logger.warning("Invalid callback information %s in %s",
                             constants.IPOPO_METHOD_CALLBACKS,
-                            get_method_description(function))
+                            get_method_description(func))
             continue
 
         # Keeping it allows inheritance : by removing it, only the first
@@ -267,9 +267,9 @@ def _ipopo_setup_callback(cls, context):
                                 "\tPrevious callback : %s\n"
                                 "\tNew callback : %s", _callback, cls.__name__,
                                 get_method_description(callbacks[_callback]),
-                                get_method_description(function))
+                                get_method_description(func))
 
-            callbacks[_callback] = function
+            callbacks[_callback] = func
 
     # Update the factory context
     context.callbacks.clear()
@@ -294,13 +294,12 @@ def _ipopo_setup_field_callback(cls, context):
 
     functions = inspect.getmembers(cls, inspect.isroutine)
 
-    for name, function in functions:
-        if not hasattr(function, constants.IPOPO_METHOD_FIELD_CALLBACKS):
+    for name, func in functions:
+        if not hasattr(func, constants.IPOPO_METHOD_FIELD_CALLBACKS):
             # No attribute, get the next member
             continue
 
-        method_callbacks = getattr(function,
-                                   constants.IPOPO_METHOD_FIELD_CALLBACKS)
+        method_callbacks = getattr(func, constants.IPOPO_METHOD_FIELD_CALLBACKS)
         if not isinstance(method_callbacks, list):
             # Invalid content
             _logger.warning("Invalid attribute %s in %s",
@@ -320,9 +319,9 @@ def _ipopo_setup_field_callback(cls, context):
                                 "Previous callback : '%s' (%s). "
                                 "New callback : %s", kind, name,
                                 fields_cbs[kind][0].__name__,
-                                fields_cbs[kind][0], function)
+                                fields_cbs[kind][0], func)
 
-            fields_cbs[kind] = (function, if_valid)
+            fields_cbs[kind] = (func, if_valid)
 
     # Update the factory context
     context.field_callbacks.clear()
