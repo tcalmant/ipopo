@@ -433,8 +433,8 @@ class SimpleDecoratorsTests(unittest.TestCase):
                               decorators._get_specifications, invalid)
 
         # Test inheritance
-        from . import ipopo_bundle
-        from .ipopo_bundle import Child
+        from tests.ipopo import ipopo_bundle
+        from tests.ipopo.ipopo_bundle import Child
         base_names = ["Father", "Mother"]
         full_names = ["{0}.{1}".format(ipopo_bundle.__name__, name)
                       for name in base_names]
