@@ -199,20 +199,22 @@ if hasattr(inspect, "signature"):
         inspect.signature()-based way to get the position of arguments
 
         :param method: The method to extract the signature from
-        :return: The list of positional arguments (after self, request and response)
+        :return: The list of positional arguments (after self, request
+                 and response)
         """
         signature = inspect.signature(method)
-        # Ignore the first two paramters (request and response)
+        # Ignore the first two parameters (request and response)
         return [param.name for param in signature.parameters.values()
                 if param.kind in (inspect.Parameter.POSITIONAL_ONLY,
                                   inspect.Parameter.POSITIONAL_OR_KEYWORD)][2:]
 else:
     def get_method_arguments(method):
         """
-        inspect.signature()-based way to get the position of arguments
+        inspect.getargspec()-based way to get the position of arguments
 
         :param method: The method to extract the signature from
-        :return: The list of positional arguments (after self, request and response)
+        :return: The list of positional arguments (after self, request
+                 and response)
         """
         # self is not part of args, and ignore request and response
         return inspect.getargspec(method).args[2:]
