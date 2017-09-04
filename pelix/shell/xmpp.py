@@ -28,6 +28,7 @@ This module depends on the sleekxmpp package: http://sleekxmpp.com/
 """
 
 # Standard library
+import argparse
 import collections
 import logging
 import sys
@@ -51,8 +52,13 @@ import pelix.threadpool
 import pelix.utilities
 
 # Shell constants
+from pelix.shell.console import make_common_parser, handle_common_arguments, \
+    remove_duplicates
 import pelix.shell
 import pelix.shell.beans as beans
+
+# SleekXMPP
+import sleekxmpp
 
 # ------------------------------------------------------------------------------
 
@@ -85,6 +91,9 @@ class _XmppOutStream(object):
         self._client = client
         self._target = target
         self._buffer = StringIO()
+
+        # Indicate to the I/O handler that we want strings, not bytes
+        self.encoding = "utf-8"
 
     def write(self, data):
         """
@@ -190,12 +199,12 @@ class IPopoXMPPShell(object):
 
         _logger.info("""XMPP shell:
 - JID: %s
-- pass: %s
 - host: %s
-- port: %s""", self._jid, self._password, self._host, self._port)
+- port: %s""", self._jid, self._host, self._port)
 
         # Create the bot. Negative priority avoids listening to human messages
-        self.__bot = pelix.misc.xmpp.BasicBot(self._jid, self._password, -10)
+        self.__bot = pelix.misc.xmpp.BasicBot(self._jid, self._password)
+        self.__bot.auto_authorize = True
 
         # Register to events
         self.__bot.add_event_handler("message", self.__on_message)
@@ -328,68 +337,38 @@ class IPopoXMPPShell(object):
 # ------------------------------------------------------------------------------
 
 
-def main(server, port, jid=None, password=None, use_tls=False, use_ssl=False):
+def main(argv=None):
     """
-    Starts a framework with a remote shell and starts an interactive console.
+    Entry point
 
-    :param server: XMPP server host
-    :param port: XMPP server port
-    :param jid: Shell JID
-    :param password: Shell JID password
-    :param use_tls: Use STARTTLS
-    :param use_ssl: Use an SSL connection
+    :param argv: Script arguments (None for sys.argv)
+    :return: An exit code or None
     """
-    # Start a Pelix framework
-    framework = pelix.framework.create_framework(('pelix.ipopo.core',
-                                                  'pelix.shell.core',
-                                                  'pelix.shell.ipopo',
-                                                  'pelix.shell.console',
-                                                  'pelix.shell.xmpp'))
-    framework.start()
-    context = framework.get_bundle_context()
-
-    # Instantiate a Remote Shell
-    with use_ipopo(context) as ipopo:
-        ipopo.instantiate(pelix.shell.FACTORY_XMPP_SHELL, "xmpp-shell",
-                          {"shell.xmpp.server": server,
-                           "shell.xmpp.port": port,
-                           "shell.xmpp.jid": jid,
-                           "shell.xmpp.password": password,
-                           "shell.xmpp.tls": use_tls,
-                           "shell.xmpp.ssl": use_ssl})
-
-    try:
-        framework.wait_for_stop()
-    except KeyboardInterrupt:
-        # Stop server on interruption
-        framework.stop()
-
-
-if __name__ == '__main__':
     # Prepare arguments
-    import argparse
-    parser = argparse.ArgumentParser(description="Pelix XMPP Shell")
-    parser.add_argument("-j", "--jid", dest="jid", help="Jabber ID")
-    parser.add_argument("--password", dest="password", help="JID password")
-    parser.add_argument("-v", "--verbose", action="store_true", dest="verbose",
-                        help="Set loggers at debug level")
-    parser.add_argument("-s", "--server", dest="server",
-                        help="XMPP server host")
-    parser.add_argument("-p", "--port", dest="port", type=int, default=5222,
-                        help="XMPP server port")
-    parser.add_argument("--tls", dest="use_tls", action="store_true",
-                        help="Use a STARTTLS connection")
-    parser.add_argument("--ssl", dest="use_ssl", action="store_true",
-                        help="Use an SSL connection")
+    parser = argparse.ArgumentParser(
+        prog="pelix.shell.xmpp", parents=[make_common_parser()],
+        description="Pelix XMPP Shell")
+
+    group = parser.add_argument_group("XMPP options")
+    group.add_argument("-j", "--jid", dest="jid", help="Jabber ID")
+    group.add_argument("--password", dest="password", help="JID password")
+    group.add_argument("-s", "--server", dest="server",
+                       help="XMPP server host")
+    group.add_argument("-p", "--port", dest="port", type=int, default=5222,
+                       help="XMPP server port")
+    group.add_argument("--tls", dest="use_tls", action="store_true",
+                       help="Use a STARTTLS connection")
+    group.add_argument("--ssl", dest="use_ssl", action="store_true",
+                       help="Use an SSL connection")
 
     # Parse them
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
-    # Prepare the logger
-    if args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.INFO)
+    # Handle common arguments
+    init = handle_common_arguments(args)
+
+    # Quiet down the SleekXMPP logger
+    if not args.verbose:
         logging.getLogger("sleekxmpp").setLevel(logging.WARNING)
 
     if not args.server and not args.jid:
@@ -397,24 +376,53 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Get the password if necessary
-    _password = args.password
-    if args.jid and not args.password:
+    password = args.password
+    if args.jid and args.password is None:
         try:
             import getpass
         except ImportError:
-            _logger.error("getpass() unavailable: give a password in "
-                          "command line")
+            _logger.error(
+                "getpass() unavailable: give a password in command line")
         else:
             try:
-                _password = getpass.getpass()
+                password = getpass.getpass()
             except getpass.GetPassWarning:
                 pass
 
     # Get the server from the JID, if necessary
-    _server = args.server
-    if not _server:
-        import sleekxmpp
-        _server = sleekxmpp.JID(args.jid).domain
+    server = args.server
+    if not server:
+        server = sleekxmpp.JID(args.jid).domain
 
+    # Set the initial bundles
+    bundles = ['pelix.ipopo.core', 'pelix.shell.core', 'pelix.shell.ipopo',
+               'pelix.shell.console', 'pelix.shell.xmpp']
+    bundles.extend(init.bundles)
+
+    # Use the utility method to create, run and delete the framework
+    framework = pelix.framework.create_framework(
+        remove_duplicates(bundles), init.properties)
+    framework.start()
+
+    # Instantiate a Remote Shell
+    with use_ipopo(framework.get_bundle_context()) as ipopo:
+        ipopo.instantiate(
+            pelix.shell.FACTORY_XMPP_SHELL, "xmpp-shell",
+            {"shell.xmpp.server": server,
+             "shell.xmpp.port": args.port,
+             "shell.xmpp.jid": args.jid,
+             "shell.xmpp.password": password,
+             "shell.xmpp.tls": args.use_tls,
+             "shell.xmpp.ssl": args.use_ssl})
+
+    # Instantiate configured components
+    init.instantiate_components(framework.get_bundle_context())
+
+    try:
+        framework.wait_for_stop()
+    except KeyboardInterrupt:
+        framework.stop()
+
+if __name__ == '__main__':
     # Run the entry point
-    main(_server, args.port, args.jid, _password, args.use_tls, args.use_ssl)
+    sys.exit(main() or 0)
