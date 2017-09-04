@@ -12,6 +12,8 @@ addons:
     sources:
     - sourceline: 'ppa:mosquitto-dev/mosquitto-ppa'
     packages:
+    - lua-event
+    - lua-sec
     - mosquitto
     - prosody
     - zookeeperd
