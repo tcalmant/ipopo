@@ -12,11 +12,7 @@ addons:
     sources:
     - sourceline: 'ppa:mosquitto-dev/mosquitto-ppa'
     packages:
-    - lua-event
-    - lua-sec
     - mosquitto
-    - prosody
-    - wget
     - zookeeperd
 
 services:
@@ -30,7 +26,7 @@ install:
   - pip install pytest>=2.7.3 --upgrade
   - pip install https://github.com/tcalmant/jsonrpclib/archive/master.zip
   - pip install paho-mqtt kazoo redis zeroconf
-  - sudo wget -O /etc/prosody/prosody.cfg.lua https://coderxpress.net/prosody.cfg.lua
+  - sudo apt install -y prosody
   - prosodyctl register user1 localhost foobar
   - prosodyctl register user2 localhost foobar
 
