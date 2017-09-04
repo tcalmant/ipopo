@@ -41,7 +41,7 @@ except ImportError:
 
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
-    Validate, Invalidate
+    Validate, Invalidate, HiddenProperty
 from pelix.ipopo.constants import use_ipopo
 
 # Pelix utilities
@@ -133,7 +133,7 @@ class _XmppInStream(object):
 @Property("_host", "shell.xmpp.server", "localhost")
 @Property("_port", "shell.xmpp.port", 5222)
 @Property("_jid", "shell.xmpp.jid")
-@Property("_password", "shell.xmpp.password")
+@HiddenProperty("_password", "shell.xmpp.password")
 @Property("_use_tls", "shell.xmpp.tls", "1")
 @Property("_use_ssl", "shell.xmpp.ssl", "0")
 class IPopoXMPPShell(object):
