@@ -255,7 +255,7 @@ class HttpTransportsTest(unittest.TestCase):
                 svc_ref = context.get_service_reference(SVC_SPEC)
                 if svc_ref is None:
                     break
-                time.sleep(.5)
+                time.sleep(2)
             else:
                 self.fail("Remote Service still registered")
         finally:
