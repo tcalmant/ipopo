@@ -86,13 +86,13 @@ class BasicBot(sleekxmpp.ClientXMPP):
         """
         if not self._expected_server_name:
             # We seem to connect the server anonymously, so SleekXMPP
-            # coudln't find the server host name from the JID
+            # couldn't find the server host name from the JID
             # => give it the given server host name as the expected one
             self._expected_server_name = host
 
         # Try to connect
-        if super(BasicBot, self).connect((host, port), reattempt,
-                                         use_tls, use_ssl):
+        if super(BasicBot, self).connect(
+                (host, port), reattempt, use_tls, use_ssl):
             # On success, start the processing thread
             self.process(threaded=True)
             return True
@@ -176,9 +176,9 @@ class ServiceDiscoveryMixin(sleekxmpp.BaseXMPP):
         :return: A generator of services JID
         """
         # Get the list of root services
-        items = self['xep_0030'].get_items(jid=self.boundjid.domain,
-                                           ifrom=self.boundjid.full,
-                                           block=True, timeout=10)
+        items = self['xep_0030'].get_items(
+            jid=self.boundjid.domain, ifrom=self.boundjid.full,
+            block=True, timeout=10)
 
         for item in items['disco_items']['items']:
             # Each item is a 3-tuple. The service JID is the first entry
@@ -187,9 +187,9 @@ class ServiceDiscoveryMixin(sleekxmpp.BaseXMPP):
                 yield item[0]
             else:
                 # Get service details
-                info = self['xep_0030'].get_info(jid=item[0],
-                                                 ifrom=self.boundjid.full,
-                                                 block=True, timeout=10)
+                info = self['xep_0030'].get_info(
+                    jid=item[0], ifrom=self.boundjid.full,
+                    block=True, timeout=10)
                 if feature in info['disco_info']['features']:
                     # The service provides the required feature
                     yield item[0]
