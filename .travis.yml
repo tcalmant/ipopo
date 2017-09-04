@@ -5,7 +5,7 @@ python:
   - "3.5"
   - "3.6"
 
-sudo: false
+sudo: required
 
 addons:
   apt:
@@ -30,7 +30,7 @@ install:
   - pip install pytest>=2.7.3 --upgrade
   - pip install https://github.com/tcalmant/jsonrpclib/archive/master.zip
   - pip install paho-mqtt kazoo redis zeroconf
-  - wget -O /etc/prosody/prosody.cfg.lua https://coderxpress.net/prosody.cfg.lua
+  - sudo wget -O /etc/prosody/prosody.cfg.lua https://coderxpress.net/prosody.cfg.lua
   - prosodyctl register user1 localhost foobar
   - prosodyctl register user2 localhost foobar
 
