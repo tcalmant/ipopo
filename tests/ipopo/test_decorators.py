@@ -6,9 +6,14 @@ Tests the iPOPO decorators.
 :author: Thomas Calmant
 """
 
-# Tests
-from tests import log_on, log_off
-from tests.ipopo import install_bundle, install_ipopo
+# Standard library
+import code
+import os
+import sys
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
 
 # Pelix
 from pelix.framework import FrameworkFactory
@@ -17,17 +22,116 @@ from pelix.framework import FrameworkFactory
 import pelix.ipopo.constants as constants
 import pelix.ipopo.decorators as decorators
 
-# Standard library
-import os
-import sys
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+# Tests
+from tests import log_on, log_off
+from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
 __version__ = "1.0.0"
+
+# ------------------------------------------------------------------------------
+
+
+class UtilityMethodsTest(unittest.TestCase):
+    """
+    Tests the utility methods used to validate decorated methods
+    """
+    def _dummy(self):
+        pass
+
+    @staticmethod
+    def _static_dummy():
+        pass
+
+    @classmethod
+    def _class_dummy(cls):
+        pass
+
+    def _some_args_dummy(self, a, b, c):
+        pass
+
+    def _args_dummy(self, *args):
+        pass
+
+    def _args_dummy_bad(self, other, *args):
+        pass
+
+    def test_arity(self):
+        """
+        Tests validate_method_arity()
+        """
+        # Check without argument
+        decorators.validate_method_arity(self._dummy)
+        decorators.validate_method_arity(self._static_dummy)
+        decorators.validate_method_arity(self._class_dummy)
+
+        # Check with positional or keyword arguments
+        decorators.validate_method_arity(
+            self._some_args_dummy, "a", "b", "c")
+
+        self.assertRaises(TypeError, decorators.validate_method_arity,
+                          self._some_args_dummy)
+        self.assertRaises(TypeError, decorators.validate_method_arity,
+                          self._some_args_dummy, "a")
+        self.assertRaises(TypeError, decorators.validate_method_arity,
+                          self._some_args_dummy, "a", "b")
+        self.assertRaises(TypeError, decorators.validate_method_arity,
+                          self._some_args_dummy, "a", "b", "c", "d")
+
+        # Check with variable arguments
+        decorators.validate_method_arity(self._args_dummy)
+        decorators.validate_method_arity(self._args_dummy, "a")
+        decorators.validate_method_arity(self._args_dummy, "a", "b")
+
+        # Refuse methods with both positional and variable arguments
+        self.assertRaises(TypeError, decorators.validate_method_arity,
+                          self._args_dummy_bad, "other", "a", "b")
+
+    def test_method_description(self):
+        """
+        Tests get_method_description()
+        """
+        description = decorators.get_method_description(self._dummy)
+        self.assertNotIn(":-1", description)
+        self.assertIn(__file__[:-2], description)
+        self.assertIn("_dummy", description)
+
+        description = decorators.get_method_description(self._some_args_dummy)
+        self.assertNotIn(":-1", description)
+        self.assertIn(__file__[:-2], description)
+        self.assertIn("_some_args_dummy", description)
+
+        # Try with a compiled method
+        local_vars = {}
+        mod = code.compile_command("def foobar():\n    pass\n", "<generated>")
+        exec(mod, {}, local_vars)
+        foobar = local_vars['foobar']
+
+        description = decorators.get_method_description(foobar)
+        self.assertIn(":-1", description)
+        self.assertNotIn(__file__[:-2], description)
+        self.assertIn("<generated>", description)
+        self.assertIn("foobar", description)
+
+        # Try with any object with a name
+        class Foo:
+            pass
+
+        # __name__ is missing in instances
+        self.assertRaises(
+            AttributeError, decorators.get_method_description, Foo())
+
+        # ... not on type
+        self.assertIn(
+            repr(Foo.__name__), decorators.get_method_description(Foo))
+
+        class Bar:
+            __name__ = "<Bar>"
+
+        # Name exists in instance
+        description = decorators.get_method_description(Bar())
+        self.assertIn(repr(Bar().__name__), description)
 
 # ------------------------------------------------------------------------------
 
@@ -94,7 +198,11 @@ class DecoratorsTest(unittest.TestCase):
         for decorator, callback in callbacks.items():
             # Ensure that the empty  method will fail being decorated
             for bad_method in bad_methods:
-                self.assertRaises(TypeError, decorator, bad_method)
+                try:
+                    self.assertRaises(TypeError, decorator, bad_method)
+                except:
+                    print(bad_method)
+                    raise
 
             # Decorate the method
             decorated = decorator(correct_method)
