@@ -317,7 +317,7 @@ class RestDispatcher(object):
             extra_pos_args = []
             if kwargs:
                 # Ignore the first two parameters (request and response)
-                method_args = get_method_arguments(best_method)[:2]
+                method_args = get_method_arguments(best_method).args[:2]
                 for pos_arg in method_args:
                     try:
                         extra_pos_args.append(kwargs.pop(pos_arg))
