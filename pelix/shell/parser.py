@@ -33,10 +33,9 @@ import logging
 import shlex
 import string
 import sys
-import types
 
 # Pelix modules
-from pelix.utilities import to_str
+from pelix.utilities import to_str, get_method_arguments
 import pelix.shell.beans as beans
 
 # ------------------------------------------------------------------------------
@@ -483,41 +482,36 @@ class Shell(object):
             return "(No associated method)"
 
         # Get the arguments
-        argspec = inspect.getargspec(method)
+        arg_spec = get_method_arguments(method)
 
-        if isinstance(method, types.FunctionType):
-            # static method: the self argument is missing
-            # Ignore the session argument
-            start_arg = 1
-        else:
-            # instance method: ignore self and session arguments
-            start_arg = 2
+        # Ignore the session argument
+        start_arg = 1
 
         # Compute the number of arguments with default value
-        if argspec.defaults is not None:
-            nb_optional = len(argspec.defaults)
+        if arg_spec.defaults is not None:
+            nb_optional = len(arg_spec.defaults)
 
             # Let the mandatory arguments as they are
             args = ["<{0}>".format(arg)
-                    for arg in argspec.args[start_arg:-nb_optional]]
+                    for arg in arg_spec.args[start_arg:-nb_optional]]
 
             # Add the other arguments
-            for name, value in zip(argspec.args[-nb_optional:],
-                                   argspec.defaults[-nb_optional:]):
+            for name, value in zip(arg_spec.args[-nb_optional:],
+                                   arg_spec.defaults[-nb_optional:]):
                 if value is not None:
                     args.append('[<{0}>={1}]'.format(name, value))
                 else:
                     args.append('[<{0}>]'.format(name))
         else:
             # All arguments are mandatory
-            args = ["<{0}>".format(arg) for arg in argspec.args[start_arg:]]
+            args = ["<{0}>".format(arg) for arg in arg_spec.args[start_arg:]]
 
         # Extra arguments
-        if argspec.keywords:
+        if arg_spec.keywords:
             args.append('[<property=value> ...]')
 
-        if argspec.varargs:
-            args.append("[<{0} ...>]".format(argspec.varargs))
+        if arg_spec.varargs:
+            args.append("[<{0} ...>]".format(arg_spec.varargs))
 
         # Get the documentation string
         doc = inspect.getdoc(method) or "(Documentation missing)"

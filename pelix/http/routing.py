@@ -31,6 +31,9 @@ import inspect
 import re
 import uuid
 
+# Pelix utility methods
+from pelix.utilities import get_method_arguments
+
 # ------------------------------------------------------------------------------
 
 # Module version
@@ -192,33 +195,6 @@ class HttpDelete(Http):
 
 # ------------------------------------------------------------------------------
 
-if hasattr(inspect, "signature"):
-    # Python 3.3+
-    def get_method_arguments(method):
-        """
-        inspect.signature()-based way to get the position of arguments
-
-        :param method: The method to extract the signature from
-        :return: The list of positional arguments (after self, request
-                 and response)
-        """
-        signature = inspect.signature(method)
-        # Ignore the first two parameters (request and response)
-        return [param.name for param in signature.parameters.values()
-                if param.kind in (inspect.Parameter.POSITIONAL_ONLY,
-                                  inspect.Parameter.POSITIONAL_OR_KEYWORD)][2:]
-else:
-    def get_method_arguments(method):
-        """
-        inspect.getargspec()-based way to get the position of arguments
-
-        :param method: The method to extract the signature from
-        :return: The list of positional arguments (after self, request
-                 and response)
-        """
-        # self is not part of args, and ignore request and response
-        return inspect.getargspec(method).args[2:]
-
 
 class RestDispatcher(object):
     """
@@ -340,7 +316,8 @@ class RestDispatcher(object):
             # Prepare positional arguments
             extra_pos_args = []
             if kwargs:
-                method_args = get_method_arguments(best_method)
+                # Ignore the first two parameters (request and response)
+                method_args = get_method_arguments(best_method)[:2]
                 for pos_arg in method_args:
                     try:
                         extra_pos_args.append(kwargs.pop(pos_arg))

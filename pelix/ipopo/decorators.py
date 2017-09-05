@@ -26,7 +26,6 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 """
 
 # Standard library
-import collections
 import inspect
 import logging
 import sys
@@ -34,7 +33,7 @@ import threading
 import types
 
 # Pelix modules
-from pelix.utilities import is_string, to_iterable
+from pelix.utilities import is_string, to_iterable, get_method_arguments
 from pelix.ipopo.contexts import FactoryContext, Requirement
 import pelix.ipopo.constants as constants
 
@@ -123,11 +122,11 @@ def get_method_description(method):
 
     :param method: A method
     :return: A description of the method (at least its name)
+    :raise AttributeError: Given object has no __name__ attribute
     """
     try:
         try:
             line_no = inspect.getsourcelines(method)[1]
-
         except IOError:
             # Error reading the source file
             line_no = -1
@@ -136,50 +135,9 @@ def get_method_description(method):
             .format(method=method.__name__,
                     file=inspect.getfile(method),
                     line=line_no)
-
     except TypeError:
         # Method can't be inspected
         return "'{0}'".format(method.__name__)
-
-
-if hasattr(inspect, "signature"):
-    # Python 3.3+
-    # => Mimic ArgSpec from getargspec()
-    ArgSpec = collections.namedtuple("ArgSpec", "args varargs keywords")
-
-    def get_method_arguments(method):
-        """
-        inspect.signature()-based way to get the position of arguments
-
-        :param method: The method to extract the signature from
-        :return: The arguments specification
-        """
-        signature = inspect.signature(method)
-
-        args = []
-        varargs = None
-        keywords = None
-
-        for param in signature.parameters.values():
-            kind = param.kind
-            if kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
-                args.append(param.name)
-            elif kind == inspect.Parameter.VAR_POSITIONAL:
-                varargs = param.name
-            elif kind == inspect.Parameter.VAR_KEYWORD:
-                keywords = param.name
-
-        return ArgSpec(args, varargs, keywords)
-else:
-    def get_method_arguments(method):
-        """
-        inspect.getargspec()-based way to get the position of arguments
-
-        :param method: The method to extract the signature from
-        :return: The arguments specification
-        """
-        # self is not part of args, and ignore request and response
-        return inspect.getargspec(method)
 
 
 def validate_method_arity(method, *needed_args):
@@ -192,32 +150,38 @@ def validate_method_arity(method, *needed_args):
     :return: Nothing
     :raise TypeError: Invalid number of parameter
     """
-    nb_needed_args = len(needed_args) + 1
+    nb_needed_args = len(needed_args)
 
     # Test the number of parameters
     arg_spec = get_method_arguments(method)
     method_args = arg_spec.args
 
-    if len(method_args) == 0:
-        # No argument at all
-        raise TypeError("Decorated method {0} must have at least the 'self' "
-                        "parameter".format(get_method_description(method)))
+    try:
+        # Remove the self argument when present
+        if method_args[0] == "self":
+            del method_args[0]
+    except IndexError:
+        pass
+
+    nb_args = len(method_args)
 
     if arg_spec.varargs is not None:
         # Variable arguments
-        if len(method_args) != 1 or method_args[0] != "self":
+        if nb_args != 0:
             # Other arguments detected
-            print(method_args)
-            raise TypeError("When using '*args', the decorated {0} method must"
-                            " only accept the 'self' argument"
-                            .format(get_method_description(method)))
-
-    elif len(method_args) != nb_needed_args or method_args[0] != 'self':
+            raise TypeError(
+                "When using '*args', the decorated {0} method must only "
+                "accept the 'self' argument".format(
+                    get_method_description(method)))
+    elif arg_spec.keywords is not None:
+        raise TypeError("Methods using '**kwargs' are not handled")
+    elif nb_args != nb_needed_args:
         # "Normal" arguments
-        raise TypeError("The decorated method {0} must accept exactly {1} "
-                        "parameters : (self, {2})"
-                        .format(get_method_description(method), nb_needed_args,
-                                ", ".join(needed_args)))
+        raise TypeError(
+            "The decorated method {0} must accept exactly {1} parameters: "
+            "(self, {2})".format(
+                get_method_description(method), nb_needed_args + 1,
+                ", ".join(needed_args)))
 
 # ------------------------------------------------------------------------------
 

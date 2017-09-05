@@ -29,6 +29,7 @@ Utility methods and decorators
 import collections
 import contextlib
 import functools
+import inspect
 import logging
 import sys
 import threading
@@ -78,6 +79,64 @@ def use_service(bundle_context, svc_reference):
         except pelix.constants.BundleException:
             # Service might have already been unregistered
             pass
+
+# ------------------------------------------------------------------------------
+
+# Mimic ArgSpec from getargspec()
+ArgSpec = collections.namedtuple("ArgSpec", "args varargs keywords defaults")
+
+if hasattr(inspect, "signature"):
+    # Python 3.3+
+    def get_method_arguments(method):
+        """
+        inspect.signature()-based way to get the arguments of a method.
+
+        :param method: The method to extract the signature from
+        :return: The arguments specification, without self
+        """
+        # Use the recommended signature method
+        signature = inspect.signature(method)
+
+        args = []
+        varargs = None
+        keywords = None
+        defaults = []
+
+        for param in signature.parameters.values():
+            kind = param.kind
+            if kind == inspect.Parameter.VAR_POSITIONAL:
+                varargs = param.name
+            elif kind == inspect.Parameter.VAR_KEYWORD:
+                keywords = param.name
+            else:
+                args.append(param.name)
+
+            if param.default is not param.empty:
+                defaults.append(param.default)
+
+        return ArgSpec(args, varargs, keywords, defaults or None)
+else:
+    import types
+
+    def get_method_arguments(method):
+        """
+        inspect.getargspec()-based way to get the position of arguments.
+
+        The self argument is removed from the result.
+
+        :param method: The method to extract the signature from
+        :return: The arguments specification, without self
+        """
+        arg_spec = inspect.getargspec(method)
+
+        if not isinstance(method, types.FunctionType):
+            # Filter out the "self" argument
+            args = arg_spec.args[1:]
+        else:
+            args = arg_spec.args
+
+        return ArgSpec(
+            args, arg_spec.varargs, arg_spec.keywords, arg_spec.defaults)
 
 # ------------------------------------------------------------------------------
 
