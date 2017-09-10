@@ -31,6 +31,12 @@ import inspect
 import logging
 import threading
 
+# Standard typing module should be optional
+try:
+    from typing import Any, Dict, List, Optional, Set, Tuple
+except ImportError:
+    pass
+
 # Pelix
 from pelix.constants import SERVICE_ID, BundleActivator
 from pelix.framework import Bundle, BundleContext, BundleException, \
@@ -73,7 +79,7 @@ BUILTIN_HANDLERS = ('pelix.ipopo.handlers.properties',
 
 
 def _set_factory_context(factory_class, bundle_context):
-    # type: (type, BundleContext or None) -> FactoryContext or None
+    # type: (type, Optional[BundleContext]) -> Optional[FactoryContext]
     """
     Transforms the context data dictionary into its FactoryContext object form.
 
@@ -98,7 +104,7 @@ def _set_factory_context(factory_class, bundle_context):
 
 
 def _load_bundle_factories(bundle):
-    # type: (Bundle) -> [(FactoryContext, type), ...]
+    # type: (Bundle) -> List[Tuple[FactoryContext, type]]
     """
     Retrieves a list of pairs (FactoryContext, factory class) with all
     readable manipulated classes found in the bundle.
@@ -147,16 +153,16 @@ class _IPopoService(object):
         self.__context = bundle_context
 
         # Factories registry : name -> factory class
-        self.__factories = {}
+        self.__factories = {}  # type: Dict[str, type]
 
         # Instances registry : name -> StoredInstance object
-        self.__instances = {}
+        self.__instances = {}  # type: Dict[str, StoredInstance]
 
         # Event listeners
-        self.__listeners = []
+        self.__listeners = []  # type: List[Any]
 
         # Auto-restarted components (Bundle -> [(factory, name, properties)]
-        self.__auto_restart = {}
+        self.__auto_restart = {}  # type: Dict[Bundle, List[Tuple[str, str, Dict]]]
 
         # Service state
         self.running = False
@@ -168,11 +174,11 @@ class _IPopoService(object):
         self.__handlers_lock = threading.RLock()
 
         # Handlers factories
-        self._handlers_refs = set()
-        self._handlers = {}
+        self._handlers_refs = set()  # type: Set[ServiceReference]
+        self._handlers = {}  # type: Dict[str, Any]
 
         # Instances waiting for a handler: Name -> (ComponentContext, instance)
-        self.__waiting_handlers = {}
+        self.__waiting_handlers = {}  # type: Dict[str, Tuple[ComponentContext, Any]]
 
         # Register the service listener
         bundle_context.add_service_listener(
@@ -243,10 +249,11 @@ class _IPopoService(object):
             del self._handlers[handler_id]
 
             # List the components using this handler
-            to_stop = set()
+            to_stop = set()  # type: Set[StoredInstance]
             for factory_name in self.__factories:
-                _, context = self.__get_factory_with_context(factory_name)
-                if handler_id in context.get_handlers_ids():
+                _, factory_context = self.__get_factory_with_context(
+                    factory_name)
+                if handler_id in factory_context.get_handlers_ids():
                     to_stop.update(self.__get_stored_instances(factory_name))
 
             with self.__instances_lock:
@@ -271,7 +278,7 @@ class _IPopoService(object):
                 self.__add_handler_factory(new_ref)
 
     def __get_factory_with_context(self, factory_name):
-        # type: (str) -> (type, FactoryContext)
+        # type: (str) -> Tuple[type, FactoryContext]
         """
         Retrieves the factory registered with the given and its factory context
 
@@ -306,7 +313,7 @@ class _IPopoService(object):
         return {self._handlers[handler_id] for handler_id in handlers_ids}
 
     def __get_stored_instances(self, factory_name):
-        # type: (str) -> [object, ...]
+        # type: (str) -> List[StoredInstance]
         """
         Retrieves the list of all stored instances objects corresponding to
         the given factory name
@@ -345,16 +352,16 @@ class _IPopoService(object):
                 return False
 
             # Instantiate the handlers
-            all_handlers = set()
+            all_handlers = set()  # type: Set[Any]
             for handler_factory in handler_factories:
-                handlers = handler_factory.get_handlers(component_context,
-                                                        instance)
+                handlers = handler_factory.get_handlers(
+                    component_context, instance)
                 if handlers:
                     all_handlers.update(handlers)
 
             # Prepare the stored instance
-            stored_instance = StoredInstance(self, component_context, instance,
-                                             all_handlers)
+            stored_instance = StoredInstance(
+                self, component_context, instance, all_handlers)
 
             # Manipulate the properties
             for handler in all_handlers:
@@ -376,7 +383,7 @@ class _IPopoService(object):
         return True
 
     def _autorestart_store_components(self, bundle):
-        # type: (BundleContext) -> None
+        # type: (Bundle) -> None
         """
         Stores the components of the given bundle with the auto-restart
         property
@@ -655,7 +662,7 @@ class _IPopoService(object):
                 self.__remove_handler_factory(svc_ref)
 
     def instantiate(self, factory_name, name, properties=None):
-        # type: (str, str, dict) -> object
+        # type: (str, str, dict) -> Any
         """
         Instantiates a component from the given factory, with the given name
 
@@ -726,7 +733,7 @@ class _IPopoService(object):
         return instance
 
     def retry_erroneous(self, name, properties_update=None):
-        # type: (str, dict) -> object
+        # type: (str, dict) -> int
         """
         Removes the ERRONEOUS state of the given component, and retries a
         validation
@@ -927,7 +934,7 @@ class _IPopoService(object):
             return remove_listener(self.__listeners, listener)
 
     def get_instances(self):
-        # type: () -> [(str, str, int), ...]
+        # type: () -> List[Tuple[str, str, int]]
         """
         Retrieves the list of the currently registered component instances
 
@@ -939,7 +946,7 @@ class _IPopoService(object):
                 for name, stored_instance in self.__instances.items())
 
     def get_instance(self, name):
-        # type: (str) -> object
+        # type: (str) -> Any
         """
         Returns the instance of the component with the given name
 
@@ -950,7 +957,7 @@ class _IPopoService(object):
         return self.__instances[name].instance
 
     def get_waiting_components(self):
-        # type: () -> [(str, str, set), ...]
+        # type: () -> List[Tuple[str, str, Set[str]]]
         """
         Returns the list of the instances waiting for their handlers
 
@@ -969,7 +976,7 @@ class _IPopoService(object):
             return result
 
     def get_instance_details(self, name):
-        # type: (str) -> dict
+        # type: (str) -> Dict[str, Any]
         """
         Retrieves a snapshot of the given component instance.
         The result dictionary has the following keys:
@@ -1009,7 +1016,7 @@ class _IPopoService(object):
             stored_instance = self.__instances[name]
             assert isinstance(stored_instance, StoredInstance)
             with stored_instance._lock:
-                result = {}
+                result = {}  # type: Dict[Any, Any]
                 result["name"] = stored_instance.name
 
                 # Factory name
@@ -1061,7 +1068,7 @@ class _IPopoService(object):
                 return result
 
     def get_factories(self):
-        # type: () -> [str, ...]
+        # type: () -> List[str]
         """
         Retrieves the names of the registered factories
 
@@ -1127,7 +1134,7 @@ class _IPopoService(object):
             context = getattr(factory, constants.IPOPO_FACTORY_CONTEXT)
             assert isinstance(context, FactoryContext)
 
-            result = {}
+            result = {}  # type: Dict[Any, Any]
             # Factory name & bundle
             result["name"] = context.name
             result["bundle"] = context.bundle_context.get_bundle()

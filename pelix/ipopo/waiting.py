@@ -32,8 +32,15 @@ components.
 import logging
 import threading
 
+# Standard typing module should be optional
+try:
+    from typing import Any, Dict
+except ImportError:
+    pass
+
 # Pelix
 from pelix.constants import BundleException, BundleActivator
+from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
 from pelix.ipopo.constants import IPopoEvent, use_ipopo, \
     SERVICE_IPOPO, SERVICE_IPOPO_WAITING_LIST
@@ -59,6 +66,7 @@ class IPopoWaitingList(object):
     iPOPO instantiation waiting list
     """
     def __init__(self, bundle_context):
+        # type: (BundleContext) -> None
         """
         Sets up members
 
@@ -68,15 +76,16 @@ class IPopoWaitingList(object):
         self.__context = bundle_context
 
         # The "queue": factory name -> {component name -> properties}
-        self.__queue = {}
+        self.__queue = {}  # type: Dict[str, Dict[str, dict]]
 
         # Component Name -> Factory Name
-        self.__names = {}
+        self.__names = {}  # type: Dict[str, str]
 
         # Some locking
         self.__lock = threading.RLock()
 
     def _try_instantiate(self, ipopo, factory, component):
+        # type: (Any, str, str) -> None
         """
         Tries to instantiate a component from the queue. Hides all exceptions.
 
@@ -144,6 +153,7 @@ class IPopoWaitingList(object):
         self.__context = None
 
     def service_changed(self, event):
+        # type: (ServiceEvent) -> None
         """
         Handles an event about the iPOPO service
         """
@@ -154,6 +164,7 @@ class IPopoWaitingList(object):
                 ipopo.add_listener(self)
 
     def handle_ipopo_event(self, event):
+        # type: (IPopoEvent) -> None
         """
         Handles an iPOPO event
 
@@ -180,6 +191,7 @@ class IPopoWaitingList(object):
                 pass
 
     def add(self, factory, component, properties=None):
+        # type: (str, str, dict) -> None
         """
         Enqueues the instantiation of the given component
 
@@ -211,6 +223,7 @@ class IPopoWaitingList(object):
                 pass
 
     def remove(self, component):
+        # type: (str) -> None
         """
         Kills/Removes the component with the given name
 
@@ -253,6 +266,7 @@ class Activator(object):
         self.__service = None
 
     def start(self, context):
+        # type: (BundleContext) -> None
         """
         Bundle started
         """
@@ -264,7 +278,8 @@ class Activator(object):
         self.__registration = context.register_service(
             SERVICE_IPOPO_WAITING_LIST, self.__service, {})
 
-    def stop(self, context):
+    def stop(self, _):
+        # type: (BundleContext) -> None
         """
         Bundle stopped
         """

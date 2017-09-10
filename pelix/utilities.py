@@ -35,6 +35,12 @@ import sys
 import threading
 import traceback
 
+# Standard typing module should be optional
+try:
+    from typing import Any, Optional, Union
+except ImportError:
+    pass
+
 # Pelix constants
 import pelix.constants
 
@@ -396,6 +402,7 @@ def remove_listener(registry, listener):
 
 # ------------------------------------------------------------------------------
 
+
 if PYTHON_3:
     # Python 3 interpreter : bytes & str
     def is_bytes(string):
@@ -430,11 +437,11 @@ if PYTHON_3:
         :param encoding: The encoding of data
         :return: The corresponding array of bytes
         """
-        if type(data) is bytes:
+        if isinstance(data, bytes):
             # Nothing to do
             return data
-
-        return data.encode(encoding)
+        else:
+            return data.encode(encoding)
 
     def to_str(data, encoding="UTF-8"):
         """
@@ -445,11 +452,11 @@ if PYTHON_3:
         :param encoding: The encoding of data
         :return: The corresponding string
         """
-        if type(data) is str:
+        if isinstance(data, str):
             # Nothing to do
             return data
-
-        return str(data, encoding)
+        else:
+            return str(data, encoding)
 
     # Same operation
     # pylint: disable=C0103
@@ -612,7 +619,7 @@ class EventData(object):
         self.__event.set()
 
     def wait(self, timeout=None):
-        # type: (int or None) -> object
+        # type: (Optional[int]) -> object
         """
         Waits for the event or for the timeout
 
@@ -679,7 +686,7 @@ class CountdownEvent(object):
         return False
 
     def wait(self, timeout=None):
-        # type: (int or None) -> bool
+        # type: (Optional[int]) -> bool
         """
         Waits for the event or for the timeout
 

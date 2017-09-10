@@ -548,7 +548,7 @@ class ZooKeeperDiscovery(object):
         """
         self._unregister_service(endpoint)
 
-    def _register_remote(self, endpoint):
+    def _register_remote(self, endpoint_descr):
         # type: (beans.EndpointDescription) -> bool
         """
         Registers a discovered remote endpoint
@@ -556,11 +556,11 @@ class ZooKeeperDiscovery(object):
         :param endpoint: A remote endpoint description
         """
         # Get the host of the parent framework
-        fw_uid = endpoint.get_framework_uuid()
+        fw_uid = endpoint_descr.get_framework_uuid()
         fw_host = self._cache_fw_host(fw_uid)
 
         # Register the endpoint
-        endpoint = endpoint.to_import()
+        endpoint = endpoint_descr.to_import()
         endpoint.server = fw_host
         if self._registry.contains(endpoint):
             # Update endpoint

@@ -31,7 +31,14 @@ import inspect
 import re
 import uuid
 
+# Standard typing module should be optional
+try:
+    from typing import Any, Callable, Dict, Pattern, Tuple
+except ImportError:
+    pass
+
 # Pelix utility methods
+from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse
 from pelix.utilities import get_method_arguments
 
 # ------------------------------------------------------------------------------
@@ -73,6 +80,7 @@ TYPE_PATTERNS[None] = TYPE_PATTERNS["string"]
 
 
 def path_filter(path):
+    # type: (str) -> str
     """
     Removes the trailing '/' of a path, if any
 
@@ -88,7 +96,7 @@ TYPE_CONVERTERS = {
     "float": float,
     "path": path_filter,
     "uuid": uuid.UUID,
-}
+}  # type: Dict[str, Callable[[str], Any]]
 
 # ------------------------------------------------------------------------------
 
@@ -245,6 +253,7 @@ class RestDispatcher(object):
         self._rest_dispatch(request, response)
 
     def _rest_dispatch(self, request, response):
+        # type: (AbstractHTTPServletRequest, AbstractHTTPServletResponse) -> None
         """
         Dispatches the request
 
@@ -346,6 +355,7 @@ class RestDispatcher(object):
 
     @staticmethod
     def __convert_route(route):
+        # type: (str) -> Tuple[Pattern[str], Dict[str, Callable[[str], Any]]]
         """
         Converts a route pattern into a regex.
         The result is a tuple containing the regex pattern to match and a
@@ -359,7 +369,7 @@ class RestDispatcher(object):
         p = re.compile(r"<[^<>]*>")
         p2 = re.compile(r"<(\w+):?(\w+)?>")
 
-        arguments = {}
+        arguments = {}  # type: Dict[str, Callable[[str], Any]]
         last_idx = 0
         final_pattern = []
         miter = p.finditer(route)
@@ -396,5 +406,4 @@ class RestDispatcher(object):
 
         # Ensure we don't accept trailing values
         final_pattern.append("$")
-
         return re.compile(''.join(final_pattern)), arguments

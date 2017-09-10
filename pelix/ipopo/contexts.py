@@ -25,8 +25,15 @@ Definition of Factory and Component context classes
     limitations under the License.
 """
 
+# Standard typing module should be optional
+try:
+    from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+except ImportError:
+    pass
+
 # Pelix utilities
 from pelix.constants import OBJECTCLASS
+from pelix.framework import BundleContext
 from pelix.utilities import is_string
 import pelix.ldapfilter as ldapfilter
 
@@ -55,6 +62,7 @@ class Requirement(object):
 
     def __init__(self, specification, aggregate=False, optional=False,
                  spec_filter=None, immediate_rebind=False):
+        # type: (str, bool, bool, Any, bool) -> None
         """
         Sets up the requirement
 
@@ -82,13 +90,13 @@ class Requirement(object):
         self.immediate_rebind = immediate_rebind
 
         # Original filter keeper
-        self.__original_filter = None
+        self.__original_filter = None  # type: str
 
         # Full filter (with the specification test)
-        self.__full_filter = None
+        self.__full_filter = None  # type: ldapfilter.LDAPFilter
 
         # Set up the requirement filter (after setting up self.specification)
-        self.filter = None
+        self.filter = None  # type: ldapfilter.LDAPFilter
         self.set_filter(spec_filter)
 
     def __eq__(self, other):
@@ -125,6 +133,7 @@ class Requirement(object):
         return not self.__eq__(other)
 
     def copy(self):
+        # type: () -> Requirement
         """
         Returns a copy of this instance
 
@@ -134,6 +143,7 @@ class Requirement(object):
                            self.__original_filter, self.immediate_rebind)
 
     def matches(self, properties):
+        # type: (Optional[dict]) -> bool
         """
         Tests if the given _StoredInstance matches this requirement
 
@@ -149,6 +159,7 @@ class Requirement(object):
 
     @property
     def full_filter(self):
+        # type: () -> ldapfilter.LDAPFilter
         """
         The filter that tests both specification and properties
         """
@@ -156,6 +167,7 @@ class Requirement(object):
 
     @property
     def original_filter(self):
+        # type: () -> str
         """
         The original requirement filter string, not the computed one
         """
@@ -191,8 +203,8 @@ class Requirement(object):
 
         # Prepare the full filter
         spec_filter = "({0}={1})".format(OBJECTCLASS, self.specification)
-        self.__full_filter = ldapfilter.combine_filters((spec_filter,
-                                                         self.filter))
+        self.__full_filter = ldapfilter.combine_filters(
+            (spec_filter, self.filter))
 
 # ------------------------------------------------------------------------------
 
@@ -211,7 +223,7 @@ class FactoryContext(object):
         Sets up the factory context
         """
         # Factory bundle context
-        self.bundle_context = None
+        self.bundle_context = None  # type: BundleContext
 
         # Callbacks : Kind -> callback method
         self.callbacks = {}
@@ -220,7 +232,7 @@ class FactoryContext(object):
         self.field_callbacks = {}
 
         # The factory name
-        self.name = None
+        self.name = None  # type: str
 
         # Properties : Name -> Value
         self.properties = {}
@@ -292,6 +304,7 @@ class FactoryContext(object):
             return data
 
     def copy(self, inheritance=False):
+        # type: (bool) -> FactoryContext
         """
         Returns a deep copy of the current FactoryContext instance
 
@@ -316,6 +329,7 @@ class FactoryContext(object):
         return new_context
 
     def inherit_handlers(self, excluded_handlers):
+        # type: (Iterable[str]) -> None
         """
         Merges the inherited configuration with the current ones
 
@@ -349,6 +363,7 @@ class FactoryContext(object):
         self.__inherited_configuration.clear()
 
     def add_instance(self, name, properties):
+        # type: (str, dict) -> None
         """
         Stores the description of a component instance. The given properties
         are stored as is.
@@ -364,6 +379,7 @@ class FactoryContext(object):
         self.__instances[name] = properties
 
     def get_instances(self):
+        # type: () -> Dict[str, dict]
         """
         Returns the dictionary of instances to start: name → properties
 
@@ -372,12 +388,14 @@ class FactoryContext(object):
         return self._deepcopy(self.__instances)
 
     def get_handlers_ids(self):
+        # type: () -> List[str]
         """
         Retrieves the IDs of the handlers to instantiate for this component
         """
         return list(self.__handlers.keys())
 
     def get_handler(self, handler_id, default=None):
+        # type: (str, Any) -> Any
         """
         Retrieves the configuration associated to the given handler
 
@@ -388,6 +406,7 @@ class FactoryContext(object):
         return self.__handlers.get(handler_id, default)
 
     def set_handler_default(self, handler_id, default=None):
+        # type: (str, Any) -> Any
         """
         Retrieves the configuration associated to the given handler, creates
         it the entry with the given value if necessary
@@ -399,6 +418,7 @@ class FactoryContext(object):
         return self.__handlers.setdefault(handler_id, default)
 
     def set_handler(self, handler_id, configuration):
+        # type: (str, Any) -> None
         """
         Stores the configuration of the given handler
 
@@ -408,6 +428,7 @@ class FactoryContext(object):
         self.__handlers[handler_id] = configuration
 
     def set_bundle_context(self, bundle_context):
+        # type: (BundleContext) -> None
         """
         Sets up the bundle context associated to this factory context
 
@@ -426,15 +447,13 @@ class ComponentContext(object):
     __slots__ = ('factory_context', 'name', 'properties', '__hidden_properties')
 
     def __init__(self, factory_context, name, properties):
+        # type: (FactoryContext, str, dict) -> None
         """
         Sets up the context
 
         :param factory_context: The parent factory context
         :param properties: The component properties
         """
-        assert isinstance(factory_context, FactoryContext)
-        assert isinstance(properties, dict)
-
         self.factory_context = factory_context
         self.name = name
 
@@ -457,6 +476,7 @@ class ComponentContext(object):
             if key not in hidden_props_keys})
 
     def get_bundle_context(self):
+        # type: () -> BundleContext
         """
         Retrieves the bundle context
 
@@ -465,6 +485,7 @@ class ComponentContext(object):
         return self.factory_context.bundle_context
 
     def get_callback(self, event):
+        # type: (str) -> Optional[Callable]
         """
         Retrieves the registered method for the given event. Returns None if
         not found
@@ -478,6 +499,7 @@ class ComponentContext(object):
             return None
 
     def get_field_callback(self, field, event):
+        # type: (str, str) -> Optional[Tuple[Callable, bool]]
         """
         Retrieves the registered method for the given event. Returns None if
         not found
@@ -494,6 +516,7 @@ class ComponentContext(object):
             return None
 
     def get_factory_name(self):
+        # type: () -> str
         """
         Retrieves the component factory name
 
@@ -502,6 +525,7 @@ class ComponentContext(object):
         return self.factory_context.name
 
     def get_handler(self, handler_id):
+        # type: (str) -> Any
         """
         Retrieves the configuration for the given handler from the factory
         context
@@ -512,12 +536,14 @@ class ComponentContext(object):
         return self.factory_context.get_handler(handler_id, None)
 
     def has_hidden_properties(self):
+        # type: () -> bool
         """
         Returns True if the component must support hidden properties
         """
         return bool(self.__hidden_properties)
 
     def grab_hidden_properties(self):
+        # type: () -> dict
         """
         A one-shot access to hidden properties (the field is then destroyed)
 

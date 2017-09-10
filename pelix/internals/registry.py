@@ -1058,7 +1058,7 @@ class ServiceRegistry(object):
             if only_one:
                 # Return the first element in the list/generator
                 try:
-                    return next(refs_set)
+                    return [next(refs_set)]
                 except StopIteration:
                     # No match
                     return None

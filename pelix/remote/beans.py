@@ -35,6 +35,12 @@ except ImportError:
     # pylint: disable=F0401
     from urlparse import urlparse
 
+# Standard typing module should be optional
+try:
+    from typing import Any, Dict, Iterable, List, Optional, Tuple
+except ImportError:
+    pass
+
 # Pelix
 from pelix.utilities import is_string
 import pelix.constants
@@ -66,7 +72,7 @@ class ExportEndpoint(object):
     """
     def __init__(self, uid, fw_uid, configurations, name,
                  svc_ref, service, properties):
-        # type: (str, str, [str, ...], str, pelix.framework.ServiceReference, object, dict) -> None
+        # type: (str, str, Any[str, List[str]], str, pelix.framework.ServiceReference, object, dict) -> None
         """
         :param uid: Unique identified of the end point
         :param fw_uid: The framework UID
@@ -90,10 +96,10 @@ class ExportEndpoint(object):
         self.__name = name
 
         # Normalize extra properties
-        if not isinstance(properties, dict):
-            self.__properties = {}
-        else:
+        if isinstance(properties, dict):
             self.__properties = properties
+        else:
+            self.__properties = {}
 
         # Normalize the list of configurations
         if is_string(configurations):
@@ -102,7 +108,7 @@ class ExportEndpoint(object):
             self.__configurations = tuple(configurations)
 
         # Exported specifications
-        self.__exported_specs = []
+        self.__exported_specs = []  # type: List[str]
         exported_specs = compute_exported_specifications(svc_ref)
         if exported_specs:
             # Transform the specifications for export (add the language prefix)
@@ -221,7 +227,7 @@ class ExportEndpoint(object):
 
     @property
     def configurations(self):
-        # type: () ->  [str, ...]
+        # type: () ->  Tuple[str, ...]
         """
         Configurations of this end point
         """
@@ -237,7 +243,7 @@ class ExportEndpoint(object):
 
     @property
     def specifications(self):
-        # type: () -> [str, ...]
+        # type: () -> List[str]
         """
         Returns the exported specifications
         """
@@ -252,7 +258,7 @@ class ImportEndpoint(object):
     """
     def __init__(self, uid, framework, configurations, name, specifications,
                  properties):
-        # type: (str, str, [str, ...], str, [str, ...], dict) -> None
+        # type: (str, str, Any[str, List[str]], str, List[str], dict) -> None
         """
         :param uid: Unique identified of the end point
         :param framework: UID of the framework exporting the end point
@@ -269,9 +275,11 @@ class ImportEndpoint(object):
 
         # Normalize list of configurations
         if is_string(configurations):
-            self.__configurations = (configurations,)
+            tuple_conf = (configurations,)  # type: Tuple[str, ...]
         else:
-            self.__configurations = tuple(configurations)
+            tuple_conf = tuple(configurations)
+
+        self.__configurations = tuple_conf
 
         # Extract the language prefix in specifications
         self.__specifications = extract_specifications(
@@ -292,7 +300,7 @@ class ImportEndpoint(object):
     # Access to the service details
     @property
     def specifications(self):
-        # type: () -> [str, ...]
+        # type: () -> List[str]
         """
         Specifications of the service
         """
@@ -334,7 +342,7 @@ class ImportEndpoint(object):
 
     @property
     def configurations(self):
-        # type: () -> [str, ...]
+        # type: () -> Tuple[str, ...]
         """
         Kind of end point
         """
@@ -361,14 +369,14 @@ class EndpointDescription(object):
     This is an importer-side description
     """
     def __init__(self, svc_ref, properties):
-        # type: (pelix.framework.ServiceReference or None, dict) -> None
+        # type: (Optional[pelix.framework.ServiceReference], dict) -> None
         """
         Sets up the description with the given properties
 
         :raise ValueError: Invalid properties
         """
         # Set up properties
-        all_properties = {}
+        all_properties = {}  # type: Dict[str, Any]
         if svc_ref is not None:
             all_properties.update(svc_ref.get_properties())
 
@@ -444,7 +452,7 @@ class EndpointDescription(object):
                 raise ValueError("Export property found: {0}".format(key))
 
     def get_configuration_types(self):
-        # type: () -> [str, ...]
+        # type: () -> List[str]
         """
         Returns the configuration types.
 
@@ -482,7 +490,7 @@ class EndpointDescription(object):
         return self.__properties[pelix.remote.PROP_ENDPOINT_ID]
 
     def get_intents(self):
-        # type: () -> [str, ...]
+        # type: () -> List[str]
         """
         Returns the list of intents implemented by this endpoint.
 
@@ -502,7 +510,7 @@ class EndpointDescription(object):
             return []
 
     def get_interfaces(self):
-        # type: () -> [str, ...]
+        # type: () -> List[str]
         """
         Provides the list of interfaces implemented by the exported service.
 
@@ -511,22 +519,21 @@ class EndpointDescription(object):
         return self.__properties[pelix.constants.OBJECTCLASS][:]
 
     def get_package_version(self, package):
-        # type: (str) -> tuple()
+        # type: (str) -> Tuple[int, ...]
         """
         Provides the version of the given package name.
 
         :param package: The name of the package
         :return: The version of the specified package as a tuple or (0,0,0)
         """
-        name = "{0}{1}".format(pelix.remote.PROP_ENDPOINT_PACKAGE_VERSION_,
-                               package)
+        name = "{0}{1}".format(
+            pelix.remote.PROP_ENDPOINT_PACKAGE_VERSION_, package)
         try:
             # Get the version string
             version = self.__properties[name]
 
             # Split dots ('.')
             return tuple(version.split('.'))
-
         except KeyError:
             # No version
             return 0, 0, 0
@@ -566,7 +573,7 @@ class EndpointDescription(object):
             and self.get_service_id() == endpoint.get_service_id()
 
     def matches(self, ldap_filter):
-        # type: (str or pelix.ldapfilter.LDAPFilter) -> bool
+        # type: (Any[str, pelix.ldapfilter.LDAPFilter]) -> bool
         """
         Tests the properties of this EndpointDescription against the given
         filter
@@ -692,7 +699,7 @@ def to_import_properties(properties):
 
 
 def compute_exported_specifications(svc_ref):
-    # type: (pelix.framework.ServiceReference) -> [str, ...]
+    # type: (pelix.framework.ServiceReference) -> List[str]
     """
     Computes the list of specifications exported by the given service
 
@@ -737,7 +744,7 @@ def compute_exported_specifications(svc_ref):
 
 
 def extract_specifications(specifications, properties):
-    # type: (str or [str, ...], dict) -> [str, ...]
+    # type: (Any[str, List[str]], dict) -> List[str]
     """
     Converts "python:/name" specifications to "name". Keeps the other
     specifications as is.
@@ -775,7 +782,7 @@ def extract_specifications(specifications, properties):
 
 
 def format_specifications(specifications):
-    # type: ([str, ...]) -> [str, ...]
+    # type: (Iterable[str]) -> List[str]
     """
     Transforms the interfaces names into URI strings, with the interface
     implementation language as a scheme.
@@ -784,12 +791,10 @@ def format_specifications(specifications):
     :return: The transformed names
     """
     transformed = set()
-
     for original in specifications:
         try:
             lang, spec = _extract_specification_parts(original)
             transformed.add(_format_specification(lang, spec))
-
         except ValueError:
             # Ignore invalid specifications
             pass
@@ -798,7 +803,7 @@ def format_specifications(specifications):
 
 
 def _extract_specification_parts(specification):
-    # type: (str) -> (str, str)
+    # type: (str) -> Tuple[str, str]
     """
     Extract the language and the interface from a "language:/interface"
     interface name
@@ -810,7 +815,6 @@ def _extract_specification_parts(specification):
     try:
         # Parse the URI-like string
         parsed = urlparse(specification)
-
     except:
         # Invalid URL
         raise ValueError("Invalid specification URL: {0}"
@@ -824,7 +828,6 @@ def _extract_specification_parts(specification):
     if not language:
         # Simple name, without scheme
         language = PYTHON_LANGUAGE
-
     else:
         # Formatted name: un-escape it, without the starting '/'
         interface = _unescape_specification(interface[1:])

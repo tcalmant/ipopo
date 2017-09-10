@@ -27,6 +27,12 @@ Defines the interfaces that must respect HTTP service implementations.
     limitations under the License.
 """
 
+# Standard typing module should be optional
+try:
+    from typing import Any, ByteString, Dict, Iterable, IO, Tuple
+except ImportError:
+    pass
+
 # Pelix utility methods
 from pelix.utilities import to_bytes
 
@@ -123,6 +129,7 @@ Contains a boolean: if True, the connection to the server is encrypted (HTTPS)
 
 
 def make_html_list(items, tag="ul"):
+    # type: (Iterable[Any], str) -> str
     """
     Makes a HTML list from the given iterable
 
@@ -142,6 +149,7 @@ class AbstractHTTPServletRequest(object):
     Abstract HTTP Servlet request helper
     """
     def get_command(self):
+        # type: () -> str
         """
         Returns the HTTP verb (GET, POST, ...) used for the request
         """
@@ -149,6 +157,7 @@ class AbstractHTTPServletRequest(object):
                                   "child class")
 
     def get_client_address(self):
+        # type: () -> Tuple[str, int]
         """
         Returns the address of the client
 
@@ -158,6 +167,7 @@ class AbstractHTTPServletRequest(object):
                                   "child class")
 
     def get_header(self, name, default=None):
+        # type: (str, Any) -> Any
         """
         Returns the value of a header
 
@@ -169,6 +179,7 @@ class AbstractHTTPServletRequest(object):
                                   "child class")
 
     def get_headers(self):
+        # type: () -> Dict[str, Any]
         """
         Returns a copy all headers, with a dictionary interface
 
@@ -178,6 +189,7 @@ class AbstractHTTPServletRequest(object):
                                   "child class")
 
     def get_path(self):
+        # type: () -> str
         """
         Returns the request full path
 
@@ -187,6 +199,7 @@ class AbstractHTTPServletRequest(object):
                                   "child class")
 
     def get_prefix_path(self):
+        # type: () -> str
         """
         Returns the path to the servlet root
 
@@ -196,6 +209,7 @@ class AbstractHTTPServletRequest(object):
                                   "child class")
 
     def get_sub_path(self):
+        # type: () -> str
         """
         Returns the servlet-relative path, i.e. after the prefix
 
@@ -205,6 +219,7 @@ class AbstractHTTPServletRequest(object):
                                   "child class")
 
     def get_rfile(self):
+        # type: () -> IO
         """
         Returns the request input as a file stream
 
@@ -214,6 +229,7 @@ class AbstractHTTPServletRequest(object):
                                   "child class")
 
     def read_data(self):
+        # type: () -> ByteString
         """
         Reads all the data in the input stream
 
@@ -232,6 +248,7 @@ class AbstractHTTPServletResponse(object):
     HTTP Servlet response helper
     """
     def set_response(self, code, message=None):
+        # type: (int, str) -> None
         """
         Sets the response line.
         This method should be the first called when sending an answer.
@@ -243,6 +260,7 @@ class AbstractHTTPServletResponse(object):
                                   "by a child class")
 
     def set_header(self, name, value):
+        # type: (str, Any) -> None
         """
         Sets the value of a header.
         This method should not be called after ``end_headers()``.
@@ -254,6 +272,7 @@ class AbstractHTTPServletResponse(object):
                                   "by a child class")
 
     def is_header_set(self, name):
+        # type: (str) -> bool
         """
         Checks if the given header has already been set
 
@@ -271,6 +290,7 @@ class AbstractHTTPServletResponse(object):
                                   "by a child class")
 
     def get_wfile(self):
+        # type: () -> IO
         """
         Retrieves the output as a file stream.
         ``end_headers()`` should have been called before, except if you want
@@ -282,6 +302,7 @@ class AbstractHTTPServletResponse(object):
                                   "by a child class")
 
     def write(self, data):
+        # type: (ByteString) -> None
         """
         Writes the given data.
         ``end_headers()`` should have been called before, except if you want
@@ -294,6 +315,7 @@ class AbstractHTTPServletResponse(object):
 
     def send_content(self, http_code, content, mime_type="text/html",
                      http_message=None, content_length=-1):
+        # type: (int, str, str, str, int) -> None
         """
         Utility method to send the given content as an answer.
         You can still use get_wfile or write afterwards, if you forced the
@@ -315,13 +337,13 @@ class AbstractHTTPServletResponse(object):
             self.set_header("content-type", mime_type)
 
         # Convert the content
-        content = to_bytes(content)
+        raw_content = to_bytes(content)
 
         if content_length is not None \
                 and not self.is_header_set("content-length"):
             if content_length < 0:
                 # Compute the length
-                content_length = len(content)
+                content_length = len(raw_content)
 
             # Send the length
             self.set_header("content-length", content_length)
@@ -329,4 +351,4 @@ class AbstractHTTPServletResponse(object):
         self.end_headers()
 
         # Send the content
-        self.write(content)
+        self.write(raw_content)

@@ -25,8 +25,17 @@ Dependency-less LDAP filter parser for Python
     limitations under the License.
 """
 
-from pelix.utilities import is_string
+# Standard library
 import inspect
+
+# Standard typing module should be optional
+try:
+    from typing import Any, Callable, Iterable, Optional, Union
+except ImportError:
+    pass
+
+# Pelix
+from pelix.utilities import is_string
 
 # ------------------------------------------------------------------------------
 
@@ -286,18 +295,14 @@ def escape_LDAP(ldap_string):
     :param ldap_string: The string to escape
     :return: The protected string
     """
-    if ldap_string is None:
-        return None
-
-    assert is_string(ldap_string)
-
-    if len(ldap_string) == 0:
+    if not ldap_string:
         # No content
         return ldap_string
 
     # Protect escape character previously in the string
-    ldap_string = ldap_string.replace(ESCAPE_CHARACTER,
-                                      ESCAPE_CHARACTER + ESCAPE_CHARACTER)
+    assert is_string(ldap_string)
+    ldap_string = ldap_string.replace(
+        ESCAPE_CHARACTER, ESCAPE_CHARACTER + ESCAPE_CHARACTER)
 
     # Leading space
     if ldap_string.startswith(" "):
@@ -557,7 +562,6 @@ def _comparator_gt(filter_value, tested_value):
         try:
             # Try a conversion
             filter_value = value_type(filter_value)
-
         except (TypeError, ValueError):
             if value_type is int:
                 # Integer/float comparison trick
@@ -575,6 +579,7 @@ def _comparator_gt(filter_value, tested_value):
         # Incompatible type
         return False
 
+
 _COMPARATOR_SYMBOL = {
     _comparator_approximate: "~=",
     _comparator_approximate_star: "~=",
@@ -587,6 +592,7 @@ _COMPARATOR_SYMBOL = {
 
 
 def comparator2str(comparator):
+    # type: (Callable[[Any, Any], bool]) -> str
     """
     Converts an operator method to a string
 
@@ -597,6 +603,7 @@ def comparator2str(comparator):
 
 
 def operator2str(operator):
+    # type: (int) -> str
     """
     Converts an operator value to a string
 
@@ -615,6 +622,7 @@ def operator2str(operator):
 
 
 def _compute_comparator(string, idx):
+    # type: (str, int) -> Optional[Callable[[Any, Any], bool]]
     """
     Tries to compute the LDAP comparator at the given index
 
@@ -657,9 +665,11 @@ def _compute_comparator(string, idx):
         elif part1 == '~':
             # Approximate equality
             return _comparator_approximate
+    return None
 
 
 def _compute_operation(string, idx):
+    # type: (str, int) -> Optional[int]
     """
     Tries to compute the LDAP operation at the given index
 
@@ -674,13 +684,10 @@ def _compute_operation(string, idx):
     :return: The corresponding operator (AND, OR or NOT)
     """
     operator = string[idx]
-
     if operator == '&':
         return AND
-
     elif operator == '|':
         return OR
-
     elif operator == '!':
         return NOT
 
@@ -688,6 +695,7 @@ def _compute_operation(string, idx):
 
 
 def _skip_spaces(string, idx):
+    # type: (str, int) -> int
     """
     Retrieves the next non-space character after idx index in the given string
 
@@ -705,6 +713,7 @@ def _skip_spaces(string, idx):
 
 
 def _parse_ldap_criteria(ldap_filter, startidx=0, endidx=-1):
+    # type: (str, int, int) -> LDAPCriteria
     """
     Parses an LDAP sub filter (criterion)
 
@@ -779,6 +788,7 @@ def _parse_ldap_criteria(ldap_filter, startidx=0, endidx=-1):
 
 
 def _parse_ldap(ldap_filter):
+    # type: (str) -> Optional[LDAPFilter]
     """
     Parses the given LDAP filter string
 
@@ -818,21 +828,19 @@ def _parse_ldap(ldap_filter):
                 if operator is not None:
                     # New sub-filter
                     stack.append(LDAPFilter(operator))
-
                 else:
                     # Sub-filter content
                     subfilter_stack.append(idx)
 
             elif ldap_filter[idx] == ')':
                 # Ending filter : store it in its parent
-
-                if len(subfilter_stack) != 0:
+                if subfilter_stack:
                     # criterion finished
-                    startidx = subfilter_stack.pop()
-                    criterion = _parse_ldap_criteria(ldap_filter, startidx,
-                                                     idx)
+                    start_idx = subfilter_stack.pop()
+                    criterion = _parse_ldap_criteria(
+                        ldap_filter, start_idx, idx)
 
-                    if len(stack) != 0:
+                    if stack:
                         top = stack.pop()
                         top.append(criterion)
                         stack.append(top)
@@ -841,28 +849,22 @@ def _parse_ldap(ldap_filter):
                         # Make a parent to stay homogeneous
                         root = LDAPFilter(AND)
                         root.append(criterion)
-
-                elif len(stack) != 0:
+                elif stack:
                     # Sub filter finished
                     ended_filter = stack.pop()
-
                     if len(stack) != 0:
                         top = stack.pop()
                         top.append(ended_filter)
                         stack.append(top)
-
                     else:
                         # End of the parse
                         root = ended_filter
-
                 else:
                     raise ValueError("Too many end of parenthesis:{0}: {1}"
                                      .format(idx, ldap_filter[idx:]))
-
             elif ldap_filter[idx] == '\\':
                 # Next character must be ignored
                 escaped = True
-
         else:
             # Escaped character ignored
             escaped = False
@@ -879,6 +881,7 @@ def _parse_ldap(ldap_filter):
 
 
 def get_ldap_filter(ldap_filter):
+    # type: (Any) -> Optional[Union[LDAPFilter, LDAPCriteria]]
     """
     Retrieves the LDAP filter object corresponding to the given filter.
     Parses it the argument if it is an LDAPFilter instance
@@ -894,7 +897,6 @@ def get_ldap_filter(ldap_filter):
     if isinstance(ldap_filter, (LDAPFilter, LDAPCriteria)):
         # No conversion needed
         return ldap_filter
-
     elif is_string(ldap_filter):
         # Parse the filter
         return _parse_ldap(ldap_filter)
@@ -905,6 +907,7 @@ def get_ldap_filter(ldap_filter):
 
 
 def combine_filters(filters, operator=AND):
+    # type: (Iterable[Any], int) -> Optional[Union[LDAPFilter, LDAPCriteria]]
     """
     Combines two LDAP filters, which can be strings or LDAPFilter objects
 
@@ -932,16 +935,14 @@ def combine_filters(filters, operator=AND):
             # Valid filter
             ldap_filters.append(ldap_filter)
 
-    if len(ldap_filters) == 0:
+    if not ldap_filters:
         # Do nothing
         return None
-
     elif len(ldap_filters) == 1:
         # Only one filter, return it
         return ldap_filters[0]
 
     new_filter = LDAPFilter(operator)
-
     for sub_filter in ldap_filters:
         # Direct combination
         new_filter.append(sub_filter)

@@ -28,8 +28,14 @@ Defines some iPOPO constants
 # Standard library
 import contextlib
 
+# Standard typing module should be optional
+try:
+    from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+except ImportError:
+    pass
+
 # Pelix
-from pelix.constants import BundleException
+from pelix.framework import BundleContext, BundleException, ServiceReference
 
 # ------------------------------------------------------------------------------
 
@@ -159,6 +165,7 @@ updated
 
 
 def get_ipopo_svc_ref(bundle_context):
+    # type: (BundleContext) -> Optional[Tuple[ServiceReference, Any]]
     """
     Retrieves a tuple containing the service reference to iPOPO and the service
     itself
@@ -185,6 +192,7 @@ def get_ipopo_svc_ref(bundle_context):
 
 @contextlib.contextmanager
 def use_ipopo(bundle_context):
+    # type: (BundleContext) -> Any
     """
     Utility context to use the iPOPO service safely in a "with" block.
     It looks after the the iPOPO service and releases its reference when
@@ -213,6 +221,7 @@ def use_ipopo(bundle_context):
 
 @contextlib.contextmanager
 def use_waiting_list(bundle_context):
+    # type: (BundleContext) -> Any
     """
     Utility context to use the iPOPO waiting list safely in a "with" block.
     It looks after the the iPOPO waiting list service and releases its
@@ -270,6 +279,7 @@ class IPopoEvent(object):
     """ A component factory has been unregistered """
 
     def __init__(self, kind, factory_name, component_name):
+        # type: (int, str, str) -> None
         """
         Sets up the iPOPO event
 
@@ -283,6 +293,7 @@ class IPopoEvent(object):
         self.__component_name = component_name
 
     def get_component_name(self):
+        # type: () -> str
         """
         Retrieves the name of the component associated to the event
 
@@ -291,6 +302,7 @@ class IPopoEvent(object):
         return self.__component_name
 
     def get_factory_name(self):
+        # type: () -> str
         """
         Retrieves the name of the factory associated to the event
 
@@ -299,6 +311,7 @@ class IPopoEvent(object):
         return self.__factory_name
 
     def get_kind(self):
+        # type: () -> int
         """
         Retrieves the kind of event
 

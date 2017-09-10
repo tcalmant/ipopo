@@ -33,6 +33,12 @@ import os
 import sys
 import threading
 
+# Standard typing module should be optional
+try:
+    from typing import Any, Dict, Tuple
+except ImportError:
+    pass
+
 # Pelix modules
 import pelix.constants as constants
 import pelix.framework as pelix
@@ -183,10 +189,10 @@ class _ShellService(parser.Shell):
         self._utils = utilities
 
         # Bound services: reference -> service
-        self._bound_references = {}
+        self._bound_references = {}  # type: Dict[pelix.ServiceReference, Any]
 
         # Service reference -> (name space, [commands])
-        self._reference_commands = {}
+        self._reference_commands = {}  # type: Dict[pelix.ServiceReference, Tuple[str, str]]
 
         # Last working directory
         self._previous_path = None

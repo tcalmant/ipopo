@@ -86,7 +86,10 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Topic :: Software Development :: Libraries :: Application Frameworks'
     ],
-    install_requires=['jsonrpclib-pelix>=0.2.6'],
+    install_requires=[
+        'jsonrpclib-pelix>=0.2.6',
+        'typing'
+    ],
     extras_require={
         'Redis': ['redis>=2.10'],
         'ZooKeeper': ['kazoo>=2.4'],

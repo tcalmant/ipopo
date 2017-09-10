@@ -32,6 +32,12 @@ import sys
 import threading
 import types
 
+# Standard typing module should be optional
+try:
+    from typing import Any, Callable
+except ImportError:
+    pass
+
 # Pelix modules
 from pelix.utilities import is_string, to_iterable, get_method_arguments
 from pelix.ipopo.contexts import FactoryContext, Requirement
@@ -55,6 +61,7 @@ _logger = logging.getLogger("ipopo.decorators")
 
 
 def is_from_parent(cls, attribute_name, value=None):
+    # type: (type, str, bool) -> bool
     """
     Tests if the current attribute value is shared by a parent of the given
     class.
@@ -86,6 +93,7 @@ def is_from_parent(cls, attribute_name, value=None):
 
 
 def get_factory_context(cls):
+    # type: (type) -> FactoryContext
     """
     Retrieves the factory context object associated to a factory. Creates it
     if needed
@@ -98,14 +106,11 @@ def get_factory_context(cls):
     if context is None:
         # Class not yet manipulated
         context = FactoryContext()
-
     elif is_from_parent(cls, constants.IPOPO_FACTORY_CONTEXT):
         # Create a copy the context
         context = context.copy(True)
-
         # * Manipulation has not been applied yet
         context.completed = False
-
     else:
         # Nothing special to do
         return context
@@ -116,6 +121,7 @@ def get_factory_context(cls):
 
 
 def get_method_description(method):
+    # type: (Callable) -> str
     """
     Retrieves a description of the given method. If possible, the description
     contains the source file name and line.
@@ -141,6 +147,7 @@ def get_method_description(method):
 
 
 def validate_method_arity(method, *needed_args):
+    # type: (Callable, *str) -> None
     """
     Tests if the decorated method has a sufficient number of parameters.
 
@@ -187,6 +194,7 @@ def validate_method_arity(method, *needed_args):
 
 
 def _ipopo_setup_callback(cls, context):
+    # type: (type, FactoryContext) -> None
     """
     Sets up the class _callback dictionary
 
@@ -198,20 +206,17 @@ def _ipopo_setup_callback(cls, context):
 
     if context.callbacks is not None:
         callbacks = context.callbacks.copy()
-
     else:
         callbacks = {}
 
     functions = inspect.getmembers(cls, inspect.isroutine)
 
     for _, func in functions:
-
         if not hasattr(func, constants.IPOPO_METHOD_CALLBACKS):
             # No attribute, get the next member
             continue
 
         method_callbacks = getattr(func, constants.IPOPO_METHOD_CALLBACKS)
-
         if not isinstance(method_callbacks, list):
             # Invalid content
             _logger.warning("Invalid callback information %s in %s",
@@ -241,6 +246,7 @@ def _ipopo_setup_callback(cls, context):
 
 
 def _ipopo_setup_field_callback(cls, context):
+    # type: (type, FactoryContext) -> None
     """
     Sets up the class _field_callback dictionary
 
@@ -252,12 +258,10 @@ def _ipopo_setup_field_callback(cls, context):
 
     if context.field_callbacks is not None:
         callbacks = context.field_callbacks.copy()
-
     else:
         callbacks = {}
 
     functions = inspect.getmembers(cls, inspect.isroutine)
-
     for name, func in functions:
         if not hasattr(func, constants.IPOPO_METHOD_FIELD_CALLBACKS):
             # No attribute, get the next member
@@ -295,6 +299,7 @@ def _ipopo_setup_field_callback(cls, context):
 
 
 def _append_object_entry(obj, list_name, entry):
+    # type: (Any, str, Any) -> None
     """
     Appends the given entry in the given object list.
     Creates the list field if needed.
@@ -332,6 +337,7 @@ class Holder(object):
 
 
 def _ipopo_class_field_property(name, value, methods_prefix):
+    # type: (str, Any, str) -> property
     """
     Sets up an iPOPO field property, using Python property() capabilities
 
@@ -1613,7 +1619,6 @@ def Invalidate(method):
     :param method: The decorated method
     :raise TypeError: The decorated element is not a function
     """
-
     if not isinstance(method, types.FunctionType):
         raise TypeError("@Invalidate can only be applied on functions")
 
