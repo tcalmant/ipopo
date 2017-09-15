@@ -479,7 +479,7 @@ class _ReportCommands(object):
         """
         Basic information about the Pelix framework instance
         """
-        framework = self.__context.get_bundle(0)
+        framework = self.__context.get_framework()
         return {
             "version": framework.get_version(),
             "properties": framework.get_properties(),
@@ -489,7 +489,7 @@ class _ReportCommands(object):
         """
         List of installed bundles
         """
-        framework = self.__context.get_bundle(0)
+        framework = self.__context.get_framework()
         return {bundle.get_bundle_id(): {
             "name": bundle.get_symbolic_name(),
             "version": bundle.get_version(),

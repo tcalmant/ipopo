@@ -184,7 +184,7 @@ class _ShellService(parser.Shell):
 
         :param context: The bundle context
         """
-        super(_ShellService, self).__init__(context.get_bundle(0), __name__)
+        super(_ShellService, self).__init__(context.get_framework(), __name__)
         self._context = context
         self._utils = utilities
 
@@ -371,7 +371,7 @@ class _ShellService(parser.Shell):
         bundles = self._context.get_bundles()
 
         # The framework is not in the result of get_bundles()
-        bundles.insert(0, self._context.get_bundle(0))
+        bundles.insert(0, self._context.get_framework())
 
         if name is not None:
             # Filter the list
@@ -458,7 +458,7 @@ class _ShellService(parser.Shell):
         Lists the properties of the framework
         """
         # Get the framework
-        framework = self._context.get_bundle(0)  # type: pelix.Framework
+        framework = self._context.get_framework()
 
         # Head of the table
         headers = ('Property Name', 'Value')

@@ -480,7 +480,7 @@ class _IPopoService(object):
             properties = {}
 
         # Use framework properties to fill missing ones
-        framework = self.__context.get_bundle(0)  # type: Framework
+        framework = self.__context.get_framework()
         for property_name in factory_properties:
             if property_name not in properties:
                 # Missing property

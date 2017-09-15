@@ -581,7 +581,7 @@ class StoredInstance(object):
                 # Framework must be stopped...
                 self._logger.error("%s said that the Framework must be "
                                    "stopped.", self.name)
-                self.bundle_context.get_bundle(0).stop()
+                self.bundle_context.get_framework().stop()
             return False
         except:
             self._logger.exception("Component '%s': error calling callback "
@@ -621,7 +621,7 @@ class StoredInstance(object):
                 # Framework must be stopped...
                 self._logger.error("%s said that the Framework must be "
                                    "stopped.", self.name)
-                self.bundle_context.get_bundle(0).stop()
+                self.bundle_context.get_framework().stop()
             return False
         except:
             self._logger.exception("Component '%s' : error calling "

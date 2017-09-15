@@ -394,7 +394,7 @@ class Activator(object):
 
         # Stop the framework
         if self._context is not None:
-            self._context.get_bundle(0).stop()
+            self._context.get_framework().stop()
 
     def _cleanup(self):
         """

@@ -1335,6 +1335,16 @@ class BundleContext(object):
         """
         return self.__framework.get_bundles()
 
+    def get_framework(self):
+        # type: () -> Framework
+        """
+        Returns the :class:`~pelix.FRAMEWORK.Framework` that created this
+        bundle context
+
+        :return: The :class:`~pelix.framework.Framework` object
+        """
+        return self.__framework
+
     def get_property(self, name):
         # type: (str) -> object
         """

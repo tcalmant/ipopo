@@ -432,7 +432,7 @@ class LocalBundleTest(unittest.TestCase):
         bundle = fw_context.install_bundle(__name__)
 
         # Get a reference to the bundle, by name
-        bundle_2 = fw_context.get_bundle(0).get_bundle_by_name(__name__)
+        bundle_2 = fw_context.get_framework().get_bundle_by_name(__name__)
 
         self.assertIs(bundle, bundle_2,
                       "Different bundle returned by ID and by name")

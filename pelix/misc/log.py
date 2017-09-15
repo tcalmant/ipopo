@@ -304,7 +304,7 @@ class LogServiceFactory(logging.Handler):
         :param level: The minimal log level of this handler
         """
         logging.Handler.__init__(self, level)
-        self._framework = context.get_bundle(0)
+        self._framework = context.get_framework()
         self._reader = reader
 
     def _bundle_from_module(self, module_object):
