@@ -10,6 +10,7 @@ users (user1 and user2) with "foobar" as password.
 """
 
 import random
+import socket
 import string
 import threading
 try:
@@ -42,8 +43,8 @@ class XMPPClientTest(unittest.TestCase):
         bot2 = xmpp.BasicBot("user2@localhost", "foobar")
 
         # Connect server
-        bot1.connect("localhost", 5222)
-        bot2.connect("localhost", 5222)
+        bot1.connect(socket.gethostbyname(socket.gethostname()), 5222)
+        bot2.connect(socket.gethostbyname(socket.gethostname()), 5222)
 
         # Ensure both bots can talk to each other
         bot1.update_roster("user2@localhost", subscription="both")
