@@ -1,7 +1,7 @@
 .. image:: https://ipopo.readthedocs.io/en/latest/_images/logo_texte_500.png
    :alt: iPOPO logo
    :align: center
-       :target: https://ipopo.readthedocs.io/
+   :target: https://ipopo.readthedocs.io/
 
 iPOPO: A Service-Oriented Component Model for Python
 ####################################################
@@ -11,20 +11,20 @@ iPOPO: A Service-Oriented Component Model for Python
    :target: https://gitter.im/tcalmant/ipopo?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
 .. image:: https://img.shields.io/pypi/v/ipopo.svg
-    :target: https://pypi.python.org/pypi/ipopo/
-    :alt: Latest Version
+   :target: https://pypi.python.org/pypi/ipopo/
+   :alt: Latest Version
 
 .. image:: https://img.shields.io/pypi/l/ipopo.svg
-    :target: https://pypi.python.org/pypi/ipopo/
-    :alt: License
+   :target: https://pypi.python.org/pypi/ipopo/
+   :alt: License
 
 .. image:: https://travis-ci.org/tcalmant/ipopo.svg?branch=master
-     :target: https://travis-ci.org/tcalmant/ipopo
-     :alt: Travis-CI status
+   :target: https://travis-ci.org/tcalmant/ipopo
+   :alt: Travis-CI status
 
 .. image:: https://coveralls.io/repos/github/tcalmant/ipopo/badge.svg?branch=master
-     :target: https://coveralls.io/github/tcalmant/ipopo?branch=master
-     :alt: Coveralls status
+   :target: https://coveralls.io/github/tcalmant/ipopo?branch=master
+   :alt: Coveralls status
 
 `iPOPO <https://ipopo.readthedocs.io/>`_ is a Python-based Service-Oriented
 Component Model (SOCM) based on Pelix, a dynamic service platform.
