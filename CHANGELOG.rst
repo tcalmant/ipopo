@@ -1,8 +1,8 @@
 Release notes
 #############
 
-iPOPO 0.6.5 (Work in progress)
-******************************
+iPOPO 0.6.5
+***********
 
 Project
 =======
@@ -14,10 +14,18 @@ Project
 * The documentation is being completely rewritten while it is converted from
   Dokuwiki to Sphinx.
 * Removed Pypy 3 from Travis-CI/Tox tests, as it is not compatible with pip.
+* Added tests to ensure that all services and utilities are used at least once
+  in all tests environments. This will ease regression detection, especially
+  when following updates of third-party libraries.
+* Added ``mypy`` type hints in important places of the framework
 
 Pelix
 =====
 
+* Added support for `Service Factories (#75) <https://github.com/tcalmant/ipopo/issues/75>`_.
+  ``PrototypeServiceFactory`` are not supported.
+* The Framework now adds the ``service.bundleid`` and ``service.scope``
+  properties to services.
 * The import path normalization now ensures that the full path of the initial
   working directory is stored in the path, and that the current working
   directory marker (empty string) is kept as the first entry of the Python path.
@@ -25,6 +33,8 @@ Pelix
   to ignore import errors when normalizing the Python path.
 * Merged `pull request #68 <https://github.com/tcalmant/ipopo/pull/68>`_,
   correcting the behaviour of the thread pool.
+* Merged `pull request #77 <https://github.com/tcalmant/ipopo/pull/77>`_,
+  which fixes the growing of ``sys.path`` in ``normalize_path()``.
 
 iPOPO
 =====
@@ -33,6 +43,9 @@ iPOPO
   activator has returned. (`#66 <https://github.com/tcalmant/ipopo/issues/66>`_)
 * Added a ``get_instance(name)`` method to access to the component instance
   object by its name. (`#74 <https://github.com/tcalmant/ipopo/issues/74>`_)
+* Merged `pull request #79 <https://github.com/tcalmant/ipopo/pull/79>`_,
+  which allows the use of ``__qualname__`` to automatically name the interface
+  provided by a component according to its class name.
 
 HTTP
 ====
@@ -62,12 +75,28 @@ Remote Services
   all HTTP-based transport providers.
 * Added a `ZooKeeper <https://zookeeper.apache.org/>`_-based discovery provider,
   working with all HTTP-based transport providers.
+* Better detection of the loss of a framework with the mDNS discovery
+* mDNS discovery is now based on the PyPI-available ``zeroconf`` package.
 
 Shell
 =====
 
 * Added the *Configuration Handler*, which allows to give a JSON file to set
   the initial configuration of a framework: properties, bundles, instances, ...
+* Console, Remote and XMPP shell now share some common arguments.
+  This allows to use the *Configuration Handler* arguments in all these scripts.
+
+Miscellaneous
+=============
+
+* The Log Service is now a Service Factory.
+
+Utilities
+=========
+
+* Added a ``remove_duplicates()`` method, which allows to filter out duplicates
+  from lists, keeping the original order.
+* Added the ``is_bytes()`` method.
 
 iPOPO 0.6.4
 ***********
