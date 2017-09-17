@@ -328,7 +328,7 @@ class ServiceReference(object):
         :return: True if the service provides from a factory
         """
         return self.__properties[SERVICE_SCOPE] in \
-               (SCOPE_BUNDLE, SCOPE_PROTOTYPE)
+            (SCOPE_BUNDLE, SCOPE_PROTOTYPE)
 
     def is_prototype(self):
         """
@@ -1152,7 +1152,7 @@ class ServiceRegistry(object):
         except KeyError:
             # Not found
             raise BundleException("Service not found (reference: {0})"
-                                      .format(reference))
+                                  .format(reference))
 
     def unget_service(self, bundle, reference):
         """

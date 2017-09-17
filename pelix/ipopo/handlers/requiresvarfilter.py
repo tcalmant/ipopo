@@ -276,7 +276,7 @@ class AggregateDependency(_VariableFilterMixIn, requires.AggregateDependency):
         Tests if the dependency is in a valid state
         """
         return self.valid_filter \
-               and requires.AggregateDependency.is_valid(self)
+            and requires.AggregateDependency.is_valid(self)
 
     def try_binding(self):
         """

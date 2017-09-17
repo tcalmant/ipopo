@@ -110,7 +110,7 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
         Handles a HTTP POST request
 
         :param request: The HTTP request bean
-        :param request: The HTTP response handler
+        :param response: The HTTP response handler
         """
         try:
             # Get the request content

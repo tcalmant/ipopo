@@ -258,7 +258,7 @@ class ImportEndpoint(object):
     """
     def __init__(self, uid, framework, configurations, name, specifications,
                  properties):
-        # type: (str, str, Any[str, List[str]], str, List[str], dict) -> None
+        # type: (str, str, Any[str, List[str]], Optional[str], List[str], dict) -> None
         """
         :param uid: Unique identified of the end point
         :param framework: UID of the framework exporting the end point

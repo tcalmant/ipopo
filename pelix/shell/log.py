@@ -125,7 +125,7 @@ class ShellLogCommand(object):
 
         :param session: The shell Session object
         :param level: Log level (string)
-        :param message: Message to log
+        :param words: Message to log
         """
         if self._logger is not None:
             self._logger.log(level, ' '.join(str(word) for word in words),

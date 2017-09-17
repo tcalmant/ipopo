@@ -156,12 +156,11 @@ def _is_builtin(obj):
     :param obj: An object
     :return: True if the object is of a built-in type
     """
-    module = inspect.getmodule(obj)
-    if module in (None, builtins):
+    module_ = inspect.getmodule(obj)
+    if module_ in (None, builtins):
         return True
-
     else:
-        return module.__name__ in ('', '__main__')
+        return module_.__name__ in ('', '__main__')
 
 
 def _is_converted_class(java_class):

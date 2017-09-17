@@ -88,6 +88,7 @@ def use_service(bundle_context, svc_reference):
 
 # ------------------------------------------------------------------------------
 
+
 # Mimic ArgSpec from getargspec()
 ArgSpec = collections.namedtuple("ArgSpec", "args varargs keywords defaults")
 
@@ -569,7 +570,7 @@ class EventData(object):
 
     @property
     def data(self):
-        # type: () -> object
+        # type: () -> Any
         """
         Returns the associated value
         """
@@ -599,7 +600,7 @@ class EventData(object):
         return self.__event.is_set()
 
     def set(self, data=None):
-        # type: (object) -> None
+        # type: (Any) -> None
         """
         Sets the event
         """

@@ -40,7 +40,7 @@ except ImportError:
 # Pelix
 from pelix.constants import SERVICE_ID, BundleActivator
 from pelix.framework import Bundle, BundleContext, BundleException, \
-    ServiceReference, Framework
+    ServiceReference
 from pelix.internals.events import BundleEvent, ServiceEvent
 from pelix.utilities import add_listener, remove_listener, is_string
 

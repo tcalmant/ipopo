@@ -465,13 +465,13 @@ class _ReportCommands(object):
         imported = {}
         results = {'builtins': sys.builtin_module_names,
                    'imported': imported}
-        for module_name, module in sys.modules.items():
+        for module_name, module_ in sys.modules.items():
             if module_name not in sys.builtin_module_names:
                 try:
-                    imported[module_name] = inspect.getfile(module)
+                    imported[module_name] = inspect.getfile(module_)
                 except TypeError:
                     imported[module_name] = "<no file information :: {0}>" \
-                        .format(repr(module))
+                        .format(repr(module_))
 
         return results
 

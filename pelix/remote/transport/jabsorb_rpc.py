@@ -117,7 +117,7 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
         Handle a POST request
 
         :param request: The HTTP request bean
-        :param request: The HTTP response handler
+        :param response: The HTTP response handler
         """
         # Get the request JSON content
         data = jsonrpclib.loads(to_str(request.read_data()))

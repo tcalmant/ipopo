@@ -349,7 +349,8 @@ def unescape_LDAP(ldap_string):
 
 # ------------------------------------------------------------------------------
 
-ITERABLES = (list, tuple, set)
+
+ITERABLES = (list, tuple, set, frozenset)
 """ The types that are considered iterable in comparators """
 
 
