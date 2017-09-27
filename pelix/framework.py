@@ -28,12 +28,10 @@ Pelix is a Python framework that aims to act as OSGi as much as possible
 """
 
 # Standard library
-import imp
 import importlib
 import inspect
 import logging
 import os
-import pkgutil
 import sys
 import threading
 import types
@@ -54,6 +52,84 @@ from pelix.internals.registry import EventDispatcher, ServiceRegistry, \
 
 # Pelix utility modules
 from pelix.utilities import is_string
+
+
+if hasattr(importlib, "reload"):
+    # This method has been added in Python 3.4 and deprecates imp.reload()
+    def reload_module(module_):
+        """
+        Reloads a module using ``importlib.reload()`` when available
+
+        :param module_: The module to update
+        :return: The new version of the module
+        :raise ImportError: Error looking for file
+        :raise SyntaxError: Syntax error in imported module
+        """
+        return importlib.reload(module_)
+else:
+    # Before Python 3.4
+    import imp
+
+    def reload_module(module_):
+        """
+        Reloads a module using ``imp.reload()`` as fallback
+
+        :param module_: The module to update
+        :return: The new version of the module
+        :raise ImportError: Error looking for file
+        :raise SyntaxError: Syntax error in imported module
+        """
+        return imp.reload(module_)
+
+
+def walk_modules(path):
+    """
+    Code from ``pkgutil.ImpImporter.iter_modules()``: walks through a folder
+    and yields all loadable packages and modules.
+
+    :param path: Path where to look for modules
+    :return: Generator to walk through found packages and modules
+    """
+    if path is None or not os.path.isdir(path):
+        return
+
+    yielded = set()
+    try:
+        file_names = os.listdir(path)
+    except OSError:
+        # ignore unreadable directories like import does
+        file_names = []
+
+    # handle packages before same-named modules
+    file_names.sort()
+
+    for filename in file_names:
+        modname = inspect.getmodulename(filename)
+        if modname == '__init__' or modname in yielded:
+            continue
+
+        path = os.path.join(path, filename)
+        is_package = False
+
+        if not modname and os.path.isdir(path) and '.' not in filename:
+            modname = filename
+            try:
+                dir_contents = os.listdir(path)
+            except OSError:
+                # ignore unreadable directories like import does
+                dir_contents = []
+            for sub_filename in dir_contents:
+                sub_name = inspect.getmodulename(sub_filename)
+                if sub_name == '__init__':
+                    is_package = True
+                    break
+            else:
+                # not a package
+                continue
+
+        if modname and '.' not in modname:
+            yielded.add(modname)
+            yield modname, is_package
 
 # ------------------------------------------------------------------------------
 
@@ -485,7 +561,7 @@ class Bundle(object):
 
             try:
                 # Reload the module
-                imp.reload(self.__module)
+                reload_module(self.__module)
             except (ImportError, SyntaxError) as ex:
                 # Exception raised if the file is unreadable
                 _logger.exception("Error updating %s: %s", self.__name, ex)
@@ -893,13 +969,14 @@ class Framework(Bundle):
         failed = set()
 
         with self.__bundles_lock:
-            # Use an ImpImporter per iteration because, in Python 3,
-            # pkgutil.iter_modules() will use a _FileImporter on the second
-            # walk in a package which will return nothing
-            for name, is_package in pkgutil.ImpImporter(path).iter_modules():
+            # Walk through the folder to find modules
+            for name, is_package in walk_modules(path):
+                # Ignore '__main__' modules
+                if name == '__main__':
+                    continue
+
                 # Compute the full name of the module
                 fullname = '.'.join((prefix, name)) if prefix else name
-
                 try:
                     if visitor(fullname, is_package, path):
                         if is_package:
@@ -909,14 +986,13 @@ class Framework(Bundle):
                             # Visit the package
                             sub_path = os.path.join(path, name)
                             sub_bundles, sub_failed = \
-                                self.install_visiting(sub_path, visitor,
-                                                      fullname)
+                                self.install_visiting(
+                                    sub_path, visitor, fullname)
                             bundles.update(sub_bundles)
                             failed.update(sub_failed)
                         else:
                             # Install the bundle
                             bundles.add(self.install_bundle(fullname, path))
-
                 except BundleException as ex:
                     # Error loading the module
                     _logger.warning("Error visiting %s: %s", fullname, ex)
