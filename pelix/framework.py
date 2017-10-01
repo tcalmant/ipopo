@@ -108,16 +108,17 @@ def walk_modules(path):
         if modname == '__init__' or modname in yielded:
             continue
 
-        path = os.path.join(path, filename)
+        file_path = os.path.join(path, filename)
         is_package = False
 
-        if not modname and os.path.isdir(path) and '.' not in filename:
+        if not modname and os.path.isdir(file_path) and '.' not in filename:
             modname = filename
             try:
-                dir_contents = os.listdir(path)
+                dir_contents = os.listdir(file_path)
             except OSError:
                 # ignore unreadable directories like import does
                 dir_contents = []
+
             for sub_filename in dir_contents:
                 sub_name = inspect.getmodulename(sub_filename)
                 if sub_name == '__init__':
@@ -133,14 +134,13 @@ def walk_modules(path):
 
 # ------------------------------------------------------------------------------
 
+
 # Module version
 __version_info__ = (0, 6, 6)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
 
 # Prepare the module logger
 _logger = logging.getLogger("pelix.main")
