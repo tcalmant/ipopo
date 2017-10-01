@@ -315,10 +315,10 @@ def test_fct():
 
         # Compute the bundle full path
         simple_name = "generated_bundle"
-        bundle_name = '{0}.{1}'.format(__name__.rsplit('.', 1)[0],
-                                       simple_name)
-        bundle_fullname = os.path.join(os.path.dirname(__file__),
-                                       "{0}.py".format(simple_name))
+        bundle_name = '{0}.{1}'.format(
+            __name__.rsplit('.', 1)[0], simple_name)
+        bundle_fullname = os.path.join(
+            os.path.dirname(__file__), "{0}.py".format(simple_name))
 
         # 0/ Clean up existing files
         for suffix in ('', 'c', 'o'):
@@ -327,44 +327,42 @@ def test_fct():
                 os.remove(path)
 
         # 1/ Prepare the bundle, test variable is set to False
-        f = open(bundle_fullname, "w")
-        f.write(bundle_content.format(version="1.0.0", test=False))
-        f.close()
+        with open(bundle_fullname, "w") as f:
+            f.write(bundle_content.format(version="1.0.0", test=False))
 
         # 2/ Install the bundle and get its variable
         bundle = self.context.install_bundle(bundle_name)
-        module = bundle.get_module()
+        module_ = bundle.get_module()
 
         # Also start the bundle
         bundle.start()
-        self.assertFalse(module.test_var, "Test variable should be False")
+        self.assertFalse(module_.test_var, "Test variable should be False")
 
         # 3/ Change the bundle file
-        f = open(bundle_fullname, "w")
-        f.write(bundle_content.format(version="1.0.1", test=True))
-        f.close()
+        with open(bundle_fullname, "w") as f:
+            f.write(bundle_content.format(version="1.0.1", test=True))
 
         # 4/ Update, keeping the module reference
         bundle.update()
-        self.assertIs(module, bundle.get_module(), "Module has changed")
-        self.assertTrue(module.test_var, "Test variable should be True")
+        self.assertIs(module_, bundle.get_module(), "Module has changed")
+        self.assertTrue(module_.test_var, "Test variable should be True")
 
         # 5/ Change the bundle file, make it erroneous
-        f = open(bundle_fullname, "w")
-        f.write(bundle_content.format(version="1.0.2", test="\n"))
-        f.close()
+        with open(bundle_fullname, "w") as f:
+            f.write(bundle_content.format(version="1.0.2", test="\n"))
 
         # No error must be raised...
+        log_off()
         bundle.update()
+        log_on()
 
         # ... but the state of the module shouldn't have changed
-        self.assertTrue(module.test_var, "Test variable should still be True")
+        self.assertTrue(module_.test_var, "Test variable should still be True")
 
         # Finally, change the test file to be a valid module
         # -> Used by coverage for its report
-        f = open(bundle_fullname, "w")
-        f.write(bundle_content.format(version="1.0.0", test=False))
-        f.close()
+        with open(bundle_fullname, "w") as f:
+            f.write(bundle_content.format(version="1.0.0", test=False))
 
     def testVersion(self):
         """

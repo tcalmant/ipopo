@@ -121,14 +121,13 @@ class ServicesTest(unittest.TestCase):
         # Get the service from the Framework context
         svc = ctx.get_service(svc_ref)
 
-        self.assertEquals(os.environ.get("factory.get"), "OK")
+        self.assertEqual(os.environ.get("factory.get"), "OK")
         self.assertIsNone(os.environ.get("factory.unget"))
 
         # Check if we got the registration correctly
         self.assertIs(svc.real, svc.given)
         self.assertListEqual(svc_ref.get_using_bundles(), [self.framework])
-        self.assertEquals(svc.real.get_reference(), svc_ref,
-                          "Wrong reference")
+        self.assertEqual(svc.real.get_reference(), svc_ref, "Wrong reference")
 
         # Clean up environment
         del os.environ['factory.get']
@@ -137,7 +136,7 @@ class ServicesTest(unittest.TestCase):
         factory_bundle.uninstall()
 
         self.assertIsNone(os.environ.get("factory.get"))
-        self.assertEquals(os.environ.get("factory.unget"), "OK")
+        self.assertEqual(os.environ.get("factory.unget"), "OK")
 
         # Clean up environment
         os.environ.pop('factory.get', None)
@@ -147,7 +146,6 @@ class ServicesTest(unittest.TestCase):
         self.assertIs(svc.real, svc.given)
         self.assertListEqual(svc_ref.get_using_bundles(), [])
 
-# ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Set logging level
