@@ -1,5 +1,6 @@
 .. image:: https://ipopo.readthedocs.io/en/latest/_images/logo_texte_500.png
    :alt: iPOPO logo
+   :width: 200 px
    :align: center
    :target: https://ipopo.readthedocs.io/
 
@@ -97,7 +98,7 @@ To check if Pelix is installed correctly, run the following command:
 .. code-block:: bash
 
     $ python -m pelix.shell --version
-    Pelix 0.6.3 from /home/tcalmant/git/ipopo/pelix/framework.py
+    Pelix 0.6.6 from /home/tcalmant/git/ipopo/pelix/framework.py
 
 Concepts
 ########
