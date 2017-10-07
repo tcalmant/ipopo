@@ -6,7 +6,7 @@ The logger handler implementation
 :author: Thomas Calmant
 :copyright: Copyright 2017, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.5.9
+:version: 0.6.6
 
 ..
 
@@ -25,7 +25,7 @@ The logger handler implementation
     limitations under the License.
 """
 # Module version
-__version_info__ = (0, 5, 9)
+__version_info__ = (0, 6, 6)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

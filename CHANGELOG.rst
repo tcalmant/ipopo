@@ -1,6 +1,10 @@
 Release notes
 #############
 
+iPOPO 0.6.6 (Current Development)
+*********************************
+
+
 iPOPO 0.6.5
 ***********
 
