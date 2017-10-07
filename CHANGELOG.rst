@@ -4,6 +4,11 @@ Release notes
 iPOPO 0.6.6 (Current Development)
 *********************************
 
+Pelix
+=====
+
+* Handle deprecation of the ``imp`` module (see #85)
+
 
 iPOPO 0.6.5
 ***********
