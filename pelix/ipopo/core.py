@@ -29,6 +29,7 @@ Core iPOPO implementation
 import copy
 import inspect
 import logging
+import sys
 import threading
 
 # Standard typing module should be optional
@@ -120,12 +121,20 @@ def _load_bundle_factories(bundle):
     # Get the bundle context
     bundle_context = bundle.get_bundle_context()
 
-    # Get all classes defined in the module
-    for inspect_member in inspect.getmembers(module_, inspect.isclass):
-        # Get the class in the result tuple
-        factory_class = inspect_member[1]
-        if inspect.getmodule(factory_class) is not module_:
-            # Ignore classes imported from other modules
+    for name in dir(module_):
+        try:
+            # Get the module member
+            factory_class = getattr(module_, name)
+            if not inspect.isclass(factory_class):
+                continue
+
+            # Check if it is a class
+            if sys.modules[factory_class.__module__] is not module_:
+                # Only keep classes from this module
+                continue
+        except (AttributeError, KeyError):
+            # getattr() didn't work or __module__ is not a member of the class,
+            # or the module is not known by the interpreter
             continue
 
         context = _set_factory_context(factory_class, bundle_context)
@@ -288,8 +297,7 @@ class _IPopoService(object):
         """
         factory = self.__factories.get(factory_name)
         if factory is None:
-            raise TypeError("Unknown factory '{0}'"
-                            .format(factory_name))
+            raise TypeError("Unknown factory '{0}'".format(factory_name))
 
         # Get the factory context
         factory_context = getattr(factory, constants.IPOPO_FACTORY_CONTEXT,
@@ -402,8 +410,8 @@ class _IPopoService(object):
                     properties = stored_instance.context.properties
                     if properties.get(constants.IPOPO_AUTO_RESTART):
                         # Auto-restart property found
-                        store.append((factory, stored_instance.name,
-                                      properties))
+                        store.append(
+                            (factory, stored_instance.name, properties))
 
     def _autorestart_components(self, bundle):
         # type: (Bundle) -> None
@@ -498,8 +506,6 @@ class _IPopoService(object):
 
         :param bundle: A bundle
         """
-        assert isinstance(bundle, Bundle)
-
         # Load the bundle factories
         factories = _load_bundle_factories(bundle)
 
@@ -707,7 +713,7 @@ class _IPopoService(object):
                 # Create component instance
                 try:
                     instance = factory()
-                except:
+                except Exception:
                     _logger.exception("Error creating the instance '%s' "
                                       "from factory '%s'", name, factory_name)
                     raise TypeError("Factory '{0}' failed to create '{1}'"
@@ -722,8 +728,8 @@ class _IPopoService(object):
                 properties, factory_context.properties)
 
             # Set up the component instance context
-            component_context = ComponentContext(factory_context, name,
-                                                 properties)
+            component_context = ComponentContext(
+                factory_context, name, properties)
 
             # Try to instantiate the component immediately
             if not self.__try_instantiate(component_context, instance):
