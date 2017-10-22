@@ -56,6 +56,8 @@ class _UsageCounter(object):
     """
     Simple reference usage counter
     """
+    __slots__ = ("__count",)
+
     def __init__(self):
         """
         Sets up the counter
@@ -92,6 +94,8 @@ class _FactoryCounter(object):
     """
     A service factory usage counter per bundle and reference
     """
+    __slots__ = ("__bundle", "__factored")
+
     def __init__(self, bundle):
         """
         Sets up members
@@ -183,7 +187,7 @@ class _FactoryCounter(object):
             # Call the factory
             factory.unget_service(self.__bundle, svc_registration)
 
-            # No more associaton
+            # No more association
             svc_ref.unused_by(self.__bundle)
             return True
 
@@ -194,6 +198,10 @@ class ServiceReference(object):
     """
     Represents a reference to a service
     """
+    __slots__ = ("__bundle", "__is_factory", "__properties", "__service_id",
+                 "__sort_key", "__using_bundles",
+                 "_props_lock", "__usage_lock")
+
     def __init__(self, bundle, properties):
         """
         :param bundle: The bundle registering the service
@@ -218,6 +226,10 @@ class ServiceReference(object):
         self.__bundle = bundle
         self.__properties = properties
         self.__service_id = properties[SERVICE_ID]
+
+        # Service Factory flag
+        self.__is_factory = self.__properties[SERVICE_SCOPE] in \
+            (SCOPE_BUNDLE, SCOPE_PROTOTYPE)
 
         # Bundle object -> Usage Counter object
         self.__using_bundles = {}
@@ -327,8 +339,7 @@ class ServiceReference(object):
 
         :return: True if the service provides from a factory
         """
-        return self.__properties[SERVICE_SCOPE] in \
-            (SCOPE_BUNDLE, SCOPE_PROTOTYPE)
+        return self.__is_factory
 
     def is_prototype(self):
         """
@@ -407,6 +418,9 @@ class ServiceRegistration(object):
     """
     Represents a service registration object
     """
+    __slots__ = ("__framework", "__reference", "__properties",
+                 "__update_callback")
+
     def __init__(self, framework, reference, properties, update_callback):
         """
         :param framework: The host framework
@@ -416,7 +430,7 @@ class ServiceRegistration(object):
         :param update_callback: Method to call when the sort key is modified
         """
         self.__framework = framework
-        self.__reference = reference
+        self.__reference = reference  # type: ServiceReference
         self.__properties = properties
         self.__update_callback = update_callback
 
@@ -1118,8 +1132,8 @@ class ServiceRegistry(object):
                 return service
             except KeyError:
                 # Not found
-                raise BundleException("Service not found (reference: {0})"
-                                      .format(reference))
+                raise BundleException(
+                    "Service not found (reference: {0})".format(reference))
 
     def __get_service_from_factory(self, bundle, reference):
         """

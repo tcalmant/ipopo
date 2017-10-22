@@ -76,6 +76,8 @@ class LDAPFilter(object):
     """
     Represents an LDAP filter
     """
+    __slots__ = ("subfilters", "operator")
+
     def __init__(self, operator):
         """
         Initializer
@@ -205,6 +207,8 @@ class LDAPCriteria(object):
     """
     Represents an LDAP criterion
     """
+    __slots__ = ("name", "value", "comparator")
+
     def __init__(self, name, value, comparator):
         """
         Sets up the criterion

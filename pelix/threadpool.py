@@ -57,6 +57,8 @@ class FutureResult(object):
     """
     An object to wait for the result of a threaded execution
     """
+    __slots__ = ("_logger", "_done_event", "__callback", "__extra")
+
     def __init__(self, logger=None):
         """
         Sets up the FutureResult object

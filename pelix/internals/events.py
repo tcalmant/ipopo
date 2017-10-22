@@ -39,6 +39,8 @@ class BundleEvent(object):
     """
     Represents a bundle event
     """
+    __slots__ = ("__bundle", "__kind")
+
     INSTALLED = 1
     """The bundle has been installed."""
 
@@ -105,6 +107,8 @@ class ServiceEvent(object):
     """
     Represents a service event
     """
+    __slots__ = ("__kind", "__reference", "__previous_properties")
+
     REGISTERED = 1
     """ This service has been registered """
 

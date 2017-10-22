@@ -560,6 +560,8 @@ class EventData(object):
     """
     A threading event with some associated data
     """
+    __slots__ = ("__event", "__data", "__exception")
+
     def __init__(self):
         """
         Sets up the event
