@@ -198,9 +198,8 @@ class ServiceReference(object):
     """
     Represents a reference to a service
     """
-    __slots__ = ("__bundle", "__is_factory", "__properties", "__service_id",
-                 "__sort_key", "__using_bundles",
-                 "_props_lock", "__usage_lock")
+    __slots__ = ("__bundle", "__properties", "__service_id", "__sort_key",
+                 "__using_bundles", "_props_lock", "__usage_lock")
 
     def __init__(self, bundle, properties):
         """
@@ -226,10 +225,6 @@ class ServiceReference(object):
         self.__bundle = bundle
         self.__properties = properties
         self.__service_id = properties[SERVICE_ID]
-
-        # Service Factory flag
-        self.__is_factory = self.__properties[SERVICE_SCOPE] in \
-            (SCOPE_BUNDLE, SCOPE_PROTOTYPE)
 
         # Bundle object -> Usage Counter object
         self.__using_bundles = {}
@@ -339,7 +334,8 @@ class ServiceReference(object):
 
         :return: True if the service provides from a factory
         """
-        return self.__is_factory
+        return self.__properties[SERVICE_SCOPE] in \
+            (SCOPE_BUNDLE, SCOPE_PROTOTYPE)
 
     def is_prototype(self):
         """
