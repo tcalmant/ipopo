@@ -51,6 +51,7 @@ def read(fname):
     with open(os.path.join(os.path.dirname(__file__), fname)) as fd:
         return fd.read()
 
+
 setup(
     name='iPOPO',
     version=__version__,
@@ -87,7 +88,7 @@ setup(
         'Topic :: Software Development :: Libraries :: Application Frameworks'
     ],
     install_requires=[
-        'jsonrpclib-pelix>=0.2.6',
+        'jsonrpclib-pelix>=0.3.1',
         'typing'
     ],
     extras_require={
