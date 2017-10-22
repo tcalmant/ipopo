@@ -4,10 +4,17 @@ Release notes
 iPOPO 0.6.6 (Current Development)
 *********************************
 
+Project
+=======
+
+* New version of the logo, with SVG sources in the repository
+
 Pelix
 =====
 
 * Handle deprecation of the ``imp`` module (see #85)
+* Added a ``delete()`` method to the ``Framework`` class.
+  The ``FrameworkFactory`` class can now be fully avoided by developers.
 
 
 iPOPO 0.6.5
