@@ -1161,6 +1161,19 @@ class Framework(Bundle):
             self._registry.clear()
             return True
 
+    def delete(self, force=False):
+        """
+        Deletes the current framework
+
+        :param force: If True, stops the framework before deleting it
+        :return: True if the framework has been delete, False if is couldn't
+        """
+        if not force and self._state not in (Bundle.INSTALLED, Bundle.STOPPING):
+            _logger.warning("Trying to delete an active framework")
+            return False
+
+        return FrameworkFactory.delete_framework(self)
+
     def uninstall(self):
         """
         A framework can't be uninstalled
