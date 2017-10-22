@@ -28,6 +28,7 @@ Pelix is a Python framework that aims to act as OSGi as much as possible
 """
 
 # Standard library
+import collections
 import importlib
 import inspect
 import logging
@@ -152,6 +153,9 @@ class Bundle(object):
     """
     Represents a "bundle" in Pelix
     """
+    __slots__ = ("_lock", "__context", "__id", "__module", "__name",
+                 "__framework", "_state", "__registered_services",
+                 "__registration_lock")
 
     UNINSTALLED = 1
     """ The bundle is uninstalled and may not be used """
@@ -783,10 +787,9 @@ class Framework(Bundle):
         """
         if not isinstance(bundle, Bundle):
             raise TypeError("First argument must be a Bundle object")
-
-        if not isinstance(reference, ServiceReference):
-            raise TypeError("Second argument must be a ServiceReference "
-                            "object")
+        elif not isinstance(reference, ServiceReference):
+            raise TypeError(
+                "Second argument must be a ServiceReference object")
 
         try:
             # Unregistering service, just give it
@@ -1031,7 +1034,7 @@ class Framework(Bundle):
             properties = properties.copy()
 
         # Prepare the class specification
-        if not isinstance(clazz, list):
+        if not isinstance(clazz, (list, tuple)):
             # Make a list from the single class
             clazz = [clazz]
 
@@ -1100,7 +1103,6 @@ class Framework(Bundle):
                         self._state = Bundle.ACTIVE
                         self.stop()
                         return False
-
                 except BundleException:
                     # A bundle failed to start : just log
                     _logger.exception("Error starting bundle: %s", bundle)
@@ -1761,12 +1763,11 @@ def _package_exists(path):
     :param path: A Python path
     :return: True if the module or its container exists
     """
-    name = path
-    while name:
-        if os.path.exists(name):
+    while path:
+        if os.path.exists(path):
             return True
         else:
-            name = os.path.dirname(name)
+            path = os.path.dirname(path)
 
     return False
 
@@ -1781,12 +1782,17 @@ def normalize_path():
 
     # Keep the "dynamic" current folder indicator and add the "static"
     # current path
-    sys.path = ['', os.getcwd()]
+    # Use an OrderedDict to have a faster lookup (path not in whole_set)
+    whole_set = collections.OrderedDict(
+        (('', 1), (os.getcwd(), 1)))
 
     # Add original path entries
     for path in whole_path:
-        if path not in sys.path:
-            sys.path.append(path)
+        if path not in whole_set:
+            whole_set[path] = 1
+
+    # Set the new content of sys.path (still ordered thanks to OrderedDict)
+    sys.path = list(whole_set)
 
     # Normalize paths in loaded modules
     for name, module_ in sys.modules.items():
