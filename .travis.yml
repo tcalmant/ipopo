@@ -26,11 +26,15 @@ services:
   - zookeeper
   - prosody
 
+env:
+  global:
+    - COVERAGE_PROCESS_START=".coveragerc"
+
 install:
   - sudo prosodyctl register user1 localhost foobar
   - sudo prosodyctl register user2 localhost foobar
   - sudo prosodyctl restart
-  - pip install nose coverage coveralls
+  - pip install nose coverage coverage_enable_subprocess coveralls
   - pip install pytest>=2.7.3 --upgrade
   - pip install https://github.com/tcalmant/jsonrpclib/archive/master.zip
   - pip install paho-mqtt kazoo redis zeroconf sleekxmpp
