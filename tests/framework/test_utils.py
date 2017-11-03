@@ -102,6 +102,7 @@ class UtilityMethodsTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+
 if __name__ == "__main__":
     # Set logging level
     import logging

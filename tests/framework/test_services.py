@@ -62,7 +62,7 @@ class ServicesTest(unittest.TestCase):
         # Install the service bundle
         bundle = context.install_bundle(self.test_bundle_name)
         bundle_context = bundle.get_bundle_context()
-        module = bundle.get_module()
+        module_ = bundle.get_module()
 
         # Assert we can't access the service
         ref1 = context.get_service_reference(IEchoService)
@@ -129,19 +129,19 @@ class ServicesTest(unittest.TestCase):
         # services
         self.assertListEqual(
             [], context.get_service_references(IEchoService, None),
-            "Framework bundle shoudln't get the echo service")
+            "Framework bundle shouldn't get the echo service")
 
         self.assertListEqual(
             [],
             context.get_service_references(IEchoService, svc_filter),
-            "Framework bundle shoudln't get the filtered echo service")
+            "Framework bundle shouldn't get the filtered echo service")
 
         # Get the service
         svc = context.get_service(ref1)
         assert isinstance(svc, IEchoService)
 
         # Validate the reference
-        self.assertIs(svc, module.service, "Not the same service instance...")
+        self.assertIs(svc, module_.service, "Not the same service instance...")
 
         # Unget the service
         context.unget_service(ref1)
@@ -182,12 +182,12 @@ class ServicesTest(unittest.TestCase):
         bundle = context.install_bundle(self.test_bundle_name)
         assert isinstance(bundle, Bundle)
 
-        module = bundle.get_module()
+        module_ = bundle.get_module()
 
         # --- Start it (registers a service) ---
         bundle.start()
 
-        self.assertIsNotNone(module.service, "The service instance is missing")
+        self.assertIsNotNone(module_.service, "The service instance is missing")
 
         # Get the reference
         ref = context.get_service_reference(IEchoService)
@@ -205,7 +205,6 @@ class ServicesTest(unittest.TestCase):
         context.unget_service(ref)
         self.assertNotIn(ref, self.framework.get_services_in_use(),
                          "Reference usage not removed")
-        svc = None
 
         # --- Uninstall the bundle without stopping it first ---
         bundle.uninstall()
@@ -408,6 +407,7 @@ class ServicesTest(unittest.TestCase):
         self.assertRaises(BundleException, context.get_service, reference)
 
 # ------------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     # Set logging level

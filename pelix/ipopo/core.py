@@ -1067,8 +1067,8 @@ class _IPopoService(object):
 
                 # Properties
                 properties = stored_instance.context.properties.items()
-                result["properties"] = dict((str(key), str(value))
-                                            for key, value in properties)
+                result["properties"] = {str(key): str(value)
+                                        for key, value in properties}
 
                 # All done
                 return result

@@ -288,8 +288,8 @@ class ServiceEventTest(unittest.TestCase):
         self.reset_state()
 
         # Uninstall the bundle, without unregistering the service
-        module = bundle.get_module()
-        module.unregister = False
+        module_ = bundle.get_module()
+        module_.unregister = False
         bundle.uninstall()
 
         # Assert the events have been received
@@ -369,6 +369,7 @@ class ServiceEventTest(unittest.TestCase):
         context.remove_service_listener(self)
 
 # ------------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     # Set logging level

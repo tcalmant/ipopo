@@ -162,7 +162,7 @@ class EventAdminTest(unittest.TestCase):
 
         # Send event, with matching properties
         for topic in ('/titi/toto', '/toto/', '/titi/42', '/titi/toto/tata'):
-            for value in (42, '42', [1, 2, 42, 20], set((42, 10)),
+            for value in (42, '42', [1, 2, 42, 20], {42, 10},
                           (10, 21, 42)):
                 evt_props = {'answer': value}
                 self.eventadmin.send(topic, evt_props)
@@ -175,7 +175,7 @@ class EventAdminTest(unittest.TestCase):
                 self.assertEqual(handler.pop_event(), topic)
 
             # Send events, with a non-matching properties
-            for value in (' 42 ', 21, [1, 2, 3], (4, 5, 6), set((7, 8, 9))):
+            for value in (' 42 ', 21, [1, 2, 3], (4, 5, 6), {7, 8, 9}):
                 self.eventadmin.send(topic, {'answer': value})
                 self.assertEqual(handler.pop_event(), None)
 

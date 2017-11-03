@@ -580,7 +580,7 @@ class DispatcherTest(unittest.TestCase):
 
             # Compute exported interfaces
             exported = ['python:/' + spec for spec
-                        in set([spec_1, spec_2, spec_3]).difference(reject)]
+                        in {spec_1, spec_2, spec_3}.difference(reject)]
 
             # Check it
             endpoint = self.service.get_endpoints()[0]

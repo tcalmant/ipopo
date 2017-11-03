@@ -8,6 +8,7 @@ Project
 =======
 
 * New version of the logo, with SVG sources in the repository
+* Removed Python 2.6 compatibility code
 
 Pelix
 =====

@@ -240,9 +240,8 @@ def to_jabsorb(value):
 
     elif hasattr(value, JAVA_CLASS):
         # Class with a Java class hint: convert into a dictionary
-        class_members = dict((name, getattr(value, name))
-                             for name in dir(value)
-                             if not name.startswith('_'))
+        class_members = {name: getattr(value, name) for name in dir(value)
+                         if not name.startswith('_')}
 
         converted_result = HashableDict(
             (name, to_jabsorb(content))

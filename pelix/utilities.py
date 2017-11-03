@@ -423,7 +423,7 @@ if PYTHON_3:
         (Python 2.x, 3.x) or a unicode (Python 2.x) object
 
         :param string: A potential string object
-        :return: True if the given object is a string object or a Python 2.6
+        :return: True if the given object is a string object or a Python 2.x
                  unicode object
         """
         # Python 3 only have the str string type
@@ -482,7 +482,7 @@ else:
         (Python 2.x, 3.x) or a unicode (Python 2.x) object
 
         :param string: A potential string object
-        :return: True if the given object is a string object or a Python 2.6
+        :return: True if the given object is a string object or a Python 2.x
                  unicode object
         """
         # Python 2 also have unicode
@@ -629,8 +629,7 @@ class EventData(object):
         :param timeout: Wait timeout (in seconds)
         :return: True if the event as been set, else False
         """
-        # The 'or' part is for Python 2.6
-        result = self.__event.wait(timeout) or self.__event.is_set()
+        result = self.__event.wait(timeout)
         # pylint: disable=E0702
         # Pylint seems to miss the "is None" check below
         if self.__exception is None:
@@ -696,5 +695,4 @@ class CountdownEvent(object):
         :param timeout: Wait timeout (in seconds)
         :return: True if the event as been set, else False
         """
-        # The 'or' part is for Python 2.6
-        return self.__event.wait(timeout) or self.__event.is_set()
+        return self.__event.wait(timeout)

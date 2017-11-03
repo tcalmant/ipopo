@@ -319,6 +319,7 @@ class RedisDiscovery(object):
 
         :param endpoint: The updated endpoint
                          (:class:`~pelix.remote.ExportEndpoint`)
+        :param _: Previous end point properties (not used)
         """
         # Update and registration are the same with Redis
         self._register_service(endpoint)

@@ -32,7 +32,7 @@ class JabsorbConverterTest(unittest.TestCase):
         Tests the _is_builtin() method
         """
         for item in (int, 42, str, "toto", bool, True, float, 3.14,
-                     dict, {"a": "b"}, set, set([12]), tuple, (1, 2, 3),
+                     dict, {"a": "b"}, set, {12}, tuple, (1, 2, 3),
                      list, [4, 5, 6]):
             self.assertTrue(jabsorb._is_builtin(item),
                             "Item {0} should be built-in".format(item))
@@ -47,7 +47,7 @@ class JabsorbConverterTest(unittest.TestCase):
         """
         value = {"list": [1, 2, 3],
                  "tuple": (1, 2, 3),
-                 "set": set((1, 2, 3)),
+                 "set": {1, 2, 3},
                  "dict": {"a": "b", "c": "d"},
                  "int": 42,
                  "float": 3.14,
@@ -120,7 +120,7 @@ class JabsorbConverterTest(unittest.TestCase):
         self.assertIs(revert, bean)
         self.assertEqual(revert.list, [1, 2, 3])
         self.assertEqual(revert.tuple, (1, 2, 3))
-        self.assertEqual(revert.set, set((1, 2, 3)))
+        self.assertEqual(revert.set, {1, 2, 3})
 
     def testHashableType(self):
         """
@@ -151,7 +151,7 @@ class JabsorbConverterTest(unittest.TestCase):
         """
         value = {"list": [1, 2, 3],
                  "tuple": (1, 2, 3),
-                 "set": set((1, 2, 3)),
+                 "set": {1, 2, 3},
                  "dict": {"a": "b", "c": "d"},
                  "int": 42,
                  "float": 3.14,
@@ -184,7 +184,7 @@ class JabsorbConverterTest(unittest.TestCase):
                 # Prepare a fake bean
                 value = {"list": [1, 2, 3],
                          "tuple": (1, 2, 3),
-                         "set": set((1, 2, 3)),
+                         "set": {1, 2, 3},
                          "dict": {"a": "b", "c": "d"},
                          "int": 42,
                          "float": 3.14,

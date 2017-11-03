@@ -276,8 +276,8 @@ class _ServiceCallProxy(object):
 
             # Convert arguments
             args = [jabsorb.to_jabsorb(arg) for arg in args]
-            kwargs = dict((key, jabsorb.to_jabsorb(value))
-                          for key, value in kwargs.items())
+            kwargs = {key: jabsorb.to_jabsorb(value)
+                      for key, value in kwargs.items()}
 
             result = method(*args, **kwargs)
             return jabsorb.from_jabsorb(result)

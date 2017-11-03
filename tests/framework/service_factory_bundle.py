@@ -54,7 +54,6 @@ class ServiceFactoryTest:
         self.made_for.remove(client_id)
 
 
-
 class RegistrationKeeper:
     """
     Keeps track of factory registration

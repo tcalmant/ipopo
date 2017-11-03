@@ -174,7 +174,7 @@ class ConfigurationAdminTest(unittest.TestCase):
         self.assertFalse(config.is_valid(), "Fresh configuration is valid")
 
         # It must be visible, but must not match filters
-        self.assertSetEqual(self.config.list_configurations(), set([config]),
+        self.assertSetEqual(self.config.list_configurations(), {config},
                             "Incorrect result set")
 
         ldap_filter = "({0}={1})".format(services.CONFIG_PROP_PID, pid)
@@ -185,7 +185,7 @@ class ConfigurationAdminTest(unittest.TestCase):
         config.update({'arthur': 'dent'})
 
         # It must be visible, even with filters
-        self.assertSetEqual(self.config.list_configurations(), set([config]),
+        self.assertSetEqual(self.config.list_configurations(), {config},
                             "Incorrect result set")
 
         filters = [  # PID
@@ -198,20 +198,19 @@ class ConfigurationAdminTest(unittest.TestCase):
         ]
 
         for ldap_filter in filters:
-            self.assertSetEqual(self.config.list_configurations(ldap_filter),
-                                set([config]),
-                                "Configuration doesn't match filter {0}"
-                                .format(ldap_filter))
+            self.assertSetEqual(
+                self.config.list_configurations(ldap_filter), {config},
+                "Configuration doesn't match filter {0}".format(ldap_filter))
 
         # Add a new configuration
         config2 = self.config.get_configuration(pid + "-bis")
-        self.assertSetEqual(self.config.list_configurations(),
-                            set([config, config2]),
-                            "Incorrect result set")
+        self.assertSetEqual(
+            self.config.list_configurations(), {config, config2},
+            "Incorrect result set")
 
         # Delete it
         config2.delete()
-        self.assertSetEqual(self.config.list_configurations(), set([config]),
+        self.assertSetEqual(self.config.list_configurations(), {config},
                             "Incorrect result set")
 
         # Delete the first one
