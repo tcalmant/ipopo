@@ -180,10 +180,10 @@ class FrameworkTest(unittest.TestCase):
 
         # Install the bundle
         bundle = context.install_bundle(SIMPLE_BUNDLE)
-        module = bundle.get_module()
+        module_ = bundle.get_module()
 
         # Set module in raiser mode
-        module.raiser = True
+        module_.raiser = True
 
         # Framework can start...
         log_off()
@@ -200,7 +200,7 @@ class FrameworkTest(unittest.TestCase):
         self.assertTrue(framework.stop(), "Framework should be stopped")
 
         # Remove raiser mode
-        module.raiser = False
+        module_.raiser = False
 
         # Framework can start
         self.assertTrue(framework.start(), "Framework couldn't be started")
@@ -210,7 +210,7 @@ class FrameworkTest(unittest.TestCase):
                          "Bundle should be in ACTIVE state")
 
         # Set module in raiser mode
-        module.raiser = True
+        module_.raiser = True
 
         # Stop the framework
         log_off()
@@ -233,10 +233,10 @@ class FrameworkTest(unittest.TestCase):
 
         # Install the bundle
         bundle = context.install_bundle(SIMPLE_BUNDLE)
-        module = bundle.get_module()
+        module_ = bundle.get_module()
 
         # Set module in non-raiser mode
-        module.raiser = False
+        module_.raiser = False
 
         # Framework can start...
         log_off()
@@ -248,7 +248,7 @@ class FrameworkTest(unittest.TestCase):
         log_on()
 
         # Set module in raiser mode
-        module.raiser = True
+        module_.raiser = True
 
         # Bundle must raise the exception and stay active
         log_off()
@@ -270,11 +270,11 @@ class FrameworkTest(unittest.TestCase):
 
         # Install the bundle
         bundle = context.install_bundle(SIMPLE_BUNDLE)
-        module = bundle.get_module()
+        module_ = bundle.get_module()
 
         # Set module in raiser stop mode
-        module.fw_raiser = True
-        module.fw_raiser_stop = True
+        module_.fw_raiser = True
+        module_.fw_raiser_stop = True
 
         log_off()
         self.assertFalse(framework.start(), "Framework should be stopped")
@@ -285,7 +285,7 @@ class FrameworkTest(unittest.TestCase):
         log_on()
 
         # Set module in raiser non-stop mode
-        module.fw_raiser_stop = False
+        module_.fw_raiser_stop = False
 
         log_off()
         self.assertTrue(framework.start(), "Framework should be stopped")
@@ -296,14 +296,14 @@ class FrameworkTest(unittest.TestCase):
         log_on()
 
         # Start the module
-        module.fw_raiser = False
+        module_.fw_raiser = False
         bundle.start()
         self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
                          "Bundle should be active")
 
         # Set module in raiser mode
-        module.fw_raiser = True
-        module.fw_raiser_stop = True
+        module_.fw_raiser = True
+        module_.fw_raiser_stop = True
 
         # Stop the framework
         log_off()
@@ -518,6 +518,7 @@ class FrameworkTest(unittest.TestCase):
         FrameworkFactory.delete_framework()
 
 # ------------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     # Set logging level

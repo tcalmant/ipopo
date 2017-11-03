@@ -111,9 +111,9 @@ class EdefIOTest(unittest.TestCase):
             "list_str": ["a", "b", "c"],
             "list_int": [1, 2, 3],
             "list_float": [1.0, 2.0, 3.0],
-            "set_str": set(["a", "b", "c"]),
-            "set_int": set([1, 2, 3]),
-            "set_float": set([1.0, 2.0, 3.0])}
+            "set_str": {"a", "b", "c"},
+            "set_int": {1, 2, 3},
+            "set_float": {1.0, 2.0, 3.0}}
 
         all_props = properties.copy()
         all_props[pelix.remote.PROP_ENDPOINT_ID] = 'toto'

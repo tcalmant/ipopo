@@ -108,7 +108,7 @@ class HttpRoutingTests(unittest.TestCase):
             pass
 
         for valid in (None, ("POST",), ["GET"],
-                      ("GET", "HEAD"), ["GET, HEAD"], set(("HEAD", "GET")),
+                      ("GET", "HEAD"), ["GET, HEAD"], {"HEAD", "GET"},
                       frozenset(("GET", "HEAD"))):
             self.assertIs(routing.Http("/", valid)(dummy), dummy)
 

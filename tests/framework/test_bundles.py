@@ -78,23 +78,23 @@ class BundlesTest(unittest.TestCase):
                              "Not the first bundle in framework")
 
         # Get the internal module
-        module = bundle.get_module()
+        module_ = bundle.get_module()
 
         # Assert initial state
-        self.assertFalse(module.started, "Bundle should not be started yet")
-        self.assertFalse(module.stopped, "Bundle should not be stopped yet")
+        self.assertFalse(module_.started, "Bundle should not be started yet")
+        self.assertFalse(module_.stopped, "Bundle should not be stopped yet")
 
         # Activator
         bundle.start()
 
-        self.assertTrue(module.started, "Bundle should be started now")
-        self.assertFalse(module.stopped, "Bundle should not be stopped yet")
+        self.assertTrue(module_.started, "Bundle should be started now")
+        self.assertFalse(module_.stopped, "Bundle should not be stopped yet")
 
         # De-activate
         bundle.stop()
 
-        self.assertTrue(module.started, "Bundle should be changed")
-        self.assertTrue(module.stopped, "Bundle should be stopped now")
+        self.assertTrue(module_.started, "Bundle should be changed")
+        self.assertTrue(module_.stopped, "Bundle should be stopped now")
 
         # Uninstall (validated in another test)
         bundle.uninstall()
@@ -113,23 +113,23 @@ class BundlesTest(unittest.TestCase):
                              "Not the first bundle in framework")
 
         # Get the internal module
-        module = bundle.get_module()
+        module_ = bundle.get_module()
 
         # Assert initial state
-        self.assertFalse(module.started, "Bundle should not be started yet")
-        self.assertFalse(module.stopped, "Bundle should not be stopped yet")
+        self.assertFalse(module_.started, "Bundle should not be started yet")
+        self.assertFalse(module_.stopped, "Bundle should not be stopped yet")
 
         # Activator
         bundle.start()
 
-        self.assertTrue(module.started, "Bundle should be started now")
-        self.assertFalse(module.stopped, "Bundle should not be stopped yet")
+        self.assertTrue(module_.started, "Bundle should be started now")
+        self.assertFalse(module_.stopped, "Bundle should not be stopped yet")
 
         # De-activate
         bundle.stop()
 
-        self.assertTrue(module.started, "Bundle should be changed")
-        self.assertTrue(module.stopped, "Bundle should be stopped now")
+        self.assertTrue(module_.started, "Bundle should be changed")
+        self.assertTrue(module_.stopped, "Bundle should be stopped now")
 
         # Uninstall (validated in another test)
         bundle.uninstall()
@@ -143,11 +143,11 @@ class BundlesTest(unittest.TestCase):
         assert isinstance(bundle, Bundle)
 
         # Get the internal module
-        module = bundle.get_module()
+        module_ = bundle.get_module()
 
         # Assert initial state
-        self.assertFalse(module.started, "Bundle should not be started yet")
-        self.assertFalse(module.stopped, "Bundle should not be stopped yet")
+        self.assertFalse(module_.started, "Bundle should not be started yet")
+        self.assertFalse(module_.stopped, "Bundle should not be stopped yet")
 
         # Activator
         bundle.start()
@@ -155,16 +155,16 @@ class BundlesTest(unittest.TestCase):
         self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
                          "Bundle should be considered active")
 
-        self.assertTrue(module.started, "Bundle should be started now")
-        self.assertFalse(module.stopped, "Bundle should not be stopped yet")
+        self.assertTrue(module_.started, "Bundle should be started now")
+        self.assertFalse(module_.stopped, "Bundle should not be stopped yet")
 
         # Recall activator
-        module.started = False
+        module_.started = False
         bundle.start()
-        self.assertFalse(module.started, "Bundle shouldn't be started twice")
+        self.assertFalse(module_.started, "Bundle shouldn't be started twice")
 
         # Reset to previous state
-        module.started = True
+        module_.started = True
 
         # De-activate
         bundle.stop()
@@ -172,13 +172,13 @@ class BundlesTest(unittest.TestCase):
         self.assertNotEqual(bundle.get_state(), Bundle.ACTIVE,
                             "Bundle shouldn't be considered active")
 
-        self.assertTrue(module.started, "Bundle should be changed")
-        self.assertTrue(module.stopped, "Bundle should be stopped now")
+        self.assertTrue(module_.started, "Bundle should be changed")
+        self.assertTrue(module_.stopped, "Bundle should be stopped now")
 
         # Recall activator
-        module.stopped = False
+        module_.stopped = False
         bundle.stop()
-        self.assertFalse(module.stopped, "Bundle shouldn't be stopped twice")
+        self.assertFalse(module_.stopped, "Bundle shouldn't be stopped twice")
 
         # Uninstall (validated in another test)
         bundle.uninstall()
@@ -195,14 +195,14 @@ class BundlesTest(unittest.TestCase):
         assert isinstance(bundle, Bundle)
 
         # Get the internal module
-        module = bundle.get_module()
+        module_ = bundle.get_module()
 
         # Assert initial state
-        self.assertFalse(module.started, "Bundle should not be started yet")
-        self.assertFalse(module.stopped, "Bundle should not be stopped yet")
+        self.assertFalse(module_.started, "Bundle should not be started yet")
+        self.assertFalse(module_.stopped, "Bundle should not be stopped yet")
 
         # Activator with exception
-        module.raiser = True
+        module_.raiser = True
 
         log_off()
         self.assertRaises(BundleException, bundle.start)
@@ -211,21 +211,21 @@ class BundlesTest(unittest.TestCase):
         # Assert post-exception state
         self.assertNotEqual(bundle.get_state(), Bundle.ACTIVE,
                             "Bundle shouldn't be considered active")
-        self.assertFalse(module.started, "Bundle should not be started yet")
-        self.assertFalse(module.stopped, "Bundle should not be stopped yet")
+        self.assertFalse(module_.started, "Bundle should not be started yet")
+        self.assertFalse(module_.stopped, "Bundle should not be stopped yet")
 
         # Activator, without exception
-        module.raiser = False
+        module_.raiser = False
         bundle.start()
 
         self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
                          "Bundle should be considered active")
 
-        self.assertTrue(module.started, "Bundle should be started now")
-        self.assertFalse(module.stopped, "Bundle should not be stopped yet")
+        self.assertTrue(module_.started, "Bundle should be started now")
+        self.assertFalse(module_.stopped, "Bundle should not be stopped yet")
 
         # De-activate with exception
-        module.raiser = True
+        module_.raiser = True
 
         log_off()
         self.assertRaises(BundleException, bundle.stop)
@@ -233,8 +233,8 @@ class BundlesTest(unittest.TestCase):
 
         self.assertNotEqual(bundle.get_state(), Bundle.ACTIVE,
                             "Bundle shouldn't be considered active")
-        self.assertTrue(module.started, "Bundle should be changed")
-        self.assertFalse(module.stopped, "Bundle should be stopped now")
+        self.assertTrue(module_.started, "Bundle should be changed")
+        self.assertFalse(module_.stopped, "Bundle should be stopped now")
 
         # Uninstall (validated in another test)
         bundle.uninstall()
@@ -305,6 +305,8 @@ class BundlesTest(unittest.TestCase):
         Tests a bundle update
         """
         bundle_content = """#!/usr/bin/python
+# -- Content-Encoding: UTF-8 --
+
 # Auto-generated bundle, for Pelix tests
 __version__ = "{version}"
 test_var = {test}
@@ -376,7 +378,7 @@ def test_fct():
         self.assertEqual(bid, 1, "Invalid first bundle ID '{0:d}'".format(bid))
 
         # Get the internal module
-        module = bundle.get_module()
+        module_ = bundle.get_module()
 
         # Validate the bundle name
         self.assertEqual(bundle.get_symbolic_name(), self.test_bundle_name,
@@ -391,9 +393,9 @@ def test_fct():
                       (bundle_without_ext, full_bundle_path))
 
         # Validate the version number
-        self.assertEqual(bundle.get_version(), module.__version__,
+        self.assertEqual(bundle.get_version(), module_.__version__,
                          "Different versions found ({0} / {1})"
-                         .format(bundle.get_version(), module.__version__))
+                         .format(bundle.get_version(), module_.__version__))
 
         # Remove the bundle
         bundle.uninstall()
@@ -459,9 +461,9 @@ class LocalBundleTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+
 if __name__ == "__main__":
     # Set logging level
     import logging
     logging.basicConfig(level=logging.DEBUG)
-
     unittest.main()
