@@ -113,8 +113,8 @@ def _make_args(args_list, session, fw_props):
 
     # Replace variables
     args = [_ArgTemplate(arg).safe_substitute(variables) for arg in args]
-    kwargs = dict((key, _ArgTemplate(value).safe_substitute(variables))
-                  for key, value in kwargs.items())
+    kwargs = {key: _ArgTemplate(value).safe_substitute(variables)
+              for key, value in kwargs.items()}
     return args, kwargs
 
 

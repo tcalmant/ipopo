@@ -394,8 +394,8 @@ class _ConfigurationDirectory(object):
         else:
             # Using an LDAP filter
             ldap_filter = ldapfilter.get_ldap_filter(ldap_filter)
-            return set(config for config in self.__configurations.values()
-                       if config.matches(ldap_filter))
+            return {config for config in self.__configurations.values()
+                    if config.matches(ldap_filter)}
 
     def add(self, pid, properties, loader, factory_pid=None):
         """

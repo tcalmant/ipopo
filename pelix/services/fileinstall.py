@@ -335,8 +335,8 @@ class FileInstall(object):
                 continue
 
             # Look for files
-            filenames = set(filename for filename in os.listdir(folder)
-                            if os.path.isfile(os.path.join(folder, filename)))
+            filenames = {filename for filename in os.listdir(folder)
+                         if os.path.isfile(os.path.join(folder, filename))}
 
             # Prepare the sets
             added = set()

@@ -584,9 +584,7 @@ class _ReportCommands(object):
 
     def make_report(self, session, *levels):
         """
-        Prepares the report
-
-        :param levels: list of levels
+        Prepares the report at the requested level(s)
         """
         if not levels:
             levels = ['full']

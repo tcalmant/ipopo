@@ -325,8 +325,10 @@ class MqttConnectionFactory(object):
             port = properties.get('port', 1883)
             keep_alive = properties.get('keepalive', 60)
 
-            # Reference holder for the service registration
             class Holder:
+                """
+                Reference holder for the service registration
+                """
                 registration = None
 
             holder = Holder()
