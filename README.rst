@@ -1,6 +1,6 @@
 .. image:: https://ipopo.readthedocs.io/en/latest/_images/logo_texte_500.png
    :alt: iPOPO logo
-   :width: 200 px
+   :width: 200px
    :align: center
    :target: https://ipopo.readthedocs.io/
 
