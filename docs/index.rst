@@ -8,7 +8,7 @@ Welcome to iPOPO
 
 iPOPO is a Python-based Service-Oriented Component Model (SOCM) based on Pelix,
 a dynamic service platform.
-They are inspired on two popular Java technologies for the development of
+They are inspired by two popular Java technologies for the development of
 long-lived applications: the
 `iPOJO <http://felix.apache.org/documentation/subprojects/apache-felix-ipojo.html>`_
 component model and the `OSGi <http://osgi.org/>`_ Service Platform.
