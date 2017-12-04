@@ -12,20 +12,20 @@ They are inspired by two popular Java technologies for the development of
 long-lived applications: the
 `iPOJO <http://felix.apache.org/documentation/subprojects/apache-felix-ipojo.html>`_
 component model and the `OSGi <http://osgi.org/>`_ Service Platform.
-iPOPO enables to conceive long-running and modular IT services.
+iPOPO enables the conception of long-running and modular IT services.
 
-This documentation is divided in three main parts.
+This documentation is divided into three main parts.
 The :ref:`quickstart` will guide you to install iPOPO and write your first
 components.
 The :ref:`refcards` section details the various concepts of iPOPO.
 Finally, the :ref:`tutorials` explain how to use the various built-in
 services of iPOPO.
-You can also take a look to the slides of the
+You can also take a look at the slides of the
 `iPOPO tutorial <https://github.com/tcalmant/ipopo-tutorials/releases>`_
 to have a quick overview of iPOPO.
 
-This documentation is inspired from
-`Flask's one <http://flask.pocoo.org/>`_.
+This documentation is inspired by
+the `Flask's one <http://flask.pocoo.org/>`_.
 
 iPOPO depends on a fork of `jsonrpclib`_, called `jsonrpclib-pelix`_.
 The documentation of this library is available on
@@ -50,7 +50,7 @@ on the users' mailing list, once enough answers will have been received.
 State of this documentation
 ===========================
 
-This documentation is a work in progress, going nearly from scratch.
+This documentation is a work in progress, starting nearly from scratch.
 
 The previous documentation was provided as a wiki on a dedicated server which I
 had to take down due to many reasons (DoS attacks, update issues, ...).
@@ -62,9 +62,9 @@ project, and it can include *docstrings* directly from the source code.
 Alas, the wiki content must be completely rewritten in reStructuredText format.
 I take this opportunity to update the documentation, but it takes a lot of time,
 and I can't work on this project as much as I'd like to.
-So, if you have any question which can't be answered in the current
+So, if you have any question which hasn't been answered in the current
 documentation, please ask on the
-`users mailing list <https://groups.google.com/forum/#!forum/ipopo-users>`_.
+`users' mailing list <https://groups.google.com/forum/#!forum/ipopo-users>`_.
 
 As always, all contributions to the documentation and the code are very
 appreciated.
