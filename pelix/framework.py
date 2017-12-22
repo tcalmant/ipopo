@@ -775,7 +775,7 @@ class Framework(Bundle):
             return tuple(self.__properties.keys())
 
     def get_service(self, bundle, reference):
-        # type: (Bundle, ServiceReference) -> object
+        # type: (Bundle, ServiceReference) -> Any
         """
         Retrieves the service corresponding to the given reference
 
@@ -796,6 +796,18 @@ class Framework(Bundle):
             return self.__unregistering_services[reference]
         except KeyError:
             return self._registry.get_service(bundle, reference)
+
+    def _get_service_objects(self, bundle, reference):
+        # type: (Bundle, ServiceReference) -> ServiceObjects
+        """
+        Returns the ServiceObjects object for the service referenced by the
+        specified ServiceReference object.
+
+        :param bundle: The bundle requiring the service
+        :param reference: Reference to a prototype service factory
+        :return: An intermediate object to get more instances of a service
+        """
+        return ServiceObjects(self._registry, bundle, reference)
 
     def get_symbolic_name(self):
         # type: () -> str
@@ -1304,6 +1316,49 @@ class Framework(Bundle):
 # ------------------------------------------------------------------------------
 
 
+class ServiceObjects(object):
+    """
+    Allows multiple service objects for a service to be obtained.
+    """
+    def __init__(self, registry, bundle, svc_ref):
+        # type: (ServiceRegistry, Bundle, ServiceReference) -> None
+        """
+        :param bundle: Bundle requesting the service
+        :param svc_ref: Reference to the requested service
+        """
+        self.__registry = registry
+        self.__bundle = bundle
+        self.__reference = svc_ref
+
+    def get_service(self):
+        # type: () -> Any
+        """
+        Returns a service object for the associated service.
+        """
+        return self.__registry.get_service(self.__bundle, self.__reference)
+
+    def get_service_reference(self):
+        # type: () -> ServiceReference
+        """
+        Returns the ServiceReference for the service associated with this
+        object.
+
+        :return: The ServiceReference to the service associated to this object
+        """
+        return self.__reference
+
+    def unget_service(self, service):
+        # type: (Any) -> bool
+        """
+        Releases a service object for the associated service.
+
+        :param service: An instance of a service returned by ``get_service()``
+        :return: True if the bundle usage has been removed
+        """
+        return self.__registry.unget_service(
+            self.__bundle, self.__reference, service)
+
+
 class BundleContext(object):
     """
     The bundle context is the link between a bundle and the framework.
@@ -1456,10 +1511,21 @@ class BundleContext(object):
         """
         return self.__framework.get_service(self.__bundle, reference)
 
+    def get_service_objects(self, reference):
+        # type: (ServiceReference) -> ServiceObjects
+        """
+        Returns the ServiceObjects object for the service referenced by the
+        specified ServiceReference object.
+
+        :param reference: Reference to a prototype service factory
+        :return: An intermediate object to get more instances of a service
+        """
+        return self.__framework._get_service_objects(self.__bundle, reference)
+
     def get_service_reference(self, clazz, ldap_filter=None):
         # type: (Optional[str], Optional[str]) -> Optional[ServiceReference]
         """
-        Returns a ServiceReference object for a service that implements and \
+        Returns a ServiceReference object for a service that implements and
         was registered under the specified class
 
         :param clazz: The class name with which the service was registered.
