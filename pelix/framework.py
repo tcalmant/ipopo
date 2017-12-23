@@ -473,6 +473,9 @@ class Bundle(object):
             # Remove remaining services (the hard way)
             self.__unregister_services()
 
+            # Cleanup service usages
+            self.__framework._unget_used_services(self)
+
             # Bundle is now stopped and all its services have been unregistered
             self._state = Bundle.RESOLVED
             self._fire_bundle_event(BundleEvent.STOPPED)
@@ -1279,6 +1282,15 @@ class Framework(Bundle):
         :return: The references of the hidden services
         """
         return self._registry.hide_bundle_services(bundle)
+
+    def _unget_used_services(self, bundle):
+        # type: (Bundle) -> None
+        """
+        Cleans up all service usages of the given bundle
+
+        :param bundle: Bundle to be cleaned up
+        """
+        self._registry.unget_used_services(bundle)
 
     def update(self):
         """

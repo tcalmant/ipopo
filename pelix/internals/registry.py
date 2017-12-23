@@ -158,14 +158,15 @@ class _FactoryCounter(object):
 
         try:
             # Check if the service already exists
-            counter = self.__factored[svc_ref][1]
+            services, counter = self.__factored[svc_ref]
+            services.append(service)
             counter.inc()
         except KeyError:
             counter = _UsageCounter()
             counter.inc()
 
             # Store the counter
-            self.__factored[svc_ref] = (None, counter)
+            self.__factored[svc_ref] = ([service], counter)
 
         return service
 
@@ -234,10 +235,21 @@ class _FactoryCounter(object):
         """
         svc_ref = svc_registration.get_reference()
         try:
-            _, counter = self.__factored.pop(svc_ref)
+            # "service" for factories, "services" for prototypes
+            services, counter = self.__factored.pop(svc_ref)
         except KeyError:
             return False
         else:
+            if svc_ref.is_prototype() and services:
+                for service in services:
+                    try:
+                        factory.unget_service_instance(
+                            self.__bundle, svc_registration, service)
+                    except Exception:
+                        # Ignore instance-level exceptions, potential errors
+                        # will reappear in unget_service()
+                        pass
+
             # Call the factory
             factory.unget_service(self.__bundle, svc_registration)
 
@@ -1222,6 +1234,47 @@ class ServiceRegistry(object):
             # Not found
             raise BundleException("Service not found (reference: {0})"
                                   .format(reference))
+
+    def unget_used_services(self, bundle):
+        """
+        Cleans up all service usages of the given bundle.
+
+        :param bundle: Bundle to be cleaned up
+        """
+        # Pop used references
+        try:
+            imported_refs = list(self.__bundle_imports.pop(bundle))
+        except KeyError:
+            # Nothing to do
+            return
+
+        for svc_ref in imported_refs:
+            if not svc_ref.is_factory():
+                # Basic service, use the standard method
+                self.unget_service(bundle, svc_ref)
+            elif svc_ref.is_prototype():
+                # Remove usage marker
+                svc_ref.unused_by(bundle)
+
+                # Get factory information and clean up the service from the
+                # factory counter
+                factory_counter = self.__factory_usage.pop(bundle)
+                factory, svc_reg = self.__svc_factories[svc_ref]
+                factory_counter.cleanup_service(factory, svc_reg)
+            else:
+                # Factory service, release it the standard way
+                self.__unget_service_from_factory(bundle, svc_ref)
+
+        # Clean up local structures
+        try:
+            del self.__factory_usage[bundle]
+        except KeyError:
+            pass
+
+        try:
+            self.__bundle_imports.pop(bundle).clear()
+        except KeyError:
+            pass
 
     def unget_service(self, bundle, reference, service=None):
         # type: (Any, ServiceReference, Any) -> bool
