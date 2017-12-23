@@ -179,6 +179,87 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
         self.assertTrue(svc.released)
         self.assertNotIn(consumer_bnd, factory.instances)
 
+    def test_service_objects_singleton(self):
+        """
+        Tests BundleContext.get_service_objects() with a singleton service
+        """
+        # Start two bundles for their context
+        bnd_1 = self.context.install_bundle("tests.dummy_1")
+        bnd_1.start()
+        ctx_1 = bnd_1.get_bundle_context()
+
+        bnd_2 = self.context.install_bundle("tests.dummy_2")
+        bnd_2.start()
+        ctx_2 = bnd_2.get_bundle_context()
+
+        # Singleton service
+        singleton_svc = object()
+        singleton_reg = self.context.register_service(
+            "test.singleton", singleton_svc, {})
+        singleton_ref = singleton_reg.get_reference()
+
+        # Get the singleton object
+        obj_1 = ctx_1.get_service_objects(singleton_ref)
+        svc_1_a = obj_1.get_service()
+        svc_1_b = obj_1.get_service()
+        svc_1_c = ctx_1.get_service(singleton_ref)
+        self.assertIs(svc_1_a, svc_1_b)
+        self.assertIs(svc_1_a, svc_1_c)
+
+        obj_2 = ctx_2.get_service_objects(singleton_ref)
+        svc_2_a = obj_2.get_service()
+        svc_2_b = obj_2.get_service()
+        svc_2_c = ctx_2.get_service(singleton_ref)
+        self.assertIs(svc_2_a, svc_2_b)
+        self.assertIs(svc_2_a, svc_2_c)
+
+        # Ensure that the same service has been retrieved
+        self.assertIs(svc_1_a, svc_2_a)
+
+    def test_service_objects_factory(self):
+        """
+        Tests BundleContext.get_service_objects() with a factory service
+        """
+        # Start two bundles for their context
+        bnd_1 = self.context.install_bundle("tests.dummy_1")
+        bnd_1.start()
+        ctx_1 = bnd_1.get_bundle_context()
+
+        bnd_2 = self.context.install_bundle("tests.dummy_2")
+        bnd_2.start()
+        ctx_2 = bnd_2.get_bundle_context()
+
+        # Service Factory
+        class Factory:
+            def get_service(self, bundle, svc_reg):
+                return object()
+
+            def unget_service(self, bundle, svc_reg):
+                pass
+
+        factory_svc = Factory()
+        factory_reg = self.context.register_service(
+            "test.factory", factory_svc, {}, factory=True)
+        factory_ref = factory_reg.get_reference()
+
+        # Get the factory object
+        obj_1 = ctx_1.get_service_objects(factory_ref)
+        svc_1_a = obj_1.get_service()
+        svc_1_b = obj_1.get_service()
+        svc_1_c = ctx_1.get_service(factory_ref)
+        self.assertIs(svc_1_a, svc_1_b)
+        self.assertIs(svc_1_a, svc_1_c)
+
+        obj_2 = ctx_2.get_service_objects(factory_ref)
+        svc_2_a = obj_2.get_service()
+        svc_2_b = obj_2.get_service()
+        svc_2_c = ctx_2.get_service(factory_ref)
+        self.assertIs(svc_2_a, svc_2_b)
+        self.assertIs(svc_2_a, svc_2_c)
+
+        # Ensure that a different service has been retrieved
+        self.assertIsNot(svc_1_a, svc_2_a)
+
 
 if __name__ == "__main__":
     # Set logging level
