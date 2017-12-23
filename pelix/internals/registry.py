@@ -1249,19 +1249,16 @@ class ServiceRegistry(object):
             return
 
         for svc_ref in imported_refs:
-            if not svc_ref.is_factory():
-                # Basic service, use the standard method
-                self.unget_service(bundle, svc_ref)
-            elif svc_ref.is_prototype():
-                # Remove usage marker
-                svc_ref.unused_by(bundle)
+            # Remove usage marker
+            svc_ref.unused_by(bundle)
 
+            if svc_ref.is_prototype():
                 # Get factory information and clean up the service from the
                 # factory counter
                 factory_counter = self.__factory_usage.pop(bundle)
                 factory, svc_reg = self.__svc_factories[svc_ref]
                 factory_counter.cleanup_service(factory, svc_reg)
-            else:
+            elif svc_ref.is_factory():
                 # Factory service, release it the standard way
                 self.__unget_service_from_factory(bundle, svc_ref)
 

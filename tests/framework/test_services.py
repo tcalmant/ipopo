@@ -406,6 +406,31 @@ class ServicesTest(unittest.TestCase):
         # Try to get it
         self.assertRaises(BundleException, context.get_service, reference)
 
+    def test_auto_release(self):
+        """
+        Tests auto-release of a simple service
+        """
+        # Register a service for the framework
+        context_fw = self.framework.get_bundle_context()
+        svc_reg = context_fw.register_service("test.cleanup", object(), {})
+        svc_ref = svc_reg.get_reference()
+
+        # Start a dummy bundle for its context
+        bnd = context_fw.install_bundle("tests.dummy_1")
+        bnd.start()
+        ctx = bnd.get_bundle_context()
+
+        # Consume the service
+        svc = ctx.get_service(svc_ref)
+        self.assertIsNotNone(svc)
+        self.assertIn(bnd, svc_ref.get_using_bundles())
+
+        # Stop the bundle
+        bnd.stop()
+
+        # Ensure the release of the service
+        self.assertNotIn(bnd, svc_ref.get_using_bundles())
+
 # ------------------------------------------------------------------------------
 
 

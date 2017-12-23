@@ -146,6 +146,37 @@ class ServicesTest(unittest.TestCase):
         self.assertIs(svc.real, svc.given)
         self.assertListEqual(svc_ref.get_using_bundles(), [])
 
+    def test_auto_release(self):
+        """
+        Tests auto-release of a service factory
+        """
+        # Register a service for the framework
+        context_fw = self.framework.get_bundle_context()
+
+        # Install the bundle providing a service factory
+        factory_bundle = context_fw.install_bundle(self.test_bundle_name)
+        factory_module = factory_bundle.get_module()
+        factory_bundle.start()
+
+        # Find the service
+        svc_ref = context_fw.get_service_reference(factory_module.SVC)
+
+        # Start a dummy bundle for its context
+        bnd = context_fw.install_bundle("tests.dummy_1")
+        bnd.start()
+        ctx = bnd.get_bundle_context()
+
+        # Consume the service
+        svc = ctx.get_service(svc_ref)
+        self.assertIsNotNone(svc)
+        self.assertIn(bnd, svc_ref.get_using_bundles())
+
+        # Stop the bundle
+        bnd.stop()
+
+        # Ensure the release of the service
+        self.assertNotIn(bnd, svc_ref.get_using_bundles())
+
 
 if __name__ == "__main__":
     # Set logging level
