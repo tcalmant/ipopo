@@ -29,6 +29,7 @@ Python library.
 """
 
 # Standard library
+import functools
 import logging
 import socket
 import threading
@@ -240,6 +241,18 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
 # ------------------------------------------------------------------------------
 
 
+@functools.lru_cache()
+def parse_path(request_path):
+    """
+    Returns the hierarchical path part of the given request path
+    (removes the query parameters)
+
+    :param request_path: A request path
+    :return: The hierarchical path of the URL
+    """
+    return urlparse.urlparse(request_path).path
+
+
 class _RequestHandler(BaseHTTPRequestHandler, object):
     """
     Basic HTTP server request handler
@@ -275,8 +288,7 @@ class _RequestHandler(BaseHTTPRequestHandler, object):
         path = self.path.replace('//', '/')
 
         # Parse the URL
-        parsed_url = urlparse.urlparse(path)
-        parsed_path = parsed_url.path
+        parsed_path = parse_path(path)
 
         # Get the corresponding servlet
         found_servlet = self._service.get_servlet(parsed_path)
@@ -418,10 +430,11 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
         Starts a new thread to process the request, adding the client address
         in its name.
         """
-        thread = threading.Thread(name="HttpService-{0}-Client-{1}"
-                                  .format(self.server_port, client_address),
-                                  target=self.process_request_thread,
-                                  args=(request, client_address))
+        thread = threading.Thread(
+            name="HttpService-{0}-Client-{1}".format(
+                self.server_port, client_address),
+            target=self.process_request_thread,
+            args=(request, client_address))
         thread.daemon = self.daemon_threads
         thread.start()
 
@@ -442,7 +455,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 @Property("_instance_name", constants.IPOPO_INSTANCE_NAME)
 @Property("_logger_name", "pelix.http.logger.name", "")
 @Property("_logger_level", "pelix.http.logger.level", None)
-@Property('_request_queue_size', "pelix.http.request_queue_size", 5)
+@Property('_request_queue_size', "pelix.http.request_queue_size", 100)
 class HttpService(object):
     """
     Basic HTTP service component
@@ -665,7 +678,7 @@ class HttpService(object):
                     # Found a corresponding servlet
                     # which is deeper than the previous one
                     longest_match = servlet_path
-                    longest_match_len = len(longest_match)
+                    longest_match_len = len(servlet_path)
 
             # Return the found servlet
             if not longest_match:

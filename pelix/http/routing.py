@@ -79,6 +79,11 @@ TYPE_PATTERNS = {
 TYPE_PATTERNS[None] = TYPE_PATTERNS["string"]
 
 
+# Constant patterns
+_MARKER_PATTERN = re.compile(r"<[^<>]*>")
+_TYPED_MARKER_PATTERN = re.compile(r"<(\w+):?(\w+)?>")
+
+
 def path_filter(path):
     # type: (str) -> str
     """
@@ -366,20 +371,17 @@ class RestDispatcher(object):
         :param route: A route string, i.e. a path with type markers
         :return: A tuple (pattern, {argument name: converter})
         """
-        p = re.compile(r"<[^<>]*>")
-        p2 = re.compile(r"<(\w+):?(\w+)?>")
-
         arguments = {}  # type: Dict[str, Callable[[str], Any]]
         last_idx = 0
         final_pattern = []
-        miter = p.finditer(route)
+        miter = _MARKER_PATTERN.finditer(route)
         for m in miter:
             # Copy intermediate string
             final_pattern.append(route[last_idx:m.start()])
             last_idx = m.end() + 1
 
             # Extract type declaration
-            m2 = p2.match(m.group())
+            m2 = _TYPED_MARKER_PATTERN.match(m.group())
             if not m2:
                 raise ValueError(
                     "Invalid argument declaration: {0}".format(m.group()))
