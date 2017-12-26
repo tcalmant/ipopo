@@ -7,14 +7,14 @@ Services
 A service is an object that is registered to the framework service registry,
 associated with a set of specifications it implements and to properties.
 
-The bundle that registers the service must keep the :class:`~ServiceRegistration`
-object returned by the framework.
+The bundle that registers the service must keep the
+:class:`~ServiceRegistration` object returned by the framework.
 It allows to update the service properties and to unregister the service.
 This object **shall not** be accessible by other bundles/services.
 Finally, all services must be unregistered when their bundle is stopped.
 
-A consumer can look for a service in the framework that matches a specification and
-a set of properties.
+A consumer can look for a service in the framework that matches a specification
+and a set of properties.
 The framework will return a :class:`~ServiceReference` object, which provides a
 read-only access to the description of its associated service:
 properties, registering bundle, bundles using it...
@@ -52,9 +52,6 @@ Service Factory
    prone to bugs: please report any bug encounter on
    the `project GitHub <https://github.com/tcalmant/ipopo/issues>`_.
 
-.. note:: Even if the Prototype Service Factories flag is available in the API,
-   this kind of service factory is not yet handled by iPOPO.
-
 A service factory is a pseudo-service with a specific flag, which can create
 individual instances of service objects for different bundles.
 Sometimes a service needs to be differently configured depending on which
@@ -64,7 +61,7 @@ otherwise the log would be hard to read.
 
 A service factory is registered in exactly the same way as a normal service,
 using :meth:`~pelix.framework.BundleContext.register_service`, with the
-``factory`` set to True``.
+``factory`` argument set to True``.
 The only difference is an indirection step before the actual service object is
 handed out.
 
@@ -75,12 +72,28 @@ A simple service factory example
 
 .. code-block:: python
 
-    class LongFactory:
+    class ServiceInstance:
+        def __init__(self, value):
+            self.__value = value
+
+        def cleanup(self):
+            self.__value = None
+
+        def get_value(self):
+            return self.__value
+
+    class ServiceFactory:
+        def __init__(self):
+            # Bundle -> Instance
+            self._instances = {}
+
         def get_service(self, bundle, registration):
             """
             Called each time a new bundle requires the service
             """
-            return bundle.get_bundle_id()
+            instance = ServiceInstance(bundle.get_bundle_id())
+            self._instances[bundle] = instance
+            return instance
 
         def unget_service(self, bundle, registration):
             """
@@ -88,12 +101,93 @@ A simple service factory example
             to the service
             """
             # Release connections, ...
-            pass
+            self._instances.pop(bundle).cleanup()
 
-    bundle_context.register_service("long", LongFactory(), {}, factory=True)
+    bundle_context.register_service(
+        "sample.factory", ServiceFactory(), {}, factory=True)
 
 .. note:: The framework will cache generated service objects.
    Thus, at most one service can be generated per client bundle.
+
+Prototype Service Factory
+-------------------------
+
+.. warning:: Prototype Service factories are a very recent feature of iPOPO
+   and might be prone to bugs: please report any bug encounter on
+   the `project GitHub <https://github.com/tcalmant/ipopo/issues>`_.
+
+A prototype service factory is a pseudo-service with a specific flag, which can
+create multiple instances of service objects for different bundles.
+
+Each time a bundle requires the service, the prototype service factory is
+called and can return a different instance.
+When called, the framework gives the factory the :class:`~Bundle` object
+requesting the service and the :class:`~ServiceRegistration` of the requested
+service.
+This allows a single factory to be registered for multiple services.
+
+Note that there is no Prototype Service Factory implemented in the core
+Pelix/iPOPO Framework (unlike the *Log Service* *simple* service factory).
+
+A Prototype Service Factory is registered in exactly the same way as a normal
+service, using :meth:`~pelix.framework.BundleContext.register_service`,
+with the ``prototype`` argument set to ``True``.
+
+A simple prototype service factory example:
+
+.. code-block:: python
+
+    class ServiceInstance:
+        def __init__(self, value):
+            self.__value = value
+
+        def cleanup(self):
+            self.__value = None
+
+        def get_value(self):
+            return self.__value
+
+    class PrototypeServiceFactory:
+        def __init__(self):
+            # Bundle -> [instances]
+            self._instances = {}
+
+        def get_service(self, bundle, registration):
+            """
+            Called each time ``get_service()`` is called
+            """
+            bnd_instances = self._instances.setdefault(bundle, [])
+            instance = ServiceInstance(
+                [bundle.get_bundle_id(), len(bnd_instances)])
+            bnd_instances.append(instance)
+            return instance
+
+        def unget_service_instance(self, bundle, registration, service):
+            """
+            Called when a bundle releases an instance of the service
+            """
+            bnd_instances[bundle].remove(service)
+            service.cleanup()
+
+        def unget_service(self, bundle, registration):
+            """
+            Called when a bundle has released all its references
+            to the service
+            """
+            # Release global resources...
+
+            # When this method is called, all instances will have been cleaned
+            # up individually in ``unget_service_instance``
+            if len(self._instances.pop(bundle)) != 0:
+               raise ValueError("Should never happen")
+
+    bundle_context.register_service(
+        "sample.proto", PrototypeServiceFactory(), {}, factory=True)
+
+.. note:: A Prototype Service Factory is considered as a Service Factory, hence
+   both :meth:`~ServiceReference.is_factory` and
+   :meth:`~ServiceReference.is_prototype` will return ``True`` for this kind
+   of service
 
 API
 ---
@@ -113,7 +207,7 @@ consuming it.
 
 .. autoclass:: ServiceReference
    :members: get_bundle, get_properties, get_property, get_property_keys,
-             get_using_bundles
+             get_using_bundles, is_factory, is_prototype
 
 
 Finally, here are the methods of the :ref:`BundleContext <api_bundlecontext>`
