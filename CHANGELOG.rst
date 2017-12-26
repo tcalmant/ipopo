@@ -9,6 +9,7 @@ Project
 
 * New version of the logo, with SVG sources in the repository
 * Removed Python 2.6 compatibility code
+* Added some tests for ``install_package()``
 
 Pelix
 =====
@@ -16,6 +17,8 @@ Pelix
 * Handle deprecation of the ``imp`` module (see #85)
 * Added a ``delete()`` method to the ``Framework`` class.
   The ``FrameworkFactory`` class can now be fully avoided by developers.
+* Added support for Prototype Service Factories, which were missing from issue
+  `Service Factories (#75) <https://github.com/tcalmant/ipopo/issues/75>`_.
 
 
 iPOPO 0.6.5
