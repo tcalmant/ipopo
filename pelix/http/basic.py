@@ -29,7 +29,6 @@ Python library.
 """
 
 # Standard library
-import functools
 import logging
 import socket
 import threading
@@ -42,14 +41,12 @@ try:
     from http.server import HTTPServer
     from http.server import BaseHTTPRequestHandler
     from socketserver import ThreadingMixIn, TCPServer
-    import urllib.parse as urlparse
 except ImportError:
     # Python 2 or IronPython
     # pylint: disable=F0401
     from BaseHTTPServer import HTTPServer
     from BaseHTTPServer import BaseHTTPRequestHandler
     from SocketServer import ThreadingMixIn, TCPServer
-    import urlparse
 
 # iPOPO
 from pelix.ipopo.decorators import ComponentFactory, Provides, Requires, \
@@ -241,18 +238,6 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
 # ------------------------------------------------------------------------------
 
 
-@functools.lru_cache()
-def parse_path(request_path):
-    """
-    Returns the hierarchical path part of the given request path
-    (removes the query parameters)
-
-    :param request_path: A request path
-    :return: The hierarchical path of the URL
-    """
-    return urlparse.urlparse(request_path).path
-
-
 class _RequestHandler(BaseHTTPRequestHandler, object):
     """
     Basic HTTP server request handler
@@ -284,11 +269,8 @@ class _RequestHandler(BaseHTTPRequestHandler, object):
             # Not a request handling
             return object.__getattribute__(self, name)
 
-        # Remove double-slashes in path
-        path = self.path.replace('//', '/')
-
-        # Parse the URL
-        parsed_path = parse_path(path)
+        # Remove the query part and double-slashes in the request path
+        parsed_path = self.path.split('?', 1)[0].replace('//', '/')
 
         # Get the corresponding servlet
         found_servlet = self._service.get_servlet(parsed_path)
