@@ -1,9 +1,8 @@
 Welcome to iPOPO
 ################
 
-.. image:: ./_static/logo_texte_500.png
+.. image:: ./_static/logo_texte_200.png
    :alt: iPOPO logo
-   :scale: 25%
    :align: right
 
 iPOPO is a Python-based Service-Oriented Component Model (SOCM) based on Pelix,
