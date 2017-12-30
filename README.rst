@@ -98,7 +98,7 @@ To check if Pelix is installed correctly, run the following command:
 .. code-block:: bash
 
     $ python -m pelix.shell --version
-    Pelix 0.6.6 from /home/tcalmant/git/ipopo/pelix/framework.py
+    Pelix 0.7.0 from /home/tcalmant/git/ipopo/pelix/framework.py
 
 Concepts
 ########
@@ -422,8 +422,8 @@ Compatibility
 #############
 
 Pelix and iPOPO are tested using `Tox <http://testrun.org/tox/latest/>`_ and
-`Travis-CI <https://travis-ci.org/tcalmant/ipopo>`_ with Python 2.7, 3.3, 3.4
-and 3.5. Pypy is not tested anymore due to various bugs on tests themselves.
+`Travis-CI <https://travis-ci.org/tcalmant/ipopo>`_ with Python 2.7, 3.4 to 3.6.
+Pypy is not tested anymore due to various bugs on tests themselves.
 
 iPOPO doesn't support Python 2.6 anymore.
 

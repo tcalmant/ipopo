@@ -3,10 +3,38 @@
 Release Notes
 #############
 
-iPOPO 0.6.5 (Work in progress)
-==============================
+iPOPO 0.7.0
+===========
 
-:Release Date: 2017-??-??
+:Release Date: 2017-12-30
+
+Project
+-------
+
+* Removed Python 2.6 compatibility code
+* New version of the logo, with SVG sources in the repository
+* Added some tests for ``install_package()``
+
+Pelix
+-----
+
+* When a bundle is stopped, the framework now automatically releases the
+  services it consumed. This was required to avoid stale references when using
+  (prototype) service factories.
+  **WARNING:** this can lead to issues if you were using stale references to
+  pass information from one bundle version to another (which is bad).
+* Added support for Prototype Service Factories, which were missing from issue
+  `Service Factories (#75) <https://github.com/tcalmant/ipopo/issues/75>`_.
+* Handle deprecation of the ``imp`` module (see #85)
+* Added a ``delete()`` method to the ``Framework`` class.
+  The ``FrameworkFactory`` class can now be fully avoided by developers.
+
+
+
+iPOPO 0.6.5
+===========
+
+:Release Date: 2017-09-17
 
 Project
 -------
