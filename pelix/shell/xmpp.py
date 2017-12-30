@@ -8,7 +8,7 @@ This module depends on the sleekxmpp package: http://sleekxmpp.com/
 :author: Thomas Calmant
 :copyright: Copyright 2017, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.6.6
+:version: 0.7.0
 
 ..
 
@@ -63,7 +63,7 @@ import sleekxmpp
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 6, 6)
+__version_info__ = (0, 7, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
