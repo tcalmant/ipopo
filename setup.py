@@ -88,8 +88,7 @@ setup(
         'Topic :: Software Development :: Libraries :: Application Frameworks'
     ],
     install_requires=[
-        'jsonrpclib-pelix>=0.3.1',
-        'typing'
+        'jsonrpclib-pelix>=0.3.1'
     ],
     extras_require={
         'Redis': ['redis>=2.10'],
