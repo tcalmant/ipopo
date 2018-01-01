@@ -649,7 +649,7 @@ class Framework(Bundle):
         self._registry = ServiceRegistry(self)
         self.__unregistering_services = {}
         
-                # Event dispatcher
+        # Event dispatcher
         self._dispatcher = EventDispatcher(self._registry)
 
         # The wait_for_stop event (initially stopped)
