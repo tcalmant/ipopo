@@ -847,15 +847,11 @@ class EventDispatcher(object):
         # Get EventListenerHooks service refs from registry    
         hook_refs = self._registry.find_service_references(SERVICE_EVENT_LISTENER_HOOK)
         # only do something if there are some hook_refs
-        if hook_refs and len(hook_refs) > 0:
+        if hook_refs:
             d = dict()
             for listener in listeners:
                 bc = listener.bundle_context
-                try:
-                    lst = d[bc]
-                    lst.append(listener)
-                except KeyError:
-                    d[bc] = [listener]
+                d.setdefault(bc,[]).append(listener)
 
             hdict = dict()
             for k,v in d.items():

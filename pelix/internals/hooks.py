@@ -6,7 +6,7 @@ EventListenerHook for Pelix.
 :author: Scott Lewis
 :copyright: Copyright 2017, Scott Lewis
 :license: Apache License 2.0
-:version: 0.7.0
+:version: 0.7.1
 
 ..
 
