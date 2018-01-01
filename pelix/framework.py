@@ -645,12 +645,12 @@ class Framework(Bundle):
         # Bundles lock
         self.__bundles_lock = threading.RLock()
 
-        # Event dispatcher
-        self._dispatcher = EventDispatcher()
-
         # Service registry
         self._registry = ServiceRegistry(self)
         self.__unregistering_services = {}
+        
+                # Event dispatcher
+        self._dispatcher = EventDispatcher(self._registry)
 
         # The wait_for_stop event (initially stopped)
         self._fw_stop_event = threading.Event()
@@ -1441,6 +1441,7 @@ class BundleContext(object):
                '''
                # ...
 
+        :param bundle_context:  This bundle context
         :param listener: The listener to register
         :param ldap_filter: Filter that must match the service properties
                             (optional, None to accept all services)
@@ -1448,7 +1449,7 @@ class BundleContext(object):
                               (optional, None to accept all services)
         :return: True if the listener has been successfully registered
         """
-        return self.__framework._dispatcher.add_service_listener(
+        return self.__framework._dispatcher.add_service_listener(self,
             listener, specification, ldap_filter)
 
     def get_all_service_references(self, clazz, ldap_filter=None):
