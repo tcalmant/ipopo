@@ -46,6 +46,10 @@ from pelix.internals.events import ServiceEvent
 from pelix.utilities import is_string
 import pelix.ldapfilter as ldapfilter
 
+# Event hooks
+from pelix.internals.hooks import ListenerInfo, ShrinkableList, \
+    ShrinkableMap
+
 # ------------------------------------------------------------------------------
 
 # Module version
@@ -56,7 +60,6 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
-
 
 class _UsageCounter(object):
     """
@@ -575,37 +578,21 @@ class ServiceRegistration(object):
 
 # ------------------------------------------------------------------------------
 
-
-class _Listener(object):
-    """
-    Keeps information about a listener
-    """
-    # Try to reduce memory footprint (stored instances)
-    __slots__ = ('listener', 'specification', 'ldap_filter')
-
-    def __init__(self, listener, specification, ldap_filter):
-        """
-        Sets up members
-
-        :param listener: Listener instance
-        :param specification: Specification to listen to
-        :param ldap_filter: LDAP filter on service properties
-        """
-        self.listener = listener
-        self.specification = specification
-        self.ldap_filter = ldap_filter
-
+from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 
 class EventDispatcher(object):
     """
     Simple event dispatcher
     """
-    def __init__(self, logger=None):
+    def __init__(self, registry, logger=None):
         """
         Sets up the dispatcher
-
+    
+        :param registry:  The service registry
         :param logger: The logger to be used
         """
+        self._registry = registry
+        
         # Logger
         self._logger = logger or logging.getLogger("EventDispatcher")
 
@@ -679,11 +666,12 @@ class EventDispatcher(object):
             self.__fw_listeners.append(listener)
             return True
 
-    def add_service_listener(self, listener, specification=None,
+    def add_service_listener(self, bundle_context, listener, specification=None,
                              ldap_filter=None):
         """
         Registers a service listener
 
+        :param bundle_context: The bundle_context of the service listener
         :param listener: The service listener
         :param specification: The specification that must provide the service
                               (optional, None to accept all services)
@@ -708,7 +696,7 @@ class EventDispatcher(object):
                 raise BundleException("Invalid service filter: {0}"
                                       .format(ex))
 
-            stored = _Listener(listener, specification, ldap_filter)
+            stored = ListenerInfo(bundle_context, listener, specification, ldap_filter)
             self.__listeners_data[listener] = stored
             self.__svc_listeners.setdefault(specification, []).append(stored)
             return True
@@ -827,6 +815,9 @@ class EventDispatcher(object):
             except KeyError:
                 pass
 
+        # filter listeners with EventListenerHooks
+        listeners = self._filter_with_hooks(event, listeners)
+        
         # Get the listeners for this specification
         for data in listeners:
             # Default event to send : the one we received
@@ -851,6 +842,55 @@ class EventDispatcher(object):
             except:
                 self._logger.exception("Error calling a service listener")
 
+    def _filter_with_hooks(self,svc_event,listeners):
+        svc_ref = svc_event.get_service_reference()
+        # Get EventListenerHooks service refs from registry    
+        hook_refs = self._registry.find_service_references(SERVICE_EVENT_LISTENER_HOOK)
+        # only do something if there are some hook_refs
+        if hook_refs and len(hook_refs) > 0:
+            d = dict()
+            for listener in listeners:
+                bc = listener.bundle_context
+                try:
+                    lst = d[bc]
+                    lst.append(listener)
+                except KeyError:
+                    d[bc] = [listener]
+
+            hdict = dict()
+            for k,v in d.items():
+                hdict[k] = ShrinkableList(v)
+             
+            sdict = ShrinkableMap(hdict)
+            
+            for hook_ref in hook_refs:
+                if not svc_ref == hook_ref:
+                    # Get hook_bundle
+                    hook_bundle = hook_ref.get_bundle()
+                    # lookup service from registry
+                    hook_svc = self._registry.get_service(hook_bundle,hook_ref)
+                    if hook_svc:
+                        # call event method with hook_svc instance,
+                        # pass in svc_event and sdict (which can be modified by
+                        # hook
+                        try:
+                            hook_svc.event(svc_event,sdict)
+                        except:
+                            self._logger.exception("Error calling EventListenerHook")
+                        finally:
+                            self._registry.unget_service(hook_bundle,hook_ref)
+
+            # convert the sdict back to a list of listeners
+            # before returning
+            ret_listeners = set()
+            for k,v in sdict.items():
+                for i in v:
+                    ret_listeners.add(i)
+            
+            return ret_listeners
+        else:
+            return listeners
+        
 # ------------------------------------------------------------------------------
 
 

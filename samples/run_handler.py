@@ -63,6 +63,7 @@ def main():
     """
     # Create the framework
     fw = pelix.framework.create_framework(('pelix.ipopo.core',
+#                                           'samples.hook_test',
                                            'pelix.shell.core',
                                            'pelix.shell.ipopo',
                                            'pelix.shell.console',

@@ -32,6 +32,9 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+# Service Registry Hooks
+
+SERVICE_EVENT_LISTENER_HOOK = "pelix.internal.hooks.EventListenerHook"
 # ------------------------------------------------------------------------------
 
 FACTORY_EVENT_ADMIN = "pelix-services-eventadmin-factory"
