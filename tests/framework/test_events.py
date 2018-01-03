@@ -13,6 +13,7 @@ from tests.interfaces import IEchoService
 # Pelix
 from pelix.framework import FrameworkFactory, Bundle, BundleException, \
     BundleContext, BundleEvent, ServiceEvent
+from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 
 # Standard library
 try:
@@ -367,6 +368,179 @@ class ServiceEventTest(unittest.TestCase):
 
         # Unregister from events
         context.remove_service_listener(self)
+
+# ------------------------------------------------------------------------------
+
+
+class EventListenerHookTest(unittest.TestCase):
+    """
+    Event Listener Hook tests
+    """
+    def setUp(self):
+        """
+        Called before each test. Initiates a framework.
+        """
+        self.framework = FrameworkFactory.get_framework()
+        self.framework.start()
+
+        self.test_bundle_name = SERVICE_BUNDLE
+
+        self.bundle = None
+        self.received = []
+
+    def tearDown(self):
+        """
+        Called after each test
+        """
+        self.framework.stop()
+        self.framework.delete()
+
+    def test_normal_behaviour(self):
+        """
+        Checks if event listener hooks are registered correctly
+        """
+        # Test implementation
+        events = []
+
+        class Hook(object):
+            @staticmethod
+            def event(svc_event, listeners_dict):
+                events.append((svc_event, listeners_dict))
+
+        # Register the hook
+        ctx = self.framework.get_bundle_context()
+        reg = ctx.register_service(SERVICE_EVENT_LISTENER_HOOK, Hook(), {})
+
+        # Hooks shouldn't be aware of themselves
+        self.assertFalse(events)
+
+        # Register a dummy service
+        dummy_reg = ctx.register_service("dummy", object(), {})
+
+        # Pop information
+        event, listeners = events.pop(0)
+
+        # Check event
+        assert isinstance(event, ServiceEvent)
+        self.assertEqual(event.get_kind(), ServiceEvent.REGISTERED)
+        self.assertIs(event.get_service_reference(), dummy_reg.get_reference())
+
+        # No listeners are registered
+        self.assertFalse(listeners)
+
+        # Update the service
+        dummy_reg.set_properties({"hello": "world"})
+
+        # Pop information
+        event, listeners = events.pop(0)
+
+        # Check event
+        assert isinstance(event, ServiceEvent)
+        self.assertEqual(event.get_kind(), ServiceEvent.MODIFIED)
+        self.assertIs(event.get_service_reference(), dummy_reg.get_reference())
+
+        # Unregister the service
+        dummy_reg.unregister()
+
+        # Pop information
+        event, listeners = events.pop(0)
+
+        # Check event
+        assert isinstance(event, ServiceEvent)
+        self.assertEqual(event.get_kind(), ServiceEvent.UNREGISTERING)
+        self.assertIs(event.get_service_reference(), dummy_reg.get_reference())
+
+        # Unregister the hook
+        reg.unregister()
+
+        # Register a new service
+        ctx.register_service("dummy", object(), {})
+
+        # Hook must not be notified
+        self.assertFalse(events)
+
+    def test_hook(self):
+        """
+        Tests the hook filtering behaviour
+        """
+        # Add a bundle to have two contexts in the test
+        fw_ctx = self.framework.get_bundle_context()
+        bnd = fw_ctx.install_bundle("tests.dummy_1")
+        bnd.start()
+        bnd_ctx = bnd.get_bundle_context()
+
+        # Setup a hook
+        class Hook(object):
+            @staticmethod
+            def event(svc_event, listeners_dict):
+                to_remove = svc_event.get_service_reference() \
+                    .get_property("to.remove")
+                info_to_remove = []
+
+                for listener_bc, listeners_info in listeners_dict.items():
+                    # Check the dictionary content
+                    for listener_info in listeners_info:
+                        self.assertIs(listener_bc, listener_info.bundle_context)
+                        self.assertIs(
+                            listener_bc, listener_info.listener.context)
+                        self.assertIs(
+                            listener_bc, listener_info.get_bundle_context())
+
+                        if listener_info.listener in to_remove:
+                            info_to_remove.append(listener_info)
+
+                # Remove the requested listeners
+                for listener_info in info_to_remove:
+                    listeners_dict[listener_info.bundle_context] \
+                        .remove(listener_info)
+
+        fw_ctx.register_service(SERVICE_EVENT_LISTENER_HOOK, Hook(), {})
+
+        # Register multiple listeners
+        class Listener(object):
+            def __init__(self, bc):
+                self.context = bc
+                self.storage = []
+                bc.add_service_listener(self)
+
+            def service_changed(self, event):
+                self.storage.append(event)
+
+        listener_referee = Listener(fw_ctx)
+        listener_1 = Listener(fw_ctx)
+        listener_2 = Listener(bnd_ctx)
+
+        # Register a service that only the referee will get
+        reg = fw_ctx.register_service(
+            "dummy", object(), {"to.remove": [listener_1, listener_2]})
+
+        evt = listener_referee.storage.pop(0)
+        self.assertIs(evt.get_service_reference(), reg.get_reference())
+        self.assertEqual(evt.get_kind(), ServiceEvent.REGISTERED)
+        self.assertFalse(listener_1.storage)
+        self.assertFalse(listener_2.storage)
+
+        # Modify it so that listener_1 gets it
+        reg.set_properties({"to.remove": [listener_2]})
+        self.assertFalse(listener_2.storage)
+
+        evt = listener_referee.storage.pop(0)
+        self.assertIs(evt.get_service_reference(), reg.get_reference())
+        self.assertEqual(evt.get_kind(), ServiceEvent.MODIFIED)
+
+        evt1 = listener_1.storage.pop(0)
+        self.assertIs(evt1, evt)
+
+        # Modify it so that listener_2, but not listener_1 gets it
+        reg.set_properties({"to.remove": [listener_1]})
+        self.assertFalse(listener_1.storage)
+
+        evt = listener_referee.storage.pop(0)
+        self.assertIs(evt.get_service_reference(), reg.get_reference())
+        self.assertEqual(evt.get_kind(), ServiceEvent.MODIFIED)
+
+        evt2 = listener_2.storage.pop(0)
+        self.assertIs(evt2, evt)
 
 # ------------------------------------------------------------------------------
 
