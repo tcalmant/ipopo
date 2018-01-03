@@ -648,7 +648,7 @@ class Framework(Bundle):
         # Service registry
         self._registry = ServiceRegistry(self)
         self.__unregistering_services = {}
-        
+
         # Event dispatcher
         self._dispatcher = EventDispatcher(self._registry)
 
@@ -1185,7 +1185,8 @@ class Framework(Bundle):
         :param force: If True, stops the framework before deleting it
         :return: True if the framework has been delete, False if is couldn't
         """
-        if not force and self._state not in (Bundle.INSTALLED, Bundle.STOPPING):
+        if not force and self._state not in \
+                (Bundle.INSTALLED, Bundle.RESOLVED, Bundle.STOPPING):
             _logger.warning("Trying to delete an active framework")
             return False
 
