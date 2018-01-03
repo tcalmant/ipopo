@@ -47,8 +47,10 @@ General
 * Your code must be compatible with Python 2.7 and 3.3+.
 * Use ``logging`` instead of printing out debug traces.
 * Use list, set and dictionary comprehension when possible.
-* Remove unused imports
-
+* Remove unused imports.
+* Imports must be after module documentation and before anything else.
+* All modules must have a ``__version_info__`` tuple and a matching
+  ``__version__`` string.
 
 Formatting
 ----------
@@ -66,6 +68,7 @@ Formatting
 * Use spaces around operators.
 * Use spaces after commas and colons.
 * Use Unix-style line endings (``\n``).
+* Use 3 double-quotes (``"""``) for documentation
 
 
 Naming
