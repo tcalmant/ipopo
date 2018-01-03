@@ -25,8 +25,12 @@ EventListenerHook for Pelix.
     limitations under the License.
 """
 
+from collections import MutableMapping, MutableSequence
+
+# ------------------------------------------------------------------------------
+
 # Module version
-__version_info__ = (0, 7, 0)
+__version_info__ = (0, 7, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -34,87 +38,129 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-from collections import MutableMapping, MutableSequence
 
 class ShrinkableList(MutableSequence):
-    '''
-    LIst where items 
-    can be removed, but nothing 
-    can be added.  For use in ShinkableMap
-    '''
+    """
+    List where items can be removed, but nothing can be added.
+    For use in ShrinkableMap
+    """
     def __init__(self, delegate):
         self._delegate = delegate
 
     def __len__(self):
         return len(self._delegate)
-    
+
     def __getitem__(self, index):
         return self._delegate[index]
-    
+
     def __delitem__(self, index):
         del self._delegate[index]
-    
+
     def __setitem__(self, index, value):
         raise IndexError
-    
+
     def insert(self, index, value):
         raise IndexError
-    
+
     def __str__(self):
         return str(self._delegate)
-    
+
+
 class ShrinkableMap(MutableMapping):
-    '''
-    Map where item->value mappings 
-    can be removed, but nothing 
-    can be added.  For use in EventListenerHook
-    '''
+    """
+    Map where item->value mappings can be removed, but nothing can be added.
+    For use in EventListenerHook
+    """
     def __init__(self, delegate):
         self._delegate = delegate
-        
+
     def __getitem__(self, key):
         return self._delegate[key]
-    
+
     def __setitem__(self, key, value):
         raise IndexError
-    
+
     def __delitem__(self, key):
         del self._delegate[key]
-        
+
     def __iter__(self):
         return self._delegate.__iter__()
-    
+
     def __len__(self):
         return len(self._delegate)
-    
+
+
 class ListenerInfo(object):
     """
     Keeps information about a listener
     """
     # Try to reduce memory footprint (stored instances)
-    __slots__ = ('bundle_context', 'listener', 'specification', 'ldap_filter')
+    __slots__ = ('__bundle_context', '__listener', '__specification',
+                 '__ldap_filter')
 
     def __init__(self, bundle_context, listener, specification, ldap_filter):
         """
-        Sets up members
-
         :param bundle_context: Bundle context
         :param listener: Listener instance
         :param specification: Specification to listen to
         :param ldap_filter: LDAP filter on service properties
         """
-        self.bundle_context = bundle_context
-        self.listener = listener
-        self.specification = specification
-        self.ldap_filter = ldap_filter
+        self.__bundle_context = bundle_context
+        self.__listener = listener
+        self.__specification = specification
+        self.__ldap_filter = ldap_filter
+
+    @property
+    def bundle_context(self):
+        """
+        The context of the bundle which added the listener.
+        """
+        return self.__bundle_context
+
+    @property
+    def listener(self):
+        """
+        The listener instance
+        """
+        return self.__listener
+
+    @property
+    def specification(self):
+        """
+        The specification to listen to
+        """
+        return self.__specification
+
+    @property
+    def ldap_filter(self):
+        """
+        The LDAP filter on service properties
+        """
+        return self.__ldap_filter
+
+    def get_bundle_context(self):
+        """
+        Return the context of the bundle which added the listener.
+
+        :return: A BundleContext object
+        """
+        return self.__bundle_context
+
+    def get_filter(self):
+        """
+        Returns the LDAP filter string with which the filter was added
+
+        :return: An LDAP filter string
+        """
+        if self.__ldap_filter:
+            return str(self.__ldap_filter)
+
 
 class EventListenerHook(object):
     """
     Event listener hook interface prototype.  The method in this class must be
-    overriden for a service event listener hook to be called via whiteboard p
+    overridden for a service event listener hook to be called via whiteboard
     pattern
     """
     def event(self,service_event,listener_dict):
         pass
-    
-

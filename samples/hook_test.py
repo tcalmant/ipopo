@@ -24,10 +24,12 @@ Hook Test
     limitations under the License.
 """
 
+from __future__ import print_function
+
 # Pelix remote services constants
 from pelix.constants import BundleActivator
-
 from pelix.services import SERVICE_EVENT_LISTENER_HOOK
+
 # ------------------------------------------------------------------------------
 
 # Module version
@@ -39,28 +41,33 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+
 class EventListenerHookImpl(object):
-    
-    def __init__(self,context):
+    def __init__(self, context):
         self._context = context
         self._count = 0
-        
+
     def event(self,service_event,listener_dict):
-        print('EventListenerHookSample: service_event='+str(service_event)+",listener_dict="+str(listener_dict))
-        # remove it if it's our service context and it's the 3rd time through the hook
+        print('EventListenerHookSample: service_event=', service_event,
+              ", listener_dict=", listener_dict, sep='')
+
+        # remove it if it's our service context and it's the 3rd time through
+        # the hook
         if self._context in listener_dict and self._count > 1:
-            print('EventListenerHookSample removing our service listener so it will not be notified')
+            print('EventListenerHookSample removing our service listener '
+                  'so it will not be notified')
             listener_dict.pop(self._context)
         else:
             self._count += 1
-        
+
 
 # ------------------------------------------------------------------------------
 
 class ServiceEventListenerImpl(object):
-    def service_changed(self,service_event):
-        print("MyServiceEventListener event="+str(service_event))
-        
+    def service_changed(self, service_event):
+        print("MyServiceEventListener event=", service_event)
+
+
 @BundleActivator
 class Activator(object):
     def __init__(self):
