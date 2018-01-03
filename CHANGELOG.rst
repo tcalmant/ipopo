@@ -1,6 +1,17 @@
 Release notes
 #############
 
+iPOPO 0.7.1 (under development)
+*******************************
+
+Pelix
+=====
+
+* Merged `pull request #88 <https://github.com/tcalmant/ipopo/pull/88>`_,
+  which adds support for Event Listeners Hooks
+* Fixed ``Framework.delete()`` when framework was already stopped.
+
+
 iPOPO 0.7.0
 ***********
 
