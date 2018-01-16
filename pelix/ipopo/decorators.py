@@ -809,6 +809,10 @@ class Provides(object):
                            provided specification (can't be empty)
     :param controller: The name of the service controller class field
                        (optional)
+    :param factory: If True, this service is a service factory
+                    (optional)
+    :param prototype: If True, this service is prototype service factory
+                      (optional)
     :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_PROVIDES`
 
     All the properties of the component defined with the :class:`Property`
@@ -845,7 +849,8 @@ class Provides(object):
     __name__ + '.' + __qualname__
     """
 
-    def __init__(self, specifications, controller=None, factory=False):
+    def __init__(self, specifications, controller=None,
+                 factory=False, prototype=False):
         """
         Sets up a provided service.
         A service controller can be defined to enable or disable the service.
@@ -855,6 +860,7 @@ class Provides(object):
         :param controller: Name of the service controller class field
                            (optional)
         :param factory: If True, this service is a service factory
+        :param prototype: If True, this service is prototype service factory
         :raise ValueError: If the specifications are invalid
         """
         if controller is not None:
@@ -872,6 +878,7 @@ class Provides(object):
         self.__specifications = specifications
         self.__controller = controller
         self.__is_factory = factory
+        self.__is_prototype = prototype
 
     def __call__(self, clazz):
         """
@@ -908,7 +915,8 @@ class Provides(object):
 
         # Store the service information
         config = context.set_handler_default(self.HANDLER_ID, [])
-        config.append((filtered_specs, self.__controller, self.__is_factory))
+        config.append((filtered_specs, self.__controller,
+                       self.__is_factory, self.__is_prototype))
 
         if self.__controller:
             # Inject a property in the class. The property will call an
@@ -925,7 +933,7 @@ class Provides(object):
             setattr(clazz, constants.IPOPO_CONTROLLER_PREFIX +
                     constants.IPOPO_SETTER_SUFFIX, None)
 
-        if self.__is_factory:
+        if self.__is_factory or self.__is_prototype:
             # Ensure that the service factory methods exist
             try:
                 validate_method_arity(clazz.get_service,
@@ -935,6 +943,16 @@ class Provides(object):
             except AttributeError as ex:
                 raise TypeError("Service factories must provide an "
                                 "{} method".format(ex))
+
+        if self.__is_prototype:
+            # Ensure that the prototype service factory methods exist
+            try:
+                validate_method_arity(
+                    clazz.unget_service_instance,
+                    "bundle", "service_registration", "service")
+            except AttributeError as ex:
+                raise TypeError("Prototype Service factories must provide "
+                                "an {} method".format(ex))
 
         return clazz
 

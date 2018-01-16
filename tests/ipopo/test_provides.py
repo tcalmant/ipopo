@@ -303,7 +303,71 @@ class ProvidesTest(unittest.TestCase):
         context.unget_service(svc_ref)
         self.assertIs(component.caller, self.framework)
         self.assertIs(component.registration.get_reference(), svc_ref)
-        self.assertIsNone(component.service)
+        self.assertFalse(component.service)
+
+    def test_prototype(self):
+        """
+        Tests @Provides prototype service factory handling
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+
+        # Instantiate the provider
+        component = self.ipopo.instantiate(
+            module.FACTORY_PROVIDES_SVC_PROTOTYPE, "provides.prototype")
+
+        # Ensure the initial state
+        self.assertIsNone(component.caller, "Invalid initial state")
+        self.assertIsNone(component.registration, "Invalid initial state")
+
+        # Consume the service
+        svc_ref = context.get_service_reference("prototype.service")
+        objs = context.get_service_objects(svc_ref)
+        svc = objs.get_service()
+
+        # Ensure the new state
+        self.assertIs(component.caller, self.framework)
+        self.assertIs(component.registration.get_reference(), svc_ref)
+        self.assertIs(component.services[-1], svc)
+
+        # Reset state
+        component.caller = None
+        component.registration = None
+
+        # Try to re-get the service
+        svc2 = objs.get_service()
+
+        # Ensure a new call has been made and we have a new service
+        self.assertIs(component.caller, self.framework)
+        self.assertIs(component.registration.get_reference(), svc_ref)
+        self.assertIsNot(svc, svc2)
+
+        # Ensure that the previous service reference has been kept
+        self.assertIn(svc, component.services)
+        self.assertIs(component.services[-1], svc2)
+
+        # Unget the first service
+        objs.unget_service(svc)
+        self.assertTrue(component.flag_unget_instance)
+        self.assertFalse(component.flag_unget_service)
+        self.assertIs(component.caller, self.framework)
+        self.assertIs(component.registration.get_reference(), svc_ref)
+        self.assertNotIn(svc, component.services)
+        self.assertIn(svc2, component.services)
+
+        # Reset state
+        component.flag_unget_instance = False
+        component.caller = None
+        component.registration = None
+
+        # A second time
+        objs.unget_service(svc2)
+        self.assertTrue(component.flag_unget_instance)
+        self.assertTrue(component.flag_unget_service)
+        self.assertIs(component.caller, self.framework)
+        self.assertIs(component.registration.get_reference(), svc_ref)
+        self.assertNotIn(svc, component.services)
+        self.assertNotIn(svc2, component.services)
 
 # ------------------------------------------------------------------------------
 

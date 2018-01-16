@@ -67,8 +67,11 @@ class _HandlerFactory(constants.HandlerFactory):
             return ()
 
         # 1 handler per provided service
-        return [ServiceRegistrationHandler(specs, controller, is_factory)
-                for specs, controller, is_factory in provides]
+        return [
+            ServiceRegistrationHandler(
+                specs, controller, is_factory, is_prototype)
+            for specs, controller, is_factory, is_prototype in provides
+        ]
 
 
 @BundleActivator
@@ -110,7 +113,8 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
     """
     Handles the registration of a service provided by a component
     """
-    def __init__(self, specifications, controller_name, is_factory):
+    def __init__(self, specifications, controller_name,
+                 is_factory, is_prototype):
         """
         Sets up the handler
 
@@ -118,6 +122,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         :param controller_name: Name of the associated service controller
                                 (can be None)
         :param is_factory: If True, this is a service factory
+        :param is_prototype: If True, this is a prototype service factory
         """
         self.specifications = specifications
         self.__controller = controller_name
@@ -129,6 +134,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
 
         # Service factory flag
         self.__is_factory = is_factory
+        self.__is_prototype = is_prototype
 
         # The ServiceRegistration and ServiceReference objects
         self._registration = None
@@ -290,7 +296,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
             # Register the service
             self._registration = bundle_context.register_service(
                 self.specifications, self._ipopo_instance.instance, properties,
-                factory=self.__is_factory)
+                factory=self.__is_factory, prototype=self.__is_prototype)
             self._svc_reference = self._registration.get_reference()
 
             # Notify the component

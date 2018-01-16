@@ -35,6 +35,7 @@ FACTORY_B = "ipopo.tests.b"
 FACTORY_C = "ipopo.tests.c"
 FACTORY_IMMEDIATE = "ipopo.tests.immediate"
 FACTORY_PROVIDES_SVC_FACTORY = "ipopo.tests.provides.factory"
+FACTORY_PROVIDES_SVC_PROTOTYPE = "ipopo.tests.provides.prototype"
 FACTORY_REQUIRES_BEST = "ipopo.tests.best"
 FACTORY_REQUIRES_VAR_FILTER = "ipopo.tests.var_filter"
 FACTORY_REQUIRES_VAR_FILTER_AGGREGATE = "ipopo.tests.var_filter.multiple"
@@ -487,6 +488,47 @@ class SvcFactoryProvider(object):
         self.caller = bundle
         self.registration = svc_registration
         self.service = None
+
+# ------------------------------------------------------------------------------
+
+
+@ComponentFactory(FACTORY_PROVIDES_SVC_PROTOTYPE)
+@Provides("prototype.service", prototype=True)
+class SvcPrototypeFactoryProvider(object):
+    """
+    Test for providing a prototype service factory
+    """
+    def __init__(self):
+        """
+        Sets up members
+        """
+        self.caller = None
+        self.registration = None
+        self.flag_unget_instance = False
+        self.flag_unget_service = False
+        self.services = []
+
+    def get_service(self, bundle, svc_registration):
+        self.caller = bundle
+        self.registration = svc_registration
+        svc = object()
+        self.services.append(svc)
+        return svc
+
+    def unget_service_instance(self, bundle, svc_registration, service):
+        """
+        Called when a bundle releases an instance of the service
+        """
+        self.flag_unget_instance = True
+        self.caller = bundle
+        self.registration = svc_registration
+        self.services.remove(service)
+
+    def unget_service(self, bundle, svc_registration):
+        self.flag_unget_service = True
+        self.caller = bundle
+        self.registration = svc_registration
+        del self.services[:]
 
 # ------------------------------------------------------------------------------
 
