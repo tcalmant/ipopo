@@ -387,6 +387,59 @@ class DecoratorsTest(unittest.TestCase):
         self.assertRaises(
             TypeError, decorators.Provides("spec", factory=True), DummyClass)
 
+    def test_provides_prototype(self):
+        """
+        Tests the @Provides decorator for a prototype service factory
+        """
+        class DummyClass(object):
+            pass
+
+        def invalid_method(self, foo):
+            pass
+
+        def valid_method(self, bundle, svc_reg):
+            pass
+
+        def valid_instance_method(self, bundle, svc_reg, svc):
+            pass
+
+        # Missing method in class
+        self.assertRaises(
+            TypeError, decorators.Provides("spec", prototype=True), DummyClass)
+
+        # One of three methods
+        DummyClass.get_service = valid_method
+        self.assertRaises(
+            TypeError, decorators.Provides("spec", prototype=True), DummyClass)
+
+        # Two of three methods
+        DummyClass.unget_service = valid_method
+        self.assertRaises(
+            TypeError, decorators.Provides("spec", prototype=True), DummyClass)
+
+        # Two (other) of three methods
+        del DummyClass.unget_service
+        DummyClass.unget_service_instance = valid_instance_method
+        self.assertRaises(
+            TypeError, decorators.Provides("spec", prototype=True), DummyClass)
+
+        # All methods
+        DummyClass.unget_service = valid_method
+        try:
+            decorators.Provides("spec", prototype=True)(DummyClass)
+        except TypeError:
+            self.fail("Error on valid class")
+
+        # Invalid arity
+        DummyClass.get_service = invalid_method
+        self.assertRaises(
+            TypeError, decorators.Provides("spec", prototype=True), DummyClass)
+
+        DummyClass.get_service = valid_method
+        DummyClass.unget_service_instance = invalid_method
+        self.assertRaises(
+            TypeError, decorators.Provides("spec", prototype=True), DummyClass)
+
     def test_requires_base(self):
         """
         Tests the @Requires* decorators basic arguments checks
