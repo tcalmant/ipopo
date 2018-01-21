@@ -587,12 +587,12 @@ class EventDispatcher(object):
     def __init__(self, registry, logger=None):
         """
         Sets up the dispatcher
-    
+
         :param registry:  The service registry
         :param logger: The logger to be used
         """
         self._registry = registry
-        
+
         # Logger
         self._logger = logger or logging.getLogger("EventDispatcher")
 
@@ -817,7 +817,7 @@ class EventDispatcher(object):
 
         # filter listeners with EventListenerHooks
         listeners = self._filter_with_hooks(event, listeners)
-        
+
         # Get the listeners for this specification
         for data in listeners:
             # Default event to send : the one we received
@@ -844,7 +844,7 @@ class EventDispatcher(object):
 
     def _filter_with_hooks(self,svc_event,listeners):
         svc_ref = svc_event.get_service_reference()
-        # Get EventListenerHooks service refs from registry    
+        # Get EventListenerHooks service refs from registry
         hook_refs = self._registry.find_service_references(SERVICE_EVENT_LISTENER_HOOK)
         # only do something if there are some hook_refs
         if hook_refs:
@@ -856,9 +856,9 @@ class EventDispatcher(object):
             hdict = dict()
             for k,v in d.items():
                 hdict[k] = ShrinkableList(v)
-             
+
             sdict = ShrinkableMap(hdict)
-            
+
             for hook_ref in hook_refs:
                 if not svc_ref == hook_ref:
                     # Get hook_bundle
@@ -882,11 +882,11 @@ class EventDispatcher(object):
             for k,v in sdict.items():
                 for i in v:
                     ret_listeners.add(i)
-            
+
             return ret_listeners
         else:
             return listeners
-        
+
 # ------------------------------------------------------------------------------
 
 
@@ -1355,7 +1355,11 @@ class ServiceRegistry(object):
         :param service: Service instance (for prototype factories)
         :return: True if the bundle usage has been removed
         """
-        factory, svc_reg = self.__svc_factories[reference]
+        try:
+            factory, svc_reg = self.__svc_factories[reference]
+        except KeyError:
+            # Unknown service reference
+            return False
 
         # Check the per-bundle usage counter
         try:
