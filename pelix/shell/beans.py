@@ -224,7 +224,7 @@ class IOHandler(object):
             self.output.write(to_str(data, self.encoding).encode()
                               .decode(self.out_encoding, errors="replace"))
 
-    def write_line(self, line, *args, **kwargs):
+    def write_line(self, line=None, *args, **kwargs):
         """
         Formats and writes a line to the output
         """
@@ -249,7 +249,7 @@ class IOHandler(object):
 
         self.flush()
 
-    def write_line_no_feed(self, line, *args, **kwargs):
+    def write_line_no_feed(self, line=None, *args, **kwargs):
         """
         Formats and writes a line to the output
         """
