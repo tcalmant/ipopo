@@ -376,9 +376,9 @@ class Shell(object):
 
                 else:
                     # Ambiguous name
-                    raise ValueError("Multiple name spaces for {0}: {1}"
-                                     .format(command, ', '.join(spaces)))
-
+                    raise ValueError(
+                        "Multiple name spaces for command '{0}': {1}"
+                        .format(command, ', '.join(sorted(spaces))))
             else:
                 # Use the found name space
                 namespace = spaces[0]

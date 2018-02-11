@@ -216,28 +216,30 @@ class InteractiveShell(object):
                 commands = self._shell.get_commands(namespace)
 
                 # Filter methods according to the prefix
-                self._readline_matches = ['{0}.{1}'.format(namespace, command)
-                                          for command in commands
-                                          if command.startswith(prefix)]
-
+                self._readline_matches = [
+                    '{0}.{1}'.format(namespace, command)
+                    for command in commands
+                    if command.startswith(prefix)]
             else:
                 # Complete with name space names or default commands
                 prefix = text
 
                 # Default commands goes first...
-                possibilities = [command
-                                 for command in self._shell.get_commands(None)
-                                 if command.startswith(prefix)]
+                possibilities = [
+                    '{0} '.format(command)
+                    for command in self._shell.get_commands(None)
+                    if command.startswith(prefix)]
 
                 # ... then name spaces
                 namespaces = self._shell.get_namespaces()
-                possibilities.extend('{0}.'.format(namespace)
-                                     for namespace in namespaces
-                                     if namespace.startswith(prefix))
+                possibilities.extend(
+                    '{0}.'.format(namespace)
+                    for namespace in namespaces
+                    if namespace.startswith(prefix))
 
                 # ... then commands in those name spaces
                 possibilities.extend(
-                    '{0}.{1}'.format(namespace, command)
+                    '{0} '.format(command)
                     for namespace in namespaces if namespace is not None
                     for command in self._shell.get_commands(namespace)
                     if command.startswith(prefix))
