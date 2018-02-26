@@ -153,9 +153,19 @@ class RemoteConsole(socketserver.StreamRequestHandler):
             {"remote_client_ip": self.client_address[0]})
 
         # Print the banner
-        ps1 = self._shell.get_ps1()
+        def get_ps1():
+            """
+            Gets the prompt string from the session of the shell service
+
+            :return: The prompt string
+            """
+            try:
+                return session.get("PS1")
+            except KeyError:
+                return self._shell.get_ps1()
+
         self.send(self._shell.get_banner())
-        self.send(ps1)
+        self.send(get_ps1())
 
         try:
             while self._active.get_value():
@@ -195,7 +205,7 @@ class RemoteConsole(socketserver.StreamRequestHandler):
                     self.send(traceback.format_exc())
 
                 # Print the prompt
-                self.send(ps1)
+                self.send(get_ps1())
         finally:
             _logger.info("RemoteConsole client gone: [%s]:%d",
                          self.client_address[0], self.client_address[1])

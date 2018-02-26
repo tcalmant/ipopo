@@ -32,6 +32,7 @@ available.
 import argparse
 import logging
 import os
+import shlex
 import sys
 import threading
 
@@ -43,6 +44,9 @@ from pelix.constants import BundleActivator
 from pelix.shell import SERVICE_SHELL
 from pelix.shell.beans import IOHandler, ShellSession, safe_input
 import pelix.framework as pelix
+
+# Shell completion
+from pelix.shell.completion.core import completion_hints
 
 # ------------------------------------------------------------------------------
 
@@ -87,9 +91,12 @@ class InteractiveShell(object):
 
         :param context: The bundle context
         """
-        self._context = context
-        self._shell_ref = None
+        self._context = context  # type: pelix.BundleContext
+        self._shell_ref = None   # type: pelix.ServiceReference
         self._shell = None
+
+        # Single session
+        self.__session = ShellSession(IOHandler(sys.stdin, sys.stdout), {})
 
         # Read line cache
         self._readline_matches = []
@@ -105,6 +112,17 @@ class InteractiveShell(object):
         # Register as a service listener
         self._context.add_service_listener(self, None, SERVICE_SHELL)
 
+    def __get_ps1(self):
+        """
+        Gets the prompt string from the session of the shell service
+
+        :return: The prompt string
+        """
+        try:
+            return self.__session.get("PS1")
+        except KeyError:
+            return self._shell.get_ps1()
+
     def _readline_prompt(self):
         """
         Prompt using the readline module (no pre-flush)
@@ -112,7 +130,7 @@ class InteractiveShell(object):
         :return: The command line
         """
         sys.stdout.flush()
-        return safe_input(self._shell.get_ps1())
+        return safe_input(self.__get_ps1())
 
     def _normal_prompt(self):
         """
@@ -120,7 +138,7 @@ class InteractiveShell(object):
 
         :return: The command line
         """
-        sys.stdout.write(self._shell.get_ps1())
+        sys.stdout.write(self.__get_ps1())
         sys.stdout.flush()
         return safe_input()
 
@@ -131,19 +149,17 @@ class InteractiveShell(object):
         :param on_quit: A call back method, called without argument when the
                         shell session has ended
         """
-        # Set the session up
-        session = ShellSession(IOHandler(sys.stdin, sys.stdout), {})
-
         # Start the init script
-        self._run_script(session, self._context.get_property(PROP_INIT_FILE))
+        self._run_script(
+            self.__session, self._context.get_property(PROP_INIT_FILE))
 
         # Run the script
         script_file = self._context.get_property(PROP_RUN_FILE)
         if script_file:
-            self._run_script(session, script_file)
+            self._run_script(self.__session, script_file)
         else:
             # No script: run the main loop (blocking)
-            self._run_loop(session)
+            self._run_loop(self.__session)
 
         # Nothing more to do
         self._stop_event.set()
@@ -210,8 +226,49 @@ class InteractiveShell(object):
         A completer for the readline library
         """
         if state == 0:
-            if '.' in text:
-                # A name space is given
+            # New completion, reset the list of matches and the display hook
+            self._readline_matches = []
+            try:
+                readline.set_completion_display_matches_hook(None)
+            except AttributeError:
+                pass
+
+            # Get the full line
+            full_line = readline.get_line_buffer()
+            begin_idx = readline.get_begidx()
+
+            # Parse arguments as best as we can
+            try:
+                arguments = shlex.split(full_line)
+            except ValueError:
+                arguments = full_line.split()
+
+            # Extract the command (maybe with its namespace)
+            command = arguments.pop(0)
+
+            if begin_idx > 0:
+                # We're completing after the command (and maybe some args)
+                try:
+                    # Find the command
+                    ns, command = self._shell.get_ns_command(command)
+                except ValueError:
+                    # Ambiguous command: ignore
+                    return None
+
+                # Use the completer associated to the command, if any
+                try:
+                    configuration = self._shell.get_command_completers(
+                        ns, command)
+                    if configuration is not None:
+                        self._readline_matches = completion_hints(
+                            configuration, self.__get_ps1(),
+                            self.__session, self._context, text, arguments)
+                except KeyError:
+                    # Unknown command
+                    pass
+
+            elif '.' in command:
+                # Completing the command, and a name space is given
                 namespace, prefix = text.split('.', 2)
                 commands = self._shell.get_commands(namespace)
 
@@ -221,8 +278,8 @@ class InteractiveShell(object):
                     for command in commands
                     if command.startswith(prefix)]
             else:
-                # Complete with name space names or default commands
-                prefix = text
+                # Completing a command or namespace
+                prefix = command
 
                 # Default commands goes first...
                 possibilities = [
@@ -558,6 +615,7 @@ def main(argv=None):
 
     # Set the initial bundles
     bundles = ['pelix.ipopo.core', 'pelix.shell.core', 'pelix.shell.ipopo',
+               'pelix.shell.completion.pelix', 'pelix.shell.completion.ipopo',
                'pelix.shell.console']
     bundles.extend(init.bundles)
 

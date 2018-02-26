@@ -36,6 +36,9 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
 import pelix.ipopo.constants
 import pelix.shell
 
+from pelix.shell.completion.decorators import Completion, FACTORY, COMPONENT, \
+    DUMMY, FACTORY_PROPERTY
+
 # ------------------------------------------------------------------------------
 
 # Module version
@@ -171,6 +174,7 @@ class IPopoCommands(object):
         else:
             session.write_line("{0} filtered components", len(components))
 
+    @Completion(FACTORY)
     def factory_details(self, session, name):
         """
         Prints the details of the given component factory
@@ -221,6 +225,7 @@ class IPopoCommands(object):
 
         session.write('\n'.join(lines))
 
+    @Completion(COMPONENT)
     def instance_details(self, session, name):
         """
         Prints the details of the given component instance
@@ -273,6 +278,7 @@ class IPopoCommands(object):
         lines.append("")
         session.write('\n'.join(lines))
 
+    @Completion(FACTORY, DUMMY, FACTORY_PROPERTY, multiple=True)
     def instantiate(self, session, factory, name, **properties):
         """
         Instantiates a component of the given factory with the given name and
@@ -294,6 +300,7 @@ class IPopoCommands(object):
         # We're here if an exception occurred
         return False
 
+    @Completion(COMPONENT)
     def kill(self, session, name):
         """
         Kills the given component instance
@@ -305,6 +312,7 @@ class IPopoCommands(object):
             session.write_line("Invalid parameter: {0}", ex)
             return False
 
+    @Completion(COMPONENT, FACTORY_PROPERTY, multiple=True)
     def retry_erroneous(self, session, name, **properties):
         """
         Removes the erroneous flag from a component and retries to validate it

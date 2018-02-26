@@ -38,6 +38,9 @@ import sys
 from pelix.utilities import to_str, get_method_arguments
 import pelix.shell.beans as beans
 
+# Shell completion
+from pelix.shell.completion.decorators import ATTR_COMPLETERS, CompletionInfo
+
 # ------------------------------------------------------------------------------
 
 # Module version
@@ -231,6 +234,22 @@ class Shell(object):
 
         space[command] = method
         return True
+
+    def get_command_completers(self, namespace, command):
+        # type: (str, str) -> CompletionInfo
+        """
+        Returns the completer method associated to the given command, or None
+
+        :param namespace: The command name space.
+        :param command: The shell name of the command
+        :return: A CompletionConfiguration object
+        :raise KeyError: Unknown command or name space
+        """
+        # Find the method (can raise a KeyError)
+        method = self._commands[namespace][command]
+
+        # Return the completer, if any
+        return getattr(method, ATTR_COMPLETERS, None)
 
     def unregister(self, namespace, command=None):
         """

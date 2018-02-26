@@ -49,6 +49,9 @@ from pelix.shell import SERVICE_SHELL, SERVICE_SHELL_COMMAND, \
 from pelix.shell.report import format_frame_info
 import pelix.shell.parser as parser
 
+# Shell completion
+from pelix.shell.completion import Completion, BUNDLE, SERVICE
+
 # ------------------------------------------------------------------------------
 
 # Public API
@@ -297,6 +300,7 @@ class _ShellService(parser.Shell):
                 session.set(name, value)
                 session.write_line("{0}={1}", name, value)
 
+    @Completion(BUNDLE)
     def bundle_details(self, io_handler, bundle_id):
         """
         Prints the details of the bundle with the given ID or name
@@ -395,6 +399,7 @@ class _ShellService(parser.Shell):
         else:
             io_handler.write_line("{0} filtered bundles", len(lines))
 
+    @Completion(SERVICE)
     def service_details(self, io_handler, service_id):
         """
         Prints the details of the service with the given ID
@@ -700,6 +705,7 @@ class _ShellService(parser.Shell):
         except constants.BundleException:
             io_handler.write_line("Unknown bundle: {0}", bundle_id)
 
+    @Completion(BUNDLE, multiple=True)
     def start(self, io_handler, bundle_id, *bundles_ids):
         """
         Starts the bundles with the given IDs. Stops on first failure.
@@ -713,6 +719,7 @@ class _ShellService(parser.Shell):
             else:
                 return False
 
+    @Completion(BUNDLE, multiple=True)
     def stop(self, io_handler, bundle_id, *bundles_ids):
         """
         Stops the bundles with the given IDs. Stops on first failure.
@@ -726,6 +733,7 @@ class _ShellService(parser.Shell):
             else:
                 return False
 
+    @Completion(BUNDLE, multiple=True)
     def update(self, io_handler, bundle_id, *bundles_ids):
         """
         Updates the bundles with the given IDs. Stops on first failure.
@@ -747,6 +755,7 @@ class _ShellService(parser.Shell):
         io_handler.write_line("Bundle ID: {0}", bundle.get_bundle_id())
         return bundle.get_bundle_id()
 
+    @Completion(BUNDLE, multiple=True)
     def uninstall(self, io_handler, bundle_id, *bundles_ids):
         """
         Uninstalls the bundles with the given IDs. Stops on first failure.
