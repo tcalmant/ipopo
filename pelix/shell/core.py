@@ -711,6 +711,13 @@ class _ShellService(parser.Shell):
         Starts the bundles with the given IDs. Stops on first failure.
         """
         for bid in (bundle_id,) + bundles_ids:
+            try:
+                # Got an int => it's a bundle ID
+                bid = int(bid)
+            except ValueError:
+                # Got something else, we will try to install it first
+                bid = self.install(io_handler, bid)
+
             bundle = self.__get_bundle(io_handler, bid)
             if bundle is not None:
                 io_handler.write_line("Starting bundle {0} ({1})...",
