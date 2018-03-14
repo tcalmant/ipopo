@@ -51,13 +51,13 @@ Here is a sample initial configuration file:
      "properties": {
        "some.value": 42,
        "framework.uuid": "custom-uuid",
-       "arrays": ['they', 'work', 'too', 123],
+       "arrays": ["they", "work", "too", 123],
        "dicts": {"why": "not?"}
      },
      "environment": {
        "new_path": "/opt/foo",
        "LANG": "en_US.UTF-8"
-     }
+     },
      "paths": [
        "/opt/bar",
        "$new_path/mylib.zip"
