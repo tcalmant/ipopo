@@ -83,7 +83,7 @@ Sample
    from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
       Instantiate
    from pelix.http import HTTP_SERVLET, HTTP_SERVLET_PATH
-   from pelix.http.routing import RestDispatcher, HttpGet, HttpPost
+   from pelix.http.routing import RestDispatcher, HttpGet, HttpPost, HttpPut
 
    @ComponentFactory()
    @Provides(HTTP_SERVLET)
@@ -96,12 +96,12 @@ Sample
 
       @HttpPost("/form/<form_id:uuid>")
       def handle_form(self, request, response, form_id):
-         reponse.send_content(200, "<p>Handled {}</p>".format(form_id))
+         response.send_content(200, "<p>Handled {}</p>".format(form_id))
 
       @HttpPut("/upload/<some_id:int>/<filename:path>")
       @HttpPut("/upload/<filename:path>")
       def handle_upload(
       self, request, response,
                         some_id=None, filename=None):
-         reponse.send_content(200, "<p>Handled {} : {}</p>" \
+         response.send_content(200, "<p>Handled {} : {}</p>" \
             .format(some_id, filename))
