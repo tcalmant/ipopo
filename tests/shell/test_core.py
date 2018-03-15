@@ -696,7 +696,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         Tests the install, start, update, stop and uninstall commands
         """
         # Install a bundle
-        output = self._run_command('install pelix.ipopo.core')
+        output = self._run_command('install pelix.http.basic')
 
         # Find it
         bundle = self.context.get_bundles()[-1]
@@ -725,12 +725,28 @@ class ShellCoreCommandsTest(unittest.TestCase):
         self.assertNotIn(bundle, self.context.get_bundles())
 
         # Test invalid command arguments
-        for command in ('start', 'update', 'stop', 'uninstall'):
+        for command in ('update', 'stop', 'uninstall'):
             output = self._run_command('{0} aaa', command)
             self.assertIn("Invalid bundle ID", output)
 
             output = self._run_command('{0} {1}', command, -1)
             self.assertIn("Unknown bundle", output)
+
+    def testBundleNameStart(self):
+        """
+        Tests the bundle start feature with
+        :return:
+        """
+        # Install a bundle
+        output = self._run_command('start pelix.http.basic')
+
+        # Find it and check its state
+        bundle = self.context.get_bundles()[-1]
+        self.assertEqual(bundle.get_state(), Bundle.ACTIVE)
+
+        # Check command output
+        bundle_id = bundle.get_bundle_id()
+        self.assertIn(str(bundle_id), output)
 
     def testServicesInfo(self):
         """
