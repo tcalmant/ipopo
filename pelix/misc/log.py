@@ -333,7 +333,8 @@ class LogServiceFactory(logging.Handler):
         bundle = self._bundle_from_module(record.module)
 
         # Convert to a LogEntry
-        entry = LogEntry(record.levelno, record.message, None, bundle, None)
+        entry = LogEntry(
+            record.levelno, record.getMessage(), None, bundle, None)
         self._reader._store_entry(entry)
 
     def get_service(self, bundle, registration):
