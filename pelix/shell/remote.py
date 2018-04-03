@@ -39,6 +39,12 @@ import socket
 import sys
 
 try:
+    # Some Python distributions don't support SSL
+    import ssl
+except ImportError:
+    ssl = None
+
+try:
     # Python 3
     # pylint: disable=F0401
     import socketserver
@@ -50,7 +56,7 @@ except ImportError:
 # iPOPO
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
-    Validate, Invalidate, Provides
+    Validate, Invalidate, Provides, HiddenProperty
 
 # Pelix
 from pelix.shell.console import make_common_parser, handle_common_arguments
@@ -224,22 +230,36 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
     """
     Threaded TCP Server handling different address families
     """
-    def __init__(self, server_address, request_handler_class):
+    def __init__(
+            self, server_address, request_handler_class,
+            cert_file=None, key_file=None, key_password=None, ca_file=None):
         """
         Sets up the TCP server. Doesn't bind nor activate it.
+
+        :param server_address: Server binding address
+        :param request_handler_class: Class to instantiate for each client
+        :param cert_file: Path to the server certificate
+        :param key_file: Path to the server private key
+        :param key_password: Password for the key file
+        :param ca_file: Path to Certificate Authority to authenticate clients
         """
         # Determine the address family
-        addr_info = socket.getaddrinfo(server_address[0], server_address[1],
-                                       0, 0, socket.SOL_TCP)
+        addr_info = socket.getaddrinfo(
+            server_address[0], server_address[1], 0, 0, socket.SOL_TCP)
 
         # Change the address family before the socket is created
         # Get the family of the first possibility
         self.address_family = addr_info[0][0]
 
+        # Keep track of SSL arguments
+        self.cert_file = cert_file
+        self.key_file = key_file
+        self.key_password = key_password
+        self.ca_file = ca_file
+
         # Call the super constructor
-        socketserver.ThreadingTCPServer.__init__(self, server_address,
-                                                 request_handler_class,
-                                                 False)
+        socketserver.ThreadingTCPServer.__init__(
+            self, server_address, request_handler_class, False)
         if self.address_family == socket.AF_INET6:
             # Explicitly ask to be accessible both by IPv4 and IPv6
             try:
@@ -249,28 +269,84 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
             except socket.error as ex:
                 _logger.exception("Error setting up IPv6 double stack: %s", ex)
 
+    def get_request(self):
+        """
+        Accepts a new client. Sets up SSL wrapping if necessary.
+
+        :return: A tuple: (client socket, client address tuple)
+        """
+        # Accept the client
+        client_socket, client_address = self.socket.accept()
+
+        if ssl is not None and self.cert_file:
+            # Setup an SSL context to accept clients with a certificate
+            # signed by a known chain of authority.
+            # Other clients will be rejected during handshake.
+            context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            try:
+                # Force a valid/signed client-side certificate
+                context.verify_mode = ssl.CERT_REQUIRED
+
+                # Load the server certificate
+                context.load_cert_chain(
+                    certfile=self.cert_file,
+                    keyfile=self.key_file,
+                    password=self.key_password)
+
+                if self.ca_file:
+                    # Load the given authority chain
+                    context.load_verify_locations(self.ca_file)
+                else:
+                    # Load the default chain if none given
+                    context.load_default_certs(ssl.Purpose.CLIENT_AUTH)
+            except Exception as ex:
+                # Explicitly log the error as the default behaviour hides it
+                _logger.error("Error setting up the SSL context: %s", ex)
+                raise
+
+            try:
+                # SSL handshake
+                client_stream = context.wrap_socket(
+                    client_socket, server_side=True)
+            except ssl.SSLError as ex:
+                # Explicitly log the exception before re-raising it
+                _logger.warning(
+                    "Error during SSL handshake with %s: %s", client_address, ex)
+                raise
+        else:
+            # Nothing to do, use the raw socket
+            client_stream = client_socket
+
+        return client_stream, client_address
+
     def process_request(self, request, client_address):
         """
         Starts a new thread to process the request, adding the client address
         in its name.
         """
         thread = threading.Thread(
-            name="RemoteShell-{0}-Client-{1}".format(self.server_address[1],
-                                                     client_address[:2]),
+            name="RemoteShell-{0}-Client-{1}".format(
+                self.server_address[1], client_address[:2]),
             target=self.process_request_thread,
             args=(request, client_address))
         thread.daemon = self.daemon_threads
         thread.start()
 
 
-def _create_server(shell, server_address, port):
+def _create_server(
+        shell, server_address, port,
+        cert_file=None, key_file=None, key_password=None, ca_file=None):
     """
     Creates the TCP console on the given address and port
 
     :param shell: The remote shell handler
     :param server_address: Server bound address
     :param port: Server port
-    :return: server thread, TCP server object
+    :param cert_file: Path to the server certificate
+    :param key_file: Path to the server private key
+    :param key_password: Password for the key file
+    :param ca_file: Path to Certificate Authority to authenticate clients
+    :return: A tuple: Server thread, TCP server object, Server active flag
     """
     # Set up the request handler creator
     active_flag = SharedBoolean(True)
@@ -282,7 +358,9 @@ def _create_server(shell, server_address, port):
         return RemoteConsole(shell, active_flag, *rh_args)
 
     # Set up the server
-    server = ThreadingTCPServerFamily((server_address, port), request_handler)
+    server = ThreadingTCPServerFamily(
+        (server_address, port), request_handler,
+        cert_file, key_file, key_password, ca_file)
 
     # Set flags
     server.daemon_threads = True
@@ -308,6 +386,10 @@ def _create_server(shell, server_address, port):
 @Requires("_shell", pelix.shell.SERVICE_SHELL)
 @Property("_address", "pelix.shell.address", "localhost")
 @Property("_port", "pelix.shell.port", 9000)
+@Property("_ca_file", "pelix.shell.ssl.ca", None)
+@Property("_cert_file", "pelix.shell.ssl.cert", None)
+@Property("_key_file", "pelix.shell.ssl.key", None)
+@HiddenProperty("_key_password", "pelix.shell.ssl.key_password", None)
 class IPopoRemoteShell(object):
     """
     The iPOPO Remote Shell, based on the Pelix Shell
@@ -320,6 +402,12 @@ class IPopoRemoteShell(object):
         self._shell = None
         self._address = None
         self._port = 0
+
+        # SSL configuration
+        self._ca_file = None
+        self._cert_file = None
+        self._key_file = None
+        self._key_password = None
 
         # Internals
         self._thread = None
@@ -385,8 +473,10 @@ class IPopoRemoteShell(object):
             self._port = 0
 
         # Start the TCP server
-        self._thread, self._server, self._server_flag = \
-            _create_server(self, self._address, self._port)
+        self._thread, self._server, self._server_flag = _create_server(
+            self, self._address, self._port,
+            self._cert_file, self._key_file, self._key_password,
+            self._ca_file)
 
         # Property update (if port was 0)
         self._port = self._server.socket.getsockname()[1]
@@ -450,7 +540,8 @@ def main(argv=None):
     # Prepare arguments
     parser = argparse.ArgumentParser(
         prog="pelix.shell.remote", parents=[make_common_parser()],
-        description="Pelix Remote Shell")
+        description="Pelix Remote Shell ({} SSL support)"
+                    .format("with" if ssl is not None else "without"))
 
     # Remote shell options
     group = parser.add_argument_group("Remote Shell options")
@@ -458,6 +549,24 @@ def main(argv=None):
                        help="The remote shell binding address")
     group.add_argument("-p", "--port", type=int, default=9000,
                        help="The remote shell binding port")
+
+    if ssl is not None:
+        # Remote Shell TLS options
+        group = parser.add_argument_group("TLS Options")
+        group.add_argument(
+            "--cert",
+            help="Path to the server certificate file")
+        group.add_argument(
+            "--key",
+            help="Path to the server key file "
+                 "(can be omitted if the key is in the certificate)")
+        group.add_argument(
+            "--key-password",
+            help="Password of the server key."
+                 "Set to '-' for a password request.")
+        group.add_argument(
+            "--ca-chain",
+            help="Path to the CA chain file to authenticate clients")
 
     # Local options
     group = parser.add_argument_group("Local options")
@@ -490,11 +599,42 @@ def main(argv=None):
         try:
             ipopo.get_instance_details(rshell_name)
         except ValueError:
-            # Component doesn't exist, we can instantiate it
+            # Component doesn't exist, we can instantiate it.
+
+            if ssl is not None:
+                # Copy parsed arguments
+                ca_chain = args.ca_chain
+                cert = args.cert
+                key = args.key
+
+                # Normalize the TLS key file password argument
+                if args.key_password == '-':
+                    import getpass
+                    key_password = getpass.getpass(
+                        "Password for {}: ".format(args.key or args.cert))
+                else:
+                    key_password = args.key_password
+            else:
+                # SSL support is missing:
+                # Ensure the SSL arguments are defined but set to None
+                ca_chain = None
+                cert = None
+                key = None
+                key_password = None
+
+            # Setup the component
             rshell = ipopo.instantiate(
                 pelix.shell.FACTORY_REMOTE_SHELL, rshell_name,
                 {"pelix.shell.address": args.address,
-                 "pelix.shell.port": args.port})
+                 "pelix.shell.port": args.port,
+                 "pelix.shell.ssl.ca": ca_chain,
+                 "pelix.shell.ssl.cert": cert,
+                 "pelix.shell.ssl.key": key,
+                 "pelix.shell.ssl.key_password": key_password,
+                 })
+
+            # Avoid loose reference to the password
+            del key_password
         else:
             logging.error("A remote shell component (%s) is already "
                           "configured. Abandon.", rshell_name)
