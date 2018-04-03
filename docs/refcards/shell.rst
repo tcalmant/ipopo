@@ -35,7 +35,7 @@ Pelix includes 3 main user interfaces:
 * Remote Shell: useful when managing an application running on a server
 * XMPP Shell: useful to access applications behind firewalls
 
-.. note:: Add a note about the common arguments and a link to :ref:`init_config`_
+.. note:: Add a note about the common arguments and a link to :ref:`refcard_init_config`
 
 Text UI
 -------
@@ -117,3 +117,97 @@ How to provide a new shell interface
 
     * Implement an ``IOHandler``
     * Create a ``ShellSession``
+
+
+How to prepare certificates for the Remote Shell
+================================================
+
+In order to use certificate-based client authentication with the Remote Shell
+in TLS mode, execute the following commands.
+
+.. note:: TODO
+
+    * Add source: https://jamielinux.com/docs/openssl-certificate-authority/index.html
+    * Add sample usage with the Remote Shell and ``openssl s_client``
+
+
+* Prepare the environment of the root certificate:
+
+  .. code-block:: bash
+
+    mkdir ca
+    cd ca/
+    mkdir certs crl newcerts private
+    chmod 700 private/
+    touch index.txt
+    echo 1000 > serial
+
+* Download ``openssl.cnf`` from https://jamielinux.com/docs/openssl-certificate-authority/appendix/root-configuration-file.html to ``ca/``
+
+* Create the root certificate
+
+  .. code-block:: bash
+
+    openssl genrsa -aes256 -out private/ca.key.pem 4096
+    chmod 400 private/ca.key.pem
+    cat private/ca.key.pem
+    openssl req -config openssl.cnf -key private/ca.key.pem -new -x509 -days 7300 -sha256 -extensions v3_ca -out certs/ca.cert.pem
+    chmod 444 certs/ca.cert.pem
+    openssl x509 -noout -text -in certs/ca.cert.pem
+
+* Prepare the environment of the intermediate certificate:
+
+  .. code-block:: bash
+
+    mkdir intermediate
+    cd intermediate/
+    mkdir certs crl csr newcerts private
+    chmod 700 private/
+    touch index.txt
+    echo 1000 > serial
+    echo 1000 > crlnumber
+
+* Download ``openssl.cnf`` from https://jamielinux.com/docs/openssl-certificate-authority/appendix/intermediate-configuration-file.html to ``ca/intermediate``
+* Generate the intermediate certificate and sign it with the root certificate:
+
+  .. code-block:: bash
+
+    openssl genrsa -aes256 -out intermediate/private/intermediate.key.pem 4096
+    chmod 400 intermediate/private/intermediate.key.pem
+    openssl req -config intermediate/openssl.cnf -new -sha256 -key intermediate/private/intermediate.key.pem -out intermediate/csr/intermediate.csr.pem
+    openssl ca -config openssl.cnf -extensions v3_intermediate_ca -days 3650 -notext -md sha256 -in intermediate/csr/intermediate.csr.pem -out intermediate/certs/intermediate.cert.pem
+    chmod 444 intermediate/certs/intermediate.cert.pem
+    openssl x509 -noout -text -in intermediate/certs/intermediate.cert.pem
+    openssl verify -CAfile certs/ca.cert.pem intermediate/certs/intermediate.cert.pem
+
+* Generate the Certificate Authority chain:
+
+  .. code-block:: bash
+
+    cat intermediate/certs/intermediate.cert.pem certs/ca.cert.pem > intermediate/certs/ca-chain.cert.pem
+    chmod 444 intermediate/certs/ca-chain.cert.pem
+
+* Generate the server certificate and sign it with the intermediate certificate:
+
+  .. code-block:: bash
+
+    openssl genrsa -aes256 -out intermediate/private/server.key.pem 2048
+    openssl genrsa -out intermediate/private/server.key.pem 2048
+    chmod 400 intermediate/private/server.key.pem
+    openssl req -config intermediate/openssl.cnf -key intermediate/private/server.key.pem -new -sha256 -out intermediate/csr/server.csr.pem
+    openssl ca -config intermediate/openssl.cnf -extensions server_cert -days 375 -notext -md sha256 -in intermediate/csr/server.csr.pem -out intermediate/certs/server.cert.pem
+    chmod 444 intermediate/certs/server.cert.pem
+    openssl x509 -noout -text -in intermediate/certs/server.cert.pem
+    openssl verify -CAfile intermediate/certs/ca-chain.cert.pem intermediate/certs/server.cert.pem
+
+* Generate a client certificate and sign it with the intermediate certificate:
+
+  .. code-block:: bash
+
+    openssl genrsa -out intermediate/private/client1.key.pem 2048
+    chmod 400 intermediate/private/client1.key.pem
+    openssl req -config intermediate/openssl.cnf -key intermediate/private/client1.key.pem -new -sha256 -out intermediate/csr/client1.csr.pem
+    openssl ca -config intermediate/openssl.cnf -extensions usr_cert -days 375 -notext -md sha256 -in intermediate/csr/client1.csr.pem -out intermediate/certs/client1.cert.pem
+    chmod 444 intermediate/certs/client1.cert.pem
+    openssl x509 -noout -text -in intermediate/certs/client1.cert.pem
+    openssl verify -CAfile intermediate/certs/ca-chain.cert.pem intermediate/certs/client1.cert.pem
