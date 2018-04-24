@@ -648,9 +648,6 @@ class Framework(Bundle):
         # Service registry
         self._registry = ServiceRegistry(self)
         self.__unregistering_services = {}
-        
-        # Event dispatcher
-        self._dispatcher = EventDispatcher(self._registry)
 
         # Event dispatcher
         self._dispatcher = EventDispatcher(self._registry)
