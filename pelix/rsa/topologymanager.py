@@ -30,10 +30,13 @@ import logging
 
 from pelix.remote.edef_io import EDEFReader, EDEFWriter
 
-from pelix.rsa.remoteserviceadmin import EndpointEventListener, EndpointEvent
+from pelix.rsa.remoteserviceadmin import RemoteServiceAdminListener, EndpointEvent, EndpointEventListener
 from pelix.framework import ServiceEvent
 
-import pelix.rsa as rsa
+from pelix.internals.hooks import EventListenerHook
+
+from threading import RLock
+
 # Module version
 __version_info__ = (0, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -69,28 +72,81 @@ class RSACommandHandler(object):
         for ed in eds:
             self._eel.endpoint_changed(EndpointEvent(EndpointEvent.ADDED,ed),None)
 
+class EndpointEventListenerImpl(EndpointEventListener):
     
-class AbstractTopologyManager(EndpointEventListener):
+    def __init__(self,tm_impl):
+        self._tmimpl = tm_impl
+        
+    def endpoint_changed(self, ep_event, matched_scope):
+        # XXX todo
+        EndpointEventListener.endpoint_changed(self, ep_event, matched_scope)
+
+class TopologyManagerImpl(object):
+    
+    def get_framework_uuid(self):
+        uuid = self._context.get_property("framework.uid")
+        return uuid
+    
+    def __init__(self,context):
+        self._context = context
+        
+    def handle_event(self, service_event):
+        pass
+    
+    def handle_remote_admin_event(self, event):
+        #XXX todo
+        pass
+    
+    def close(self):
+        #xxx todo
+        pass
+
+class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
     
     def __init__(self):
-        self._rsa = None
+        self._matching_filters = list()
+        self._tmimpl = None
+        self._tmimpl_lock = RLock()
         self._context = None
-        self._self_reg = None
+        self._ep_l_reg = None
         
     def _validate(self, context):
         self._context = context
-        # Prepare the export LDAP filter
-        ldapfilter = '(|({0}=*)({1}=*))' \
-            .format(rsa.SERVICE_IMPORTED_CONFIGS,
-                    rsa.SERVICE_EXPORTED_INTERFACES)
-        # Register a service listener, to update the exported services state
-        self._reg = self._context.add_service_listener(self, ldapfilter)
-    
+        with self._tmimpl_lock:
+            self._tmimpl = TopologyManagerImpl(context)
+        
+   
     def _invalidate(self, context):
-        if self._reg:
-            self._reg.unregister()
-            self._reg = None
+        if self._ep_l_reg:
+            self._ep_l_reg.unregister()
+            self._ep_l_reg = None
         self._context = None
+        with self._tmimpl_lock:
+            if self._tmimpl:
+                self._tmimpl.close()
+                self._tmimpl = None
+        self._matching_filters.clear()
+    
+    def get_endpoint_filters(self):
+        return list(self._matching_filters)
+    
+    def set_endpoint_filters(self,new_filters):
+        # xxx todo
+        pass
+
+    # impl of EventListenerHoook
+    def event(self,service_event,listener_dict):
+        with self._tmimpl_lock:
+            imp = self._tmimpl
+        if imp:
+            imp.handle_event(service_event)
+
+    # impl of RemoteServiceAdminListener
+    def remote_admin_event(self, event):
+        with self._tmimpl_lock:
+            imp = self._tmimpl
+        if imp:
+            imp.handle_remote_admin_event(event)
     
     #impl of service listener
     def service_changed(self, event):
@@ -120,9 +176,5 @@ class AbstractTopologyManager(EndpointEventListener):
             # Service is updated or unregistering
             self._rsa._unexport_service(svc_ref)
     
-    # impl of EndpointEventListener
-    def endpoint_changed(self, ep_event, matched_scope):
-        if ep_event.get_type() == EndpointEvent.ADDED:
-            self._rsa.import_service(ep_event.get_endpoint())
 
     

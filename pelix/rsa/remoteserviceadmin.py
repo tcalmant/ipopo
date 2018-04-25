@@ -52,6 +52,7 @@ from pelix.rsa.endpointdescription import EndpointDescription
 from argparse import ArgumentError
 from pelix.internals.registry import ServiceReference
 from pelix import constants
+from pelix.constants import BundleActivator
 from threading import RLock
 
 class _ImportEndpoint(object):
@@ -1020,7 +1021,7 @@ class RemoteServiceAdminEvent(object):
     def get_exception(self):
         return self._exception
     
-class RemoteServiceAdminEventListener(object):
+class RemoteServiceAdminListener(object):
     
     def remote_admin_event(self, event):
         pass
@@ -1028,8 +1029,33 @@ class RemoteServiceAdminEventListener(object):
 @ComponentFactory('pelix-rsa-remoteserviceadmin-tm-factory')
 @Provides(rsa.RSA_EVENT_LISTENER)
 @Instantiate('pelix-rsa-remoteserviceadmin-tm')
-class DebugRemoteServiceAdminEventListener(RemoteServiceAdminEventListener):
-        def remote_admin_event(self, event):
-            print("rsa event.  type="+str(event.get_type()))
+class DebugRemoteServiceAdminEventListener(RemoteServiceAdminListener):
+    def remote_admin_event(self, event):
+        print("rsa event.  type="+str(event.get_type()))
 
-    
+
+@BundleActivator
+class Activator(object):
+    """
+    The bundle activator
+    """
+    def __init__(self):
+        """
+        Sets up the members
+        """
+        self._context = None
+
+    def start(self, context):
+        """
+        Bundle started
+        """
+        self._context = context
+
+    def stop(self, _):
+        """
+        Bundle stopped
+        """
+        self._context = None
+
+# ------------------------------------------------------------------------------
+
