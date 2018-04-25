@@ -106,6 +106,12 @@ It can be generated or be forced using the framework initialization properties.
 This property is constant during the life of a framework instance.
 """
 
+OSGI_FRAMEWORK_UUID = "org.osgi.framework.uuid"
+"""
+OSGi standard framework uuid property name.   Set in framework init to the value
+of FRAMEWORK_UID
+"""
+
 # ------------------------------------------------------------------------------
 
 SCOPE_SINGLETON = "singleton"
