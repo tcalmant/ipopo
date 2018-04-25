@@ -45,7 +45,7 @@ except ImportError:
     pass
 
 # Pelix beans and constants
-from pelix.constants import ACTIVATOR, ACTIVATOR_LEGACY, FRAMEWORK_UID, \
+from pelix.constants import ACTIVATOR, ACTIVATOR_LEGACY, FRAMEWORK_UID, OSGI_FRAMEWORK_UUID, \
     BundleException, FrameworkException
 from pelix.internals.events import BundleEvent, ServiceEvent
 from pelix.internals.registry import EventDispatcher, ServiceRegistry, \
@@ -625,13 +625,14 @@ class Framework(Bundle):
             # Use a copy of the properties, to avoid external changes
             self.__properties = properties.copy()
 
-        # Generate a framework instance UUID, if needed
+        # Generate and set a framework instance UUID, if needed
         framework_uid = self.__properties.get(FRAMEWORK_UID)
         if not framework_uid:
             framework_uid = str(uuid.uuid4())
-
         # Normalize the UID: it must be a string
-        self.__properties[FRAMEWORK_UID] = str(framework_uid)
+        self.__properties[FRAMEWORK_UID] = framework_uid
+        # Also normalize the OSGI_FRAMEWORK_UID: it must be a string
+        self.__properties[OSGI_FRAMEWORK_UUID] = framework_uid
 
         # Properties lock
         self.__properties_lock = threading.Lock()
