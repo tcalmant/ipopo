@@ -500,8 +500,6 @@ class RemoteServiceAdmin(object):
                 export_props.update(overriding_props)
             
             configs = export_props[rsa.SERVICE_EXPORTED_CONFIGS]
-            if not configs:
-                raise ArgumentError(rsa.SERVICE_EXPORTED_CONFIGS+' must be set in svc_ref or overriding properties')
             
             # find exporters that handle configs
             exporters = [exporter for exporter in self._exporters[:]
@@ -622,6 +620,9 @@ class RemoteServiceAdmin(object):
         self._imported_regs_lock = threading.RLock()
         
         self._rsa_event_listeners = []
+        
+        self._exporters = []
+        self._importers = []
         
             
     def _publish_event(self,event):
@@ -1025,15 +1026,8 @@ class RemoteServiceAdminListener(object):
     
     def remote_admin_event(self, event):
         pass
+ 
     
-@ComponentFactory('pelix-rsa-remoteserviceadmin-tm-factory')
-@Provides(rsa.RSA_EVENT_LISTENER)
-@Instantiate('pelix-rsa-remoteserviceadmin-tm')
-class DebugRemoteServiceAdminEventListener(RemoteServiceAdminListener):
-    def remote_admin_event(self, event):
-        print("rsa event.  type="+str(event.get_type()))
-
-
 @BundleActivator
 class Activator(object):
     """

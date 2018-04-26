@@ -28,6 +28,8 @@ Pelix remote service admin package
 # Standard library
 import logging
 
+from pelix.ipopo.decorators import Validate, Invalidate
+
 from pelix.remote.edef_io import EDEFReader, EDEFWriter
 
 from pelix.rsa.remoteserviceadmin import RemoteServiceAdminListener, EndpointEvent, EndpointEventListener
@@ -36,6 +38,8 @@ from pelix.framework import ServiceEvent
 from pelix.internals.hooks import EventListenerHook
 
 from threading import RLock
+from pelix.rsa import SERVICE_EXPORTED_INTERFACES, SERVICE_EXPORTED_CONFIGS
+from pelix.constants import OBJECTCLASS
 
 # Module version
 __version_info__ = (0, 1, 0)
@@ -81,50 +85,25 @@ class EndpointEventListenerImpl(EndpointEventListener):
         # XXX todo
         EndpointEventListener.endpoint_changed(self, ep_event, matched_scope)
 
-class TopologyManagerImpl(object):
-    
-    def get_framework_uuid(self):
-        uuid = self._context.get_property("framework.uid")
-        return uuid
-    
-    def __init__(self,context):
-        self._context = context
-        
-    def handle_event(self, service_event):
-        pass
-    
-    def handle_remote_admin_event(self, event):
-        #XXX todo
-        pass
-    
-    def close(self):
-        #xxx todo
-        pass
-
 class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
     
     def __init__(self):
         self._matching_filters = list()
-        self._tmimpl = None
-        self._tmimpl_lock = RLock()
         self._context = None
         self._ep_l_reg = None
-        
+        self._rsa = None
+
+    @Validate
     def _validate(self, context):
         self._context = context
-        with self._tmimpl_lock:
-            self._tmimpl = TopologyManagerImpl(context)
+        fw_uuid = context.get_property('framework.uid')
         
-   
+    @Invalidate
     def _invalidate(self, context):
         if self._ep_l_reg:
             self._ep_l_reg.unregister()
             self._ep_l_reg = None
         self._context = None
-        with self._tmimpl_lock:
-            if self._tmimpl:
-                self._tmimpl.close()
-                self._tmimpl = None
         self._matching_filters.clear()
     
     def get_endpoint_filters(self):
@@ -134,19 +113,61 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
         # xxx todo
         pass
 
+    def _list_from_prop_value(self,value):
+        if not value:
+            return None
+        elif isinstance(value,str):
+            return [ value ]
+        elif isinstance(value,list):
+            return value
+        
+    def _handle_service_registered(self,service_ref):
+        exp_intfs = self._get_exported_interfaces(service_ref)
+        # If no exported interfaces, then all done
+        if not exp_intfs:
+            return
+        self._rsa.export_service(service_ref, { SERVICE_EXPORTED_INTERFACES:exp_intfs })
+    
+    def _handle_service_unregistering(self,service_ref):
+        return 
+    
+    def _handle_service_modified(self,service_ref):
+        return
+    
+    def _get_exported_interfaces(self,service_ref):
+        pv = service_ref.get_property(SERVICE_EXPORTED_INTERFACES)
+        if not pv:
+            return None
+        objectClass = service_ref.get_property(OBJECTCLASS)
+        # objectClass must be list
+        if not objectClass:
+            return None
+        if '*' == pv:
+            return objectClass
+        elif isinstance(pv,str):
+            return [ pv ]
+        elif isinstance(pv,list):
+            return pv
+        return None
+    
     # impl of EventListenerHoook
     def event(self,service_event,listener_dict):
-        with self._tmimpl_lock:
-            imp = self._tmimpl
-        if imp:
-            imp.handle_event(service_event)
-
+        rsa = self._rsa
+        if not rsa:
+            return None
+        kind = service_event.get_kind()
+        service_ref = service_event.get_service_reference()
+        if kind == ServiceEvent.REGISTERED:
+            self._handle_service_registered(service_ref)
+        elif kind == ServiceEvent.UNREGISTERING:
+            self._handle_service_unregistering(service_ref)
+        elif kind == ServiceEvent.MODIFIED:
+            self._handle_service_modified(service_ref)
+            
     # impl of RemoteServiceAdminListener
     def remote_admin_event(self, event):
-        with self._tmimpl_lock:
-            imp = self._tmimpl
-        if imp:
-            imp.handle_remote_admin_event(event)
+        # XXX todo
+        return 
     
     #impl of service listener
     def service_changed(self, event):

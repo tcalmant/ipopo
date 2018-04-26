@@ -194,6 +194,13 @@ def get_next_rsid():
         _next_rsid += 1
         return n
 
+def copy_ref_props(service_ref):
+    keys = service_ref.get_property_keys()
+    result = dict()
+    for key in keys:
+        result[key] = service_ref.get_property(key)
+    return result
+
 def merge_dicts(*dict_args):
     '''
     Given any number of dicts, shallow copy and merge into a new dict,
@@ -203,6 +210,10 @@ def merge_dicts(*dict_args):
     for dictionary in dict_args:
         result.update(dictionary)
     return result
+
+def merge_overriding_props(service_ref,overriding_props):
+    ref_props = copy_ref_props(service_ref)
+    return merge_dicts(ref_props, overriding_props)
 
 def get_rsa_props(object_class, exported_cfgs, intents=None, ep_svc_id=None, fw_id=None, pkg_vers=None):
     results = {}
