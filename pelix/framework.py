@@ -630,9 +630,9 @@ class Framework(Bundle):
         if not framework_uid:
             framework_uid = str(uuid.uuid4())
         # Normalize the UID: it must be a string
-        self.__properties[FRAMEWORK_UID] = framework_uid
+        self.__properties[FRAMEWORK_UID] = str(framework_uid)
         # Also normalize the OSGI_FRAMEWORK_UID: it must be a string
-        self.__properties[OSGI_FRAMEWORK_UUID] = framework_uid
+        self.__properties[OSGI_FRAMEWORK_UUID] = str(framework_uid)
 
         # Properties lock
         self.__properties_lock = threading.Lock()
