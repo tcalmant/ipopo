@@ -43,6 +43,12 @@ the following entries:
   * ``properties`` (optional): a JSON object defining the initial properties of
     the component
 
+.. note::
+
+   The ``components`` entry requires iPOPO to work.
+   Therefore, the ``pelix.ipopo.core`` bundle must be declared in the
+   ``bundles`` entry of the initial configuration file.
+
 Here is a sample initial configuration file:
 
 .. code-block:: javascript
@@ -63,6 +69,7 @@ Here is a sample initial configuration file:
        "$new_path/mylib.zip"
      ],
      "bundles": [
+       "pelix.ipopo.core",
        "pelix.misc.log",
        "pelix.shell.log",
        "pelix.http.basic"
@@ -78,7 +85,17 @@ Here is a sample initial configuration file:
      ]
    }
 
-Moreover, if the root object contains a ``reset_<name>`` entry, then the
+
+Configuration override
+^^^^^^^^^^^^^^^^^^^^^^
+
+The initial configuration can be split in multiple files in order to ease
+the specialisation of frameworks sharing a common base configuration.
+This is explained in the following `File Lookup`_ section.
+
+Sometimes, it can be necessary to redefine some entries, *e.g* in order to
+change a set of components but keeping the bundles to be started.
+If the root object contains a ``reset_<name>`` entry, then the
 previously loaded configuration for the ``<name>`` entry are forgotten: the
 current configuration will replace the old one instead of updating it.
 
@@ -88,6 +105,7 @@ For example:
 
    {
      "bundles": [
+        "pelix.ipopo.core",
         "pelix.http.basic"
      ],
      "reset_bundles": true
@@ -101,7 +119,7 @@ configuration files will be cleared and replaced by the one in this file.
 File lookup
 -----------
 
-A :class:`~InitFileHandler` object updates its internal state with the content
+An :class:`~InitFileHandler` object updates its internal state with the content
 of the files it parses.
 As a result, multiple configuration files can be used to start framework with
 a common basic configuration.
@@ -118,21 +136,21 @@ order:
 * ``~`` (user directory)
 * ``.`` (current working directory)
 
-When giving a file name to :meth:`~InitFileHandler.load`, the handler
-will merge the configuration it contains with its current state.
+When giving a file name to :meth:`~InitFileHandler.load`, the handler will
+merge the newly loaded configuration with the current state of the handler.
 
 Finally, after having updated a configuration, the :class:`~InitFileHandler`
-will remove duplicated in Python path and bundles configurations.
+will remove the duplicated elements of the Python path and bundles entries.
 
 
 Support in Pelix shell
 ----------------------
 
-The framework doesn't starts a :class:`~InitFileHandler` on its own: it must be
-created and loaded before creating the framework.
+The framework doesn't start a :class:`~InitFileHandler` on its own: the handler
+must be created and loaded before creating the framework.
 
-Currently, only the Pelix Shell Console supports the initial configuration,
-using the following arguments:
+Currently, all the Pelix Shell interfaces (local console, remote shell and XMPP)
+support the initial configuration, using the following arguments:
 
 * *no argument*: the `.pelix.conf` files are loaded as described in
   :ref:`init_conf_lookup`.
@@ -142,9 +160,6 @@ using the following arguments:
 * ``-C <filename>``, ``--exclusive-conf <filename>``: only the given
   configuration file will be loaded.
 
-It is planned that the support for initial configuration files will be added
-to other shells in future iPOPO versions.
-
 
 API
 ---
@@ -153,11 +168,19 @@ API
    :members: clear, load, normalize, instantiate_components, bundles,
              properties
 
+.. module:: pelix.shell.console
+
+Note that the ``pelix.shell.console`` module provides a
+:meth:`~handle_common_arguments` method to automate the use of an
+initial configuration with the arguments common to all Pelix Shell scripts:
+
+.. autofunction:: handle_common_arguments
+
 Sample API Usage
 ----------------
 
-This sample starts a framework based on the default configuration files, plus
-a given one named *some_file.json*.
+This sample starts a framework based on the default configuration files
+(see `File lookup`_), plus a given one named *some_file.json*.
 
 .. code-block:: python
 

@@ -124,7 +124,7 @@ service. It contains few English words.
 
 * The ``@Component`` decorator is used to declare an iPOPO component.
   It must always be on top of other decorators.
-* The ``@Provides`` decorator indicates that the component provides a service. 
+* The ``@Provides`` decorator indicates that the component provides a service.
 * The ``@Instantiate`` decorator instructs iPOPO to automatically create an
   instance of our component. The relation between components and instances is
   the same than between classes and objects in the object-oriented programming.
@@ -246,3 +246,6 @@ Here is a sample run, calling ``python main_pelix_launcher.py``:
    Bye !
    A spell client has been stopped
    INFO:pelix.shell.core:Shell services unregistered
+
+You can now go back to see other :ref:`Tutorials` or take a look at the
+:ref:`refcards`.

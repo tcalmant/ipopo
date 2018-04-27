@@ -7,15 +7,16 @@ iPOPO depends on only one external library,
 `jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`_, which
 provides some utility methods and is required to enable remote services.
 
-To install iPOPO, you will need Python 2.7, Python 3.3 or newer.
+To install iPOPO, you will need Python 2.7, Python 3.4 or newer.
 iPOPO is constantly tested, using Tox and Travis-CI, on the following
 interpreters:
 
-  * Python 2.7, 3.3, 3.4, 3.5
-  * Pypy 2 et 3
-  
-Support for Python 2.6 has been dropped with iPOPO 0.6. The framework
-should run on Python 3.2, but it is not officialy supported.
+  * Python 2.7
+  * Python 3.4, 3.5 and 3.6
+
+Support for Python 2.6 has been dropped with iPOPO 0.6.
+The framework should run on Python 3.2 and 3.3 and also on Pypy, but this is
+not guaranteed. Any feedback on those platforms is welcome.
 
 There are many ways to install iPOPO, so let's have a look to some of
 them.
@@ -29,7 +30,7 @@ environments is recommended to develop your applications.
 For a system-wide installation, just run ``pip`` with root privileges::
 
     $ sudo pip install iPOPO
-    
+
 If you don't have root privileges and you can't or don't want to use
 virtual environments, you can install iPOPO for your user only::
 
@@ -61,8 +62,8 @@ Now you can create a new virtual environment, here called *ipopo-venv*::
 
 Continue to :ref:`then` to activate your new environment.
 
-Previous versions
-'''''''''''''''''
+Older Python versions
+'''''''''''''''''''''
 
 Before Python 3.3, virtual environments were handled by a third-party
 package, ``virtualenv``, which must be installed alongside Python.
@@ -84,7 +85,7 @@ environment::
     Installing setuptools, pip............done.
 
 .. _then:
-    
+
 Then...
 '''''''
 
@@ -97,10 +98,11 @@ If you are a Windows user, the following command is for you::
 
     > ipopo-venv\Scripts\activate
 
-Either way, you show now be using your virtual environment. The shell
-prompt should indicate it.
+Either way, the ``python`` and ``pip`` commands you type in the shell should
+be those of your virtual environment.
+The shell prompt indicates the name of the virtual environment currently in use.
 
-Now you can install iPOPO using ``pip``. As this is a virtual
+Now you can install iPOPO using ``pip``. As you are in a virtual
 environment, you don't need administration rights::
 
     $ pip install iPOPO
@@ -116,7 +118,7 @@ the following command (both on Linux and Windows)::
 Development version
 -------------------
 
-If you want to work with latest version of iPOPO, there are two ways:
+If you want to work with the latest version of iPOPO, there are two ways:
 you can either let ``pip`` pull in the development version, or you can
 tell it to operate on a git checkout.
 Either way, a virtual environment is recommended.
@@ -139,3 +141,5 @@ git head as the current version inside the virtual environment.
 As the *develop* installation mode uses symbolic links, you simply
 have to run ``git pull origin`` to update to the latest version of
 iPOPO in your virtual environment.
+
+You can now continue to :ref:`Quickstart`
