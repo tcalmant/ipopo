@@ -58,8 +58,10 @@ On March 2015, release 0.6 dropped support for Python 2.6.
 Since then, the development slowed down as the core framework is
 considered stable.
 
-iPOPO 1.0 should be released mid-2017, when the remote services engine
-will be upgraded.
+As of 2018, the development of iPOPO is still active.
+iPOPO 1.0 will come out when some features, existing or currently in
+development, will have been completed, tested and polished.
+
 
 SOA and SOCM in Python
 ----------------------
@@ -75,7 +77,7 @@ The provider or the service itself (they are often the same) must
 handle the requirements, *i.e.* looking for the services required to
 work and handling their late un/registration.
 
-A component is an object instanciated and handled by an instance
+A component is an object instantiated and handled by an instance
 manager created by iPOPO.
 The manager handles the life cycle of the component, looking for its
 dependencies and handling their late registration, unregistration and

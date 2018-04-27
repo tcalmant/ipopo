@@ -49,7 +49,7 @@ help     Shows the help
 loglevel Prints/Changes the log level
 exit     Quits the shell (and stops the framework in console UI)
 threads  Prints the stack trace of all threads
-run      Runs a shell script
+run      Runs a Pelix shell script
 ======== =======================================================
 
 Bundle commands
@@ -154,7 +154,7 @@ instance    Prints the details of a component
 waiting     Lists the components waiting for an handler
 instantiate Starts a new component instance
 kill        Kills a component
-retry       Retry the validation of a component
+retry       Retry the validation of an erroneous component
 =========== ============================================
 
 This snippets installs the ``pelix.shell.remote`` bundle and
@@ -284,11 +284,13 @@ with the various commands described in the :ref:`previous section <quick_shell>`
     Uninstalling bundle 12 (provider)...
     Component invalidated, the service is gone
 
-Hello from somewhere!
-=====================
+Hello from somewhere else!
+==========================
 
-This section reuses the bundles written in the *Hello World* sample, and install
-them in two distinct frameworks.
+This section reuses the bundles written in the *Hello World* sample and starts
+them into two distinct frameworks. The consumer will use the service provided
+from the other framework.
+
 To achieve that, we will use the *Pelix Remote Services*, a set of bundles
 intending to share services across multiple Pelix frameworks.
 A :ref:`reference card <refcard_remote_services>` provides more information
@@ -301,11 +303,11 @@ First, we must install the core bundles of the *remote services* implementation:
 the *Imports Registry* (``pelix.remote.registry``) and the
 *Exports Dispatcher* (``pelix.remote.dispatcher``).
 Both handle the description of the shared services, not their link with the
-framework: it will be the job of discovery and transport providers.
+framework: this will be the job of the discovery and transport providers.
 The discovery provider we will use requires to access the content of the
 *Exports Dispatcher* of the frameworks it finds, through HTTP requests.
-A component, the *dispatcher servlet*, must therefore be instantiate to answer
-to those requests::
+A component, the *dispatcher servlet*, must be instantiated to answer to those
+requests::
 
     bash$ python -m pelix.shell
     ** Pelix Shell prompt **
@@ -344,7 +346,7 @@ use a Pelix-specific protocol based on UDP multicast packets.
 By default, this protocol uses the UDP port 42000, which must therefore be
 accessible on any machine providing or consuming a remote service.
 
-Start two Pelix framework with their shell and, in each one, install the
+Start two Pelix frameworks with their shell and, in each one, install the
 ``pelix.remote.discovery.multicast`` bundle then instantiate the discovery
 component::
 
@@ -361,10 +363,10 @@ requests and to wait for their responses.
 Here, we'll use the JSON-RPC protocol (``pelix.remote.json_rpc``), which is the
 easiest to use (*e.g.* XML-RPC has problems handling dictionaries of complex
 types).
-Transport providers often require to instantiate two components: one for the
-export and one for the import.
+Transport providers often require to instantiate two components: one handling
+the export of services and one handling their import.
 This allows to instantiate the export part only, avoiding every single framework
-to know about all available services.
+to know about all available services::
 
     $ install pelix.remote.json_rpc
     Bundle ID: 15
@@ -426,3 +428,5 @@ use it::
 
 You should then see the greeting message (*Hello, World !*) in the shell of the
 provider that has been used by the consumer.
+
+You can now continue to the :ref:`Tutorials`
