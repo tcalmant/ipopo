@@ -96,10 +96,12 @@ ECF_OSGI_CONTAINER_ID_NS = "ecf.osgi.ns"
 ecfprops = [ECF_ENDPOINT_CONTAINERID_NAMESPACE,ECF_ENDPOINT_ID,ECF_RSVC_ID,ECF_ENDPOINT_TIMESTAMP,ECF_ENDPOINT_CONNECTTARGET_ID,ECF_ENDPOINT_IDFILTER_IDS,ECF_ENDPOINT_REMOTESERVICE_FILTER,ECF_SERVICE_EXPORTED_ASYNC_INTERFACES]
 #----------------------------------------------------------------------------------
 REMOTE_SERVICE_ADMIN = "pelix.rsa.remoteserviceadmin"
-SERVICE_EXPORT_PROVIDER = "pelix.rsa.exportprovider"
-SERVICE_IMPORT_PROVIDER = "pelix.rsa.immportprovider"
+SERVICE_EXPORTER = "pelix.rsa.exporter"
+SERVICE_IMPORTER = "pelix.rsa.immporter"
 RSA_EVENT_LISTENER = "pelix.rsa.remoteserviceadmineventlistener"
 ENDPOINT_EVENT_LISTENER = 'pelix.rsa.remoteserviceadminendpointeventlistener'
+SERVICE_EXPORTER_SELECTOR = "pelix.rsa.exporterselector"
+SERVICE_IMPORTER_SELECTOR = 'pelix.rsa.importerselector'
 ERROR_EP_ID = '0'
 ERROR_NAMESPACE = 'org.eclipse.ecf.core.identity.StringID'
 ERROR_IMPORTED_CONFIGS = ['import.error.config']
@@ -107,19 +109,20 @@ ERROR_ECF_EP_ID = 'export.error.id'
 DEFAULT_EXPORTED_CONFIGS = ['ecf.xmlrpc.server']
 
 def get_fw_uuid(context):
-    return context.get_property(constants.FRAMEWORK_UID)
+    return context.get_property(constants.OSGI_FRAMEWORK_UUID)
 
-def get_matching_interfaces(origin, propValue):
-    if origin is None or propValue is None:
+def get_matching_interfaces(object_class, exported_intfs):
+    if object_class is None or exported_intfs is None:
         return None
-    if isinstance(propValue,type("")):
-        if propValue == '*':
-            return origin
+    if isinstance(exported_intfs,str) and exported_intfs == '*':
+        return object_class
     else:
-        if isinstance(propValue,type("")) and len(propValue) == 1 and propValue[0] == '*':
-            return origin
+        # after this exported_intfs will be list
+        exported_intfs = get_string_plus_property_value(exported_intfs)
+        if len(exported_intfs) == 1 and exported_intfs[0] == '*':
+            return object_class
         else:
-            return propValue
+            return exported_intfs
 
 def get_prop_value(name, props, default=None): 
     if not props:
@@ -136,11 +139,11 @@ def set_prop_if_null(name, props, ifnull):
 
 def get_string_plus_property_value(value):
     if value:
-        if isinstance(value,type("")):
+        if isinstance(value,str):
             return [value]
-        elif isinstance(value,type([])):
+        elif isinstance(value,list):
             return value;
-        elif isinstance(value,type(tuple())):
+        elif isinstance(value,tuple):
             return list(value)
         else:
             return None
@@ -155,17 +158,24 @@ def get_string_plus_property(name, props, default=None):
 def get_current_time_millis():
     return int((datetime.datetime.now() - datetime.datetime.utcfromtimestamp(0)).total_seconds() * 1000)
 
-def get_interfaces2(svc_ref,intfValue):
-    if intfValue is None:
+def get_exported_interfaces(svc_ref, overriding_props = None):
+    # first check overriding_props for service.exported.interfaces
+    exported_intfs = get_prop_value(SERVICE_EXPORTED_INTERFACES, overriding_props)
+    # then check svc_ref property
+    if not exported_intfs:
+        exported_intfs = svc_ref.get_property(SERVICE_EXPORTED_INTERFACES)
+    if not exported_intfs:
         return None
-    return get_matching_interfaces(svc_ref.get_property(constants.OBJECTCLASS), intfValue)
+    return get_matching_interfaces(svc_ref.get_property(constants.OBJECTCLASS), exported_intfs)
 
-def get_interfaces1(svc_ref):
-    return get_interfaces2(svc_ref,svc_ref.get_property(SERVICE_EXPORTED_INTERFACES))
-                           
-def get_exported_interfaces(svc_ref, props):
-    intfValue = get_prop_value(SERVICE_EXPORTED_INTERFACES, props)
-    return get_interfaces2(svc_ref,intfValue) if not intfValue is None else get_interfaces1(svc_ref)
+def validate_exported_interfaces(object_class, exported_intfs):
+    if not exported_intfs or not isinstance(exported_intfs,list) or len(exported_intfs) == 0:
+        return False
+    else:
+        for exintf in exported_intfs:
+            if not exintf in object_class:
+                return False
+    return True
 
 def get_package_from_classname(classname):
     try:

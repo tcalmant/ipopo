@@ -46,13 +46,16 @@ from pelix.ipopo.decorators import ComponentFactory, Provides, \
     Instantiate, Validate, Invalidate, Requires, BindField, UnbindField
 
 import pelix.rsa as rsa
-from pelix.rsa import SelectExporterError, SelectImporterError
+from pelix.rsa import SelectExporterError, SelectImporterError,\
+    validate_exported_interfaces
 import threading
 from pelix.rsa.endpointdescription import EndpointDescription
 from argparse import ArgumentError
 from pelix.internals.registry import ServiceReference
 from pelix import constants
 from pelix.constants import BundleActivator
+from pelix.constants import SERVICE_RANKING, OBJECTCLASS
+
 from threading import RLock
 
 class _ImportEndpoint(object):
@@ -463,8 +466,8 @@ class ExportRegistration(object):
 
 @ComponentFactory('pelix-rsa-remoteserviceadmin-factory')
 @Provides(rsa.REMOTE_SERVICE_ADMIN)
-@Requires('_exporters', rsa.SERVICE_EXPORT_PROVIDER, True, True)
-@Requires('_importers', rsa.SERVICE_IMPORT_PROVIDER, True, True)
+@Requires('_exporter_selector', rsa.SERVICE_EXPORTER_SELECTOR, False, False)
+@Requires('_importer_selector', rsa.SERVICE_IMPORTER_SELECTOR, False, False)
 @Requires('_rsa_event_listeners', rsa.RSA_EVENT_LISTENER, True, True)
 @Instantiate(rsa.REMOTE_SERVICE_ADMIN)
 class RemoteServiceAdmin(object):
@@ -486,42 +489,59 @@ class RemoteServiceAdmin(object):
         with self._imported_regs_lock:
             return self._imported_regs.copy()
     
-    def export_service(self, svc_ref, overriding_props = None):
-            if not svc_ref:
-                raise ArgumentError('svc_ref param must not be empty')
-            assert isinstance(svc_ref,ServiceReference)
-            
-            intfs = rsa.get_exported_interfaces(svc_ref, overriding_props)
-            if not intfs:
+    def export_service(self, service_ref, overriding_props = None):
+            if not service_ref:
+                raise ArgumentError('service_ref argument must not be None')
+            assert isinstance(service_ref,ServiceReference)
+            # get exported interfaces
+            exported_intfs = rsa.get_exported_interfaces(service_ref, overriding_props)
+            # must be set by service_ref or overriding_props or error
+            if not exported_intfs:
                 raise ArgumentError(rsa.SERVICE_EXPORTED_INTERFACES+' must be set in svc_ref properties or overriding_props')
-        
-            export_props = svc_ref.get_properties().copy()
+            # If the given exported_interfaces is not valid, then return empty list
+            if not validate_exported_interfaces(service_ref.get_property(OBJECTCLASS), exported_intfs):
+                return list()
+            
+            # get all service_ref properties
+            # and update with overriding props
+            export_props = service_ref.get_properties().copy()
             if overriding_props:
                 export_props.update(overriding_props)
+            # get exported configs
+            exported_configs = export_props.get(rsa.SERVICE_EXPORTED_CONFIGS,None)
+            # get service intents, via service.intents, services.exported.intents, and extra
+            service_intents = list()
+            intents = export_props.get(rsa.SERVICE_INTENTS,None)
+            if intents:
+                service_intents.append(intents)
+            intents = export_props.get(rsa.SERVICE_EXPORTED_INTENTS,None)
+            if intents:
+                service_intents.append(intents)
+            intents = export_props.get(rsa.SERVICE_EXPORTED_INTENTS_EXTRA,None)
+            if intents:
+                service_intents.append(intents)
+            if len(service_intents) == 0:
+                service_intents = None
+                
+            # call exporter_selector to select the exporters for this service_ref's metadata
+            exporters = self._exporter_selector.select_exporters(service_ref,overriding_props,exported_intfs,exported_configs,service_intents)
             
-            configs = export_props[rsa.SERVICE_EXPORTED_CONFIGS]
-            
-            # find exporters that handle configs
-            exporters = [exporter for exporter in self._exporters[:]
-                 if exporter.handles(configs)]  
-            
-            errorprops = rsa.get_edef_props_error(svc_ref.get_property('objectClass'))
-            errored = EndpointDescription(svc_ref, errorprops)
+            errorprops = rsa.get_edef_props_error(service_ref.get_property(OBJECTCLASS))
+            errored = EndpointDescription(service_ref, errorprops)
             result_regs = []
             result_events = []
             if len(exporters) == 0:
-                _logger.warning("No exporter for %s", configs)
-                error_reg = ExportRegistration.fromexception(SelectExporterError('No exporter for '+str(configs)), errored)
+                _logger.warning("No exporter for exported_configs=%s", exported_configs)
+                error_reg = ExportRegistration.fromexception(SelectExporterError('No exporter for exported_configs=%s',exported_configs), errored)
                 self._add_exported_service(error_reg)
                 result_regs.append(error_reg)
-            
-            if len(result_regs) == 0:     
+            else:     
                 with self._exported_regs_lock:
                     for exporter in exporters:
                         found_regs = []
                         exporterid = exporter.get_id()
                         for reg in self._exported_regs:
-                            if reg._match(svc_ref,exporterid):
+                            if reg._match(service_ref,exporterid):
                                 found_regs.append(reg)
                         #if so then found_regs will be non-empty
                         if len(found_regs) > 0:
@@ -529,24 +549,19 @@ class RemoteServiceAdmin(object):
                                 new_reg = ExportRegistration.fromreg(self, found_reg)
                                 self._add_exported_service(new_reg)
                                 result_regs.append(new_reg)
-                        
-                        if len(result_regs) == 0:
+                        else:
                             # Now we actually export
                             export_reg = None
                             event = None
+                            ed_props = exporter.make_endpoint_props(exported_intfs, service_ref, export_props)
+                            errored = EndpointDescription.fromprops(ed_props)
                             try:
-                                ed_props = exporter.make_endpoint_props(intfs, svc_ref, export_props)
-                                errored = EndpointDescription.fromprops(ed_props)
+                                export_ed = exporter.export_service(service_ref, ed_props)
+                                export_reg = ExportRegistration.fromendpoint(self, exporter, export_ed, service_ref)
+                                event = RemoteServiceAdminEvent.fromexportreg(self._get_bundle(), export_reg)
                             except Exception as e:
                                 export_reg = ExportRegistration.fromexception(e, errored)
-                            if not export_reg:
-                                try:
-                                    export_ed = exporter.export_service(svc_ref, ed_props)
-                                    export_reg = ExportRegistration.fromendpoint(self, exporter, export_ed, svc_ref)
-                                    event = RemoteServiceAdminEvent.fromexportreg(self._get_bundle(), export_reg)
-                                except Exception as e:
-                                    export_reg = ExportRegistration.fromexception(e, errored)
-                                    event = RemoteServiceAdminEvent.fromexporterror(self._get_bundle(), export_reg.exporterid(), export_reg.exception()), export_reg.description(())
+                                event = RemoteServiceAdminEvent.fromexporterror(self._get_bundle(), export_reg.exporterid(), export_reg.exception()), export_reg.description(())
                             self._add_exported_service(export_reg)
                             result_regs.append(export_reg)
                             result_events.append(event)
@@ -621,8 +636,8 @@ class RemoteServiceAdmin(object):
         
         self._rsa_event_listeners = []
         
-        self._exporters = []
-        self._importers = []
+        self._exporter_selector = None
+        self._importer_selector = None
         
             
     def _publish_event(self,event):
@@ -715,10 +730,22 @@ class RemoteServiceAdmin(object):
     def _remove_imported_service(self,import_reg):
         with self._imported_regs_lock:
             self._imported_regs.remove(import_reg)
-                   
-        
 
-class AbstractRpcServiceExporter(object):
+
+class DistributionProvider(object):
+    pass
+                       
+class _SelectedExporter(object):
+    def __init__(self, exporter, service_ref, overriding_props, exported_intfs, exported_configs, service_intents):   
+        self._exporter = exporter;
+        self._service_ref = service_ref
+        self._overriding_props = overriding_props
+        self._exported_intfs = exported_intfs
+        self._exported_configs = exported_configs
+        self._service_intents = service_intents
+         
+
+class AbstractExporter(object):
     """
     Abstract Remote Services exporter
     """
@@ -728,13 +755,12 @@ class AbstractRpcServiceExporter(object):
         """
         # Bundle context
         self._context = None        
-        self._framework_uid = None
         # id
         self._id = None        
-        # exported configs
-        self._exported_configs = None
+        # supported configs
+        self._supported_configs = []
         # intents
-        self._intents = None
+        self._supported_intents = []
         # namespace
         self._namespace = None
         
@@ -748,7 +774,6 @@ class AbstractRpcServiceExporter(object):
         """
         # Store the context
         self._context = context
-        self._framework_uid = rsa.get_fw_uuid(self._context)
 
     @Invalidate
     def invalidate(self, context):
@@ -757,18 +782,11 @@ class AbstractRpcServiceExporter(object):
         """
         # Clean up members
         self._context = None
-        self._framework_uid = None
 
-    def handles(self, configurations):
-        """
-        Checks if this provider handles the given configuration types
-
-        :param configurations: Configuration types
-        """
-        if configurations is None or self._exported_configs is None:
-            return False
+    def handles(self, service_ref,overriding_props,exported_intfs,exported_configs,service_intents):
+        ## default implementation should match
         
-        return len([itm for itm in self._exported_configs if itm in rsa.get_string_plus_property_value(configurations)]) > 0
+        return False
 
     def bound(self):
         pass
@@ -808,7 +826,7 @@ class AbstractRpcServiceExporter(object):
         assert isinstance(ed, EndpointDescription)
         return self._unexport_service(ed)
 
-class AbstractRpcServiceImporter(object):
+class AbstractImporter(object):
     """
     Abstract Remote Services importer
     """
@@ -1026,7 +1044,31 @@ class RemoteServiceAdminListener(object):
     
     def remote_admin_event(self, event):
         pass
- 
+
+@ComponentFactory('pelix-rsa-exporterselector-factory')
+@Provides(rsa.SERVICE_EXPORTER_SELECTOR)
+@Requires('_exporters', rsa.SERVICE_EXPORTER, True, True)
+@Instantiate(rsa.SERVICE_EXPORTER_SELECTOR, { SERVICE_RANKING: -1000000000 })
+class ExporterSelector(object):
+    
+    def __init__(self):
+        _exporters = None
+        
+    def select_exporters(self,service_ref,overriding_props,exported_intfs,exported_configs,service_intents):
+        return [ exp for exp in self._exporters if exp.handles(service_ref,overriding_props,exported_intfs,exported_configs,service_intents)]
+    
+@ComponentFactory('pelix-rsa-importerselector-factory')
+@Provides(rsa.SERVICE_IMPORTER_SELECTOR)
+@Requires('_importers', rsa.SERVICE_IMPORTER, True, True)
+@Instantiate(rsa.SERVICE_IMPORTER_SELECTOR, { SERVICE_RANKING: -1000000000 })    
+class ImporterSelector(object):
+    
+    def __init__(self):
+        _importers = None
+        
+    def select_importers(self,endpoint_description):
+        return None
+    
     
 @BundleActivator
 class Activator(object):
