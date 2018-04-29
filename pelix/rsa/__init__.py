@@ -96,12 +96,12 @@ ECF_OSGI_CONTAINER_ID_NS = "ecf.osgi.ns"
 ecfprops = [ECF_ENDPOINT_CONTAINERID_NAMESPACE,ECF_ENDPOINT_ID,ECF_RSVC_ID,ECF_ENDPOINT_TIMESTAMP,ECF_ENDPOINT_CONNECTTARGET_ID,ECF_ENDPOINT_IDFILTER_IDS,ECF_ENDPOINT_REMOTESERVICE_FILTER,ECF_SERVICE_EXPORTED_ASYNC_INTERFACES]
 #----------------------------------------------------------------------------------
 REMOTE_SERVICE_ADMIN = "pelix.rsa.remoteserviceadmin"
-SERVICE_EXPORTER = "pelix.rsa.exporter"
-SERVICE_IMPORTER = "pelix.rsa.immporter"
+EXPORT_DISTRIBUTION_PROVIDER = "pelix.rsa.exportdistributionprovider"
+IMPORT_DISTRIBUTION_PROVIDER = "pelix.rsa.importdistributionprovider"
 RSA_EVENT_LISTENER = "pelix.rsa.remoteserviceadmineventlistener"
 ENDPOINT_EVENT_LISTENER = 'pelix.rsa.remoteserviceadminendpointeventlistener'
-SERVICE_EXPORTER_SELECTOR = "pelix.rsa.exporterselector"
-SERVICE_IMPORTER_SELECTOR = 'pelix.rsa.importerselector'
+EXPORT_CONTAINER_SELECTOR = "pelix.rsa.exportcontainerselector"
+IMPORT_CONTAINER_SELECTOR = 'pelix.rsa.importcontainerselector'
 ERROR_EP_ID = '0'
 ERROR_NAMESPACE = 'org.eclipse.ecf.core.identity.StringID'
 ERROR_IMPORTED_CONFIGS = ['import.error.config']

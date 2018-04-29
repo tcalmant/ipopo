@@ -466,8 +466,8 @@ class ExportRegistration(object):
 
 @ComponentFactory('pelix-rsa-remoteserviceadmin-factory')
 @Provides(rsa.REMOTE_SERVICE_ADMIN)
-@Requires('_exporter_selector', rsa.SERVICE_EXPORTER_SELECTOR, False, False)
-@Requires('_importer_selector', rsa.SERVICE_IMPORTER_SELECTOR, False, False)
+@Requires('_export_container_selector', rsa.EXPORT_CONTAINER_SELECTOR, False, False)
+@Requires('_import_container_selector', rsa.IMPORT_CONTAINER_SELECTOR, False, False)
 @Requires('_rsa_event_listeners', rsa.RSA_EVENT_LISTENER, True, True)
 @Instantiate(rsa.REMOTE_SERVICE_ADMIN)
 class RemoteServiceAdmin(object):
@@ -501,43 +501,26 @@ class RemoteServiceAdmin(object):
             # If the given exported_interfaces is not valid, then return empty list
             if not validate_exported_interfaces(service_ref.get_property(OBJECTCLASS), exported_intfs):
                 return list()
-            
-            # get all service_ref properties
-            # and update with overriding props
+            # get export props by overriding service reference properties (if overriding_props set)
             export_props = service_ref.get_properties().copy()
             if overriding_props:
                 export_props.update(overriding_props)
-            # get exported configs
-            exported_configs = export_props.get(rsa.SERVICE_EXPORTED_CONFIGS,None)
-            # get service intents, via service.intents, services.exported.intents, and extra
-            service_intents = list()
-            intents = export_props.get(rsa.SERVICE_INTENTS,None)
-            if intents:
-                service_intents.append(intents)
-            intents = export_props.get(rsa.SERVICE_EXPORTED_INTENTS,None)
-            if intents:
-                service_intents.append(intents)
-            intents = export_props.get(rsa.SERVICE_EXPORTED_INTENTS_EXTRA,None)
-            if intents:
-                service_intents.append(intents)
-            if len(service_intents) == 0:
-                service_intents = None
-                
-            # call exporter_selector to select the exporters for this service_ref's metadata
-            exporters = self._exporter_selector.select_exporters(service_ref,overriding_props,exported_intfs,exported_configs,service_intents)
+
+            export_containers = self._export_container_selector.select_export_container(service_ref, exported_intfs, export_props)
             
             errorprops = rsa.get_edef_props_error(service_ref.get_property(OBJECTCLASS))
             errored = EndpointDescription(service_ref, errorprops)
             result_regs = []
             result_events = []
-            if len(exporters) == 0:
-                _logger.warning("No exporter for exported_configs=%s", exported_configs)
-                error_reg = ExportRegistration.fromexception(SelectExporterError('No exporter for exported_configs=%s',exported_configs), errored)
+            if len(export_containers) == 0:
+                error_msg = "No exporter for service_ref=%s;overriding_props=%s;export_props=%s" % (service_ref,overriding_props,export_props)
+                _logger.warning(error_msg)
+                error_reg = ExportRegistration.fromexception(SelectExporterError(error_msg), errored)
                 self._add_exported_service(error_reg)
                 result_regs.append(error_reg)
             else:     
                 with self._exported_regs_lock:
-                    for exporter in exporters:
+                    for exporter in export_containers:
                         found_regs = []
                         exporterid = exporter.get_id()
                         for reg in self._exported_regs:
@@ -636,8 +619,8 @@ class RemoteServiceAdmin(object):
         
         self._rsa_event_listeners = []
         
-        self._exporter_selector = None
-        self._importer_selector = None
+        self._export_container_selector = None
+        self._import_container_selector = None
         
             
     def _publish_event(self,event):
@@ -732,62 +715,99 @@ class RemoteServiceAdmin(object):
             self._imported_regs.remove(import_reg)
 
 
-class DistributionProvider(object):
-    pass
-                       
-class _SelectedExporter(object):
-    def __init__(self, exporter, service_ref, overriding_props, exported_intfs, exported_configs, service_intents):   
-        self._exporter = exporter;
-        self._service_ref = service_ref
-        self._overriding_props = overriding_props
-        self._exported_intfs = exported_intfs
-        self._exported_configs = exported_configs
-        self._service_intents = service_intents
-         
-
-class AbstractExporter(object):
-    """
-    Abstract Remote Services exporter
-    """
+@ComponentFactory('pelix-rsa-exporterselector-factory')
+@Provides(rsa.EXPORT_CONTAINER_SELECTOR)
+@Requires('_export_distribution_providers', rsa.EXPORT_DISTRIBUTION_PROVIDER, True, True)
+@Instantiate(rsa.EXPORT_CONTAINER_SELECTOR, { SERVICE_RANKING: -1000000000 })
+class ExportContainerSelector(object):
+    
     def __init__(self):
-        """
-        Sets up the exporter
-        """
-        # Bundle context
-        self._context = None        
-        # id
-        self._id = None        
-        # supported configs
-        self._supported_configs = []
-        # intents
-        self._supported_intents = []
-        # namespace
-        self._namespace = None
+        _export_distribution_providers = []
         
+    def select_export_container(self, service_ref, exported_intfs, export_props):
+        # get exported configs
+        exported_configs = export_props.get(rsa.SERVICE_EXPORTED_CONFIGS,None)
+        # get service intents, via service.intents, services.exported.intents, and extra
+        service_intents = list()
+        intents = export_props.get(rsa.SERVICE_INTENTS,None)
+        if intents:
+            service_intents.append(intents)
+        intents = export_props.get(rsa.SERVICE_EXPORTED_INTENTS,None)
+        if intents:
+            service_intents.append(intents)
+        intents = export_props.get(rsa.SERVICE_EXPORTED_INTENTS_EXTRA,None)
+        if intents:
+            service_intents.append(intents)
+        if len(service_intents) == 0:
+            service_intents = None
+        
+        export_containers = []
+        for export_provider in self._export_distribution_providers:
+            export_container = export_provider.supports_export(exported_intfs,exported_configs,service_intents,export_props)
+            if export_container:
+                export_containers.append(export_container)
+                
+        return export_containers
+                
+    
+@ComponentFactory('pelix-rsa-importerselector-factory')
+@Provides(rsa.IMPORT_CONTAINER_SELECTOR)
+@Requires('_import_distribution_providers', rsa.IMPORT_DISTRIBUTION_PROVIDER, True, True)
+@Instantiate(rsa.IMPORT_CONTAINER_SELECTOR, { SERVICE_RANKING: -1000000000 })    
+class ImportContainerSelector(object):
+    
+    def __init__(self):
+        _import_distribution_provider = None
+        
+    def select_importers(self,endpoint_description):
+        return None
+    
+    
+
+class DistributionProvider(object):
+    
+    def __init__(self):
+        self._name = None
+        self._existing_containers = {}
+    
+class ExportDistributionProvider(DistributionProvider):      
+
+    def __init__(self):
+        super().__init__()
+        self._allow_exporter_reuse = True
+        self._auto_create = True
+        
+    def _get_existing_export_container(self, exported_intfs, exported_configs, service_intents, export_props):
+        # XXX todo
+        return None
+    
+    def _create_export_container(self, exported_intfs, exported_configs, service_intents, export_props):
+        return None
+    
+    def supports_export(self, exported_intfs, exported_configs, service_intents, export_props):
+        export_container = None
+        if self._allow_exporter_reuse:
+            export_container = self._get_existing_export_container(exported_intfs, exported_configs, service_intents, export_props)
+        if not export_container:
+            export_container = self._create_export_container(exported_intfs, exported_configs, service_intents, export_props)
+        return export_container
+        
+class ImportDistributionProvider(DistributionProvider):
+    pass
+
+class Container(object):
+    
+    def __init__(self, my_id):
+        self._id = my_id
+
     def get_id(self):
         return self._id
+            
+class ExportContainer(Container):
     
-    @Validate
-    def validate(self, context):
-        """
-        Component validated
-        """
-        # Store the context
-        self._context = context
-
-    @Invalidate
-    def invalidate(self, context):
-        """
-        Component invalidated
-        """
-        # Clean up members
-        self._context = None
-
-    def handles(self, service_ref,overriding_props,exported_intfs,exported_configs,service_intents):
-        ## default implementation should match
-        
-        return False
-
+    def __init__(self, my_id):
+        super().__init__(my_id)
+         
     def bound(self):
         pass
     
@@ -826,10 +846,8 @@ class AbstractExporter(object):
         assert isinstance(ed, EndpointDescription)
         return self._unexport_service(ed)
 
-class AbstractImporter(object):
-    """
-    Abstract Remote Services importer
-    """
+class ImportContainer(object):
+    
     def __init__(self):
         """
         Sets up the importer
@@ -1045,31 +1063,6 @@ class RemoteServiceAdminListener(object):
     def remote_admin_event(self, event):
         pass
 
-@ComponentFactory('pelix-rsa-exporterselector-factory')
-@Provides(rsa.SERVICE_EXPORTER_SELECTOR)
-@Requires('_exporters', rsa.SERVICE_EXPORTER, True, True)
-@Instantiate(rsa.SERVICE_EXPORTER_SELECTOR, { SERVICE_RANKING: -1000000000 })
-class ExporterSelector(object):
-    
-    def __init__(self):
-        _exporters = None
-        
-    def select_exporters(self,service_ref,overriding_props,exported_intfs,exported_configs,service_intents):
-        return [ exp for exp in self._exporters if exp.handles(service_ref,overriding_props,exported_intfs,exported_configs,service_intents)]
-    
-@ComponentFactory('pelix-rsa-importerselector-factory')
-@Provides(rsa.SERVICE_IMPORTER_SELECTOR)
-@Requires('_importers', rsa.SERVICE_IMPORTER, True, True)
-@Instantiate(rsa.SERVICE_IMPORTER_SELECTOR, { SERVICE_RANKING: -1000000000 })    
-class ImporterSelector(object):
-    
-    def __init__(self):
-        _importers = None
-        
-    def select_importers(self,endpoint_description):
-        return None
-    
-    
 @BundleActivator
 class Activator(object):
     """
