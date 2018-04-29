@@ -767,7 +767,7 @@ class ImportContainerSelector(object):
 class DistributionProvider(object):
     
     def __init__(self):
-        self._name = None
+        self._supported_configs = []
         self._existing_containers = {}
     
 class ExportDistributionProvider(DistributionProvider):      
