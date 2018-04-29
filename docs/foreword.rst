@@ -25,6 +25,11 @@ name became iPOPO.
 The logo comes from the similarity of pronunciation with the french
 word for the hippo: *hippopotame*.
 
+By the way, I pronounce the name iPOPO the french way, *i.e.* /i.pɔ.pɔ/
+(`International Phonetic Alphabet <https://en.wikipedia.org/wiki/International_Phonetic_Alphabet>`_).
+The english way, *i.e.* /aɪ.pɔ.pɔ/, is the most commonly used by the users
+I had the chance to talk to.
+
 A bit of history
 ----------------
 
