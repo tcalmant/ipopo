@@ -43,7 +43,7 @@ _logger = logging.getLogger(__name__)
 import pelix.constants
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Provides, \
-    Instantiate, Validate, Invalidate, Requires, BindField, UnbindField
+    Instantiate, Validate, Invalidate, Requires, RequiresBest, BindField, UnbindField, PostRegistration
 
 import pelix.rsa as rsa
 from pelix.rsa import SelectExporterError, SelectImporterError,\
@@ -55,6 +55,7 @@ from pelix.internals.registry import ServiceReference
 from pelix import constants
 from pelix.constants import BundleActivator
 from pelix.constants import SERVICE_RANKING, OBJECTCLASS
+from pelix.ipopo.core import constants as ipopoconstants
 
 from threading import RLock
 
@@ -466,8 +467,8 @@ class ExportRegistration(object):
 
 @ComponentFactory('pelix-rsa-remoteserviceadmin-factory')
 @Provides(rsa.REMOTE_SERVICE_ADMIN)
-@Requires('_export_container_selector', rsa.EXPORT_CONTAINER_SELECTOR, False, False)
-@Requires('_import_container_selector', rsa.IMPORT_CONTAINER_SELECTOR, False, False)
+@RequiresBest('_export_container_selector', rsa.EXPORT_CONTAINER_SELECTOR, False)
+@RequiresBest('_import_container_selector', rsa.IMPORT_CONTAINER_SELECTOR, False)
 @Requires('_rsa_event_listeners', rsa.RSA_EVENT_LISTENER, True, True)
 @Instantiate(rsa.REMOTE_SERVICE_ADMIN)
 class RemoteServiceAdmin(object):
@@ -767,8 +768,7 @@ class ImportContainerSelector(object):
 class DistributionProvider(object):
     
     def __init__(self):
-        self._supported_configs = []
-        self._existing_containers = {}
+        self._config_name = None
     
 class ExportDistributionProvider(DistributionProvider):      
 
@@ -776,14 +776,33 @@ class ExportDistributionProvider(DistributionProvider):
         super().__init__()
         self._allow_exporter_reuse = True
         self._auto_create = True
+        self._ipopo
         
     def _get_existing_export_container(self, exported_intfs, exported_configs, service_intents, export_props):
         # XXX todo
         return None
     
-    def _create_export_container(self, exported_intfs, exported_configs, service_intents, export_props):
-        return None
+    def _match_exported_configs(self,exported_configs):
+        if not self._config_name:
+            return False
+        if not exported_configs or len(exported_configs) == 0:
+            return True
+        else:
+            return self._config_name in exported_configs
     
+    def _match_service_intents(self,service_intents):
+        # XXX todo
+        return True
+    
+    def _create_export_container(self, exported_intfs, exported_configs, service_intents, export_props):
+        if self._match_exported_configs(exported_configs) and self._match_service_intents(service_intents):
+            # first create name for new export container
+            name = 'exportcontainername'
+            props = { 'foo':'bar' }
+            result = self._ipopo.instantiate(self._config_name, name, props)
+            
+            return result
+     
     def supports_export(self, exported_intfs, exported_configs, service_intents, export_props):
         export_container = None
         if self._allow_exporter_reuse:
@@ -797,17 +816,22 @@ class ImportDistributionProvider(DistributionProvider):
 
 class Container(object):
     
-    def __init__(self, my_id):
-        self._id = my_id
+    def __init__(self):
+        self._id = None
 
     def get_id(self):
         return self._id
             
 class ExportContainer(Container):
     
-    def __init__(self, my_id):
-        super().__init__(my_id)
+    def __init__(self):
+        super().__init__()
          
+    @PostRegistration
+    def _post_reg(self, service_ref):
+        if not self._id:
+            self._id = service_ref.get_property(ipopoconstants.IPOPO_INSTANCE_NAME)
+        
     def bound(self):
         pass
     
