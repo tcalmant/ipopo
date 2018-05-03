@@ -744,7 +744,7 @@ class ExportContainerSelector(object):
         
         export_containers = []
         for export_provider in self._export_distribution_providers:
-            export_container = export_provider.supports_export(exported_intfs,exported_configs,service_intents,export_props)
+            export_container = export_provider.supports_export(exported_configs,service_intents,export_props)
             if export_container:
                 export_containers.append(export_container)
                 
@@ -776,9 +776,9 @@ class ExportDistributionProvider(DistributionProvider):
         super().__init__()
         self._allow_exporter_reuse = True
         self._auto_create = True
-        self._ipopo
+        self._ipopo = None
         
-    def _get_existing_export_container(self, exported_intfs, exported_configs, service_intents, export_props):
+    def _get_existing_export_container(self, exported_configs, service_intents, export_props):
         # XXX todo
         return None
     
@@ -794,21 +794,19 @@ class ExportDistributionProvider(DistributionProvider):
         # XXX todo
         return True
     
-    def _create_export_container(self, exported_intfs, exported_configs, service_intents, export_props):
+    def _create_instance(self, exported_configs, service_intents, export_props):
         if self._match_exported_configs(exported_configs) and self._match_service_intents(service_intents):
             # first create name for new export container
-            name = 'exportcontainername'
-            props = { 'foo':'bar' }
-            result = self._ipopo.instantiate(self._config_name, name, props)
+            result = self._ipopo.instantiate(self._config_name, rsa.create_uuid(), {  })
             
             return result
      
-    def supports_export(self, exported_intfs, exported_configs, service_intents, export_props):
+    def supports_export(self, exported_configs, service_intents, export_props):
         export_container = None
         if self._allow_exporter_reuse:
-            export_container = self._get_existing_export_container(exported_intfs, exported_configs, service_intents, export_props)
+            export_container = self._get_existing_instance(exported_configs, service_intents, export_props)
         if not export_container:
-            export_container = self._create_export_container(exported_intfs, exported_configs, service_intents, export_props)
+            export_container = self._create_instance(exported_configs, service_intents, export_props)
         return export_container
         
 class ImportDistributionProvider(DistributionProvider):
