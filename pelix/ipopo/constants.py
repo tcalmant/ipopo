@@ -99,6 +99,19 @@ IPOPO_PROPERTY_PREFIX = "_ipopo_property"
 IPOPO_HIDDEN_PROPERTY_PREFIX = "_ipopo_hidden_property"
 IPOPO_CONTROLLER_PREFIX = "_ipopo_controller"
 
+# Other injected information
+IPOPO_VALIDATE_ARGS = "__ipopo_validate_args__"
+""" Storage of the arguments for ``@ValidateComponent`` """
+
+ARG_BUNDLE_CONTEXT = "bundle_context"
+""" Represents the bundle context argument in ``@ValidateContext`` """
+
+ARG_COMPONENT_CONTEXT = "component_context"
+""" Represents the component context argument in ``@ValidateContext`` """
+
+ARG_PROPERTIES = "properties"
+""" Represents the component properties argument in ``@ValidateContext`` """
+
 # ------------------------------------------------------------------------------
 
 # Callbacks
@@ -130,6 +143,12 @@ field
 
 IPOPO_CALLBACK_VALIDATE = "VALIDATE"
 """ Validate: Called when all mandatory dependencies have been bound """
+
+IPOPO_CALLBACK_VALIDATE_COMPONENT = "VALIDATE_COMPONENT"
+"""
+ValidateComponent: Called before VALIDATE once all mandatory dependencies
+have been bound, with component-specific parameters
+"""
 
 IPOPO_CALLBACK_INVALIDATE = "INVALIDATE"
 """ Invalidate: Called when one the mandatory dependencies is unbound """
