@@ -1606,19 +1606,38 @@ class ValidateComponent(object):
     The decorator accepts an ordered list of arguments. They define the
     signature of the decorated method.
 
-    The arguments can be the following ones:
+    The arguments can be the following ones, declared in the
+    ``pelix.ipopo.constants`` module:
 
     * ``ARG_BUNDLE_CONTEXT``: Gives access to the bundle context
     * ``ARG_COMPONENT_CONTEXT``: Gives access to the component context
-    * ``ARG_COMPONENT_PROPERTIES``: Gives access to component properties (dict)
+    * ``ARG_PROPERTIES``: Gives access to component properties (``dict``)
 
-    .. warning:: Early-stage feature
+    Here are some sample uses of the decorator. Note that the number and order
+    of arguments only has to match the list given to the decorator::
+
+        from pelix.constants import ARG_COMPONENT_CONTEXT, ARG_BUNDLE_CONTEXT, \
+            ARG_PROPERTIES
+
+        @ValidateComponent(ARG_COMPONENT_CONTEXT)
+        def validate_component(self, component_ctx):
+            # ...
+
+        @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_COMPONENT_CONTEXT)
+        def validate_component(self, bundle_ctx, component_ctx):
+            # ...
+
+        @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_COMPONENT_CONTEXT,
+                           ARG_PROPERTIES)
+        def validate_component(self, bundle_ctx, component_ctx, props):
+            # ...
     """
 
     def __init__(self, *args):
         """
         :param args: An ordered list of argument descriptors.
-        :raise TypeError: A parameter has an invalid type
+        :raise TypeError: A parameter has an invalid type or the decorated
+                          object is not a method
         """
         # Check arguments validity
         valid_args = (
