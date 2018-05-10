@@ -475,7 +475,7 @@ class StoredInstance(object):
                 self.state = StoredInstance.VALIDATING
 
                 # Call @ValidateComponent first, then @Validate
-                if not self.__callback_validate_component() or \
+                if not self.__safe_callback_validate_component() or \
                         not self.safe_callback(
                             constants.IPOPO_CALLBACK_VALIDATE,
                             self.bundle_context):
@@ -632,6 +632,45 @@ class StoredInstance(object):
             # Store the exception in case of a validation error
             if event == constants.IPOPO_CALLBACK_VALIDATE:
                 self.error_trace = traceback.format_exc()
+
+            return False
+
+    def __safe_callback_validate_component(self):
+        # type: () -> Any
+        """
+        Calls the ``@ValidateComponent`` callback, ignoring raised exceptions
+
+        :return: The callback result, or None
+        """
+        if self.state == StoredInstance.KILLED:
+            # Invalid state
+            return None
+
+        try:
+            return self.__callback_validate_component()
+        except FrameworkException as ex:
+            # Important error
+            self._logger.exception(
+                "Critical error calling back %s: %s", self.name, ex)
+
+            # Kill the component
+            self._ipopo_service.kill(self.name)
+
+            # Store the exception as it is a validation error
+            self.error_trace = traceback.format_exc()
+
+            if ex.needs_stop:
+                # Framework must be stopped...
+                self._logger.error(
+                    "%s said that the Framework must be stopped.", self.name)
+                self.bundle_context.get_framework().stop()
+            return False
+        except:
+            self._logger.exception("Component '%s': error calling "
+                                   "@ValidateComponent callback", self.name)
+
+            # Store the exception as it is a validation error
+            self.error_trace = traceback.format_exc()
 
             return False
 

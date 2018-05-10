@@ -21,7 +21,7 @@ from tests.ipopo import install_bundle, install_ipopo
 from pelix.framework import FrameworkFactory, BundleContext
 
 # iPOPO
-from pelix.ipopo.instance import ComponentContext
+from pelix.ipopo.instance import ComponentContext, StoredInstance
 import pelix.ipopo.constants as constants
 import pelix.ipopo.decorators as decorators
 
@@ -137,6 +137,67 @@ class ValidateComponentTest(unittest.TestCase):
                     self.ipopo.instantiate(factory_name, instance_name, {})
                 finally:
                     self.ipopo.unregister_factory(factory_name)
+
+    def test_error(self):
+        """
+        Tests the erroneous state after exception in @ValidateComponent
+        """
+        factory_name = "erroneous"
+
+        @decorators.ComponentFactory(factory_name)
+        @decorators.Property("_raise", "raise", True)
+        class Erroneous:
+            def __init__(self):
+                self.calls = []
+                self._raise = True
+
+            @decorators.ValidateComponent()
+            def validate_component(self):
+                self.calls.append("ValidateComponent")
+                if self._raise:
+                    raise ValueError("Bad things happen")
+
+            @decorators.Validate
+            def validate(self, context):
+                self.calls.append("Validate")
+
+            @decorators.Invalidate
+            def invalidate(self, ctx):
+                self.calls.append("Invalidate")
+
+        # Register factory
+        self.ipopo.register_factory(
+            self.framework.get_bundle_context(), Erroneous)
+
+        # Instantiate once
+        instance_name = "test"
+        instance = self.ipopo.instantiate(
+            factory_name, instance_name, {"raise": True})
+
+        # Check calls
+        self.assertListEqual(
+            ["ValidateComponent", "Invalidate"], instance.calls)
+
+        # Check state
+        details = self.ipopo.get_instance_details(instance_name)
+        self.assertEquals(details["state"], StoredInstance.ERRONEOUS)
+
+        # Retry
+        del instance.calls[:]
+        self.ipopo.retry_erroneous(instance_name, {"raise": False})
+
+        # Check calls
+        self.assertListEqual(["ValidateComponent", "Validate"], instance.calls)
+
+        # Check state
+        details = self.ipopo.get_instance_details(instance_name)
+        self.assertEquals(details["state"], StoredInstance.VALID)
+
+        # Kill it
+        del instance.calls[:]
+        self.ipopo.kill(instance_name)
+        self.assertListEqual(["Invalidate"], instance.calls)
+
 
 # ------------------------------------------------------------------------------
 
