@@ -43,7 +43,8 @@ _logger = logging.getLogger(__name__)
 import pelix.constants
 # iPOPO decorators
 from pelix.ipopo.decorators import ComponentFactory, Provides, \
-    Instantiate, Validate, Invalidate, Requires, RequiresBest, BindField, UnbindField, PostRegistration
+    Instantiate, Validate, Invalidate, Requires, RequiresBest, \
+    ValidateComponent, BindField, UnbindField, PostRegistration
 
 import pelix.rsa as rsa
 from pelix.rsa import SelectExporterError, SelectImporterError,\
@@ -53,8 +54,11 @@ from pelix.rsa.endpointdescription import EndpointDescription
 from argparse import ArgumentError
 from pelix.internals.registry import ServiceReference
 from pelix import constants
-from pelix.constants import BundleActivator
-from pelix.constants import SERVICE_RANKING, OBJECTCLASS
+from pelix.constants import BundleActivator, SERVICE_RANKING, \
+    OBJECTCLASS
+from pelix.ipopo.constants import ARG_BUNDLE_CONTEXT, ARG_COMPONENT_CONTEXT, \
+    ARG_PROPERTIES
+    
 from pelix.ipopo.core import constants as ipopoconstants
 
 from threading import RLock
@@ -794,19 +798,19 @@ class ExportDistributionProvider(DistributionProvider):
         # XXX todo
         return True
     
-    def _create_instance(self, exported_configs, service_intents, export_props):
+    def _create_export_container(self, exported_configs, service_intents, export_props):
         if self._match_exported_configs(exported_configs) and self._match_service_intents(service_intents):
             # first create name for new export container
-            result = self._ipopo.instantiate(self._config_name, rsa.create_uuid(), {  })
+            result = self._ipopo.instantiate(self._config_name, rsa.create_uuid(), { 'export_props': export_props  })
             
             return result
      
     def supports_export(self, exported_configs, service_intents, export_props):
         export_container = None
         if self._allow_exporter_reuse:
-            export_container = self._get_existing_instance(exported_configs, service_intents, export_props)
+            export_container = self._get_existing_export_container(exported_configs, service_intents, export_props)
         if not export_container:
-            export_container = self._create_instance(exported_configs, service_intents, export_props)
+            export_container = self._create_export_container(exported_configs, service_intents, export_props)
         return export_container
         
 class ImportDistributionProvider(DistributionProvider):
@@ -825,11 +829,11 @@ class ExportContainer(Container):
     def __init__(self):
         super().__init__()
          
-    @PostRegistration
-    def _post_reg(self, service_ref):
-        if not self._id:
-            self._id = service_ref.get_property(ipopoconstants.IPOPO_INSTANCE_NAME)
-        
+    @ValidateComponent(ARG_PROPERTIES)
+    def validate_component(self, props):
+        print("here props=" + str(props))
+        raise Exception()
+         
     def bound(self):
         pass
     
