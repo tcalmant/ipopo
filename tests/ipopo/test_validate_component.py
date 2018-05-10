@@ -146,7 +146,7 @@ class ValidateComponentTest(unittest.TestCase):
 
         @decorators.ComponentFactory(factory_name)
         @decorators.Property("_raise", "raise", True)
-        class Erroneous:
+        class Erroneous(object):
             def __init__(self):
                 self.calls = []
                 self._raise = True
