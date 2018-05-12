@@ -1,5 +1,5 @@
-.. _refcard_init_config:
 .. module:: pelix.misc.init_handler
+.. _refcard_init_config:
 
 Initial Configuration File
 ==========================
