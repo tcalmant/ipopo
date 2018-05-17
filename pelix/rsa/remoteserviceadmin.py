@@ -775,6 +775,17 @@ class DistributionProvider(object):
         self._auto_create = True
         self._ipopo = None
 
+    def _create_container_id(self,container_props):
+        raise Exception("ExportDistributionProvider._create_container_id must be implemented by distribution provider")
+
+    def _find_container(self,container_id,container_props):
+        try:
+            instance = self._ipopo.get_instance(container_id)
+            if instance and instance._match_container_props(container_props):
+                return instance
+        except KeyError:
+            return None
+            
 class ExportDistributionProvider(DistributionProvider):      
 
     def __init__(self):
@@ -794,9 +805,6 @@ class ExportDistributionProvider(DistributionProvider):
             return False
         return len([x for x in service_intents if x in self._supported_intents]) == len(service_intents) 
     
-    def _create_container_id(self,container_props):
-        raise Exception("ExportDistributionProvider._create_container_id must be implemented by distribution provider")
-    
     def _prepare_container_props(self,service_intents,export_props):
         # first get . properties for this config
         container_props = get_dot_properties(self._config_name,export_props,True)
@@ -807,14 +815,6 @@ class ExportDistributionProvider(DistributionProvider):
                 container_props = merge_dicts(container_props,get_dot_properties(intent,export_props,False))
         return container_props
     
-    def _find_container(self,container_id,container_props):
-        try:
-            instance = self._ipopo.get_instance(container_id)
-            if instance and instance._match_container_props(container_props):
-                return instance
-        except KeyError:
-            return None
-        
     def _get_or_create_export_container(self, exported_configs, service_intents, export_props):
         result = None
         if self._match_exported_configs(exported_configs) and self._match_service_intents(service_intents, export_props):
@@ -847,7 +847,10 @@ class Container(object):
         if not self._id:
             raise Exception('Exception validating component...self._id set to None')
         self._container_props = container_props
-            
+        
+    def _match_container_props(self,container_props):
+        return True
+
 class ExportContainer(Container):
     
     def __init__(self):
@@ -858,13 +861,6 @@ class ExportContainer(Container):
         print("validate_component props=" + str(container_props))
         self._initialize(container_props)
         
-         
-    def bound(self):
-        pass
-    
-    def unbound(self):
-        pass
-    
     def _export_service(self,svc,ed_props):
         return None
 
@@ -897,9 +893,6 @@ class ExportContainer(Container):
         assert isinstance(ed, EndpointDescription)
         return self._unexport_service(ed)
     
-    def _match_container_props(self,container_props):
-        return True
-
 class ImportContainer(object):
     
     def __init__(self):
@@ -916,34 +909,6 @@ class ImportContainer(object):
         self.__lock = RLock()
         self._id = None
         
-    def get_id(self):
-        return self._id
-
-    @Validate
-    def validate(self, context):
-        """
-        Component validated
-        """
-        # Store the context
-        self._context = context
-        if not self._id:
-            self._id = rsa.create_uuid_uri()
-        
-    @Invalidate
-    def invalidate(self, context):
-        """
-        Component invalidated
-        """
-        # Unregister all of our services
-        with self.__lock:
-            for svc_reg in self.__registrations.values():
-                svc_reg.unregister()
-
-        # Clean up members
-        self.__registrations.clear()
-        self._context = None
-        self._id = None
-
     def handles(self, configurations):
         """
         Checks if this provider handles the given configuration types
