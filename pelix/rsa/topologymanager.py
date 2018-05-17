@@ -30,7 +30,7 @@ import logging
 
 from pelix.ipopo.decorators import Validate, Invalidate
 
-from pelix.remote.edef_io import EDEFReader, EDEFWriter
+from pelix.remote.edef_io import EDEFReader
 
 from pelix.rsa.remoteserviceadmin import RemoteServiceAdminListener, EndpointEvent, EndpointEventListener
 from pelix.framework import ServiceEvent
@@ -39,7 +39,6 @@ from pelix.internals.hooks import EventListenerHook
 
 from pelix.rsa import SERVICE_EXPORTED_INTERFACES, get_fw_uuid,\
     get_exported_interfaces
-from pelix.constants import OBJECTCLASS
 
 # Module version
 __version_info__ = (0, 1, 0)

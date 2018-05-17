@@ -288,6 +288,18 @@ def get_edef_props(object_class, exported_cfgs, ep_namespace, ep_id, ecf_ep_id, 
 def get_edef_props_error(object_class):
     return get_edef_props(object_class, ERROR_IMPORTED_CONFIGS, ERROR_NAMESPACE, ERROR_EP_ID, ERROR_ECF_EP_ID, 0, 0, None, None)
 
+def get_dot_properties(prefix,props,remove_prefix):    
+    result_props = dict()
+    if props:
+        dotkeys = [ x for x in props.keys() if x.startswith(prefix+'.')]
+        for dotkey in dotkeys:
+            if remove_prefix:
+                newkey = dotkey[len(prefix)+1:]
+            else:
+                newkey = dotkey
+            result_props[newkey] = props.get(dotkey)
+    return result_props
+
 class SelectExporterError(Exception):
     def __init__(self,*args,**kwargs):
         Exception.__init__(self,*args,**kwargs)
