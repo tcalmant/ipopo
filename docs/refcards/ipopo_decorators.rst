@@ -84,6 +84,7 @@ They must decorate methods in the component class.
 Component state
 ^^^^^^^^^^^^^^^
 
+.. autoclass:: ValidateComponent
 .. autofunction:: Validate
 .. autofunction:: Invalidate
 

@@ -43,7 +43,9 @@ The update process of a bundle is simple:
 * if it was active, the bundle is stopped: other bundles are notified of this
   transition, and its services are unregistered
 * the module is updated, using the
-  `imp.reload() <https://docs.python.org/3/library/imp.html#imp.reload>`_ method
+  `importlib.reload() <https://docs.python.org/3/library/importlib.html#importlib.reload>`_
+  method (or `imp.reload() <https://docs.python.org/3/library/imp.html#imp.reload>`_
+  when not available)
 
   * if the update fails, the previous version of the module is kept, but the bundle is not restarted.
 * if the update succeeds and the bundle was active, the bundle its restarted
@@ -55,6 +57,16 @@ A bundle activator is a class defining the
 :meth:`~pelix.constants.BundleActivator.start` and
 :meth:`~pelix.constants.BundleActivator.stop` methods, which are called by the
 framework according to the bundle life-cycle.
+
+The framework is locked during transitions in bundles states, which means during
+the calls to :meth:`~pelix.constants.BundleActivator.start` and
+:meth:`~pelix.constants.BundleActivator.stop`.
+Therefore, it is heavily recommended to return fast from those methods.
+For example, it may be necessary to use threads to complete the initialization
+before registering services when the bundle starts.
+On the other hand, it is recommended to wait for all resources to be released
+before exiting the :meth:`~pelix.constants.BundleActivator.stop` , *e.g.* to
+wait for all threads started by the bundle to terminate.
 
 .. class:: pelix.constants.BundleActivator
 
@@ -109,17 +121,21 @@ A class is defined as the bundle activator if it is decorated with
 
 .. note::
 
-   The previous declaration of the activator, *i.e.* declaring an ``activator``
-   module member, is deprecated and its support will be removed in version 1.0.
+   The previous declaration of the activator, *i.e.* declaring module member
+   named ``activator``, is deprecated and its support will be removed in
+   version 1.0.
 
 Bundle Context
 --------------
 
 A context is associated to each bundle, and allows it to interact with the
 framework.
-It is unique for a bundle until it is removed from the framework.
-It must be used to register and to look up services, to request framework
-information, etc.
+It is unique for a bundle and can be used until the latter is removed from
+the framework.
+It is not recommended to keep references to ``BundleContext`` objects as they
+can imply a stall reference to the bundle they describe.
+A bundle must use its context to register and to look up services, to request
+framework information, etc..
 
 All the available methods are described in the
 :ref:`API chapter <api_bundlecontext>`.

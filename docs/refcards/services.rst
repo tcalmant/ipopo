@@ -4,20 +4,22 @@
 Services
 ========
 
-A service is an object that is registered to the framework service registry,
-associated with a set of specifications it implements and to properties.
+A service is an object that is registered to the service registry of the
+framework, associated to a set of specifications it implements and to
+properties.
 
-The bundle that registers the service must keep the
+The bundle that registers the service must keep track of the
 :class:`~ServiceRegistration` object returned by the framework.
 It allows to update the service properties and to unregister the service.
-This object **shall not** be accessible by other bundles/services.
+This object **shall not** be accessible by other bundles/services, as it gives
+access and control over the life cycle of the service it represents.
 Finally, all services must be unregistered when their bundle is stopped.
 
-A consumer can look for a service in the framework that matches a specification
-and a set of properties.
+A consumer can look for a service that matches a specification and a set of
+properties, using its :class:`~BundleContext`.
 The framework will return a :class:`~ServiceReference` object, which provides a
 read-only access to the description of its associated service:
-properties, registering bundle, bundles using it...
+properties, registering bundle, bundles using it, etc..
 
 Properties
 ----------
@@ -61,7 +63,7 @@ otherwise the log would be hard to read.
 
 A service factory is registered in exactly the same way as a normal service,
 using :meth:`~pelix.framework.BundleContext.register_service`, with the
-``factory`` argument set to True``.
+``factory`` argument set to ``True``.
 The only difference is an indirection step before the actual service object is
 handed out.
 

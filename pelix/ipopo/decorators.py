@@ -298,6 +298,18 @@ def _ipopo_setup_field_callback(cls, context):
 # ------------------------------------------------------------------------------
 
 
+def _set_object_entry(obj, entry_name, value):
+    # type: (Any, str, Any) -> None
+    """
+    Sets the given value to the given attribute in the given object.
+
+    :param obj: The object that contains the list
+    :param entry_name: The name of the member in *obj*
+    :param value: The value to set
+    """
+    setattr(obj, entry_name, value)
+
+
 def _append_object_entry(obj, list_name, entry):
     # type: (Any, str, Any) -> None
     """
@@ -1577,6 +1589,94 @@ def Unbind(method):
     _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
                          constants.IPOPO_CALLBACK_UNBIND)
     return method
+
+# ------------------------------------------------------------------------------
+
+
+class ValidateComponent(object):
+    """
+    The ``@ValidateComponent`` decorator declares a callback method for
+    component validation, called before the ``@Validate`` callback.
+
+    Currently, the arguments given to the callback are read-only, to avoid
+    messing with the validation life-cycle.
+    In the future, it will be possible to modify the properties and to use
+    the component context in order to customize the component early.
+
+    The decorator accepts an ordered list of arguments. They define the
+    signature of the decorated method.
+
+    The arguments can be the following ones, declared in the
+    ``pelix.ipopo.constants`` module:
+
+    * ``ARG_BUNDLE_CONTEXT``: Gives access to the bundle context
+    * ``ARG_COMPONENT_CONTEXT``: Gives access to the component context
+    * ``ARG_PROPERTIES``: Gives access to component properties (``dict``)
+
+    Here are some sample uses of the decorator. Note that the number and order
+    of arguments only has to match the list given to the decorator::
+
+        from pelix.constants import ARG_COMPONENT_CONTEXT, ARG_BUNDLE_CONTEXT, \
+            ARG_PROPERTIES
+
+        @ValidateComponent(ARG_COMPONENT_CONTEXT)
+        def validate_component(self, component_ctx):
+            # ...
+
+        @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_COMPONENT_CONTEXT)
+        def validate_component(self, bundle_ctx, component_ctx):
+            # ...
+
+        @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_COMPONENT_CONTEXT,
+                           ARG_PROPERTIES)
+        def validate_component(self, bundle_ctx, component_ctx, props):
+            # ...
+    """
+
+    def __init__(self, *args):
+        """
+        :param args: An ordered list of argument descriptors.
+        :raise TypeError: A parameter has an invalid type or the decorated
+                          object is not a method
+        """
+        # Check arguments validity
+        valid_args = (
+            constants.ARG_BUNDLE_CONTEXT,
+            constants.ARG_COMPONENT_CONTEXT,
+            constants.ARG_PROPERTIES,
+        )
+
+        for arg in args:
+            if arg not in valid_args:
+                raise TypeError("Unknown argument type: {}".format(arg))
+
+        # Keep track of the arguments
+        self.__args = tuple(args)
+
+    def __call__(self, method):
+        """
+        Registers the decorated method as a callback for component validation
+
+        :param method: The validation method
+        :raise TypeError: The decorated element is not a valid function
+        """
+        if not isinstance(method, types.FunctionType):
+            raise TypeError("@ValidateComponent can only be applied "
+                            "on functions")
+
+        # Tests the number of parameters
+        validate_method_arity(method, *self.__args)
+
+        # Append the callback to the component
+        _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
+                             constants.IPOPO_CALLBACK_VALIDATE_COMPONENT)
+
+        # Append arguments list to the method
+        _set_object_entry(method, constants.IPOPO_VALIDATE_ARGS, self.__args)
+
+        return method
+
+# ------------------------------------------------------------------------------
 
 
 def Validate(method):

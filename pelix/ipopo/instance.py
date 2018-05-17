@@ -473,8 +473,12 @@ class StoredInstance(object):
             if safe_callback:
                 # Safe call back needed and not yet passed
                 self.state = StoredInstance.VALIDATING
-                if not self.safe_callback(constants.IPOPO_CALLBACK_VALIDATE,
-                                          self.bundle_context):
+
+                # Call @ValidateComponent first, then @Validate
+                if not self.__safe_callback_validate_component() or \
+                        not self.safe_callback(
+                            constants.IPOPO_CALLBACK_VALIDATE,
+                            self.bundle_context):
                     # Stop there if the callback failed
                     self.state = StoredInstance.VALID
                     self.invalidate(True)
@@ -513,6 +517,44 @@ class StoredInstance(object):
 
         # Call it
         result = comp_callback(self.instance, *args, **kwargs)
+        if result is None:
+            # Special case, if the call back returns nothing
+            return True
+
+        return result
+
+    def __callback_validate_component(self):
+        # type: () -> Any
+        """
+        Specific handling for the ``@ValidateComponent`` callback, as it
+        requires checking arguments count and order
+
+        :return: The callback result, or None
+        :raise Exception: Something went wrong
+        """
+        comp_callback = self.context.get_callback(
+            constants.IPOPO_CALLBACK_VALIDATE_COMPONENT)
+        if not comp_callback:
+            # No registered callback
+            return True
+
+        # Get the list of arguments
+        try:
+            args = getattr(comp_callback, constants.IPOPO_VALIDATE_ARGS)
+        except AttributeError:
+            raise TypeError(
+                "@ValidateComponent callback is missing internal description")
+
+        # Associate values to arguments
+        mapping = {
+            constants.ARG_BUNDLE_CONTEXT: self.bundle_context,
+            constants.ARG_COMPONENT_CONTEXT: self.context,
+            constants.ARG_PROPERTIES: self.context.properties.copy()
+        }
+        mapped_args = [mapping[arg] for arg in args]
+
+        # Call it
+        result = comp_callback(self.instance, *mapped_args)
         if result is None:
             # Special case, if the call back returns nothing
             return True
@@ -590,6 +632,45 @@ class StoredInstance(object):
             # Store the exception in case of a validation error
             if event == constants.IPOPO_CALLBACK_VALIDATE:
                 self.error_trace = traceback.format_exc()
+
+            return False
+
+    def __safe_callback_validate_component(self):
+        # type: () -> Any
+        """
+        Calls the ``@ValidateComponent`` callback, ignoring raised exceptions
+
+        :return: The callback result, or None
+        """
+        if self.state == StoredInstance.KILLED:
+            # Invalid state
+            return None
+
+        try:
+            return self.__callback_validate_component()
+        except FrameworkException as ex:
+            # Important error
+            self._logger.exception(
+                "Critical error calling back %s: %s", self.name, ex)
+
+            # Kill the component
+            self._ipopo_service.kill(self.name)
+
+            # Store the exception as it is a validation error
+            self.error_trace = traceback.format_exc()
+
+            if ex.needs_stop:
+                # Framework must be stopped...
+                self._logger.error(
+                    "%s said that the Framework must be stopped.", self.name)
+                self.bundle_context.get_framework().stop()
+            return False
+        except:
+            self._logger.exception("Component '%s': error calling "
+                                   "@ValidateComponent callback", self.name)
+
+            # Store the exception as it is a validation error
+            self.error_trace = traceback.format_exc()
 
             return False
 
