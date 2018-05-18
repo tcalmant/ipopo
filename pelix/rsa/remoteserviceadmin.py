@@ -49,7 +49,8 @@ from pelix.ipopo.decorators import ComponentFactory, Provides, \
 
 import pelix.rsa as rsa
 from pelix.rsa import SelectExporterError, SelectImporterError,\
-    validate_exported_interfaces, merge_dicts, SERVICE_INTENTS, get_dot_properties
+    validate_exported_interfaces, merge_dicts, SERVICE_INTENTS, get_dot_properties,\
+    ECF_RSVC_ID, RemoteServiceError
 import threading
 from pelix.rsa.endpointdescription import EndpointDescription
 from argparse import ArgumentError
@@ -58,9 +59,10 @@ from pelix import constants
 from pelix.ipopo.constants import SERVICE_IPOPO, IPOPO_INSTANCE_NAME
 
 from pelix.constants import BundleActivator, SERVICE_RANKING, \
-    OBJECTCLASS
-from pelix.ipopo.constants import ARG_PROPERTIES
+    OBJECTCLASS, FRAMEWORK_UID
     
+from pelix.ipopo.constants import ARG_PROPERTIES, ARG_BUNDLE_CONTEXT
+
 from threading import RLock
 
 class _ImportEndpoint(object):
@@ -496,7 +498,7 @@ class RemoteServiceAdmin(object):
     
     def export_service(self, service_ref, overriding_props = None):
             if not service_ref:
-                raise ArgumentError('service_ref argument must not be None')
+                raise ArgumentError('service_ref must not be None')
             assert isinstance(service_ref,ServiceReference)
             # get exported interfaces
             exported_intfs = rsa.get_exported_interfaces(service_ref, overriding_props)
@@ -505,28 +507,31 @@ class RemoteServiceAdmin(object):
                 raise ArgumentError(rsa.SERVICE_EXPORTED_INTERFACES+' must be set in svc_ref properties or overriding_props')
             # If the given exported_interfaces is not valid, then return empty list
             if not validate_exported_interfaces(service_ref.get_property(OBJECTCLASS), exported_intfs):
-                return list()
+                return []
             # get export props by overriding service reference properties (if overriding_props set)
             export_props = service_ref.get_properties().copy()
             if overriding_props:
                 export_props.update(overriding_props)
-
-            export_containers = self._export_container_selector.select_export_container(service_ref, exported_intfs, export_props)
-            
-            errorprops = rsa.get_edef_props_error(service_ref.get_property(OBJECTCLASS))
-            errored = EndpointDescription(service_ref, errorprops)
+            # get list of exporters from export_container_selector service
+            exporters = self._export_container_selector.select_export_container(service_ref, exported_intfs, export_props)
+            # initialize result_regs and result_events
             result_regs = []
             result_events = []
-            if len(export_containers) == 0:
+            # if no exporters, then we setup an error registration
+            if not exporters or len(exporters) == 0:
                 error_msg = "No exporter for service_ref=%s;overriding_props=%s;export_props=%s" % (service_ref,overriding_props,export_props)
                 _logger.warning(error_msg)
-                error_reg = ExportRegistration.fromexception(SelectExporterError(error_msg), errored)
+                error_props = rsa.get_edef_props_error(service_ref.get_property(OBJECTCLASS))
+                error_reg = ExportRegistration.fromexception(SelectExporterError(error_msg), EndpointDescription(service_ref, error_props))
                 self._add_exported_service(error_reg)
                 result_regs.append(error_reg)
             else:     
+                # get _exported_regs_lock
                 with self._exported_regs_lock:
-                    for exporter in export_containers:
+                    # cycle through all exporters
+                    for exporter in exporters:
                         found_regs = []
+                        # get exporter id
                         exporterid = exporter.get_id()
                         for reg in self._exported_regs:
                             if reg._match(service_ref,exporterid):
@@ -540,19 +545,27 @@ class RemoteServiceAdmin(object):
                         else:
                             # Now we actually export
                             export_reg = None
-                            event = None
-                            ed_props = exporter.make_endpoint_props(exported_intfs, service_ref, export_props)
-                            errored = EndpointDescription.fromprops(ed_props)
+                            export_event = None
                             try:
+                                # use exporter.make_endpoint_props to make endpoint props, expect dictionary in response
+                                ed_props = exporter.make_endpoint_props(exported_intfs, service_ref, export_props)
+                                # export service and expect and EndpointDescription instance in response
                                 export_ed = exporter.export_service(service_ref, ed_props)
-                                export_reg = ExportRegistration.fromendpoint(self, exporter, export_ed, service_ref)
-                                event = RemoteServiceAdminEvent.fromexportreg(self._get_bundle(), export_reg)
+                                # if a valid export_ed was returned
+                                if export_ed and isinstance(export_ed,EndpointDescription):
+                                    export_reg = ExportRegistration.fromendpoint(self, exporter, export_ed, service_ref)
+                                    export_event = RemoteServiceAdminEvent.fromexportreg(self._get_bundle(), export_reg)
+                                    # add exported reg to exported services
+                                    self._add_exported_service(export_reg)
+                                    # add to result_regs also
+                                    result_regs.append(export_reg)
+                                    # add to result_events
+                                    result_events.append(export_event)
                             except Exception as e:
-                                export_reg = ExportRegistration.fromexception(e, errored)
-                                event = RemoteServiceAdminEvent.fromexporterror(self._get_bundle(), export_reg.exporterid(), export_reg.exception()), export_reg.description(())
-                            self._add_exported_service(export_reg)
-                            result_regs.append(export_reg)
-                            result_events.append(event)
+                                # XXX log exception
+                                _logger.exception('export_service exception', e)
+                                export_reg = ExportRegistration.fromexception(e, EndpointDescription.fromprops(ed_props))
+                                export_event = RemoteServiceAdminEvent.fromexporterror(self._get_bundle(), export_reg.exporterid(), export_reg.exception(), export_reg.description())
                 #publish events
                 for e in result_events:
                     self._publish_event(e)    
@@ -771,12 +784,13 @@ class DistributionProvider(object):
     
     def __init__(self):
         self._config_name = None
+        self._namespace = None
         self._allow_reuse = True
         self._auto_create = True
         self._ipopo = None
 
     def _create_container_id(self,container_props):
-        raise Exception("ExportDistributionProvider._create_container_id must be implemented by distribution provider")
+        raise Exception('ExportDistributionProvider._create_container_id must be implemented by distribution provider')
 
     def _find_container(self,container_id,container_props):
         try:
@@ -785,11 +799,11 @@ class DistributionProvider(object):
                 return instance
         except KeyError:
             return None
-            
+
 class ExportDistributionProvider(DistributionProvider):      
 
     def __init__(self):
-        super().__init__()
+        super(ExportDistributionProvider, self).__init__()
         self._supported_intents = None
         
     def _match_exported_configs(self,exported_configs):
@@ -808,6 +822,7 @@ class ExportDistributionProvider(DistributionProvider):
     def _prepare_container_props(self,service_intents,export_props):
         # first get . properties for this config
         container_props = get_dot_properties(self._config_name,export_props,True)
+        container_props['DistributionProvider'] = self
         # then add any service intents
         if service_intents:
             container_props[SERVICE_INTENTS] = service_intents
@@ -838,51 +853,87 @@ class Container(object):
     def __init__(self):
         self._id = None
         self._container_props = None
+        self._bundle_context = None
+        self._rs_instances = {}
+        self._rs_instances_lock = RLock()
 
-    def get_id(self):
-        return self._id
+    @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_PROPERTIES)
+    def _validate_component(self, bundle_context, container_props):
+        self._initialize(bundle_context, container_props)
     
-    def _initialize(self, container_props):
+    def _initialize(self, bundle_context, container_props):
+        self._bundle_context = bundle_context
         self._id = container_props.get(IPOPO_INSTANCE_NAME)
         if not self._id:
             raise Exception('Exception validating component...self._id set to None')
         self._container_props = container_props
         
+    def _get_bundle_context(self):
+        return self._bundle_context
+    
+    def get_id(self):
+        return self._id
+    
+    def _add_export(self, rsid, inst):
+        with self._rs_instances_lock:
+            self._rs_instances[rsid] = inst
+            
+    def _remove_export(self, rsid):    
+        with self._rs_instances_lock:
+            return self._rs_instances.pop(rsid)
+             
+    def _get_export(self, rsid):
+        with self._rs_instances_lock:
+            return self._rs_instances.get(rsid,None)
+            
+    def _get_distribution_provider(self):
+        return self._container_props['DistributionProvider']
+    
+    def _get_config_name(self):
+        return self._get_distribution_provider()._config_name
+    
+    def _get_namespace(self):
+        return self._get_distribution_provider()._namespace
+    
     def _match_container_props(self,container_props):
         return True
 
+    @Invalidate
+    def _invalidate(self, bundle_context):
+        with self._rs_instances_lock:
+            self._rs_instances.clear()
+        
 class ExportContainer(Container):
     
     def __init__(self):
-        super().__init__()
-         
-    @ValidateComponent(ARG_PROPERTIES)
-    def validate_component(self, container_props):
-        print("validate_component props=" + str(container_props))
-        self._initialize(container_props)
-        
+        super(ExportContainer, self).__init__()
+    
+    def _get_service_intents(self):
+        return self._container_props.get(SERVICE_INTENTS)
+     
     def _export_service(self,svc,ed_props):
-        return None
+        self._add_export(ed_props.get(ECF_RSVC_ID), svc)
 
     def _update_service(self, ed):
-        return False
+        # do nothing by default, subclasses may override
+        pass
     
     def _unexport_service(self, ed):
-        return False
+        self._remove_export(ed.get_remoteservice_id())
     
     def _make_endpoint_extra_props(self, export_props):
         return {}
     
     def make_endpoint_props(self, intfs, svc_ref, export_props):
         pkg_vers = rsa.get_package_versions(intfs, export_props)
-        rsa_props = rsa.get_rsa_props(intfs, self._exported_configs, self._intents, svc_ref.get_property(constants.SERVICE_ID), self._framework_uid, pkg_vers)
-        ecf_props = rsa.get_ecf_props(self.get_id(), self._namespace, rsa.get_next_rsid(), rsa.get_current_time_millis())
+        rsa_props = rsa.get_rsa_props(intfs, [self._get_config_name()], self._get_service_intents(), svc_ref.get_property(constants.SERVICE_ID), svc_ref.get_property(FRAMEWORK_UID), pkg_vers)
+        ecf_props = rsa.get_ecf_props(self.get_id(), self._get_namespace(), rsa.get_next_rsid(), rsa.get_current_time_millis())
         extra_props = rsa.get_extra_props(export_props)
         exporter_props = self._make_endpoint_extra_props(export_props)
         return rsa.merge_dicts(rsa_props, ecf_props, extra_props, exporter_props)
     
     def export_service(self, svc_ref, export_props):
-        self._export_service(self._context.get_service(svc_ref), export_props.copy())
+        self._export_service(self._get_bundle_context().get_service(svc_ref), export_props.copy())
         return EndpointDescription.fromprops(export_props)
 
     def update_service(self, ed):
@@ -893,9 +944,25 @@ class ExportContainer(Container):
         assert isinstance(ed, EndpointDescription)
         return self._unexport_service(ed)
     
+    def _dispatch_exported(self,rsid,method_name,params):
+        # first lookup service instance
+        service = self._get_export(rsid)
+        if not service:
+            raise RemoteServiceError('Unknown instance with rsid={0} for method call={1}'.format(str(rsid),method_name))
+        # Get the method
+        method_ref = getattr(service, method_name, None)
+        if method_ref is None:
+            raise RemoteServiceError("Unknown method {0}".format(method_name))
+        # Call it (let the errors be propagated)
+        if isinstance(params, (list, tuple)):
+            return method_ref(*params)
+        else:
+            return method_ref(**params)
+
 class ImportContainer(object):
     
     def __init__(self):
+        super(ImportContainer, self).__init__()
         """
         Sets up the importer
         """

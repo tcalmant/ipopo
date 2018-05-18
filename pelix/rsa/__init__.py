@@ -191,7 +191,7 @@ def get_package_versions(intfs, props):
         pkgname = get_package_from_classname(intf)
         if pkgname:
             key = ENDPOINT_PACKAGE_VERSION_+pkgname
-            val = props[key]
+            val = props.get(key,None)
             if val:
                 result.append((key,val))
     return result

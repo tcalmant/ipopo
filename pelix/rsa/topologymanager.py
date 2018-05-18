@@ -37,8 +37,7 @@ from pelix.framework import ServiceEvent
 
 from pelix.internals.hooks import EventListenerHook
 
-from pelix.rsa import SERVICE_EXPORTED_INTERFACES, get_fw_uuid,\
-    get_exported_interfaces
+from pelix.rsa import SERVICE_EXPORTED_INTERFACES, get_exported_interfaces
 
 # Module version
 __version_info__ = (0, 1, 0)
@@ -95,7 +94,6 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
     @Validate
     def _validate(self, context):
         self._context = context
-        fw_uuid = get_fw_uuid(context)
         
     @Invalidate
     def _invalidate(self, context):
