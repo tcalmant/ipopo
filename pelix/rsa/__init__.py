@@ -24,7 +24,6 @@ Pelix remote service admin package
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
 # Module version
 __version_info__ = (0, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -65,20 +64,20 @@ SERVICE_IMPORTED_CONFIGS = "service.imported.configs"
 SERVICE_INTENTS = "service.intents"
 SERVICE_ID = "service.id"
 OBJECT_CLASS = "objectClass"
+SERVICE_BUNDLE_ID = 'service.bundleid'
 INSTANCE_NAME = "instance.name"
 SERVICE_RANKING = 'service.ranking'
 SERVICE_COMPONENT_NAME = 'component.name'
 SERVICE_COMPONENT_ID = 'component.id'
-
-rsaprops = [ENDPOINT_ID,ENDPOINT_SERVICE_ID,ENDPOINT_FRAMEWORK_UUID,SERVICE_EXPORTED_INTERFACES,REMOTE_CONFIGS_SUPPORTED,REMOTE_INTENTS_SUPPORTED,SERVICE_EXPORTED_CONFIGS,SERVICE_EXPORTED_INTENTS,SERVICE_EXPORTED_INTENTS_EXTRA,SERVICE_IMPORTED,SERVICE_IMPORTED_CONFIGS,SERVICE_INTENTS,SERVICE_ID,OBJECT_CLASS,INSTANCE_NAME,SERVICE_RANKING,SERVICE_COMPONENT_ID,SERVICE_COMPONENT_NAME]
-
+# List of them
+RSA_PROP_NAMES = [ENDPOINT_ID,ENDPOINT_SERVICE_ID,ENDPOINT_FRAMEWORK_UUID,SERVICE_EXPORTED_INTERFACES,REMOTE_CONFIGS_SUPPORTED,REMOTE_INTENTS_SUPPORTED,SERVICE_EXPORTED_CONFIGS,SERVICE_EXPORTED_INTENTS,SERVICE_EXPORTED_INTENTS_EXTRA,SERVICE_IMPORTED,SERVICE_IMPORTED_CONFIGS,SERVICE_INTENTS,SERVICE_ID,OBJECT_CLASS,INSTANCE_NAME,SERVICE_RANKING,SERVICE_COMPONENT_ID,SERVICE_COMPONENT_NAME]
+# ECF constants
 ECF_ENDPOINT_CONTAINERID_NAMESPACE = "ecf.endpoint.id.ns"
 ECF_ENDPOINT_ID = "ecf.endpoint.id"
 ECF_RSVC_ID = "ecf.rsvc.id"
 ECF_ENDPOINT_TIMESTAMP = "ecf.endpoint.ts"
 ECF_ENDPOINT_CONNECTTARGET_ID = "ecf.endpoint.connecttarget.id"
 ECF_ENDPOINT_IDFILTER_IDS = "ecf.endpoint.idfilter.ids"
-
 ECF_ENDPOINT_REMOTESERVICE_FILTER = "ecf.endpoint.rsfilter"
 ECF_SERVICE_EXPORTED_CONTAINER_FACTORY_ARGS = "ecf.exported.containerfactoryargs"
 ECF_SERVICE_EXPORTED_CONTAINER_CONNECT_CONTEXT = "ecf.exported.containerconnectcontext"
@@ -92,18 +91,19 @@ ECF_SERVICE_IMPORTED_ENDPOINT_ID = ENDPOINT_ID
 ECF_SERVICE_IMPORTED_ENDPOINT_SERVICE_ID = ENDPOINT_SERVICE_ID
 ECF_OSGI_ENDPOINT_MODIFIED = "ecf.osgi.endpoint.modified"
 ECF_OSGI_CONTAINER_ID_NS = "ecf.osgi.ns"
-
-ecfprops = [ECF_ENDPOINT_CONTAINERID_NAMESPACE,ECF_ENDPOINT_ID,ECF_RSVC_ID,ECF_ENDPOINT_TIMESTAMP,ECF_ENDPOINT_CONNECTTARGET_ID,ECF_ENDPOINT_IDFILTER_IDS,ECF_ENDPOINT_REMOTESERVICE_FILTER,ECF_SERVICE_EXPORTED_ASYNC_INTERFACES]
+# List
+ECFPROPNAMES = [ECF_ENDPOINT_CONTAINERID_NAMESPACE,ECF_ENDPOINT_ID,ECF_RSVC_ID,ECF_ENDPOINT_TIMESTAMP,ECF_ENDPOINT_CONNECTTARGET_ID,ECF_ENDPOINT_IDFILTER_IDS,ECF_ENDPOINT_REMOTESERVICE_FILTER,ECF_SERVICE_EXPORTED_ASYNC_INTERFACES,ECF_SERVICE_IMPORTED_VALUETYPE]
 #----------------------------------------------------------------------------------
-REMOTE_SERVICE_ADMIN = "pelix.rsa.remoteserviceadmin"
-EXPORT_DISTRIBUTION_PROVIDER = "pelix.rsa.exportdistributionprovider"
-IMPORT_DISTRIBUTION_PROVIDER = "pelix.rsa.importdistributionprovider"
-EXPORT_CONTAINER = "pelix.rsa.exportcontainer"
-IMPORT_CONTAINER = "pelix.rsa.importcontainer"
-RSA_EVENT_LISTENER = "pelix.rsa.remoteserviceadmineventlistener"
-ENDPOINT_EVENT_LISTENER = 'pelix.rsa.remoteserviceadminendpointeventlistener'
-EXPORT_CONTAINER_SELECTOR = "pelix.rsa.exportcontainerselector"
-IMPORT_CONTAINER_SELECTOR = 'pelix.rsa.importcontainerselector'
+SERVICE_REMOTE_SERVICE_ADMIN = "pelix.rsa.remoteserviceadmin"
+SERVICE_EXPORT_DISTRIBUTION_PROVIDER = "pelix.rsa.exportdistributionprovider"
+SERVICE_IMPORT_DISTRIBUTION_PROVIDER = "pelix.rsa.importdistributionprovider"
+SERVICE_EXPORT_CONTAINER = "pelix.rsa.exportcontainer"
+SERVICE_IMPORT_CONTAINER = "pelix.rsa.importcontainer"
+SERVICE_RSA_EVENT_LISTENER = "pelix.rsa.remoteserviceadmineventlistener"
+SERVICE_ENDPOINT_EVENT_LISTENER = 'pelix.rsa.remoteserviceadminendpointeventlistener'
+SERVICE_EXPORT_CONTAINER_SELECTOR = "pelix.rsa.exportcontainerselector"
+SERVICE_IMPORT_CONTAINER_SELECTOR = 'pelix.rsa.importcontainerselector'
+DISTRIBUTION_PROVIDER_CONTAINER_PROP = "pelix.rsa.distributionprovider"
 ERROR_EP_ID = '0'
 ERROR_NAMESPACE = 'org.eclipse.ecf.core.identity.StringID'
 ERROR_IMPORTED_CONFIGS = ['import.error.config']
@@ -149,6 +149,17 @@ def get_string_plus_property_value(value):
             return list(value)
         else:
             return None
+
+def convert_string_plus_value(values):
+    if not values:
+        return None
+    size = len(values)
+    if size == 0:
+        return None
+    elif size == 1:
+        return values[1]
+    else:
+        return values
 
 def parse_string_plus_value(value):
     return value.split(',')
@@ -234,10 +245,10 @@ def get_rsa_props(object_class, exported_cfgs, intents=None, ep_svc_id=None, fw_
     results['objectClass'] = object_class
     if not exported_cfgs:
         raise ArgumentError('rmt_configs must be an array of Strings')
-    results[SERVICE_EXPORTED_CONFIGS] = exported_cfgs
+    results[REMOTE_CONFIGS_SUPPORTED] = exported_cfgs
     results[SERVICE_IMPORTED_CONFIGS] = exported_cfgs
     if intents:
-        results[SERVICE_INTENTS] = intents
+        results[REMOTE_INTENTS_SUPPORTED] = intents
     if not ep_svc_id:
         ep_svc_id = get_next_rsid()
     results[ENDPOINT_SERVICE_ID] = ep_svc_id
@@ -252,7 +263,6 @@ def get_rsa_props(object_class, exported_cfgs, intents=None, ep_svc_id=None, fw_
             results[pkg_ver[0]] = pkg_ver[1]
     results[ENDPOINT_ID] = create_uuid()
     results[SERVICE_IMPORTED] = 'true'
-    results[SERVICE_EXPORTED_INTERFACES] = '*'
     return results
 
 def get_ecf_props(ep_id, ep_id_ns, rsvc_id=None, ep_ts=None):
@@ -275,7 +285,7 @@ def get_ecf_props(ep_id, ep_id_ns, rsvc_id=None, ep_ts=None):
 def get_extra_props(props):
     result = {}
     for key, value in props.items():
-        if not key in ecfprops and not key in rsaprops:
+        if not key in ECFPROPNAMES and not key in RSA_PROP_NAMES:
             if not key.startswith(ENDPOINT_PACKAGE_VERSION_):
                 result[key] = value
     return result
@@ -299,6 +309,27 @@ def get_dot_properties(prefix,props,remove_prefix):
                 newkey = dotkey
             result_props[newkey] = props.get(dotkey)
     return result_props
+
+def is_reserved_property(key):
+    return key in RSA_PROP_NAMES or key in ECFPROPNAMES or key.startswith('.')
+
+def remove_from_props(props,keys):
+    for key in props:
+        if key in keys:
+            props.pop(key)
+    return props
+
+def copy_non_reserved(props,target):
+    for key, value in list(props.items()):
+        if not is_reserved_property(key):
+            target[key] = value
+    return target
+
+def copy_non_ecf(props,target):
+    for key, value in list(props.items()):
+        if not key in ECFPROPNAMES:
+            target[key] = value
+    return target
 
 class SelectExporterError(Exception):
     def __init__(self,*args,**kwargs):

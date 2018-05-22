@@ -30,14 +30,14 @@ import logging
 
 from pelix.ipopo.decorators import Validate, Invalidate
 
-from pelix.remote.edef_io import EDEFReader
+from pelix.rsa.remoteserviceadmin import RemoteServiceAdminListener
 
-from pelix.rsa.remoteserviceadmin import RemoteServiceAdminListener, EndpointEvent, EndpointEventListener
 from pelix.framework import ServiceEvent
-
 from pelix.internals.hooks import EventListenerHook
-
-from pelix.rsa import SERVICE_EXPORTED_INTERFACES, get_exported_interfaces
+from pelix.rsa import SERVICE_EXPORTED_INTERFACES, get_exported_interfaces, SERVICE_RSA_EVENT_LISTENER, SERVICE_REMOTE_SERVICE_ADMIN
+from pelix.services import SERVICE_EVENT_LISTENER_HOOK
+from pelix.ipopo.decorators import Provides, Requires
+from pelix.rsa.edef import EDEFWriter
 
 # Module version
 __version_info__ = (0, 1, 0)
@@ -50,39 +50,9 @@ __docformat__ = "restructuredtext en"
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
-class RSACommandHandler(object):
-    
-    def __init__(self):
-        self._eel = None
-        self.__edefreader = EDEFReader()
-        
-    @staticmethod
-    def get_namespace():
-        """
-        Retrieves the name space of this command handler
-        """
-        return "rsa"
-
-    def get_methods(self):
-        """
-        Retrieves the list of tuples (command, method) for this command handler
-        """
-        return [("importedef", self.import_edef)]
-
-    def import_edef(self, io_handler, edeffile):
-        eds = self.__edefreader.parse(open(edeffile, 'r').read())
-        for ed in eds:
-            self._eel.endpoint_changed(EndpointEvent(EndpointEvent.ADDED,ed),None)
-
-class EndpointEventListenerImpl(EndpointEventListener):
-    
-    def __init__(self,tm_impl):
-        self._tmimpl = tm_impl
-        
-    def endpoint_changed(self, ep_event, matched_scope):
-        # XXX todo
-        EndpointEventListener.endpoint_changed(self, ep_event, matched_scope)
-
+@Provides(SERVICE_EVENT_LISTENER_HOOK)
+@Provides(SERVICE_RSA_EVENT_LISTENER)
+@Requires('_rsa', SERVICE_REMOTE_SERVICE_ADMIN)
 class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
     
     def __init__(self):
@@ -139,7 +109,5 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
             
     # impl of RemoteServiceAdminListener
     def remote_admin_event(self, event):
-        # XXX todo
-        return 
-    
-    
+        EDEFWriter().write([event.get_description()],'edef.xml')
+        
