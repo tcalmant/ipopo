@@ -36,7 +36,6 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------# Standard library
-from uuid import uuid4
 from pelix.ipopo.constants import SERVICE_IPOPO, IPOPO_INSTANCE_NAME, ARG_BUNDLE_CONTEXT,\
     ARG_PROPERTIES
 from pelix.ipopo.decorators import Requires, ValidateComponent, Invalidate
@@ -44,7 +43,7 @@ from pelix.rsa import DISTRIBUTION_PROVIDER_CONTAINER_PROP, get_dot_properties, 
     merge_dicts, ECF_RSVC_ID, RemoteServiceError,copy_non_reserved,\
     ECF_SERVICE_EXPORTED_ASYNC_INTERFACES,ENDPOINT_ID,SERVICE_ID,\
     SERVICE_IMPORTED, SERVICE_IMPORTED_CONFIGS,REMOTE_CONFIGS_SUPPORTED,\
-    SERVICE_BUNDLE_ID,convert_string_plus_value
+    SERVICE_BUNDLE_ID,convert_string_plus_value, create_uuid
     
 from pelix.constants import OBJECTCLASS, SERVICE_SCOPE, FRAMEWORK_UID
     
@@ -125,7 +124,7 @@ class ImportDistributionProvider(DistributionProvider):
         self._supported_configs = None
         
     def _prepare_container_id(self, container_props):
-        return str(uuid4())
+        return create_uuid()
     
     def _get_imported_configs(self,exported_configs):
         return [self._config_name]
