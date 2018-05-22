@@ -1,16 +1,17 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 # -- Content-Encoding: UTF-8 --
 """
-Pelix remote service admin package
+
+Topology Manager APIs
 
 :author: Scott Lewis
-:copyright: Copyright 2016, Composent, Inc.
+:copyright: Copyright 2018, Scott Lewis
 :license: Apache License 2.0
 :version: 0.1.0
 
 ..
 
-    Copyright 2016 Composent, Inc., Thomas Calmont and others.
+    Copyright 2018 Scott Lewis
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -24,10 +25,17 @@ Pelix remote service admin package
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
-# Standard library
+# ------------------------------------------------------------------------------
+# Standard logging
 import logging
-
+_logger = logging.getLogger(__name__)
+# ------------------------------------------------------------------------------
+# Module version
+__version_info__ = (0, 1, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+# ------------------------------------------------------------------------------# Standard library
 from pelix.ipopo.decorators import Validate, Invalidate
 
 from pelix.rsa.remoteserviceadmin import RemoteServiceAdminListener
@@ -37,19 +45,8 @@ from pelix.internals.hooks import EventListenerHook
 from pelix.rsa import SERVICE_EXPORTED_INTERFACES, get_exported_interfaces, SERVICE_RSA_EVENT_LISTENER, SERVICE_REMOTE_SERVICE_ADMIN
 from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 from pelix.ipopo.decorators import Provides, Requires
-from pelix.rsa.edef import EDEFWriter
-
-# Module version
-__version_info__ = (0, 1, 0)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
-_logger = logging.getLogger(__name__)
-# ------------------------------------------------------------------------------
-
 @Provides(SERVICE_EVENT_LISTENER_HOOK)
 @Provides(SERVICE_RSA_EVENT_LISTENER)
 @Requires('_rsa', SERVICE_REMOTE_SERVICE_ADMIN)
@@ -109,5 +106,6 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
             
     # impl of RemoteServiceAdminListener
     def remote_admin_event(self, event):
-        EDEFWriter().write([event.get_description()],'edef.xml')
+        # XXX temporary
+        pass
         

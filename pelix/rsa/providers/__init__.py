@@ -1,14 +1,17 @@
+#!/usr/bin/python
+# -- Content-Encoding: UTF-8 --
 """
-Pelix remote service admin package
+
+Distribution Provider and Discovery Provider APIs
 
 :author: Scott Lewis
-:copyright: Copyright 2016, Composent, Inc.
+:copyright: Copyright 2018, Scott Lewis
 :license: Apache License 2.0
 :version: 0.1.0
 
 ..
 
-    Copyright 2016 Composent, Inc., Scott Lewis and others.
+    Copyright 2018 Scott Lewis
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -22,9 +25,17 @@ Pelix remote service admin package
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
-# Standard library
+# ------------------------------------------------------------------------------
+# Standard logging
 import logging
+_logger = logging.getLogger(__name__)
+# ------------------------------------------------------------------------------
+# Module version
+__version_info__ = (0, 1, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+# ------------------------------------------------------------------------------# Standard library
 from uuid import uuid4
 from pelix.ipopo.constants import SERVICE_IPOPO, IPOPO_INSTANCE_NAME, ARG_BUNDLE_CONTEXT,\
     ARG_PROPERTIES
@@ -40,17 +51,7 @@ from pelix.constants import OBJECTCLASS, SERVICE_SCOPE, FRAMEWORK_UID
 import pelix.rsa as rsa    
 from threading import RLock
 from pelix.rsa.endpointdescription import EndpointDescription
-# Module version
-__version_info__ = (0, 1, 0)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-_logger = logging.getLogger(__name__)
-# ------------------------------------------------------------------------------
-
+# ------------------------------------------------------------------------------# Standard library
 @Requires('_ipopo', SERVICE_IPOPO)
 class DistributionProvider():
     

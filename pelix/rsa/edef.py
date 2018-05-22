@@ -4,8 +4,8 @@ Pelix remote services: EDEF file handler
 Endpoint Description Extender Format (EDEF) is specified in OSGi Compendium
 specifications, section 122.8.
 
-:author: Thomas Calmant
-:copyright: Copyright 2015, isandlaTech
+:author: Thomas Calmant and Scott Lewis
+:copyright: Copyright 2018, isandlaTech
 :license: Apache License 2.0
 :version: 0.7.1
 
@@ -25,7 +25,17 @@ specifications, section 122.8.
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
+# ------------------------------------------------------------------------------
+# Standard logging
+import logging
+_logger = logging.getLogger(__name__)
+# ------------------------------------------------------------------------------
+# Module version
+__version_info__ = (0, 1, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+# ------------------------------------------------------------------------------
 import pelix.rsa as rsa
 from pelix.rsa.endpointdescription import EndpointDescription
 
@@ -41,18 +51,7 @@ except ImportError:
 # Pelix
 import pelix.constants
 
-
 # ------------------------------------------------------------------------------
-
-# Module version
-__version_info__ = (0, 7, 1)
-__version__ = ".".join(str(x) for x in __version_info__)
-
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
 # Python 2.6 compatibility
 if ElementTree.VERSION[0:3] == '1.2':
     # Old version of ElementTree misses many options

@@ -1,16 +1,17 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 # -- Content-Encoding: UTF-8 --
 """
-Pelix endpoint description 
+
+EndpointDescription class API
 
 :author: Scott Lewis
-:copyright: Copyright 2016, Composent, Inc.
+:copyright: Copyright 2018, Scott Lewis
 :license: Apache License 2.0
 :version: 0.1.0
 
 ..
 
-    Copyright 2016 Composent, Inc. and others
+    Copyright 2018 Scott Lewis
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -24,10 +25,17 @@ Pelix endpoint description
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-# Standard library
+# ------------------------------------------------------------------------------
+# Standard logging
 import logging
-
-import pelix
+_logger = logging.getLogger(__name__)
+# ------------------------------------------------------------------------------
+# Module version
+__version_info__ = (0, 1, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+# ------------------------------------------------------------------------------
 from pelix.constants import SERVICE_ID, FRAMEWORK_UID, OBJECTCLASS
 from pelix.rsa import get_string_plus_property, set_prop_if_null, get_prop_value, get_matching_interfaces, \
     ENDPOINT_SERVICE_ID, SERVICE_IMPORTED, ENDPOINT_FRAMEWORK_UUID, ENDPOINT_ID, ECF_ENDPOINT_ID,\
@@ -35,21 +43,8 @@ from pelix.rsa import get_string_plus_property, set_prop_if_null, get_prop_value
     ECF_ENDPOINT_CONTAINERID_NAMESPACE, ECF_ENDPOINT_REMOTESERVICE_FILTER, ECF_SERVICE_EXPORTED_ASYNC_INTERFACES, \
     ECF_SERVICE_EXPORTED_ASYNC_NOPROXY, ECF_ASYNC_INTERFACE_SUFFIX, ECF_SERVICE_ASYNC_RSPROXY_CLASS_, \
     ENDPOINT_PACKAGE_VERSION_, REMOTE_INTENTS_SUPPORTED, SERVICE_IMPORTED_CONFIGS
-
-# Remote Services constants
-# Module version
-__version_info__ = (0, 1, 0)
-__version__ = ".".join(str(x) for x in __version_info__)
- 
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-
+from pelix.ldapfilter import get_ldap_filter
 # ------------------------------------------------------------------------------
-
-_logger = logging.getLogger(__name__)
-
-# ------------------------------------------------------------------------------
-
 # EndpointDescription class
 # ------------------------------------------------------------------------------
 class EndpointDescription(object):
@@ -298,5 +293,5 @@ class EndpointDescription(object):
         :param ldap_filter: A filter
         :return: True if properties matches the filter
         """
-        return pelix.ldapfilter.get_ldap_filter(ldap_filter) \
+        return get_ldap_filter(ldap_filter) \
             .matches(self._properties)
