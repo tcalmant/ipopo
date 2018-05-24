@@ -377,7 +377,7 @@ class StoredInstance(object):
             # Call the component
             if callback:
                 self.__safe_callback_validate_component(
-                    constants.IPOPO_CALLBACK_INVALIDATE_COMPONENT)
+                    constants.IPOPO_CALLBACK_INVALIDATE)
 
                 # Trigger an "Invalidated" event
                 self._ipopo_service._fire_ipopo_event(
@@ -476,7 +476,7 @@ class StoredInstance(object):
 
                 # Call @ValidateComponent first, then @Validate
                 if not self.__safe_callback_validate_component(
-                        constants.IPOPO_CALLBACK_VALIDATE_COMPONENT):
+                        constants.IPOPO_CALLBACK_VALIDATE):
                     # Stop there if the callback failed
                     self.state = StoredInstance.VALID
                     self.invalidate(True)

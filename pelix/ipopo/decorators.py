@@ -1669,7 +1669,7 @@ class ValidateComponent(object):
 
         # Append the callback to the component
         _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
-                             constants.IPOPO_CALLBACK_VALIDATE_COMPONENT)
+                             constants.IPOPO_CALLBACK_VALIDATE)
 
         # Append arguments list to the method
         _set_object_entry(method, constants.IPOPO_VALIDATE_ARGS, self._args)
@@ -1707,7 +1707,7 @@ class InvalidateComponent(ValidateComponent):
 
         # Append the callback to the component
         _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
-                             constants.IPOPO_CALLBACK_INVALIDATE_COMPONENT)
+                             constants.IPOPO_CALLBACK_INVALIDATE)
 
         # Append arguments list to the method
         _set_object_entry(method, constants.IPOPO_VALIDATE_ARGS, self._args)
