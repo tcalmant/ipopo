@@ -164,7 +164,8 @@ class DecoratorsTest(unittest.TestCase):
             decorators.Bind: constants.IPOPO_CALLBACK_BIND,
             decorators.Unbind: constants.IPOPO_CALLBACK_UNBIND,
             decorators.Validate: constants.IPOPO_CALLBACK_VALIDATE_COMPONENT,
-            decorators.Invalidate: constants.IPOPO_CALLBACK_INVALIDATE
+            decorators.Invalidate:
+                constants.IPOPO_CALLBACK_INVALIDATE_COMPONENT
         }
 
         # Define some non decorable types

@@ -147,8 +147,11 @@ ValidateComponent: Called before VALIDATE once all mandatory dependencies
 have been bound, with component-specific parameters
 """
 
-IPOPO_CALLBACK_INVALIDATE = "INVALIDATE"
-""" Invalidate: Called when one the mandatory dependencies is unbound """
+IPOPO_CALLBACK_INVALIDATE_COMPONENT = "INVALIDATE"
+"""
+InvalidateComponent: Called when one the mandatory dependencies is unbound,
+with component-specific parameters
+"""
 
 IPOPO_CALLBACK_POST_REGISTRATION = "POST_REGISTRATION"
 """

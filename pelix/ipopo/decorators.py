@@ -1596,7 +1596,7 @@ def Unbind(method):
 class ValidateComponent(object):
     """
     The ``@ValidateComponent`` decorator declares a callback method for
-    component validation, called before the ``@Validate`` callback.
+    component validation.
 
     Currently, the arguments given to the callback are read-only, to avoid
     messing with the validation life-cycle.
@@ -1651,7 +1651,7 @@ class ValidateComponent(object):
                 raise TypeError("Unknown argument type: {}".format(arg))
 
         # Keep track of the arguments
-        self.__args = tuple(args)
+        self._args = tuple(args)
 
     def __call__(self, method):
         """
@@ -1665,14 +1665,52 @@ class ValidateComponent(object):
                             "on functions")
 
         # Tests the number of parameters
-        validate_method_arity(method, *self.__args)
+        validate_method_arity(method, *self._args)
 
         # Append the callback to the component
         _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
                              constants.IPOPO_CALLBACK_VALIDATE_COMPONENT)
 
         # Append arguments list to the method
-        _set_object_entry(method, constants.IPOPO_VALIDATE_ARGS, self.__args)
+        _set_object_entry(method, constants.IPOPO_VALIDATE_ARGS, self._args)
+
+        return method
+
+
+class InvalidateComponent(ValidateComponent):
+    """
+    The ``@InvalidateComponent`` decorator declares a callback method for
+    component invalidation.
+
+    Its arguments and their order describes the ones of the callback it
+    decorates.
+    They are the same as those of :class:`ValidateComponent`.
+
+    Exceptions raised by an invalidation callback are ignored.
+
+    If the component provides a service, the invalidation method is called
+    after the provided service has been unregistered to the framework.
+    """
+    def __call__(self, method):
+        """
+        Registers the decorated method as a callback for component invalidation
+
+        :param method: The invalidation method
+        :raise TypeError: The decorated element is not a valid function
+        """
+        if not isinstance(method, types.FunctionType):
+            raise TypeError("@InvalidateComponent can only be applied "
+                            "on functions")
+
+        # Tests the number of parameters
+        validate_method_arity(method, *self._args)
+
+        # Append the callback to the component
+        _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
+                             constants.IPOPO_CALLBACK_INVALIDATE_COMPONENT)
+
+        # Append arguments list to the method
+        _set_object_entry(method, constants.IPOPO_VALIDATE_ARGS, self._args)
 
         return method
 
@@ -1685,7 +1723,8 @@ def Validate(method):
     *i.e.* if all of its required dependencies has been injected.
 
     This is an alias to :class:`ValidateComponent`. It is not possible to have
-    both ``@Validate`` and ``@ValidateComponent`` decorators in the same class.
+    both ``@Validate`` and ``@ValidateComponent`` decorators used in the same
+    class.
 
     The decorated method must accept the bundle's
     :class:`~pelix.framework.BundleContext` as argument::
@@ -1714,6 +1753,10 @@ def Invalidate(method):
     The invalidation callback decorator is called when a component becomes
     invalid, *i.e.* if one of its required dependencies disappeared.
 
+    This is an alias to :class:`InvalidateComponent`. It is not possible to
+    have both ``@Invalidate`` and ``@InvalidateComponent`` decorators used in
+    the same class.
+
     The decorated method must accept the bundle's
     :class:`~pelix.framework.BundleContext` as argument::
 
@@ -1732,15 +1775,7 @@ def Invalidate(method):
     :param method: The decorated method
     :raise TypeError: The decorated element is not a function
     """
-    if not isinstance(method, types.FunctionType):
-        raise TypeError("@Invalidate can only be applied on functions")
-
-    # Tests the number of parameters
-    validate_method_arity(method, "bundle_context")
-
-    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
-                         constants.IPOPO_CALLBACK_INVALIDATE)
-    return method
+    return InvalidateComponent(constants.ARG_BUNDLE_CONTEXT)(method)
 
 
 def PostRegistration(method):

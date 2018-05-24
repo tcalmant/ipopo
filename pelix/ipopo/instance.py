@@ -376,8 +376,8 @@ class StoredInstance(object):
 
             # Call the component
             if callback:
-                self.safe_callback(constants.IPOPO_CALLBACK_INVALIDATE,
-                                   self.bundle_context)
+                self.__safe_callback_validate_component(
+                    constants.IPOPO_CALLBACK_INVALIDATE_COMPONENT)
 
                 # Trigger an "Invalidated" event
                 self._ipopo_service._fire_ipopo_event(
@@ -475,7 +475,8 @@ class StoredInstance(object):
                 self.state = StoredInstance.VALIDATING
 
                 # Call @ValidateComponent first, then @Validate
-                if not self.__safe_callback_validate_component():
+                if not self.__safe_callback_validate_component(
+                        constants.IPOPO_CALLBACK_VALIDATE_COMPONENT):
                     # Stop there if the callback failed
                     self.state = StoredInstance.VALID
                     self.invalidate(True)
@@ -520,17 +521,18 @@ class StoredInstance(object):
 
         return result
 
-    def __callback_validate_component(self):
-        # type: () -> Any
+    def __callback_validate_component(self, event):
+        # type: (str) -> Any
         """
-        Specific handling for the ``@ValidateComponent`` callback, as it
-        requires checking arguments count and order
+        Specific handling for the ``@ValidateComponent`` and
+        ``@InvalidateComponent`` callback, as it requires checking arguments
+        count and order
 
+        :param event: The kind of life-cycle callback (in/validation)
         :return: The callback result, or None
         :raise Exception: Something went wrong
         """
-        comp_callback = self.context.get_callback(
-            constants.IPOPO_CALLBACK_VALIDATE_COMPONENT)
+        comp_callback = self.context.get_callback(event)
         if not comp_callback:
             # No registered callback
             return True
@@ -623,11 +625,13 @@ class StoredInstance(object):
                                    "method for event %s", self.name, event)
             return False
 
-    def __safe_callback_validate_component(self):
-        # type: () -> Any
+    def __safe_callback_validate_component(self, event):
+        # type: (str) -> Any
         """
-        Calls the ``@ValidateComponent`` callback, ignoring raised exceptions
+        Calls the ``@ValidateComponent`` or ``@InvalidateComponent`` callback,
+        ignoring raised exceptions
 
+        :param event: The kind of life-cycle callback (in/validation)
         :return: The callback result, or None
         """
         if self.state == StoredInstance.KILLED:
@@ -635,7 +639,7 @@ class StoredInstance(object):
             return None
 
         try:
-            return self.__callback_validate_component()
+            return self.__callback_validate_component(event)
         except FrameworkException as ex:
             # Important error
             self._logger.exception(
