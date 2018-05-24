@@ -43,7 +43,7 @@ from pelix.rsa import DISTRIBUTION_PROVIDER_CONTAINER_PROP, get_dot_properties, 
     merge_dicts, ECF_RSVC_ID, RemoteServiceError,copy_non_reserved,\
     ECF_SERVICE_EXPORTED_ASYNC_INTERFACES,ENDPOINT_ID,SERVICE_ID,\
     SERVICE_IMPORTED, SERVICE_IMPORTED_CONFIGS,REMOTE_CONFIGS_SUPPORTED,\
-    SERVICE_BUNDLE_ID,convert_string_plus_value, create_uuid
+    SERVICE_BUNDLE_ID,convert_string_plus_value, create_uuid,SERVICE_REMOTE_SERVICE_ADMIN
     
 from pelix.constants import OBJECTCLASS, SERVICE_SCOPE, FRAMEWORK_UID
     
@@ -51,6 +51,7 @@ import pelix.rsa as rsa
 from threading import RLock
 from pelix.rsa.endpointdescription import EndpointDescription
 # ------------------------------------------------------------------------------# Standard library
+@Requires('_rsa',SERVICE_REMOTE_SERVICE_ADMIN)
 @Requires('_ipopo', SERVICE_IPOPO)
 class DistributionProvider():
     
@@ -61,6 +62,7 @@ class DistributionProvider():
         self._auto_create = True
         self._supported_configs = None
         self._supported_intents = None
+        self._rsa = None
         self._ipopo = None
 
     def _prepare_container_id(self,container_props):
@@ -111,7 +113,31 @@ class DistributionProvider():
                 if not container:
                     container = self._ipopo.instantiate(self._config_name, container_id, container_props)
         return container
-            
+    
+    def _find_import_registration(self,ed):
+        if not ed:
+            return None
+        import_regs = self._rsa.get_imported_services()
+        if import_regs:
+            for import_reg in import_regs:
+                if import_reg.match(ed):
+                    return import_reg
+
+    def _handle_import(self,ed):
+        return self._rsa.import_service(ed)
+   
+    def _handle_import_update(self,ed):
+        import_reg = self._find_import_registration(ed)
+        if import_reg:
+            import_ref = import_reg.importreference()
+            if import_ref:
+                import_ref.update(ed)
+
+    def _handle_import_close(self,ed):
+        import_reg = self._find_import_registration(ed)
+        if import_reg:
+            import_reg.close()
+
 class ExportDistributionProvider(DistributionProvider):      
 
     def supports_export(self, exported_configs, service_intents, export_props):

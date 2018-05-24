@@ -135,13 +135,13 @@ class EndpointDescription(object):
         self._async_intfs = self._verify_async_intfs()
         
     def __hash__(self):
-        return hash(self._endpoint_id)
+        return hash(self._id)
 
     def __eq__(self, other):
-        return self._endpoint_id == other._endpoint_id
+        return self._id == other._id
 
     def __ne__(self, other):
-        return self._endpoint_id != other._endpoint_id
+        return self._id != other._id
 
     def __str__(self):
         rsid = self.get_remoteservice_id()

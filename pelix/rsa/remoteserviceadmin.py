@@ -505,7 +505,12 @@ class _ImportEndpoint(object):
                     return False
                 if removed:
                     self.__rsa._remove_imported_service(import_reg)
-                    self.__svc_reg = None
+                    if self.__svc_reg:
+                        try:
+                            self.__svc_reg.unregister()
+                        except:
+                            _logger.exception('Exception unregistering local service='+self.__svc_reg.get_reference())
+                        self.__svc_reg = None
                     self.__importer = None
                     self.__ed = None
                     self.__rsa = None
