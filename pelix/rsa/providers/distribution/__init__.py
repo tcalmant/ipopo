@@ -294,4 +294,4 @@ class ImportContainer(Container):
         return self._get_bundle_context().register_service(ed.get_interfaces(),proxy,proxy_props)
     
     def unimport_service(self,ed):
-        return True
+        pass

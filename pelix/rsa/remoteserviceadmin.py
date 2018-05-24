@@ -496,25 +496,24 @@ class _ImportEndpoint(object):
             try:
                 self.__active_registrations.remove(import_reg)
             except ValueError:
-                return False
+                pass
             if len(self.__active_registrations) is 0:
+                if self.__svc_reg:
+                    try:
+                        self.__svc_reg.unregister()
+                    except:
+                        _logger.exception('Exception unregistering local proxy='+self.__svc_reg.get_reference())
+                    self.__svc_reg = None
                 try:
-                    removed = self.__importer.unimport_service(self.__ed)
-                except Exception as e:
-                    _logger.error(e)
+                    self.__importer.unimport_service(self.__ed)
+                except:
+                    _logger.exception('Exception calling importer.unimport_service with ed='+str(self.__ed))
                     return False
-                if removed:
-                    self.__rsa._remove_imported_service(import_reg)
-                    if self.__svc_reg:
-                        try:
-                            self.__svc_reg.unregister()
-                        except:
-                            _logger.exception('Exception unregistering local service='+self.__svc_reg.get_reference())
-                        self.__svc_reg = None
-                    self.__importer = None
-                    self.__ed = None
-                    self.__rsa = None
-                    return True
+                self.__rsa._remove_imported_service(import_reg)
+                self.__importer = None
+                self.__ed = None
+                self.__rsa = None
+                return True
         return False        
 
 class ImportReference(object):
@@ -723,25 +722,18 @@ class _ExportEndpoint(object):
             try:
                 self.__active_registrations.remove(export_reg)
             except ValueError:
-                return False
+                pass
             if len(self.__active_registrations) is 0:
-                removed = False
                 try:
-                    removed = self.__exporter.unexport_service(self.__ed)
+                    self.__exporter.unexport_service(self.__ed)
                 except:
-                    _logger.error('exception in exporter.unexport_service ed='+str(self.__ed))
-                    return False
-                if removed:
-                    try:
-                        self.__rsa._remove_exported_service(export_reg)
-                    except Exception as e:
-                        _logger.error(e)
-                        return False
-                    self.__ed = None
-                    self.__exporter = None
-                    self.__svc_ref = None
-                    self.__rsa = None
-                    return True
+                    _logger.exception('exception in exporter.unexport_service ed='+str(self.__ed))
+                self.__rsa._remove_exported_service(export_reg)
+                self.__ed = None
+                self.__exporter = None
+                self.__svc_ref = None
+                self.__rsa = None
+                return True
         return False
     
 class ExportReference(object):
