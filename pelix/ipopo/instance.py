@@ -376,7 +376,7 @@ class StoredInstance(object):
 
             # Call the component
             if callback:
-                self.__safe_callback_validate_component(
+                self.__safe_validation_callback(
                     constants.IPOPO_CALLBACK_INVALIDATE)
 
                 # Trigger an "Invalidated" event
@@ -475,7 +475,7 @@ class StoredInstance(object):
                 self.state = StoredInstance.VALIDATING
 
                 # Call @ValidateComponent first, then @Validate
-                if not self.__safe_callback_validate_component(
+                if not self.__safe_validation_callback(
                         constants.IPOPO_CALLBACK_VALIDATE):
                     # Stop there if the callback failed
                     self.state = StoredInstance.VALID
@@ -521,7 +521,7 @@ class StoredInstance(object):
 
         return result
 
-    def __callback_validate_component(self, event):
+    def __validation_callback(self, event):
         # type: (str) -> Any
         """
         Specific handling for the ``@ValidateComponent`` and
@@ -625,7 +625,7 @@ class StoredInstance(object):
                                    "method for event %s", self.name, event)
             return False
 
-    def __safe_callback_validate_component(self, event):
+    def __safe_validation_callback(self, event):
         # type: (str) -> Any
         """
         Calls the ``@ValidateComponent`` or ``@InvalidateComponent`` callback,
@@ -639,7 +639,7 @@ class StoredInstance(object):
             return None
 
         try:
-            return self.__callback_validate_component(event)
+            return self.__validation_callback(event)
         except FrameworkException as ex:
             # Important error
             self._logger.exception(
