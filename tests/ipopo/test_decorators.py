@@ -163,7 +163,7 @@ class DecoratorsTest(unittest.TestCase):
         callbacks = {
             decorators.Bind: constants.IPOPO_CALLBACK_BIND,
             decorators.Unbind: constants.IPOPO_CALLBACK_UNBIND,
-            decorators.Validate: constants.IPOPO_CALLBACK_VALIDATE,
+            decorators.Validate: constants.IPOPO_CALLBACK_VALIDATE_COMPONENT,
             decorators.Invalidate: constants.IPOPO_CALLBACK_INVALIDATE
         }
 

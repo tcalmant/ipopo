@@ -60,45 +60,6 @@ class ValidateComponentTest(unittest.TestCase):
 
         self.assertRaises(TypeError, decorators.ValidateComponent(), Dummy)
 
-    def test_callback_order(self):
-        """
-        Checks if @ValidateComponent is called before @Validate
-        """
-        factory_name = "test.1"
-
-        @decorators.ComponentFactory(factory_name)
-        class Sample:
-            def __init__(self):
-                self.calls = []
-
-            @decorators.ValidateComponent()
-            def validate_component(self):
-                self.calls.append("ValidateComponent")
-
-            @decorators.Validate
-            def validate(self, ctx):
-                self.calls.append("Validate")
-
-            @decorators.Invalidate
-            def invalidate(self, ctx):
-                self.calls.append("Invalidate")
-
-        # Register factory
-        self.ipopo.register_factory(
-            self.framework.get_bundle_context(), Sample)
-
-        # Instantiate once
-        instance_name = "test"
-        instance = self.ipopo.instantiate(factory_name, instance_name, {})
-
-        # Check state
-        self.assertListEqual(["ValidateComponent", "Validate"], instance.calls)
-
-        # Kill it
-        del instance.calls[:]
-        self.ipopo.kill(instance_name)
-        self.assertListEqual(["Invalidate"], instance.calls)
-
     def test_arguments(self):
         """
         Tests arguments handling in @ValidateComponent
@@ -157,10 +118,6 @@ class ValidateComponentTest(unittest.TestCase):
                 if self._raise:
                     raise ValueError("Bad things happen")
 
-            @decorators.Validate
-            def validate(self, context):
-                self.calls.append("Validate")
-
             @decorators.Invalidate
             def invalidate(self, ctx):
                 self.calls.append("Invalidate")
@@ -187,7 +144,7 @@ class ValidateComponentTest(unittest.TestCase):
         self.ipopo.retry_erroneous(instance_name, {"raise": False})
 
         # Check calls
-        self.assertListEqual(["ValidateComponent", "Validate"], instance.calls)
+        self.assertListEqual(["ValidateComponent"], instance.calls)
 
         # Check state
         details = self.ipopo.get_instance_details(instance_name)

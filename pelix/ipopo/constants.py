@@ -141,9 +141,6 @@ UnbindField: called when a dependency is about to be removed from the given
 field
 """
 
-IPOPO_CALLBACK_VALIDATE = "VALIDATE"
-""" Validate: Called when all mandatory dependencies have been bound """
-
 IPOPO_CALLBACK_VALIDATE_COMPONENT = "VALIDATE_COMPONENT"
 """
 ValidateComponent: Called before VALIDATE once all mandatory dependencies

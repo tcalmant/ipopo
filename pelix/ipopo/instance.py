@@ -475,10 +475,7 @@ class StoredInstance(object):
                 self.state = StoredInstance.VALIDATING
 
                 # Call @ValidateComponent first, then @Validate
-                if not self.__safe_callback_validate_component() or \
-                        not self.safe_callback(
-                            constants.IPOPO_CALLBACK_VALIDATE,
-                            self.bundle_context):
+                if not self.__safe_callback_validate_component():
                     # Stop there if the callback failed
                     self.state = StoredInstance.VALID
                     self.invalidate(True)
@@ -615,10 +612,6 @@ class StoredInstance(object):
             # Kill the component
             self._ipopo_service.kill(self.name)
 
-            # Store the exception in case of a validation error
-            if event == constants.IPOPO_CALLBACK_VALIDATE:
-                self.error_trace = traceback.format_exc()
-
             if ex.needs_stop:
                 # Framework must be stopped...
                 self._logger.error("%s said that the Framework must be "
@@ -628,11 +621,6 @@ class StoredInstance(object):
         except:
             self._logger.exception("Component '%s': error calling callback "
                                    "method for event %s", self.name, event)
-
-            # Store the exception in case of a validation error
-            if event == constants.IPOPO_CALLBACK_VALIDATE:
-                self.error_trace = traceback.format_exc()
-
             return False
 
     def __safe_callback_validate_component(self):

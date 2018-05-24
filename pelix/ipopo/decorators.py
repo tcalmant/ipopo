@@ -1684,6 +1684,9 @@ def Validate(method):
     The validation callback decorator is called when a component becomes valid,
     *i.e.* if all of its required dependencies has been injected.
 
+    This is an alias to :class:`ValidateComponent`. It is not possible to have
+    both ``@Validate`` and ``@ValidateComponent`` decorators in the same class.
+
     The decorated method must accept the bundle's
     :class:`~pelix.framework.BundleContext` as argument::
 
@@ -1703,15 +1706,7 @@ def Validate(method):
     :param method: The validation method
     :raise TypeError: The decorated element is not a valid function
     """
-    if not isinstance(method, types.FunctionType):
-        raise TypeError("@Validate can only be applied on functions")
-
-    # Tests the number of parameters
-    validate_method_arity(method, "bundle_context")
-
-    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS,
-                         constants.IPOPO_CALLBACK_VALIDATE)
-    return method
+    return ValidateComponent(constants.ARG_BUNDLE_CONTEXT)(method)
 
 
 def Invalidate(method):
