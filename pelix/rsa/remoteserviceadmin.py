@@ -188,7 +188,7 @@ class RemoteServiceAdmin(object):
         except:
             _logger.exception('Exception selecting import container for endpoint='+str(endpoint_description))
             import_reg = ImportRegistration.fromexception(sys.exc_info(), endpoint_description)
-            import_event = RemoteServiceAdminEvent.fromimporterror(self._get_bundle(), import_reg.importerid(), import_reg.exception(), import_reg.description())
+            import_event = RemoteServiceAdminEvent.fromimporterror(self._get_bundle(), import_reg.importerid(), import_reg.rsid(), import_reg.exception(), import_reg.description())
 
         if not import_reg:
             with self._imported_regs_lock:

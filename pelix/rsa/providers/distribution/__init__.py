@@ -90,7 +90,8 @@ class DistributionProvider():
     def _match_service_intents(self,intents,all_props):
         if not intents or not self._supported_intents:
             return False
-        return len([x for x in intents if x in self._supported_intents]) == len(intents) 
+        match_list = [x for x in intents if x in self._supported_intents]
+        return len(match_list) == len(intents) 
     
     def _prepare_container_props(self,service_intents,export_props):
         container_props = {DISTRIBUTION_PROVIDER_CONTAINER_PROP:self}
@@ -266,22 +267,21 @@ class ImportContainer(Container):
         return dp._get_imported_configs(exported_configs)
     
     def _prepare_proxy_props(self, ed):
-        ed_props = ed.get_properties()
         result_props = copy_non_reserved(ed.get_properties(),dict())
+        # remove these props
         result_props.pop(OBJECTCLASS,None)
         result_props.pop(SERVICE_ID,None)
         result_props.pop(SERVICE_BUNDLE_ID,None)
         result_props.pop(SERVICE_SCOPE,None)
+        result_props.pop(IPOPO_INSTANCE_NAME,None)
         intents = convert_string_plus_value(ed.get_intents())
         if intents:
             result_props[SERVICE_INTENTS] = intents
         result_props[SERVICE_IMPORTED] = True
-        remote_configs_supported = ed_props.get(REMOTE_CONFIGS_SUPPORTED)
-        imported_configs = self._get_imported_configs(remote_configs_supported)
-        result_props[SERVICE_IMPORTED_CONFIGS] = imported_configs      
+        result_props[SERVICE_IMPORTED_CONFIGS] = self._get_imported_configs(ed.get_remote_configs_supported())      
         result_props[ENDPOINT_ID] = ed.get_id()     
-        asyn = ed_props.get(ECF_SERVICE_EXPORTED_ASYNC_INTERFACES)
-        if asyn:
+        asyn = ed.get_async_interfaces()
+        if asyn and len(asyn) > 0:
             result_props[ECF_SERVICE_EXPORTED_ASYNC_INTERFACES] = asyn                            
         return result_props
         
@@ -289,9 +289,9 @@ class ImportContainer(Container):
         raise Exception('_prepare_proxy must be implemented by ImportContainer subclass')
     
     def import_service(self, ed):
-        proxy_props = self._prepare_proxy_props(ed)
         proxy = self._prepare_proxy(ed)
-        return self._get_bundle_context().register_service(ed.get_interfaces(),proxy,proxy_props)
+        if proxy:
+            return self._get_bundle_context().register_service(ed.get_interfaces(),proxy,self._prepare_proxy_props(ed))
     
     def unimport_service(self,ed):
         pass

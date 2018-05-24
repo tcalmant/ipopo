@@ -42,7 +42,8 @@ from pelix.rsa import get_string_plus_property, set_prop_if_null, get_prop_value
     ECF_ENDPOINT_TIMESTAMP, ECF_ENDPOINT_CONNECTTARGET_ID, ECF_ENDPOINT_IDFILTER_IDS, ECF_RSVC_ID, \
     ECF_ENDPOINT_CONTAINERID_NAMESPACE, ECF_ENDPOINT_REMOTESERVICE_FILTER, ECF_SERVICE_EXPORTED_ASYNC_INTERFACES, \
     ECF_SERVICE_EXPORTED_ASYNC_NOPROXY, ECF_ASYNC_INTERFACE_SUFFIX, ECF_SERVICE_ASYNC_RSPROXY_CLASS_, \
-    ENDPOINT_PACKAGE_VERSION_, REMOTE_INTENTS_SUPPORTED, SERVICE_IMPORTED_CONFIGS
+    ENDPOINT_PACKAGE_VERSION_, REMOTE_INTENTS_SUPPORTED, SERVICE_IMPORTED_CONFIGS,\
+    REMOTE_CONFIGS_SUPPORTED
 from pelix.ldapfilter import get_ldap_filter
 # ------------------------------------------------------------------------------
 # EndpointDescription class
@@ -243,6 +244,9 @@ class EndpointDescription(object):
 
     def get_configuration_types(self):
         return self._get_string_plus_property(SERVICE_IMPORTED_CONFIGS)     
+    
+    def get_remote_configs_supported(self):
+        return self._get_string_plus_property(REMOTE_CONFIGS_SUPPORTED)
     
     def get_service_id(self):
         return self._service_id;
