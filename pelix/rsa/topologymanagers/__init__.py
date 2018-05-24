@@ -85,16 +85,17 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
         self._rsa.export_service(service_ref, { SERVICE_EXPORTED_INTERFACES:exp_intfs })
     
     def _handle_service_unregistering(self,service_ref):
-        return 
-    
+        export_regs = self._rsa.get_exported_services()
+        if export_regs:
+            for export_reg in export_regs:
+                if export_reg.match(service_ref):
+                    _logger.debug('handle_service_unregistering. closing export_registration for service reference='+str(service_ref))
+                    export_reg.close()
+
     def _handle_service_modified(self,service_ref):
         return
     
-    # impl of EventListenerHoook
-    def event(self,service_event,listener_dict):
-        rsa = self._rsa
-        if not rsa:
-            return None
+    def _handle_event(self,service_event):
         kind = service_event.get_kind()
         service_ref = service_event.get_service_reference()
         if kind == ServiceEvent.REGISTERED:
@@ -103,6 +104,10 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
             self._handle_service_unregistering(service_ref)
         elif kind == ServiceEvent.MODIFIED:
             self._handle_service_modified(service_ref)
+
+    # impl of EventListenerHoook
+    def event(self,service_event,listener_dict):
+        self._handle_event(service_event)
             
     # impl of RemoteServiceAdminListener
     def remote_admin_event(self, event):

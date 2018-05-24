@@ -185,7 +185,7 @@ class ExportContainer(Container):
         pass
     
     def _unexport_service(self, ed):
-        self._remove_export(ed.get_remoteservice_id())
+        return self._remove_export(ed.get_properties().get(ECF_RSVC_ID))
     
     def _prepare_endpoint_extra_props(self, export_props):
         return {}

@@ -181,10 +181,12 @@ class XmlRpcImportContainer(ImportContainer):
         '''
         This method is called as part of RSA.import_service.  In this case
         an instance of XmlRpcProxy declared below is returned as the object
-        representing the remote service that is registered to implement
-        the remote service in the local service registry.  When a consumer
-        calls the method, the __getattr__ method is called with in turn,
-        gets the <objectid>.<method> using the xmlrpc.client.ServerProxy
+        representing the imported remote service (proxy).  Once returned,
+        this proxy is registered with locals service registry.  
+        When a consumer retrieves this service and calls a method, the
+         __getattr__ method (below) is and this make the remote call
+        with a string: <objectid>.<method> using the 
+        xmlrpc.client.ServerProxy
         '''
         class XmlRpcProxy():
             def __init__(self,rsid):
