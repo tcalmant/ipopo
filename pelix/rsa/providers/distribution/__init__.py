@@ -86,12 +86,14 @@ class DistributionProvider():
         
     def _match_container_props(self,container_props):
         return True
-        
-    def _match_service_intents(self,intents,all_props):
-        if not intents or not self._supported_intents:
+    
+    def _match_intents_supported(self,intents,supported_intents):
+        if not intents or not supported_intents:
             return False
-        match_list = [x for x in intents if x in self._supported_intents]
-        return len(match_list) == len(intents) 
+        return len([x for x in intents if x in supported_intents]) == len(intents) 
+            
+    def _match_intents(self,intents):
+        return self._match_intents_supported(intents,self._supported_intents)
     
     def _prepare_container_props(self,service_intents,export_props):
         container_props = {DISTRIBUTION_PROVIDER_CONTAINER_PROP:self}
@@ -106,7 +108,7 @@ class DistributionProvider():
     
     def _get_or_create_container(self, required_configs, service_intents, all_props):
         container = None
-        if self._match_required_configs(required_configs) and self._match_service_intents(service_intents, all_props):
+        if self._match_required_configs(required_configs) and self._match_intents(service_intents):
             container_props = self._prepare_container_props(service_intents,all_props)
             if container_props:
                 container_id = self._prepare_container_id(container_props)
