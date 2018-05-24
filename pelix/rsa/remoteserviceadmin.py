@@ -238,8 +238,8 @@ class RemoteServiceAdmin(object):
         for l in listeners:
             try:
                 l.remote_admin_event(event)
-            except Exception as e:
-                _logger.error(e)
+            except:
+                _logger.error('Exception calling rsa event listener='+str(l))
     
     def _get_bundle(self):
         if self._context:
@@ -380,29 +380,32 @@ class RemoteServiceAdminEvent(object):
     
     @classmethod
     def fromimportreg(cls,bundle,import_reg):
-        return RemoteServiceAdminEvent(RemoteServiceAdminEvent.IMPORT_REGISTRATION,bundle,import_reg.importerid(),import_reg._importreference(),None,None,import_reg.description())
+        return RemoteServiceAdminEvent(RemoteServiceAdminEvent.IMPORT_REGISTRATION,bundle,import_reg.importerid(),import_reg.rsid(),import_reg._importreference(),None,None,import_reg.description())
     @classmethod
     def fromexportreg(cls,bundle,export_reg):
-        return RemoteServiceAdminEvent(RemoteServiceAdminEvent.EXPORT_REGISTRATION,bundle,export_reg.exporterid(),None,export_reg._exportreference(),None,export_reg.description())
+        return RemoteServiceAdminEvent(RemoteServiceAdminEvent.EXPORT_REGISTRATION,bundle,export_reg.exporterid(),export_reg.rsid(),None,export_reg._exportreference(),None,export_reg.description())
 
     @classmethod
-    def fromimportunreg(cls,bundle,exporterid,import_ref,ed):
-        return RemoteServiceAdminEvent(RemoteServiceAdminEvent.IMPORT_UNREGISTRATION,bundle,exporterid,import_ref,ed)
+    def fromimportunreg(cls,bundle,cid,rsid,import_ref,exception,ed):
+        return RemoteServiceAdminEvent(typ=RemoteServiceAdminEvent.IMPORT_UNREGISTRATION,bundle=bundle,
+                                       cid=cid,rsid=rsid,import_ref=import_ref,exception=exception,ed=ed)
     @classmethod
-    def fromexportunreg(cls,bundle,exporterid,export_ref,ed):
-        return RemoteServiceAdminEvent(RemoteServiceAdminEvent.EXPORT_UNREGISTRATION,bundle,exporterid,export_ref,ed)
+    def fromexportunreg(cls,bundle,exporterid,rsid,export_ref,exception,ed):
+        return RemoteServiceAdminEvent(typ=RemoteServiceAdminEvent.EXPORT_UNREGISTRATION,bundle=bundle,
+                                       cid=exporterid,rsid=rsid,export_ref=export_ref,exception=exception,ed=ed)
 
     @classmethod
-    def fromimporterror(cls, bundle, importerid, exception, ed):
-        return RemoteServiceAdminEvent(RemoteServiceAdminEvent.IMPORT_ERROR,bundle,importerid,None,None,exception,ed)
+    def fromimporterror(cls, bundle, importerid, rsid, exception, ed):
+        return RemoteServiceAdminEvent(RemoteServiceAdminEvent.IMPORT_ERROR,bundle,importerid,rsid,None,None,exception,ed)
     @classmethod
-    def fromexporterror(cls, bundle, exporterid, exception, ed):
-        return RemoteServiceAdminEvent(RemoteServiceAdminEvent.EXPORT_ERROR,bundle,exporterid,None,None,exception,ed)
+    def fromexporterror(cls, bundle, exporterid, rsid, exception, ed):
+        return RemoteServiceAdminEvent(RemoteServiceAdminEvent.EXPORT_ERROR,bundle,exporterid,rsid,None,None,exception,ed)
 
-    def __init__(self,typ,bundle,exporterid,import_ref=None,export_ref=None,exception=None,ed=None):
+    def __init__(self,typ,bundle,cid,rsid,import_ref=None,export_ref=None,exception=None,ed=None):
         self._type = typ
         self._bundle = bundle
-        self._exporter_id = exporterid
+        self._cid = cid
+        self._rsid = rsid
         self._import_ref = import_ref
         self._export_ref = export_ref
         self._exception = exception
@@ -411,8 +414,11 @@ class RemoteServiceAdminEvent(object):
     def get_description(self):
         return self._ed
     
-    def get_exporter_id(self):
-        return self._exporter_id
+    def get_cid(self):
+        return self._cid
+    
+    def get_rsid(self):
+        return self._rsid
     
     def get_type(self):
         return self._type
@@ -635,21 +641,24 @@ class ImportRegistration(object):
     
     def close(self):
         publish = False
-        providerid = None
+        importerid = None
+        rsid = None
+        import_ref = None
         exception = None
-        imRef = None
         ed = None
         with self.__lock:
             if not self.__closed:
-                providerid = self.__importref.importerid()
+                importerid = self.__importref.importerid()
+                rsid = self.__importref.rsid()
+                import_ref = self.__importref
                 exception = self.__importref.exception()
-                imRef = self.__importref
                 ed = self.__importref.description()
                 publish = self.__importref.close(self)
                 self.__importref = None
                 self.__closed = True
-        if publish and imRef and self.__rsa:
-            self.__rsa._publish_event(RemoteServiceAdminEvent.fromimportunreg(self.__rsa._get_bundle(), providerid, imRef, exception, ed))
+        if publish and import_ref and self.__rsa:
+            self.__rsa._publish_event(RemoteServiceAdminEvent.fromimportunreg(self.__rsa._get_bundle(), 
+                                     importerid, rsid, import_ref, exception, ed))
             self.__rsa = None    
                     
 class _ExportEndpoint(object):
@@ -857,21 +866,19 @@ class ExportRegistration(object):
     
     def close(self):
         publish = False
-        providerid = None
-        exception = None
-        exRef = None
+        exporterid = None
+        export_ref = None
         ed = None
         with self.__lock:
             if not self.__closed:
-                providerid = self.__exportref.exporterid()
-                exception = self.__exportref.exception()
+                exporterid = self.__exportref.exporterid()
+                export_ref = self.__exportref
                 ed = self.__exportref.description()
-                exRef = self.__exportref
                 publish = self.__exportref.close(self)
                 self.__exportref = None
                 self.__closed = True
-        if publish and exRef and self.__rsa:
-            self.__rsa._publish_event(RemoteServiceAdminEvent.fromexportunreg(self.__rsa._get_bundle(), providerid, exRef, exception, ed))
+        if publish and export_ref and self.__rsa:
+            self.__rsa._publish_event(RemoteServiceAdminEvent.fromexportunreg(self.__rsa._get_bundle(), exporterid, export_ref, ed))
             self.__rsa = None
 
 class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
@@ -911,8 +918,19 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
             self._output.write('\n---End Endpoint Description---\n')
             self._output.flush()
 
-    def _write_ref(self,svc_ref,lcid,rsid,ed):
-        self._output.write(str(svc_ref)+';local_id='+str(lcid)+';rs_id='+str(rsid[0][1])+':'+str(rsid[1])+'\n')
+    def _write_ref(self,svc_ref,cid,rsid,ed):
+        if svc_ref:
+            self._output.write(str(svc_ref)+';')
+        self._output.write('local='+str(cid))
+        # rsid should be of form:  ((ns,cid,rsid)
+        self._output.write(';remote=')
+        if isinstance(rsid,tuple) and len(list(rsid)) == 2:
+            nscid = rsid[0]
+            if isinstance(nscid,tuple) and len(list(nscid)) == 2:
+                self._output.write(str(nscid[1])+':'+str(rsid[1]))
+        else:
+            self._output.write(str(rsid))
+        self._output.write('\n')
         self._output.flush()
         self._write_description(ed)
             
@@ -920,25 +938,23 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
         (dt, micro) = datetime.now().strftime('%H:%M:%S.%f').split('.')
         dt = "%s.%03d" % (dt, int(micro) / 1000)
         event_type = rsa_event.get_type()
-        self._output.write(dt+';'+self._eventtypestr.get(event_type,'UNKNOWN'))
+        self._output.write(dt+';'+self._eventtypestr.get(event_type,'UNKNOWN')+';')
+        rs_ref = None
+        svc_ref = None
+        exception = None
         if event_type in self._exporttypes:
-            export_ref = rsa_event.get_export_ref()
-            if export_ref:
-                self._output.write(';exp_svc_ref=')
-                self._write_ref(export_ref.reference(),export_ref.exporterid(),export_ref.rsid(),export_ref.description())
+            rs_ref = rsa_event.get_export_ref()
         elif event_type in self._importtypes:
-            import_ref = rsa_event.get_import_ref()
-            if import_ref:
-                self._output.write(';imp_svc_ref=')
-                self._write_ref(import_ref.reference(),import_ref.importerid(),import_ref.rsid(),import_ref.description())
+            rs_ref = rsa_event.get_import_ref()
         elif event_type in self._errortypes:
-            self._output.write('\n')
-            self._write_description(rsa_event.get_description())
             exception = rsa_event.get_exception()
-            if exception:
-                self._output.write('---Exception Trace---\n')
-                print_exception(exception[0],exception[1],exception[2],limit=None, file=self._output)   
-                self._output.write('---End Exception Trace---\n')
+        if rs_ref:
+            svc_ref = rs_ref.reference()
+        self._write_ref(svc_ref,rsa_event.get_cid(),rsa_event.get_rsid(),rsa_event.get_description())
+        if exception:
+            self._output.write('---Exception Stack---\n')
+            print_exception(exception[0],exception[1],exception[2],limit=None, file=self._output)   
+            self._output.write('---End Exception Stack---\n')
                 
     def remote_admin_event(self, event):
         self._write_event(event)

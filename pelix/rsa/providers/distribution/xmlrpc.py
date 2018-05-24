@@ -28,6 +28,7 @@ XmlRpc-on-HttpService-based Export and Import Distribution Providers
 # ------------------------------------------------------------------------------
 # Standard logging
 import logging
+from pelix.ipopo.constants import ARG_BUNDLE_CONTEXT, ARG_PROPERTIES
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Module version
@@ -40,7 +41,7 @@ __docformat__ = "restructuredtext en"
 from pelix.rsa import SERVICE_EXPORT_DISTRIBUTION_PROVIDER, SERVICE_EXPORT_CONTAINER, SERVICE_IMPORT_CONTAINER,\
     SERVICE_IMPORT_DISTRIBUTION_PROVIDER
 # Providers API    
-from pelix.rsa.providers import ExportContainer,ImportContainer, ExportDistributionProvider,\
+from pelix.rsa.providers.distribution import ExportContainer,ImportContainer, ExportDistributionProvider,\
     ImportDistributionProvider
 # Httpservice API
 from pelix.http import HTTP_SERVICE
@@ -48,7 +49,7 @@ from pelix.http import HTTP_SERVICE
 from pelix.utilities import to_str
 # needed ipopo decorators
 from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate, Property,\
-     Requires, Invalidate
+     Requires, Invalidate, ValidateComponent
 # XML RPC modules for Python 2 or 3
 try:
     # Python 3
@@ -72,12 +73,9 @@ ECF_XMLRPC_DEFAULT_PATH = '/xml-rpc'
 # ------------------------------------------------------------------------------
 class ServerDispatcher(SimpleXMLRPCDispatcher):
     '''ServerDispatcher (subclass of SimpleXMLRPCDispatcher)
-    that uses ECF remote service id to identify the service
-    instance for the consumers/clients to use in method
-    invocation requests.  See do_POST and _dispatch for the actual
-    local method invocation.   An instance of this class is
-    used as a servlet in call to httpservice.register_servlet
-    in XmlRpcExportContainer._initialize.
+    uses ECF remote service id to identify the service
+    for method invocation requests.  See do_POST and _dispatch 
+    for the actual method invocation.   
     '''
     def __init__(self,dispatch_func):
         super(ServerDispatcher, self).__init__(allow_none=True)
@@ -100,35 +98,30 @@ class ServerDispatcher(SimpleXMLRPCDispatcher):
 class XmlRpcExportContainer(ExportContainer):
     '''
     Subclass of ExportContainer created by the XmlRpcExportDistributionProvider at
-    export time (if needed).  Note that the @ComponentFactory annotation to this 
-    class uses the ECF_XMLRPC_SERVER_CONFIG = 'ecf.xmlrpc.server' as it's factory identifier.
-    This must be the same as the @Property('_config_name', 'config_name', ECF_XMLRPC_SERVER_CONFIG)
-    in the XmlRpcExportDistributionProvider below
+    export time.  The @ComponentFactory annotation on this class uses the 
+    ECF_XMLRPC_SERVER_CONFIG = 'ecf.xmlrpc.server' as it's factory identifier.
+    This factory name be the same as the @Property('_config_name', 'config_name', 
+    ECF_XMLRPC_SERVER_CONFIG) in the XmlRpcExportDistributionProvider below
     '''
     def __init__(self):
-        super(XmlRpcExportContainer, self).__init__()
+        ExportContainer.__init__(self)
 
-    def _initialize(self, bundle_context, container_props):
-        '''
-        Note that this subclass impl of _initialize first calls
-        superclass _initialized (which it must) and then registers an instance
-        of ServerDispatcher class with the ExportContainer._dispatch_exported 
-        method as the method to call at dispatch time by the ServerDispatcher.
-        '''
-        ExportContainer._initialize(self, bundle_context, container_props)
+    @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_PROPERTIES)
+    def _validate_component(self, bundle_context, container_props):
+        ExportContainer._validate_component(self, bundle_context, container_props)
         dp = self._get_distribution_provider()
         # register the _XmlRpcServlet instance with the desired uri_path
         dp._httpservice.register_servlet(dp._uri_path,ServerDispatcher(self._dispatch_exported))
     
     @Invalidate
-    def _invalidate(self, bundle_context):
+    def _invalidate_component(self, bundle_context):
         '''First invalidate by unregistering the servlet/dispatcher,
         and then call super._invalidate
         '''
         dp = self._get_distribution_provider()
         dp._httpservice.unregister(dp._uri_path)
         dp._httpservice = None
-        ExportContainer._invalidate(self, bundle_context)  
+        ExportContainer._invalidate_component(self, bundle_context)  
  
 @ComponentFactory("xmlrpc-export-distribution-provider-factory")
 @Provides(SERVICE_EXPORT_DISTRIBUTION_PROVIDER)
@@ -149,8 +142,8 @@ class XmlRpcExportDistributionProvider(ExportDistributionProvider):
     instances as needed.  
     
     Note that this distribution provider uses the injected _httpservice
-    to register servlets via the ExportContainer._initialize call
-    as implemented in XmlRpcExportContainer._initialize.
+    to register servlets via the ExportContainer._validate_component call
+    as implemented in XmlRpcExportContainer._validate_component.
     '''
     def __init__(self):
         super(XmlRpcExportDistributionProvider, self).__init__()
@@ -212,7 +205,7 @@ class XmlRpcImportContainer(ImportContainer):
 @Instantiate("xmlrpc-import-distribution-provider")
 class XmlRpcImportDistributionProvider(ImportDistributionProvider):
     '''
-    No need to override methods to get desired behavior
+    No need to override methods to get necessary behavior
     '''
     pass
     
