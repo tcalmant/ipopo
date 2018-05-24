@@ -84,8 +84,25 @@ They must decorate methods in the component class.
 Component state
 ^^^^^^^^^^^^^^^
 
+When all its requirements are fulfilled, the component goes into the
+*VALID* state.
+During the transition, it is in *VALIDATING* state and the following decorators
+indicate which method must be called at that time.
+If the decorated method raises an exception, the component goes into the
+*ERRONEOUS* state.
+
 .. autoclass:: ValidateComponent
 .. autofunction:: Validate
+
+
+When one of its requirements is missing, or when it is killed, the component
+goes into the *INVALID* state.
+During the transition, it is in *INVALIDATING* state and the following
+decorators indicate which method must be called at that time.
+
+Exceptions raised by the decorated method are ignored.
+
+.. autofunction:: InvalidateComponent
 .. autofunction:: Invalidate
 
 Injections
