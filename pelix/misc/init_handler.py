@@ -352,8 +352,14 @@ class InitFileHandler(object):
         """
         Instantiate the defined components
 
+        .. note::
+           This method requires the iPOPO core service to be registered.
+           This means that the ``pelix.ipopo.core`` must have been declared in
+           the list of bundles (or installed and started programmatically).
+
         :param context: A :class:`~pelix.framework.BundleContext` object
-        :raise BundleException: Error starting a component
+        :raise BundleException: Error looking for the iPOPO service or
+                                starting a component
         """
         with use_ipopo(context) as ipopo:
             for name, (factory, properties) in self.__state.components.items():

@@ -203,8 +203,11 @@ This sample starts a framework based on the default configuration files
     framework = pelix.create_framework(init.bundles, init.properties)
     framework.start()
 
-    # Instantiate configured components
-    init.instantiate_components(framework.get_bundle_context())
+    # Instantiate configured components, if possible
+    if "pelix.ipopo.core" in init.bundles:
+         init.instantiate_components(framework.get_bundle_context())
+    else:
+         print("iPOPO has not been setup in the configuration file.")
 
     # Let the framework live
     try:
