@@ -19,6 +19,7 @@ Pelix/iPOPO.
    http_routing
    remote_services
    shell
+   shell_report
    configadmin
    fileinstall
    eventadmin
