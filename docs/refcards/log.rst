@@ -1,5 +1,6 @@
-.. _refcard_log:
 .. module:: pelix.misc.log
+
+.. _refcard_log:
 
 Logging
 =======

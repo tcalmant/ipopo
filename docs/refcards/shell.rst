@@ -1,7 +1,5 @@
 .. _refcard_shell:
 
-.. note:: Work in progress
-
 Pelix Shell
 ###########
 
@@ -222,16 +220,22 @@ Name                     Default   Description
 Provided command bundles
 ========================
 
-.. note:: TODO:
+Pelix/iPOPO comes with some batteries included.
+Here is the list of the bundles which provide commands for specific services.
 
-    * ``pelix.shell.ipopo``: Commands for iPOPO (factories and instances)
-    * ``pelix.shell.configadmin``: Commands for the Configuration Admin service
-      (provided by ``pelix.misc.configadmin``)
-    * ``pelix.shell.eventadmin``: Commands for the Event Admin service
-      (provided by ``pelix.misc.eventadmin``)
-    * ``pelix.shell.log``: Commands for the Log Service (``pelix.misc.log``)
-    * ``pelix.shell.report``: Provides commands to generate reports about the
-      current setup of Pelix and of its host.
+Note that the commands themselves won't be described here: it is recommended
+to use the ``help`` command in the shell to have the latest usage information.
+
+
+=========================== ====================================================
+Bundle name                 Description
+=========================== ====================================================
+``pelix.shell.ipopo``       Handles iPOPO factories and instances.
+``pelix.shell.configadmin`` Handles the Configuration Admin service (provided by ``pelix.misc.configadmin``). See :ref:`configadmin`.
+``pelix.shell.eventadmin``  Handles the Event Admin service (provided by ``pelix.misc.eventadmin``). See :ref:`refcard_eventadmin`.
+``pelix.shell.log``         Looks into the Log Service (provided by ``pelix.misc.log``). See :ref:`refcard_log`.
+``pelix.shell.report``      Generates framework state reports. See :ref:`refcard_report`.
+=========================== ====================================================
 
 How to provide commands
 =======================
