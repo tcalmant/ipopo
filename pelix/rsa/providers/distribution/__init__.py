@@ -54,7 +54,27 @@ from pelix.rsa.endpointdescription import EndpointDescription
 @Requires('_rsa',SERVICE_REMOTE_SERVICE_ADMIN)
 @Requires('_ipopo', SERVICE_IPOPO)
 class DistributionProvider():
+    '''
+    Abstract super class for all distribution providers.
+    Does not expose and 'public' methods (all methods _)
+    that are intended to allow subclasses (e.g. ImportDistributionProvider
+    and ExportDistributionProvider to get behavior necessary
+    to implement supports_import and supports_export in a manner
+    consistent with OSGi RSA requirements.
     
+    Note that subclasses should set the following fields to non-None
+    values via Property annotations or in __init__:
+    
+    self._config_name  (string)
+    self._namespace  (string)
+    self._supported_configs  (list(string))
+    self._supported_intents  (list(string))
+    
+    These two members will be set via Requires class annotations:
+    
+    self._rsa  (SERVICE_REMOTE_SERVICE_ADMIN instance)
+    self._ipopo (SERVICE_IPOPO instance)
+    '''
     def __init__(self):
         self._config_name = None
         self._namespace = None
@@ -65,10 +85,47 @@ class DistributionProvider():
         self._rsa = None
         self._ipopo = None
 
-    def _prepare_container_id(self,container_props):
-        raise Exception('DistributionProvider._prepare_container_id must be implemented by distribution provider')
+    def _get_imported_configs(self,exported_configs):
+        ''' 
+        Get any imported configs (list) given a set of exported_configs.
+        Default implementation simply returns [self._config_name]
+        '''
+        return [self._config_name]
 
+    def _match_intents_supported(self,intents,supported_intents):
+        '''
+        Match the list of given intents with given supported_intents.
+        This method is used by the other _match methods.
+        '''
+        if not intents or not supported_intents:
+            return False
+        return len([x for x in intents if x in supported_intents]) == len(intents) 
+            
+    def _match_required_configs(self,required_configs):
+        '''
+        Match required configs list(string).  
+        Default implementation compares required configs with self._supported_configs
+        to make sure that all required configs are present for this distribution
+        provider.
+        '''
+        if not required_configs or not self._supported_configs:
+            return False
+        return len([x for x in required_configs if x in self._supported_configs]) == len(required_configs) 
+        
+    def _match_intents(self,intents):
+        '''
+        Match list(string) of intents against self._supported_intents.
+        Default implementation compares intents against self._supported_intents
+        '''
+        return self._match_intents_supported(intents,self._supported_intents)
+    
     def _find_container(self,container_id,container_props):
+        '''
+        Uses given container_id to get an ipopo instance with name=container_id.
+        If instance is returned from ipopo.get_instance(container_id), then
+        instance._match_container_props(container_props) is true, then
+        the instance is returned, else None
+        '''
         try:
             instance = self._ipopo.get_instance(container_id)
             if instance and instance._match_container_props(container_props):
@@ -76,26 +133,26 @@ class DistributionProvider():
         except KeyError:
             return None
     
-    def _get_imported_configs(self,exported_configs):
-        return [self._config_name]
+    def _prepare_container_id(self,container_props):
+        '''
+        Prepare and return a (string) container id.  This method is called by
+        self._get_or_create_container to create an id prior to instantiating
+        and instance of the appropriate Container with the instance.name set
+        to the container_id returned from this method.
+        This method must be overridden by subclasses as the default implementation
+        raises an Exception.   If it returns None, then no container will be created.
+        '''
+        raise Exception('DistributionProvider._prepare_container_id must be implemented by distribution provider')
 
-    def _match_required_configs(self,configs):
-        if not configs or not self._supported_configs:
-            return False
-        return len([x for x in configs if x in self._supported_configs]) == len(configs) 
-        
-    def _match_container_props(self,container_props):
-        return True
-    
-    def _match_intents_supported(self,intents,supported_intents):
-        if not intents or not supported_intents:
-            return False
-        return len([x for x in intents if x in supported_intents]) == len(intents) 
-            
-    def _match_intents(self,intents):
-        return self._match_intents_supported(intents,self._supported_intents)
-    
     def _prepare_container_props(self,service_intents,export_props):
+        '''
+        Prepare container props (dict).
+        Creates dict of props subsequently passed to ipopo.instantiate(factory,container_name,container_props).
+        default implementation copies . properties (as per OSGi spec)
+        along with service.intents and <intent>. properties.
+        Also sets DISTRIBUTION_PROVIDER_CONTAINER_PROP to self.  This 
+        is required by Container._get_distribution_provider()
+        '''
         container_props = {DISTRIBUTION_PROVIDER_CONTAINER_PROP:self}
         # first get . properties for this config
         container_props.update(get_dot_properties(self._config_name,export_props,True))
@@ -142,13 +199,51 @@ class DistributionProvider():
             import_reg.close()
 
 class ExportDistributionProvider(DistributionProvider):      
-
+    '''
+    Export distribution provider.  
+    
+    Implements supports_export, which is called by RSA during export_service
+    to give self the ability to provide a container for exporting
+    the remote service described by exported_configs, service_intents, and
+    export_props.
+    
+    Note:  Subclasses MUST implement/override _prepare_container_id method
+    and return a string to identify the created container instance.
+    '''
     def supports_export(self, exported_configs, service_intents, export_props):
+        '''
+        Method called by rsa.export_service to ask if this ExportDistributionProvider
+        supports export for given exported_configs (list), service_intents (list), and
+        export_props (dict).
+        
+        If a ExportContainer instance is returned then it is used to export
+        the service.  If None is returned, then this distribution provider will
+        not be used to export the service.
+        
+        The default implementation returns self._get_or_create_container.
+        '''
         return self._get_or_create_container(exported_configs, service_intents, export_props)
         
 class ImportDistributionProvider(DistributionProvider):
     
+    def _prepare_container_id(self,container_props):
+        '''
+        Default for import containers creates a UUID for the created container.
+        '''
+        return create_uuid()
+
     def supports_import(self, exported_configs, service_intents, endpoint_props):
+        '''
+        Method called by rsa.export_service to ask if this ImportDistributionProvider
+        supports import for given exported_configs (list), service_intents (list), and
+        export_props (dict).
+        
+        If a ImportContainer instance is returned then it is used to import
+        the service.  If None is returned, then this distribution provider will
+        not be used to import the service.
+        
+        The default implementation returns self._get_or_create_container.
+        '''
         return self._get_or_create_container(exported_configs, service_intents, endpoint_props)
 
 class Container():

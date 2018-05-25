@@ -2,7 +2,7 @@
 # -- Content-Encoding: UTF-8 --
 """
 
-EndpointDescription Class/API
+Remote Service Admin API
 
 :author: Scott Lewis
 :copyright: Copyright 2018, Scott Lewis
@@ -36,30 +36,25 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
-import pelix.rsa as rsa
-from pelix.ipopo.decorators import ComponentFactory, Provides, \
-    Instantiate, Validate, Invalidate, Requires, RequiresBest,\
-    Property
-
-from pelix.rsa import SelectImporterError,\
-    validate_exported_interfaces, get_string_plus_property, SERVICE_REMOTE_SERVICE_ADMIN,\
-    SERVICE_RSA_EVENT_LISTENER, SERVICE_EXPORTED_CONFIGS, SERVICE_EXPORTED_INTERFACES
-
-from pelix.shell import SERVICE_SHELL_COMMAND
-    
 import threading
-from pelix.rsa.endpointdescription import EndpointDescription
+import sys
+from distutils.util import strtobool
+from traceback import print_exception
+from datetime import datetime
 from argparse import ArgumentError
-from pelix.internals.registry import ServiceReference
+
 from pelix import constants
 from pelix.constants import BundleActivator, SERVICE_RANKING, \
     OBJECTCLASS
+from pelix.internals.registry import ServiceReference
 
-from traceback import print_exception
-from datetime import datetime
-from pelix.rsa.edef import EDEFWriter,EDEFReader
-import sys
-from distutils.util import strtobool
+import pelix.rsa as rsa
+from pelix.ipopo.decorators import ComponentFactory, Provides, \
+    Instantiate, Validate, Invalidate, Requires, RequiresBest
+from pelix.rsa import SelectImporterError,\
+    validate_exported_interfaces, get_string_plus_property
+from pelix.rsa.endpointdescription import EndpointDescription
+from pelix.rsa.edef import EDEFWriter
 # ------------------------------------------------------------------------------
 def _set_append(inputset, item):
     if item:
@@ -982,61 +977,4 @@ class Activator(object):
         self._context = None
 
 # ------------------------------------------------------------------------------
-
-@ComponentFactory('pelix-ecfrsa-command-factory')
-@Requires('_rsa',SERVICE_REMOTE_SERVICE_ADMIN)
-@Provides([SERVICE_SHELL_COMMAND, SERVICE_RSA_EVENT_LISTENER])
-@Property('_filename','filename','edef.xml')
-@Property('_export_config','export_config','ecf.xmlrpc.server')
-@Instantiate('pelix-ecfrsa-command')
-class RSACommandHandler(object):
-    
-    def __init__(self):
-        self._context = None
-        self._rsa = None
-        self._edefreader = EDEFReader()
-        self._edefwriter = EDEFWriter()
-        self._filename = None
-        self._export_config = None
-    
-    @Validate
-    def _validate(self,bundle_context):
-        self._context = bundle_context
-            
-    @staticmethod
-    def get_namespace():
-        return "ecf"
-
-    def get_methods(self):
-        return [("importservice", self.import_edef),("exportservice", self.export_edef)]
-
-    def remote_admin_event(self, event):
-        if event.get_type() == RemoteServiceAdminEvent.EXPORT_REGISTRATION:
-            self._edefwriter.write([event.get_description()], self._filename)
-            
-    def export_edef(self, io_handler, service_id=None, export_config=None, filename=None):
-        if not service_id:
-            io_handler.write('Must provide service.id to export as argument.  For example:  exportservice 25\n')
-            io_handler.flush()
-            return
-        svc_ref = self._context.get_service_reference(None,'(service.id='+str(service_id)+')')
-        if not svc_ref:
-            io_handler.write('Service with id='+str(service_id)+' cannot be found so cannot be exported\n')
-            io_handler.flush()
-            return
-        if export_config:
-            self._export_config = export_config
-        if filename:
-            self._filename = filename
-        # Finally export
-        self._rsa.export_service(svc_ref,{ SERVICE_EXPORTED_INTERFACES: '*', SERVICE_EXPORTED_CONFIGS: self._export_config })
-                
-    def import_edef(self, io_handler, edeffile=None):
-        if not edeffile:
-            edeffile = self._filename
-        eds = self._edefreader.parse(open(edeffile, 'r').read())
-        for ed in eds:
-            self._rsa.import_service(ed)
-                
-
 

@@ -103,9 +103,6 @@ class XmlRpcExportContainer(ExportContainer):
     This factory name be the same as the @Property('_config_name', 'config_name', 
     ECF_XMLRPC_SERVER_CONFIG) in the XmlRpcExportDistributionProvider below
     '''
-    def __init__(self):
-        ExportContainer.__init__(self)
-
     @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_PROPERTIES)
     def _validate_component(self, bundle_context, container_props):
         ExportContainer._validate_component(self, bundle_context, container_props)
@@ -120,7 +117,6 @@ class XmlRpcExportContainer(ExportContainer):
         '''
         dp = self._get_distribution_provider()
         dp._httpservice.unregister(dp._uri_path)
-        dp._httpservice = None
         ExportContainer._invalidate_component(self, bundle_context)  
  
 @ComponentFactory("xmlrpc-export-distribution-provider-factory")
@@ -207,7 +203,7 @@ class XmlRpcImportContainer(ImportContainer):
 @Instantiate("xmlrpc-import-distribution-provider")
 class XmlRpcImportDistributionProvider(ImportDistributionProvider):
     '''
-    No need to override methods to get necessary behavior
+    We get all necessary methods from ImportDistributionProvider
     '''
     pass
     
