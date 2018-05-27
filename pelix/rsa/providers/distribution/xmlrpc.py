@@ -115,9 +115,12 @@ class XmlRpcExportContainer(ExportContainer):
         '''First invalidate by unregistering the servlet/dispatcher,
         and then call super._invalidate
         '''
-        dp = self._get_distribution_provider()
-        dp._httpservice.unregister(dp._uri_path)
-        ExportContainer._invalidate_component(self, bundle_context)  
+        try:
+            dp = self._get_distribution_provider()
+            dp._httpservice.unregister(dp._uri_path)
+            ExportContainer._invalidate_component(self, bundle_context)  
+        except:
+            pass
  
 @ComponentFactory("xmlrpc-export-distribution-provider-factory")
 @Provides(SERVICE_EXPORT_DISTRIBUTION_PROVIDER)

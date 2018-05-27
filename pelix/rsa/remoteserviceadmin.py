@@ -55,6 +55,9 @@ from pelix.rsa import SelectImporterError,\
     validate_exported_interfaces, get_string_plus_property
 from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.rsa.edef import EDEFWriter
+
+DEBUG_PROPERTY = 'pelix.rsa.remoteserviceadmin.debug'
+DEBUG_PROPERTY_DEFAULT = 'true'
 # ------------------------------------------------------------------------------
 def _set_append(inputset, item):
     if item:
@@ -108,13 +111,12 @@ class RemoteServiceAdmin(object):
                 exporters = self._export_container_selector.select_export_containers(service_ref, exported_intfs, export_props)
                 # if none returned then report as warning at return empty list
                 if not exporters or len(exporters) == 0:
-                    _logger.warning('No exporting containers found to export service_ref='+service_ref+';export_props='+str(export_props))
+                    _logger.warning('No exporting containers found to export service_ref={0};export_props='.format(service_ref,export_props))
                     return []
             except:
-                _logger.exception('Exception in export container selector')
                 error_props = rsa.get_edef_props_error(service_ref.get_property(OBJECTCLASS))
                 error_reg = ExportRegistration.fromexception(sys.exc_info(), EndpointDescription(service_ref, error_props))
-                export_event = RemoteServiceAdminEvent.fromexporterror(self._get_bundle(), error_reg.exporterid(), error_reg.exception(), error_reg.description())
+                export_event = RemoteServiceAdminEvent.fromexportreg(self._get_bundle(), error_reg)
                 result_regs.append(error_reg)
                 self._add_exported_service(error_reg)
                 result_events.append(export_event)
@@ -150,9 +152,8 @@ class RemoteServiceAdmin(object):
                                     export_reg = ExportRegistration.fromendpoint(self, exporter, export_ed, service_ref)
                                     export_event = RemoteServiceAdminEvent.fromexportreg(self._get_bundle(), export_reg)
                             except Exception as e:
-                                _logger.exception('Exception exporting service_ref='+str(service_ref))
                                 export_reg = ExportRegistration.fromexception(sys.exc_info(), EndpointDescription.fromprops(ed_props))
-                                export_event = RemoteServiceAdminEvent.fromexporterror(self._get_bundle(), export_reg.exporterid(), export_reg.exception(), export_reg.description())
+                                export_event = RemoteServiceAdminEvent.fromexportreg(self._get_bundle(), export_reg)
                         # add exported reg to exported services
                         self._add_exported_service(export_reg)
                         # add to result_regs also
@@ -171,7 +172,7 @@ class RemoteServiceAdmin(object):
 
         remote_configs = rsa.get_string_plus_property(rsa.REMOTE_CONFIGS_SUPPORTED, endpoint_description.get_properties(), None)
         if not remote_configs:
-            raise ArgumentError(None,'endpoint_description must contain '+rsa.REMOTE_CONFIGS_SUPPORTED+" property")
+            raise ArgumentError(None,'endpoint_description must contain {0} property'.format(rsa.REMOTE_CONFIGS_SUPPORTED))
         
         import_reg = None
         import_event = None
@@ -179,11 +180,10 @@ class RemoteServiceAdmin(object):
         try:
             importer = self._import_container_selector.select_import_container(remote_configs, endpoint_description)
             if not importer:
-                raise SelectImporterError('Could not find importer for endpoint='+str(endpoint_description))
+                raise SelectImporterError('Could not find importer for endpoint={0}'.format(endpoint_description))
         except:
-            _logger.exception('Exception selecting import container for endpoint='+str(endpoint_description))
             import_reg = ImportRegistration.fromexception(sys.exc_info(), endpoint_description)
-            import_event = RemoteServiceAdminEvent.fromimporterror(self._get_bundle(), import_reg.importerid(), import_reg.rsid(), import_reg.exception(), import_reg.description())
+            import_event = RemoteServiceAdminEvent.fromimportreg(self._get_bundle(), import_reg)
 
         if not import_reg:
             with self._imported_regs_lock:
@@ -201,15 +201,13 @@ class RemoteServiceAdmin(object):
                         new_reg = ImportRegistration.fromreg(self, found_reg)
                     self._add_imported_service(new_reg)
                     return new_reg
-    
                 try:
                     svc_reg = importer.import_service(endpoint_description)
                     import_reg = ImportRegistration.fromendpoint(self, importer, endpoint_description, svc_reg)
                     import_event = RemoteServiceAdminEvent.fromimportreg(self._get_bundle(), import_reg)
                 except Exception:
-                    _logger.exception('Exception importing endpoint_description='+str(endpoint_description))
                     import_reg = ImportRegistration.fromexception(sys.exc_info(), endpoint_description)
-                    import_event = RemoteServiceAdminEvent.fromimporterror(self._get_bundle(), import_reg.importerid(), import_reg.exception(), import_reg.description())
+                    import_event = RemoteServiceAdminEvent.fromimportreg(self._get_bundle(), import_reg)
         self._imported_regs.append(import_reg)
         self._publish_event(import_event)
         return import_reg
@@ -234,7 +232,7 @@ class RemoteServiceAdmin(object):
             try:
                 l.remote_admin_event(event)
             except:
-                _logger.error('Exception calling rsa event listener='+str(l))
+                _logger.error('Exception calling rsa event listener={0}'.format(l))
     
     def _get_bundle(self):
         if self._context:
@@ -375,10 +373,46 @@ class RemoteServiceAdminEvent(object):
     
     @classmethod
     def fromimportreg(cls,bundle,import_reg):
-        return RemoteServiceAdminEvent(RemoteServiceAdminEvent.IMPORT_REGISTRATION,bundle,import_reg.importerid(),import_reg.rsid(),import_reg.importreference(),None,None,import_reg.description())
+        exc = import_reg.exception()
+        if exc:
+            return RemoteServiceAdminEvent(RemoteServiceAdminEvent.IMPORT_ERROR,
+                                           bundle, 
+                                           import_reg.importerid(), 
+                                           import_reg.rsid(), 
+                                           None,
+                                           None,
+                                           exc, 
+                                           import_reg.description())
+        else:
+            return RemoteServiceAdminEvent(RemoteServiceAdminEvent.IMPORT_REGISTRATION,
+                                           bundle,
+                                           import_reg.importerid(),
+                                           import_reg.rsid(),
+                                           import_reg.importreference(),
+                                           None,
+                                           None,
+                                           import_reg.description())
     @classmethod
     def fromexportreg(cls,bundle,export_reg):
-        return RemoteServiceAdminEvent(RemoteServiceAdminEvent.EXPORT_REGISTRATION,bundle,export_reg.exporterid(),export_reg.rsid(),None,export_reg.exportreference(),None,export_reg.description())
+        exc = export_reg.exception()
+        if exc:
+            return RemoteServiceAdminEvent(RemoteServiceAdminEvent.EXPORT_ERROR,
+                                           bundle, 
+                                           export_reg.exporterid(), 
+                                           export_reg.rsid(), 
+                                           None, 
+                                           None, 
+                                           exc, 
+                                           export_reg.description())
+        else:
+            return RemoteServiceAdminEvent(RemoteServiceAdminEvent.EXPORT_REGISTRATION,
+                                           bundle,
+                                           export_reg.exporterid(),
+                                           export_reg.rsid(),
+                                           None,
+                                           export_reg.exportreference(),
+                                           None,
+                                           export_reg.description())
 
     @classmethod
     def fromimportunreg(cls,bundle,cid,rsid,import_ref,exception,ed):
@@ -392,6 +426,7 @@ class RemoteServiceAdminEvent(object):
     @classmethod
     def fromimporterror(cls, bundle, importerid, rsid, exception, ed):
         return RemoteServiceAdminEvent(RemoteServiceAdminEvent.IMPORT_ERROR,bundle,importerid,rsid,None,None,exception,ed)
+    
     @classmethod
     def fromexporterror(cls, bundle, exporterid, rsid, exception, ed):
         return RemoteServiceAdminEvent(RemoteServiceAdminEvent.EXPORT_ERROR,bundle,exporterid,rsid,None,None,exception,ed)
@@ -497,12 +532,12 @@ class _ImportEndpoint(object):
                     try:
                         self.__svc_reg.unregister()
                     except:
-                        _logger.exception('Exception unregistering local proxy='+self.__svc_reg.get_reference())
+                        _logger.exception('Exception unregistering local proxy={0}'.format(self.__svc_reg.get_reference()))
                     self.__svc_reg = None
                 try:
                     self.__importer.unimport_service(self.__ed)
                 except:
-                    _logger.exception('Exception calling importer.unimport_service with ed='+str(self.__ed))
+                    _logger.exception('Exception calling importer.unimport_service with ed={0}'.format(self.__ed))
                     return False
                 self.__rsa._remove_imported_service(import_reg)
                 self.__importer = None
@@ -722,7 +757,7 @@ class _ExportEndpoint(object):
                 try:
                     self.__exporter.unexport_service(self.__ed)
                 except:
-                    _logger.exception('exception in exporter.unexport_service ed='+str(self.__ed))
+                    _logger.exception('exception in exporter.unexport_service ed={0}'.format(self.__ed))
                 self.__rsa._remove_exported_service(export_reg)
                 self.__ed = None
                 self.__exporter = None
@@ -908,14 +943,14 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
                              RemoteServiceAdminEvent.IMPORT_UPDATE,RemoteServiceAdminEvent.IMPORT_WARNING]
         self._errortypes = [RemoteServiceAdminEvent.EXPORT_ERROR,RemoteServiceAdminEvent.IMPORT_ERROR]
     
-    def _write_description(self,ed):
+    def write_description(self,ed):
         if self._write_endpoint and ed:
             self._output.write('---Endpoint Description---\n')
             self._output.write(self._writer.to_string([ed]))
             self._output.write('\n---End Endpoint Description---\n')
             self._output.flush()
 
-    def _write_ref(self,svc_ref,cid,rsid,ed):
+    def write_ref(self,svc_ref,cid,rsid,ed):
         if svc_ref:
             self._output.write(str(svc_ref)+';')
         self._output.write('local='+str(cid))
@@ -929,16 +964,24 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
             self._output.write(str(rsid))
         self._output.write('\n')
         self._output.flush()
-        self._write_description(ed)
-            
-    def _write_event(self,rsa_event):
+        self.write_description(ed)
+    
+    def write_exception(self,exception):
+        self._output.write('---Exception Stack---\n')
+        print_exception(exception[0],exception[1],exception[2],limit=None, file=self._output)   
+        self._output.write('---End Exception Stack---\n')
+
+    def write_type(self,event_type):
         (dt, micro) = datetime.now().strftime('%H:%M:%S.%f').split('.')
         dt = "%s.%03d" % (dt, int(micro) / 1000)
-        event_type = rsa_event.get_type()
         self._output.write(dt+';'+self._eventtypestr.get(event_type,'UNKNOWN')+';')
+
+    def write_event(self,rsa_event):
+        event_type = rsa_event.get_type()
         rs_ref = None
         svc_ref = None
         exception = None
+        self.write_type(event_type)
         if event_type in self._exporttypes:
             rs_ref = rsa_event.get_export_ref()
         elif event_type in self._importtypes:
@@ -947,14 +990,12 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
             exception = rsa_event.get_exception()
         if rs_ref:
             svc_ref = rs_ref.reference()
-        self._write_ref(svc_ref,rsa_event.get_cid(),rsa_event.get_rsid(),rsa_event.get_description())
+        self.write_ref(svc_ref,rsa_event.get_cid(),rsa_event.get_rsid(),rsa_event.get_description())
         if exception:
-            self._output.write('---Exception Stack---\n')
-            print_exception(exception[0],exception[1],exception[2],limit=None, file=self._output)   
-            self._output.write('---End Exception Stack---\n')
+            self.write_exception(exception)
                 
     def remote_admin_event(self, event):
-        self._write_event(event)
+        self.write_event(event)
 
 @BundleActivator
 class Activator(object):
@@ -964,9 +1005,9 @@ class Activator(object):
 
     def start(self, context):
         self._context = context
-        debugstr = self._context.get_property('pelix.rsa.remoteserviceadmin.debug')
+        debugstr = self._context.get_property(DEBUG_PROPERTY)
         if not debugstr:
-            debugstr = 'true'
+            debugstr = DEBUG_PROPERTY_DEFAULT
         if strtobool(debugstr):
             self._debug_reg = self._context.register_service(rsa.SERVICE_RSA_EVENT_LISTENER,DebugRemoteServiceAdminListener(),None)
         

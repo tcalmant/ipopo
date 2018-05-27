@@ -85,6 +85,15 @@ class DistributionProvider():
         self._rsa = None
         self._ipopo = None
 
+    def get_config_name(self):
+        return self._config_name
+    
+    def get_supported_configs(self):
+        return self._supported_configs
+    
+    def get_supported_intents(self):
+        return self._supported_intents
+    
     def _get_imported_configs(self,exported_configs):
         ''' 
         Get any imported configs (list) given a set of exported_configs.
@@ -97,7 +106,7 @@ class DistributionProvider():
         Match the list of given intents with given supported_intents.
         This method is used by the other _match methods.
         '''
-        if not intents or not supported_intents:
+        if intents == None or not supported_intents:
             return False
         return len([x for x in intents if x in supported_intents]) == len(intents) 
             
@@ -108,7 +117,7 @@ class DistributionProvider():
         to make sure that all required configs are present for this distribution
         provider.
         '''
-        if not required_configs or not self._supported_configs:
+        if required_configs == None or not self._supported_configs:
             return False
         return len([x for x in required_configs if x in self._supported_configs]) == len(required_configs) 
         
@@ -157,7 +166,7 @@ class DistributionProvider():
         # first get . properties for this config
         container_props.update(get_dot_properties(self._config_name,export_props,True))
         # then add any service intents
-        if service_intents:
+        if service_intents != None:
             container_props[SERVICE_INTENTS] = service_intents
             for intent in service_intents:
                 container_props = merge_dicts(container_props,get_dot_properties(intent,export_props,False))
@@ -172,6 +181,7 @@ class DistributionProvider():
                 container = self._find_container(container_id,container_props)
                 if not container:
                     container = self._ipopo.instantiate(self._config_name, container_id, container_props)
+                    assert container.is_valid()
         return container
     
     def _find_import_registration(self,ed):
@@ -256,13 +266,20 @@ class Container():
 
     def get_id(self):
         return self._container_props.get(IPOPO_INSTANCE_NAME,None)
-                               
+           
+    def is_valid(self):
+        assert self._bundle_context
+        assert self._container_props != None
+        assert self._get_distribution_provider()  
+        assert self.get_config_name()
+        assert self.get_namespace()
+        return True
+              
     @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_PROPERTIES)
     def _validate_component(self, bundle_context, container_props):
         self._bundle_context = bundle_context
-        if not container_props.get(IPOPO_INSTANCE_NAME):
-            raise Exception('Exception validating component...'+IPOPO_INSTANCE_NAME+' not set')
         self._container_props = container_props
+        self.is_valid()
     
     @Invalidate
     def _invalidate_component(self, bundle_context):
@@ -287,14 +304,17 @@ class Container():
     def _get_distribution_provider(self):
         return self._container_props[DISTRIBUTION_PROVIDER_CONTAINER_PROP]
     
-    def _get_config_name(self):
+    def get_config_name(self):
         return self._get_distribution_provider()._config_name
     
-    def _get_namespace(self):
+    def get_namespace(self):
         return self._get_distribution_provider()._namespace
     
     def _match_container_props(self,container_props):
         return True
+    
+    def get_connected_id(self):
+        return None
         
 class ExportContainer(Container):
     
@@ -316,11 +336,11 @@ class ExportContainer(Container):
     
     def prepare_endpoint_props(self, intfs, svc_ref, export_props):
         pkg_vers = rsa.get_package_versions(intfs, export_props)
-        rsa_props = rsa.get_rsa_props(intfs, [self._get_config_name()], 
+        rsa_props = rsa.get_rsa_props(intfs, [self.get_config_name()], 
                                       self._get_service_intents(), 
                                       svc_ref.get_property(SERVICE_ID), 
                                       svc_ref.get_property(FRAMEWORK_UID), pkg_vers)
-        ecf_props = rsa.get_ecf_props(self.get_id(), self._get_namespace(), 
+        ecf_props = rsa.get_ecf_props(self.get_id(), self.get_namespace(), 
                                       rsa.get_next_rsid(), 
                                       rsa.get_current_time_millis())
         extra_props = rsa.get_extra_props(export_props)
@@ -356,7 +376,10 @@ class ExportContainer(Container):
             return method_ref(*params)
         else:
             return method_ref(**params)
-
+        
+    def get_connected_id(self):
+        return self.get_id()
+    
 class ImportContainer(Container):
     
     def _get_imported_configs(self,exported_configs):
@@ -383,7 +406,7 @@ class ImportContainer(Container):
         return result_props
         
     def _prepare_proxy(self,ed):
-        raise Exception('_prepare_proxy must be implemented by ImportContainer subclass')
+        raise Exception('ImportContainer._prepare_proxy must be implemented by subclass')
     
     def import_service(self, ed):
         proxy = self._prepare_proxy(ed)

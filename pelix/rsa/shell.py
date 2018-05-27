@@ -26,6 +26,8 @@ Remote Service Admin Shell Commands
 # ------------------------------------------------------------------------------
 # Standard logging
 import logging
+from threading import RLock
+from traceback import print_exception
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Module version
@@ -35,33 +37,113 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 from pelix.ipopo.decorators import ComponentFactory, Provides, \
-    Instantiate, Validate, Requires, Property
+    Instantiate, Validate, Requires, Property, BindField, UnbindField
 
 from pelix.rsa import SERVICE_REMOTE_SERVICE_ADMIN,\
-    SERVICE_RSA_EVENT_LISTENER, SERVICE_EXPORTED_CONFIGS, SERVICE_EXPORTED_INTERFACES
+    SERVICE_EXPORTED_CONFIGS, SERVICE_EXPORTED_INTERFACES,\
+    SERVICE_IMPORT_DISTRIBUTION_PROVIDER, SERVICE_EXPORT_DISTRIBUTION_PROVIDER,\
+    SERVICE_EXPORT_CONTAINER, SERVICE_IMPORT_CONTAINER
 
 from pelix.rsa.remoteserviceadmin import RemoteServiceAdminEvent
 
 from pelix.shell import SERVICE_SHELL_COMMAND
 
 from pelix.rsa.edef import EDEFReader,EDEFWriter
+
+def _full_class_name(o):
+    module = o.__class__.__module__
+    if module is None or module == str.__class__.__module__:
+        return o.__class__.__name__
+    return module + '.' + o.__class__.__name__
+
 # ------------------------------------------------------------------------------ 
 @ComponentFactory('rsa-command-factory')
 @Requires('_rsa',SERVICE_REMOTE_SERVICE_ADMIN)
-@Provides([SERVICE_SHELL_COMMAND, SERVICE_RSA_EVENT_LISTENER])
-@Property('_filename','filename','edef.xml')
+@Requires('_imp_containers',SERVICE_IMPORT_CONTAINER,True,True)
+@Requires('_exp_containers',SERVICE_EXPORT_CONTAINER,True,True)
+@Requires('_imp_dist_providers',SERVICE_IMPORT_DISTRIBUTION_PROVIDER,True,True)
+@Requires('_exp_dist_providers',SERVICE_EXPORT_DISTRIBUTION_PROVIDER,True,True)
+@Provides([SERVICE_SHELL_COMMAND])
+@Property('_edef_filename','filename','edef.xml')
 @Property('_export_config','export_config','ecf.xmlrpc.server')
 @Instantiate('rsa-command')
 class RSACommandHandler(object):
     
+    EXPIMP_LINE_FORMAT = '{0:<37}|{1:<43}|{2:<3}\n'
+    
+    CONTAINER_LINE_FORMAT = '{0:<45}|{1:<40}\n'
+    CONTAINER_FORMAT = 'ID={0}\n\tNamespace={1}\n\tClass={2}\n\tConnectedTo={3}\n\tConnectNamespace={4}\n\tConfig Type/Distribution Provider={5}\n'
+    PROVIDER_FORMAT = 'ID={0}\n\tSupported Configs={1}\n\tSupportedIntents={2}\n'
+    
     def __init__(self):
         self._context = None
         self._rsa = None
-        self._edefreader = EDEFReader()
-        self._edefwriter = EDEFWriter()
-        self._filename = None
-        self._export_config = None
+        self._imp_containers = []
+        self._exp_containers = []
+        self._imp_dist_providers = []
+        self._imp_dist_providers = []
+        self._edef_filename = None
+        self._default_export_config = None
+        self._bind_lock = RLock()
+
+    def _bind_lists(self,field,service):
+        with self._bind_lock:
+            field.append(service)
     
+    def _unbind_lists(self,field,service):
+        with self._bind_lock:
+            try:
+                field.remove(service)
+            except:
+                pass
+            
+    @BindField('_imp_containers')
+    def _bind_imp_containers(self,field,service,service_ref):
+        self._bind_lists(self._imp_containers,service)
+            
+    @UnbindField('_imp_containers')
+    def _unbind_imp_containers(self,field,service,service_ref):
+        self._unbind_lists(self._imp_containers, service)
+
+    @BindField('_exp_containers')
+    def _bind_exp_containers(self,field,service,service_ref):
+        self._bind_lists(self._exp_containers,service)
+            
+    @UnbindField('_exp_containers')
+    def _unbind_exp_containers(self,field,service,service_ref):
+        self._unbind_lists(self._exp_containers, service)
+
+    @BindField('_imp_dist_providers')
+    def _bind_imp_dist_providers(self,field,service,service_ref):
+        self._bind_lists(self._imp_dist_providers,service)
+            
+    @UnbindField('_imp_dist_providers')
+    def _unbind_imp_dist_providers(self,field,service,service_ref):
+        self._unbind_lists(self._imp_dist_providers, service)
+
+    @BindField('_exp_dist_providers')
+    def _bind_exp_dist_providers(self,field,service,service_ref):
+        self._bind_lists(self._exp_dist_providers,service)
+            
+    @UnbindField('_exp_dist_providers')
+    def _unbind_exp_dist_providers(self,field,service,service_ref):
+        self._unbind_lists(self._exp_dist_providers, service)
+
+    def _get_containers(self,containerid=None):
+        with self._bind_lock:
+            containers = list(set(self._imp_containers+self._exp_containers))
+            if containerid:
+                return [c for c in containers if c.get_id() == containerid]
+            else:
+                return containers
+    
+    def _get_dist_providers(self,providerid=None):
+        with self._bind_lock:
+            providers = list(set(self._imp_dist_providers+self._exp_dist_providers))
+            if providerid:
+                return [p for p in providers if p.get_config_name() == providerid]
+            return providers
+        
     @Validate
     def _validate(self,bundle_context):
         self._context = bundle_context
@@ -71,35 +153,116 @@ class RSACommandHandler(object):
         return "ecf"
 
     def get_methods(self):
-        return [("importservice", self.import_edef),("exportservice", self.export_edef)]
+        return [("listconfigs",self._list_providers),
+                ("lcfgs",self._list_providers),
+                ("listproviders",self._list_providers),
+                ("listcontainers",self._list_containers),
+                ("lcs",self._list_containers),
+                ("listexports",self._list_exported_configs),
+                ("listimports",self._list_imported_configs),
+                ("lexps",self._list_exported_configs),
+                ("limps",self._list_imported_configs),
+                ("importservice", self.import_edef),
+                ("exportservice", self.export_edef)]
 
     def remote_admin_event(self, event):
         if event.get_type() == RemoteServiceAdminEvent.EXPORT_REGISTRATION:
-            self._edefwriter.write([event.get_description()], self._filename)
+            self._edefwriter.write([event.get_description()], self._edef_filename)
+    
+    def _list_providers(self, io_handler, providerid=None):
+        with self._bind_lock:
+            providers = self._get_dist_providers(providerid)
+        if len(providers) > 0:
+            if providerid:
+                provider = providers[0]
+                io_handler.write(self.PROVIDER_FORMAT.format(provider.get_config_name(),
+                                                             provider.get_supported_configs(),
+                                                             provider.get_supported_intents()))
+            else:
+                io_handler.write(self.CONTAINER_LINE_FORMAT.format('Distribution Provider/Config','Class'))
+                for p in providers:
+                    io_handler.write(self.CONTAINER_LINE_FORMAT.format(p.get_config_name(),_full_class_name(p)))
+
+                
+    def _list_containers(self, io_handler, containerid=None):
+        with self._bind_lock:
+            containers = self._get_containers(containerid)
+        if len(containers) > 0:
+            if containerid:
+                container = containers[0]
+                connected_id = container.get_connected_id()
+                ns = container.get_namespace()
+                io_handler.write(self.CONTAINER_FORMAT.format(container.get_id(),ns,_full_class_name(container),
+                                                              connected_id,ns,container.get_config_name()))
+            else:   
+                io_handler.write(self.CONTAINER_LINE_FORMAT.format('Container ID/instance.name','Class'))
+                for c in containers:
+                    io_handler.write(self.CONTAINER_LINE_FORMAT.format(c.get_id(),_full_class_name(c)))
             
+    def _list_configs(self, io_handler, expimp, endpoint_id=None):
+        configs = expimp[0]()
+        if endpoint_id:
+            matching_eds = [x.description() for x in configs if x.description().get_id() == endpoint_id]
+            if len(matching_eds) > 0:
+                io_handler.write('Endpoint description for endpoint.id={0}:\n'.format(endpoint_id))
+                io_handler.write(EDEFWriter().to_string(matching_eds))
+        else:
+            io_handler.write(self.EXPIMP_LINE_FORMAT.format('endpoint.id',expimp[1]+' Container ID',expimp[1]+' Service Id'))
+            for export_reg in configs:
+                ed = export_reg.description()
+                io_handler.write(self.EXPIMP_LINE_FORMAT.format(str(ed.get_id()),str(ed.get_container_id()[1]),ed.get_service_id()))
+        io_handler.write('\n')
+    
+    def _list_exported_configs(self, io_handler, endpoint_id=None):  
+        self._list_configs(io_handler,(self._rsa.get_exported_services,'Export'),endpoint_id)
+        
+    def _list_imported_configs(self, io_handler, endpoint_id=None):
+        self._list_configs(io_handler,(self._rsa.get_imported_services,'Import'),endpoint_id)
+        
     def export_edef(self, io_handler, service_id=None, export_config=None, filename=None):
         if not service_id:
             io_handler.write('Must provide service.id to export as argument.  For example:  exportservice 25\n')
             io_handler.flush()
             return
-        svc_ref = self._context.get_service_reference(None,'(service.id='+str(service_id)+')')
+        svc_ref = self._context.get_service_reference(None,'(service.id={0})'.format(service_id))
         if not svc_ref:
-            io_handler.write('Service with id='+str(service_id)+' cannot be found so cannot be exported\n')
+            io_handler.write('Service with id={0} cannot be found so no service can be exported\n'.format(service_id))
             io_handler.flush()
             return
         if export_config:
             self._export_config = export_config
         if filename:
-            self._filename = filename
+            self._edef_filename = filename
+        io_handler.write('Exporting service={0} with export_config={1}...\n'.format(svc_ref,self._export_config))
+        io_handler.flush()
         # Finally export
-        self._rsa.export_service(svc_ref,{ SERVICE_EXPORTED_INTERFACES: '*', SERVICE_EXPORTED_CONFIGS: self._export_config })
-                
+        export_regs = self._rsa.export_service(svc_ref,{ SERVICE_EXPORTED_INTERFACES: '*', SERVICE_EXPORTED_CONFIGS: self._export_config })
+        for export_reg in export_regs:
+            exp = export_reg.exception()
+            if exp:      
+                io_handler.write('\nException exporting service={0}.  Exception stack:\n'.format(export_reg.reference()))
+                print_exception(exp[0],exp[1],exp[2],limit=None, file=io_handler)  
+            else:
+                io_handler.write('\nService={0} exported.  Endpoint description:\n'.format(export_reg.reference()))
+                io_handler.write(EDEFWriter().to_string([export_reg.description()]))
+            io_handler.write('\n')
+        io_handler.flush()
+
     def import_edef(self, io_handler, edeffile=None):
         if not edeffile:
-            edeffile = self._filename
-        eds = self._edefreader.parse(open(edeffile, 'r').read())
+            edeffile = self._edef_filename
+        io_handler.write('Reading edef from file={0}...\n'.format(edeffile))
+        eds = EDEFReader().parse(open(edeffile, 'r').read())
         for ed in eds:
-            self._rsa.import_service(ed)
-                
-
+            import_reg = self._rsa.import_service(ed)
+            if import_reg:
+                exp = import_reg.exception()
+                if exp:
+                    io_handler.write('Exception importing endpoint.id={0}\n'.format(import_reg.description.get_id()))
+                    print_exception(exp[0],exp[1],exp[2],limit=None, file=io_handler)  
+                else:
+                    io_handler.write('Service={0} imported. Endpoint description:\n'.format(import_reg.reference()))
+                    io_handler.write(EDEFWriter().to_string([import_reg.description()]))
+                io_handler.write('\n')
+                io_handler.flush()
 
