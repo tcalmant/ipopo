@@ -165,9 +165,13 @@ class RSACommandHandler(object):
                 ("lexps",self._list_exported_configs),
                 ("limps",self._list_imported_configs),
                 ("importservice", self.import_edef),
+                ("impsvc", self.import_edef),
                 ("exportservice", self.export_edef),
+                ("exportsvc", self.export_edef),
                 ("unimportservice", self.unimport),
-                ("unexportservice", self.unexport)]
+                ("unimpsvc", self.unimport),
+                ("unexportservice", self.unexport),
+                ("unexpsvc", self.unexport)]
 
     def remote_admin_event(self, event):
         if event.get_type() == RemoteServiceAdminEvent.EXPORT_REGISTRATION:
