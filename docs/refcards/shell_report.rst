@@ -99,5 +99,23 @@ Level       Description
 ``network`` Lists the IPs (v4 and v6) of the host, its name and FQDN.
 =========== ====================================================================
 
-Some levels are groups of lower levels. For example, ``app`` combines the
-reports describing the OS, the current process and the Python installation.
+Group levels
+------------
+
+Some levels are groups of lower levels. They are subject to change, therefore
+the following table is given as an indication.
+Always refer to the ``report.levels`` shell command to check available ones.
+
+============ ===================================================================
+Level        Description
+============ ===================================================================
+``pelix``    Combines ``pelix_infos``, ``pelix_bundles`` and ``pelix_services``
+``ipopo``    Combines ``ipopo_factories`` and ``ipopo_instances``
+``app``      Combines ``os``, ``os_env``, ``process``, ``python`` and ``python_path``
+``debug``    Combines ``app`` (except ``os_env``), ``pelix``, ``ipopo`` and ``python_modules``
+``standard`` Like ``debug``, but without ``pelix_services`` nor ``ipopo_instances``
+``full``     Combines ``debug``, ``os_env``, ``network`` and ``threads``
+============ ===================================================================
+
+Those *groups* were defined according to the most common combinations of levels
+used during iPOPO development and live setups.
