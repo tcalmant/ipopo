@@ -2,7 +2,7 @@
 # -- Content-Encoding: UTF-8 --
 """
 
-Distribution Provider and Discovery Provider APIs
+Distribution Provider API
 
 :author: Scott Lewis
 :copyright: Copyright 2018, Scott Lewis
