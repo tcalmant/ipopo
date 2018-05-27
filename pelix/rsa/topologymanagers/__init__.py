@@ -85,10 +85,10 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
         self._rsa.export_service(service_ref, { SERVICE_EXPORTED_INTERFACES:exp_intfs })
     
     def _handle_service_unregistering(self,service_ref):
-        export_regs = self._rsa.get_exported_services()
+        export_regs = self._rsa._get_export_regs()
         if export_regs:
             for export_reg in export_regs:
-                if export_reg.match(service_ref):
+                if export_reg.match_sr(service_ref):
                     _logger.debug('handle_service_unregistering. closing export_registration for service reference='+str(service_ref))
                     export_reg.close()
 

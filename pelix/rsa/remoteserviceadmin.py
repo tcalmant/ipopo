@@ -79,10 +79,26 @@ class RemoteServiceAdmin(object):
     the OSGi Enterprise specification chapter 122.  See https://www.osgi.org/developer/specifications/
     '''
     def get_exported_services(self):
+        result = []
+        for reg in self._get_export_regs():
+            exp_ref = reg.get_export_ref()
+            if exp_ref:
+                result.append(exp_ref)
+        return result
+    
+    def get_imported_endpoints(self):
+        result = []
+        for reg in self._get_import_regs():
+            imp_ref = reg.get_import_ref()
+            if imp_ref:
+                result.append(imp_ref)
+        return result
+
+    def _get_export_regs(self):
         with self._exported_regs_lock:
             return self._exported_regs.copy()
     
-    def get_imported_services(self):
+    def _get_import_regs(self):
         with self._imported_regs_lock:
             return self._imported_regs.copy()
     
@@ -98,7 +114,7 @@ class RemoteServiceAdmin(object):
             # If the given exported_interfaces is not valid, then return empty list
             if not validate_exported_interfaces(service_ref.get_property(OBJECTCLASS), exported_intfs):
                 return []
-            # get export props by overriding service reference properties (if overriding_props set)
+            # get export props by overriding service get_reference properties (if overriding_props set)
             export_props = service_ref.get_properties().copy()
             if overriding_props:
                 export_props.update(overriding_props)
@@ -130,7 +146,7 @@ class RemoteServiceAdmin(object):
                         # get exporter id
                         exporterid = exporter.get_id()
                         for reg in self._exported_regs:
-                            if reg.match(service_ref,exporterid):
+                            if reg.match_sr(service_ref,exporterid):
                                 found_regs.append(reg)
                         #if so then found_regs will be non-empty
                         if len(found_regs) > 0:
@@ -189,12 +205,12 @@ class RemoteServiceAdmin(object):
             with self._imported_regs_lock:
                 found_reg = None
                 for reg in self._imported_regs:
-                    if reg.match(endpoint_description):
+                    if reg.match_ed(endpoint_description):
                         found_reg.append(reg)
                 if found_reg:
                     new_reg = None
                     #if so then found_regs will be non-empty
-                    ex = found_reg.exception()
+                    ex = found_reg.get_exception()
                     if ex:
                         new_reg = ImportRegistration.fromexception(ex, endpoint_description)
                     else:
@@ -259,7 +275,7 @@ class RemoteServiceAdmin(object):
     def _unexport_service(self,svc_ref):
         with self._exported_regs_lock:
             for reg in self._exported_regs:
-                if reg.match(svc_ref,None):
+                if reg.match_sr(svc_ref,None):
                     reg.close()
     
     def _valid_exported_interfaces(self,svc_ref,intfs):    
@@ -273,7 +289,7 @@ class RemoteServiceAdmin(object):
     
     def _find_existing_export_endpoint(self, svc_ref, cid):
         for er in self.__exported_registrations:
-            if er.match(svc_ref,cid):
+            if er.match_sr(svc_ref,cid):
                 return er
         return None
     
@@ -373,46 +389,46 @@ class RemoteServiceAdminEvent(object):
     
     @classmethod
     def fromimportreg(cls,bundle,import_reg):
-        exc = import_reg.exception()
+        exc = import_reg.get_exception()
         if exc:
             return RemoteServiceAdminEvent(RemoteServiceAdminEvent.IMPORT_ERROR,
                                            bundle, 
-                                           import_reg.importerid(), 
-                                           import_reg.rsid(), 
+                                           import_reg.get_import_container_id(), 
+                                           import_reg.get_remoteservice_id(), 
                                            None,
                                            None,
                                            exc, 
-                                           import_reg.description())
+                                           import_reg.get_description())
         else:
             return RemoteServiceAdminEvent(RemoteServiceAdminEvent.IMPORT_REGISTRATION,
                                            bundle,
-                                           import_reg.importerid(),
-                                           import_reg.rsid(),
-                                           import_reg.importreference(),
+                                           import_reg.get_import_container_id(),
+                                           import_reg.get_remoteservice_id(),
+                                           import_reg.get_import_reference(),
                                            None,
                                            None,
-                                           import_reg.description())
+                                           import_reg.get_description())
     @classmethod
     def fromexportreg(cls,bundle,export_reg):
-        exc = export_reg.exception()
+        exc = export_reg.get_exception()
         if exc:
             return RemoteServiceAdminEvent(RemoteServiceAdminEvent.EXPORT_ERROR,
                                            bundle, 
-                                           export_reg.exporterid(), 
-                                           export_reg.rsid(), 
+                                           export_reg.get_export_container_id(), 
+                                           export_reg.get_remoteservice_id(), 
                                            None, 
                                            None, 
                                            exc, 
-                                           export_reg.description())
+                                           export_reg.get_description())
         else:
             return RemoteServiceAdminEvent(RemoteServiceAdminEvent.EXPORT_REGISTRATION,
                                            bundle,
-                                           export_reg.exporterid(),
-                                           export_reg.rsid(),
+                                           export_reg.get_export_container_id(),
+                                           export_reg.get_remoteservice_id(),
                                            None,
-                                           export_reg.exportreference(),
+                                           export_reg.get_export_reference(),
                                            None,
-                                           export_reg.description())
+                                           export_reg.get_description())
 
     @classmethod
     def fromimportunreg(cls,bundle,cid,rsid,import_ref,exception,ed):
@@ -444,10 +460,10 @@ class RemoteServiceAdminEvent(object):
     def get_description(self):
         return self._ed
     
-    def get_cid(self):
+    def get_container_id(self):
         return self._cid
     
-    def get_rsid(self):
+    def get_remoteservice_id(self):
         return self._rsid
     
     def get_type(self):
@@ -472,10 +488,14 @@ class RemoteServiceAdminListener(object):
 
 class _ImportEndpoint(object):
     
-    def __init__(self, rsa, importer, ed, svc_reg):
+    def __init__(self, rsa, import_container, ed, svc_reg):
+        assert rsa
         self.__rsa = rsa
-        self.__importer = importer
+        assert import_container
+        self.__importer = import_container
+        assert ed
         self.__ed = ed
+        assert svc_reg
         self.__svc_reg = svc_reg
         self.__lock = threading.RLock()
         self.__active_registrations = []
@@ -487,28 +507,29 @@ class _ImportEndpoint(object):
     def _rsa(self):
         return self.__rsa
         
-    def match(self,ed):
+    def match_ed(self,ed):
         with self.__lock:
             if len(self.__active_registrations) is 0:
                 return False
             return self.__ed.is_same_service(ed)
-    def reference(self):
+        
+    def get_reference(self):
         with self.__lock:
             return None if self.__importer is None else self.__svc_reg.get_reference()
         
-    def description(self):
+    def get_description(self):
         with self.__lock:
             return self.__ed
         
-    def importerid(self):
+    def get_import_container_id(self):
         with self.__lock:
             return None if self.__importer is None else self.__importer.get_id()
 
-    def exporterid(self):
+    def get_export_container_id(self):
         with self.__lock:
             return self.__ed.get_ecf_endpoint_id()
         
-    def rsid(self):
+    def get_remoteservice_id(self):
         with self.__lock:
             return self.__ed.get_remoteservice_id()
 
@@ -532,12 +553,12 @@ class _ImportEndpoint(object):
                     try:
                         self.__svc_reg.unregister()
                     except:
-                        _logger.exception('Exception unregistering local proxy={0}'.format(self.__svc_reg.get_reference()))
+                        _logger.get_exception('Exception unregistering local proxy={0}'.format(self.__svc_reg.get_reference()))
                     self.__svc_reg = None
                 try:
                     self.__importer.unimport_service(self.__ed)
                 except:
-                    _logger.exception('Exception calling importer.unimport_service with ed={0}'.format(self.__ed))
+                    _logger.get_exception('Exception calling importer.unimport_service with ed={0}'.format(self.__ed))
                     return False
                 self.__rsa._remove_imported_service(import_reg)
                 self.__importer = None
@@ -573,31 +594,31 @@ class ImportReference(object):
         with self.__lock:
             return self.__endpoint
         
-    def match(self,ed):
+    def match_ed(self,ed):
         with self.__lock:
-            return None if self.__endpoint is None else self.__endpoint.match(ed)
+            return None if self.__endpoint is None else self.__endpoint.match_ed(ed)
 
-    def importerid(self):
+    def get_import_container_id(self):
         with self.__lock:
-            return None if self.__endpoint is None else self.__endpoint.importerid()
+            return None if self.__endpoint is None else self.__endpoint.get_import_container_id()
+
+    def get_export_container_id(self):
+        with self.__lock:
+            return None if self.__endpoint is None else self.__endpoint.get_export_container_id()
         
-    def exporterid(self):
+    def get_remoteservice_id(self):
         with self.__lock:
-            return None if self.__endpoint is None else self.__endpoint.exporterid()
-        
-    def rsid(self):
-        with self.__lock:
-            return None if self.__endpoint is None else self.__endpoint.rsid()
+            return None if self.__endpoint is None else self.__endpoint.get_remoteservice_id()
     
-    def reference(self):
+    def get_reference(self):
         with self.__lock:
-            return None if self.__endpoint is None else self.__endpoint.reference()
+            return None if self.__endpoint is None else self.__endpoint.get_reference()
     
-    def description(self):
+    def get_description(self):
         with self.__lock:
-            return self.__errored if self.__endpoint is None else self.__endpoint.description()
+            return self.__errored if self.__endpoint is None else self.__endpoint.get_description()
     
-    def exception(self):
+    def get_exception(self):
         with self.__lock:
             return self.__exception
     
@@ -631,7 +652,7 @@ class ImportRegistration(object):
     def __init__(self,endpoint=None,exception=None,errored=None):
         if endpoint is None:
             if exception is None or errored is None:
-                raise ArgumentError('export endpoint or exception/errorED must not be null')
+                raise ArgumentError('export endpoint or get_exception/errorED must not be null')
             self.__importref = ImportReference.fromexception(exception, errored)
             self.__rsa = None
         else:
@@ -645,33 +666,37 @@ class ImportRegistration(object):
         with self.__lock:
             return None if self.__closed else self.__importref._importendpoint()
          
-    def match(self,ed):
+    def match_ed(self,ed):
         with self.__lock:
-            return False if self.__closed else self.__importref.match(ed)
+            return False if self.__closed else self.__importref.match_ed(ed)
 
-    def importreference(self):
+    def get_import_reference(self):
         with self.__lock:
             return None if self.__closed else self.__importref
 
-    def importerid(self):
+    def get_import_container_id(self):
         with self.__lock:
-            return None if self.__closed else self.__importref.importerid()
+            return None if self.__closed else self.__importref.get_import_container_id()
 
-    def rsid(self):
+    def get_export_container_id(self):
         with self.__lock:
-            return None if self.__closed is None else self.__importref.rsid()
+            return None if self.__closed else self.__importref.get_export_container_id()
+
+    def get_remoteservice_id(self):
+        with self.__lock:
+            return None if self.__closed is None else self.__importref.get_remoteservice_id()
         
-    def reference(self):
+    def get_reference(self):
         with self.__lock:
-            return None if self.__closed else self.__importref.reference()
+            return None if self.__closed else self.__importref.get_reference()
     
-    def exception(self):
+    def get_exception(self):
         with self.__lock:
-            return None if self.__closed else self.__importref.exception()
+            return None if self.__closed else self.__importref.get_exception()
     
-    def description(self):
+    def get_description(self):
         with self.__lock:
-            return None if self.__closed else self.__importref.description()
+            return None if self.__closed else self.__importref.get_description()
     
     def close(self):
         publish = False
@@ -682,11 +707,11 @@ class ImportRegistration(object):
         ed = None
         with self.__lock:
             if not self.__closed:
-                importerid = self.__importref.importerid()
-                rsid = self.__importref.rsid()
+                importerid = self.__importref.get_import_container_id()
+                rsid = self.__importref.get_remoteservice_id()
                 import_ref = self.__importref
-                exception = self.__importref.exception()
-                ed = self.__importref.description()
+                exception = self.__importref.get_exception()
+                ed = self.__importref.get_description()
                 publish = self.__importref.close(self)
                 self.__importref = None
                 self.__closed = True
@@ -696,11 +721,17 @@ class ImportRegistration(object):
             self.__rsa = None    
                     
 class _ExportEndpoint(object):
-    
-    def __init__(self, rsa, exporter, ed, svc_ref):
+    '''Export Endpoint class.  Represents an endpoint for an exported
+    service.  
+    '''
+    def __init__(self, rsa, export_container, ed, svc_ref):
+        assert rsa
         self.__rsa = rsa
-        self.__exporter = exporter
+        assert export_container
+        self.__export_container = export_container
+        assert ed
         self.__ed = ed
+        assert svc_ref
         self.__svc_ref = svc_ref
         self.__lock = threading.RLock()
         self.__active_registrations = []
@@ -711,7 +742,7 @@ class _ExportEndpoint(object):
     
     def _originalprops(self):
         with self.__lock:
-            return self.reference().get_properties()
+            return self.get_reference().get_properties()
         
     def _add_export_registration(self, export_reg):
         with self.__lock:
@@ -721,25 +752,25 @@ class _ExportEndpoint(object):
         with self.__lock:
             self.__active_registrations.remove(export_reg) 
                    
-    def description(self):
+    def get_description(self):
         with self.__lock:
             return self.__ed
         
-    def reference(self):
+    def get_reference(self):
         with self.__lock:
             return self.__svc_ref
     
-    def exporterid(self):
+    def get_export_container_id(self):
         with self.__lock:
-            return self.__exporter.get_id()
+            return self.__export_container.get_id()
     
-    def rsid(self):
+    def get_remoteservice_id(self):
         with self.__lock:
             return self.__ed.get_remoteservice_id()
     
     def update(self, props):
         with self.__lock:
-            srprops = self.reference.get_properties().copy()
+            srprops = self.get_reference.get_properties().copy()
             rsprops = self.__orig_props.copy()
             updateprops = rsprops if props is None else props.update(rsprops).copy()
             updatedprops = updateprops.update(srprops).copy()
@@ -755,12 +786,12 @@ class _ExportEndpoint(object):
                 pass
             if len(self.__active_registrations) is 0:
                 try:
-                    self.__exporter.unexport_service(self.__ed)
+                    self.__export_container.unexport_service(self.__ed)
                 except:
-                    _logger.exception('exception in exporter.unexport_service ed={0}'.format(self.__ed))
+                    _logger.get_exception('get_exception in exporter.unexport_service ed={0}'.format(self.__ed))
                 self.__rsa._remove_exported_service(export_reg)
                 self.__ed = None
-                self.__exporter = None
+                self.__export_container = None
                 self.__svc_ref = None
                 self.__rsa = None
                 return True
@@ -789,23 +820,23 @@ class ExportReference(object):
             self.__exception = None
             self.__errored = None
     
-    def exporterid(self):
+    def get_export_container_id(self):
         with self.__lock:
-            return None if self.__endpoint is None else self.__endpoint.exporterid()
+            return None if self.__endpoint is None else self.__endpoint.get_export_container_id()
     
-    def rsid(self):
+    def get_remoteservice_id(self):
         with self.__lock:
-            return None if self.__endpoint is None else self.__endpoint.rsid()
+            return None if self.__endpoint is None else self.__endpoint.get_remoteservice_id()
         
-    def reference(self):
+    def get_reference(self):
         with self.__lock:
-            return None if self.__endpoint is None else self.__endpoint.reference()
+            return None if self.__endpoint is None else self.__endpoint.get_reference()
     
-    def description(self):
+    def get_description(self):
         with self.__lock:
-            return self.__errored if self.__endpoint is None else self.__endpoint.description()
+            return self.__errored if self.__endpoint is None else self.__endpoint.get_description()
     
-    def exception(self):
+    def get_exception(self):
         with self.__lock:
             return self.__exception
 
@@ -839,7 +870,7 @@ class ExportRegistration(object):
     def __init__(self,rsa=None,endpoint=None,exception=None,errored=None):
         if endpoint is None:
             if exception is None or errored is None:
-                raise ArgumentError('export endpoint or exception/errorED must not be null')
+                raise ArgumentError('export endpoint or get_exception/errorED must not be null')
             self.__exportref = ExportReference.fromexception(exception, errored)
             self.__rsa = None
         else:
@@ -850,46 +881,46 @@ class ExportRegistration(object):
         self.__updateexception = None
         self.__lock = threading.RLock()
         
-    def match(self,sr,cid=None):
+    def match_sr(self,sr,cid=None):
         with self.__lock:
-            oursr = self.reference()
+            oursr = self.get_reference()
             if oursr is None:
                 return False
             srcompare = oursr == sr
             if cid is None:
                 return srcompare
-            ourcid = self.exporterid()
+            ourcid = self.get_export_container_id()
             if ourcid is None:
                 return False
             return srcompare and ourcid == cid
     
-    def exportreference(self):
+    def get_export_reference(self):
         with self.__lock:
             return None if self.__closed else self.__exportref
 
     def _exportendpoint(self,sr,cid):
         with self.__lock:
-            return None if self.__closed else self.__exportref.exportendpoint if self.match(sr,cid) else None
+            return None if self.__closed else self.__exportref.exportendpoint if self.match_sr(sr,cid) else None
 
-    def exporterid(self):
+    def get_export_container_id(self):
         with self.__lock:
-            return None if self.__closed else self.__exportref.exporterid()
+            return None if self.__closed else self.__exportref.get_export_container_id()
 
-    def rsid(self):
+    def get_remoteservice_id(self):
         with self.__lock:
-            return None if self.__closed else self.__exportref.rsid()
+            return None if self.__closed else self.__exportref.get_remoteservice_id()
         
-    def reference(self):
+    def get_reference(self):
         with self.__lock:
-            return None if self.__closed else self.__exportref.reference()
+            return None if self.__closed else self.__exportref.get_reference()
     
-    def exception(self):
+    def get_exception(self):
         with self.__lock:
-            return self.__updateexception if self.__closed else self.__exportref.exception()
+            return self.__updateexception if self.__closed else self.__exportref.get_exception()
     
-    def description(self):
+    def get_description(self):
         with self.__lock:
-            return None if self.__closed else self.__exportref.description()
+            return None if self.__closed else self.__exportref.get_description()
     
     def close(self):
         publish = False
@@ -900,11 +931,11 @@ class ExportRegistration(object):
         ed = None
         with self.__lock:
             if not self.__closed:
-                exporterid = self.__exportref.exporterid()
+                exporterid = self.__exportref.get_export_container_id()
                 export_ref = self.__exportref
-                rsid = self.__exportref.rsid()
-                ed = self.__exportref.description()
-                exception = self.__exportref.exception()
+                rsid = self.__exportref.get_remoteservice_id()
+                ed = self.__exportref.get_description()
+                exception = self.__exportref.get_exception()
                 publish = self.__exportref.close(self)
                 self.__exportref = None
                 self.__closed = True
@@ -954,7 +985,7 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
         if svc_ref:
             self._output.write(str(svc_ref)+';')
         self._output.write('local='+str(cid))
-        # rsid should be of form:  ((ns,cid,rsid)
+        # get_remoteservice_id should be of form:  ((ns,cid,get_remoteservice_id)
         self._output.write(';remote=')
         if isinstance(rsid,tuple) and len(list(rsid)) == 2:
             nscid = rsid[0]
@@ -989,8 +1020,8 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
         elif event_type in self._errortypes:
             exception = rsa_event.get_exception()
         if rs_ref:
-            svc_ref = rs_ref.reference()
-        self.write_ref(svc_ref,rsa_event.get_cid(),rsa_event.get_rsid(),rsa_event.get_description())
+            svc_ref = rs_ref.get_reference()
+        self.write_ref(svc_ref,rsa_event.get_container_id(),rsa_event.get_remoteservice_id(),rsa_event.get_description())
         if exception:
             self.write_exception(exception)
                 

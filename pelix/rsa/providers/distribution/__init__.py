@@ -187,10 +187,10 @@ class DistributionProvider():
     def _find_import_registration(self,ed):
         if not ed:
             return None
-        import_regs = self._rsa.get_imported_services()
+        import_regs = self._rsa._get_import_regs()
         if import_regs:
             for import_reg in import_regs:
-                if import_reg.match(ed):
+                if import_reg.match_ed(ed):
                     return import_reg
 
     def _handle_import(self,ed):
@@ -199,7 +199,7 @@ class DistributionProvider():
     def _handle_import_update(self,ed):
         import_reg = self._find_import_registration(ed)
         if import_reg:
-            import_ref = import_reg.importreference()
+            import_ref = import_reg.get_import_reference()
             if import_ref:
                 import_ref.update(ed)
 
@@ -289,17 +289,17 @@ class Container():
     def _get_bundle_context(self):
         return self._bundle_context
     
-    def _add_export(self, rsid, inst):
+    def _add_export(self, get_remoteservice_id, inst):
         with self._rs_instances_lock:
-            self._rs_instances[rsid] = inst
+            self._rs_instances[get_remoteservice_id] = inst
             
-    def _remove_export(self, rsid):    
+    def _remove_export(self, get_remoteservice_id):    
         with self._rs_instances_lock:
-            return self._rs_instances.pop(rsid,None)
+            return self._rs_instances.pop(get_remoteservice_id,None)
              
-    def _get_export(self, rsid):
+    def _get_export(self, get_remoteservice_id):
         with self._rs_instances_lock:
-            return self._rs_instances.get(rsid,None)
+            return self._rs_instances.get(get_remoteservice_id,None)
             
     def _get_distribution_provider(self):
         return self._container_props[DISTRIBUTION_PROVIDER_CONTAINER_PROP]
@@ -362,11 +362,11 @@ class ExportContainer(Container):
     def unexport_service(self, ed):
         return self._unexport_service(ed)
     
-    def _dispatch_exported(self,rsid,method_name,params):
+    def _dispatch_exported(self,get_remoteservice_id,method_name,params):
         # first lookup service instance
-        service = self._get_export(rsid)
+        service = self._get_export(get_remoteservice_id)
         if not service:
-            raise RemoteServiceError('Unknown instance with rsid={0} for method call={1}'.format(str(rsid),method_name))
+            raise RemoteServiceError('Unknown instance with get_remoteservice_id={0} for method call={1}'.format(str(get_remoteservice_id),method_name))
         # Get the method
         method_ref = getattr(service, method_name, None)
         if method_ref is None:

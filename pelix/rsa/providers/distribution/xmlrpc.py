@@ -188,13 +188,13 @@ class XmlRpcImportContainer(ImportContainer):
         xmlrpc.client.ServerProxy
         '''
         class XmlRpcProxy():
-            def __init__(self,rsid):
-                self._url = rsid[0][1]
-                self._rsid = str(rsid[1])
+            def __init__(self,get_remoteservice_id):
+                self._url = get_remoteservice_id[0][1]
+                self._rsid = str(get_remoteservice_id[1])
                 
             def __getattr__(self, name):
                 return getattr(xmlrpclib.ServerProxy(self._url, allow_none=True), "{0}.{1}".format(self._rsid, name))
-        # create instance of XmlRpcProxy and pass in remoteservice id: ((ns,cid),rsid)
+        # create instance of XmlRpcProxy and pass in remoteservice id: ((ns,cid),get_remoteservice_id)
         return XmlRpcProxy(endpoint_description.get_remoteservice_id())
           
 @ComponentFactory("xmlrpc-import-distribution-provider-factory")

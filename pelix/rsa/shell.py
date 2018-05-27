@@ -73,7 +73,9 @@ class RSACommandHandler(object):
     
     CONTAINER_LINE_FORMAT = '{0:<45}|{1:<40}\n'
     CONTAINER_FORMAT = 'ID={0}\n\tNamespace={1}\n\tClass={2}\n\tConnectedTo={3}\n\tConnectNamespace={4}\n\tConfig Type/Distribution Provider={5}\n'
+    CONTAINER_TABLE_COLUMNS = ['Container ID/instance.name','Class']
     PROVIDER_FORMAT = 'ID={0}\n\tSupported Configs={1}\n\tSupportedIntents={2}\n'
+    PROVIDER_TABLE_COLUMNS = ['Distribution Provider/Config','Class']
     
     def __init__(self):
         self._context = None
@@ -150,7 +152,7 @@ class RSACommandHandler(object):
             
     @staticmethod
     def get_namespace():
-        return "ecf"
+        return "rsa"
 
     def get_methods(self):
         return [("listconfigs",self._list_providers),
@@ -163,7 +165,9 @@ class RSACommandHandler(object):
                 ("lexps",self._list_exported_configs),
                 ("limps",self._list_imported_configs),
                 ("importservice", self.import_edef),
-                ("exportservice", self.export_edef)]
+                ("exportservice", self.export_edef),
+                ("unimportservice", self.unimport),
+                ("unexportservice", self.unexport)]
 
     def remote_admin_event(self, event):
         if event.get_type() == RemoteServiceAdminEvent.EXPORT_REGISTRATION:
@@ -179,7 +183,7 @@ class RSACommandHandler(object):
                                                              provider.get_supported_configs(),
                                                              provider.get_supported_intents()))
             else:
-                io_handler.write(self.CONTAINER_LINE_FORMAT.format('Distribution Provider/Config','Class'))
+                io_handler.write(self.CONTAINER_LINE_FORMAT.format(*self.PROVIDER_TABLE_COLUMNS))
                 for p in providers:
                     io_handler.write(self.CONTAINER_LINE_FORMAT.format(p.get_config_name(),_full_class_name(p)))
 
@@ -195,35 +199,60 @@ class RSACommandHandler(object):
                 io_handler.write(self.CONTAINER_FORMAT.format(container.get_id(),ns,_full_class_name(container),
                                                               connected_id,ns,container.get_config_name()))
             else:   
-                io_handler.write(self.CONTAINER_LINE_FORMAT.format('Container ID/instance.name','Class'))
+                io_handler.write(self.CONTAINER_LINE_FORMAT.format(*self.CONTAINER_TABLE_COLUMNS))
                 for c in containers:
                     io_handler.write(self.CONTAINER_LINE_FORMAT.format(c.get_id(),_full_class_name(c)))
             
     def _list_configs(self, io_handler, expimp, endpoint_id=None):
         configs = expimp[0]()
         if endpoint_id:
-            matching_eds = [x.description() for x in configs if x.description().get_id() == endpoint_id]
+            matching_eds = [x.get_description() for x in configs if x.get_description().get_id() == endpoint_id]
             if len(matching_eds) > 0:
                 io_handler.write('Endpoint description for endpoint.id={0}:\n'.format(endpoint_id))
                 io_handler.write(EDEFWriter().to_string(matching_eds))
         else:
             io_handler.write(self.EXPIMP_LINE_FORMAT.format('endpoint.id',expimp[1]+' Container ID',expimp[1]+' Service Id'))
             for export_reg in configs:
-                ed = export_reg.description()
+                ed = export_reg.get_description()
                 io_handler.write(self.EXPIMP_LINE_FORMAT.format(str(ed.get_id()),str(ed.get_container_id()[1]),ed.get_service_id()))
         io_handler.write('\n')
     
     def _list_exported_configs(self, io_handler, endpoint_id=None):  
-        self._list_configs(io_handler,(self._rsa.get_exported_services,'Export'),endpoint_id)
+        self._list_configs(io_handler,(self._rsa._get_export_regs,'Export'),endpoint_id)
         
     def _list_imported_configs(self, io_handler, endpoint_id=None):
-        self._list_configs(io_handler,(self._rsa.get_imported_services,'Import'),endpoint_id)
-        
-    def export_edef(self, io_handler, service_id=None, export_config=None, filename=None):
-        if not service_id:
-            io_handler.write('Must provide service.id to export as argument.  For example:  exportservice 25\n')
+        self._list_configs(io_handler,(self._rsa._get_import_regs,'Import'),endpoint_id)
+    
+    def unimport(self, io_handler, endpointid):
+        import_regs = self._rsa._get_import_regs()
+        found_reg = None
+        for import_reg in import_regs:
+            ed = import_reg.get_description()
+            if ed and ed.get_id() == endpointid:
+                found_reg = import_reg
+        if not found_reg:
+            io_handler.write('Cannot find import registration with endpoint.id='+endpointid)
             io_handler.flush()
             return
+        # now close it
+        found_reg.close()
+
+    def unexport(self, io_handler, endpointid):
+        export_regs = self._rsa._get_export_regs()
+        found_reg = None
+        for export_reg in export_regs:
+            ed = export_reg.get_description()
+            if ed and ed.get_id() == endpointid:
+                found_reg = export_reg
+        if not found_reg:
+            io_handler.write('Cannot find export registration with endpoint.id='+endpointid)
+            io_handler.flush()
+            return
+        # now close it
+        found_reg.close()
+
+
+    def export_edef(self, io_handler, service_id, export_config=None, filename=None):
         svc_ref = self._context.get_service_reference(None,'(service.id={0})'.format(service_id))
         if not svc_ref:
             io_handler.write('Service with id={0} cannot be found so no service can be exported\n'.format(service_id))
@@ -233,36 +262,36 @@ class RSACommandHandler(object):
             self._export_config = export_config
         if filename:
             self._edef_filename = filename
-        io_handler.write('Exporting service={0} with export_config={1}...\n'.format(svc_ref,self._export_config))
+        io_handler.write('Exporting service={0} using config={1} to file={2}\n'.format(svc_ref,self._export_config,self._edef_filename))
         io_handler.flush()
         # Finally export
         export_regs = self._rsa.export_service(svc_ref,{ SERVICE_EXPORTED_INTERFACES: '*', SERVICE_EXPORTED_CONFIGS: self._export_config })
         for export_reg in export_regs:
-            exp = export_reg.exception()
+            exp = export_reg.get_exception()
             if exp:      
-                io_handler.write('\nException exporting service={0}.  Exception stack:\n'.format(export_reg.reference()))
+                io_handler.write('\nException exporting service={0}.  Exception stack:\n'.format(export_reg.get_reference()))
                 print_exception(exp[0],exp[1],exp[2],limit=None, file=io_handler)  
             else:
-                io_handler.write('\nService={0} exported.  Endpoint description:\n'.format(export_reg.reference()))
-                io_handler.write(EDEFWriter().to_string([export_reg.description()]))
+                io_handler.write('\nService={0} exported.  Endpoint description:\n'.format(export_reg.get_reference()))
+                io_handler.write(EDEFWriter().to_string([export_reg.get_description()]))
             io_handler.write('\n')
         io_handler.flush()
 
     def import_edef(self, io_handler, edeffile=None):
         if not edeffile:
             edeffile = self._edef_filename
-        io_handler.write('Reading edef from file={0}...\n'.format(edeffile))
+        io_handler.write('Importing from EDEF file={0}\n'.format(edeffile))
         eds = EDEFReader().parse(open(edeffile, 'r').read())
         for ed in eds:
             import_reg = self._rsa.import_service(ed)
             if import_reg:
-                exp = import_reg.exception()
+                exp = import_reg.get_exception()
                 if exp:
-                    io_handler.write('Exception importing endpoint.id={0}\n'.format(import_reg.description.get_id()))
+                    io_handler.write('Exception importing endpoint.id={0}\n'.format(import_reg.get_description.get_id()))
                     print_exception(exp[0],exp[1],exp[2],limit=None, file=io_handler)  
                 else:
-                    io_handler.write('Service={0} imported. Endpoint description:\n'.format(import_reg.reference()))
-                    io_handler.write(EDEFWriter().to_string([import_reg.description()]))
+                    io_handler.write('Service={0} imported\n'.format(import_reg.get_reference()))
+                    io_handler.write(EDEFWriter().to_string([import_reg.get_description()]))
                 io_handler.write('\n')
                 io_handler.flush()
 

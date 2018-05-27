@@ -145,12 +145,12 @@ class EndpointDescription(object):
         return self._id != other._id
 
     def __str__(self):
-        rsid = self.get_remoteservice_id()
+        get_remoteservice_id = self.get_remoteservice_id()
         return "EndpointDescription(id={0}; endpoint.service.id={1}; " \
                "framework.uuid={2}; ecf.endpoint.id={3}:{4})".format(self.get_id(),
                                             self.get_service_id(),
                                             self.get_framework_uuid(),
-                                            rsid[0],rsid[1])
+                                            get_remoteservice_id[0],get_remoteservice_id[1])
                
     def _get_prop(self, key, default = None):
         return get_prop_value(key, self._properties, default)
