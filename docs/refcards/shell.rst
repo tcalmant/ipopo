@@ -240,24 +240,153 @@ Bundle name                 Description
 How to provide commands
 =======================
 
-.. note:: TODO
+Shell Command service
+---------------------
 
-    * Provide a ``pelix.shell.SERVICE_SHELL_COMMAND`` service
+Shell commands are detected by the Shell Core Service when a Shell Command
+service (use the ``pelix.shell.SERVICE_SHELL_COMMAND`` constant) is registered.
 
-        * ``get_namespace()``
-        * ``get_methods()``
+First, the Shell Core calls the ``get_namespace()`` method of the new service,
+in order to prepare the (potentially new) command namespace.
+Each shell command provider **should** have a unique, human-readable, namespace.
+Sometimes it can be interesting to have multiple services providing sets of
+optional commands in the same namespace, but this can lead to some unexpected
+behaviour, *e.g.* when trying to provide the same command name twice in the
+same namespace.
+A namespace must not contain spaces nor separator characters (dot, comma, ...).
 
-    * Use the ``pelix.shell.SERVICE_SHELL_UTILS`` service (tables, ...)
-    * Provide completion hints for the Text UI
+Then, the Shell Core calls ``get_methods()``, which must a return a list of
+(command name, command method) couples.
+Like its namespace, a command name must not contain spaces nor separator
+characters (dot, comma, ...).
 
+Each command method must accept at least one argument: the
+:class:`~pelix.shell.beans.ShellSession` object representing the current
+session and handling interactions with the client.
+Note that the Python *docstring* of the method will be what is shown by the
+core *help* command.
 
-How to provide a new shell interface
-====================================
+The shell core bundle also provides a utility service,
+:class:`pelix.shell.SERVICE_SHELL_UTILS <pelix.shell.core._ShellUtils>`,
+which can be used to generate ASCII tables to print out to the user.
+This is the service used by the core method to print the list of bundles,
+services, iPOPO instances, etc..
 
-.. note:: TODO
+Here is an example of a simple command service providing the *echo* and *hello*
+shell commands.
+*echo* accepts an unlimited list of arguments and prints it back to the client.
+*hello* asks a name if it wasn't given as parameter then says hello.
 
-    * Implement an ``IOHandler``
-    * Create a ``ShellSession``
+.. code-block:: python
+
+    from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate
+    import pelix.shell
+
+    @ComponentFactory("sample-commands-factory")
+    @Provides(pelix.shell.SERVICE_SHELL_COMMAND)
+    @Instantiate("sample-shell-commands")
+    class SampleCommands(object):
+        """
+        Sample shell commands
+        """
+        @staticmethod
+        def get_namespace():
+            """
+            Retrieves the name space of this command handler
+            """
+            return "sample"
+
+        def get_methods(self):
+            """
+            Retrieves the list of tuples (command, method) for this command handler
+            """
+            return [("echo", self.echo), ("hello", self.hello)]
+
+        def hello(self, session, name=None):
+            """
+            Says hello
+            """
+            if not name:
+                # Name not given as parameter, ask for it
+                name = session.prompt("What's your name? ")
+
+            session.write_line("Hello, {0} !", name)
+
+        def echo(self, session, *words):
+            """
+            Prints back the words it has been given
+            """
+            session.write_line(" ".join(words))
+
+To use this sample, simply start a framework with the Shell Core, a Shell UI
+and iPOPO, then install and start the sample bundle.
+For example:
+
+.. code-block:: console
+
+    bash:~ $ python -m pelix.shell
+    ** Pelix Shell prompt **
+    $ start pelix.shell.toto
+    Bundle ID: 14
+    Starting bundle 14 (pelix.shell.toto)...
+    $ sample.echo Hello, world !
+    Hello, world !
+    $ hello World
+    Hello, World !
+    $ hello
+    What's your name? Thomas
+    Hello, Thomas !
+
+The I/O handling of the ``session`` argument is implemented by the shell UI and
+hides the ways used to communicate with the client.
+The code of this example works with all UIs: local text UI, remote shell and
+XMPP shell.
+
+API
+---
+
+.. autoclass:: pelix.shell.beans.ShellSession
+   :members:
+
+   .. note:: This class is instantiated by Shell UI implementations and its
+             instances shouldn't be shared nor stored by command providers.
+
+   .. method:: prompt(prompt=None)
+
+        Waits for a line to be written by the user
+
+        :param prompt: An optional prompt message
+        :return: The read line, after a conversion to str
+
+   .. method:: write_line(line=None, *args, **kwargs)
+
+        Formats and writes a line to the output. This method has the same
+        signature as ``str.format``.
+        If necessary, a new-line marker (``\n``) is added at the end of the
+        given string.
+        The output stream is flushed to ensure that the text is written.
+
+        :param line: A line for ``str.format`` markers
+        :param args: Content for the positional markers
+        :param kwargs: Content for the keyword markers
+
+   .. method:: write_line_no_feed(line=None, *args, **kwargs)
+
+        Formats and writes a line to the output. This method has the same
+        signature as ``str.format``.
+        If the given line ended with a new-line marker, the latter is removed.
+        The output stream is flushed to ensure that the text is written.
+
+        :param line: A line for ``str.format`` markers
+        :param args: Content for the positional markers
+        :param kwargs: Content for the keyword markers
+
+.. autoclass:: pelix.shell.core._ShellUtils
+   :members:
+
+   .. note:: This class shouldn't be instantiated directly. The developer must
+             instead look for and the ``pelix.shell.SERVICE_SHELL_UTILS``
+             service.
 
 .. _certificates_setup:
 
