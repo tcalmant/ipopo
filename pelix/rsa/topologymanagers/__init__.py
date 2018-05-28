@@ -28,6 +28,7 @@ Topology Manager APIs
 # ------------------------------------------------------------------------------
 # Standard logging
 import logging
+from pelix.rsa.providers.discovery import SERVICE_ENDPOINT_ADVERTISER
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Module version
@@ -38,7 +39,8 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------# Standard library
 from pelix.ipopo.decorators import Validate, Invalidate
 
-from pelix.rsa.remoteserviceadmin import RemoteServiceAdminListener
+from pelix.rsa.remoteserviceadmin import RemoteServiceAdminListener,\
+    RemoteServiceAdminEvent
 
 from pelix.framework import ServiceEvent
 from pelix.internals.hooks import EventListenerHook
@@ -47,9 +49,9 @@ from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 from pelix.ipopo.decorators import Provides, Requires
 
 # ------------------------------------------------------------------------------
-@Provides(SERVICE_EVENT_LISTENER_HOOK)
-@Provides(SERVICE_RSA_EVENT_LISTENER)
+@Provides([SERVICE_EVENT_LISTENER_HOOK,SERVICE_RSA_EVENT_LISTENER])
 @Requires('_rsa', SERVICE_REMOTE_SERVICE_ADMIN)
+@Requires('_advertisers', SERVICE_ENDPOINT_ADVERTISER,True,True)
 class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
     
     def __init__(self):
@@ -57,6 +59,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
         self._context = None
         self._ep_l_reg = None
         self._rsa = None
+        self._advertisers = []
 
     @Validate
     def _validate(self, context):
@@ -108,9 +111,26 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
     # impl of EventListenerHoook
     def event(self,service_event,listener_dict):
         self._handle_event(service_event)
+          
+    def _advertise_endpoint(self,ed):
+        for adv in self._advertisers:
+            try:
+                adv.advertise_endpoint(ed)
+            except:
+                _logger.exception('Exception in advertise_endpoint for advertiser={0} endpoint={1}'.format(adv,ed))
+    
+    def _unadvertise_endpoint(self,ed):
+        for adv in self._advertisers:
+            try:
+                adv.unadvertise_endpoint(ed.get_id())
+            except:
+                _logger.exception('Exception in unadvertise_endpoint for advertiser={0} endpoint={1}'.format(adv,ed))
             
     # impl of RemoteServiceAdminListener
     def remote_admin_event(self, event):
-        # XXX temporary
-        pass
+        kind = event.get_type()
+        if kind == RemoteServiceAdminEvent.EXPORT_REGISTRATION:
+            self._advertise_endpoint(event.get_description())
+        elif kind == RemoteServiceAdminEvent.EXPORT_UNREGISTRATION:
+            self._unadvertise_endpoint(event.get_description())
         

@@ -248,7 +248,7 @@ class RemoteServiceAdmin(object):
             try:
                 l.remote_admin_event(event)
             except:
-                _logger.error('Exception calling rsa event listener={0}'.format(l))
+                _logger.exception('Exception calling rsa event listener={0}'.format(l))
     
     def _get_bundle(self):
         if self._context:

@@ -29,6 +29,7 @@ Discovery Provider APIs
 # Standard logging
 import logging
 from threading import RLock
+from pelix.ipopo.decorators import Provides, ComponentFactory, Instantiate
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Module version
@@ -44,11 +45,51 @@ SERVICE_ENDPOINT_LISTENER = 'pelix.rsa.discovery.endpointeventlistener'
 
 class EndpointAdvertiser(object):
     
-    def advertise_endpoint_description(self,endpoint_description):
-        pass
+    def __init__(self):
+        self._published_endpoints = {}
+        self._lock = RLock()
+        
+    def is_advertised(self,endpointid):
+        return self.get_advertised(endpointid) != None
     
-    def unadvertise_endpoint_description(self,endpoint_description):
-        pass
+    def get_advertised(self,endpointid):
+        with self._lock:
+            return self._published_endpoints.get(endpointid,None)
+        
+    def get_advertised_endpoints(self):
+        with self._lock:
+            return self._published_endpoints.copy()
+        
+    def _add_advertised(self,ed,advertise_result):
+        self._published_endpoints[ed.get_id()] = (ed,advertise_result)
+        
+    def _remove_advertised(self,endpointid):
+        self._published_endpoints.pop(endpointid,None)
+        
+    def _advertise(self,endpoint_description):
+        raise Exception('Endpoint._advertise must be overridden by subclasses')
+    
+    def _unadvertise(self,advertised):
+        raise Exception('Endpoint._unadvertise must be overridden by subclasses')
+    
+    def advertise_endpoint(self,endpoint_description):
+        endpointid = endpoint_description.get_id()
+        with self._lock:
+            if self.get_advertised(endpointid) != None:
+                return False
+            advertise_result = self._advertise(endpoint_description)
+            if advertise_result:
+                self._add_advertised(endpoint_description, advertise_result)
+    
+    def unadvertise_endpoint(self,endpointid):
+        with self._lock:
+            with self._lock:
+                advertised = self.get_advertised(endpointid)
+                if not advertised:
+                    return None
+                unadvertise_result = self._unadvertise(advertised)
+                if unadvertise_result:
+                    self._remove_advertised(endpointid)
 
 class EndpointEvent(object):
     
@@ -74,52 +115,5 @@ class EndpointEventListener(object):
     
     def endpoint_changed(self,endpoint_event,matched_filter):
         pass
-    
-    
-class AdvertiserDiscoveryProvider(EndpointAdvertiser):
-    
-    def __init__(self):
-        self._published_endpoints = {}
-        self._lock = RLock()
+
         
-    def is_advertised(self,endpointid):
-        return self.get_advertised(endpointid) != None
-    
-    def get_advertised(self,endpointid):
-        with self._lock:
-            return self._published_endpoints.get(endpointid,None)
-        
-    def _add_advertised(self,ed,serialized):
-        self._published_endpoints[ed.get_id(),(ed,serialized)]
-        
-    def _remove_advertised(self,endpointid):
-        self._published_endpoints.pop(endpointid,None)
-        
-    def _serialize_endpoint(self,ed):
-        return ed.get_properties()
-    
-    def _advertise(self,serialized):
-        raise Exception('not implemented')
-    
-    def _unadvertise(self,ed,serialized):
-        raise Exception('not implemented')
-    
-    def advertise_endpoint_description(self,endpoint_description):
-        endpointid = endpoint_description.get_id()
-        with self._lock:
-            if self.get_advertised(endpointid) == None:
-                return False
-            serialized = self._serialize_endpoint(endpoint_description)
-            self._advertise(serialized)
-            self._add_advertised(endpoint_description, serialized)
-    
-    def unadvertise_endpoint_description(self,endpoint_description):
-        endpointid = endpoint_description.get_id()
-        with self._lock:
-            with self._lock:
-                advertised = self.get_advertised(endpointid)
-                if not advertised:
-                    return None
-                self._unadvertise(*list(advertised))
-                self._remove_advertised(endpointid)
-    
