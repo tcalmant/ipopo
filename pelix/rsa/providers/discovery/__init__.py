@@ -2,7 +2,7 @@
 # -- Content-Encoding: UTF-8 --
 """
 
-Discovery Provider APIs
+Discovery Provider API
 
 :author: Scott Lewis
 :copyright: Copyright 2018, Scott Lewis
@@ -44,11 +44,107 @@ from pelix.ipopo.decorators import Provides, ComponentFactory, Instantiate,\
     BindField, UnbindField, Requires
 #------------------------------------------------------------------------------# Standard library
 
+# Endpoint advertiser service specification.  EndpointAdvertiser services
+# are used to advertise exported remote services.  See EndpointAdvertiser
+# class below.  
 SERVICE_ENDPOINT_ADVERTISER = 'pelix.rsa.discovery.endpointadvertiser'
-SERVICE_ENDPOINT_LISTENER = 'pelix.rsa.discovery.endpointeventlistener'
-
-class EndpointEvent(object):
+class EndpointAdvertiser(object):
     
+    def __init__(self):
+        self._published_endpoints = {}
+        self._published_endpoints_lock = RLock()
+
+    def advertise_endpoint(self,endpoint_description):
+        '''
+        Advertise and endpoint_description for remote discovery.
+        If it hasn't already been a endpoint_description will be advertised via
+        a some protocol.
+        
+        :param endpoint_description an instance of EndpointDescription to advertise.  Must not be None.
+        :return True if advertised, False if not (e.g. it's already been advertised)
+        '''
+        endpointid = endpoint_description.get_id()
+        with self._published_endpoints_lock:
+            if self.get_advertised_endpoint(endpointid) != None:
+                return False
+            advertise_result = self._advertise(endpoint_description)
+            if advertise_result:
+                self._add_advertised(endpoint_description, advertise_result)
+                return True
+    
+    def unadvertise_endpoint(self,endpointid):
+        '''
+        Unadvertise a previously-advertised endpointid (string).
+        
+        :param endpointid.  The string returned from ed.get_id() or 
+        the value of property endpoint.id.  Should not be None
+        
+        :return True if removed, False if not removed (hasn't been previously advertised
+        by this advertiser
+        '''
+        with self._published_endpoints_lock:
+            with self._published_endpoints_lock:
+                advertised = self.get_advertised_endpoint(endpointid)
+                if not advertised:
+                    return None
+                unadvertise_result = self._unadvertise(advertised)
+                if unadvertise_result:
+                    self._remove_advertised(endpointid)
+                    
+    def is_advertised(self,endpointid):
+        '''
+        Is given endpointid been advertised by this advertiser.
+        
+        :param endpointid.  The string returned from ed.get_id() or the value
+        of property endpoint.id.  Should not be None.
+        :return True if the given endpointid has previously been
+        advertised (and not unadvertised) by this advertiser
+        '''
+        return self.get_advertised_endpoint(endpointid) != None
+    
+    def get_advertised_endpoint(self,endpointid):
+        '''
+        Get the advertised endpoint given endpointid.
+        
+        :param endpointid.  The string reeturned from ed.get_id() or the value
+        of property endpoint.id.  Should not be None.
+        
+        :return tuple/2 with (endpoint_description,advertise_result), or
+        None.
+        '''
+        with self._published_endpoints_lock:
+            return self._published_endpoints.get(endpointid,None)
+        
+    def get_advertised_endpoints(self):
+        '''
+        Get all endpoints advertised by this advertiser.
+        
+        :returns dictionary of tuple/2 (endpoint_description,advertise_result).
+        May return empty dictionary.
+        '''
+        with self._published_endpoints_lock:
+            return self._published_endpoints.copy()
+        
+    def _add_advertised(self,ed,advertise_result):
+        with self._published_endpoints_lock:
+            self._published_endpoints[ed.get_id()] = (ed,advertise_result)
+        
+    def _remove_advertised(self,endpointid):
+        with self._published_endpoints_lock:
+            return self._published_endpoints.pop(endpointid,None)
+        
+    def _advertise(self,endpoint_description):
+        raise Exception('Endpoint._advertise must be overridden by subclasses')
+    
+    def _unadvertise(self,advertised):
+        raise Exception('Endpoint._unadvertise must be overridden by subclasses')
+    
+class EndpointEvent(object):
+    '''
+    EndpointEvents are used by endpoint advertisers to call
+    EndpointEventListeners with the type of event (ADDED,REMOVED,MODIFIED)
+    and the associated EndpointDescription.
+    '''
     ADDED = 1
     REMOVED = 2
     MODIFIED = 4
@@ -60,24 +156,69 @@ class EndpointEvent(object):
         self._ed = endpoint_description
         
     def get_type(self):
+        '''
+        Get the type of the EndpointEvent (ADDED|REMOVED|MODIFIED).
+        
+        :return event type (int)
+        '''
         return self._type
     
+        '''
+        Get the EndpointDescription associated with this event.
+        
+        :return EndpointDescription instance associated with this event.
+        '''
     def get_endpoint(self):
         return self._ed
 
     def __str__(self):
         return 'EndpointEvent(type={0},ed={1})'.format(self.get_type(),self.get_endpoint())
     
+# Endpoint listener service specification
+# This service specification is exposed by instances that wish to be
+# notified by discovery providers when an EndpointEvent has occurred.
+# For example, TopologyManagers will typically expose themselves as
+# a service endpoint listener so that discovery subscribers can
+# notify all such services when an endpoint event has been received.
+SERVICE_ENDPOINT_LISTENER = 'pelix.rsa.discovery.endpointeventlistener'
+
 class EndpointEventListener(object):
-    
+    '''
+    Subclasses should override the endpoint_changed method
+    so that they will receive notification (via an arbitrary
+    thread) when an endpoint has been added, removed or modified
+    '''
+    # Endpoint listener scope will be consulted when a
+    # discovery provider receives an endpoint event.   
+    # The service that provides the SERVICE_ENDPOINT_LISTENER
+    # specification should provided a ldap filter (or array of 
+    # filters) for filtering the endpoint description properties
+    # against the filter for delivery.  For example, an implementer
+    # of this service could define as one of its properties:
+    # ENDPOINT_LISTENER_SCOPE: '(*=*)'
+    # Such a filter will receive all endpoint notifications because
+    # the filter '(*=*)' matches any set of endpoint description
+    # properties.  If the filter matches the properties, then
+    # the endpoint_changed method will be called
     ENDPOINT_LISTENER_SCOPE = 'endpoint.listener.scope'
     
     def endpoint_changed(self,endpoint_event,matched_filter):
+        '''
+        Called by discovery providers when an endpoint has been
+        ADDED,REMOVED or MODIFIED.   
+        
+        :param endpoint_event an instance of EndpointEvent.  Will
+        not be None.
+        :param matched_filter the filter (as string) that matched
+        this endpoint event listener service instance.
+        '''
         pass
 
 @Requires('_event_listeners',SERVICE_ENDPOINT_LISTENER,True,True)
 class EndpointSubscriber():
-    
+    '''
+    Utility superclass for EndpointSubscribers.  
+    '''
     def __init__(self):
         self._other_sessions = set()
         self._other_sessions_lock = RLock()
@@ -148,54 +289,4 @@ class EndpointSubscriber():
             except:
                 _logger.exception('Exception calling endpoint event listener.endpoint_changed for listener={0} and event={1}'.format(listener,event))
     
-class EndpointAdvertiser(object):
-    
-    def __init__(self):
-        self._published_endpoints = {}
-        self._published_endpoints_lock = RLock()
-        
-    def is_advertised(self,endpointid):
-        return self.get_advertised(endpointid) != None
-    
-    def get_advertised_endpoint(self,endpointid):
-        with self._published_endpoints_lock:
-            return self._published_endpoints.get(endpointid,None)
-        
-    def get_advertised_endpoints(self):
-        with self._published_endpoints_lock:
-            return self._published_endpoints.copy()
-        
-    def _add_advertised(self,ed,advertise_result):
-        with self._published_endpoints_lock:
-            self._published_endpoints[ed.get_id()] = (ed,advertise_result)
-        
-    def _remove_advertised(self,endpointid):
-        with self._published_endpoints_lock:
-            return self._published_endpoints.pop(endpointid,None)
-        
-    def _advertise(self,endpoint_description):
-        raise Exception('Endpoint._advertise must be overridden by subclasses')
-    
-    def _unadvertise(self,advertised):
-        raise Exception('Endpoint._unadvertise must be overridden by subclasses')
-    
-    def advertise_endpoint(self,endpoint_description):
-        endpointid = endpoint_description.get_id()
-        with self._published_endpoints_lock:
-            if self.get_advertised_endpoint(endpointid) != None:
-                return False
-            advertise_result = self._advertise(endpoint_description)
-            if advertise_result:
-                self._add_advertised(endpoint_description, advertise_result)
-    
-    def unadvertise_endpoint(self,endpointid):
-        with self._published_endpoints_lock:
-            with self._published_endpoints_lock:
-                advertised = self.get_advertised_endpoint(endpointid)
-                if not advertised:
-                    return None
-                unadvertise_result = self._unadvertise(advertised)
-                if unadvertise_result:
-                    self._remove_advertised(endpointid)
-
         

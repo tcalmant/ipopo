@@ -60,7 +60,14 @@ import etcd
 @Property('_watch_start_wait','watch_start_wait',5)
 @Instantiate('ecf.namespace.etcd-endpoint-discovery')
 class EtcdEndpointDiscovery(EndpointAdvertiser,EndpointSubscriber):
+    '''
+    Etcd-based endpoint discovery.  Extends both EndpointAdvertiser
+    and EndpointSubscriber so can be called to advertise/unadvertise
+    exported endpoints, and will notify SERVICE_ENDPOINT_LISTENERs
+    when an endpoint has been discovered via the etcd service.
     
+    Note that this depends upon the python-etcd client library.
+    '''
     # Property names that are read upon ValidateComponent to set
     # the etcd hostname,port,toppath,session ttl (time to live)
     # See above for defaults
@@ -283,7 +290,6 @@ class EtcdEndpointDiscovery(EndpointAdvertiser,EndpointSubscriber):
             
     def _ttl_job(self):
         waittime = self._get_start_wait()
-        _logger.debug('ttl_job: starting ttl_job with waittime={0}'.format(waittime))
         while True: 
             _logger.debug('ttl_job: starting sleep with waittime={0}'.format(waittime))
             time.sleep(1)
