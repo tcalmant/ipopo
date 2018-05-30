@@ -135,7 +135,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
             self._unadvertise_endpoint(event.get_description())
     
     def _handle_endpoint_event(self,endpoint_event,matched_filter):
-        print('TopologyManager._handle_endpoint_event={0},{1},filter={2}'.format(self,endpoint_event,matched_filter))
+        print('TopologyManager._handle_endpoint_event={0},{1},matched_filter={2}'.format(self,endpoint_event,matched_filter))
 
     # impl of EndpointEventListener        
     def endpoint_changed(self,endpoint_event,matched_filter):

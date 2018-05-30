@@ -254,7 +254,7 @@ class EndpointSubscriber():
                         matching_filter = f
                         break
             if matching_filter:
-                result.append(l[0])
+                result.append((l[0],matching_filter))
         return result
             
     def _add_discovered_endpoint(self,ed):
@@ -285,7 +285,7 @@ class EndpointSubscriber():
         event = EndpointEvent(event_type, ed)   
         for listener in listeners:
             try:
-                listener.endpoint_changed(event,'matched')
+                listener[0].endpoint_changed(event,listener[1])
             except:
                 _logger.exception('Exception calling endpoint event listener.endpoint_changed for listener={0} and event={1}'.format(listener,event))
     
