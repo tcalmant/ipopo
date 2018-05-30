@@ -38,20 +38,18 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 from threading import Thread, RLock
 import time
+import socket
+import json
 from pelix.rsa.endpointdescription import encode_endpoint_props,\
     decode_endpoint_props, EndpointDescription
 from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate,\
     ValidateComponent, Property, Invalidate
 from pelix.rsa.providers.discovery import SERVICE_ENDPOINT_ADVERTISER,\
     EndpointAdvertiser, EndpointEvent, EndpointSubscriber
-
-import socket
 from pelix.rsa import create_uuid
-import etcd
-
 from pelix.ipopo.constants import ARG_BUNDLE_CONTEXT
    
-import json
+import etcd
 
 @ComponentFactory('ecf.namespace.etcd-endpoint-discovery-factory')
 @Provides(SERVICE_ENDPOINT_ADVERTISER)
