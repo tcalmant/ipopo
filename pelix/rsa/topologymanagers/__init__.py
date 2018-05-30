@@ -28,7 +28,8 @@ Topology Manager APIs
 # ------------------------------------------------------------------------------
 # Standard logging
 import logging
-from pelix.rsa.providers.discovery import SERVICE_ENDPOINT_ADVERTISER
+from pelix.rsa.providers.discovery import SERVICE_ENDPOINT_ADVERTISER,\
+    SERVICE_ENDPOINT_LISTENER, EndpointEventListener
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Module version
@@ -37,29 +38,29 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------# Standard library
-from pelix.ipopo.decorators import Validate, Invalidate
+from pelix.ipopo.decorators import Validate, Invalidate, Property
 
 from pelix.rsa.remoteserviceadmin import RemoteServiceAdminListener,\
     RemoteServiceAdminEvent
 
 from pelix.framework import ServiceEvent
 from pelix.internals.hooks import EventListenerHook
-from pelix.rsa import SERVICE_EXPORTED_INTERFACES, get_exported_interfaces, SERVICE_RSA_EVENT_LISTENER, SERVICE_REMOTE_SERVICE_ADMIN
+from pelix.rsa import SERVICE_EXPORTED_INTERFACES, get_exported_interfaces, SERVICE_RSA_EVENT_LISTENER, SERVICE_REMOTE_SERVICE_ADMIN,\
+    ECF_ENDPOINT_CONTAINERID_NAMESPACE
 from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 from pelix.ipopo.decorators import Provides, Requires
 
 # ------------------------------------------------------------------------------
-@Provides([SERVICE_EVENT_LISTENER_HOOK,SERVICE_RSA_EVENT_LISTENER])
+@Provides([SERVICE_EVENT_LISTENER_HOOK,SERVICE_RSA_EVENT_LISTENER,SERVICE_ENDPOINT_LISTENER])
 @Requires('_rsa', SERVICE_REMOTE_SERVICE_ADMIN)
 @Requires('_advertisers', SERVICE_ENDPOINT_ADVERTISER,True,True)
-class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
+class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEventListener,object):
     
     def __init__(self):
-        self._matching_filters = list()
-        self._context = None
-        self._ep_l_reg = None
-        self._rsa = None
+        self._matching_filters = []
         self._advertisers = []
+        self._context = None
+        self._rsa = None
 
     @Validate
     def _validate(self, context):
@@ -67,11 +68,10 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
         
     @Invalidate
     def _invalidate(self, context):
-        if self._ep_l_reg:
-            self._ep_l_reg.unregister()
-            self._ep_l_reg = None
         self._context = None
-        self._matching_filters.clear()
+        if self._matching_filters:
+            self._matching_filters.clear()
+            self._matching_filters = None
     
     def get_endpoint_filters(self):
         return list(self._matching_filters)
@@ -133,4 +133,12 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, object):
             self._advertise_endpoint(event.get_description())
         elif kind == RemoteServiceAdminEvent.EXPORT_UNREGISTRATION:
             self._unadvertise_endpoint(event.get_description())
+    
+    def _handle_endpoint_event(self,endpoint_event,matched_filter):
+        print('TopologyManager._handle_endpoint_event={0},{1},filter={2}'.format(self,endpoint_event,matched_filter))
+
+    # impl of EndpointEventListener        
+    def endpoint_changed(self,endpoint_event,matched_filter):
+        self._handle_endpoint_event(endpoint_event,matched_filter)
+
         

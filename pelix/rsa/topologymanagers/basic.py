@@ -28,6 +28,7 @@ BasicTopologyManager implements TopologyManager API
 # ------------------------------------------------------------------------------
 # Standard logging
 import logging
+from pelix.rsa import ECF_ENDPOINT_CONTAINERID_NAMESPACE
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Module version
@@ -43,11 +44,12 @@ from pelix.rsa.topologymanagers import TopologyManager
 # ------------------------------------------------------------------------------
 @ComponentFactory('basic-topology-manager-factory')
 # Tell iPOPO to instantiate a component instance as soon as the file is loaded
-@Instantiate('basic-topology-manager')
+@Instantiate('basic-topology-manager', { TopologyManager.ENDPOINT_LISTENER_SCOPE:'('+ECF_ENDPOINT_CONTAINERID_NAMESPACE+'=*)'})
 class BasicTopologyManager(TopologyManager):
     '''BasicTopologyManager extends TopologyManager api.  No override is
     required, but __init__ is notified for logging
     '''
     def __init__(self):
+        super(BasicTopologyManager,self).__init__()
         _logger.debug('BasicToplogyManager.__<init>__')
 

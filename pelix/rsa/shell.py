@@ -69,6 +69,7 @@ def _full_class_name(o):
 @Instantiate('rsa-command')
 class RSACommandHandler(object):
     
+    SHELL_NAMESPACE = 'rsa'
     EXPIMP_LINE_FORMAT = '{0:<37}|{1:<43}|{2:<3}\n'
     
     CONTAINER_LINE_FORMAT = '{0:<45}|{1:<40}\n'
@@ -152,7 +153,7 @@ class RSACommandHandler(object):
             
     @staticmethod
     def get_namespace():
-        return "rsa"
+        return RSACommandHandler.SHELL_NAMESPACE
 
     def get_methods(self):
         return [("listconfigs",self._list_providers),

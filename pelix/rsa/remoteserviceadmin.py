@@ -244,11 +244,12 @@ class RemoteServiceAdmin(object):
              
     def _publish_event(self,event):
         listeners = self._rsa_event_listeners
-        for l in listeners:
-            try:
-                l.remote_admin_event(event)
-            except:
-                _logger.exception('Exception calling rsa event listener={0}'.format(l))
+        if listeners:
+            for l in listeners:
+                try:
+                    l.remote_admin_event(event)
+                except:
+                    _logger.exception('Exception calling rsa event listener={0}'.format(l))
     
     def _get_bundle(self):
         if self._context:
