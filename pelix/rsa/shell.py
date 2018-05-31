@@ -219,7 +219,8 @@ class RSACommandHandler(object):
             io_handler.write(self.EXPIMP_LINE_FORMAT.format('endpoint.id',expimp[1]+' Container ID',expimp[1]+' Service Id'))
             for export_reg in configs:
                 ed = export_reg.get_description()
-                io_handler.write(self.EXPIMP_LINE_FORMAT.format(str(ed.get_id()),str(ed.get_container_id()[1]),ed.get_service_id()))
+                if ed:
+                    io_handler.write(self.EXPIMP_LINE_FORMAT.format(str(ed.get_id()),str(ed.get_container_id()[1]),ed.get_service_id()))
         io_handler.write('\n')
     
     def _list_exported_configs(self, io_handler, endpoint_id=None):  
