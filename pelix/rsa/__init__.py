@@ -335,6 +335,7 @@ def copy_non_ecf(props,target):
             target[key] = value
     return target
 
+# Exception classes
 class SelectExporterError(Exception):
     def __init__(self,*args,**kwargs):
         Exception.__init__(self,*args,**kwargs)
@@ -346,8 +347,8 @@ class SelectImporterError(Exception):
 class RemoteServiceError(Exception):
     def __init__(self,*args,**kwargs):
         Exception.__init__(self,*args,**kwargs)
-        
 
+## RSA API classes       
 class RemoteServiceAdminEvent(object):
     '''
     Remote service admin event instances are delivered to RemoteServiceAdminListener

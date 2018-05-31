@@ -174,8 +174,6 @@ TYPED_STRING = (pelix.constants.OBJECTCLASS,
 XML_VALUE = object()
 
 # ------------------------------------------------------------------------------
-
-
 class EDEFReader(object):
     """
     Reads an EDEF XML data. Inspired from EndpoitnDescriptionParser from ECF
@@ -291,8 +289,6 @@ class EDEFReader(object):
                 for node in root.findall(TAG_ENDPOINT_DESCRIPTION)]
 
 # ------------------------------------------------------------------------------
-
-
 class EDEFWriter(object):
     
     def __init__(self,encoding='unicode',xml_declaration=True):
