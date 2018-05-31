@@ -347,3 +347,190 @@ class RemoteServiceError(Exception):
     def __init__(self,*args,**kwargs):
         Exception.__init__(self,*args,**kwargs)
         
+
+class RemoteServiceAdminEvent(object):
+    '''
+    Remote service admin event instances are delivered to RemoteServiceAdminListener
+    service instances when events of the types listed below occur...e.g.
+    IMPORT_REGISTRATION when a successful import occurs, EXPORT_REGISTRATION
+    when a successful export occurs, etc.
+    '''
+    IMPORT_REGISTRATION = 1
+    EXPORT_REGISTRATION = 2
+    EXPORT_UNREGISTRATION = 3
+    IMPORT_UNREGISTRATION = 4
+    IMPORT_ERROR = 5
+    EXPORT_ERROR = 6
+    EXPORT_WARNING = 7
+    IMPORT_WARNING = 8
+    IMPORT_UPDATE = 9
+    EXPORT_UPDATE = 10
+    
+    @classmethod
+    def fromimportreg(cls,bundle,import_reg):
+        exc = import_reg.get_exception()
+        if exc:
+            return RemoteServiceAdminEvent(RemoteServiceAdminEvent.IMPORT_ERROR,
+                                           bundle, 
+                                           import_reg.get_import_container_id(), 
+                                           import_reg.get_remoteservice_id(), 
+                                           None,
+                                           None,
+                                           exc, 
+                                           import_reg.get_description())
+        else:
+            return RemoteServiceAdminEvent(RemoteServiceAdminEvent.IMPORT_REGISTRATION,
+                                           bundle,
+                                           import_reg.get_import_container_id(),
+                                           import_reg.get_remoteservice_id(),
+                                           import_reg.get_import_reference(),
+                                           None,
+                                           None,
+                                           import_reg.get_description())
+    @classmethod
+    def fromexportreg(cls,bundle,export_reg):
+        exc = export_reg.get_exception()
+        if exc:
+            return RemoteServiceAdminEvent(RemoteServiceAdminEvent.EXPORT_ERROR,
+                                           bundle, 
+                                           export_reg.get_export_container_id(), 
+                                           export_reg.get_remoteservice_id(), 
+                                           None, 
+                                           None, 
+                                           exc, 
+                                           export_reg.get_description())
+        else:
+            return RemoteServiceAdminEvent(RemoteServiceAdminEvent.EXPORT_REGISTRATION,
+                                           bundle,
+                                           export_reg.get_export_container_id(),
+                                           export_reg.get_remoteservice_id(),
+                                           None,
+                                           export_reg.get_export_reference(),
+                                           None,
+                                           export_reg.get_description())
+
+    @classmethod
+    def fromimportunreg(cls,bundle,cid,rsid,import_ref,exception,ed):
+        return RemoteServiceAdminEvent(typ=RemoteServiceAdminEvent.IMPORT_UNREGISTRATION,bundle=bundle,
+                                       cid=cid,rsid=rsid,import_ref=import_ref,exception=exception,ed=ed)
+    @classmethod
+    def fromexportunreg(cls,bundle,exporterid,rsid,export_ref,exception,ed):
+        return RemoteServiceAdminEvent(typ=RemoteServiceAdminEvent.EXPORT_UNREGISTRATION,bundle=bundle,
+                                       cid=exporterid,rsid=rsid,export_ref=export_ref,exception=exception,ed=ed)
+
+    @classmethod
+    def fromimporterror(cls, bundle, importerid, rsid, exception, ed):
+        return RemoteServiceAdminEvent(RemoteServiceAdminEvent.IMPORT_ERROR,bundle,importerid,rsid,None,None,exception,ed)
+    
+    @classmethod
+    def fromexporterror(cls, bundle, exporterid, rsid, exception, ed):
+        return RemoteServiceAdminEvent(RemoteServiceAdminEvent.EXPORT_ERROR,bundle,exporterid,rsid,None,None,exception,ed)
+
+    def __init__(self,typ,bundle,cid,rsid,import_ref=None,export_ref=None,exception=None,ed=None):
+        self._type = typ
+        self._bundle = bundle
+        self._cid = cid
+        self._rsid = rsid
+        self._import_ref = import_ref
+        self._export_ref = export_ref
+        self._exception = exception
+        self._ed = ed
+    
+    def get_description(self):
+        '''
+        Get the EndpointDescription associated with this event.
+        Will not be None
+        
+        :return EndpointDescription associated with this event
+        '''
+        return self._ed
+    
+    def get_container_id(self):
+        '''
+        Get the container id of form tuple/2 (namespace,id) where
+        both namespace and id are strings. Will not be none.
+        
+        :return tuple of namespace,id strings for the Container used
+        for export (ExportContainer) or import (ImportContainer).
+        '''
+        return self._cid
+    
+    def get_remoteservice_id(self):
+        '''
+        Get the remote service id of form:  tuple(tuple(namespace,id),rsid)
+        where rsid is int and (namespace,id) are as returned from
+        get_container_id.  This identifies the *exporting* remote
+        service id, so the container id will be the same for 
+        export and different for import events.
+        
+        :return tuple(tuple(namespace,id),rsid) to represent the
+        remote service id.  
+        '''
+        return self._rsid
+    
+    def get_type(self):
+        '''
+        Get type of RSA event.  Will be one of the constants 
+        RemoteServiceAdminEvent.IMPORT_REGISTRATION,EXPORT_REGISTRATION, etc.
+        
+        :return rsa event type (int)
+        '''
+        return self._type
+    
+    def get_source(self):
+        '''
+        Get the Bundle source for this event.  Will usually be 
+        the pelix.rsa.remoteserviceadmin event.  Will not be
+        None.
+        
+        :return source bundle for this event.
+        '''
+        return self._bundle
+    
+    def get_import_ref(self):
+        '''
+        Get ExportReference instance associated with this event.
+        Will be None if type is IMPORT_*.
+        
+        :return import reference associated with thie event
+        '''
+        return self._import_ref
+    
+    def get_export_ref(self):
+        '''
+        Get ImportReference instance associated with this event.
+        Will be None if type is EXPORT_*.
+        
+        :return export reference associated with this event
+        '''
+        return self._export_ref
+    
+    def get_exception(self):
+        '''
+        Get exception in tuple(exc_type,exc_name,traceback) form.
+        If None, no exception occurred in RSA import/export. If 
+        not None, then an exception occurred and the EVENT_TYPE will
+        be *ERROR
+        '''
+        return self._exception
+    
+class RemoteServiceAdminListener(object):
+    '''
+    Remote service admin listener service interface.  Services 
+    registered with this as service specification will have this method
+    called synchronously by the RSA implementation for notification
+    of RSA events.  The event parameter will be of type
+    RemoteServiceAdminEvent (see above).
+    '''
+    def remote_admin_event(self, rsa_event):
+        '''
+        Method called by RSA implementation when RSA events occur.   See
+        RemoteServiceAdminEvent above for types of events, and the information
+        in each event.
+        
+        :param rsa_event the RemoteServiceAdminEvent instance.  Will not
+        be None
+        '''
+        pass
+
+                    

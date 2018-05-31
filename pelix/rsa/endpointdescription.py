@@ -37,13 +37,14 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 from pelix.constants import SERVICE_ID, FRAMEWORK_UID, OBJECTCLASS
-from pelix.rsa import get_string_plus_property, set_prop_if_null, get_prop_value, get_matching_interfaces, \
+from pelix.rsa import set_prop_if_null, get_prop_value, get_matching_interfaces, \
     ENDPOINT_SERVICE_ID, SERVICE_IMPORTED, ENDPOINT_FRAMEWORK_UUID, ENDPOINT_ID, ECF_ENDPOINT_ID,\
     ECF_ENDPOINT_TIMESTAMP, ECF_ENDPOINT_CONNECTTARGET_ID, ECF_ENDPOINT_IDFILTER_IDS, ECF_RSVC_ID, \
     ECF_ENDPOINT_CONTAINERID_NAMESPACE, ECF_ENDPOINT_REMOTESERVICE_FILTER, ECF_SERVICE_EXPORTED_ASYNC_INTERFACES, \
     ECF_SERVICE_EXPORTED_ASYNC_NOPROXY, ECF_ASYNC_INTERFACE_SUFFIX, ECF_SERVICE_ASYNC_RSPROXY_CLASS_, \
     ENDPOINT_PACKAGE_VERSION_, REMOTE_INTENTS_SUPPORTED, SERVICE_IMPORTED_CONFIGS,\
-    REMOTE_CONFIGS_SUPPORTED, SERVICE_INTENTS, is_reserved_property, merge_dicts
+    REMOTE_CONFIGS_SUPPORTED, SERVICE_INTENTS, is_reserved_property, merge_dicts,\
+    get_string_plus_property
 from pelix.ldapfilter import get_ldap_filter
 
 def encode_list(k,l):

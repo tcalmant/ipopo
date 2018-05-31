@@ -57,7 +57,6 @@ from pelix.ipopo.decorators import Provides, Requires
 class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEventListener,object):
     
     def __init__(self):
-        self._matching_filters = []
         self._advertisers = []
         self._context = None
         self._rsa = None
@@ -69,17 +68,16 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
     @Invalidate
     def _invalidate(self, context):
         self._context = None
-        if self._matching_filters:
-            self._matching_filters.clear()
-            self._matching_filters = None
     
-    def get_endpoint_filters(self):
-        return list(self._matching_filters)
+    def _import_added_endpoint(self,endpoint_description):
+        return self._rsa.import_service(endpoint_description)
     
-    def set_endpoint_filters(self,new_filters):
-        # xxx todo
-        pass
-
+    def _unimport_removed_endpoint(self,endpoint_description):
+        import_regs = self._rsa._get_import_regs()
+        for import_reg in import_regs:
+            if (import_reg.match_ed(endpoint_description)):
+                import_reg.close()
+            
     def _handle_service_registered(self,service_ref):
         exp_intfs = get_exported_interfaces(service_ref)
         # If no exported interfaces, then all done
@@ -96,6 +94,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
                     export_reg.close()
 
     def _handle_service_modified(self,service_ref):
+        # XXX TODO
         return
     
     def _handle_event(self,service_event):
@@ -134,11 +133,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
         elif kind == RemoteServiceAdminEvent.EXPORT_UNREGISTRATION:
             self._unadvertise_endpoint(event.get_description())
     
-    def _handle_endpoint_event(self,endpoint_event,matched_filter):
-        print('TopologyManager._handle_endpoint_event={0},{1},matched_filter={2}'.format(self,endpoint_event,matched_filter))
-
-    # impl of EndpointEventListener        
     def endpoint_changed(self,endpoint_event,matched_filter):
-        self._handle_endpoint_event(endpoint_event,matched_filter)
+        print('TopologyManager.endpoint_event called.  You probably want to override this method')
 
         

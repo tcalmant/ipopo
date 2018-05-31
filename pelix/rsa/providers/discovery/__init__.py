@@ -168,11 +168,11 @@ class EndpointEvent(object):
         
         :return EndpointDescription instance associated with this event.
         '''
-    def get_endpoint(self):
+    def get_endpoint_description(self):
         return self._ed
 
     def __str__(self):
-        return 'EndpointEvent(type={0},ed={1})'.format(self.get_type(),self.get_endpoint())
+        return 'EndpointEvent(type={0},ed={1})'.format(self.get_type(),self.get_endpoint_description())
     
 # Endpoint listener service specification
 # This service specification is exposed by instances that wish to be
