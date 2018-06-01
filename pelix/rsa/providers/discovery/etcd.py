@@ -50,14 +50,16 @@ from pelix.rsa import create_uuid
 from pelix.ipopo.constants import ARG_BUNDLE_CONTEXT
    
 import etcd
-
+# ------------------------------------------------------------------------------# 
+# Etcd-based implementation of EndpointAdvertiser and EndpointSubscriber
+# discovery APIs.  See EndpointAdviser and EndpointSubscriber classes
 @ComponentFactory('ecf.namespace.etcd-endpoint-discovery-factory')
 @Provides(SERVICE_ENDPOINT_ADVERTISER)
-@Property('_hostname','hostname','localhost')
-@Property('_port','port',2379)
-@Property('_top_path','top_path','/org.eclipse.ecf.provider.etcd.EtcdDiscoveryContainer')
-@Property('_session_ttl','_session_ttl',30)
-@Property('_watch_start_wait','watch_start_wait',5)
+@Property('_hostname','etcd.hostname','localhost')
+@Property('_port','etcd.port',2379)
+@Property('_top_path','etcd.toppath','/org.eclipse.ecf.provider.etcd.EtcdDiscoveryContainer')
+@Property('_session_ttl','etcd.sesssionttl',30)
+@Property('_watch_start_wait','etc.watchstartwait',5)
 @Instantiate('ecf.namespace.etcd-endpoint-discovery')
 class EtcdEndpointDiscovery(EndpointAdvertiser,EndpointSubscriber):
     '''
@@ -68,15 +70,6 @@ class EtcdEndpointDiscovery(EndpointAdvertiser,EndpointSubscriber):
     
     Note that this depends upon the python-etcd client library.
     '''
-    # Property names that are read upon ValidateComponent to set
-    # the etcd hostname,port,toppath,session ttl (time to live)
-    # See above for defaults
-    ETCD_HOSTNAME_PROP = 'etcd.hostname'
-    ETCD_PORT_PROP = 'etcd.port'
-    ETCD_TOP_PATH_PROP = 'etcd.toppath'
-    ETCD_SESSION_TTL_PROP = 'etcd.sesssionttl'
-    ETCD_WATCH_START_WAIT_PROP = 'etc.watchstartwait'
-    
     REMOVE_ACTIONS = ['delete','expire']
     ADD_ACTIONS = ['set','create']
     
@@ -103,21 +96,6 @@ class EtcdEndpointDiscovery(EndpointAdvertiser,EndpointSubscriber):
         
     @ValidateComponent(ARG_BUNDLE_CONTEXT)
     def _validate_component(self,bundle_context):
-        hostname = bundle_context.get_property(self.ETCD_HOSTNAME_PROP)
-        if hostname:
-            self._hostname = hostname
-        port = bundle_context.get_property(self.ETCD_PORT_PROP)
-        if port:
-            self._port = int(port)
-        top_path = bundle_context.get_property(self.ETCD_TOP_PATH_PROP)
-        if top_path:
-            self._top_path = top_path
-        session_ttl = bundle_context.get_property(self.ETCD_SESSION_TTL_PROP)
-        if session_ttl:
-            self._session_ttl = int(session_ttl)
-        watch_start_wait = bundle_context.get_property(self.ETCD_WATCH_START_WAIT_PROP)
-        if watch_start_wait:
-            self._watch_start_wait = int(watch_start_wait)
         # now connect
         self._connect()
     
@@ -260,7 +238,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser,EndpointSubscriber):
                 action = result.action
                 if key.endswith(self._sessionid):
                     if action == 'delete':
-                        print('watch_job: session dir deleted...exiting')
+                        _logger.debug('watch_job: session dir deleted...exiting')
                         #we are done
                         return
                 else:
@@ -311,4 +289,6 @@ class EtcdEndpointDiscovery(EndpointAdvertiser,EndpointSubscriber):
                 except:
                     _logger.exception('Exception updating in ttl job')
                 waittime = self._get_start_wait()
+
+# ------------------------------------------------------------------------------# 
         

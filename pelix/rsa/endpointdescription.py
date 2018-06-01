@@ -430,3 +430,4 @@ class EndpointDescription(object):
         """
         return get_ldap_filter(ldap_filter) \
             .matches(self._properties)
+

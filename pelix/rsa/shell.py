@@ -28,6 +28,10 @@ Remote Service Admin Shell Commands
 import logging
 from threading import RLock
 from traceback import print_exception
+from pelix.rsa.providers.distribution import SERVICE_IMPORT_CONTAINER,\
+    SERVICE_EXPORT_CONTAINER, SERVICE_IMPORT_DISTRIBUTION_PROVIDER,\
+    SERVICE_EXPORT_DISTRIBUTION_PROVIDER
+import os
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Module version
@@ -37,12 +41,11 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 from pelix.ipopo.decorators import ComponentFactory, Provides, \
-    Instantiate, Validate, Requires, Property, BindField, UnbindField
+    Instantiate, Validate, Requires, Property, BindField, UnbindField,\
+    Invalidate
 
 from pelix.rsa import SERVICE_REMOTE_SERVICE_ADMIN,\
-    SERVICE_EXPORTED_CONFIGS, SERVICE_EXPORTED_INTERFACES,\
-    SERVICE_IMPORT_DISTRIBUTION_PROVIDER, SERVICE_EXPORT_DISTRIBUTION_PROVIDER,\
-    SERVICE_EXPORT_CONTAINER, SERVICE_IMPORT_CONTAINER
+    SERVICE_EXPORTED_CONFIGS, SERVICE_EXPORTED_INTERFACES, rsid_to_string
 
 from pelix.rsa.remoteserviceadmin import RemoteServiceAdminEvent
 
@@ -57,6 +60,10 @@ def _full_class_name(o):
     return module + '.' + o.__class__.__name__
 
 # ------------------------------------------------------------------------------ 
+# RSA implementation of command handler service...e.g. SERVICE_SHELL_COMMAND
+# Exposes a number of shell commands for RSA operations...e.g. exportservice
+# importservice, listconfigs, listproviders, listcontainers, etc
+# ------------------------------------------------------------------------------
 @ComponentFactory('rsa-command-factory')
 @Requires('_rsa',SERVICE_REMOTE_SERVICE_ADMIN)
 @Requires('_imp_containers',SERVICE_IMPORT_CONTAINER,True,True)
@@ -151,6 +158,11 @@ class RSACommandHandler(object):
     def _validate(self,bundle_context):
         self._context = bundle_context
             
+    @Invalidate
+    def _invalidate(self,bundle_context):
+        if self._edef_filename and os.path.isfile(self._edef_filename):
+            os.remove(self._edef_filename)
+            
     @staticmethod
     def get_namespace():
         return RSACommandHandler.SHELL_NAMESPACE
@@ -179,6 +191,9 @@ class RSACommandHandler(object):
             self._edefwriter.write([event.get_description()], self._edef_filename)
     
     def _list_providers(self, io_handler, providerid=None):
+        '''
+        List export/import providers. If <providerid> given, details on that provider
+        '''
         with self._bind_lock:
             providers = self._get_dist_providers(providerid)
         if len(providers) > 0:
@@ -194,6 +209,9 @@ class RSACommandHandler(object):
 
                 
     def _list_containers(self, io_handler, containerid=None):
+        '''
+        List existing import/export containers.  If <containerid> given, details on that container
+        '''
         with self._bind_lock:
             containers = self._get_containers(containerid)
         if len(containers) > 0:
@@ -224,12 +242,21 @@ class RSACommandHandler(object):
         io_handler.write('\n')
     
     def _list_exported_configs(self, io_handler, endpoint_id=None):  
+        '''
+        List exported services.  If <endpoint_id> given, details on that export
+        '''
         self._list_configs(io_handler,(self._rsa._get_export_regs,'Export'),endpoint_id)
         
     def _list_imported_configs(self, io_handler, endpoint_id=None):
+        '''
+        List imported endpoints.  If <endpoint_id> given, details on that import
+        '''
         self._list_configs(io_handler,(self._rsa._get_import_regs,'Import'),endpoint_id)
     
     def unimport(self, io_handler, endpointid):
+        '''
+        Unimport endpoint with given endpoint.id (required)
+        '''
         import_regs = self._rsa._get_import_regs()
         found_reg = None
         for import_reg in import_regs:
@@ -237,13 +264,16 @@ class RSACommandHandler(object):
             if ed and ed.get_id() == endpointid:
                 found_reg = import_reg
         if not found_reg:
-            io_handler.write('Cannot find import registration with endpoint.id='+endpointid)
+            io_handler.write('Cannot find import registration with endpoint.id={0}\n'.format(endpointid))
             io_handler.flush()
             return
         # now close it
         found_reg.close()
 
     def unexport(self, io_handler, endpointid):
+        '''
+        Unimport endpoint with given endpoint.id (required)
+        '''
         export_regs = self._rsa._get_export_regs()
         found_reg = None
         for export_reg in export_regs:
@@ -251,14 +281,16 @@ class RSACommandHandler(object):
             if ed and ed.get_id() == endpointid:
                 found_reg = export_reg
         if not found_reg:
-            io_handler.write('Cannot find export registration with endpoint.id='+endpointid)
+            io_handler.write('Cannot find export registration with endpoint.id={0}\n'.format(endpointid))
             io_handler.flush()
             return
         # now close it
         found_reg.close()
 
-
-    def export_edef(self, io_handler, service_id, export_config=None, filename=None):
+    def export_edef(self, io_handler, service_id, filename=None, export_config=None):
+        '''
+        Export service with given service.id
+        '''
         svc_ref = self._context.get_service_reference(None,'(service.id={0})'.format(service_id))
         if not svc_ref:
             io_handler.write('Service with id={0} cannot be found so no service can be exported\n'.format(service_id))
@@ -268,26 +300,37 @@ class RSACommandHandler(object):
             self._export_config = export_config
         if filename:
             self._edef_filename = filename
-        io_handler.write('Exporting service={0} using config={1} to file={2}\n'.format(svc_ref,self._export_config,self._edef_filename))
-        io_handler.flush()
         # Finally export
         export_regs = self._rsa.export_service(svc_ref,{ SERVICE_EXPORTED_INTERFACES: '*', SERVICE_EXPORTED_CONFIGS: self._export_config })
+        exported_eds = []
         for export_reg in export_regs:
             exp = export_reg.get_exception()
             if exp:      
-                io_handler.write('\nException exporting service={0}.  Exception stack:\n'.format(export_reg.get_reference()))
+                io_handler.write('\nException exporting service={0}\n'.format(export_reg.get_reference()))
                 print_exception(exp[0],exp[1],exp[2],limit=None, file=io_handler)  
             else:
-                io_handler.write('\nService={0} exported.  Endpoint description:\n'.format(export_reg.get_reference()))
-                io_handler.write(EDEFWriter().to_string([export_reg.get_description()]))
-            io_handler.write('\n')
+                exported_eds.append(export_reg.get_description())
+        # write eds to file
+        with open(self._edef_filename,'w') as f:
+            full_name = os.path.realpath(f.name)
+        # write exported_eds to filename
+        EDEFWriter().write(exported_eds,full_name)
+            
+        io_handler.write('Service={0} exported by {1} providers.  EDEF written to file={2}\n'.format(svc_ref,len(exported_eds),full_name))
         io_handler.flush()
 
     def import_edef(self, io_handler, edeffile=None):
+        '''
+        Import endpoint
+        '''
         if not edeffile:
             edeffile = self._edef_filename
-        io_handler.write('Importing from EDEF file={0}\n'.format(edeffile))
-        eds = EDEFReader().parse(open(edeffile, 'r').read())
+        
+        with open(edeffile) as f:
+            full_name = os.path.realpath(f.name)
+            eds = EDEFReader().parse(f.read())
+            io_handler.write('Imported {0} endpoints from EDEF file={1}\n'.format(len(eds),full_name))
+            
         for ed in eds:
             import_reg = self._rsa.import_service(ed)
             if import_reg:
@@ -296,8 +339,6 @@ class RSACommandHandler(object):
                     io_handler.write('Exception importing endpoint.id={0}\n'.format(import_reg.get_description.get_id()))
                     print_exception(exp[0],exp[1],exp[2],limit=None, file=io_handler)  
                 else:
-                    io_handler.write('Service={0} imported\n'.format(import_reg.get_reference()))
-                    io_handler.write(EDEFWriter().to_string([import_reg.get_description()]))
-                io_handler.write('\n')
+                    io_handler.write('Proxy service={0} imported with remoteserviceid={1}\n'.format(import_reg.get_reference(),rsid_to_string(import_reg.get_remoteservice_id())))
                 io_handler.flush()
 

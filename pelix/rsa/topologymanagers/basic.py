@@ -82,4 +82,3 @@ class BasicTopologyManager(TopologyManager):
     def remote_admin_event(self, event):
         super(BasicTopologyManager,self).remote_admin_event(event)
         
-

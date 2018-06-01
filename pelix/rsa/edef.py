@@ -36,8 +36,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
-import pelix.rsa as rsa
 from pelix.rsa.endpointdescription import EndpointDescription
+from pelix import rsa
 
 # Standard library
 import xml.etree.ElementTree as ElementTree
@@ -454,6 +454,7 @@ class EDEFWriter(object):
         self._indent(root)
 
         return root
+
 
     def to_string(self, endpoints):
         """

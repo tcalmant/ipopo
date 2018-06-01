@@ -28,7 +28,6 @@ XmlRpc-on-HttpService-based Export and Import Distribution Providers
 # ------------------------------------------------------------------------------
 # Standard logging
 import logging
-from pelix.ipopo.constants import ARG_BUNDLE_CONTEXT, ARG_PROPERTIES
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Module version
@@ -37,12 +36,13 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
+from pelix.ipopo.constants import ARG_BUNDLE_CONTEXT, ARG_PROPERTIES
 # RSA constants
-from pelix.rsa import SERVICE_EXPORT_DISTRIBUTION_PROVIDER, SERVICE_EXPORT_CONTAINER, SERVICE_IMPORT_CONTAINER,\
-    SERVICE_IMPORT_DISTRIBUTION_PROVIDER
 # Providers API    
 from pelix.rsa.providers.distribution import ExportContainer,ImportContainer, ExportDistributionProvider,\
-    ImportDistributionProvider
+    ImportDistributionProvider, SERVICE_EXPORT_CONTAINER,\
+    SERVICE_EXPORT_DISTRIBUTION_PROVIDER, SERVICE_IMPORT_CONTAINER,\
+    SERVICE_IMPORT_DISTRIBUTION_PROVIDER
 # Httpservice API
 from pelix.http import HTTP_SERVICE
 # to_str utility
@@ -93,6 +93,8 @@ class ServerDispatcher(SimpleXMLRPCDispatcher):
         # and call _dispatch_func/3
         return self._dispatch_func(int(obj_method_list[0]),obj_method_list[1],params)
 
+# ------------------------------------------------------------------------------
+# Implementation of SERVICE_EXPORT_CONTAINER
 @ComponentFactory(ECF_XMLRPC_SERVER_CONFIG)
 @Provides(SERVICE_EXPORT_CONTAINER)
 class XmlRpcExportContainer(ExportContainer):
@@ -121,7 +123,9 @@ class XmlRpcExportContainer(ExportContainer):
             ExportContainer._invalidate_component(self, bundle_context)  
         except:
             pass
- 
+
+# ------------------------------------------------------------------------------
+# Implementation of SERVICE_EXPORT_DISTRIBUTION_PROVIDER 
 @ComponentFactory("xmlrpc-export-distribution-provider-factory")
 @Provides(SERVICE_EXPORT_DISTRIBUTION_PROVIDER)
 @Property('_config_name', 'config_name', ECF_XMLRPC_SERVER_CONFIG)
@@ -130,6 +134,7 @@ class XmlRpcExportContainer(ExportContainer):
 @Property('_supported_intents', 'supported_intents', ECF_XMLRPC_SUPPORTED_INTENTS)
 @Requires('_httpservice', HTTP_SERVICE)
 @Property('_uri_path', 'uri_path', ECF_XMLRPC_DEFAULT_PATH)
+@Property('_hostname', ECF_XMLRPC_SERVER_CONFIG+'.hostname',None)
 @Instantiate("xmlrpc-export-distribution-provider")
 class XmlRpcExportDistributionProvider(ExportDistributionProvider):
     '''
@@ -159,15 +164,20 @@ class XmlRpcExportDistributionProvider(ExportDistributionProvider):
         uri = 'http://'
         if self._httpservice.is_https():
             uri = 'https://'
-        hostname = container_props.get('host')
+        hostname = container_props.get('hostname',None)
         if not hostname:
-            hostname = self._httpservice.get_hostname()
+            hostname = self._hostname
+            if not hostname:
+                self._httpservice.get_hostname()
         port = container_props.get('port')
         if not port:
             port = str(self._httpservice.get_access()[1])
         uri = uri + '{0}:{1}'.format(hostname,port)
         return uri + self._uri_path
 
+
+# ------------------------------------------------------------------------------
+# Implementation of SERVICE_IMPORT_CONTAINER 
 @ComponentFactory(ECF_XMLRPC_CLIENT_CONFIG)
 @Provides(SERVICE_IMPORT_CONTAINER)
 class XmlRpcImportContainer(ImportContainer):
@@ -197,6 +207,8 @@ class XmlRpcImportContainer(ImportContainer):
         # create instance of XmlRpcProxy and pass in remoteservice id: ((ns,cid),get_remoteservice_id)
         return XmlRpcProxy(endpoint_description.get_remoteservice_id())
           
+# ------------------------------------------------------------------------------
+# Implementation of SERVICE_IMPORT_DISTRIBUTION_PROVIDER 
 @ComponentFactory("xmlrpc-import-distribution-provider-factory")
 @Provides(SERVICE_IMPORT_DISTRIBUTION_PROVIDER)
 @Property('_config_name', 'config_name', ECF_XMLRPC_CLIENT_CONFIG)

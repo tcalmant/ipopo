@@ -2,7 +2,7 @@
 # -- Content-Encoding: UTF-8 --
 """
 
-Topology Manager APIs
+Topology Manager API
 
 :author: Scott Lewis
 :copyright: Copyright 2018, Scott Lewis
@@ -40,13 +40,11 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------# Standard library
 from pelix.ipopo.decorators import Validate, Invalidate, Property
 
-from pelix.rsa.remoteserviceadmin import RemoteServiceAdminListener,\
-    RemoteServiceAdminEvent
-
 from pelix.framework import ServiceEvent
 from pelix.internals.hooks import EventListenerHook
 from pelix.rsa import SERVICE_EXPORTED_INTERFACES, get_exported_interfaces, SERVICE_RSA_EVENT_LISTENER, SERVICE_REMOTE_SERVICE_ADMIN,\
-    ECF_ENDPOINT_CONTAINERID_NAMESPACE
+    ECF_ENDPOINT_CONTAINERID_NAMESPACE, RemoteServiceAdminListener,\
+    RemoteServiceAdminEvent
 from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 from pelix.ipopo.decorators import Provides, Requires
 
@@ -136,4 +134,4 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
     def endpoint_changed(self,endpoint_event,matched_filter):
         print('TopologyManager.endpoint_event called.  You probably want to override this method')
 
-        
+# ------------------------------------------------------------------------------

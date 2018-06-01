@@ -39,9 +39,9 @@ __docformat__ = "restructuredtext en"
 import threading
 import sys
 from distutils.util import strtobool
-from traceback import print_exception
-from datetime import datetime
 from argparse import ArgumentError
+from datetime import datetime
+from traceback import print_exception
 
 from pelix import constants
 from pelix.constants import BundleActivator, SERVICE_RANKING, \
@@ -52,40 +52,144 @@ from pelix.ipopo.decorators import ComponentFactory, Provides, \
     Instantiate, Validate, Invalidate, Requires, RequiresBest
     
 from pelix.rsa import SelectImporterError,\
-    validate_exported_interfaces, RemoteServiceAdminListener, RemoteServiceAdminEvent,\
-    SERVICE_REMOTE_SERVICE_ADMIN, SERVICE_EXPORT_CONTAINER_SELECTOR,\
-    SERVICE_IMPORT_CONTAINER_SELECTOR, SERVICE_RSA_EVENT_LISTENER,\
+    validate_exported_interfaces, RemoteServiceAdminEvent,\
+    SERVICE_REMOTE_SERVICE_ADMIN, SERVICE_RSA_EVENT_LISTENER,\
     get_exported_interfaces, SERVICE_EXPORTED_INTERFACES, get_edef_props_error,\
-    REMOTE_CONFIGS_SUPPORTED, SERVICE_IMPORT_DISTRIBUTION_PROVIDER,\
-    SERVICE_EXPORT_DISTRIBUTION_PROVIDER, SERVICE_EXPORTED_CONFIGS,\
+    REMOTE_CONFIGS_SUPPORTED, SERVICE_EXPORTED_CONFIGS,\
     SERVICE_INTENTS, SERVICE_EXPORTED_INTENTS, SERVICE_EXPORTED_INTENTS_EXTRA,\
-    ECF_ENDPOINT_TIMESTAMP, get_current_time_millis, get_string_plus_property
+    ECF_ENDPOINT_TIMESTAMP, get_current_time_millis, get_string_plus_property,\
+    ExportReference, ExportRegistration, set_append, ImportReference,\
+    ImportRegistration, RemoteServiceAdminListener
         
-from pelix.rsa.endpointdescription import EndpointDescription
-from pelix.rsa.edef import EDEFWriter
+from pelix.rsa.providers.distribution import SERVICE_EXPORT_DISTRIBUTION_PROVIDER,\
+    SERVICE_IMPORT_DISTRIBUTION_PROVIDER
 
+from pelix.rsa.endpointdescription import EndpointDescription
+
+from pelix.rsa.edef import EDEFWriter
+# Framework property that allows RSA debug to be disabled.  To disable automatic
+# output of RSA events, set the property 'pelix.rsa.remoteserviceadmin.debug 
+# to some string other than 'true' (the default)
 DEBUG_PROPERTY = 'pelix.rsa.remoteserviceadmin.debug'
 DEBUG_PROPERTY_DEFAULT = 'true'
+
 # ------------------------------------------------------------------------------
-def _set_append(inputset, item):
-    if item:
-        if isinstance(item,(list,tuple)):
-            inputset.update(item)
-        else:
-            inputset.add(item)
-    return inputset                 
+# Bundle activator.  By default, register an instance of RemoteServiceAdminEventListener
+# service for debugging.  This can be disabled by setting the DEBUG_PROPERTY
+# aka 'pelix.rsa.remoteserviceadmin.debug' to 'false'.
+@BundleActivator
+class Activator(object):
+    def __init__(self):
+        self._context = None
+        self._debug_reg = None
+
+    def start(self, context):
+        self._context = context
+        debugstr = self._context.get_property(DEBUG_PROPERTY)
+        if not debugstr:
+            debugstr = DEBUG_PROPERTY_DEFAULT
+        if strtobool(debugstr):
+            self._debug_reg = self._context.register_service(SERVICE_RSA_EVENT_LISTENER,DebugRemoteServiceAdminListener(),None)
+        
+    def stop(self, _):
+        if self._debug_reg:
+            self._debug_reg.unregister()
+            self._debug_reg = None
+        self._context = None
+
 # ------------------------------------------------------------------------------
-@ComponentFactory('pelix-rsa-remoteserviceadmin-factory')
+# RSA Impl Export Container Selector service specification and default
+# implementation.  The highest priority instance of this service available
+# at runtime is used by the RemoteServiceAdmin implementation to select
+# export containers to handle a given call to RemoteServiceAdmin.export_service
+SERVICE_EXPORT_CONTAINER_SELECTOR = "pelix.rsa.exportcontainerselector"
+class ExportContainerSelector():
+    '''
+    Select export containers, given service_ref (ServiceReference),
+    exported_refs list(string), and export_props dict(string:?).  Each of
+    these parameters must not be None.
+    
+    :param service_ref ServiceReference for possible export
+    :param exported_intf list of strings defining the service specifications
+    to be exported for the service
+    :param export_prop the service properties to be used for export after
+    combining the service_ref properties with any overriding properties.
+    :return list of ExportContainer instances that will be responsible for
+    exporting the given service.  Will not return None, but may return
+    empty list
+    '''
+    def select_export_containers(self, service_ref, exported_intfs, export_props):
+        raise Exception('{0}.select_export_containers is not implemented'.format(self))
+    
+@ComponentFactory('pelix-rsa-exporterselector-factory')
+@Provides(SERVICE_EXPORT_CONTAINER_SELECTOR)
+@Requires('_export_distribution_providers', SERVICE_EXPORT_DISTRIBUTION_PROVIDER, True, True)
+@Instantiate(SERVICE_EXPORT_CONTAINER_SELECTOR, { SERVICE_RANKING: -1000000000 })
+class ExportContainerSelectorImpl(ExportContainerSelector):
+    
+    def __init__(self):
+        self._export_distribution_providers = []
+        
+    def select_export_containers(self, service_ref, exported_intfs, export_props):
+        # get exported configs
+        exported_configs = get_string_plus_property(SERVICE_EXPORTED_CONFIGS,export_props,None)
+        # get service intents, via service.intents, services.exported.intents, and extra
+        service_intents_set = set_append(set(), export_props.get(SERVICE_INTENTS,None))
+        service_intents_set = set_append(service_intents_set, export_props.get(SERVICE_EXPORTED_INTENTS,None))
+        service_intents_set = set_append(service_intents_set, export_props.get(SERVICE_EXPORTED_INTENTS_EXTRA,None))
+        
+        export_containers = []
+        for export_provider in self._export_distribution_providers:
+            export_container = export_provider.supports_export(exported_configs,list(service_intents_set),export_props)
+            if export_container:
+                export_containers.append(export_container)
+                
+        return export_containers
+    
+# ------------------------------------------------------------------------------
+# Import Container Selector service specification and default
+# implementation.  The highest priority instance of this service available
+# at runtime is used by the RemoteServiceAdmin implementation to select
+# a single import container to handle a given call to RemoteServiceAdmin.import_service
+SERVICE_IMPORT_CONTAINER_SELECTOR = 'pelix.rsa.importcontainerselector'
+class ImportContainerSelector():
+    '''
+    Select import container, given endpoint_description (EndpointDescription).
+    Returns a single ImportContainer, or None.
+    
+    :param EndpointDescription endpoint_description describing endpoint for possible
+    import
+    :return ImportContainer instance or None
+    '''
+    def select_import_container(self, remote_configs, endpoint_description):
+        raise Exception('{0}.select_import_container is not implemented'.format(self))
+# ------------------------------------------------------------------------------    
+@ComponentFactory('pelix-rsa-importerselector-factory')
+@Provides(SERVICE_IMPORT_CONTAINER_SELECTOR)
+@Requires('_import_distribution_providers', SERVICE_IMPORT_DISTRIBUTION_PROVIDER, True, True)
+@Instantiate('pelix-rsa-importerselector-impl', { SERVICE_RANKING: -1000000000 })    
+class ImportContainerSelectorImpl(ImportContainerSelector):
+    
+    def __init__(self):
+        self._import_distribution_providers = []
+        
+    def select_import_container(self, remote_configs, endpoint_description):
+        for import_provider in self._import_distribution_providers:
+            import_container = import_provider.supports_import(remote_configs, endpoint_description.get_intents(), endpoint_description.get_properties())
+            if import_container:
+                return import_container    
+                                  
+# ------------------------------------------------------------------------------
+# Implementation of RemoteServiceAdmin service
+# ------------------------------------------------------------------------------
+@ComponentFactory('pelix-rsa-remoteserviceadminimpl-factory')
 @Provides(SERVICE_REMOTE_SERVICE_ADMIN)
 @RequiresBest('_export_container_selector', SERVICE_EXPORT_CONTAINER_SELECTOR, False)
 @RequiresBest('_import_container_selector', SERVICE_IMPORT_CONTAINER_SELECTOR, False)
 @Requires('_rsa_event_listeners', SERVICE_RSA_EVENT_LISTENER, True, True)
-@Instantiate(SERVICE_REMOTE_SERVICE_ADMIN)
-class RemoteServiceAdmin(object):
-    '''
-    iPopo implementation of RemoteServiceAdmin service specified by Chapter 122 in 
-    the OSGi Enterprise specification chapter 122.  See https://www.osgi.org/developer/specifications/
-    '''
+@Instantiate('pelix-rsa-remoteserviceadminimpl')
+class RemoteServiceAdminImpl(object):
+
     def get_exported_services(self):
         result = []
         for reg in self._get_export_regs():
@@ -139,7 +243,7 @@ class RemoteServiceAdmin(object):
                     return []
             except:
                 error_props = get_edef_props_error(service_ref.get_property(OBJECTCLASS))
-                error_reg = ExportRegistration.fromexception(sys.exc_info(), EndpointDescription(service_ref, error_props))
+                error_reg = ExportRegistrationImpl.fromexception(sys.exc_info(), EndpointDescription(service_ref, error_props))
                 export_event = RemoteServiceAdminEvent.fromexportreg(self._get_bundle(), error_reg)
                 result_regs.append(error_reg)
                 self._add_exported_service(error_reg)
@@ -159,11 +263,11 @@ class RemoteServiceAdmin(object):
                         #if so then found_regs will be non-empty
                         if len(found_regs) > 0:
                             for found_reg in found_regs:
-                                new_reg = ExportRegistration.fromreg(self, found_reg)
+                                new_reg = ExportRegistrationImpl.fromreg(self, found_reg)
                                 self._add_exported_service(new_reg)
                                 result_regs.append(new_reg)
                         else:
-                            # Now we actually export
+                            # Here is where export is done
                             export_reg = None
                             export_event = None
                             try:
@@ -173,10 +277,10 @@ class RemoteServiceAdmin(object):
                                 export_ed = exporter.export_service(service_ref, ed_props)
                                 # if a valid export_ed was returned
                                 if export_ed:
-                                    export_reg = ExportRegistration.fromendpoint(self, exporter, export_ed, service_ref)
+                                    export_reg = ExportRegistrationImpl.fromendpoint(self, exporter, export_ed, service_ref)
                                     export_event = RemoteServiceAdminEvent.fromexportreg(self._get_bundle(), export_reg)
                             except Exception as e:
-                                export_reg = ExportRegistration.fromexception(sys.exc_info(), EndpointDescription.fromprops(ed_props))
+                                export_reg = ExportRegistrationImpl.fromexception(sys.exc_info(), EndpointDescription.fromprops(ed_props))
                                 export_event = RemoteServiceAdminEvent.fromexportreg(self._get_bundle(), export_reg)
                         # add exported reg to exported services
                         self._add_exported_service(export_reg)
@@ -206,7 +310,7 @@ class RemoteServiceAdmin(object):
             if not importer:
                 raise SelectImporterError('Could not find importer for endpoint={0}'.format(endpoint_description))
         except:
-            import_reg = ImportRegistration.fromexception(sys.exc_info(), endpoint_description)
+            import_reg = ImportRegistrationImpl.fromexception(sys.exc_info(), endpoint_description)
             import_event = RemoteServiceAdminEvent.fromimportreg(self._get_bundle(), import_reg)
 
         if not import_reg:
@@ -220,17 +324,18 @@ class RemoteServiceAdmin(object):
                     #if so then found_regs will be non-empty
                     ex = found_reg.get_exception()
                     if ex:
-                        new_reg = ImportRegistration.fromexception(ex, endpoint_description)
+                        new_reg = ImportRegistrationImpl.fromexception(ex, endpoint_description)
                     else:
-                        new_reg = ImportRegistration.fromreg(self, found_reg)
+                        new_reg = ImportRegistrationImpl.fromreg(self, found_reg)
                     self._add_imported_service(new_reg)
                     return new_reg
+                # Here is where new import is done
                 try:
                     svc_reg = importer.import_service(endpoint_description)
-                    import_reg = ImportRegistration.fromendpoint(self, importer, endpoint_description, svc_reg)
+                    import_reg = ImportRegistrationImpl.fromendpoint(self, importer, endpoint_description, svc_reg)
                     import_event = RemoteServiceAdminEvent.fromimportreg(self._get_bundle(), import_reg)
                 except Exception:
-                    import_reg = ImportRegistration.fromexception(sys.exc_info(), endpoint_description)
+                    import_reg = ImportRegistrationImpl.fromexception(sys.exc_info(), endpoint_description)
                     import_event = RemoteServiceAdminEvent.fromimportreg(self._get_bundle(), import_reg)
         self._imported_regs.append(import_reg)
         self._publish_event(import_event)
@@ -318,156 +423,10 @@ class RemoteServiceAdmin(object):
         with self._imported_regs_lock:
             self._imported_regs.remove(import_reg)
 
-@ComponentFactory('pelix-rsa-importerselector-factory')
-@Provides(SERVICE_IMPORT_CONTAINER_SELECTOR)
-@Requires('_import_distribution_providers', SERVICE_IMPORT_DISTRIBUTION_PROVIDER, True, True)
-@Instantiate(SERVICE_IMPORT_CONTAINER_SELECTOR, { SERVICE_RANKING: -1000000000 })    
-class ImportContainerSelector():
-    
-    def __init__(self):
-        self._import_distribution_providers = []
-        
-    def select_import_container(self, remote_configs, endpoint_description):
-        for import_provider in self._import_distribution_providers:
-            import_container = import_provider.supports_import(remote_configs, endpoint_description.get_intents(), endpoint_description.get_properties())
-            if import_container:
-                return import_container
-      
-@ComponentFactory('pelix-rsa-exporterselector-factory')
-@Provides(SERVICE_EXPORT_CONTAINER_SELECTOR)
-@Requires('_export_distribution_providers', SERVICE_EXPORT_DISTRIBUTION_PROVIDER, True, True)
-@Instantiate(SERVICE_EXPORT_CONTAINER_SELECTOR, { SERVICE_RANKING: -1000000000 })
-class ExportContainerSelector():
-    
-    def __init__(self):
-        self._export_distribution_providers = []
-        
-    def select_export_containers(self, service_ref, exported_intfs, export_props):
-        # get exported configs
-        exported_configs = get_string_plus_property(SERVICE_EXPORTED_CONFIGS,export_props,None)
-        # get service intents, via service.intents, services.exported.intents, and extra
-        service_intents_set = _set_append(set(), export_props.get(SERVICE_INTENTS,None))
-        service_intents_set = _set_append(service_intents_set, export_props.get(SERVICE_EXPORTED_INTENTS,None))
-        service_intents_set = _set_append(service_intents_set, export_props.get(SERVICE_EXPORTED_INTENTS_EXTRA,None))
-        
-        export_containers = []
-        for export_provider in self._export_distribution_providers:
-            export_container = export_provider.supports_export(exported_configs,list(service_intents_set),export_props)
-            if export_container:
-                export_containers.append(export_container)
-                
-        return export_containers
-                 
-class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
-
-    EXPORT_MASK = RemoteServiceAdminEvent.EXPORT_ERROR\
-        | RemoteServiceAdminEvent.EXPORT_REGISTRATION\
-        | RemoteServiceAdminEvent.EXPORT_UNREGISTRATION\
-        | RemoteServiceAdminEvent.EXPORT_WARNING
-            
-    IMPORT_MASK = RemoteServiceAdminEvent.IMPORT_ERROR\
-        | RemoteServiceAdminEvent.IMPORT_REGISTRATION\
-        | RemoteServiceAdminEvent.IMPORT_UNREGISTRATION\
-        | RemoteServiceAdminEvent.IMPORT_WARNING
-            
-    ALL_MASK = EXPORT_MASK | IMPORT_MASK
-
-    def __init__(self,file=sys.stdout,event_mask=ALL_MASK,write_endpoint=True,ed_encoding='unicode',xml_declaration=True):
-        self._output = file
-        self._writer = EDEFWriter(ed_encoding, xml_declaration)
-        self._event_mask = event_mask
-        self._write_endpoint = write_endpoint
-        self._eventtypestr = { RemoteServiceAdminEvent.EXPORT_ERROR:'EXPORT_ERROR',RemoteServiceAdminEvent.EXPORT_REGISTRATION:'EXPORT_REGISTRATION',\
-                          RemoteServiceAdminEvent.EXPORT_UNREGISTRATION:'EXPORT_UNREGISTRATION',RemoteServiceAdminEvent.EXPORT_UPDATE:'EXPORT_UPDATE',\
-                          RemoteServiceAdminEvent.EXPORT_WARNING:'EXPORT_WARNING',RemoteServiceAdminEvent.IMPORT_ERROR:'IMPORT_ERROR',\
-                          RemoteServiceAdminEvent.IMPORT_REGISTRATION:'IMPORT_REGISTRATION',RemoteServiceAdminEvent.IMPORT_UNREGISTRATION:'IMPORT_UNREGISTRATION',\
-                          RemoteServiceAdminEvent.IMPORT_UPDATE:'IMPORT_UPDATE',RemoteServiceAdminEvent.IMPORT_WARNING:'IMPORT_WARNING' }
-        self._exporttypes = [RemoteServiceAdminEvent.EXPORT_REGISTRATION,RemoteServiceAdminEvent.EXPORT_UNREGISTRATION,\
-                             RemoteServiceAdminEvent.EXPORT_UPDATE,RemoteServiceAdminEvent.EXPORT_WARNING]
-        self._importtypes = [RemoteServiceAdminEvent.IMPORT_REGISTRATION,RemoteServiceAdminEvent.IMPORT_UNREGISTRATION,\
-                             RemoteServiceAdminEvent.IMPORT_UPDATE,RemoteServiceAdminEvent.IMPORT_WARNING]
-        self._errortypes = [RemoteServiceAdminEvent.EXPORT_ERROR,RemoteServiceAdminEvent.IMPORT_ERROR]
-    
-    def write_description(self,ed):
-        if self._write_endpoint and ed:
-            self._output.write('---Endpoint Description---\n')
-            self._output.write(self._writer.to_string([ed]))
-            self._output.write('\n---End Endpoint Description---\n')
-            self._output.flush()
-
-    def write_ref(self,svc_ref,cid,rsid,ed):
-        if svc_ref:
-            self._output.write(str(svc_ref)+';')
-        self._output.write('local='+str(cid))
-        # get_remoteservice_id should be of form:  ((ns,cid,get_remoteservice_id)
-        self._output.write(';remote=')
-        if isinstance(rsid,tuple) and len(list(rsid)) == 2:
-            nscid = rsid[0]
-            if isinstance(nscid,tuple) and len(list(nscid)) == 2:
-                self._output.write(str(nscid[1])+':'+str(rsid[1]))
-        else:
-            self._output.write(str(rsid))
-        self._output.write('\n')
-        self._output.flush()
-        self.write_description(ed)
-    
-    def write_exception(self,exception):
-        self._output.write('---Exception Stack---\n')
-        print_exception(exception[0],exception[1],exception[2],limit=None, file=self._output)   
-        self._output.write('---End Exception Stack---\n')
-
-    def write_type(self,event_type):
-        (dt, micro) = datetime.now().strftime('%H:%M:%S.%f').split('.')
-        dt = "%s.%03d" % (dt, int(micro) / 1000)
-        self._output.write(dt+';'+self._eventtypestr.get(event_type,'UNKNOWN')+';')
-
-    def write_event(self,rsa_event):
-        event_type = rsa_event.get_type()
-        rs_ref = None
-        svc_ref = None
-        exception = None
-        self.write_type(event_type)
-        if event_type in self._exporttypes:
-            rs_ref = rsa_event.get_export_ref()
-        elif event_type in self._importtypes:
-            rs_ref = rsa_event.get_import_ref()
-        elif event_type in self._errortypes:
-            exception = rsa_event.get_exception()
-        if rs_ref:
-            svc_ref = rs_ref.get_reference()
-        self.write_ref(svc_ref,rsa_event.get_container_id(),rsa_event.get_remoteservice_id(),rsa_event.get_description())
-        if exception:
-            self.write_exception(exception)
-                
-    def remote_admin_event(self, event):
-        self.write_event(event)
-
-@BundleActivator
-class Activator(object):
-    def __init__(self):
-        self._context = None
-        self._debug_reg = None
-
-    def start(self, context):
-        self._context = context
-        debugstr = self._context.get_property(DEBUG_PROPERTY)
-        if not debugstr:
-            debugstr = DEBUG_PROPERTY_DEFAULT
-        if strtobool(debugstr):
-            self._debug_reg = self._context.register_service(SERVICE_RSA_EVENT_LISTENER,DebugRemoteServiceAdminListener(),None)
-        
-    def stop(self, _):
-        if self._debug_reg:
-            self._debug_reg.unregister()
-            self._debug_reg = None
-        self._context = None
-
 # ------------------------------------------------------------------------------
-
+# Internal class used to implement ExportRegistration/ExportReference below.
 class _ExportEndpoint(object):
-    '''Export Endpoint class.  Represents an endpoint for an exported
-    service.  
-    '''
+
     def __init__(self, rsa, export_container, ed, svc_ref):
         assert rsa
         self.__rsa = rsa
@@ -532,7 +491,7 @@ class _ExportEndpoint(object):
                 try:
                     self.__export_container.unexport_service(self.__ed)
                 except:
-                    _logger.get_exception('get_exception in exporter.unexport_service ed={0}'.format(self.__ed))
+                    _logger.exception('get_exception in exporter.unexport_service ed={0}'.format(self.__ed))
                 self.__rsa._remove_exported_service(export_reg)
                 self.__ed = None
                 self.__export_container = None
@@ -540,8 +499,11 @@ class _ExportEndpoint(object):
                 self.__rsa = None
                 return True
         return False
-    
-class ExportReference(object):
+
+# ------------------------------------------------------------------------------
+# Implementation of ExportReference API.  See ExportReference class for external
+# contract and documentation
+class ExportReferenceImpl(ExportReference):
     
     @classmethod
     def fromendpoint(cls,endpoint):
@@ -595,9 +557,12 @@ class ExportReference(object):
             else:
                 result = self.__endpoint.close(export_reg)
                 self.__endpoint = None
-                return result
+                return result != None
             
-class ExportRegistration(object):
+# ------------------------------------------------------------------------------
+# Implementation of ExportRegistration API.  See ExportRegistration class for external
+# contract and documentation
+class ExportRegistrationImpl(ExportRegistration):
 
     @classmethod
     def fromreg(cls, export_reg):
@@ -615,12 +580,12 @@ class ExportRegistration(object):
         if endpoint is None:
             if exception is None or errored is None:
                 raise ArgumentError('export endpoint or get_exception/errorED must not be null')
-            self.__exportref = ExportReference.fromexception(exception, errored)
+            self.__exportref = ExportReferenceImpl.fromexception(exception, errored)
             self.__rsa = None
         else:
             self.__rsa = endpoint._rsa()
             endpoint._add_export_registration(self)   
-            self.__exportref = ExportReference.fromendpoint(endpoint)
+            self.__exportref = ExportReferenceImpl.fromendpoint(endpoint)
         self.__closed = False
         self.__updateexception = None
         self.__lock = threading.RLock()
@@ -755,12 +720,12 @@ class _ImportEndpoint(object):
                     try:
                         self.__svc_reg.unregister()
                     except:
-                        _logger.get_exception('Exception unregistering local proxy={0}'.format(self.__svc_reg.get_reference()))
+                        _logger.exception('Exception unregistering local proxy={0}'.format(self.__svc_reg.get_reference()))
                     self.__svc_reg = None
                 try:
                     self.__importer.unimport_service(self.__ed)
                 except:
-                    _logger.get_exception('Exception calling importer.unimport_service with ed={0}'.format(self.__ed))
+                    _logger.exception('Exception calling importer.unimport_service with ed={0}'.format(self.__ed))
                     return False
                 self.__rsa._remove_imported_service(import_reg)
                 self.__importer = None
@@ -769,7 +734,10 @@ class _ImportEndpoint(object):
                 return True
         return False        
 
-class ImportReference(object):
+# ------------------------------------------------------------------------------
+# Implementation of ExportReference API.  See ExportReference class for external
+# contract and documentation
+class ImportReferenceImpl(ImportReference):
     
     @classmethod
     def fromendpoint(cls,endpoint):
@@ -837,7 +805,10 @@ class ImportReference(object):
                 self.__endpoint = None
                 return result
         
-class ImportRegistration(object):
+# ------------------------------------------------------------------------------
+# Implementation of ExportRegistration API.  See ExportRegistration class for external
+# contract and documentation
+class ImportRegistrationImpl(ImportRegistration):
 
     @classmethod
     def fromendpoint(cls,rsa,importer,ed,svc_reg):
@@ -855,12 +826,12 @@ class ImportRegistration(object):
         if endpoint is None:
             if exception is None or errored is None:
                 raise ArgumentError('export endpoint or get_exception/errorED must not be null')
-            self.__importref = ImportReference.fromexception(exception, errored)
+            self.__importref = ImportReferenceImpl.fromexception(exception, errored)
             self.__rsa = None
         else:
             self.__rsa = endpoint._rsa()
             endpoint._add_import_registration(self)   
-            self.__importref = ImportReference.fromendpoint(endpoint)
+            self.__importref = ImportReferenceImpl.fromendpoint(endpoint)
         self.__closed = False
         self.__lock = threading.RLock()
     
@@ -920,4 +891,92 @@ class ImportRegistration(object):
         if publish and import_ref and self.__rsa:
             self.__rsa._publish_event(RemoteServiceAdminEvent.fromimportunreg(self.__rsa._get_bundle(), 
                                      importerid, rsid, import_ref, exception, ed))
-            self.__rsa = None    
+            self.__rsa = None             
+# ------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------    
+# Implementation of RemoteServiceAdminListener that supports debugging by printing
+# out information about the RemoteServiceAdminEvents.
+class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
+
+    EXPORT_MASK = RemoteServiceAdminEvent.EXPORT_ERROR\
+        | RemoteServiceAdminEvent.EXPORT_REGISTRATION\
+        | RemoteServiceAdminEvent.EXPORT_UNREGISTRATION\
+        | RemoteServiceAdminEvent.EXPORT_WARNING
+            
+    IMPORT_MASK = RemoteServiceAdminEvent.IMPORT_ERROR\
+        | RemoteServiceAdminEvent.IMPORT_REGISTRATION\
+        | RemoteServiceAdminEvent.IMPORT_UNREGISTRATION\
+        | RemoteServiceAdminEvent.IMPORT_WARNING
+            
+    ALL_MASK = EXPORT_MASK | IMPORT_MASK
+
+    def __init__(self,file=sys.stdout,event_mask=ALL_MASK,write_endpoint=True,ed_encoding='unicode',xml_declaration=True):
+        self._output = file
+        self._writer = EDEFWriter(ed_encoding, xml_declaration)
+        self._event_mask = event_mask
+        self._write_endpoint = write_endpoint
+        self._eventtypestr = { RemoteServiceAdminEvent.EXPORT_ERROR:'EXPORT_ERROR',RemoteServiceAdminEvent.EXPORT_REGISTRATION:'EXPORT_REGISTRATION',\
+                          RemoteServiceAdminEvent.EXPORT_UNREGISTRATION:'EXPORT_UNREGISTRATION',RemoteServiceAdminEvent.EXPORT_UPDATE:'EXPORT_UPDATE',\
+                          RemoteServiceAdminEvent.EXPORT_WARNING:'EXPORT_WARNING',RemoteServiceAdminEvent.IMPORT_ERROR:'IMPORT_ERROR',\
+                          RemoteServiceAdminEvent.IMPORT_REGISTRATION:'IMPORT_REGISTRATION',RemoteServiceAdminEvent.IMPORT_UNREGISTRATION:'IMPORT_UNREGISTRATION',\
+                          RemoteServiceAdminEvent.IMPORT_UPDATE:'IMPORT_UPDATE',RemoteServiceAdminEvent.IMPORT_WARNING:'IMPORT_WARNING' }
+        self._exporttypes = [RemoteServiceAdminEvent.EXPORT_REGISTRATION,RemoteServiceAdminEvent.EXPORT_UNREGISTRATION,\
+                             RemoteServiceAdminEvent.EXPORT_UPDATE,RemoteServiceAdminEvent.EXPORT_WARNING]
+        self._importtypes = [RemoteServiceAdminEvent.IMPORT_REGISTRATION,RemoteServiceAdminEvent.IMPORT_UNREGISTRATION,\
+                             RemoteServiceAdminEvent.IMPORT_UPDATE,RemoteServiceAdminEvent.IMPORT_WARNING]
+        self._errortypes = [RemoteServiceAdminEvent.EXPORT_ERROR,RemoteServiceAdminEvent.IMPORT_ERROR]
+    
+    def write_description(self,ed):
+        if self._write_endpoint and ed:
+            self._output.write('---Endpoint Description---\n')
+            self._output.write(self._writer.to_string([ed]))
+            self._output.write('\n---End Endpoint Description---\n')
+            self._output.flush()
+
+    def write_ref(self,svc_ref,cid,rsid,ed):
+        if svc_ref:
+            self._output.write(str(svc_ref)+';')
+        self._output.write('local='+str(cid))
+        # get_remoteservice_id should be of form:  ((ns,cid,get_remoteservice_id)
+        self._output.write(';remote=')
+        if isinstance(rsid,tuple) and len(list(rsid)) == 2:
+            nscid = rsid[0]
+            if isinstance(nscid,tuple) and len(list(nscid)) == 2:
+                self._output.write(str(nscid[1])+':'+str(rsid[1]))
+        else:
+            self._output.write(str(rsid))
+        self._output.write('\n')
+        self._output.flush()
+        self.write_description(ed)
+    
+    def write_exception(self,exception):
+        self._output.write('---Exception Stack---\n')
+        print_exception(exception[0],exception[1],exception[2],limit=None, file=self._output)   
+        self._output.write('---End Exception Stack---\n')
+
+    def write_type(self,event_type):
+        (dt, micro) = datetime.now().strftime('%H:%M:%S.%f').split('.')
+        dt = "%s.%03d" % (dt, int(micro) / 1000)
+        self._output.write(dt+';'+self._eventtypestr.get(event_type,'UNKNOWN')+';')
+
+    def write_event(self,rsa_event):
+        event_type = rsa_event.get_type()
+        rs_ref = None
+        svc_ref = None
+        exception = None
+        self.write_type(event_type)
+        if event_type in self._exporttypes:
+            rs_ref = rsa_event.get_export_ref()
+        elif event_type in self._importtypes:
+            rs_ref = rsa_event.get_import_ref()
+        elif event_type in self._errortypes:
+            exception = rsa_event.get_exception()
+        if rs_ref:
+            svc_ref = rs_ref.get_reference()
+        self.write_ref(svc_ref,rsa_event.get_container_id(),rsa_event.get_remoteservice_id(),rsa_event.get_description())
+        if exception:
+            self.write_exception(exception)
+                
+    def remote_admin_event(self, event):
+        self.write_event(event)
+

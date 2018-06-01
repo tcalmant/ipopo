@@ -39,7 +39,7 @@ __docformat__ = "restructuredtext en"
 from pelix.ipopo.constants import SERVICE_IPOPO, IPOPO_INSTANCE_NAME, ARG_BUNDLE_CONTEXT,\
     ARG_PROPERTIES
 from pelix.ipopo.decorators import Requires, ValidateComponent, Invalidate
-from pelix.rsa import DISTRIBUTION_PROVIDER_CONTAINER_PROP, get_dot_properties, SERVICE_INTENTS,\
+from pelix.rsa import get_dot_properties, SERVICE_INTENTS,\
     merge_dicts, ECF_RSVC_ID, RemoteServiceError,copy_non_reserved,\
     ECF_SERVICE_EXPORTED_ASYNC_INTERFACES,ENDPOINT_ID,SERVICE_ID,\
     SERVICE_IMPORTED, SERVICE_IMPORTED_CONFIGS,REMOTE_CONFIGS_SUPPORTED,\
@@ -50,10 +50,17 @@ from pelix.constants import OBJECTCLASS, SERVICE_SCOPE, FRAMEWORK_UID
 import pelix.rsa as rsa    
 from threading import RLock
 from pelix.rsa.endpointdescription import EndpointDescription
-# ------------------------------------------------------------------------------# Standard library
+
+# Standard service property that is added to the set of properties provided
+# to the call to ipop.instantiate(container_factory,container_id,properties
+# The property value is guaranteed to refer to the self instance of the
+# distribution provider that is creating/instantiating the container
+DISTRIBUTION_PROVIDER_CONTAINER_PROP = "pelix.rsa.distributionprovider"
+# ------------------------------------------------------------------------------#
+# Abstract DistributionProvider superclass
 @Requires('_rsa',SERVICE_REMOTE_SERVICE_ADMIN)
 @Requires('_ipopo', SERVICE_IPOPO)
-class DistributionProvider():
+class DistributionProvider(object):
     '''
     Abstract super class for all distribution providers.
     Does not expose and 'public' methods (all methods _)
@@ -208,6 +215,11 @@ class DistributionProvider():
         if import_reg:
             import_reg.close()
 
+# ------------------------------------------------------------------------------# 
+# Specification for SERVICE_EXPORT_DISTRIBUTION_PROVIDER
+SERVICE_EXPORT_DISTRIBUTION_PROVIDER = "pelix.rsa.exportdistributionprovider"
+# Abstract implementation of SERVICE_EXPORT_DISTRIBUTION_PROVIDER extends
+# DistributionProvider superclass
 class ExportDistributionProvider(DistributionProvider):      
     '''
     Export distribution provider.  
@@ -233,7 +245,12 @@ class ExportDistributionProvider(DistributionProvider):
         The default implementation returns self._get_or_create_container.
         '''
         return self._get_or_create_container(exported_configs, service_intents, export_props)
-        
+       
+# ------------------------------------------------------------------------------# 
+# Specification for SERVICE_IMPORT_DISTRIBUTION_PROVIDER      
+SERVICE_IMPORT_DISTRIBUTION_PROVIDER = "pelix.rsa.importdistributionprovider" 
+# Abstract implementation of SERVICE_EXPORT_DISTRIBUTION_PROVIDER
+# extends DistributionProvider superclass
 class ImportDistributionProvider(DistributionProvider):
     
     def _prepare_container_id(self,container_props):
@@ -256,6 +273,8 @@ class ImportDistributionProvider(DistributionProvider):
         '''
         return self._get_or_create_container(exported_configs, service_intents, endpoint_props)
 
+# ------------------------------------------------------------------------------# 
+# Abstract Container type supporting both ImportContainer and ExportContainer
 class Container():
     
     def __init__(self):
@@ -315,7 +334,13 @@ class Container():
     
     def get_connected_id(self):
         return None
-        
+
+# ------------------------------------------------------------------------------# 
+# Service specification for SERVICE_EXPORT_CONTAINER        
+SERVICE_EXPORT_CONTAINER = "pelix.rsa.exportcontainer"
+# Abstract implementation of SERVICE_EXPORT_CONTAINER service specification
+# extends Container class.  New export distribution containers should use this
+# class as a superclass to inherit required behavior.
 class ExportContainer(Container):
     
     def _get_service_intents(self):
@@ -379,7 +404,13 @@ class ExportContainer(Container):
         
     def get_connected_id(self):
         return self.get_id()
-    
+
+# ------------------------------------------------------------------------------# 
+# Service specification for SERVICE_IMPORT_CONTAINER            
+SERVICE_IMPORT_CONTAINER = "pelix.rsa.importcontainer"
+# Abstract implementation of SERVICE_IMPORT_CONTAINER service specification
+# extends Container class.  New import container classes should
+# subclass this ImportContainer class to inherit necessary functionality.
 class ImportContainer(Container):
     
     def _get_imported_configs(self,exported_configs):
@@ -415,3 +446,5 @@ class ImportContainer(Container):
     
     def unimport_service(self,ed):
         pass
+
+# ------------------------------------------------------------------------------# 

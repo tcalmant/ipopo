@@ -28,8 +28,6 @@ Discovery Provider API
 # ------------------------------------------------------------------------------
 # Standard logging
 import logging
-from pelix.rsa import get_string_plus_property, get_string_plus_property_value,\
-    ECF_ENDPOINT_CONTAINERID_NAMESPACE
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Module version
@@ -38,12 +36,13 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------# Standard library
+from pelix.rsa import get_string_plus_property, get_string_plus_property_value,\
+    ECF_ENDPOINT_CONTAINERID_NAMESPACE
 from pelix.rsa.endpointdescription import EndpointDescription
 from threading import RLock
 from pelix.ipopo.decorators import Provides, ComponentFactory, Instantiate,\
     BindField, UnbindField, Requires
 #------------------------------------------------------------------------------# Standard library
-
 # Endpoint advertiser service specification.  EndpointAdvertiser services
 # are used to advertise exported remote services.  See EndpointAdvertiser
 # class below.  
@@ -139,6 +138,9 @@ class EndpointAdvertiser(object):
     def _unadvertise(self,advertised):
         raise Exception('Endpoint._unadvertise must be overridden by subclasses')
     
+#------------------------------------------------------------------------------# Standard library
+# EndpointEvent implemenatation used to provide EndpointEventListener service
+# instances with valid EndpointEvent by endpoint advertisers
 class EndpointEvent(object):
     '''
     EndpointEvents are used by endpoint advertisers to call
@@ -174,6 +176,7 @@ class EndpointEvent(object):
     def __str__(self):
         return 'EndpointEvent(type={0},ed={1})'.format(self.get_type(),self.get_endpoint_description())
     
+#------------------------------------------------------------------------------# Standard library
 # Endpoint listener service specification
 # This service specification is exposed by instances that wish to be
 # notified by discovery providers when an EndpointEvent has occurred.
@@ -181,7 +184,6 @@ class EndpointEvent(object):
 # a service endpoint listener so that discovery subscribers can
 # notify all such services when an endpoint event has been received.
 SERVICE_ENDPOINT_LISTENER = 'pelix.rsa.discovery.endpointeventlistener'
-
 class EndpointEventListener(object):
     '''
     Subclasses should override the endpoint_changed method
@@ -212,10 +214,10 @@ class EndpointEventListener(object):
         :param matched_filter the filter (as string) that matched
         this endpoint event listener service instance.
         '''
-        pass
+        raise Exception("{0}.endpoint_changed not implemented".format(self))
 
 @Requires('_event_listeners',SERVICE_ENDPOINT_LISTENER,True,True)
-class EndpointSubscriber():
+class EndpointSubscriber(object):
     '''
     Utility superclass for EndpointSubscribers.  
     '''
