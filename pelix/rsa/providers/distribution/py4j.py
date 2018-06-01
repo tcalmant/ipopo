@@ -88,7 +88,7 @@ class Py4jContainer(ExportContainer,ImportContainer):
         return True
 
     def _unexport_service(self, ed):
-        self._get_distribution_provider().unexport(ed.get_id())
+        self._get_distribution_provider()._get_bridge().unexport(ed.get_id())
         ExportContainer._unexport_service(self, ed)
         return True
     
@@ -96,7 +96,7 @@ class Py4jContainer(ExportContainer,ImportContainer):
         # lookup the bridge proxy associated with the ed.get_id()
         bridge = self._get_distribution_provider()._get_bridge()
         proxy = bridge.get_import_endpoint(ed.get_id())[0]
-        args = [ bridge.get_jvm(), ed.get_interfaces(), proxy ]
+        args = [ bridge.get_jvm(), ed.get_interfaces(), proxy, ed.get_remoteservice_idstr()]
         clazz = JavaServiceProxy
         if ECF_PY4JPB_JAVA_HOST_CONFIG_TYPE in ed.get_remote_configs_supported():
             clazz = ProtobufServiceProxy

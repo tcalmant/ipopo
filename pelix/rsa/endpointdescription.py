@@ -44,7 +44,7 @@ from pelix.rsa import set_prop_if_null, get_prop_value, get_matching_interfaces,
     ECF_SERVICE_EXPORTED_ASYNC_NOPROXY, ECF_ASYNC_INTERFACE_SUFFIX, ECF_SERVICE_ASYNC_RSPROXY_CLASS_, \
     ENDPOINT_PACKAGE_VERSION_, REMOTE_INTENTS_SUPPORTED, SERVICE_IMPORTED_CONFIGS,\
     REMOTE_CONFIGS_SUPPORTED, SERVICE_INTENTS, is_reserved_property, merge_dicts,\
-    get_string_plus_property
+    get_string_plus_property, rsid_to_string
 from pelix.ldapfilter import get_ldap_filter
 
 def encode_list(k,l):
@@ -322,6 +322,9 @@ class EndpointDescription(object):
     
     def get_remoteservice_id(self):
         return (self.get_container_id(), self._rs_id)
+    
+    def get_remoteservice_idstr(self):
+        return rsid_to_string(self.get_remoteservice_id())
     
     def get_id_filters(self):
         return self._id_filters
