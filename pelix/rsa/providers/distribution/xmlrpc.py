@@ -28,7 +28,8 @@ XmlRpc-on-HttpService-based Export and Import Distribution Providers
 # ------------------------------------------------------------------------------
 # Standard logging
 import logging
-from pelix.rsa import prop_dot_suffix
+from pelix.rsa import prop_dot_suffix, OSGI_BASIC_TIMEOUT_INTENT
+from concurrent.futures.thread import ThreadPoolExecutor
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Module version
@@ -57,11 +58,13 @@ try:
     # pylint: disable=F0401
     from xmlrpc.server import SimpleXMLRPCDispatcher
     import xmlrpc.client as xmlrpclib
+    from concurrent.futures import Executor
 except ImportError:
     # Python 2
     # pylint: disable=F0401
     from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
     import xmlrpclib
+    Executor = None
 # ------------------------------------------------------------------------------
 # XmlRpc Distribution Provider Constants.  Note that to get interoperability with
 # Java-based ECF RSA providers, these must match the Java-side constants.
@@ -69,9 +72,10 @@ ECF_XMLRPC_SERVER_CONFIG = 'ecf.xmlrpc.server'
 ECF_XMLRPC_CLIENT_CONFIG = 'ecf.xmlrpc.client'
 ECF_XMLRPC_SUPPORTED_CONFIGS = [ ECF_XMLRPC_SERVER_CONFIG ]
 ECF_XMLRPC_NAMESPACE = 'ecf.namespace.xmlrpc'
-ECF_XMLRPC_SUPPORTED_INTENTS =  [ 'osgi.basic' ]
+ECF_XMLRPC_SUPPORTED_INTENTS =  [ 'osgi.basic', 'osgi.async' ]
 ECF_XMLRPC_PATH_PROP = 'path'
 ECF_XMLRPC_HOSTNAME_PROP = 'hostname'
+
 # ------------------------------------------------------------------------------
 class ServerDispatcher(SimpleXMLRPCDispatcher):
     '''ServerDispatcher (subclass of SimpleXMLRPCDispatcher)
@@ -79,9 +83,11 @@ class ServerDispatcher(SimpleXMLRPCDispatcher):
     for method invocation requests.  See do_POST and _dispatch 
     for the actual method invocation.   
     '''
-    def __init__(self,dispatch_func):
+    def __init__(self,dispatch_func,timeout=None,executor=None):
         super(ServerDispatcher, self).__init__(allow_none=True)
         self._dispatch_func = dispatch_func
+        self._timeout = timeout
+        self._executor = executor
 
     def do_POST(self, request, response):
         data = to_str(request.read_data())
@@ -93,7 +99,10 @@ class ServerDispatcher(SimpleXMLRPCDispatcher):
         if not len(obj_method_list) == 2:
             raise Exception('_dispatch: invalid method='+method+'.  Must be of form <objectid>.<methodname>')
         # and call _dispatch_func/3
-        return self._dispatch_func(int(obj_method_list[0]),obj_method_list[1],params)
+        if self._executor:
+            return self._executor.submit(self._dispatch_func, obj_method_list[0], obj_method_list[1], params).result(self._timeout)
+        else:
+            return self._dispatch_func(obj_method_list[0],obj_method_list[1],params)
 
 # ------------------------------------------------------------------------------
 # Implementation of SERVICE_EXPORT_CONTAINER
@@ -111,8 +120,13 @@ class XmlRpcExportContainer(ExportContainer):
     def _validate_component(self, bundle_context, container_props):
         ExportContainer._validate_component(self, bundle_context, container_props)
         dp = self._get_distribution_provider()
-        # register the _XmlRpcServlet instance with the desired uri_path
-        dp._httpservice.register_servlet(dp._uri_path,ServerDispatcher(self._dispatch_exported))
+        timeout = container_props.get(OSGI_BASIC_TIMEOUT_INTENT,None)/1000
+        if Executor:
+            executor = ThreadPoolExecutor(max_workers=5)
+        else:
+            executor = None
+        # register the ServerDispatcher instance our uri_path
+        dp._httpservice.register_servlet(dp._uri_path,ServerDispatcher(self._dispatch_exported,timeout,executor))
     
     @Invalidate
     def _invalidate_component(self, bundle_context):

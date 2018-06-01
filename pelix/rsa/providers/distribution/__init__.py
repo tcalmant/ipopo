@@ -280,8 +280,8 @@ class Container():
     def __init__(self):
         self._bundle_context = None
         self._container_props = None
-        self._rs_instances = {}
-        self._rs_instances_lock = RLock()
+        self._exported_services = {}
+        self._exported_instances_lock = RLock()
 
     def get_id(self):
         return self._container_props.get(IPOPO_INSTANCE_NAME,None)
@@ -302,24 +302,31 @@ class Container():
     
     @Invalidate
     def _invalidate_component(self, bundle_context):
-        with self._rs_instances_lock:
-            self._rs_instances.clear()
+        with self._exported_instances_lock:
+            self._exported_services.clear()
 
     def _get_bundle_context(self):
         return self._bundle_context
     
-    def _add_export(self, get_remoteservice_id, inst):
-        with self._rs_instances_lock:
-            self._rs_instances[get_remoteservice_id] = inst
+    def _add_export(self, ed_id, inst):
+        with self._exported_instances_lock:
+            self._exported_services[ed_id] = inst
             
-    def _remove_export(self, get_remoteservice_id):    
-        with self._rs_instances_lock:
-            return self._rs_instances.pop(get_remoteservice_id,None)
+    def _remove_export(self, ed_id):    
+        with self._exported_instances_lock:
+            return self._exported_services.pop(ed_id,None)
              
-    def _get_export(self, get_remoteservice_id):
-        with self._rs_instances_lock:
-            return self._rs_instances.get(get_remoteservice_id,None)
-            
+    def _get_export(self, ed_id):
+        with self._exported_instances_lock:
+            return self._exported_services.get(ed_id,None)
+    
+    def _find_export(self, func):
+        with self._exported_instances_lock:
+            for val in self._exported_services.values():
+                if func(val):
+                    return val
+        return None
+             
     def _get_distribution_provider(self):
         return self._container_props[DISTRIBUTION_PROVIDER_CONTAINER_PROP]
     
@@ -346,18 +353,15 @@ class ExportContainer(Container):
     def _get_service_intents(self):
         return self._container_props.get(SERVICE_INTENTS)
      
-    def _export_service(self,svc,ed_props):
-        self._add_export(ed_props.get(ECF_RSVC_ID), svc)
+    def _export_service(self,svc,ed):
+        self._add_export(ed.get_id(), (svc,ed))
 
     def _update_service(self, ed):
         # do nothing by default, subclasses may override
         pass
     
     def _unexport_service(self, ed):
-        return self._remove_export(ed.get_properties().get(ECF_RSVC_ID))
-    
-    def _prepare_endpoint_extra_props(self, export_props):
-        return {}
+        return self._remove_export(ed.get_id())
     
     def prepare_endpoint_props(self, intfs, svc_ref, export_props):
         pkg_vers = rsa.get_package_versions(intfs, export_props)
@@ -369,8 +373,7 @@ class ExportContainer(Container):
                                       rsa.get_next_rsid(), 
                                       rsa.get_current_time_millis())
         extra_props = rsa.get_extra_props(export_props)
-        exporter_props = self._prepare_endpoint_extra_props(export_props)
-        merged = rsa.merge_dicts(rsa_props, ecf_props, extra_props, exporter_props)
+        merged = rsa.merge_dicts(rsa_props, ecf_props, extra_props)
         # remove service.bundleid
         merged.pop(SERVICE_BUNDLE_ID,None)
         # remove service.scope
@@ -378,8 +381,9 @@ class ExportContainer(Container):
         return merged
     
     def export_service(self, svc_ref, export_props):
-        self._export_service(self._get_bundle_context().get_service(svc_ref), export_props.copy())
-        return EndpointDescription.fromprops(export_props)
+        ed = EndpointDescription.fromprops(export_props)
+        self._export_service(self._get_bundle_context().get_service(svc_ref), ed)
+        return ed
 
     def update_service(self, ed):
         return self._update_service(ed)
@@ -387,13 +391,13 @@ class ExportContainer(Container):
     def unexport_service(self, ed):
         return self._unexport_service(ed)
     
-    def _dispatch_exported(self,get_remoteservice_id,method_name,params):
-        # first lookup service instance
-        service = self._get_export(get_remoteservice_id)
+    def _dispatch_exported(self,rs_id,method_name,params):
+        # first lookup service instance by comparing the rs_id against the service's remote service id
+        service = self._find_export(lambda val: val[1].get_remoteservice_id()[1] == int(rs_id))
         if not service:
-            raise RemoteServiceError('Unknown instance with get_remoteservice_id={0} for method call={1}'.format(str(get_remoteservice_id),method_name))
+            raise RemoteServiceError('Unknown service with rs_id={0} for method call={1}'.format(rs_id,method_name))
         # Get the method
-        method_ref = getattr(service, method_name, None)
+        method_ref = getattr(service[0], method_name, None)
         if method_ref is None:
             raise RemoteServiceError("Unknown method {0}".format(method_name))
         # Call it (let the errors be propagated)
