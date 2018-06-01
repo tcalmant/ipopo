@@ -925,6 +925,10 @@ def cid_to_string(cid):
 def rsid_to_string(rsid):
     return '{0}:{1}'.format(cid_to_string(rsid[0]),rsid[1])
 
+def prop_dot_suffix(propname,suffix=None):
+    if not suffix:
+        suffix = ''
+    return '{0}.{1}'.format(propname,suffix)
 # ------------------------------------------------------------------------------
 # Exception classes
 class SelectExporterError(Exception):

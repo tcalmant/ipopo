@@ -26,12 +26,6 @@ Remote Service Admin Shell Commands
 # ------------------------------------------------------------------------------
 # Standard logging
 import logging
-from threading import RLock
-from traceback import print_exception
-from pelix.rsa.providers.distribution import SERVICE_IMPORT_CONTAINER,\
-    SERVICE_EXPORT_CONTAINER, SERVICE_IMPORT_DISTRIBUTION_PROVIDER,\
-    SERVICE_EXPORT_DISTRIBUTION_PROVIDER
-import os
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Module version
@@ -40,12 +34,20 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
+from threading import RLock
+from traceback import print_exception
+import os
+
+from pelix.rsa.providers.distribution import SERVICE_IMPORT_CONTAINER,\
+    SERVICE_EXPORT_CONTAINER, SERVICE_IMPORT_DISTRIBUTION_PROVIDER,\
+    SERVICE_EXPORT_DISTRIBUTION_PROVIDER
 from pelix.ipopo.decorators import ComponentFactory, Provides, \
     Instantiate, Validate, Requires, Property, BindField, UnbindField,\
     Invalidate
 
 from pelix.rsa import SERVICE_REMOTE_SERVICE_ADMIN,\
-    SERVICE_EXPORTED_CONFIGS, SERVICE_EXPORTED_INTERFACES, rsid_to_string
+    SERVICE_EXPORTED_CONFIGS, SERVICE_EXPORTED_INTERFACES, rsid_to_string,\
+    prop_dot_suffix
 
 from pelix.rsa.remoteserviceadmin import RemoteServiceAdminEvent
 
@@ -59,6 +61,9 @@ def _full_class_name(o):
         return o.__class__.__name__
     return module + '.' + o.__class__.__name__
 
+RSA_COMMAND_NAME_PROP = 'rsa.command'
+RSA_COMMAND_FILENAME_PROP = 'edeffilename'
+RSA_COMMAND_EXPORT_CONFIG_PROP = 'defaultexportconfig'
 # ------------------------------------------------------------------------------ 
 # RSA implementation of command handler service...e.g. SERVICE_SHELL_COMMAND
 # Exposes a number of shell commands for RSA operations...e.g. exportservice
@@ -71,8 +76,8 @@ def _full_class_name(o):
 @Requires('_imp_dist_providers',SERVICE_IMPORT_DISTRIBUTION_PROVIDER,True,True)
 @Requires('_exp_dist_providers',SERVICE_EXPORT_DISTRIBUTION_PROVIDER,True,True)
 @Provides([SERVICE_SHELL_COMMAND])
-@Property('_edef_filename','filename','edef.xml')
-@Property('_export_config','export_config','ecf.xmlrpc.server')
+@Property('_edef_filename',prop_dot_suffix(RSA_COMMAND_NAME_PROP,RSA_COMMAND_FILENAME_PROP),'edef.xml')
+@Property('_export_config',prop_dot_suffix(RSA_COMMAND_NAME_PROP,RSA_COMMAND_EXPORT_CONFIG_PROP),'ecf.xmlrpc.server')
 @Instantiate('rsa-command')
 class RSACommandHandler(object):
     
@@ -92,8 +97,7 @@ class RSACommandHandler(object):
         self._exp_containers = []
         self._imp_dist_providers = []
         self._imp_dist_providers = []
-        self._edef_filename = None
-        self._default_export_config = None
+        self._edef_filename = self._export_config = None
         self._bind_lock = RLock()
 
     def _bind_lists(self,field,service):
@@ -287,7 +291,7 @@ class RSACommandHandler(object):
         # now close it
         found_reg.close()
 
-    def export_edef(self, io_handler, service_id, filename=None, export_config=None):
+    def export_edef(self, io_handler, service_id, export_config=None, filename=None):
         '''
         Export service with given service.id
         '''

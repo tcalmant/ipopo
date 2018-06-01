@@ -343,15 +343,11 @@ class RemoteServiceAdminImpl(object):
 
     def __init__(self):
         self._context = None
-
         self._exported_regs = []
         self._exported_regs_lock = threading.RLock()
-      
         self._imported_regs = []
         self._imported_regs_lock = threading.RLock()
-        
         self._rsa_event_listeners = []
-        
         self._export_container_selector = None
         self._import_container_selector = None
              
@@ -382,8 +378,7 @@ class RemoteServiceAdminImpl(object):
         with self._imported_regs_lock:
             for reg in self._imported_regs:
                 reg.close()
-                self._imported_regs.clear()
-                
+                self._imported_regs.clear()  
         self._context = None
         
     def _unexport_service(self,svc_ref):
@@ -493,10 +488,7 @@ class _ExportEndpoint(object):
                 except:
                     _logger.exception('get_exception in exporter.unexport_service ed={0}'.format(self.__ed))
                 self.__rsa._remove_exported_service(export_reg)
-                self.__ed = None
-                self.__export_container = None
-                self.__svc_ref = None
-                self.__rsa = None
+                self.__ed = self.__export_container = self.__svc_ref = self.__rsa = None
                 return True
         return False
 
@@ -523,8 +515,7 @@ class ExportReferenceImpl(ExportReference):
             self.__endpoint = None
         else:
             self.__endpoint = endpoint
-            self.__exception = None
-            self.__errored = None
+            self.__exception = self.__errored = None
     
     def get_export_container_id(self):
         with self.__lock:
@@ -633,11 +624,7 @@ class ExportRegistrationImpl(ExportRegistration):
     
     def close(self):
         publish = False
-        exporterid = None
-        rsid = None
-        exception = None
-        export_ref = None
-        ed = None
+        exporterid = rsid = exception = export_ref = ed = None
         with self.__lock:
             if not self.__closed:
                 exporterid = self.__exportref.get_export_container_id()
@@ -728,9 +715,7 @@ class _ImportEndpoint(object):
                     _logger.exception('Exception calling importer.unimport_service with ed={0}'.format(self.__ed))
                     return False
                 self.__rsa._remove_imported_service(import_reg)
-                self.__importer = None
-                self.__ed = None
-                self.__rsa = None
+                self.__importer = self.__ed = self.__rsa = None
                 return True
         return False        
 
@@ -757,8 +742,7 @@ class ImportReferenceImpl(ImportReference):
             self.__endpoint = None
         else:
             self.__endpoint = endpoint
-            self.__exception = None
-            self.__errored = None
+            self.__exception = self.__errored = None
         
     def _importendpoint(self):
         with self.__lock:
@@ -873,11 +857,7 @@ class ImportRegistrationImpl(ImportRegistration):
     
     def close(self):
         publish = False
-        importerid = None
-        rsid = None
-        import_ref = None
-        exception = None
-        ed = None
+        importerid = rsid = import_ref = exception = ed = None
         with self.__lock:
             if not self.__closed:
                 importerid = self.__importref.get_import_container_id()

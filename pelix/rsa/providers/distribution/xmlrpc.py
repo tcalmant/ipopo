@@ -28,6 +28,7 @@ XmlRpc-on-HttpService-based Export and Import Distribution Providers
 # ------------------------------------------------------------------------------
 # Standard logging
 import logging
+from pelix.rsa import prop_dot_suffix
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Module version
@@ -68,8 +69,9 @@ ECF_XMLRPC_SERVER_CONFIG = 'ecf.xmlrpc.server'
 ECF_XMLRPC_CLIENT_CONFIG = 'ecf.xmlrpc.client'
 ECF_XMLRPC_SUPPORTED_CONFIGS = [ ECF_XMLRPC_SERVER_CONFIG ]
 ECF_XMLRPC_NAMESPACE = 'ecf.namespace.xmlrpc'
-ECF_XMLRPC_SUPPORTED_INTENTS =  [ 'osgi.async', 'osgi.basic' ]
-ECF_XMLRPC_DEFAULT_PATH = '/xml-rpc'
+ECF_XMLRPC_SUPPORTED_INTENTS =  [ 'osgi.basic' ]
+ECF_XMLRPC_PATH_PROP = 'path'
+ECF_XMLRPC_HOSTNAME_PROP = 'hostname'
 # ------------------------------------------------------------------------------
 class ServerDispatcher(SimpleXMLRPCDispatcher):
     '''ServerDispatcher (subclass of SimpleXMLRPCDispatcher)
@@ -133,8 +135,8 @@ class XmlRpcExportContainer(ExportContainer):
 @Property('_supported_configs','supported_configs', ECF_XMLRPC_SUPPORTED_CONFIGS)
 @Property('_supported_intents', 'supported_intents', ECF_XMLRPC_SUPPORTED_INTENTS)
 @Requires('_httpservice', HTTP_SERVICE)
-@Property('_uri_path', 'uri_path', ECF_XMLRPC_DEFAULT_PATH)
-@Property('_hostname', ECF_XMLRPC_SERVER_CONFIG+'.hostname',None)
+@Property('_uri_path', prop_dot_suffix(ECF_XMLRPC_SERVER_CONFIG,ECF_XMLRPC_PATH_PROP), '/xml-rpc')
+@Property('_hostname', prop_dot_suffix(ECF_XMLRPC_SERVER_CONFIG,ECF_XMLRPC_HOSTNAME_PROP),None)
 @Instantiate("xmlrpc-export-distribution-provider")
 class XmlRpcExportDistributionProvider(ExportDistributionProvider):
     '''

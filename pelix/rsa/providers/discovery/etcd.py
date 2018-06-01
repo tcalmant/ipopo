@@ -46,21 +46,28 @@ from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate,\
     ValidateComponent, Property, Invalidate
 from pelix.rsa.providers.discovery import SERVICE_ENDPOINT_ADVERTISER,\
     EndpointAdvertiser, EndpointEvent, EndpointSubscriber
-from pelix.rsa import create_uuid
+from pelix.rsa import create_uuid, prop_dot_suffix
 from pelix.ipopo.constants import ARG_BUNDLE_CONTEXT
    
 import etcd
+
+ETCD_NAME_PROP = 'etcd'
+ETCD_HOSTNAME_PROP = 'hostname'
+ETCD_PORT_PROP = 'port'
+ETCD_TOPPATH_PROP = 'toppath'
+ETCD_SESSIONTTL_PROP = 'sessionttl'
+ETCD_WATCHSTART_WAIT_PROP = 'watchstartwait'
 # ------------------------------------------------------------------------------# 
 # Etcd-based implementation of EndpointAdvertiser and EndpointSubscriber
 # discovery APIs.  See EndpointAdviser and EndpointSubscriber classes
-@ComponentFactory('ecf.namespace.etcd-endpoint-discovery-factory')
+@ComponentFactory('etcd-endpoint-discovery-factory')
 @Provides(SERVICE_ENDPOINT_ADVERTISER)
-@Property('_hostname','etcd.hostname','localhost')
-@Property('_port','etcd.port',2379)
-@Property('_top_path','etcd.toppath','/org.eclipse.ecf.provider.etcd.EtcdDiscoveryContainer')
-@Property('_session_ttl','etcd.sesssionttl',30)
-@Property('_watch_start_wait','etc.watchstartwait',5)
-@Instantiate('ecf.namespace.etcd-endpoint-discovery')
+@Property('_hostname',prop_dot_suffix(ETCD_NAME_PROP,ETCD_HOSTNAME_PROP),'localhost')
+@Property('_port',prop_dot_suffix(ETCD_NAME_PROP,ETCD_PORT_PROP),2379)
+@Property('_top_path',prop_dot_suffix(ETCD_NAME_PROP,ETCD_TOPPATH_PROP),'/org.eclipse.ecf.provider.etcd.EtcdDiscoveryContainer')
+@Property('_session_ttl',prop_dot_suffix(ETCD_NAME_PROP,ETCD_SESSIONTTL_PROP),30)
+@Property('_watch_start_wait',prop_dot_suffix(ETCD_NAME_PROP,ETCD_WATCHSTART_WAIT_PROP),5)
+@Instantiate('etcd-endpoint-discovery')
 class EtcdEndpointDiscovery(EndpointAdvertiser,EndpointSubscriber):
     '''
     Etcd-based endpoint discovery.  Extends both EndpointAdvertiser
@@ -76,18 +83,12 @@ class EtcdEndpointDiscovery(EndpointAdvertiser,EndpointSubscriber):
     def __init__(self):
         EndpointAdvertiser.__init__(self)
         EndpointSubscriber.__init__(self)
-        self._hostname = None
-        self._port = None
-        self._top_path = None
+        self._hostname = self._port = self._top_path = None
         self._sessionid = create_uuid()   
-        self._session_ttl = None
-        self._watch_start_wait = None
+        self._session_ttl = self._watch_start_wait = None
         self._client = None 
         self._client_lock = RLock() 
-        self._top_nodes = None
-        self._wait_index = None
-        self._ttl_thread = None
-        self._watch_thread = None
+        self._top_nodes = self._wait_index = self._ttl_thread = self._watch_thread = None
         servicename = 'osgirsvc_{0}'.format(create_uuid())
         hostip = socket.gethostbyname(socket.gethostname())
         self._service_props = {'location':'ecfosgisvc://{0}:32565/{1}'.format(hostip,servicename),'priority': 0,'weight': 0,
@@ -149,7 +150,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser,EndpointSubscriber):
         with self._client_lock:
             if self._client:
                 raise Exception('already connected')
-            
+            # create etcd Client instance
             self._client = etcd.Client(host=self._hostname, port=self._port)
             # now make request against basic
             try:
@@ -161,7 +162,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser,EndpointSubscriber):
                 except Exception as e:
                     _logger.exception('Exception attempting to create top dir={0}'.format(self._top_path))
                     raise e
-            # set top nodes
+            # set top nodes with list comprehension base top_response subtree
             self._top_nodes = [x for x in list(top_response.get_subtree()) if x.dir and x.key != self._top_path]
             try:
                 session_exists_result = self._client.write(key=self._get_session_path(),
@@ -204,7 +205,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser,EndpointSubscriber):
                     # decode
                     decoded_props = decode_endpoint_props(raw_props)
                     ed = EndpointDescription(properties=decoded_props)
-                    
+                    # add discovered endpoint to our internal list
                     self._add_discovered_endpoint(ed)
                     # dispatch
                     self._fire_endpoint_event(EndpointEvent.ADDED, ed)

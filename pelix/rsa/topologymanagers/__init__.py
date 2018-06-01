@@ -56,8 +56,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
     
     def __init__(self):
         self._advertisers = []
-        self._context = None
-        self._rsa = None
+        self._context = self._rsa = None
 
     @Validate
     def _validate(self, context):
