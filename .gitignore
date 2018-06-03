@@ -7,8 +7,11 @@ __pycache__/
 .mypy_cache/
 
 # IDE
+.project
+.classpath
 .settings/
 .idea/
+.vscode
 
 # Python build
 build/
