@@ -182,7 +182,7 @@ class Py4jDistributionProvider(DistributionProvider,Py4jServiceBridgeEventListen
 
     @Validate
     def _validate(self,context):
-        ### XXX here is where we can get java and python ports
+        ### here is where we can get java and python ports
         ## and change the defaults for connecting
         try:
             self._bridge = Py4jServiceBridge(service_listener=self,gateway_parameters=GatewayParameters(port=self._javaport),
@@ -193,7 +193,8 @@ class Py4jDistributionProvider(DistributionProvider,Py4jServiceBridgeEventListen
             raise e
         # Once bridge is connected, instantiate container using bridge id
         container_props = self._prepare_container_props(self._supported_intents, None)
-        container_props[ECF_PY4J_DEFAULT_SERVICE_TIMEOUT] = self._default_service_timeout
+        if self._default_service_timeout:
+            container_props[ECF_PY4J_DEFAULT_SERVICE_TIMEOUT] = self._default_service_timeout
         self._container = self._ipopo.instantiate(self._config_name,self._bridge.get_id(),container_props)
         
     @Invalidate
