@@ -43,7 +43,10 @@ from pelix.rsa import get_dot_properties, SERVICE_INTENTS,\
     merge_dicts, ECF_RSVC_ID, RemoteServiceError,copy_non_reserved,\
     ECF_SERVICE_EXPORTED_ASYNC_INTERFACES,ENDPOINT_ID,SERVICE_ID,\
     SERVICE_IMPORTED, SERVICE_IMPORTED_CONFIGS,REMOTE_CONFIGS_SUPPORTED,\
-    SERVICE_BUNDLE_ID,convert_string_plus_value, create_uuid,SERVICE_REMOTE_SERVICE_ADMIN
+    SERVICE_BUNDLE_ID,convert_string_plus_value, create_uuid,SERVICE_REMOTE_SERVICE_ADMIN,\
+    SERVICE_EXPORTED_CONFIGS, get_string_plus_property,\
+    get_string_plus_property_value, SERVICE_EXPORTED_INTENTS_EXTRA,\
+    SERVICE_EXPORTED_INTENTS
     
 from pelix.constants import OBJECTCLASS, SERVICE_SCOPE, FRAMEWORK_UID
     
@@ -350,8 +353,8 @@ SERVICE_EXPORT_CONTAINER = "pelix.rsa.exportcontainer"
 # class as a superclass to inherit required behavior.
 class ExportContainer(Container):
     
-    def _get_service_intents(self):
-        return self._container_props.get(SERVICE_INTENTS)
+    def _get_supported_intents(self):
+        return self._get_distribution_provider().get_supported_intents()
      
     def _export_service(self,svc,ed):
         self._add_export(ed.get_id(), (svc,ed))
@@ -365,10 +368,26 @@ class ExportContainer(Container):
     
     def prepare_endpoint_props(self, intfs, svc_ref, export_props):
         pkg_vers = rsa.get_package_versions(intfs, export_props)
-        rsa_props = rsa.get_rsa_props(intfs, [self.get_config_name()], 
-                                      self._get_service_intents(), 
+        exported_configs = get_string_plus_property_value(svc_ref.get_property(SERVICE_EXPORTED_CONFIGS))
+        if not exported_configs:
+            exported_configs = [self.get_config_name()]
+        service_intents = set()
+        svc_intents = export_props.get(SERVICE_INTENTS,None)
+        if svc_intents:
+            service_intents.update(svc_intents)
+        svc_exp_intents = export_props.get(SERVICE_EXPORTED_INTENTS,None)
+        if svc_exp_intents:
+            service_intents.update(svc_exp_intents)
+        svc_exp_intents_extra = export_props.get(SERVICE_EXPORTED_INTENTS_EXTRA,None)
+        if svc_exp_intents_extra:
+            service_intents.update(svc_exp_intents_extra)
+        
+        rsa_props = rsa.get_rsa_props(intfs, exported_configs, 
+                                      self._get_supported_intents(), 
                                       svc_ref.get_property(SERVICE_ID), 
-                                      svc_ref.get_property(FRAMEWORK_UID), pkg_vers)
+                                      svc_ref.get_property(FRAMEWORK_UID), 
+                                      pkg_vers,
+                                      list(service_intents))
         ecf_props = rsa.get_ecf_props(self.get_id(), self.get_namespace(), 
                                       rsa.get_next_rsid(), 
                                       rsa.get_current_time_millis())
@@ -418,8 +437,7 @@ SERVICE_IMPORT_CONTAINER = "pelix.rsa.importcontainer"
 class ImportContainer(Container):
     
     def _get_imported_configs(self,exported_configs):
-        dp = self._get_distribution_provider();
-        return dp._get_imported_configs(exported_configs)
+        return self._get_distribution_provider()._get_imported_configs(exported_configs)
     
     def _prepare_proxy_props(self, ed):
         result_props = copy_non_reserved(ed.get_properties(),dict())
@@ -429,11 +447,11 @@ class ImportContainer(Container):
         result_props.pop(SERVICE_BUNDLE_ID,None)
         result_props.pop(SERVICE_SCOPE,None)
         result_props.pop(IPOPO_INSTANCE_NAME,None)
-        intents = convert_string_plus_value(ed.get_intents())
+        intents = ed.get_intents()
         if intents:
             result_props[SERVICE_INTENTS] = intents
         result_props[SERVICE_IMPORTED] = True
-        result_props[SERVICE_IMPORTED_CONFIGS] = self._get_imported_configs(ed.get_remote_configs_supported())      
+        result_props[SERVICE_IMPORTED_CONFIGS] = ed.get_imported_configs()      
         result_props[ENDPOINT_ID] = ed.get_id()     
         asyn = ed.get_async_interfaces()
         if asyn and len(asyn) > 0:
@@ -444,6 +462,7 @@ class ImportContainer(Container):
         raise Exception('ImportContainer._prepare_proxy must be implemented by subclass')
     
     def import_service(self, ed):
+        ed.update_imported_configs(self._get_imported_configs(ed.get_remote_configs_supported()))
         proxy = self._prepare_proxy(ed)
         if proxy:
             return self._get_bundle_context().register_service(ed.get_interfaces(),proxy,self._prepare_proxy_props(ed))

@@ -234,6 +234,7 @@ class RemoteServiceAdminImpl(object):
             result_regs = []
             result_events = []
             exporters = None
+            error_props = get_edef_props_error(service_ref.get_property(OBJECTCLASS))
             try:
                 # get list of exporters from export_container_selector service
                 exporters = self._export_container_selector.select_export_containers(service_ref, exported_intfs, export_props)
@@ -242,7 +243,6 @@ class RemoteServiceAdminImpl(object):
                     _logger.warning('No exporting containers found to export service_ref={0};export_props='.format(service_ref,export_props))
                     return []
             except:
-                error_props = get_edef_props_error(service_ref.get_property(OBJECTCLASS))
                 error_reg = ExportRegistrationImpl.fromexception(sys.exc_info(), EndpointDescription(service_ref, error_props))
                 export_event = RemoteServiceAdminEvent.fromexportreg(self._get_bundle(), error_reg)
                 result_regs.append(error_reg)
@@ -270,6 +270,7 @@ class RemoteServiceAdminImpl(object):
                             # Here is where export is done
                             export_reg = None
                             export_event = None
+                            ed_props = error_props
                             try:
                                 # use exporter.make_endpoint_props to make endpoint props, expect dictionary in response
                                 ed_props = exporter.prepare_endpoint_props(exported_intfs, service_ref, export_props)

@@ -830,7 +830,7 @@ def merge_overriding_props(service_ref,overriding_props):
     ref_props = copy_ref_props(service_ref)
     return merge_dicts(ref_props, overriding_props)
 
-def get_rsa_props(object_class, exported_cfgs, intents=None, ep_svc_id=None, fw_id=None, pkg_vers=None):
+def get_rsa_props(object_class, exported_cfgs, remote_intents=None, ep_svc_id=None, fw_id=None, pkg_vers=None, service_intents=None):
     results = {}
     if not object_class:
         raise ArgumentError('object_class must be an [] of Strings')
@@ -839,8 +839,10 @@ def get_rsa_props(object_class, exported_cfgs, intents=None, ep_svc_id=None, fw_
         raise ArgumentError('rmt_configs must be an array of Strings')
     results[REMOTE_CONFIGS_SUPPORTED] = exported_cfgs
     results[SERVICE_IMPORTED_CONFIGS] = exported_cfgs
-    if intents:
-        results[REMOTE_INTENTS_SUPPORTED] = intents
+    if remote_intents:
+        results[REMOTE_INTENTS_SUPPORTED] = remote_intents
+    if service_intents:
+        results[SERVICE_INTENTS] = service_intents
     if not ep_svc_id:
         ep_svc_id = get_next_rsid()
     results[ENDPOINT_SERVICE_ID] = ep_svc_id
@@ -871,7 +873,6 @@ def get_ecf_props(ep_id, ep_id_ns, rsvc_id=None, ep_ts=None):
     if not ep_ts:
         ep_ts = time_since_epoch()
     results[ECF_ENDPOINT_TIMESTAMP] = ep_ts
-    results[ECF_SERVICE_EXPORTED_ASYNC_INTERFACES] = '*'
     return results
 
 def get_extra_props(props):
@@ -882,13 +883,13 @@ def get_extra_props(props):
                 result[key] = value
     return result
 
-def get_edef_props(object_class, exported_cfgs, ep_namespace, ep_id, ecf_ep_id, ep_rsvc_id, ep_ts, intents, fw_id=None, pkg_ver=None):
-    osgi_props = get_rsa_props(object_class, exported_cfgs, intents, ep_rsvc_id, fw_id, pkg_ver)
+def get_edef_props(object_class, exported_cfgs, ep_namespace, ep_id, ecf_ep_id, ep_rsvc_id, ep_ts, remote_intents=None, fw_id=None, pkg_ver=None, service_intents=None):
+    osgi_props = get_rsa_props(object_class, exported_cfgs, remote_intents, ep_rsvc_id, fw_id, pkg_ver, service_intents)
     ecf_props = get_ecf_props(ecf_ep_id, ep_namespace, ep_rsvc_id, ep_ts)
     return merge_dicts(osgi_props,ecf_props)
 
 def get_edef_props_error(object_class):
-    return get_edef_props(object_class, ERROR_IMPORTED_CONFIGS, ERROR_NAMESPACE, ERROR_EP_ID, ERROR_ECF_EP_ID, 0, 0, None, None)
+    return get_edef_props(object_class, ERROR_IMPORTED_CONFIGS, ERROR_NAMESPACE, ERROR_EP_ID, ERROR_ECF_EP_ID, 0, 0)
 
 def get_dot_properties(prefix,props,remove_prefix):    
     result_props = dict()

@@ -27,15 +27,15 @@ Py4j-based Distribution and Discovery Provider
 """
 # ------------------------------------------------------------------------------
 # Standard logging
-import logging
 from osgiservicebridge.bridge import JavaServiceProxy,\
-    Py4jServiceBridgeEventListener, Py4jServiceBridge
+    Py4jServiceBridgeEventListener, Py4jServiceBridge, PythonService
 from osgiservicebridge.protobuf import ProtobufServiceProxy
 from pelix.rsa import prop_dot_suffix
 from py4j.java_gateway import GatewayParameters, CallbackServerParameters
-from pelix.constants import OBJECTCLASS
-import osgiservicebridge
+from concurrent.futures import ThreadPoolExecutor
+
 #logging.basicConfig(level=logging.DEBUG)
+import logging
 _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
@@ -67,24 +67,42 @@ ECF_PY4JPB_PYTHON_CONSUMER_CONFIG_TYPE = 'ecf.py4j.consumer.python.pb'
 ECF_PY4J_JAVA_HOST_CONFIG_TYPE = 'ecf.py4j.host'
 ECF_PY4JPB_JAVA_HOST_CONFIG_TYPE = 'ecf.py4j.host.pb'
 ECF_PY4J_NAMESPACE = 'ecf.namespace.py4j'
-ECF_PY4J_SUPPORTED_INTENTS = ['exactlyOnce','passByReference','ordered','py4j']
-ECF_PY4JPB_SUPPORTED_INTENTS = ['exactlyOnce','passByValue','ordered','py4j', 'protobuf']
+ECF_PY4J_SUPPORTED_INTENTS = ['exactlyOnce','passByReference','ordered','py4j','py4j.async','osgi.basic','osgi.async', 'osgi.private', 'osgi.confidential']
+ECF_PY4JPB_SUPPORTED_INTENTS = ['exactlyOnce','passByValue','ordered','py4j', 'py4j.protobuf','py4j.async', 'osgi.basic','osgi.async', 'osgi.private', 'osgi.confidential']
 
 ECF_PY4J_JAVA_PORT_PROP = 'javaport'
 ECF_PY4J_PYTHON_PORT_PROP = 'pythonport'
+ECF_PY4J_DEFAULT_SERVICE_TIMEOUT = 'defaultservicetimeout'
 # ------------------------------------------------------------------------------
 @ComponentFactory(ECF_PY4J_CONTAINER_CONFIG_TYPE)
 @Provides([SERVICE_EXPORT_CONTAINER,SERVICE_IMPORT_CONTAINER])
 class Py4jContainer(ExportContainer,ImportContainer):
 
+    def __init__(self):
+        ExportContainer.__init__(self)
+        ImportContainer.__init__(self)
+        self._executor = ThreadPoolExecutor(max_workers=2)
+        
     def get_connected_id(self):
         return ExportContainer.get_connected_id(self)
     
-    def _export_service(self, svc, ed_props):
+    def _export_service(self, svc, ed):
         # modify svc class to have appropriate metadata for py4j
-        osgiservicebridge._modify_remoteservice_class(type(svc),{ OBJECTCLASS: ed_props[OBJECTCLASS] })
-        self._get_distribution_provider()._get_bridge().export(svc, ed_props)
-        ExportContainer._export_service(self, svc, ed_props)
+        timeout = ed.get_osgi_basic_timeout()/1000
+        if not timeout:
+            timeout = 30
+        
+        psvc = PythonService(self._get_distribution_provider()._get_bridge(), 
+                             ed.get_interfaces(), 
+                             svc, 
+                             self._executor, 
+                             timeout)
+        
+        self._get_distribution_provider()._get_bridge().export(psvc, 
+                                                               ed.get_properties())
+        ExportContainer._export_service(self, 
+                                        psvc, 
+                                        ed)
         return True
 
     def _unexport_service(self, ed):
@@ -96,7 +114,10 @@ class Py4jContainer(ExportContainer,ImportContainer):
         # lookup the bridge proxy associated with the ed.get_id()
         bridge = self._get_distribution_provider()._get_bridge()
         proxy = bridge.get_import_endpoint(ed.get_id())[0]
-        args = [ bridge.get_jvm(), ed.get_interfaces(), proxy, ed.get_remoteservice_idstr()]
+        timeout = ed.get_osgi_basic_timeout()
+        if not timeout:
+            timeout = self._container_props.get(ECF_PY4J_DEFAULT_SERVICE_TIMEOUT,30)
+        args = [ bridge.get_jvm(), ed.get_interfaces(), proxy, self._executor, timeout]
         clazz = JavaServiceProxy
         if ECF_PY4JPB_JAVA_HOST_CONFIG_TYPE in ed.get_remote_configs_supported():
             clazz = ProtobufServiceProxy
@@ -105,6 +126,9 @@ class Py4jContainer(ExportContainer,ImportContainer):
     def unimport_service(self,ed):
         self._get_distribution_provider()._get_bridge().remove_import_endpoint(ed.get_id())
         ImportContainer.unimport_service(self, ed)
+        if self._executor:
+            self._executor.shutdown()
+            self._executor = None
 
     
 @ComponentFactory("py4j-distribution-provider-factory")
@@ -116,6 +140,7 @@ class Py4jContainer(ExportContainer,ImportContainer):
 @Property('_supported_pb_intents','supported_pb_intents', ECF_PY4JPB_SUPPORTED_INTENTS)
 @Property('_javaport', prop_dot_suffix(ECF_PY4J_CONTAINER_CONFIG_TYPE,ECF_PY4J_JAVA_PORT_PROP),DEFAULT_PORT)
 @Property('_pythonport', prop_dot_suffix(ECF_PY4J_CONTAINER_CONFIG_TYPE,ECF_PY4J_PYTHON_PORT_PROP),DEFAULT_PYTHON_PROXY_PORT)
+@Property('_default_service_timeout',prop_dot_suffix(ECF_PY4J_CONTAINER_CONFIG_TYPE,ECF_PY4J_DEFAULT_SERVICE_TIMEOUT),30)
 @Instantiate("py4j-distribution-provider")
 class Py4jDistributionProvider(DistributionProvider,Py4jServiceBridgeEventListener):
     def __init__(self):
@@ -125,7 +150,7 @@ class Py4jDistributionProvider(DistributionProvider,Py4jServiceBridgeEventListen
         self._thread = Thread(target = self._worker)
         self._thread.daemon = True
         self._py4jcontainer = self._supported_pb_intents = None
-        self._javaport = self._pythonport = None
+        self._javaport = self._pythonport = self._default_service_timeout = None
 
     def _get_bridge(self):
         return self._bridge
@@ -133,7 +158,12 @@ class Py4jDistributionProvider(DistributionProvider,Py4jServiceBridgeEventListen
     # Override of DistributionProvider._get_imported_configs. Returns
     # the Py4j bridge.get_id() in list
     def _get_imported_configs(self,exported_configs):
-        return [self._bridge.get_id()]
+        imported_configs = []
+        if ECF_PY4JPB_JAVA_HOST_CONFIG_TYPE in exported_configs:
+            imported_configs.append(ECF_PY4JPB_PYTHON_HOST_CONFIG_TYPE)
+        if ECF_PY4J_JAVA_HOST_CONFIG_TYPE in exported_configs:
+            imported_configs.append(ECF_PY4J_PYTHON_HOST_CONFIG_TYPE)
+        return imported_configs
     
     # Implementation of ImportDistributionProvider
     def supports_import(self, exported_configs, service_intents, import_props):
@@ -163,6 +193,7 @@ class Py4jDistributionProvider(DistributionProvider,Py4jServiceBridgeEventListen
             raise e
         # Once bridge is connected, instantiate container using bridge id
         container_props = self._prepare_container_props(self._supported_intents, None)
+        container_props[ECF_PY4J_DEFAULT_SERVICE_TIMEOUT] = self._default_service_timeout
         self._container = self._ipopo.instantiate(self._config_name,self._bridge.get_id(),container_props)
         
     @Invalidate

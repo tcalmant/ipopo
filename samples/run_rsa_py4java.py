@@ -52,8 +52,8 @@ def main():
                'pelix.rsa.topologymanagers.basic',  # basic topology manager (opt)
                'pelix.rsa.shell', # RSA shell commands (opt)
                'pelix.rsa.providers.distribution.py4j',
-               'samples.rsa.helloimpl',
-               'samples.rsa.helloconsumer' ]  # Example helloconsumer.  Only uses remote proxies
+               'samples.rsa.helloconsumer',
+               'samples.rsa.pbhelloconsumer' ]  # Example helloconsumer.  Only uses remote proxies
 
     # Use the utility method to create, run and delete the framework
     framework = pelix.create_framework(

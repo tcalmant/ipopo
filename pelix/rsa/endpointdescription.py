@@ -44,7 +44,8 @@ from pelix.rsa import set_prop_if_null, get_prop_value, get_matching_interfaces,
     ECF_SERVICE_EXPORTED_ASYNC_NOPROXY, ECF_ASYNC_INTERFACE_SUFFIX, ECF_SERVICE_ASYNC_RSPROXY_CLASS_, \
     ENDPOINT_PACKAGE_VERSION_, REMOTE_INTENTS_SUPPORTED, SERVICE_IMPORTED_CONFIGS,\
     REMOTE_CONFIGS_SUPPORTED, SERVICE_INTENTS, is_reserved_property, merge_dicts,\
-    get_string_plus_property, rsid_to_string
+    get_string_plus_property, rsid_to_string, OSGI_BASIC_TIMEOUT_INTENT,\
+    get_string_plus_property_value
 from pelix.ldapfilter import get_ldap_filter
 
 def encode_list(k,l):
@@ -338,6 +339,10 @@ class EndpointDescription(object):
     def get_framework_uuid(self):
         return self._framework_uuid
     
+    def get_osgi_basic_timeout(self):
+        timeout = self.get_properties().get(OSGI_BASIC_TIMEOUT_INTENT,None)
+        return int(timeout) if timeout else None
+    
     def get_id(self):
         """
         Returns the endpoint's id.
@@ -346,9 +351,12 @@ class EndpointDescription(object):
         """
         return self._id
 
+    def get_remote_intents_supported(self):
+        return self._get_string_plus_property(REMOTE_INTENTS_SUPPORTED)
+    
     def get_intents(self):
         """
-        Returns the list of intents implemented by this endpoint.
+        Returns the list of intents required by this endpoint.
 
         The intents are based on the service.intents on an imported service,
         except for any intents that are additionally provided by the importing
@@ -360,7 +368,7 @@ class EndpointDescription(object):
         :return: A list of intents (list of str)
         """
         # Return a copy of the list
-        return self._get_string_plus_property(REMOTE_INTENTS_SUPPORTED)
+        return self._get_string_plus_property(SERVICE_INTENTS)
 
     def get_interfaces(self):
         """
@@ -373,14 +381,14 @@ class EndpointDescription(object):
     def get_imported_configs(self):
         return self.get_configuration_types()
     
+    def update_imported_configs(self,imported_configs):
+        self._properties[SERVICE_IMPORTED_CONFIGS] = get_string_plus_property_value(imported_configs)
+        
     def get_configuration_types(self):
         return self._get_string_plus_property(SERVICE_IMPORTED_CONFIGS)     
     
     def get_remote_configs_supported(self):
         return self._get_string_plus_property(REMOTE_CONFIGS_SUPPORTED)
-    
-    def get_remote_intents_supported(self):
-        return self._get_string_plus_property(REMOTE_INTENTS_SUPPORTED)
     
     def get_service_id(self):
         return self._service_id;
