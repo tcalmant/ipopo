@@ -28,8 +28,7 @@ XmlRpc-on-HttpService-based Export and Import Distribution Providers
 # ------------------------------------------------------------------------------
 # Standard logging
 import logging
-from pelix.rsa import prop_dot_suffix, OSGI_BASIC_TIMEOUT_INTENT
-from concurrent.futures.thread import ThreadPoolExecutor
+from pelix.rsa import prop_dot_suffix
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Module version
@@ -59,6 +58,7 @@ try:
     from xmlrpc.server import SimpleXMLRPCDispatcher
     import xmlrpc.client as xmlrpclib
     from concurrent.futures import Executor
+    from concurrent.futures.thread import ThreadPoolExecutor
 except ImportError:
     # Python 2
     # pylint: disable=F0401
@@ -74,6 +74,7 @@ ECF_XMLRPC_SUPPORTED_CONFIGS = [ ECF_XMLRPC_SERVER_CONFIG ]
 ECF_XMLRPC_NAMESPACE = 'ecf.namespace.xmlrpc'
 ECF_XMLRPC_SUPPORTED_INTENTS =  [ 'osgi.basic', 'osgi.async' ]
 ECF_XMLRPC_PATH_PROP = 'path'
+ECF_XMLRPC_TIMEOUT_PROP = 'timeout'
 ECF_XMLRPC_HOSTNAME_PROP = 'hostname'
 
 # ------------------------------------------------------------------------------
@@ -119,8 +120,8 @@ class XmlRpcExportContainer(ExportContainer):
     @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_PROPERTIES)
     def _validate_component(self, bundle_context, container_props):
         ExportContainer._validate_component(self, bundle_context, container_props)
+        timeout = container_props.get(ECF_XMLRPC_TIMEOUT_PROP,None)
         dp = self._get_distribution_provider()
-        timeout = container_props.get(OSGI_BASIC_TIMEOUT_INTENT,None)/1000
         if Executor:
             executor = ThreadPoolExecutor(max_workers=5)
         else:
@@ -150,7 +151,9 @@ class XmlRpcExportContainer(ExportContainer):
 @Property('_supported_intents', 'supported_intents', ECF_XMLRPC_SUPPORTED_INTENTS)
 @Requires('_httpservice', HTTP_SERVICE)
 @Property('_uri_path', prop_dot_suffix(ECF_XMLRPC_SERVER_CONFIG,ECF_XMLRPC_PATH_PROP), '/xml-rpc')
-@Property('_hostname', prop_dot_suffix(ECF_XMLRPC_SERVER_CONFIG,ECF_XMLRPC_HOSTNAME_PROP),None)
+@Property('_timeout', prop_dot_suffix(ECF_XMLRPC_SERVER_CONFIG,ECF_XMLRPC_TIMEOUT_PROP),30)
+@Property('_hostname',prop_dot_suffix(ECF_XMLRPC_SERVER_CONFIG,ECF_XMLRPC_HOSTNAME_PROP),'localhost')
+
 @Instantiate("xmlrpc-export-distribution-provider")
 class XmlRpcExportDistributionProvider(ExportDistributionProvider):
     '''
@@ -169,6 +172,15 @@ class XmlRpcExportDistributionProvider(ExportDistributionProvider):
         super(XmlRpcExportDistributionProvider, self).__init__()
         self._httpservice = None
         self._uri_path = None
+        self._timeout = None
+        self._hostname = None
+
+    def _prepare_container_props(self,service_intents,export_props):
+        container_props = ExportDistributionProvider._prepare_container_props(self, service_intents, export_props)
+        if self._timeout:
+            container_props[ECF_XMLRPC_TIMEOUT_PROP] = self._timeout
+        return container_props
+    
     '''
     This method is called prior to actual container creation in order to
     create the name/id of the ExportContainer to be subsequently created
@@ -180,7 +192,7 @@ class XmlRpcExportDistributionProvider(ExportDistributionProvider):
         uri = 'http://'
         if self._httpservice.is_https():
             uri = 'https://'
-        hostname = container_props.get('hostname',None)
+        hostname = container_props.get(ECF_XMLRPC_HOSTNAME_PROP,None)
         if not hostname:
             hostname = self._hostname
             if not hostname:
