@@ -43,8 +43,6 @@ from pelix.ipopo.constants import use_ipopo
 # Httpservice config
 HTTP_HOSTNAME = 'localhost'
 HTTP_PORT = 8181
-# Etcd service config
-ETCD_HOSTNAME = 'disco.ecf-project.org'
 
 # ------------------------------------------------------------------------------
 def main():
@@ -63,7 +61,7 @@ def main():
 
     # Use the utility method to create, run and delete the framework
     framework = pelix.create_framework(
-        bundles, { 'etcd.hostname': ETCD_HOSTNAME, 'ecf.xmlrpc.server.hostname': HTTP_HOSTNAME })
+        bundles, { 'etcd.hostname': 'disco.ecf-project.org', 'ecf.xmlrpc.server.hostname': HTTP_HOSTNAME })
     framework.start()
 
 
