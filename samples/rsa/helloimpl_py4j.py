@@ -7,7 +7,7 @@ from samples.rsa.helloimpl import HelloImpl
                                  'service.exported.configs': 'ecf.py4j.host.python', # Required to use py4j python provider for export
                                  'service.intents': ['osgi.async'], # Required to use osgi.async intent
                                  'osgi.basic.timeout':30000}) # Timeout associated with remote calls (in ms)
-class HelloImplPy4J(HelloImpl):
+class Py4jHelloImpl(HelloImpl):
     '''
     All method impls handled by HelloImpl superclass
     '''

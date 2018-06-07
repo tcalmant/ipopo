@@ -29,7 +29,8 @@ Py4j-based Distribution and Discovery Provider
 # Standard logging
 from osgiservicebridge.bridge import JavaServiceProxy,\
     Py4jServiceBridgeEventListener, Py4jServiceBridge, PythonService
-from osgiservicebridge.protobuf import ProtobufServiceProxy
+from osgiservicebridge.protobuf import ProtobufJavaServiceProxy,\
+    ProtobufPythonService
 from pelix.rsa import prop_dot_suffix
 from py4j.java_gateway import GatewayParameters, CallbackServerParameters
 from concurrent.futures import ThreadPoolExecutor
@@ -88,15 +89,22 @@ class Py4jContainer(ExportContainer,ImportContainer):
     
     def _export_service(self, svc, ed):
         # modify svc class to have appropriate metadata for py4j
-        timeout = ed.get_osgi_basic_timeout()/1000
+        timeout = ed.get_osgi_basic_timeout()
         if not timeout:
             timeout = 30
         
-        psvc = PythonService(self._get_distribution_provider()._get_bridge(), 
-                             ed.get_interfaces(), 
-                             svc, 
-                             self._executor, 
-                             timeout)
+        args = [self._get_distribution_provider()._get_bridge(), 
+                                         ed.get_interfaces(), 
+                                         svc, 
+                                         self._executor, 
+                                         timeout]
+        
+        if ECF_PY4JPB_PYTHON_HOST_CONFIG_TYPE in ed.get_remote_configs_supported():
+            clazz = ProtobufPythonService
+        else:
+            clazz = PythonService
+        
+        psvc = clazz(*args)
         
         self._get_distribution_provider()._get_bridge().export(psvc, 
                                                                ed.get_properties())
@@ -120,7 +128,7 @@ class Py4jContainer(ExportContainer,ImportContainer):
         args = [ bridge.get_jvm(), ed.get_interfaces(), proxy, self._executor, timeout]
         clazz = JavaServiceProxy
         if ECF_PY4JPB_JAVA_HOST_CONFIG_TYPE in ed.get_remote_configs_supported():
-            clazz = ProtobufServiceProxy
+            clazz = ProtobufJavaServiceProxy
         return clazz(*args)
     
     def unimport_service(self,ed):

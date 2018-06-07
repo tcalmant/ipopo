@@ -341,7 +341,9 @@ class EndpointDescription(object):
     
     def get_osgi_basic_timeout(self):
         timeout = self.get_properties().get(OSGI_BASIC_TIMEOUT_INTENT,None)
-        return (int(timeout)/1000) if timeout else None
+        if isinstance(timeout,str):
+            timeout = int(timeout)
+        return int(timeout/1000) if timeout else None
     
     def get_id(self):
         """

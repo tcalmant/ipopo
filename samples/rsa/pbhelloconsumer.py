@@ -25,8 +25,11 @@ class RemotePbHelloConsumer(object):
     @Validate
     def _validate(self,bcontext):
         # call it!
-        resp = self._helloservice.sayHello(create_hellomsgcontent("I'm calling sayHello"))
-        print("IHello service consumer received response: {0}".format(resp))
+        resp = self._helloservice.sayHello(create_hellomsgcontent("pbPython consumer calling pb.sayHello"))
+        print("pb sayHello received response: {0}".format(resp))
         # call sayHelloAsync which returns future and we lambda to print the result when done
-        self._helloservice.sayHelloAsync(create_hellomsgcontent("I'm calling sayHelloAsynch")).add_done_callback(lambda f: print('async respon: {0}'.format(f.result())))
-        print("done with helloimpl _validate method")
+        self._helloservice.sayHelloAsync(create_hellomsgcontent("pbPython consumer calling pb.sayHelloAsynch")).add_done_callback(lambda f: print('pbasync respon: {0}'.format(f.result())))
+        print("done with pb.sayHelloAsync")
+        # call sayHelloAsync which returns Future and we add lambda to print the result when done
+        self._helloservice.sayHelloPromise(create_hellomsgcontent('pbPython consumer calling pb.sayHelloPromise')).add_done_callback(lambda f: print('pbpromise response: {0}'.format(f.result())))                              
+        print("done with sayHelloPromise")
