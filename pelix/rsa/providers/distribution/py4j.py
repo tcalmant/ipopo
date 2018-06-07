@@ -61,14 +61,18 @@ from py4j.java_gateway import DEFAULT_PORT, DEFAULT_PYTHON_PROXY_PORT
 # Note:  These must match the Java-side constants recored in Java interface class:
 # org.eclipse.ecf.provider.py4j.Py4jConstants
 ECF_PY4J_CONTAINER_CONFIG_TYPE = 'ecf.py4j'
-ECF_PY4J_PYTHON_HOST_CONFIG_TYPE = 'ecf.py4j.host.python'
-ECF_PY4JPB_PYTHON_HOST_CONFIG_TYPE = 'ecf.py4j.host.python.pb'
-ECF_PY4J_PYTHON_CONSUMER_CONFIG_TYPE = 'ecf.py4j.consumer.python'
-ECF_PY4JPB_PYTHON_CONSUMER_CONFIG_TYPE = 'ecf.py4j.consumer.python.pb'
-ECF_PY4J_JAVA_HOST_CONFIG_TYPE = 'ecf.py4j.host'
-ECF_PY4JPB_JAVA_HOST_CONFIG_TYPE = 'ecf.py4j.host.pb'
 ECF_PY4J_NAMESPACE = 'ecf.namespace.py4j'
+
+ECF_PY4J_JAVA_HOST_CONFIG_TYPE = 'ecf.py4j.host'
+ECF_PY4J_JAVA_CONSUMER_CONFIG_TYPE = 'ecf.py4j.consumer'
+ECF_PY4J_PYTHON_HOST_CONFIG_TYPE = 'ecf.py4j.host.python'
+ECF_PY4J_PYTHON_CONSUMER_CONFIG_TYPE = 'ecf.py4j.consumer.python'
 ECF_PY4J_SUPPORTED_INTENTS = ['exactlyOnce','passByReference','ordered','py4j','py4j.async','osgi.basic','osgi.async', 'osgi.private', 'osgi.confidential']
+# Protobuf
+ECF_PY4JPB_JAVA_HOST_CONFIG_TYPE = 'ecf.py4j.protobuf.host'
+ECF_PY4JPB_JAVA_CONSUMER_CONFIG_TYPE = 'ecf.py4j.protobuf.consumer'
+ECF_PY4JPB_PYTHON_HOST_CONFIG_TYPE = 'ecf.py4j.python.protobuf.host'
+ECF_PY4JPB_PYTHON_CONSUMER_CONFIG_TYPE = 'ecf.py4j.python.protobuf.consumer'
 ECF_PY4JPB_SUPPORTED_INTENTS = ['exactlyOnce','passByValue','ordered','py4j', 'py4j.protobuf','py4j.async', 'osgi.basic','osgi.async', 'osgi.private', 'osgi.confidential']
 
 ECF_PY4J_JAVA_PORT_PROP = 'javaport'

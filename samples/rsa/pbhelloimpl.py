@@ -1,5 +1,8 @@
 from samples.rsa.hellomsg_pb2 import HelloMsgContent
 from concurrent.futures.thread import ThreadPoolExecutor
+from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate
+
+from pelix.rsa.providers.distribution.py4j import ECF_PY4JPB_PYTHON_HOST_CONFIG_TYPE
 
 def create_hellomsgcontent(message):
     resmsg = HelloMsgContent()
@@ -11,6 +14,13 @@ def create_hellomsgcontent(message):
         resmsg.x.append(float(x))
     return resmsg
 
+@ComponentFactory('pbhelloimpl-py4j-factory')
+@Provides('org.eclipse.ecf.examples.protobuf.hello.IHello') # Provides IHello interface as specified by Java interface.  
+#See <a href="https://github.com/ECF/Py4j-RemoteServicesProvider/blob/master/examples/org.eclipse.ecf.examples.protobuf.hello/src/org/eclipse/ecf/examples/protobuf/hello/IHello.java">IHello service interface</a>
+@Instantiate('pbhelloimpl-py4j', { 'service.exported.interfaces':'*', 
+                                   'service.exported.configs': ECF_PY4JPB_PYTHON_HOST_CONFIG_TYPE, 
+                                   'service.intents': ['osgi.async'], 
+                                   'osgi.basic.timeout':120000})
 class PbHelloImpl(object):
     '''
     Implementation of Java org.eclipse.ecf.examples.protobuf.hello.IHello service interface.
