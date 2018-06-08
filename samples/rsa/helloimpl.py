@@ -1,5 +1,3 @@
-from concurrent.futures.thread import ThreadPoolExecutor
-
 class HelloImpl(object):
     '''
     Implementation of Java org.eclipse.ecf.examples.hello.IHello service interface.
@@ -35,20 +33,10 @@ class HelloImpl(object):
         print("Python.sayHelloAsync called by: {0} with message: '{1}'".format(name,message))
         return "PythonAsync says: Howdy {0} that's a nice runtime you got there".format(name)
 
-    def _sayHelloFuture(self, name, message):
-        '''
-        Function that is executed via a Future in 'sayHelloPromise'.
-        '''
-        print("Python._sayHelloFuture called by: {0} with message: '{1}'".format(name,message))
-        return "PythonFuture says: Howdy {0} that's a nice runtime you got there".format(name)
-    
     def sayHelloPromise(self, name='Not given', message = 'nothing'):
         '''
-        This method in IHello java interface has return type Promise<String>.  It can either return
-        a string directly, or return a Future that results in a string.  In this case,
-        a Future is submitted and returned.   
+        Implementation of IHello.sayHelloPromise.  This method will be executed via 
+        some thread, and the remote caller will not block.  
         '''
-        # Use thread pool executor
-        with ThreadPoolExecutor(2) as executor:
-            # submit self_sayHelloFuture method and return Future
-            return executor.submit(self._sayHelloFuture, name, message)
+        print("Python.sayHelloPromise called by: {0} with message: '{1}'".format(name,message))
+        return "PythonPromise says: Howdy {0} that's a nice runtime you got there".format(name)

@@ -41,7 +41,7 @@ from pelix.ipopo.constants import use_ipopo
 
 # ------- Main constants
 # Httpservice config
-HTTP_HOSTNAME = 'localhost'
+HTTP_HOSTNAME = '127.0.0.1'
 HTTP_PORT = 8181
 
 # ------------------------------------------------------------------------------
