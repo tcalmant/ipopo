@@ -44,6 +44,8 @@ from pelix.ipopo.constants import use_ipopo
 HTTP_HOSTNAME = '127.0.0.1'
 HTTP_PORT = 8181
 
+ETCD_HOSTNAME = 'disco.ecf-project.org'
+
 # ------------------------------------------------------------------------------
 def main():
     # Set the initial bundles
@@ -61,7 +63,7 @@ def main():
 
     # Use the utility method to create, run and delete the framework
     framework = pelix.create_framework(
-        bundles, { 'etcd.hostname': 'disco.ecf-project.org', 'ecf.xmlrpc.server.hostname': HTTP_HOSTNAME })
+        bundles, { 'etcd.hostname': ETCD_HOSTNAME, 'ecf.xmlrpc.server.hostname': HTTP_HOSTNAME })
     framework.start()
 
 
