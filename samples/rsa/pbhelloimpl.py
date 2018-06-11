@@ -1,3 +1,17 @@
+# For export as a remote service, this PbHelloImpl requires the py4j distribution provider 
+# (in pelix.rsa.providers.distribution.py4j package.  The implementation below
+# exports the org.eclipse.ecf.examples.hello.IHello service interface:  
+# https://github.com/ECF/Py4j-RemoteServicesProvider/blob/master/examples/org.eclipse.ecf.examples.protobuf.hello/src/org/eclipse/ecf/examples/protobuf/hello/IHello.java
+# for access via some remote service consumer (java or python).
+# 
+# When the IHello remote service is instantiated, the service properties given in the
+# Instantiate decorator are used to export via the ecf.py4j.python.protobuf.host distribution
+# provider.  On this Java-side, this will typically trigger a HelloConsumer instance
+# e.g.:  
+# https://github.com/ECF/Py4j-RemoteServicesProvider/blob/master/examples/org.eclipse.ecf.examples.protobuf.hello.consumer/src/org/eclipse/ecf/examples/protobuf/hello/consumer/HelloConsumer.java
+# to have it's references to the IHello proxy...see @Reference(target='(service.imported=*)'
+# which then invokes the sayHello, sayHelloAsync, and/or sayHelloPromise on this
+# remote service.
 from samples.rsa.hellomsg_pb2 import HelloMsgContent
 from concurrent.futures.thread import ThreadPoolExecutor
 from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate

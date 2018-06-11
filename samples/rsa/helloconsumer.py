@@ -1,3 +1,14 @@
+# This remote service consumer requires some java or python distribution provider 
+# (e.g. py4j or xmlrpc) and an implementation service (java or python) that
+# exports the org.eclipse.ecf.examples.hello.IHello service interface:  
+# https://github.com/ECF/AsyncRemoteServiceExamples/blob/master/hello/org.eclipse.ecf.examples.hello.javahost/src/org/eclipse/ecf/examples/hello/javahost/HelloImpl.java
+# 
+# When the IHello remote service impl is discovered and imported via discovery provider
+# and topology manager, or imported via RSA importservice command, a IHello proxy will 
+# be injected by ipopo into the _helloservice field of the RemoteHelloConsumer instance, 
+# and _validate will then be called.  With the implementation below, the _validate 
+# method then calls the proxy's IHello.sayHello, sayHelloAsync, and sayHelloPromise on 
+# the remote service.
 from pelix.ipopo.decorators import ComponentFactory,Instantiate,Requires,Validate
 
 @ComponentFactory("remote-hello-consumer-factory")

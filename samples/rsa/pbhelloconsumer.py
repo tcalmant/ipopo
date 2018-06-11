@@ -1,3 +1,14 @@
+# This remote service consumer requires the py4j protobuf distribution provider 
+# and an implementation service (java or python) that exports the 
+# org.eclipse.ecf.examples.protobuf.hello.IHello service interface:  
+# https://github.com/ECF/Py4j-RemoteServicesProvider/blob/master/examples/org.eclipse.ecf.examples.protobuf.hello/src/org/eclipse/ecf/examples/protobuf/hello/IHello.java
+# 
+# When the IHello remote service impl is discovered and imported via discovery provider
+# and topology manager, or imported via RSA importservice command, a IHello proxy will 
+# be injected by ipopo into the _helloservice field of the RemotePbHelloConsumer instance, 
+# and _validate will then be called.  With the implementation below, the _validate 
+# method immediately calls the proxy's IHello.sayHello, sayHelloAsync, and sayHelloPromise on 
+# the remote service.
 from pelix.ipopo.decorators import ComponentFactory,Instantiate,Requires,Validate
 
 from samples.rsa.hellomsg_pb2 import HelloMsgContent

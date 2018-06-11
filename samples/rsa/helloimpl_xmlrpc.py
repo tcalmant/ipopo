@@ -1,3 +1,15 @@
+# For export as a remote service, this impl requires the some distribution provider 
+# that supports the osgi.async service intent (e.g. py4j or xmlrpc).  This implementation
+# exports the org.eclipse.ecf.examples.hello.IHello service interface:  
+# https://github.com/ECF/AsyncRemoteServiceExamples/blob/master/hello/org.eclipse.ecf.examples.hello.javahost/src/org/eclipse/ecf/examples/hello/javahost/HelloImpl.java
+# for access via some remote service consumer (java or python).
+# 
+# When the XmlRpcHelloImpl remote service is instantiated, it is *not* immediately 
+# exported, since it is missing the OSGi-required service.exported.interfaces property.
+# For this example, this service is expected to be exported after service registration
+# via the rsa exportservice console command.  Once exported, remote service consumers
+# may be notified via either discovery provider publishing (e.g. etcd) or via the 
+# rsa importservice command.
 from pelix.ipopo.decorators import Instantiate, ComponentFactory, Provides
 from samples.rsa.helloimpl import HelloImpl
 @ComponentFactory('helloimpl-xmlrpc-factory')
@@ -7,6 +19,6 @@ from samples.rsa.helloimpl import HelloImpl
                                    'osgi.basic.timeout':60000}) 
 class XmlRpcHelloImpl(HelloImpl):
     '''
-    All method impls handled by HelloImpl superclass
+    All method impls handled by HelloImpl superclass.  See samples.rsa.helloimpl module.
     '''
     pass
