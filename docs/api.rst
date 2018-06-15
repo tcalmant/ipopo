@@ -9,7 +9,7 @@ services of iPOPO.
 .. _api_bundlecontext:
 
 BundleContext Object
--------------------- 
+--------------------
 
 The bundle context is the link between a bundle and the framework.
 It's by the context that you can register services, install other
