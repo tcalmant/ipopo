@@ -341,14 +341,15 @@ Pelix/iPOPO comes with some useful services:
 
 * Pelix Shell: a simple shell to control the framework (manage bundles,
   show the state of components, ...).
-  The shell is split in 4 parts:
+  The shell is split in 5 parts:
 
   * the parser: a shell interpreter class, which can be reused to create other
     shells (with a basic support of variables);
   * the shell core service: callable from any bundle, it executes the given
     command lines;
-  * the UIs: text UI (console) and remote shell (TCP, XMPP)
+  * the UIs: text UI (console) and remote shell (TCP/TLS, XMPP)
   * the commands providers: iPOPO commands, report, EventAdmin, ...
+  * the completion providers: Pelix, iPOPO
 
   See the `shell tutorial <http://ipopo.readthedocs.io/en/latest/quickstart.html#play-with-the-shell>`_
   for more information.
