@@ -4,7 +4,7 @@
 Defines the ``Completer`` class, mother of all shell completion handlers
 
 :author: Thomas Calmant
-:copyright: Copyright 2017, Thomas Calmant
+:copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
 :version: 0.7.1
 :status: Alpha

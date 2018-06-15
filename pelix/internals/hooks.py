@@ -4,13 +4,13 @@
 EventListenerHook for Pelix.
 
 :author: Scott Lewis
-:copyright: Copyright 2017, Scott Lewis
+:copyright: Copyright 2018, Scott Lewis
 :license: Apache License 2.0
 :version: 0.7.1
 
 ..
 
-    Copyright 2017 Scott Lewis
+    Copyright 2018 Scott Lewis
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
