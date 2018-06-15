@@ -4,13 +4,13 @@
 iPOPO installation script
 
 :author: Thomas Calmant
-:copyright: Copyright 2017, Thomas Calmant
+:copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
 :version: 0.7.1
 
 ..
 
-    Copyright 2017 Thomas Calmant
+    Copyright 2018 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -72,7 +72,9 @@ setup(
         'pelix.remote.discovery',
         'pelix.remote.transport',
         'pelix.services',
-        'pelix.shell'],
+        'pelix.shell',
+        'pelix.shell.completion',
+    ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
@@ -81,11 +83,11 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
-        'Topic :: Software Development :: Libraries :: Application Frameworks'
+        'Programming Language :: Python :: 3.7',
+        'Topic :: Software Development :: Libraries :: Application Frameworks',
     ],
     install_requires=[
         'jsonrpclib-pelix>=0.3.1'
