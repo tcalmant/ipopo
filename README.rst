@@ -46,21 +46,9 @@ In order to gain insight from the iPOPO community, I've put a
 on Google Forms (no login required).
 
 Please, feel free to answer it, the more answers, the better.
-All feedback is really appreciated, and I'll write about the aggregated results
-on the users' mailing list, once enough answers will have been received.
+All feedback is really appreciated.
 
 .. contents::
-
-Note about the documentation
-############################
-
-As the server providing iPOPO (coderxpress.net) crashed, all the documentation
-is migrated to `Read the Docs <https://ipopo.readthedocs.io/>`_.
-Due to this situation, many pages, tutorials and reference cards are missing.
-Moreover, all links to the previous documentation are now invalid.
-
-To speed up the migration, all contributions to the documentation (now in the
-docs/ folder) are very welcome.
 
 Install
 #######
@@ -238,8 +226,8 @@ There, the component can consume its dependencies, start threads, etc..
 It is recommended for this method to start threads and to return quickly, as it
 blocks iPOPO and the Pelix framework.
 
-When a required service is unregistered by its provider, the component instances
-consuming it are invalidated.
+When a required service is unregistered by its provider, the component
+instances consuming it are invalidated.
 When the method decorated by ``@Invalidate`` is called, the service is still
 injected and should be usable (except for special cases, like remote services).
 
@@ -414,8 +402,8 @@ All contributions are welcome!
 #. Create a *Pull Request*
 #. Enjoy!
 
-Please note that your contributions will be released under the project's license,
-which is the `Apache Software License 2.0 <http://www.apache.org/licenses/LICENSE-2.0>`__.
+Please note that your contributions will be released under the project's
+license, which is the `Apache Software License 2.0 <http://www.apache.org/licenses/LICENSE-2.0>`__.
 
 
 Compatibility

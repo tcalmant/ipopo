@@ -1,15 +1,52 @@
 Release notes
 #############
 
-iPOPO 0.7.1 (under development)
-*******************************
+iPOPO 0.7.1
+***********
+
+Project
+=======
+
+* Added a CONTRIBUTING description file to describe the code style
+* The ``zeroconf`` dependency is now forced to version 0.19, to stay compatible
+  with Python 2.7
+* Changed them in the documentation (back to standard ReadTheDocs theme)
+* Added some reference cards in the documentation: initial configuration file,
+  shell, shell report
 
 Pelix
 =====
 
-* Merged `pull request #88 <https://github.com/tcalmant/ipopo/pull/88>`_,
-  which adds support for Event Listeners Hooks
+* Aded support for Event Listeners Hooks. See `pull request #88 <https://github.com/tcalmant/ipopo/pull/88>`_
+  for more details.
 * Fixed ``Framework.delete()`` when framework was already stopped.
+
+iPOPO
+=====
+
+* Added ``@ValidateComponent`` and ``@InvalidateComponent`` decorators.
+  They allow to define callback methods for component in/validation with access
+  to component context and properties (read-only).
+  ``@Validate`` and ``@Invalidate`` decorators are now simple aliases to those
+  decorators.
+* Checked behaviour with *data classes*, introduced in Python 3.7: all seems to
+  work perfectly. See `issue 89 <https://github.com/tcalmant/ipopo/issues/89>`_
+  for more details.
+
+Shell
+=====
+
+* New shell completion system: completion is now extensible and can work with
+  both commands and arguments. This system relies on ``readline``.
+* Added a TLS version of the shell. Its usage and the generation of cerficates
+  are described in the Pelix Shell reference card in the documentation.
+* ``ShellSession.write_line()`` can now be called without argument
+  (prints an empty line)
+
+Misc
+====
+
+* Fixed the access bug to the Python LogRecord message in the Log Service
 
 
 iPOPO 0.7.0
