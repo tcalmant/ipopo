@@ -1,1 +1,3 @@
-# Constants needed for all discovery and distribution providers
+"""
+Constants needed for all discovery and distribution providers
+"""

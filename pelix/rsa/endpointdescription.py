@@ -25,204 +25,259 @@ EndpointDescription class API
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-# ------------------------------------------------------------------------------
-# Standard logging
+
 import logging
-_logger = logging.getLogger(__name__)
+
+from pelix.constants import SERVICE_ID, FRAMEWORK_UID, OBJECTCLASS
+from pelix.ldapfilter import get_ldap_filter
+from pelix.rsa import (
+    set_prop_if_null,
+    get_prop_value,
+    get_matching_interfaces,
+    ENDPOINT_SERVICE_ID,
+    SERVICE_IMPORTED,
+    ENDPOINT_FRAMEWORK_UUID,
+    ENDPOINT_ID,
+    ECF_ENDPOINT_ID,
+    ECF_ENDPOINT_TIMESTAMP,
+    ECF_ENDPOINT_CONNECTTARGET_ID,
+    ECF_ENDPOINT_IDFILTER_IDS,
+    ECF_RSVC_ID,
+    ECF_ENDPOINT_CONTAINERID_NAMESPACE,
+    ECF_ENDPOINT_REMOTESERVICE_FILTER,
+    ECF_SERVICE_EXPORTED_ASYNC_INTERFACES,
+    ECF_SERVICE_EXPORTED_ASYNC_NOPROXY,
+    ECF_ASYNC_INTERFACE_SUFFIX,
+    ECF_SERVICE_ASYNC_RSPROXY_CLASS_,
+    ENDPOINT_PACKAGE_VERSION_,
+    REMOTE_INTENTS_SUPPORTED,
+    SERVICE_IMPORTED_CONFIGS,
+    REMOTE_CONFIGS_SUPPORTED,
+    SERVICE_INTENTS,
+    is_reserved_property,
+    merge_dicts,
+    get_string_plus_property,
+    rsid_to_string,
+    OSGI_BASIC_TIMEOUT_INTENT,
+    get_string_plus_property_value,
+)
+
 # ------------------------------------------------------------------------------
 # Module version
+
 __version_info__ = (0, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
+
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-# ------------------------------------------------------------------------------
-from pelix.constants import SERVICE_ID, FRAMEWORK_UID, OBJECTCLASS
-from pelix.rsa import set_prop_if_null, get_prop_value, get_matching_interfaces, \
-    ENDPOINT_SERVICE_ID, SERVICE_IMPORTED, ENDPOINT_FRAMEWORK_UUID, ENDPOINT_ID, ECF_ENDPOINT_ID,\
-    ECF_ENDPOINT_TIMESTAMP, ECF_ENDPOINT_CONNECTTARGET_ID, ECF_ENDPOINT_IDFILTER_IDS, ECF_RSVC_ID, \
-    ECF_ENDPOINT_CONTAINERID_NAMESPACE, ECF_ENDPOINT_REMOTESERVICE_FILTER, ECF_SERVICE_EXPORTED_ASYNC_INTERFACES, \
-    ECF_SERVICE_EXPORTED_ASYNC_NOPROXY, ECF_ASYNC_INTERFACE_SUFFIX, ECF_SERVICE_ASYNC_RSPROXY_CLASS_, \
-    ENDPOINT_PACKAGE_VERSION_, REMOTE_INTENTS_SUPPORTED, SERVICE_IMPORTED_CONFIGS,\
-    REMOTE_CONFIGS_SUPPORTED, SERVICE_INTENTS, is_reserved_property, merge_dicts,\
-    get_string_plus_property, rsid_to_string, OSGI_BASIC_TIMEOUT_INTENT,\
-    get_string_plus_property_value
-from pelix.ldapfilter import get_ldap_filter
 
-def encode_list(k,l):
-    if not l:
+# Standard logging
+_logger = logging.getLogger(__name__)
+
+# ------------------------------------------------------------------------------
+
+
+def encode_list(key, list_):
+    if not list_:
         return {}
-    return {k:' '.join(l)}
+    return {key: " ".join(list_)}
+
 
 def package_name(package):
-    lastdot = package.rfind('.')
+    lastdot = package.rfind(".")
     if lastdot == -1:
         return package
     return package[:lastdot]
 
+
 def encode_osgi_props(ed):
     result_props = {}
     intfs = ed.get_interfaces()
-    result_props[OBJECTCLASS] = ' '.join(intfs)
+    result_props[OBJECTCLASS] = " ".join(intfs)
     for intf in intfs:
         pkg_name = package_name(intf)
         ver = ed.get_package_version(pkg_name)
-        if ver and not ver == (0,0,0):
-            result_props[ENDPOINT_PACKAGE_VERSION_] = '.'.join(ver)
-            
+        if ver and not ver == (0, 0, 0):
+            result_props[ENDPOINT_PACKAGE_VERSION_] = ".".join(ver)
+
     result_props[ENDPOINT_ID] = ed.get_id()
-    result_props[ENDPOINT_SERVICE_ID] = '{0}'.format(ed.get_service_id())
+    result_props[ENDPOINT_SERVICE_ID] = "{0}".format(ed.get_service_id())
     result_props[ENDPOINT_FRAMEWORK_UUID] = ed.get_framework_uuid()
     imp_configs = ed.get_imported_configs()
     if imp_configs:
-        result_props[SERVICE_IMPORTED_CONFIGS] = ' '.join(ed.get_imported_configs())
+        result_props[SERVICE_IMPORTED_CONFIGS] = " ".join(
+            ed.get_imported_configs()
+        )
     intents = ed.get_intents()
     if intents:
-        result_props[SERVICE_INTENTS] = ' '.join(intents)
+        result_props[SERVICE_INTENTS] = " ".join(intents)
     remote_configs = ed.get_remote_configs_supported()
     if remote_configs:
-        result_props[REMOTE_CONFIGS_SUPPORTED] = ' '.join(remote_configs)
+        result_props[REMOTE_CONFIGS_SUPPORTED] = " ".join(remote_configs)
     remote_intents = ed.get_remote_intents_supported()
     if remote_intents:
-        result_props[REMOTE_INTENTS_SUPPORTED] = ' '.join(remote_intents)
-    return result_props    
+        result_props[REMOTE_INTENTS_SUPPORTED] = " ".join(remote_intents)
+    return result_props
 
-def decode_list(input_props,name):
-    val_str = input_props.get(name,None)
+
+def decode_list(input_props, name):
+    val_str = input_props.get(name, None)
     if val_str:
-        return val_str.split(' ')
-    
+        return val_str.split(" ")
+
+
 def decode_osgi_props(input_props):
     result_props = {}
-    intfs = decode_list(input_props,OBJECTCLASS)
+    intfs = decode_list(input_props, OBJECTCLASS)
     result_props[OBJECTCLASS] = intfs
     for intf in intfs:
         package_key = ENDPOINT_PACKAGE_VERSION_ + package_name(intf)
-        intfversionstr = input_props.get(package_key,None)
+        intfversionstr = input_props.get(package_key, None)
         if intfversionstr:
             result_props[package_key] = intfversionstr
     result_props[ENDPOINT_ID] = input_props[ENDPOINT_ID]
     result_props[ENDPOINT_SERVICE_ID] = input_props[ENDPOINT_SERVICE_ID]
     result_props[ENDPOINT_FRAMEWORK_UUID] = input_props[ENDPOINT_FRAMEWORK_UUID]
-    imp_configs = decode_list(input_props,SERVICE_IMPORTED_CONFIGS)
+    imp_configs = decode_list(input_props, SERVICE_IMPORTED_CONFIGS)
     if imp_configs:
         result_props[SERVICE_IMPORTED_CONFIGS] = imp_configs
-    intents = decode_list(input_props,SERVICE_INTENTS)
+    intents = decode_list(input_props, SERVICE_INTENTS)
     if intents:
         result_props[SERVICE_INTENTS] = intents
-    remote_configs = decode_list(input_props,REMOTE_CONFIGS_SUPPORTED)
+    remote_configs = decode_list(input_props, REMOTE_CONFIGS_SUPPORTED)
     if remote_configs:
         result_props[REMOTE_CONFIGS_SUPPORTED] = remote_configs
-    remote_intents = decode_list(input_props,REMOTE_INTENTS_SUPPORTED)
+    remote_intents = decode_list(input_props, REMOTE_INTENTS_SUPPORTED)
     if remote_intents:
         result_props[REMOTE_INTENTS_SUPPORTED] = remote_intents
     return result_props
-          
+
+
 def decode_endpoint_props(input_props):
     ed_props = decode_osgi_props(input_props)
-    ed_props[ECF_ENDPOINT_CONTAINERID_NAMESPACE] = input_props[ECF_ENDPOINT_CONTAINERID_NAMESPACE]
+    ed_props[ECF_ENDPOINT_CONTAINERID_NAMESPACE] = input_props[
+        ECF_ENDPOINT_CONTAINERID_NAMESPACE
+    ]
     ed_props[ECF_RSVC_ID] = int(input_props[ECF_RSVC_ID])
     ed_props[ECF_ENDPOINT_ID] = input_props[ECF_ENDPOINT_ID]
     ed_props[ECF_ENDPOINT_TIMESTAMP] = int(input_props[ECF_ENDPOINT_TIMESTAMP])
-    target_id = input_props.get(ECF_ENDPOINT_CONNECTTARGET_ID,None)
+    target_id = input_props.get(ECF_ENDPOINT_CONNECTTARGET_ID, None)
     if target_id:
         ed_props[ECF_ENDPOINT_CONNECTTARGET_ID] = target_id
-    id_filters = decode_list(input_props,ECF_ENDPOINT_IDFILTER_IDS)
+    id_filters = decode_list(input_props, ECF_ENDPOINT_IDFILTER_IDS)
     if id_filters:
         ed_props[ECF_ENDPOINT_IDFILTER_IDS] = id_filters
-    rs_filter = input_props.get(ECF_ENDPOINT_REMOTESERVICE_FILTER,None)
+    rs_filter = input_props.get(ECF_ENDPOINT_REMOTESERVICE_FILTER, None)
     if rs_filter:
         ed_props[ECF_ENDPOINT_REMOTESERVICE_FILTER] = rs_filter
-    async_intfs = input_props.get(ECF_SERVICE_EXPORTED_ASYNC_INTERFACES,None)
+    async_intfs = input_props.get(ECF_SERVICE_EXPORTED_ASYNC_INTERFACES, None)
     if async_intfs:
-        if async_intfs == '*':
+        if async_intfs == "*":
             ed_props[ECF_SERVICE_EXPORTED_ASYNC_INTERFACES] = async_intfs
         else:
-            async_intfs = decode_list(input_props,ECF_SERVICE_EXPORTED_ASYNC_INTERFACES)
+            async_intfs = decode_list(
+                input_props, ECF_SERVICE_EXPORTED_ASYNC_INTERFACES
+            )
             if async_intfs:
                 ed_props[ECF_SERVICE_EXPORTED_ASYNC_INTERFACES] = async_intfs
 
     for key in input_props.keys():
         if not is_reserved_property(key):
-            val = input_props.get(key,None)
+            val = input_props.get(key, None)
             if val:
                 ed_props[key] = val
     return ed_props
-    
+
+
 def encode_endpoint_props(ed):
     props = encode_osgi_props(ed)
-    props[ECF_RSVC_ID] = '{0}'.format(ed.get_remoteservice_id()[1])
-    props[ECF_ENDPOINT_ID] = '{0}'.format(ed.get_container_id()[1])
-    props[ECF_ENDPOINT_CONTAINERID_NAMESPACE] = '{0}'.format(ed.get_container_id()[0])
-    props[ECF_ENDPOINT_TIMESTAMP] = '{0}'.format(ed.get_timestamp())
+    props[ECF_RSVC_ID] = "{0}".format(ed.get_remoteservice_id()[1])
+    props[ECF_ENDPOINT_ID] = "{0}".format(ed.get_container_id()[1])
+    props[ECF_ENDPOINT_CONTAINERID_NAMESPACE] = "{0}".format(
+        ed.get_container_id()[0]
+    )
+    props[ECF_ENDPOINT_TIMESTAMP] = "{0}".format(ed.get_timestamp())
     ctid = ed.get_connect_target_id()
     if ctid:
-        props[ECF_ENDPOINT_CONNECTTARGET_ID] = '{0}'.format(ctid)
+        props[ECF_ENDPOINT_CONNECTTARGET_ID] = "{0}".format(ctid)
     id_filters = ed.get_id_filters()
     if id_filters:
-        props[ECF_ENDPOINT_IDFILTER_IDS] = ' '.join([x[1] for x in id_filters])
+        props[ECF_ENDPOINT_IDFILTER_IDS] = " ".join([x[1] for x in id_filters])
     rs_filter = ed.get_remoteservice_filter()
     if rs_filter:
         props[ECF_ENDPOINT_REMOTESERVICE_FILTER] = ed.get_remoteservice_filter()
     async_intfs = ed.get_async_interfaces()
     if async_intfs:
-        props[ECF_SERVICE_EXPORTED_ASYNC_INTERFACES] = ' '.join(async_intfs)
-    
-    all_props = ed.get_properties()    
-    other_props = {key:all_props[key] for key in all_props.keys() if not is_reserved_property(key)}
-    return merge_dicts(props,other_props)
-    
+        props[ECF_SERVICE_EXPORTED_ASYNC_INTERFACES] = " ".join(async_intfs)
+
+    all_props = ed.get_properties()
+    other_props = {
+        key: all_props[key]
+        for key in all_props.keys()
+        if not is_reserved_property(key)
+    }
+    return merge_dicts(props, other_props)
+
+
 # ------------------------------------------------------------------------------
 # EndpointDescription class
 # ------------------------------------------------------------------------------
 class EndpointDescription(object):
-    
     @classmethod
-    def fromsvcref(cls,svc_ref):
-        return cls(svc_ref,None)
-    
+    def fromsvcref(cls, svc_ref):
+        return cls(svc_ref, None)
+
     @classmethod
-    def fromprops(cls,props):
-        return cls(None,props)
-    
+    def fromprops(cls, props):
+        return cls(None, props)
+
     @classmethod
-    def fromsvcrefprops(cls,svc_ref,props):
-        return cls(svc_ref,props)
-    
+    def fromsvcrefprops(cls, svc_ref, props):
+        return cls(svc_ref, props)
+
     @classmethod
     def _condition_props(cls, properties):
         set_prop_if_null(SERVICE_IMPORTED, properties, True)
         for key in properties.keys():
             if key.startswith("services.exported."):
                 properties.remove(key)
-        return properties;
-    
+        return properties
+
     @classmethod
     def _verify_export_props(cls, svc_ref, all_properties):
         props = {}
         props.update(all_properties)
-        
-        set_prop_if_null(ENDPOINT_SERVICE_ID, props, svc_ref.get_property(SERVICE_ID))
-        set_prop_if_null(ENDPOINT_FRAMEWORK_UUID,props,svc_ref.get_property(FRAMEWORK_UID))
-        
+
+        set_prop_if_null(
+            ENDPOINT_SERVICE_ID, props, svc_ref.get_property(SERVICE_ID)
+        )
+        set_prop_if_null(
+            ENDPOINT_FRAMEWORK_UUID, props, svc_ref.get_property(FRAMEWORK_UID)
+        )
+
         return props
-    
+
     def __init__(self, svc_ref=None, properties=None):
         if svc_ref is None and properties is None:
-            raise ValueError("Either service reference or properties argument must be non-null")
-        
+            raise ValueError(
+                "Either service reference or properties argument must be non-null"
+            )
+
         all_properties = {}
-        
+
         if svc_ref is not None:
             all_properties.update(svc_ref.get_properties())
-            
+
         if properties is not None:
             all_properties.update(properties)
-                
+
         if svc_ref is not None:
-            self._properties = EndpointDescription._verify_export_props(svc_ref, all_properties)
+            self._properties = EndpointDescription._verify_export_props(
+                svc_ref, all_properties
+            )
         else:
             self._properties = all_properties
-                
+
         self._interfaces = list(self._properties.get(OBJECTCLASS))
         self._service_id = self._verify_long_prop(ENDPOINT_SERVICE_ID)
         self._framework_uuid = self._verify_str_prop(ENDPOINT_FRAMEWORK_UUID)
@@ -230,37 +285,45 @@ class EndpointDescription(object):
         if endpoint_id is None:
             raise ValueError("endpoint.id property must be set")
         self._id = endpoint_id.strip()
-        
-        if len(self.get_configuration_types()) == 0:
-            raise ValueError("service.imported.configs property must be set and non-empty")
-        
+
+        if not self.get_configuration_types():
+            raise ValueError(
+                "service.imported.configs property must be set and non-empty"
+            )
+
         self._ecfid = self._verify_str_prop(ECF_ENDPOINT_ID)
         if self._ecfid is None:
             raise ValueError("ecf.endpoint.id must not be null")
         self._timestamp = self._verify_long_prop(ECF_ENDPOINT_TIMESTAMP)
         if self._timestamp is 0:
-            self._timestamp = self.get_service_id();
-        self._id_namespace = self._verify_str_prop(ECF_ENDPOINT_CONTAINERID_NAMESPACE)
+            self._timestamp = self.get_service_id()
+        self._id_namespace = self._verify_str_prop(
+            ECF_ENDPOINT_CONTAINERID_NAMESPACE
+        )
         self._container_id = (self._id_namespace, self._ecfid)
         self._rs_id = self._verify_long_prop(ECF_RSVC_ID)
         if self._rs_id is None:
             self._rs_id = self.get_service_id()
-            
+
         connect_target_name = self._get_prop(ECF_ENDPOINT_CONNECTTARGET_ID)
         if connect_target_name is not None:
             self._connect_target_id = (self._id_namespace, connect_target_name)
         else:
             self._connect_target_id = None
-        
-        id_filter_names = self._get_string_plus_property(ECF_ENDPOINT_IDFILTER_IDS)
-        if len(id_filter_names) > 0:
-            self._id_filters = [(self._id_namespace, x) for x in id_filter_names]
+
+        id_filter_names = self._get_string_plus_property(
+            ECF_ENDPOINT_IDFILTER_IDS
+        )
+        if id_filter_names:
+            self._id_filters = [
+                (self._id_namespace, x) for x in id_filter_names
+            ]
         else:
             self._id_filters = None
-            
+
         self._rs_filter = self._get_prop(ECF_ENDPOINT_REMOTESERVICE_FILTER)
         self._async_intfs = self._verify_async_intfs()
-        
+
     def __hash__(self):
         return hash(self._id)
 
@@ -272,29 +335,36 @@ class EndpointDescription(object):
 
     def __str__(self):
         get_remoteservice_id = self.get_remoteservice_id()
-        return "EndpointDescription(id={0}; endpoint.service.id={1}; " \
-               "framework.uuid={2}; ecf.endpoint.id={3}:{4})".format(self.get_id(),
-                                            self.get_service_id(),
-                                            self.get_framework_uuid(),
-                                            get_remoteservice_id[0],get_remoteservice_id[1])
-               
-    def _get_prop(self, key, default = None):
+        return (
+            "EndpointDescription(id={0}; endpoint.service.id={1}; "
+            "framework.uuid={2}; ecf.endpoint.id={3}:{4})".format(
+                self.get_id(),
+                self.get_service_id(),
+                self.get_framework_uuid(),
+                get_remoteservice_id[0],
+                get_remoteservice_id[1],
+            )
+        )
+
+    def _get_prop(self, key, default=None):
         return get_prop_value(key, self._properties, default)
 
     def _get_string_plus_property(self, key):
-        return get_string_plus_property(key,self._properties,[])
-    
-    def _verify_long_prop(self,prop):
+        return get_string_plus_property(key, self._properties, [])
+
+    def _verify_long_prop(self, prop):
         value = self._get_prop(prop)
         return int(value) if value else int(0)
-    
-    def _verify_str_prop(self,prop):
+
+    def _verify_str_prop(self, prop):
         value = self._get_prop(prop)
         if value is None:
-            raise ValueError("prop name="+prop+" must be present in properties")
+            raise ValueError(
+                "prop name=" + prop + " must be present in properties"
+            )
         return str(value)
 
-    def _convert_intf_to_async(self,intf):
+    def _convert_intf_to_async(self, intf):
         async_proxy_intf = self._get_prop(ECF_SERVICE_ASYNC_RSPROXY_CLASS_)
         if async_proxy_intf is not None:
             return async_proxy_intf
@@ -302,60 +372,64 @@ class EndpointDescription(object):
             return intf
         else:
             return intf + ECF_ASYNC_INTERFACE_SUFFIX
-        
+
     def _verify_async_intfs(self):
         matching = []
         no_async_prop = self._get_prop(ECF_SERVICE_EXPORTED_ASYNC_NOPROXY)
         if no_async_prop is None:
-            async_inf_val = self._get_prop(ECF_SERVICE_EXPORTED_ASYNC_INTERFACES)
+            async_inf_val = self._get_prop(
+                ECF_SERVICE_EXPORTED_ASYNC_INTERFACES
+            )
             if async_inf_val is not None:
-                matching = get_matching_interfaces(self.get_interfaces(), async_inf_val)
+                matching = get_matching_interfaces(
+                    self.get_interfaces(), async_inf_val
+                )
         return [self._convert_intf_to_async(x) for x in matching]
-        
+
     def get_container_id(self):
         return self._container_id
-    
+
     def get_connect_target_id(self):
         return self._connect_target_id
-    
+
     def get_timestamp(self):
         return self._timestamp
-    
+
     def get_remoteservice_id(self):
         return (self.get_container_id(), self._rs_id)
-    
+
     def get_remoteservice_idstr(self):
         return rsid_to_string(self.get_remoteservice_id())
-    
+
     def get_id_filters(self):
         return self._id_filters
-    
+
     def get_remoteservice_filter(self):
         return self._rs_filter
-    
+
     def get_async_interfaces(self):
         return self._async_intfs
-    
+
     def get_framework_uuid(self):
         return self._framework_uuid
-    
+
     def get_osgi_basic_timeout(self):
-        timeout = self.get_properties().get(OSGI_BASIC_TIMEOUT_INTENT,None)
-        if isinstance(timeout,str):
+        timeout = self.get_properties().get(OSGI_BASIC_TIMEOUT_INTENT, None)
+        if isinstance(timeout, str):
             timeout = int(timeout)
-        return int(timeout/1000) if timeout else None
-    
+        return int(timeout / 1000) if timeout else None
+
     def get_id(self):
         """
         Returns the endpoint's id.
-        
+
         :return: str
         """
         return self._id
 
     def get_remote_intents_supported(self):
         return self._get_string_plus_property(REMOTE_INTENTS_SUPPORTED)
-    
+
     def get_intents(self):
         """
         Returns the list of intents required by this endpoint.
@@ -382,18 +456,20 @@ class EndpointDescription(object):
 
     def get_imported_configs(self):
         return self.get_configuration_types()
-    
-    def update_imported_configs(self,imported_configs):
-        self._properties[SERVICE_IMPORTED_CONFIGS] = get_string_plus_property_value(imported_configs)
-        
+
+    def update_imported_configs(self, imported_configs):
+        self._properties[
+            SERVICE_IMPORTED_CONFIGS
+        ] = get_string_plus_property_value(imported_configs)
+
     def get_configuration_types(self):
-        return self._get_string_plus_property(SERVICE_IMPORTED_CONFIGS)     
-    
+        return self._get_string_plus_property(SERVICE_IMPORTED_CONFIGS)
+
     def get_remote_configs_supported(self):
         return self._get_string_plus_property(REMOTE_CONFIGS_SUPPORTED)
-    
+
     def get_service_id(self):
-        return self._service_id;
+        return self._service_id
 
     def get_package_version(self, package):
         """
@@ -402,13 +478,12 @@ class EndpointDescription(object):
         :param package: The name of the package
         :return: The version of the specified package as a tuple or (0,0,0)
         """
-        name = "{0}{1}".format(ENDPOINT_PACKAGE_VERSION_,
-                               package)
+        name = "{0}{1}".format(ENDPOINT_PACKAGE_VERSION_, package)
         try:
             # Get the version string
             version = self._properties[name]
             # Split dots ('.')
-            return tuple(version.split('.'))
+            return tuple(version.split("."))
 
         except KeyError:
             # No version
@@ -430,8 +505,10 @@ class EndpointDescription(object):
         :param endpoint: Another endpoint
         :return: True if both endpoints represent the same remote service
         """
-        return self.get_framework_uuid() == endpoint.get_framework_uuid() \
+        return (
+            self.get_framework_uuid() == endpoint.get_framework_uuid()
             and self.get_service_id() == endpoint.get_service_id()
+        )
 
     def matches(self, ldap_filter):
         """
@@ -441,6 +518,4 @@ class EndpointDescription(object):
         :param ldap_filter: A filter
         :return: True if properties matches the filter
         """
-        return get_ldap_filter(ldap_filter) \
-            .matches(self._properties)
-
+        return get_ldap_filter(ldap_filter).matches(self._properties)

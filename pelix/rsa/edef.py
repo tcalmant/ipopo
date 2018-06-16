@@ -5,13 +5,13 @@ Endpoint Description Extender Format (EDEF) is specified in OSGi Compendium
 specifications, section 122.8.
 
 :author: Thomas Calmant and Scott Lewis
-:copyright: Copyright 2018, isandlaTech
+:copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
 :version: 0.7.1
 
 ..
 
-    Copyright 2015 isandlaTech
+    Copyright 2018 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -25,22 +25,11 @@ specifications, section 122.8.
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-# ------------------------------------------------------------------------------
-# Standard logging
-import logging
-_logger = logging.getLogger(__name__)
-# ------------------------------------------------------------------------------
-# Module version
-__version_info__ = (0, 1, 0)
-__version__ = ".".join(str(x) for x in __version_info__)
-# Documentation strings format
-__docformat__ = "restructuredtext en"
-# ------------------------------------------------------------------------------
-from pelix.rsa.endpointdescription import EndpointDescription
-from pelix import rsa
 
 # Standard library
+import logging
 import xml.etree.ElementTree as ElementTree
+
 try:
     # Python 2
     from StringIO import StringIO
@@ -48,83 +37,23 @@ except ImportError:
     # Python 3
     from io import StringIO
 
+
 # Pelix
+from pelix.rsa.endpointdescription import EndpointDescription
+from pelix import rsa
 import pelix.constants
 
 # ------------------------------------------------------------------------------
-# Python 2.6 compatibility
-if ElementTree.VERSION[0:3] == '1.2':
-    # Old version of ElementTree misses many options
-    def _clean_modules_tree(module_name):
-        """
-        Deletes the hierarchy of modules until the given module
-        is reached. This ensures that the next import of the given
-        module will reload all of its parents to.
-        """
-        import sys
-        parts = module_name.split('.')
-        current_part = None
-        for part in parts:
-            if current_part:
-                current_part = '.'.join([current_part, part])
-            else:
-                current_part = part
+# Module version
 
-            del sys.modules[current_part]
+__version_info__ = (0, 1, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
-    # As we will heavily modify this version of the class, ensure we have our
-    # own version
-    _clean_modules_tree(ElementTree.__name__)
-    ElementTree = __import__('xml.etree.ElementTree', fromlist='.')
-    _clean_modules_tree(ElementTree.__name__)
+# Documentation strings format
+__docformat__ = "restructuredtext en"
 
-    # Remove column ':' in namespace prefix
-    old_fixtag = ElementTree.fixtag
-
-    def _fixtag(tag, namespace):
-        """
-        Replaces the fixtag method of ElementTree 1.2.x to remove the starting
-        column when using empty namespace prefix
-        """
-        fixed = old_fixtag(tag, namespace)
-        if fixed[0].startswith(':'):
-            # Remove starting column
-            tag = fixed[0][1:]
-            if fixed[1] and fixed[1][0].endswith(':'):
-                xmlns = (fixed[1][0][:-1], fixed[1][1])
-            else:
-                xmlns = None
-            return tag, xmlns
-        else:
-            # Good to go
-            return fixed
-
-    # Missing method
-    def _register_namespace(prefix, uri):
-        """
-        Backport of the register_namespace() method of ElementTree 1.3.x
-        """
-        ElementTree._namespace_map[EDEF_NAMESPACE] = ""
-
-    # Support 1.3.x parameters + write the XML declaration more often
-    def _write(self, out_file, encoding="us-ascii", xml_declaration=True,
-               method="xml"):
-        """
-        Backport of the ElementTree.write() class method
-        """
-        assert self._root is not None
-        if not hasattr(out_file, "write"):
-            out_file = open(out_file, "wb")
-        if not encoding:
-            encoding = "us-ascii"
-        if xml_declaration or (encoding not in ("us-ascii", "utf-8")):
-            out_file.write("<?xml version='1.0' encoding='%s'?>\n" % encoding)
-        self._write(out_file, self._root, encoding, {})
-
-    # Update the module
-    ElementTree.register_namespace = _register_namespace
-    ElementTree.fixtag = _fixtag
-    ElementTree.ElementTree.write = _write
+# Standard logging
+_logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
@@ -132,8 +61,9 @@ if ElementTree.VERSION[0:3] == '1.2':
 EDEF_NAMESPACE = "http://www.osgi.org/xmlns/rsa/v1.0.0"
 
 # EDEF tags
-TAG_ENDPOINT_DESCRIPTIONS = "{{{0}}}endpoint-descriptions" \
-    .format(EDEF_NAMESPACE)
+TAG_ENDPOINT_DESCRIPTIONS = "{{{0}}}endpoint-descriptions".format(
+    EDEF_NAMESPACE
+)
 TAG_ENDPOINT_DESCRIPTION = "{{{0}}}endpoint-description".format(EDEF_NAMESPACE)
 TAG_PROPERTY = "{{{0}}}property".format(EDEF_NAMESPACE)
 TAG_ARRAY = "{{{0}}}array".format(EDEF_NAMESPACE)
@@ -156,19 +86,33 @@ TYPE_STRING = "String"
 TYPES_BOOLEAN = ("boolean", "Boolean")
 TYPES_CHAR = ("char", "Character")
 TYPES_FLOAT = ("float", "Float", "double", "Double")
-TYPES_INT = ("int", "Integer", "long", "Long", "short", "Short",
-             "bytes", "Bytes")
+TYPES_INT = (
+    "int",
+    "Integer",
+    "long",
+    "Long",
+    "short",
+    "Short",
+    "bytes",
+    "Bytes",
+)
 
 # Type of properties
 TYPED_BOOL = tuple()
-TYPED_LONG = (rsa.ENDPOINT_SERVICE_ID,rsa.ECF_ENDPOINT_TIMESTAMP,rsa.ECF_RSVC_ID)
-TYPED_STRING = (pelix.constants.OBJECTCLASS,
-                rsa.ENDPOINT_FRAMEWORK_UUID,
-                rsa.ENDPOINT_ID,
-                rsa.ENDPOINT_PACKAGE_VERSION_,
-                rsa.SERVICE_IMPORTED_CONFIGS,
-                rsa.SERVICE_INTENTS,
-                rsa.SERVICE_IMPORTED)
+TYPED_LONG = (
+    rsa.ENDPOINT_SERVICE_ID,
+    rsa.ECF_ENDPOINT_TIMESTAMP,
+    rsa.ECF_RSVC_ID,
+)
+TYPED_STRING = (
+    pelix.constants.OBJECTCLASS,
+    rsa.ENDPOINT_FRAMEWORK_UUID,
+    rsa.ENDPOINT_ID,
+    rsa.ENDPOINT_PACKAGE_VERSION_,
+    rsa.SERVICE_IMPORTED_CONFIGS,
+    rsa.SERVICE_INTENTS,
+    rsa.SERVICE_IMPORTED,
+)
 
 # Special case: XML value given
 XML_VALUE = object()
@@ -178,6 +122,7 @@ class EDEFReader(object):
     """
     Reads an EDEF XML data. Inspired from EndpoitnDescriptionParser from ECF
     """
+
     @staticmethod
     def _convert_value(vtype, value):
         """
@@ -260,13 +205,17 @@ class EDEFReader(object):
 
         elif kind == TAG_LIST or kind == TAG_ARRAY:
             # List
-            return [self._convert_value(vtype, value_node.text)
-                    for value_node in node.findall(TAG_VALUE)]
+            return [
+                self._convert_value(vtype, value_node.text)
+                for value_node in node.findall(TAG_VALUE)
+            ]
 
         elif kind == TAG_SET:
             # Set
-            return set(self._convert_value(vtype, value_node.text)
-                       for value_node in node.findall(TAG_VALUE))
+            return set(
+                self._convert_value(vtype, value_node.text)
+                for value_node in node.findall(TAG_VALUE)
+            )
 
         else:
             # Unknown
@@ -285,20 +234,25 @@ class EDEFReader(object):
             raise ValueError("Not an EDEF XML: {0}".format(root.tag))
 
         # Parse content
-        return [self._parse_description(node)
-                for node in root.findall(TAG_ENDPOINT_DESCRIPTION)]
+        return [
+            self._parse_description(node)
+            for node in root.findall(TAG_ENDPOINT_DESCRIPTION)
+        ]
+
 
 # ------------------------------------------------------------------------------
+
+
 class EDEFWriter(object):
-    
-    def __init__(self,encoding='unicode',xml_declaration=True):
-        self._encoding = encoding
-        self._xml_declaration = xml_declaration
-        
     """
     EDEF XML file writer
     """
-    def _indent(self, element, level=0, prefix='\t'):
+
+    def __init__(self, encoding="unicode", xml_declaration=True):
+        self._encoding = encoding
+        self._xml_declaration = xml_declaration
+
+    def _indent(self, element, level=0, prefix="\t"):
         """
         In-place Element text auto-indent, for pretty printing.
 
@@ -310,7 +264,7 @@ class EDEFWriter(object):
         """
         element_prefix = "\n{0}".format(level * prefix)
 
-        if len(element):
+        if element:
             if not element.text or not element.text.strip():
                 element.text = element_prefix + prefix
 
@@ -397,16 +351,18 @@ class EDEFWriter(object):
         :param endpoint: An EndpointDescription bean
         :return: An Element
         """
-        endpoint_node = ElementTree.SubElement(root_node,
-                                               TAG_ENDPOINT_DESCRIPTION)
+        endpoint_node = ElementTree.SubElement(
+            root_node, TAG_ENDPOINT_DESCRIPTION
+        )
 
         for name, value in endpoint.get_properties().items():
             # Compute value type
             vtype = self._get_type(name, value)
 
             # Prepare the property node
-            prop_node = ElementTree.SubElement(endpoint_node, TAG_PROPERTY,
-                                               {ATTR_NAME: name})
+            prop_node = ElementTree.SubElement(
+                endpoint_node, TAG_PROPERTY, {ATTR_NAME: name}
+            )
 
             if vtype == XML_VALUE:
                 # Special case, we have to store the value as a child
@@ -455,7 +411,6 @@ class EDEFWriter(object):
 
         return root
 
-
     def to_string(self, endpoints):
         """
         Converts the given endpoint description beans into a string
@@ -475,7 +430,11 @@ class EDEFWriter(object):
         output = StringIO()
 
         # Try to write with a correct encoding
-        tree.write(output, encoding=self._encoding, xml_declaration=self._xml_declaration)
+        tree.write(
+            output,
+            encoding=self._encoding,
+            xml_declaration=self._xml_declaration,
+        )
 
         return output.getvalue().strip()
 
