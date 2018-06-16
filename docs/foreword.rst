@@ -47,7 +47,7 @@ In order to be consistent, I decided to develop a component model
 similar to what was used used in Java, *i.e.* iPOJO, and keeping the
 concepts of OSGi.
 
-A first draft, called ``python.injections`` was developped in
+A first draft, called ``python.injections`` was developed in
 December 2011.
 It was a proof of concept which was good enough for my employer,
 `isandlaTech <http://www.cohorte-technologies.com/fr/>`_

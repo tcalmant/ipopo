@@ -30,20 +30,20 @@ set and updated by its provider.
 Although, some properties are reserved for the framework; each service has at
 least the following properties:
 
-=========== =========== ========================================================
+=========== =========== =======================================================
 Name        Type        Description
-=========== =========== ========================================================
+=========== =========== =======================================================
 objectClass list of str List of the specifications implemented by this service
 service.id  int         Identifier of the service. Unique in a framework instance
-=========== =========== ========================================================
+=========== =========== =======================================================
 
 The framework also uses the following property to sort the result of a service look up:
 
-=============== ==== ===========================================================
+=============== ==== ==========================================================
 Name            Type Description
-=============== ==== ===========================================================
+=============== ==== ==========================================================
 service.ranking int  The rank/priority of the service. The lower the rank, the more priority
-=============== ==== ===========================================================
+=============== ==== ==========================================================
 
 .. _service_factory:
 
@@ -195,7 +195,8 @@ API
 ---
 
 The service provider has access to the :class:`~ServiceRegistration` object
-created by the framework when :meth:`~BundleContext.register_service` is called.
+created by the framework when :meth:`~BundleContext.register_service` is
+called.
 
 .. autoclass:: ServiceRegistration
    :members:

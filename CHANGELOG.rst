@@ -17,7 +17,8 @@ Project
 Pelix
 =====
 
-* Aded support for Event Listeners Hooks. See `pull request #88 <https://github.com/tcalmant/ipopo/pull/88>`_
+* Added support for Event Listeners Hooks. See
+  `pull request #88 <https://github.com/tcalmant/ipopo/pull/88>`_
   for more details.
 * Fixed ``Framework.delete()`` when framework was already stopped.
 
@@ -38,7 +39,7 @@ Shell
 
 * New shell completion system: completion is now extensible and can work with
   both commands and arguments. This system relies on ``readline``.
-* Added a TLS version of the shell. Its usage and the generation of cerficates
+* Added a TLS version of the shell. Its usage and the generation of certificates
   are described in the Pelix Shell reference card in the documentation.
 * ``ShellSession.write_line()`` can now be called without argument
   (prints an empty line)
@@ -135,7 +136,7 @@ HTTP
 * Added a ``pelix.https`` service property and an ``is_https()`` service method
   to indicate that the server uses HTTPS.
 * Added a utility module, ``pelix.http.routing``, which eases the routing of
-  HTTP requests whith decorators like ``@Http``, ``@HttpGet``...
+  HTTP requests with decorators like ``@Http``, ``@HttpGet``...
 * Merged `pull request #70 <https://github.com/tcalmant/ipopo/pull/70>`_,
   avoiding remote HTTP servlets to be used by the local HTTP server.
 * Fixed the way servlet are found according to their path
@@ -287,7 +288,7 @@ iPOPO
 =====
 
 * The properties of a component can be updated when calling the
-  ``retry_erroneous()`` method. This allows to modifiy the configuration of
+  ``retry_erroneous()`` method. This allows to modify the configuration of
   a component before trying to validate it again (HTTP port, ...).
 * The ``get_instance_details()`` dictionary now always contains a *filter*
   entry for each of the component requirement description, even if not filter
@@ -319,7 +320,7 @@ iPOPO
 =====
 
 * The stack trace of the exception that caused a component to be in the
-  ERRONEOUS state is now kept, as a string. It can be seen throught the
+  ERRONEOUS state is now kept, as a string. It can be seen through the
   ``instance`` shell command.
 
 
@@ -594,7 +595,7 @@ Services
 
 * Added support for *managed service factories* in ConfigurationAdmin
 * Added an EventAdmin-MQTT bridge: events from EventAdmin with an
-  *event.propage* property are published over MQTT
+  *event.propagate* property are published over MQTT
 * Added an early version of an MQTT Client Factory service
 
 
@@ -603,8 +604,8 @@ Miscellaneous
 
 * Added a ``misc`` package, with utility modules and bundles:
 
-  * ``eventadmin_printer``: an EventAdmin handler that prints or logs the events
-    it receives
+  * ``eventadmin_printer``: an EventAdmin handler that prints or logs the
+    events it receives
   * ``jabsorb``: converts dictionary from and to the Jabsorb-RPC format
   * ``mqtt_client``: a wrapper for the `Paho <http://www.eclipse.org/paho/>`_
     MQTT client, used in MQTT discovery and MQTT-RPC.

@@ -25,12 +25,12 @@ An event is the association of:
 
 Some properties are defined by the EventAdmin service:
 
-========================== ===== ===============================================
+========================== ===== ==============================================
 Property                   Type  Description
-========================== ===== ===============================================
+========================== ===== ==============================================
 event.sender.framework.uid str    UID of the framework that emitted the event. Useful in remote services
 event.timestamp            float Time stamp of the event, computed when the event is given to EventAdmin
-========================== ===== ===============================================
+========================== ===== ==============================================
 
 Usage
 =====
@@ -76,11 +76,11 @@ It can also be instantiated via the Pelix Shell:
 
 The EventAdmin component accepts the following property as a configuration:
 
-============ ============= =====================================================
+============ ============= ====================================================
 Property     Default value Description
-============ ============= =====================================================
+============ ============= ====================================================
 pool.threads 10            Number of threads in the pool used for asynchronous delivery
-============ ============= =====================================================
+============ ============= ====================================================
 
 Interfaces
 ----------
@@ -88,7 +88,8 @@ Interfaces
 EventAdmin service
 ^^^^^^^^^^^^^^^^^^
 
-The EventAdmin service provides the ``pelix.services.eventadmin`` specification:
+The EventAdmin service provides the ``pelix.services.eventadmin``
+specification:
 
 .. autoclass:: pelix.services.eventadmin.EventAdmin
    :members: post, send
@@ -126,12 +127,12 @@ specification, which defines by the following method:
 An event handler must associate at least one the following properties to its
 service:
 
-============ =========== =======================================================
+============ =========== ======================================================
 Property     Type        Description
-============ =========== =======================================================
+============ =========== ======================================================
 event.topics List of str A list of strings that indicates the topics the topics this handler expects. EventAdmin supports "file name" filters, i.e. with  ``*`` or ``?`` jokers.
 event.filter str         A LDAP filter string that will be tested on the event properties
-============ =========== =======================================================
+============ =========== ======================================================
 
 
 Example
@@ -270,12 +271,12 @@ It is possible to send events from the Pelix shell, after installing the
 
 This bundle defines two commands, in the ``event`` scope:
 
-========================================= ======================================
+========================================= =====================================
 Command                                   Description
-========================================= ======================================
+========================================= =====================================
 ``post <topic> [<property=value> [...]]`` Posts an event on the given topic, with the given properties
 ``send <topic> [<property=value> [...]]`` Sends an event on the given topic, with the given properties
-========================================= ======================================
+========================================= =====================================
 
 Here is a sample shell session, considering the sample event handler above has
 been started.
@@ -293,8 +294,8 @@ It installs and start the EventAdmin shell bundle:
 Events printer utility component
 ================================
 
-A ``pelix-misc-eventadmin-printer-factory`` component factory is provided by the
-``pelix.misc.eventadmin_printer`` bundle.
+A ``pelix-misc-eventadmin-printer-factory`` component factory is provided by
+the ``pelix.misc.eventadmin_printer`` bundle.
 It can be used to instantiate components that will print and/or log the event
 matching a given filter.
 
@@ -343,14 +344,14 @@ The component factory, ``pelix-services-eventadmin-mqtt-factory``, is provided
 by the ``pelix.services.eventadmin_mqtt`` bundle.
 It can be configured with the following properties:
 
-================= ===================== ========================================
+================= ===================== =======================================
 Property          Default Value         Description
-================= ===================== ========================================
+================= ===================== =======================================
 event.topics      ``*``                 The filter to select the events to share
 mqtt.host         localhost             The host name of the MQTT server
 mqtt.port         1883                  The port the MQTT server is bound to
 mqtt.topic.prefix ``/pelix/eventadmin`` The prefix to add to events before sending them over MQTT
-================= ===================== ========================================
+================= ===================== =======================================
 
 Events handled by this component, i.e. matching the filter given at
 instantiation time, and having the ``event.propagate`` property set to any

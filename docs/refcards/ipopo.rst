@@ -8,8 +8,8 @@ A component is an object with a life-cycle, requiring services and providing
 ones, and associated to properties.
 The code of a component is reduced to its functional purpose:
 its life-cycle, dependencies, etc. are handled by iPOPO.
-In iPOPO, a component is an instance of component factory, *i.e.* a Python class
-manipulated with the iPOPO decorators.
+In iPOPO, a component is an instance of component factory, *i.e.* a Python
+class manipulated with the iPOPO decorators.
 
 .. note::
 
@@ -20,24 +20,26 @@ manipulated with the iPOPO decorators.
 Life-cycle
 ----------
 
-The component life cycle is handled by an instance manager created by the iPOPO service.
+The component life cycle is handled by an instance manager created by the
+iPOPO service.
 This instance manager will inject control methods, run-time dependencies,
 and will register the component services.
-All changes will be notified to the component using the callback methods it decorated.
+All changes will be notified to the component using the callback methods it
+decorated.
 
 .. image:: ../_static/component_lifecycle.png
    :alt: iPOPO component life-cycle graph
    :width: 30%
    :align: right
 
-============ ===================================================================
+============ ==================================================================
 State        Description
-============ ===================================================================
+============ ==================================================================
 INSTANTIATED The component has been instantiated. Its constructor has been called and the control methods have been injected
 VALIDATED    All required dependencies have been injected. All services provided by the component will be registered right after this method returned
-KILLED       The component has been invalidated and won’t be usable again
+KILLED       The component has been invalidated and won't be usable again
 ERRONEOUS    The component raised an error during its validation. It is not destroyed and a validation can be retried manually
-============ ===================================================================
+============ ==================================================================
 
 API
 ---

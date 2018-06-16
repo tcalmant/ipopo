@@ -7,7 +7,8 @@ Most of the time, it is necessary to access a Pelix application locally or
 remotely in order to monitor it, to update its components or simply to check
 its sanity.
 The easiest to do those tasks is to use the Pelix Shell: it provides an
-extensible set of commands that allows to work on bundles, iPOPO components, ...
+extensible set of commands that allows to work on bundles,
+iPOPO components, ...
 
 The shell is split into two parts:
 
@@ -43,9 +44,9 @@ arguments to handle the Initial Configuration files
 In addition to their specific arguments, the scripts starting the user
 interfaces also accept the following ones:
 
-====================================== =========================================
+====================================== ========================================
 Argument                               Description
-====================================== =========================================
+====================================== ========================================
 ``-h``, ``--help``                     Prints the script usage
 ``--version``                          Prints the script version
 ``-D KEY=VALUE``                       Sets up a framework property
@@ -55,12 +56,13 @@ Argument                               Description
 ``-c FILE``, ``--conf FILE``           Use a configuration file, above the system configuration
 ``-C FILE``, ``--exclusive-conf FILE`` Use a configuration file, ignore the system configuration
 ``-e``, ``--empty-conf``               Don't use any initial configuration
-====================================== =========================================
+====================================== ========================================
 
 Text UI
 -------
 
-The Text UI is the easiest way to manage or test your programs with Pelix/iPOPO.
+The Text UI is the easiest way to manage or test your programs with
+Pelix/iPOPO.
 It provides the most basic yet complete interaction with the Pelix Shell core
 service.
 
@@ -121,9 +123,9 @@ console locally.
 
 In addition to the common parameters, the script accepts the following ones:
 
-=============================== ========= ======================================
+=============================== ========= =====================================
 Argument                        Default   Description
-=============================== ========= ======================================
+=============================== ========= =====================================
 ``--no-input``                  *not set* If set, don't start the Python console (useful for server/daemon mode)
 ``-a ADDR``, ``--address ADDR`` localhost Server binding address
 ``-p PORT``, ``--port PORT``    9000      Server binding port
@@ -131,7 +133,7 @@ Argument                        Default   Description
 ``--cert FILE``                 ``None``  Path to the server certificate file
 ``--key FILE``                  ``None``  Path to the server private key file
 ``--key-password PASSWORD``     ``None``  Password of the server private key
-=============================== ========= ======================================
+=============================== ========= =====================================
 
 Programmatic startup
 ^^^^^^^^^^^^^^^^^^^^
@@ -143,16 +145,16 @@ factory name when instantiating the component.
 
 This factory accepts the following properties:
 
-================================ ========= =====================================
+================================ ========= ====================================
 Name                             Default   Description
-================================ ========= =====================================
+================================ ========= ====================================
 ``pelix.shell.address``          localhost Server binding address
 ``pelix.shell.port``             9000      Server binding port
 ``pelix.shell.ssl.ca``           ``None``  Path to the clients certificate authority chain file
 ``pelix.shell.ssl.cert``         ``None``  Path to the server's SSL certificate file
 ``pelix.shell.ssl.key``          ``None``  Path to the server's private key
 ``pelix.shell.ssl.key_password`` ``None``  Password of the server's private key
-================================ ========= =====================================
+================================ ========= ====================================
 
 
 XMPP Shell
@@ -179,22 +181,22 @@ console UI locally.
 
 In addition to the common parameters, the script accepts the following ones:
 
-============================== ========= =======================================
+============================== ========= ======================================
 Argument                       Default   Description
-============================== ========= =======================================
+============================== ========= ======================================
 ``-j JID``, ``--jid JID``      ``None``  Jabber ID (user account)
 ``--password PASSWORD``        ``None``  Account password
 ``-s ADDR``, ``--server ADDR`` ``None``  Address of the XMPP server (found in the Jabber ID by default)
 ``-p PORT``, ``--port PORT``   5222      Port of the XMPP server
 ``--tls``                      *not set* If set, use a STARTTLS connection
 ``--ssl``                      *not set* If set, use an SSL connection
-============================== ========= =======================================
+============================== ========= ======================================
 
 Programmatic startup
 ^^^^^^^^^^^^^^^^^^^^
 
-This UI depends on the ``sleekxmpp`` third-party package, which can be installed
-using the following command::
+This UI depends on the ``sleekxmpp`` third-party package, which can be
+installed using the following command::
 
     pip install sleekxmpp
 
@@ -227,15 +229,15 @@ Note that the commands themselves won't be described here: it is recommended
 to use the ``help`` command in the shell to have the latest usage information.
 
 
-=========================== ====================================================
+=========================== ===================================================
 Bundle name                 Description
-=========================== ====================================================
+=========================== ===================================================
 ``pelix.shell.ipopo``       Handles iPOPO factories and instances.
 ``pelix.shell.configadmin`` Handles the Configuration Admin service (provided by ``pelix.misc.configadmin``). See :ref:`configadmin`.
 ``pelix.shell.eventadmin``  Handles the Event Admin service (provided by ``pelix.misc.eventadmin``). See :ref:`refcard_eventadmin`.
 ``pelix.shell.log``         Looks into the Log Service (provided by ``pelix.misc.log``). See :ref:`refcard_log`.
 ``pelix.shell.report``      Generates framework state reports. See :ref:`refcard_report`.
-=========================== ====================================================
+=========================== ===================================================
 
 How to provide commands
 =======================
@@ -248,7 +250,8 @@ service (use the ``pelix.shell.SERVICE_SHELL_COMMAND`` constant) is registered.
 
 First, the Shell Core calls the ``get_namespace()`` method of the new service,
 in order to prepare the (potentially new) command namespace.
-Each shell command provider **should** have a unique, human-readable, namespace.
+Each shell command provider **should** have a unique, human-readable,
+namespace.
 Sometimes it can be interesting to have multiple services providing sets of
 optional commands in the same namespace, but this can lead to some unexpected
 behaviour, *e.g.* when trying to provide the same command name twice in the

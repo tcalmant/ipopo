@@ -32,13 +32,13 @@ __________________
 
 Note that some properties have a special meaning for iPOPO and Pelix.
 
-=================== ======= ====================================================
+=================== ======= ===================================================
 Name                Type    Description
-=================== ======= ====================================================
+=================== ======= ===================================================
 ``instance.name``   ``str`` The name of the iPOPO component instance
 ``service.id``      ``int`` The registration number of a service
 ``service.ranking`` ``int`` The rank (priority) of the services provided by this component
-=================== ======= ====================================================
+=================== ======= ===================================================
 
 .. code-block:: python
 
@@ -78,7 +78,7 @@ Instance definition
 Life-cycle events
 -----------------
 
-Those decorators store behavioral information on component methods.
+Those decorators store behavioural information on component methods.
 They must decorate methods in the component class.
 
 Component state

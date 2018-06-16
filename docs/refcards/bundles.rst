@@ -27,16 +27,16 @@ states:
    :width: 30%
    :align: right
 
-=========== ===================================================================================================
+=========== ===================================================================
 State       Description
-=========== ===================================================================================================
+=========== ===================================================================
 INSTALLED   The Python module has been correctly imported, the bundle goes to the RESOLVED state
 RESOLVED    The bundle has not been started yet or has been stopped
 *STARTING*  The :meth:`~pelix.constants.BundleActivator.start` method of the bundle activator is being called (transition to ACTIVE or RESOLVED)
 ACTIVE      The bundle activator has been called and didn't raise any error
 *STOPPING*  The :meth:`~pelix.constants.BundleActivator.stop` method of the bundle activator is being called (transition to RESOLVED)
 UNINSTALLED The bundle has been removed from the framework (only visible by remaining references to the bundle)
-=========== ===================================================================================================
+=========== ===================================================================
 
 The update process of a bundle is simple:
 
@@ -46,8 +46,8 @@ The update process of a bundle is simple:
   `importlib.reload() <https://docs.python.org/3/library/importlib.html#importlib.reload>`_
   method (or `imp.reload() <https://docs.python.org/3/library/imp.html#imp.reload>`_
   when not available)
-
-  * if the update fails, the previous version of the module is kept, but the bundle is not restarted.
+* if the update fails, the previous version of the module is kept, but the
+  bundle is not restarted.
 * if the update succeeds and the bundle was active, the bundle its restarted
 
 Bundle Activator
@@ -58,8 +58,8 @@ A bundle activator is a class defining the
 :meth:`~pelix.constants.BundleActivator.stop` methods, which are called by the
 framework according to the bundle life-cycle.
 
-The framework is locked during transitions in bundles states, which means during
-the calls to :meth:`~pelix.constants.BundleActivator.start` and
+The framework is locked during transitions in bundles states, which means
+during the calls to :meth:`~pelix.constants.BundleActivator.start` and
 :meth:`~pelix.constants.BundleActivator.stop`.
 Therefore, it is heavily recommended to return fast from those methods.
 For example, it may be necessary to use threads to complete the initialization

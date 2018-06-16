@@ -27,4 +27,4 @@ This snippet is added to the module-level documentation::
 License Full Text
 -----------------
 
-.. include:: ../LICENSE
+.. literalinclude:: ../LICENSE

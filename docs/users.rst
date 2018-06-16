@@ -11,7 +11,7 @@ Cohorte Technologies (isandlaTech)
 ==================================
 
 .. image:: /_static/users/cohorte_technologies.svg
-   :alt: Cohorte Techologies
+   :alt: Cohorte Technologies
    :width: 33%
    :target: http://cohorte-technologies.com/
 
@@ -41,9 +41,9 @@ is a complex of several platforms dedicated for research and education.
 These platforms gather many industrials and academic partners working around
 emerging axes of electrical engineering and energy management.
 PREDIS platforms are part of the Ense3 school which trains high-level engineers
-and doctors able to take up the challenges associated with the new energy order,
-with the increasing demand of water, both in quantity and quality, and with the
-sustainable development and country planning.
+and doctors able to take up the challenges associated with the new energy
+order, with the increasing demand of water, both in quantity and quality,
+and with the sustainable development and country planning.
 
 The `PREDIS Smart Building platform <http://www.g2elab.grenoble-inp.fr/plateformes/plateforme-predis-196107.kjsp>`_
 is mainly focused on energy management in buildings such as offices.

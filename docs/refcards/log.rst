@@ -7,7 +7,7 @@ Logging
 
 The best way to log traces in iPOPO is to use the
 `logging <https://docs.python.org/3/library/logging.html>`_ module from the
-Python Standad Library.
+Python Standard Library.
 Pelix/iPOPO relies on this module for its own logs, using a module level
 constant providing a logger with the name of the module, like this:
 
@@ -118,16 +118,16 @@ Shell Commands
 The ``pelix.shell.log`` bundle provides a set of commands in the ``log`` shell
 namespace, to interact with the log services:
 
-======== =======================================================================
+======== ======================================================================
 Command  Description
-======== =======================================================================
+======== ======================================================================
 log      Prints the last ``N`` entries with level higher than the given one (``WARNING`` by default)
 debug    Logs a message at ``DEBUG`` level
 info     Logs a message at ``INFO`` level
 warning  Logs a message at ``WARNING`` level
 warn     An alias of the ``warning`` command
 error    Logs a message at ``ERROR`` level
-======== =======================================================================
+======== ======================================================================
 
 
 .. code-block:: shell

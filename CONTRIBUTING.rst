@@ -39,7 +39,8 @@ Code Style
 
 Overall, try to respect `PEP-8 <https://www.python.org/dev/peps/pep-0008/>`_.
 
-If you use the PyCharm IDE, most of the rules described here are already checked.
+If you use PyCharm or VS Code, most of the rules described here are already
+checked.
 
 General
 -------

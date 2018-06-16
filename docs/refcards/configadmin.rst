@@ -31,7 +31,7 @@ Two kinds of managed services exist:
 Basic Usage
 ===========
 
-Here is a bery basic example of a managed service able to handle a single
+Here is a very basic example of a managed service able to handle a single
 configuration.
 This configuration contains a single entry: the length of a pretty printer.
 

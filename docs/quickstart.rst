@@ -1,7 +1,7 @@
 .. _quickstart:
 
-Quickstart
-##########
+Quick-start
+###########
 
 Eager to get started? This page gives a good introduction to iPOPO.
 It assumes you already have iPOPO installed. If you do not, head over
@@ -200,7 +200,8 @@ Finally, to stop the shell, simply run the ``exit`` command or press
 Hello World!
 ============
 
-In this section, we will create a service provider and its consumer using iPOPO.
+In this section, we will create a service provider and its consumer using
+iPOPO.
 The consumer will use the provider to print a greeting message as soon as it
 is bound to it.
 To simplify this first sample, the consumer can only be bound to a single
@@ -299,8 +300,8 @@ about this feature.
 Core bundles
 ------------
 
-First, we must install the core bundles of the *remote services* implementation:
-the *Imports Registry* (``pelix.remote.registry``) and the
+First, we must install the core bundles of the *remote services*
+implementation: the *Imports Registry* (``pelix.remote.registry``) and the
 *Exports Dispatcher* (``pelix.remote.dispatcher``).
 Both handle the description of the shared services, not their link with the
 framework: this will be the job of the discovery and transport providers.
@@ -322,9 +323,9 @@ requests::
     $ instantiate pelix-remote-dispatcher-servlet-factory dispatcher-servlet
     Component 'dispatcher-servlet' instantiated.
 
-The protocols we will use for discovery and transport depends on an HTTP server.
-As we are using two framework on the same machine, don't forget to use different
-HTTP ports for each framework::
+The protocols we will use for discovery and transport depends on an HTTP
+server. As we are using two framework on the same machine, don't forget to use
+different HTTP ports for each framework::
 
     $ install pelix.http.basic
     Bundle ID: 13
@@ -365,8 +366,8 @@ easiest to use (*e.g.* XML-RPC has problems handling dictionaries of complex
 types).
 Transport providers often require to instantiate two components: one handling
 the export of services and one handling their import.
-This allows to instantiate the export part only, avoiding every single framework
-to know about all available services::
+This allows to instantiate the export part only, avoiding every single
+framework to know about all available services::
 
     $ install pelix.remote.json_rpc
     Bundle ID: 15
@@ -391,7 +392,8 @@ To avoid typos, this property is defined in the
 This property can contain either a list of names of interfaces/contracts or a
 star (``*``) to indicate that all services interfaces are exported.
 
-Here is the new version of the *hello world* provider, with the export property:
+Here is the new version of the *hello world* provider, with the export
+property:
 
 .. code-block:: python
 

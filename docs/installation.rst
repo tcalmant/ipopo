@@ -100,7 +100,8 @@ If you are a Windows user, the following command is for you::
 
 Either way, the ``python`` and ``pip`` commands you type in the shell should
 be those of your virtual environment.
-The shell prompt indicates the name of the virtual environment currently in use.
+The shell prompt indicates the name of the virtual environment currently
+in use.
 
 Now you can install iPOPO using ``pip``. As you are in a virtual
 environment, you don't need administration rights::
@@ -142,4 +143,4 @@ As the *develop* installation mode uses symbolic links, you simply
 have to run ``git pull origin`` to update to the latest version of
 iPOPO in your virtual environment.
 
-You can now continue to :ref:`Quickstart`
+You can now continue to :ref:`Quick-start`

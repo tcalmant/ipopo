@@ -63,15 +63,15 @@ Supported types
 Each argument in the URL can be automatically converted to the requested type.
 If the conversion fails, an error 500 is automatically sent back to the client.
 
-====== =========================================================================
+====== ========================================================================
 Type   Description
-====== =========================================================================
+====== ========================================================================
 string Simple string used as is. The string can't contain a slash (``/``)
 int    The argument is converted to an integer. The input must be of base 10. Floats are rejected.
 float  The argument is converted to a float. The input must be of base 10.
 path   A string representing a path, containing slashes.
 uuid   The argument is converted to a ``uuid.UUID`` class.
-====== =========================================================================
+====== ========================================================================
 
 Multiple arguments can be given at a time, but can only be of one type.
 

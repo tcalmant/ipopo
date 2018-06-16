@@ -47,8 +47,8 @@ The main advantages are that it is now included in the Git repository of the
 project, and it can include *docstrings* directly from the source code.
 
 Alas, the wiki content must be completely rewritten in reStructuredText format.
-I take this opportunity to update the documentation, but it takes a lot of time,
-and I can't work on this project as much as I'd like to.
+I take this opportunity to update the documentation, but it takes a lot of
+time, and I can't work on this project as much as I'd like to.
 So, if you have any question which hasn't been answered in the current
 documentation, please ask on the
 `users' mailing list <https://groups.google.com/forum/#!forum/ipopo-users>`_.

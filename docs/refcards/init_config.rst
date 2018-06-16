@@ -111,8 +111,8 @@ For example:
      "reset_bundles": true
    }
 
-When this file will be loaded, the list of bundles declared by previously loaded
-configuration files will be cleared and replaced by the one in this file.
+When this file will be loaded, the list of bundles declared by previously
+loaded configuration files will be cleared and replaced by the one in this file.
 
 .. _init_conf_lookup:
 
@@ -149,8 +149,8 @@ Support in Pelix shell
 The framework doesn't start a :class:`~InitFileHandler` on its own: the handler
 must be created and loaded before creating the framework.
 
-Currently, all the Pelix Shell interfaces (local console, remote shell and XMPP)
-support the initial configuration, using the following arguments:
+Currently, all the Pelix Shell interfaces (local console, remote shell and
+XMPP) support the initial configuration, using the following arguments:
 
 * *no argument*: the `.pelix.conf` files are loaded as described in
   :ref:`init_conf_lookup`.

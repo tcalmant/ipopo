@@ -52,10 +52,11 @@ below:
 When a service declares it can be exported, the *export dispatcher* detects
 it (as it is a service listener) notifies all *transport providers* which
 matches the service properties.
-Each transport provider then tests if it can/must create an endpoint for it and,
-if so, returns an *export endpoint* description to the *exports dispatcher*.
+Each transport provider then tests if it can/must create an endpoint for it
+and, if so, returns an *export endpoint* description to the
+*exports dispatcher*.
 The endpoint implementation is transport-dependent: it can be a servlet
-(HTTP-based procotols), a serial-port listener, ...
+(HTTP-based protocols), a serial-port listener, ...
 As a result, there can be multiple *export endpoints* for a single service:
 (at least) one per transport provider.
 The description of each *export endpoint* is then stored in the
@@ -74,8 +75,8 @@ get exported by mistake.
 
 Another framework using the same discovery provider can capture this event and
 handle the new set of *import endpoints*.
-Those endpoints will be stored in the *imports registry*, the other core service
-of Pelix Remote Services.
+Those endpoints will be stored in the *imports registry*, the other core
+service of Pelix Remote Services.
 If multiple discovery providers find the same endpoints, don't worry, they will
 be filtered out according to their unique identifier (UUID).
 
@@ -116,8 +117,8 @@ The endpoints objects are declared in ``pelix.remote.beans`` by the
 
 Both contain the following information:
 
-* UID: the unique identifier of the endpoint. It is a class-4 UUID, which should
-  be unique across frameworks.
+* UID: the unique identifier of the endpoint. It is a class-4 UUID, which
+  should be unique across frameworks.
 * Framework: the UID of the framework providing the endpoint. It is mainly
   used to clean up the endpoints of a lost framework.
   If too many endpoint UID collisions are reported, it could be used as a
@@ -132,7 +133,7 @@ Both contain the following information:
   used for importing it.
 
 Finally, the :class:`~pelix.remote.beans.ExportEndpoint` object also gives
-access to the service reference and implemnetation, in order to let transport
+access to the service reference and implementation, in order to let transport
 providers access the methods and properties of the service.
 
 
@@ -151,18 +152,21 @@ services:
   This service is provided by an auto-instantiated component from the
   ``pelix.remote.dispatcher`` bundle.
   It provides a
-  :class:`pelix.remote.dispatcher <pelix.remote.dispatcher.Dispatcher>` service.
+  :class:`pelix.remote.dispatcher <pelix.remote.dispatcher.Dispatcher>`
+  service.
 
 * the *imports registry* which keeps track of and notifies the transports
   providers about the import endpoints, according to the notifications from
   the discovery providers.
   If a transport provider appears after the registration of an import endpoint,
-  it will nevertheless be notified by the imports registry of existing endpoints.
+  it will nevertheless be notified by the imports registry of existing
+  endpoints.
 
   This service is provided by an auto-instantiated component from the
   ``pelix.remote.registry`` bundle.
   It provides a
-  :class:`pelix.remote.registry <pelix.remote.registry.ImportsRegistry>` service.
+  :class:`pelix.remote.registry <pelix.remote.registry.ImportsRegistry>`
+  service.
 
 
 Dispatcher Servlet
@@ -176,8 +180,8 @@ exported endpoints, or the details of a single one, in JSON format.
 
 This servlet must be instantiated explicitly using its
 ``pelix-remote-dispatcher-servlet-factory`` factory.
-As it is a servlet, it requires the HTTP service to be up and running to provide
-it to clients.
+As it is a servlet, it requires the HTTP service to be up and running to
+provide it to clients.
 
 Its API is very simple:
 
@@ -218,8 +222,8 @@ The OSGi framework must host the
 of the Pelix Remote Services.
 
 All those protocols require the HTTP service to be up and running to work.
-Finally, iPOPO also supports a kind of *MQTT-RPC* protocol, *i.e.* JSON-RPC over
-MQTT.
+Finally, iPOPO also supports a kind of *MQTT-RPC* protocol, *i.e.* JSON-RPC
+over MQTT.
 
 
 Providers included with Pelix/iPOPO
@@ -263,12 +267,12 @@ The bundle provides a ``pelix-remote-discovery-multicast-factory`` iPOPO
 factory, which **must** be instantiated to work.
 It can be configured with the following properties:
 
-=============== ============= ==================================================
+=============== ============= =================================================
 Property        Default value Description
-=============== ============= ==================================================
+=============== ============= =================================================
 multicast.group 239.0.0.1     The multicast group (address) to join to send and receive discovery messages.
 multicast.port  42000         The multicast port to listen to
-=============== ============= ==================================================
+=============== ============= =================================================
 
 To use this discovery provider, you'll need to install the following bundles
 and instantiate the associated components:
@@ -323,12 +327,12 @@ which provides a ``pelix-remote-discovery-zeroconf-factory`` iPOPO
 factory, which **must** be instantiated to work.
 It can be configured with the following properties:
 
-===================== ===================== ====================================
+===================== ===================== ===================================
 Property              Default value         Description
-===================== ===================== ====================================
+===================== ===================== ===================================
 zeroconf.service.type _pelix_rs._tcp.local. Zeroconf service type of exported services
 zeroconf.ttl          60                    Time To Live of services (in seconds)
-===================== ===================== ====================================
+===================== ===================== ===================================
 
 To use this discovery provider, you'll need to install the following bundles
 and instantiate the associated components:
@@ -377,15 +381,15 @@ which provides a ``pelix-remote-discovery-redis-factory`` iPOPO factory, which
 **must** be instantiated to work.
 It can be configured with the following properties:
 
-=============== ============= ==================================================
+=============== ============= =================================================
 Property        Default value Description
-=============== ============= ==================================================
+=============== ============= =================================================
 redis.host      localhost     The hostname of the Redis server
 redis.port      46379         The port the Redis server listens to
 redis.db        0             The Redis database to use (integer)
 redis.password  None          Password to access the Redis database
 heartbeat.delay 10            Delay in seconds between framework heart beats
-=============== ============= ==================================================
+=============== ============= =================================================
 
 To use this discovery provider, you'll need to install the following bundles
 and instantiate the associated components:
@@ -426,11 +430,11 @@ Both must be instantiated manually.
 
 The exporter instance can be configured with the following property:
 
-=============== ============= ==================================================
+=============== ============= =================================================
 Property        Default value Description
-=============== ============= ==================================================
+=============== ============= =================================================
 pelix.http.path /XML-RPC      The path to the XML-RPC exporter servlet
-=============== ============= ==================================================
+=============== ============= =================================================
 
 To use this transport provider, you'll need to install the following bundles
 and instantiate the associated components:
@@ -478,11 +482,11 @@ Both must be instantiated manually.
 
 The exporter instance can be configured with the following property:
 
-=============== ============= ==================================================
+=============== ============= =================================================
 Property        Default value Description
-=============== ============= ==================================================
+=============== ============= =================================================
 pelix.http.path /JSON-RPC      The path to the JSON-RPC exporter servlet
-=============== ============= ==================================================
+=============== ============= =================================================
 
 To use this transport provider, you'll need to install the following bundles
 and instantiate the associated components:
@@ -512,7 +516,8 @@ Jabsorb-RPC Transport
 ---------------------
 
 :Bundle: pelix.remote.transport.jabsorb_rpc
-:Factories: pelix-jabsorbrpc-exporter-factory, pelix-jabsorbrpc-importer-factory
+:Factories: pelix-jabsorbrpc-exporter-factory,
+            pelix-jabsorbrpc-importer-factory
 :Requires: HTTP Service
 :Libraries: `jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`__
             (installation requirement of iPOPO)
@@ -534,11 +539,11 @@ Both must be instantiated manually.
 
 The exporter instance can be configured with the following property:
 
-=============== ============= ==================================================
+=============== ============= =================================================
 Property        Default value Description
-=============== ============= ==================================================
+=============== ============= =================================================
 pelix.http.path /JABSORB-RPC  The path to the JABSORB-RPC exporter servlet
-=============== ============= ==================================================
+=============== ============= =================================================
 
 To use this transport provider, you'll need to install the following bundles
 and instantiate the associated components:
@@ -573,7 +578,7 @@ MQTT discovery and MQTT-RPC Transport
 :Requires: *nothing* (everything goes through MQTT messages)
 :Libraries: `paho <https://www.eclipse.org/paho/>`_
 
-Finally, the MQTT discovery and transport protocols have been developped as a
+Finally, the MQTT discovery and transport protocols have been developed as a
 proof of concept with the `fabMSTIC <http://fabmstic.liglab.fr/>`_ fablab of the
 Grenoble Alps University.
 
@@ -592,17 +597,17 @@ previously known as the `Mosquitto <http://mosquitto.org/>`_ library.
 
 The discovery instance can be configured with the following properties:
 
-============== ============================= ===================================
+============== ============================= ==================================
 Property       Default value Description
-============== ============================= ===================================
+============== ============================= ==================================
 mqtt.host      localhost                     Host of the MQTT server
 mqtt.port      1883                          Port of the MQTT server
 topic.prefix   pelix/{appid}/remote-services Prefix of all MQTT messages (format string accepting the ``appid`` entry)
 application.id None                          Application ID, to allow multiple applications on the same server
-============== ============================= ===================================
+============== ============================= ==================================
 
-The transport exporter and importer instances should be configured with the same
-``mqtt.host`` and ``mqtt.port`` properties as the discovery service.
+The transport exporter and importer instances should be configured with the
+same ``mqtt.host`` and ``mqtt.port`` properties as the discovery service.
 
 To use the MQTT providers, you'll need to install the following bundles and
 instantiate the associated components:

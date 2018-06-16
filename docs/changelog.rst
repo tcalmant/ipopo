@@ -42,8 +42,9 @@ Shell
 
 * New shell completion system: completion is now extensible and can work with
   both commands and arguments. This system relies on ``readline``.
-* Added a TLS version of the shell. Its usage and the generation of cerficates
-  are described in the Pelix Shell reference card in the documentation.
+* Added a TLS version of the shell. Its usage and the generation of
+  certificates are described in the Pelix Shell reference card in the
+  documentation.
 * ``ShellSession.write_line()`` can now be called without argument
   (prints an empty line)
 
@@ -93,7 +94,8 @@ Project
 * Project documentation migrated to
   `Read The Docs <https://ipopo.readthedocs.io/>`_ as the previous documentation
   server crashed.
-  All references to the previous server (``coderxpress.net``) have been removed.
+  All references to the previous server (``coderxpress.net``)
+  have been removed.
 * The documentation is being completely rewritten while it is converted from
   Dokuwiki to Sphinx.
 * Removed Pypy 3 from Travis-CI/Tox tests, as it is not compatible with pip.
@@ -103,7 +105,8 @@ Pelix
 
 * The import path normalization now ensures that the full path of the initial
   working directory is stored in the path, and that the current working
-  directory marker (empty string) is kept as the first entry of the Python path.
+  directory marker (empty string) is kept as the first entry of the
+  Python path.
 * Merged `pull request #65 <https://github.com/tcalmant/ipopo/pull/65>`_,
   to ignore import errors when normalizing the Python path.
 * Merged `pull request #68 <https://github.com/tcalmant/ipopo/pull/68>`_,
@@ -132,7 +135,7 @@ HTTP
 * Added a ``pelix.https`` service property and an ``is_https()`` service method
   to indicate that the server uses HTTPS.
 * Added a utility module, ``pelix.http.routing``, which eases the routing of
-  HTTP requests whith decorators like ``@Http``, ``@HttpGet``...
+  HTTP requests with decorators like ``@Http``, ``@HttpGet``...
 * Merged `pull request #70 <https://github.com/tcalmant/ipopo/pull/70>`_,
   avoiding remote HTTP servlets to be used by the local HTTP server.
 
@@ -348,14 +351,14 @@ Project
 iPOPO
 -----
 
-* Components raising an error during validation goes in the ``ERRONEOUS`` state,
-  instead of going back to ``INVALID``. This avoids trying to validate them
-  automatically.
+* Components raising an error during validation goes in the ``ERRONEOUS``
+  state, instead of going back to ``INVALID``. This avoids trying to validate
+  them automatically.
 * The ``retry_erroneous()`` method of the iPOPO service and the ``retry`` shell
   command allows to retry the validation of an ``ERRONEOUS`` component.
-* The ``@SingletonFactory`` decorator can replace the ``@ComponentFactory`` one.
-  It ensures that only one component of this factory can be instantiated at a
-  time.
+* The ``@SingletonFactory`` decorator can replace the ``@ComponentFactory``
+  one. It ensures that only one component of this factory can be instantiated
+  at a time.
 * The ``@Temporal`` requirement decorator allows to require a service and to
   wait a given amount of time for its replacement before invalidating the
   component or while using the requirement.
@@ -532,8 +535,8 @@ Remote Services
 * Added an MQTT discovery protocol
 * Added an MQTT-RPC protocol, based on Node.js
   `MQTT-RPC module <https://github.com/wolfeidau/mqtt-rpc>`_
-* Added a Jabsorb-RPC transport. Pelix can now use Java services and vice-versa,
-  using:
+* Added a Jabsorb-RPC transport. Pelix can now use Java services and
+  vice-versa, using:
 
     * `Cohorte Remote Services <https://github.com/isandlaTech/cohorte-remote-services>`_
     * `Eclipse ECF <http://wiki.eclipse.org/ECF>`_ and the
@@ -646,7 +649,8 @@ Shell
 * ``IOHandler`` now has a ``prompt()`` method to ask the user to enter a line.
   It replaces the ``read()`` method, which was to buggy.
 * The ``make_table()`` method now accepts generators as parameters.
-* Remote commands handling removed: ``get_methods_names()`` is not used anymore.
+* Remote commands handling removed: ``get_methods_names()`` is not used
+  anymore.
 
 
 iPOPO 0.5.3
@@ -769,8 +773,9 @@ Framework
   both IDs and ``Bundle`` objects in order to keep a bit of compatibility
 * ``Framework.get_symbolic_name()`` now returns ``pelix.framework`` instead of
   ``org.psem2m.pelix``
-* ``ServiceEvent.get_type()`` is renamed ``get_kind()``. The other name is still
-  available but is declared deprecated (a warning is logged on its first use).
+* ``ServiceEvent.get_type()`` is renamed ``get_kind()``. The other name is
+  still available but is declared deprecated (a warning is logged on its
+  first use).
 * ``BundleContext.install_visiting(path, visitor)``: visits the given path and
   installs the found modules if the visitor accepts them
 * ``BundleContext.install_package(path)`` (*experimental*):
