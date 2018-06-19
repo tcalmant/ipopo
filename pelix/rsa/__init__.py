@@ -32,16 +32,15 @@ import threading
 import time
 import uuid
 
-# Typing:
-try:
-    from typing import Tuple, List, Dict, Any, Optional
-except ImportError:
-    pass
-
 from pelix import constants
-from pelix.framework import Bundle, BundleContext, ServiceReference
 
-from pelix.rsa.endpointdescription import EndpointDescription
+if False:
+    # pylint: disable=unreachable
+    # Ugly trick to enable PyCharm/MyPy typing without making cycle imports
+    from typing import Tuple, List, Dict, Any, Optional
+
+    from pelix.framework import Bundle, BundleContext, ServiceReference
+    from pelix.rsa.endpointdescription import EndpointDescription
 
 # ------------------------------------------------------------------------------
 
