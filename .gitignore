@@ -5,6 +5,7 @@ __pycache__/
 
 # MyPy
 .mypy_cache/
+.cache/
 
 # IDE
 .project
