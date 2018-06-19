@@ -342,6 +342,7 @@ class Container:
         self._exported_instances_lock = RLock()
 
     def get_id(self):
+        # type: () -> str
         return self._container_props.get(IPOPO_INSTANCE_NAME, None)
 
     def is_valid(self):
@@ -550,6 +551,3 @@ class ImportContainer(Container):
 
     def unimport_service(self, ed):
         pass
-
-
-# ------------------------------------------------------------------------------#

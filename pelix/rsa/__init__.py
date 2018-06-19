@@ -27,14 +27,21 @@ RemoteServiceAdmin constants and utility functions
 
 from argparse import ArgumentError
 from datetime import datetime
-from traceback import print_exception
 import logging
-import sys
 import threading
 import time
 import uuid
 
+# Typing:
+try:
+    from typing import Tuple, List, Dict, Any, Optional
+except ImportError:
+    pass
+
 from pelix import constants
+from pelix.framework import Bundle, BundleContext, ServiceReference
+
+from pelix.rsa.endpointdescription import EndpointDescription
 
 # ------------------------------------------------------------------------------
 
@@ -157,6 +164,7 @@ class RemoteServiceAdmin(object):
     """
 
     def get_exported_services(self):
+        # type: () -> List[ExportReference]
         """
         Get services previously exported by this RSA implementation.  Will
         not return None, but may return empty list.
@@ -168,6 +176,7 @@ class RemoteServiceAdmin(object):
         )
 
     def get_imported_endpoints(self):
+        # type: () -> List[ImportReference]
         """
         Get services previously imported by this RSA implementation.  Will
         not return None, but may return empty list.
@@ -179,6 +188,7 @@ class RemoteServiceAdmin(object):
         )
 
     def export_service(self, service_ref, overriding_props=None):
+        # type: (ServiceReference, Dict[str, Any]) -> List[ExportRegistration]
         """
         Export a given service_ref (ServiceReference) using overriding_props
         dictionary. service_ref must not be None and must be of type
@@ -200,6 +210,7 @@ class RemoteServiceAdmin(object):
         raise Exception("{0}.export_service not implemented".format(self))
 
     def import_service(self, endpoint_description):
+        # type: (EndpointDescription) -> ImportRegistration
         """
         Import a given endpoint_description.  Must not be None, and must
         be of type EndpointDescription.  The endpoint_description props
@@ -222,6 +233,7 @@ class RemoteServiceAdmin(object):
 # exported service.
 class ExportRegistration(object):
     def get_export_reference(self):
+        # type: () -> ExportReference
         """
         Get the ExportReference associated with this ExportRegistration.  Will
         be None if this registration has been previously closed.  See
@@ -232,6 +244,7 @@ class ExportRegistration(object):
         raise Exception("{0}.get_export_reference not implemented".format(self))
 
     def get_export_container_id(self):
+        # type: () -> Tuple[str, str]
         """
         Get the exporting container id of form
         tuple(namespace(string), containerid(string)).
@@ -245,6 +258,7 @@ class ExportRegistration(object):
         )
 
     def get_remoteservice_id(self):
+        # type: () -> Tuple[Tuple[str, str], int]
         """
         Get the exporting remoteservice id of form:  tuple(containerid,rsid(int)), with
         containerid of form returned from get_export_container_id.  For example:
@@ -255,6 +269,7 @@ class ExportRegistration(object):
         raise Exception("{0}.get_remoteservice_id not implemented".format(self))
 
     def get_reference(self):
+        # type: () -> ServiceReference
         """
         Get the ServiceReference associated with this ExportRegistration.  Will
         be None if the ExportRegistration has been closed, or if an exception
@@ -267,6 +282,7 @@ class ExportRegistration(object):
         raise Exception("{0}.get_reference not implemented".format(self))
 
     def get_exception(self):
+        # type: () -> Optional[Tuple[Any, Any, Any]]
         """
         Get any exception associated with the attempted export.  If not None,
         will be of form:  tuple(exc_type,exc_msg,exc_stack).  For example:
@@ -279,6 +295,7 @@ class ExportRegistration(object):
         raise Exception("{0}.get_exception not implemented".format(self))
 
     def get_description(self):
+        # type: () -> EndpointDescription
         """
         Get EndpointDescription associated with this ExportRegistration.
         Will not be None.  See EndpointDescription class.
@@ -288,6 +305,7 @@ class ExportRegistration(object):
         raise Exception("{0}.get_description not implemented".format(self))
 
     def close(self):
+        # type: () -> None
         """
         Close this ExportRegistration.  If called after having been previously
         called, will have no effect.
@@ -307,6 +325,7 @@ class ExportReference(object):
     """
 
     def get_export_container_id(self):
+        # type: () -> Tuple[str, str]
         """
         Get the exporting container id of form tuple(namespace(string),containerid(string)).
         For example:  ('ecf.namespace.xmlrpc','http://localhost/xml-rpc').
@@ -319,6 +338,7 @@ class ExportReference(object):
         )
 
     def get_remoteservice_id(self):
+        # type: () -> Tuple[Tuple[str, str], int]
         """
         Get the exporting remoteservice id of form:  tuple(containerid,rsid(int)), with
         containerid of form returned from get_export_container_id.  For example:
@@ -330,6 +350,7 @@ class ExportReference(object):
         raise Exception("{0}.get_remoteservice_id not implemented".format(self))
 
     def get_reference(self):
+        # type: () -> ServiceReference
         """
         Get the ServiceReference associated with this ExportReference.  Will
         be None if the ExportReference has been closed, or if an exception
@@ -342,6 +363,7 @@ class ExportReference(object):
         raise Exception("{0}.get_reference not implemented".format(self))
 
     def get_description(self):
+        # type: () -> EndpointDescription
         """
         Get EndpointDescription associated with this ExportReference.
         Will not be None.  See EndpointDescription class.  Will be None
@@ -353,6 +375,7 @@ class ExportReference(object):
         raise Exception("{0}.get_description not implemented".format(self))
 
     def get_exception(self):
+        # type: () -> Tuple[Tuple[str, str], int]
         """
         Get any exception associated with the attempted export.  If not None,
         will be of form:  tuple(exc_type,exc_msg,exc_stack).  For example:
@@ -365,10 +388,11 @@ class ExportReference(object):
         raise Exception("{0}.get_exception not implemented".format(self))
 
     def update(self, properties):
+        # type: (Dict[str, Any]) -> EndpointDescription
         """
         Update the service properties of the exported service.
 
-        :param dict properties of new properties.  Should not be None
+        :param properties: Dictionary of new properties. Should not be None
         :return EndpointDescription associated with existing or None
         if reference previously closed or exception occurred during
         export.
@@ -376,6 +400,7 @@ class ExportReference(object):
         raise Exception("{0}.update not implemented".format(self))
 
     def close(self, export_reg):
+        # type: (ExportRegistration) -> None
         """
         Close this ExportRegistration.  If called after having been previously
         called, will have no effect.
@@ -394,6 +419,7 @@ class ImportRegistration(object):
     """
 
     def get_import_reference(self):
+        # type: () -> ImportReference
         """
         Get the ImportReference associated with this ImportRegistration.  Will
         be None if this registration has been previously closed.  See
@@ -404,6 +430,7 @@ class ImportRegistration(object):
         raise Exception("{0}.get_import_reference not implemented".format(self))
 
     def get_import_container_id(self):
+        # type: () -> Tuple[str, str]
         """
         Get the importing container id of form tuple(namespace(string),containerid(string)).
         For example:  ('ecf.namespace.xmlrpc','123e4567-e89b-42d3-a456-556642440000').
@@ -416,6 +443,7 @@ class ImportRegistration(object):
         )
 
     def get_export_container_id(self):
+        # type: () -> Tuple[str, str]
         """
         Get the exporting container id of form tuple(namespace(string),containerid(string)).
         For example:  ('ecf.namespace.xmlrpc','http://localhost/xml-rpc').
@@ -428,6 +456,7 @@ class ImportRegistration(object):
         )
 
     def get_remoteservice_id(self):
+        # type: () -> Tuple[Tuple[str, str], int]
         """
         Get the exporting remoteservice id of form:  tuple(containerid,rsid(int)), with
         containerid of form returned from get_export_container_id.  For example:
@@ -438,6 +467,7 @@ class ImportRegistration(object):
         raise Exception("{0}.get_remoteservice_id not implemented".format(self))
 
     def get_reference(self):
+        # type: () -> ServiceReference
         """
         Get the ServiceReference associated with this ImportRegistration.  Will
         be None if the ImportRegistration has been closed, or if an exception
@@ -450,6 +480,7 @@ class ImportRegistration(object):
         raise Exception("{0}.get_reference not implemented".format(self))
 
     def get_exception(self):
+        # type: () -> Optional[Tuple[Any, Any, Any]]
         """
         Get any exception associated with the attempted import.  If not None,
         will be of form:  tuple(exc_type,exc_msg,exc_stack).  For example:
@@ -462,6 +493,7 @@ class ImportRegistration(object):
         raise Exception("{0}.get_exception not implemented".format(self))
 
     def get_description(self):
+        # type: () -> EndpointDescription
         """
         Get EndpointDescription associated with this ImportRegistration.
         Will not be None.  See EndpointDescription class.
@@ -471,6 +503,7 @@ class ImportRegistration(object):
         raise Exception("{0}.get_description not implemented".format(self))
 
     def close(self):
+        # type: () -> None
         """
         Close this ImportRegistration.  If called after having been previously
         called, will have no effect.
@@ -490,6 +523,7 @@ class ImportReference:
     """
 
     def get_import_container_id(self):
+        # type: () -> Tuple[str, str]
         """
         Get the importing container id of form tuple(namespace(string),containerid(string)).
         For example:  ('ecf.namespace.xmlrpc','123e4567-e89b-42d3-a456-556642440000').
@@ -502,6 +536,7 @@ class ImportReference:
         )
 
     def get_export_container_id(self):
+        # type: () -> Tuple[str, str]
         """
         Get the exporting container id of form tuple(namespace(string),containerid(string)).
         For example:  ('ecf.namespace.xmlrpc','http://localhost/xml-rpc').
@@ -514,6 +549,7 @@ class ImportReference:
         )
 
     def get_remoteservice_id(self):
+        # type: () -> Tuple[Tuple[str, str], int]
         """
         Get the importing remoteservice id of form:  tuple(containerid,rsid(int)), with
         containerid of form returned from get_import_container_id.  For example:
@@ -525,6 +561,7 @@ class ImportReference:
         raise Exception("{0}.get_remoteservice_id not implemented".format(self))
 
     def get_reference(self):
+        # type: () -> ServiceReference
         """
         Get the ServiceReference of proxy associated with this ImportReference.  Will
         be None if the ImportReference has been closed, or if an exception
@@ -537,6 +574,7 @@ class ImportReference:
         raise Exception("{0}.get_reference not implemented".format(self))
 
     def get_description(self):
+        # type: () -> EndpointDescription
         """
         Get EndpointDescription associated with this ImportReference.
         Will not be None.  See EndpointDescription class.  Will be None
@@ -548,6 +586,7 @@ class ImportReference:
         raise Exception("{0}.get_description not implemented".format(self))
 
     def get_exception(self):
+        # type: () -> Optional[Tuple[Any, Any, Any]]
         """
         Get any exception associated with the attempted import.  If not None,
         will be of form:  tuple(exc_type,exc_msg,exc_stack).  For example:
@@ -560,17 +599,19 @@ class ImportReference:
         raise Exception("{0}.get_exception not implemented".format(self))
 
     def update(self, properties):
+        # type: (Dict[str, Any]) -> EndpointDescription
         """
         Update the service properties of the imported service.
 
-        :param dict properties of new properties.  Should not be None
+        :param properties: Dictionary of new properties. Should not be None
         :return EndpointDescription associated with existing or None
         if reference previously closed or exception occurred during
         import.
         """
         raise Exception("{0}.update not implemented".format(self))
 
-    def close(self, export_reg):
+    def close(self, import_reg):
+        # type: (ImportRegistration) -> None
         """
         Close this ImportReference.  If called after having been previously
         called, will have no effect.
@@ -598,6 +639,7 @@ class RemoteServiceAdminListener(object):
     """
 
     def remote_admin_event(self, rsa_event):
+        # type: (RemoteServiceAdminEvent) -> None
         """
         Method called by RSA implementation when RSA events occur.   See
         RemoteServiceAdminEvent above for types of events, and the information
@@ -631,6 +673,7 @@ class RemoteServiceAdminEvent(object):
 
     @classmethod
     def fromimportreg(cls, bundle, import_reg):
+        # type: (Bundle, ImportRegistration) -> RemoteServiceAdminEvent
         exc = import_reg.get_exception()
         if exc:
             return RemoteServiceAdminEvent(
@@ -657,6 +700,7 @@ class RemoteServiceAdminEvent(object):
 
     @classmethod
     def fromexportreg(cls, bundle, export_reg):
+        # type: (Bundle, ExportRegistration) -> RemoteServiceAdminEvent
         exc = export_reg.get_exception()
         if exc:
             return RemoteServiceAdminEvent(
@@ -683,6 +727,7 @@ class RemoteServiceAdminEvent(object):
 
     @classmethod
     def fromimportunreg(cls, bundle, cid, rsid, import_ref, exception, ed):
+        # type: (Bundle, Tuple[str, str], Tuple[Tuple[str, str], int], ImportReference, Optional[Tuple[Any, Any, Any]], EndpointDescription) -> RemoteServiceAdminEvent
         return RemoteServiceAdminEvent(
             typ=RemoteServiceAdminEvent.IMPORT_UNREGISTRATION,
             bundle=bundle,
@@ -697,6 +742,7 @@ class RemoteServiceAdminEvent(object):
     def fromexportunreg(
         cls, bundle, exporterid, rsid, export_ref, exception, ed
     ):
+        # type: (Bundle, Tuple[str, str], Tuple[Tuple[str, str], int], ExportReference, Optional[Tuple[Any, Any, Any]], EndpointDescription) -> RemoteServiceAdminEvent
         return RemoteServiceAdminEvent(
             typ=RemoteServiceAdminEvent.EXPORT_UNREGISTRATION,
             bundle=bundle,
@@ -709,6 +755,7 @@ class RemoteServiceAdminEvent(object):
 
     @classmethod
     def fromimporterror(cls, bundle, importerid, rsid, exception, ed):
+        # type: (Bundle, Tuple[str, str], Tuple[Tuple[str, str], int], Optional[Tuple[Any, Any, Any]], EndpointDescription) -> RemoteServiceAdminEvent
         return RemoteServiceAdminEvent(
             RemoteServiceAdminEvent.IMPORT_ERROR,
             bundle,
@@ -722,6 +769,7 @@ class RemoteServiceAdminEvent(object):
 
     @classmethod
     def fromexporterror(cls, bundle, exporterid, rsid, exception, ed):
+        # type: (Bundle, Tuple[str, str], Tuple[Tuple[str, str], int], Optional[Tuple[Any, Any, Any]], EndpointDescription) -> RemoteServiceAdminEvent
         return RemoteServiceAdminEvent(
             RemoteServiceAdminEvent.EXPORT_ERROR,
             bundle,
@@ -744,6 +792,7 @@ class RemoteServiceAdminEvent(object):
         exception=None,
         ed=None,
     ):
+        # type: (int, Bundle, Tuple[str, str], Tuple[Tuple[str, str], int], Optional[ImportReference], Optional[ExportReference], Optional[Tuple[Any, Any, Any]], EndpointDescription) -> None
         self._type = typ
         self._bundle = bundle
         self._cid = cid
@@ -754,6 +803,7 @@ class RemoteServiceAdminEvent(object):
         self._ed = ed
 
     def get_description(self):
+        # type: () -> EndpointDescription
         """
         Get the EndpointDescription associated with this event.
         Will not be None
@@ -763,6 +813,7 @@ class RemoteServiceAdminEvent(object):
         return self._ed
 
     def get_container_id(self):
+        # type: () -> Tuple[str, str]
         """
         Get the container id of form tuple/2 (namespace,id) where
         both namespace and id are strings. Will not be none.
@@ -773,6 +824,7 @@ class RemoteServiceAdminEvent(object):
         return self._cid
 
     def get_remoteservice_id(self):
+        # type: () -> Tuple[Tuple[str, str], int]
         """
         Get the remote service id of form:  tuple(tuple(namespace,id),rsid)
         where rsid is int and (namespace,id) are as returned from
@@ -786,6 +838,7 @@ class RemoteServiceAdminEvent(object):
         return self._rsid
 
     def get_type(self):
+        # type: () -> int
         """
         Get type of RSA event.  Will be one of the constants
         RemoteServiceAdminEvent.IMPORT_REGISTRATION,EXPORT_REGISTRATION, etc.
@@ -795,6 +848,7 @@ class RemoteServiceAdminEvent(object):
         return self._type
 
     def get_source(self):
+        # type: () -> Bundle
         """
         Get the Bundle source for this event.  Will usually be
         the pelix.rsa.remoteserviceadmin event.  Will not be
@@ -805,17 +859,19 @@ class RemoteServiceAdminEvent(object):
         return self._bundle
 
     def get_import_ref(self):
+        # type: () -> ImportReference
         """
-        Get ExportReference instance associated with this event.
+        Get ImportReference instance associated with this event.
         Will be None if type is IMPORT_*.
 
-        :return import reference associated with thie event
+        :return import reference associated with this event
         """
         return self._import_ref
 
     def get_export_ref(self):
+        # type: () -> ExportReference
         """
-        Get ImportReference instance associated with this event.
+        Get ExportReference instance associated with this event.
         Will be None if type is EXPORT_*.
 
         :return export reference associated with this event
@@ -823,6 +879,7 @@ class RemoteServiceAdminEvent(object):
         return self._export_ref
 
     def get_exception(self):
+        # type: () -> Optional[Tuple[Any, Any, Any]]
         """
         Get exception in tuple(exc_type,exc_name,traceback) form.
         If None, no exception occurred in RSA import/export. If
@@ -833,22 +890,27 @@ class RemoteServiceAdminEvent(object):
 
 
 def create_uuid():
+    # type: () -> str
     return str(uuid.uuid4())
 
 
 def create_uuid_uri():
+    # type: () -> str
     return "uuid:" + create_uuid()
 
 
 def time_since_epoch():
+    # type: () -> int
     return int(time.time() - 1000)
 
 
 def get_fw_uuid(context):
-    return context.get_property(constants.OSGI_FRAMEWORK_UUID)
+    # type: (BundleContext) -> str
+    return str(context.get_property(constants.OSGI_FRAMEWORK_UUID))
 
 
 def get_matching_interfaces(object_class, exported_intfs):
+    # type: (List[str], Optional[List[str]]) -> Optional[List[str]]
     if object_class is None or exported_intfs is None:
         return None
     if isinstance(exported_intfs, str) and exported_intfs == "*":
@@ -1151,10 +1213,12 @@ def set_append(inputset, item):
 
 
 def cid_to_string(cid):
+    # type: (Tuple[str, str]) -> str
     return cid[1]
 
 
 def rsid_to_string(rsid):
+    # type: (Tuple[Tuple[str, str], int]) -> str
     return "{0}:{1}".format(cid_to_string(rsid[0]), rsid[1])
 
 

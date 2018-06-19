@@ -28,8 +28,16 @@ EndpointDescription class API
 
 import logging
 
+# Typing
+try:
+    from typing import Dict, Any, Optional, List, Tuple, Iterable
+except ImportError:
+    pass
+
 from pelix.constants import SERVICE_ID, FRAMEWORK_UID, OBJECTCLASS
+from pelix.framework import ServiceReference
 from pelix.ldapfilter import get_ldap_filter
+
 from pelix.rsa import (
     set_prop_if_null,
     get_prop_value,
@@ -78,12 +86,14 @@ _logger = logging.getLogger(__name__)
 
 
 def encode_list(key, list_):
+    # type: (str, Iterable) -> Dict[str, str]
     if not list_:
         return {}
     return {key: " ".join(list_)}
 
 
 def package_name(package):
+    # type: (str) -> str
     lastdot = package.rfind(".")
     if lastdot == -1:
         return package
@@ -91,6 +101,7 @@ def package_name(package):
 
 
 def encode_osgi_props(ed):
+    # type: (EndpointDescription) -> Dict[str, str]
     result_props = {}
     intfs = ed.get_interfaces()
     result_props[OBJECTCLASS] = " ".join(intfs)
@@ -98,7 +109,8 @@ def encode_osgi_props(ed):
         pkg_name = package_name(intf)
         ver = ed.get_package_version(pkg_name)
         if ver and not ver == (0, 0, 0):
-            result_props[ENDPOINT_PACKAGE_VERSION_] = ".".join(ver)
+            result_props[ENDPOINT_PACKAGE_VERSION_] = \
+                ".".join(str(v) for v in ver)
 
     result_props[ENDPOINT_ID] = ed.get_id()
     result_props[ENDPOINT_SERVICE_ID] = "{0}".format(ed.get_service_id())
@@ -121,12 +133,14 @@ def encode_osgi_props(ed):
 
 
 def decode_list(input_props, name):
+    # type: (Dict[str, str], str) -> List[str]
     val_str = input_props.get(name, None)
     if val_str:
         return val_str.split(" ")
 
 
 def decode_osgi_props(input_props):
+    # type: (Dict[str, str]) -> Dict[str, Any]
     result_props = {}
     intfs = decode_list(input_props, OBJECTCLASS)
     result_props[OBJECTCLASS] = intfs
@@ -225,26 +239,31 @@ def encode_endpoint_props(ed):
 class EndpointDescription(object):
     @classmethod
     def fromsvcref(cls, svc_ref):
+        # type: (ServiceReference) -> EndpointDescription
         return cls(svc_ref, None)
 
     @classmethod
     def fromprops(cls, props):
+        # type: (Dict[str, Any]) -> EndpointDescription
         return cls(None, props)
 
     @classmethod
     def fromsvcrefprops(cls, svc_ref, props):
+        # type: (ServiceReference, Dict[str, Any]) -> EndpointDescription
         return cls(svc_ref, props)
 
     @classmethod
     def _condition_props(cls, properties):
+        # type: (Dict[str, Any]) -> Dict[str, Any]
         set_prop_if_null(SERVICE_IMPORTED, properties, True)
         for key in properties.keys():
             if key.startswith("services.exported."):
-                properties.remove(key)
+                del properties[key]
         return properties
 
     @classmethod
     def _verify_export_props(cls, svc_ref, all_properties):
+        # type: (ServiceReference, Dict[str, Any]) -> Dict[str, Any]
         props = {}
         props.update(all_properties)
 
@@ -258,6 +277,7 @@ class EndpointDescription(object):
         return props
 
     def __init__(self, svc_ref=None, properties=None):
+        # type: (Optional[ServiceReference], Optional[Dict[str, Any]]) -> None
         if svc_ref is None and properties is None:
             raise ValueError(
                 "Either service reference or properties argument must be non-null"
@@ -357,6 +377,7 @@ class EndpointDescription(object):
         return int(value) if value else int(0)
 
     def _verify_str_prop(self, prop):
+        # type: (str) -> str
         value = self._get_prop(prop)
         if value is None:
             raise ValueError(
@@ -365,6 +386,7 @@ class EndpointDescription(object):
         return str(value)
 
     def _convert_intf_to_async(self, intf):
+        # type: (str) -> str
         async_proxy_intf = self._get_prop(ECF_SERVICE_ASYNC_RSPROXY_CLASS_)
         if async_proxy_intf is not None:
             return async_proxy_intf
@@ -374,6 +396,7 @@ class EndpointDescription(object):
             return intf + ECF_ASYNC_INTERFACE_SUFFIX
 
     def _verify_async_intfs(self):
+        # type: () -> List[str]
         matching = []
         no_async_prop = self._get_prop(ECF_SERVICE_EXPORTED_ASYNC_NOPROXY)
         if no_async_prop is None:
@@ -387,39 +410,50 @@ class EndpointDescription(object):
         return [self._convert_intf_to_async(x) for x in matching]
 
     def get_container_id(self):
+        # type: () -> Tuple[str, str]
         return self._container_id
 
     def get_connect_target_id(self):
+        # type: () -> Tuple[str, str]
         return self._connect_target_id
 
     def get_timestamp(self):
+        # type: () -> int
         return self._timestamp
 
     def get_remoteservice_id(self):
+        # type: () -> Tuple[Tuple[str, str], int]
         return (self.get_container_id(), self._rs_id)
 
     def get_remoteservice_idstr(self):
+        # type: () -> str
         return rsid_to_string(self.get_remoteservice_id())
 
     def get_id_filters(self):
+        # type: () -> Optional[List[Tuple[str, str]]]
         return self._id_filters
 
     def get_remoteservice_filter(self):
+        # type: () -> Optional[str]
         return self._rs_filter
 
     def get_async_interfaces(self):
+        # type: () -> List[str]
         return self._async_intfs
 
     def get_framework_uuid(self):
+        # type: () -> str
         return self._framework_uuid
 
     def get_osgi_basic_timeout(self):
+        # type: () -> Optional[int]
         timeout = self.get_properties().get(OSGI_BASIC_TIMEOUT_INTENT, None)
         if isinstance(timeout, str):
             timeout = int(timeout)
         return int(timeout / 1000) if timeout else None
 
     def get_id(self):
+        # type: () -> str
         """
         Returns the endpoint's id.
 
@@ -428,9 +462,11 @@ class EndpointDescription(object):
         return self._id
 
     def get_remote_intents_supported(self):
+        # type: () -> List[str]
         return self._get_string_plus_property(REMOTE_INTENTS_SUPPORTED)
 
     def get_intents(self):
+        # type: () -> List[str]
         """
         Returns the list of intents required by this endpoint.
 
@@ -447,6 +483,7 @@ class EndpointDescription(object):
         return self._get_string_plus_property(SERVICE_INTENTS)
 
     def get_interfaces(self):
+        # type: () -> List[str]
         """
         Provides the list of interfaces implemented by the exported service.
 
@@ -455,6 +492,7 @@ class EndpointDescription(object):
         return self._interfaces
 
     def get_imported_configs(self):
+        # type: () -> List[str]
         return self.get_configuration_types()
 
     def update_imported_configs(self, imported_configs):
@@ -463,15 +501,19 @@ class EndpointDescription(object):
         ] = get_string_plus_property_value(imported_configs)
 
     def get_configuration_types(self):
+        # type: () -> List[str]
         return self._get_string_plus_property(SERVICE_IMPORTED_CONFIGS)
 
     def get_remote_configs_supported(self):
+        # type: () -> List[str]
         return self._get_string_plus_property(REMOTE_CONFIGS_SUPPORTED)
 
     def get_service_id(self):
+        # type: () -> int
         return self._service_id
 
     def get_package_version(self, package):
+        # type: (str) -> Tuple[int, int, int]
         """
         Provides the version of the given package name.
 
@@ -490,6 +532,7 @@ class EndpointDescription(object):
             return 0, 0, 0
 
     def get_properties(self):
+        # type: () -> Dict[str, Any]
         """
         Returns all endpoint properties.
 
@@ -498,6 +541,7 @@ class EndpointDescription(object):
         return self._properties.copy()
 
     def is_same_service(self, endpoint):
+        # type: (EndpointDescription) -> bool
         """
         Tests if this endpoint and the given one have the same framework UUID
         and service ID
@@ -511,6 +555,7 @@ class EndpointDescription(object):
         )
 
     def matches(self, ldap_filter):
+        # type: (str) -> bool
         """
         Tests the properties of this EndpointDescription against the given
         filter
