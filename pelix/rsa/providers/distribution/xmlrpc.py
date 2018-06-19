@@ -95,7 +95,9 @@ ECF_XMLRPC_TIMEOUT_PROP = "timeout"
 ECF_XMLRPC_HOSTNAME_PROP = "hostname"
 
 # ------------------------------------------------------------------------------
-class ServerDispatcher(SimpleXMLRPCDispatcher):
+
+
+class ServerDispatcher(SimpleXMLRPCDispatcher, object):
     """ServerDispatcher (subclass of SimpleXMLRPCDispatcher)
     uses ECF remote service id to identify the service
     for method invocation requests.  See do_POST and _dispatch
