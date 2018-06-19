@@ -28,6 +28,7 @@ specifications, section 122.8.
 
 # Standard library
 import logging
+import sys
 import xml.etree.ElementTree as ElementTree
 
 try:
@@ -249,6 +250,14 @@ class EDEFWriter(object):
     """
 
     def __init__(self, encoding="unicode", xml_declaration=True):
+        """
+        :param encoding: XML encoding
+        :param xml_declaration: Add XML declaration
+        """
+        if sys.version_info[0] < 3 and encoding == "unicode":
+            # Small trick for Python 2.7
+            encoding = "UTF-8"
+
         self._encoding = encoding
         self._xml_declaration = xml_declaration
 
