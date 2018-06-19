@@ -38,6 +38,11 @@ except ImportError:
     # Python 3
     from io import StringIO
 
+# Typing
+try:
+    from typing import Iterable, List, Tuple, Any, Union
+except ImportError:
+    pass
 
 # Pelix
 from pelix.rsa.endpointdescription import EndpointDescription
@@ -119,13 +124,16 @@ TYPED_STRING = (
 XML_VALUE = object()
 
 # ------------------------------------------------------------------------------
+
+
 class EDEFReader(object):
     """
-    Reads an EDEF XML data. Inspired from EndpoitnDescriptionParser from ECF
+    Reads an EDEF XML data. Inspired from EndpointDescriptionParser from ECF
     """
 
     @staticmethod
     def _convert_value(vtype, value):
+        # type: (str, str) -> Any
         """
         Converts the given value string according to the given type
 
@@ -154,6 +162,7 @@ class EDEFReader(object):
         raise ValueError("Unknown value type: {0}".format(vtype))
 
     def _parse_description(self, node):
+        # type: (ElementTree.Element) -> EndpointDescription
         """
         Parse an endpoint description node
 
@@ -170,6 +179,7 @@ class EDEFReader(object):
         return EndpointDescription(None, endpoint)
 
     def _parse_property(self, node):
+        # type: (ElementTree.Element) -> Tuple[str, Any]
         """
         Parses a property node
 
@@ -177,7 +187,7 @@ class EDEFReader(object):
         :return: A (name, value) tuple
         :raise KeyError: Attribute missing
         """
-        # Get informations
+        # Get information
         name = node.attrib[ATTR_NAME]
         vtype = node.attrib.get(ATTR_VALUE_TYPE, TYPE_STRING)
 
@@ -192,6 +202,7 @@ class EDEFReader(object):
         return name, value
 
     def _parse_value_node(self, vtype, node):
+        # type: (str, ElementTree.Element) -> Any
         """
         Parses a value node
 
@@ -223,6 +234,7 @@ class EDEFReader(object):
             raise ValueError("Unknown value tag: {0}".format(kind))
 
     def parse(self, xml_str):
+        # type: (str) -> List[EndpointDescription]
         """
         Parses an EDEF XML string
 
@@ -250,6 +262,7 @@ class EDEFWriter(object):
     """
 
     def __init__(self, encoding="unicode", xml_declaration=True):
+        # type: (str, bool) -> None
         """
         :param encoding: XML encoding
         :param xml_declaration: Add XML declaration
@@ -262,6 +275,7 @@ class EDEFWriter(object):
         self._xml_declaration = xml_declaration
 
     def _indent(self, element, level=0, prefix="\t"):
+        # type: (ElementTree.Element, int, str) -> None
         """
         In-place Element text auto-indent, for pretty printing.
 
@@ -294,6 +308,7 @@ class EDEFWriter(object):
 
     @staticmethod
     def _add_container(props_node, tag, container):
+        # type: (ElementTree.Element, str, Iterable) -> None
         """
         Walks through the given container and fills the node
 
@@ -308,6 +323,7 @@ class EDEFWriter(object):
 
     @staticmethod
     def _get_type(name, value):
+        # type: (str, Any) -> Union(str, object)
         """
         Returns the type associated to the given name or value
 
@@ -353,12 +369,12 @@ class EDEFWriter(object):
         return TYPE_STRING
 
     def _make_endpoint(self, root_node, endpoint):
+        # type: (ElementTree.Element, EndpointDescription) -> None
         """
         Converts the given endpoint bean to an XML Element
 
         :param root_node: The XML root Element
         :param endpoint: An EndpointDescription bean
-        :return: An Element
         """
         endpoint_node = ElementTree.SubElement(
             root_node, TAG_ENDPOINT_DESCRIPTION
@@ -404,6 +420,7 @@ class EDEFWriter(object):
                 prop_node.set(ATTR_VALUE, str(value))
 
     def _make_xml(self, endpoints):
+        # type: (List[EndpointDescription]) -> ElementTree.Element
         """
         Converts the given endpoint description beans into an XML Element
 
@@ -411,16 +428,15 @@ class EDEFWriter(object):
         :return: A string containing an XML document
         """
         root = ElementTree.Element(TAG_ENDPOINT_DESCRIPTIONS)
-
         for endpoint in endpoints:
             self._make_endpoint(root, endpoint)
 
         # Prepare pretty-printing
         self._indent(root)
-
         return root
 
     def to_string(self, endpoints):
+        # type: (List[EndpointDescription]) -> str
         """
         Converts the given endpoint description beans into a string
 
@@ -448,6 +464,7 @@ class EDEFWriter(object):
         return output.getvalue().strip()
 
     def write(self, endpoints, filename):
+        # type: (List[EndpointDescription], str) -> None
         """
         Writes the given endpoint descriptions to the given file
 
