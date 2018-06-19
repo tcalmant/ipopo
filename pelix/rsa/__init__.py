@@ -1073,10 +1073,12 @@ def get_rsa_props(
 ):
     results = {}
     if not object_class:
-        raise ArgumentError("object_class must be an [] of Strings")
+        raise ArgumentError(
+            "object_class", "object_class must be an [] of Strings")
     results["objectClass"] = object_class
     if not exported_cfgs:
-        raise ArgumentError("rmt_configs must be an array of Strings")
+        raise ArgumentError(
+            "exported_cfgs", "exported_cfgs must be an array of Strings")
     results[REMOTE_CONFIGS_SUPPORTED] = exported_cfgs
     results[SERVICE_IMPORTED_CONFIGS] = exported_cfgs
     if remote_intents:
@@ -1103,10 +1105,10 @@ def get_rsa_props(
 def get_ecf_props(ep_id, ep_id_ns, rsvc_id=None, ep_ts=None):
     results = {}
     if not ep_id:
-        raise ArgumentError("ep_id must be a valid endpoint id")
+        raise ArgumentError("ep_id", "ep_id must be a valid endpoint id")
     results[ECF_ENDPOINT_ID] = ep_id
     if not ep_id_ns:
-        raise ArgumentError("ep_id_ns must be a valid namespace")
+        raise ArgumentError("ep_id_ns", "ep_id_ns must be a valid namespace")
     results[ECF_ENDPOINT_CONTAINERID_NAMESPACE] = ep_id_ns
     if not rsvc_id:
         rsvc_id = get_next_rsid()
