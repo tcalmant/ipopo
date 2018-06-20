@@ -285,7 +285,7 @@ class XmlRpcImportContainer(ImportContainer):
         xmlrpc.client.ServerProxy
         """
 
-        class XmlRpcProxy:
+        class XmlRpcProxy(object):
             def __init__(self, get_remoteservice_id):
                 self._url = get_remoteservice_id[0][1]
                 self._rsid = str(get_remoteservice_id[1])
@@ -296,7 +296,8 @@ class XmlRpcImportContainer(ImportContainer):
                     "{0}.{1}".format(self._rsid, name),
                 )
 
-        # create instance of XmlRpcProxy and pass in remoteservice id: ((ns,cid),get_remoteservice_id)
+        # create instance of XmlRpcProxy and pass in remoteservice id:
+        # ((ns,cid),get_remoteservice_id)
         return XmlRpcProxy(endpoint_description.get_remoteservice_id())
 
 
