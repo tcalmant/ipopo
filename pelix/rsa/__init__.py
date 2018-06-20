@@ -26,7 +26,6 @@ RemoteServiceAdmin constants and utility functions
 # ------------------------------------------------------------------------------
 
 from argparse import ArgumentError
-from datetime import datetime
 import logging
 import threading
 import time
@@ -890,11 +889,21 @@ class RemoteServiceAdminEvent(object):
 
 def create_uuid():
     # type: () -> str
+    """
+    Generates a UUID 4
+
+    :return: A string UUID
+    """
     return str(uuid.uuid4())
 
 
 def create_uuid_uri():
     # type: () -> str
+    """
+    Generates a UUID URI
+
+    :return: A uuid:<uuid> string
+    """
     return "uuid:" + create_uuid()
 
 
@@ -905,13 +914,27 @@ def time_since_epoch():
 
 def get_fw_uuid(context):
     # type: (BundleContext) -> str
+    """
+    Returns the framework UUID
+
+    :param context: The bundle context
+    :return: The framework UUID
+    """
     return str(context.get_property(constants.OSGI_FRAMEWORK_UUID))
 
 
 def get_matching_interfaces(object_class, exported_intfs):
     # type: (List[str], Optional[List[str]]) -> Optional[List[str]]
+    """
+    Returns the list of interfaces matching the export property
+
+    :param object_class: The specifications of the service
+    :param exported_intfs: The declared exported interfaces
+    :return: The list of declared exported interfaces
+    """
     if object_class is None or exported_intfs is None:
         return None
+
     if isinstance(exported_intfs, str) and exported_intfs == "*":
         return object_class
     else:
@@ -924,21 +947,46 @@ def get_matching_interfaces(object_class, exported_intfs):
 
 
 def get_prop_value(name, props, default=None):
+    # type: (str, Dict[str, Any], Any) -> Any
+    """
+    Returns the value of a property or the default one
+
+    :param name: Name of a property
+    :param props: Dictionary of properties
+    :param default: Default value
+    :return: The value of the property or the default one
+    """
     if not props:
         return default
+
     try:
         return props[name]
     except KeyError:
         return default
 
 
-def set_prop_if_null(name, props, ifnull):
+def set_prop_if_null(name, props, if_null):
+    # type: (str, Dict[str, Any], Any) -> None
+    """
+    Updates the value of a property if the previous one was None
+
+    :param name: Name of the property
+    :param props: Dictionary of properties
+    :param if_null: Value to insert if the previous was None
+    """
     v = get_prop_value(name, props)
     if v is None:
-        props[name] = ifnull
+        props[name] = if_null
 
 
 def get_string_plus_property_value(value):
+    # type: (Any) -> Optional[List[str]]
+    """
+    Converts a string or list of string into a list of strings
+
+    :param value: A string or a list of strings
+    :return: A list of strings or None
+    """
     if value:
         if isinstance(value, str):
             return [value]
@@ -951,34 +999,65 @@ def get_string_plus_property_value(value):
 
 
 def convert_string_plus_value(values):
+    """
+    Normalizes a list of string
+
+    :param values: A list of strings
+    :return: None, a single string or a list of strings
+    """
     if not values:
         return None
 
-    size = len(values)
-    if size == 0:
-        return None
-    elif size == 1:
-        return values[1]
+    if len(values) == 1:
+        return values[0]
     else:
         return values
 
 
 def parse_string_plus_value(value):
+    # type: (str) -> List[str]
+    """
+    Parses a comma-separated value
+
+    :param value: A string representation of a list
+    :return: A list of strings
+    """
     return value.split(",")
 
 
 def get_string_plus_property(name, props, default=None):
+    # type: (str, Dict[str, Any], Optional[Any]) -> Any
+    """
+    Returns the value of the given property or the default value
+
+    :param name: A property name
+    :param props: A dictionary of properties
+    :param default: Value to return if the property doesn't exist
+    :return: The property value or the default one
+    """
     val = get_string_plus_property_value(get_prop_value(name, props, default))
     return default if val is None else val
 
 
 def get_current_time_millis():
-    return int(
-        (datetime.now() - datetime.utcfromtimestamp(0)).total_seconds() * 1000
-    )
+    # type: () -> int
+    """
+    Gets the current time stamp in milliseconds
+
+    :return: The current time stamp
+    """
+    return int(time.time() * 1000)
 
 
 def get_exported_interfaces(svc_ref, overriding_props=None):
+    # type: (ServiceReference, Optional[Dict[str, Any]]) -> Optional[List[str]]
+    """
+    Looks for the interfaces exported by a service
+
+    :param svc_ref: Service reference
+    :param overriding_props: Properties overriding service ones
+    :return: The list of exported interfaces
+    """
     # first check overriding_props for service.exported.interfaces
     exported_intfs = get_prop_value(
         SERVICE_EXPORTED_INTERFACES, overriding_props
@@ -986,14 +1065,24 @@ def get_exported_interfaces(svc_ref, overriding_props=None):
     # then check svc_ref property
     if not exported_intfs:
         exported_intfs = svc_ref.get_property(SERVICE_EXPORTED_INTERFACES)
+
     if not exported_intfs:
         return None
+
     return get_matching_interfaces(
         svc_ref.get_property(constants.OBJECTCLASS), exported_intfs
     )
 
 
 def validate_exported_interfaces(object_class, exported_intfs):
+    # type: (List[str], List[str]) -> bool
+    """
+    Validates that the exported interfaces are all provided by the service
+
+    :param object_class: The specifications of a service
+    :param exported_intfs: The exported specifications
+    :return: True if the exported specifications are all provided by the service
+    """
     if (
         not exported_intfs
         or not isinstance(exported_intfs, list)
@@ -1002,24 +1091,39 @@ def validate_exported_interfaces(object_class, exported_intfs):
         return False
     else:
         for exintf in exported_intfs:
-            if not exintf in object_class:
+            if exintf not in object_class:
                 return False
     return True
 
 
-def get_package_from_classname(classname):
+def get_package_from_classname(class_name):
+    # type: (str) -> Optional[str]
+    """
+    Returns the name of the package declaring the given class
+
+    :param class_name: A full class name
+    :return: The name of a package or None
+    """
     try:
-        return classname[: classname.rindex(".")]
+        return class_name[:class_name.rindex(".")]
     except KeyError:
         return None
 
 
 def get_package_versions(intfs, props):
+    # type: (List[str], Dict[str, Any]) -> List[Tuple[str, str]]
+    """
+    Gets the package version of interfaces
+
+    :param intfs: A list of interfaces
+    :param props: A dictionary containing endpoint package versions
+    :return: A list of tuples (package name, version)
+    """
     result = []
     for intf in intfs:
-        pkgname = get_package_from_classname(intf)
-        if pkgname:
-            key = ENDPOINT_PACKAGE_VERSION_ + pkgname
+        pkg_name = get_package_from_classname(intf)
+        if pkg_name:
+            key = ENDPOINT_PACKAGE_VERSION_ + pkg_name
             val = props.get(key, None)
             if val:
                 result.append((key, val))
@@ -1031,6 +1135,12 @@ _next_rsid_lock = threading.Lock()
 
 
 def get_next_rsid():
+    # type: () -> int
+    """
+    Gets the next RS ID and increments the counter
+
+    :return: The next RS ID
+    """
     with _next_rsid_lock:
         global _next_rsid
         n = _next_rsid
@@ -1039,11 +1149,14 @@ def get_next_rsid():
 
 
 def copy_ref_props(service_ref):
-    keys = service_ref.get_property_keys()
-    result = dict()
-    for key in keys:
-        result[key] = service_ref.get_property(key)
-    return result
+    # type: (ServiceReference) -> Dict[str, Any]
+    """
+    Copies the properties of a service reference
+
+    :param service_ref: A service reference
+    :return: A copy of properties of the service
+    """
+    return service_ref.get_properties().copy()
 
 
 def merge_dicts(*dict_args):
@@ -1058,6 +1171,14 @@ def merge_dicts(*dict_args):
 
 
 def merge_overriding_props(service_ref, overriding_props):
+    # type: (ServiceReference, Dict[str, Any]) -> Dict[str, Any]
+    """
+    Overrides the properties of the service with the given ones
+
+    :param service_ref: A service reference
+    :param overriding_props: Properties overriding the service ones
+    :return: The merged properties dictionary
+    """
     ref_props = copy_ref_props(service_ref)
     return merge_dicts(ref_props, overriding_props)
 
@@ -1120,12 +1241,16 @@ def get_ecf_props(ep_id, ep_id_ns, rsvc_id=None, ep_ts=None):
 
 
 def get_extra_props(props):
-    result = {}
-    for key, value in props.items():
-        if not key in ECFPROPNAMES and not key in RSA_PROP_NAMES:
-            if not key.startswith(ENDPOINT_PACKAGE_VERSION_):
-                result[key] = value
-    return result
+    # type: (Dict[str, Any]) -> Dict[str, Any]
+    """
+    Returns the extra properties, *i.e.* non-ECF, non-RSA properties
+
+    :param props: A dictionary of properties
+    :return: A filtered dictionary
+    """
+    return {key: value for key, value in props.items()
+            if key not in ECFPROPNAMES and key not in RSA_PROP_NAMES
+            and not key.startswith(ENDPOINT_PACKAGE_VERSION_)}
 
 
 def get_edef_props(
@@ -1155,6 +1280,7 @@ def get_edef_props(
 
 
 def get_edef_props_error(object_class):
+    # type: (List[str]) -> Dict[str, Any]
     return get_edef_props(
         object_class,
         ERROR_IMPORTED_CONFIGS,
@@ -1167,66 +1293,125 @@ def get_edef_props_error(object_class):
 
 
 def get_dot_properties(prefix, props, remove_prefix):
-    result_props = dict()
+    # type: (str, Dict[str, Any], bool) -> Dict[str, Any]
+    result_props = {}
     if props:
-        dotkeys = [x for x in props.keys() if x.startswith(prefix + ".")]
-        for dotkey in dotkeys:
+        dot_keys = [x for x in props.keys() if x.startswith(prefix + ".")]
+        for dot_key in dot_keys:
             if remove_prefix:
-                newkey = dotkey[len(prefix) + 1 :]
+                new_key = dot_key[len(prefix)+1:]
             else:
-                newkey = dotkey
-            result_props[newkey] = props.get(dotkey)
+                new_key = dot_key
+            result_props[new_key] = props.get(dot_key)
     return result_props
 
 
 def is_reserved_property(key):
+    # type: (str) -> bool
+    """
+    Tests if the given property key is reserved
+
+    Reserved keys are:
+    * RSA property names
+    * ECF property names
+    * Property names starting with a dot (``.``)
+
+    :param key: A property name
+    :return: True if the property is reserved
+    """
     return key in RSA_PROP_NAMES or key in ECFPROPNAMES or key.startswith(".")
 
 
 def remove_from_props(props, keys):
-    for key in props:
-        if key in keys:
-            props.pop(key)
+    # type: (Dict[str, Any], List[str]) -> Dict[str, Any]
+    """
+    Removes in-place the given keys from the properties
+
+    :param props: A dictionary of properties
+    :param keys: The keys to remove
+    :return: The given dictionary of properties
+    """
+    for key in keys:
+        try:
+            del props[key]
+        except KeyError:
+            pass
     return props
 
 
 def copy_non_reserved(props, target):
-    for key, value in list(props.items()):
-        if not is_reserved_property(key):
-            target[key] = value
+    # type: (Dict[str, Any], Dict[str, Any]) -> Dict[str, Any]
+    """
+    Copies all properties with non-reserved names from ``props`` to ``target``
+
+    :param props: A dictionary of properties
+    :param target: Another dictionary
+    :return: The target dictionary
+    """
+    target.update({key: value for key, value in props.items()
+                   if not is_reserved_property(key)})
     return target
 
 
 def copy_non_ecf(props, target):
-    for key, value in list(props.items()):
-        if not key in ECFPROPNAMES:
-            target[key] = value
+    # type: (Dict[str, Any], Dict[str, Any]) -> Dict[str, Any]
+    """
+    Copies non-ECF properties from ``props`` to ``target``
+
+    :param props: An input dictionary
+    :param target: The dictionary to copy non-ECF properties to
+    :return: The ``target`` dictionary
+    """
+    target.update({key: value for key, value in props.items()
+                   if key not in ECFPROPNAMES})
     return target
 
 
-def set_append(inputset, item):
+def set_append(input_set, item):
+    # type: (set, Any) -> set
+    """
+    Appends in-place the given item to the set.
+    If the item is a list, all elements are added to the set.
+
+    :param input_set: An existing set
+    :param item: The item or list of items to add
+    :return: The given set
+    """
     if item:
         if isinstance(item, (list, tuple)):
-            inputset.update(item)
+            input_set.update(item)
         else:
-            inputset.add(item)
-    return inputset
+            input_set.add(item)
+    return input_set
 
 
 def cid_to_string(cid):
     # type: (Tuple[str, str]) -> str
+    """
+    Converts the Container ID to a string
+
+    :param cid: A Container ID tuple
+    :return: The Container ID as a string
+    """
     return cid[1]
 
 
 def rsid_to_string(rsid):
     # type: (Tuple[Tuple[str, str], int]) -> str
+    """
+    Converts the RS ID tuple to a string
+
+    :param rsid: An RS ID tuple
+    :return: The RS ID as a string
+    """
     return "{0}:{1}".format(cid_to_string(rsid[0]), rsid[1])
 
 
-def prop_dot_suffix(propname, suffix=None):
+def prop_dot_suffix(prop_name, suffix=None):
+    # type: (str, Optional[str]) -> str
     if not suffix:
         suffix = ""
-    return "{0}.{1}".format(propname, suffix)
+    return "{0}.{1}".format(prop_name, suffix)
 
 
 # ------------------------------------------------------------------------------
