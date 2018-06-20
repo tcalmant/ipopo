@@ -426,7 +426,7 @@ class RemoteServiceAdminImpl(object):
                                 export_event = RemoteServiceAdminEvent.fromexportreg(
                                     self._get_bundle(), export_reg
                                 )
-                        except Exception as e:
+                        except Exception:
                             export_reg = ExportRegistrationImpl.fromexception(
                                 sys.exc_info(),
                                 EndpointDescription.fromprops(ed_props),
@@ -493,10 +493,10 @@ class RemoteServiceAdminImpl(object):
                 found_reg = None
                 for reg in self._imported_regs:
                     if reg.match_ed(endpoint_description):
-                        found_reg.append(reg)
+                        found_reg = reg
+                        break
 
                 if found_reg:
-                    new_reg = None
                     # if so then found_regs will be non-empty
                     ex = found_reg.get_exception()
                     if ex:
@@ -505,8 +505,10 @@ class RemoteServiceAdminImpl(object):
                         )
                     else:
                         new_reg = ImportRegistrationImpl.fromreg(found_reg)
+
                     self._add_imported_service(new_reg)
                     return new_reg
+
                 # Here is where new import is done
                 try:
                     svc_reg = importer.import_service(endpoint_description)
@@ -1089,11 +1091,11 @@ class ImportReferenceImpl(ImportReference):
 
     @classmethod
     def fromexception(cls, e, errored):
-        # type: (Exception, EndpointDescription) -> ImportReferenceImpl
+        # type: (Tuple[Any, Any, Any], EndpointDescription) -> ImportReferenceImpl
         return cls(endpoint=None, exception=e, errored=errored)
 
     def __init__(self, endpoint=None, exception=None, errored=None):
-        # type: (Optional[_ImportEndpoint], Optional[Exception], Optional[EndpointDescription]) -> None
+        # type: (Optional[_ImportEndpoint], Optional[Tuple[Any, Any, Any]], Optional[EndpointDescription]) -> None
         self.__lock = threading.RLock()
         if endpoint is None:
             if exception is None or errored is None:
@@ -1157,7 +1159,7 @@ class ImportReferenceImpl(ImportReference):
             )
 
     def get_description(self):
-        # type: () -> Optional[_ImportEndpoint]
+        # type: () -> Optional[EndpointDescription]
         with self.__lock:
             return (
                 self.__errored
@@ -1197,7 +1199,7 @@ class ImportRegistrationImpl(ImportRegistration):
 
     @classmethod
     def fromexception(cls, e, ed):
-        # type: (Exception, EndpointDescription) -> ImportRegistration
+        # type: (Tuple[Any, Any, Any], EndpointDescription) -> ImportRegistration
         return cls(endpoint=None, exception=e, errored=ed)
 
     @classmethod
@@ -1206,7 +1208,7 @@ class ImportRegistrationImpl(ImportRegistration):
         return cls(endpoint=reg._importendpoint())
 
     def __init__(self, endpoint=None, exception=None, errored=None):
-        # type: (Optional[_ImportEndpoint], Optional[Exception], Optional[EndpointDescription]) -> None
+        # type: (Optional[_ImportEndpoint], Optional[Tuple[Any, Any, Any]], Optional[EndpointDescription]) -> None
         if endpoint is None:
             if exception is None or errored is None:
                 raise ArgumentError(
@@ -1275,7 +1277,7 @@ class ImportRegistrationImpl(ImportRegistration):
             return None if self.__closed else self.__importref.get_exception()
 
     def get_description(self):
-        # type: () -> Optional[_ImportEndpoint]
+        # type: () -> Optional[EndpointDescription]
         with self.__lock:
             return None if self.__closed else self.__importref.get_description()
 

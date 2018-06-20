@@ -137,10 +137,11 @@ def decode_list(input_props, name):
     val_str = input_props.get(name, None)
     if val_str:
         return val_str.split(" ")
+    return []
 
 
 def decode_osgi_props(input_props):
-    # type: (Dict[str, str]) -> Dict[str, Any]
+    # type: (Dict[str, Any]) -> Dict[str, Any]
     result_props = {}
     intfs = decode_list(input_props, OBJECTCLASS)
     result_props[OBJECTCLASS] = intfs
@@ -283,7 +284,7 @@ class EndpointDescription(object):
                 "Either service reference or properties argument must be non-null"
             )
 
-        all_properties = {}
+        all_properties = {}  # type: Dict[str, Any]
 
         if svc_ref is not None:
             all_properties.update(svc_ref.get_properties())

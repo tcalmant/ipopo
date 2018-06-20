@@ -467,16 +467,19 @@ class ImportRegistration(object):
     def get_remoteservice_id(self):
         # type: () -> Tuple[Tuple[str, str], int]
         """
-        Get the exporting remoteservice id of form:  tuple(containerid,rsid(int)), with
-        containerid of form returned from get_export_container_id.  For example:
-        (('ecf.namespace.xmlrpc','http://localhost/xml-rpc'),1).  Will not be None.
+        Get the exporting remoteservice id of form:
+        tuple(containerid,rsid(int)), with containerid of form returned from
+        get_export_container_id.
+
+        For example: (('ecf.namespace.xmlrpc','http://localhost/xml-rpc'),1).
+        Will not be None.
 
         :return exporting remote service id of form: tuple(containerid,rsid(int))
         """
         raise Exception("{0}.get_remoteservice_id not implemented".format(self))
 
     def get_reference(self):
-        # type: () -> ServiceReference
+        # type: () -> Optional[ServiceReference]
         """
         Get the ServiceReference associated with this ImportRegistration.  Will
         be None if the ImportRegistration has been closed, or if an exception
@@ -502,7 +505,7 @@ class ImportRegistration(object):
         raise Exception("{0}.get_exception not implemented".format(self))
 
     def get_description(self):
-        # type: () -> EndpointDescription
+        # type: () -> Optional[EndpointDescription]
         """
         Get EndpointDescription associated with this ImportRegistration.
         Will not be None.  See EndpointDescription class.
@@ -812,7 +815,7 @@ class RemoteServiceAdminEvent(object):
         self._ed = ed
 
     def get_description(self):
-        # type: () -> EndpointDescription
+        # type: () -> Optional[EndpointDescription]
         """
         Get the EndpointDescription associated with this event.
         Will not be None
@@ -868,7 +871,7 @@ class RemoteServiceAdminEvent(object):
         return self._bundle
 
     def get_import_ref(self):
-        # type: () -> ImportReference
+        # type: () -> Optional[ImportReference]
         """
         Get ImportReference instance associated with this event.
         Will be None if type is IMPORT_*.
@@ -878,7 +881,7 @@ class RemoteServiceAdminEvent(object):
         return self._import_ref
 
     def get_export_ref(self):
-        # type: () -> ExportReference
+        # type: () -> Optional[ExportReference]
         """
         Get ExportReference instance associated with this event.
         Will be None if type is EXPORT_*.
