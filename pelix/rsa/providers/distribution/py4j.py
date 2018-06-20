@@ -81,8 +81,8 @@ __docformat__ = "restructuredtext en"
 _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
-# Note:  These must match the Java-side constants recored in Java interface class:
-# org.eclipse.ecf.provider.py4j.Py4jConstants
+# Note:  These must match the Java-side constants recored in Java interface
+# class: org.eclipse.ecf.provider.py4j.Py4jConstants
 ECF_PY4J_CONTAINER_CONFIG_TYPE = "ecf.py4j"
 ECF_PY4J_NAMESPACE = "ecf.namespace.py4j"
 
@@ -119,7 +119,10 @@ ECF_PY4JPB_SUPPORTED_INTENTS = [
 ECF_PY4J_JAVA_PORT_PROP = "javaport"
 ECF_PY4J_PYTHON_PORT_PROP = "pythonport"
 ECF_PY4J_DEFAULT_SERVICE_TIMEOUT = "defaultservicetimeout"
+
 # ------------------------------------------------------------------------------
+
+
 @ComponentFactory(ECF_PY4J_CONTAINER_CONFIG_TYPE)
 @Provides([SERVICE_EXPORT_CONTAINER, SERVICE_IMPORT_CONTAINER])
 class Py4jContainer(ExportContainer, ImportContainer):
@@ -283,8 +286,8 @@ class Py4jDistributionProvider(
 
     @Validate
     def _validate(self, _):
-        ### here is where we can get java and python ports
-        ## and change the defaults for connecting
+        # here is where we can get java and python ports and change the
+        # defaults for connecting
         try:
             self._bridge = Py4jServiceBridge(
                 service_listener=self,
@@ -327,7 +330,7 @@ class Py4jDistributionProvider(
     def service_imported(
         self, servicebridge, endpointid, proxy, endpoint_props
     ):
-        ## put on task queue so no blocking, but fifo delivery to rsa
+        # put on task queue so no blocking, but fifo delivery to rsa
         #  _logger.info('service_imported endpointid='+endpointid)
         self._queue.put((endpointid, endpoint_props, self._handle_import))
 
@@ -343,11 +346,11 @@ class Py4jDistributionProvider(
         self, servicebridge, endpointid, proxy, endpoint_props
     ):
         # _logger.info('_service_unimported endpointid='+endpointid+";proxy="+str(proxy)+";endpoint_props="+str(endpoint_props))
-        ## put on task queue so no blocking, but fifo delivery to rsa
+        # put on task queue so no blocking, but fifo delivery to rsa
         self._queue.put((endpointid, endpoint_props, self._handle_import_close))
 
     @PostRegistration
-    def _post_reg(self, svc_ref):
+    def _post_reg(self, _):
         # start the thread for processing import_service import requests
         self._thread.start()
 
@@ -355,8 +358,9 @@ class Py4jDistributionProvider(
     # read from queue, and import/unregister imported the discovered service
     def _worker(self):
         while True:
-            # block to get items from queue placed by service_imported, service_modified,
-            # and service_unimported called by Py4j handler thread
+            # block to get items from queue placed by service_imported,
+            # service_modified, and service_unimported
+            # called by Py4j handler thread
             item = self._queue.get()
             f = None
             try:
@@ -364,22 +368,23 @@ class Py4jDistributionProvider(
                 f = item[2]
             except:
                 logging.error("Exception getting code in item=%s", item)
+
             if f:
                 try:
-                    # get the endpoint description properties from item[1] and create
-                    # EndpointDescription instance
+                    # get the endpoint description properties from item[1]
+                    # and create EndpointDescription instance
                     ed = EndpointDescription(properties=item[1])
                 except:
                     logging.error(
                         "Exception creating endpoint description from props=%s",
                         item[1],
                     )
-
-                if ed:
+                else:
                     # call appropriate function
                     try:
                         f(ed)
                     except:
                         logging.error("Exception invoking function=%s", f)
+
             # no matter what, we are done with this task
             self._queue.task_done()

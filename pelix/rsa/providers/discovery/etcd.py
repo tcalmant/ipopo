@@ -32,7 +32,13 @@ import json
 import socket
 import time
 
-from pelix.ipopo.constants import ARG_BUNDLE_CONTEXT
+try:
+    from typing import List
+except ImportError:
+    pass
+
+import etcd
+
 from pelix.ipopo.decorators import (
     ComponentFactory,
     Provides,
@@ -55,8 +61,6 @@ from pelix.rsa.providers.discovery import (
     EndpointSubscriber,
 )
 
-import etcd
-
 # ------------------------------------------------------------------------------
 # Module version
 
@@ -77,9 +81,10 @@ ETCD_PORT_PROP = "port"
 ETCD_TOPPATH_PROP = "toppath"
 ETCD_SESSIONTTL_PROP = "sessionttl"
 ETCD_WATCHSTART_WAIT_PROP = "watchstartwait"
-# ------------------------------------------------------------------------------#
-# Etcd-based implementation of EndpointAdvertiser and EndpointSubscriber
-# discovery APIs.  See EndpointAdviser and EndpointSubscriber classes
+
+# ------------------------------------------------------------------------------
+
+
 @ComponentFactory("etcd-endpoint-discovery-factory")
 @Provides(SERVICE_ENDPOINT_ADVERTISER)
 @Property(
@@ -121,7 +126,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         self._hostname = self._port = self._top_path = None
         self._sessionid = create_uuid()
         self._session_ttl = self._watch_start_wait = None
-        self._client = None
+        self._client = None  # type: etcd.Client
         self._client_lock = RLock()
         self._top_nodes = (
             self._wait_index
@@ -144,19 +149,20 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             },
         }
 
-    @ValidateComponent(ARG_BUNDLE_CONTEXT)
-    def _validate_component(self, bundle_context):
+    @ValidateComponent()
+    def _validate_component(self):
         # now connect
         self._connect()
 
     @Invalidate
-    def _invalidate(self, bundle_context):
+    def _invalidate(self, _):
         self._disconnect()
 
     # implementation of EndpointAdvertiser service.  These methods
     # are called when (e.g.) RSA asks us to advertise/unadvertise
     # an endpoint_description
     def _advertise(self, endpoint_description):
+        # type: (EndpointDescription) -> etcd.EtcdResult
         _logger.debug("advertising ed=%s", endpoint_description)
         # encode props as string -> string
         encoded_props = encode_endpoint_props(endpoint_description)
@@ -164,7 +170,11 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         service_props = self._service_props.copy()
         # set 'properties field'
         service_props["properties"] = [
-            {"type": "string", "name": key, "value": encoded_props.get(key)}
+            {
+                "type": "string",
+                "name": key,
+                "value": encoded_props.get(key)
+            }
             for key in encoded_props
         ]
         # dump service_props to json
@@ -177,6 +187,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             )
 
     def _unadvertise(self, advertised):
+        # type: (List[EndpointDescription]) -> etcd.EtcdResult
         _logger.debug("unadvertising ed=%s", advertised[0])
         # get endpoint id
         endpointid = advertised[0].get_id()
@@ -185,12 +196,17 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             return self._client.delete(key=self._get_endpoint_path(endpointid))
 
     def _get_session_path(self):
+        # type: () -> str
         return "{0}/{1}".format(self._top_path, self._sessionid)
 
     def _get_endpoint_path(self, endpointid):
+        # type: (str) -> str
         return "{0}/{1}".format(self._get_session_path(), endpointid)
 
     def _disconnect(self):
+        """
+        Disconnects the etcd client
+        """
         with self._client_lock:
             if self._client:
                 session_path = self._get_session_path()
@@ -203,6 +219,9 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 self._client = None
 
     def _connect(self):
+        """
+        Connects to etcd
+        """
         with self._client_lock:
             if self._client:
                 raise Exception("already connected")
@@ -243,6 +262,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                     self._get_session_path(),
                 )
                 raise e
+
             self._wait_index = session_exists_result.createdIndex + 1
             self._ttl_thread = Thread(target=self._ttl_job, name="Etcd TTL Job")
             self._ttl_thread.daemon = True
@@ -254,6 +274,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             self._watch_thread.start()
 
     def _get_start_wait(self):
+        # type: () -> int
         return int(self._session_ttl - (self._session_ttl / 10))
 
     def _handle_add_dir(self, dir_node):
@@ -297,15 +318,15 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             self._fire_endpoint_event(EndpointEvent.REMOVED, ed)
 
     def _watch_job(self):
-        # sleep for a few seconds to allow endpoint listeners to be asynchronously
-        # added before the top nodes are processed
+        # sleep for a few seconds to allow endpoint listeners to be
+        # asynchronously added before the top nodes are processed
         time.sleep(5)
         # first thing is to process the existing nodes from connect
         if self._top_nodes:
             # guaranteed to be directory
             for dir_node in self._top_nodes:
                 self._handle_add_dir(dir_node)
-                self._top_nodes = None
+            self._top_nodes = None
         # then loop forever
         while True:
             with self._client_lock:

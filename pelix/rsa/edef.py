@@ -323,7 +323,7 @@ class EDEFWriter(object):
 
     @staticmethod
     def _get_type(name, value):
-        # type: (str, Any) -> Union(str, object)
+        # type: (str, Any) -> Union[str, object]
         """
         Returns the type associated to the given name or value
 

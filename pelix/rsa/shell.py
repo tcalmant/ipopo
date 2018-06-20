@@ -29,6 +29,12 @@ from traceback import print_exception
 import logging
 import os
 
+try:
+    from typing import Any, Tuple, List, Callable, Optional
+except ImportError:
+    pass
+
+from pelix.framework import BundleContext
 from pelix.ipopo.decorators import (
     ComponentFactory,
     Provides,
@@ -41,6 +47,7 @@ from pelix.ipopo.decorators import (
     Invalidate,
 )
 from pelix.shell import SERVICE_SHELL_COMMAND
+from pelix.shell.beans import ShellSession
 
 from pelix.rsa import (
     SERVICE_REMOTE_SERVICE_ADMIN,
@@ -55,6 +62,8 @@ from pelix.rsa.providers.distribution import (
     SERVICE_EXPORT_CONTAINER,
     SERVICE_IMPORT_DISTRIBUTION_PROVIDER,
     SERVICE_EXPORT_DISTRIBUTION_PROVIDER,
+    Container,
+    DistributionProvider,
 )
 
 # ------------------------------------------------------------------------------
@@ -82,11 +91,14 @@ def _full_class_name(obj):
 RSA_COMMAND_NAME_PROP = "rsa.command"
 RSA_COMMAND_FILENAME_PROP = "edeffilename"
 RSA_COMMAND_EXPORT_CONFIG_PROP = "defaultexportconfig"
+
 # ------------------------------------------------------------------------------
 # RSA implementation of command handler service...e.g. SERVICE_SHELL_COMMAND
 # Exposes a number of shell commands for RSA operations...e.g. exportservice
 # importservice, listconfigs, listproviders, listcontainers, etc
 # ------------------------------------------------------------------------------
+
+
 @ComponentFactory("rsa-command-factory")
 @Requires("_rsa", SERVICE_REMOTE_SERVICE_ADMIN)
 @Requires("_imp_containers", SERVICE_IMPORT_CONTAINER, True, True)
@@ -115,7 +127,9 @@ class RSACommandHandler(object):
     EXPIMP_LINE_FORMAT = "{0:<37}|{1:<43}|{2:<3}\n"
 
     CONTAINER_LINE_FORMAT = "{0:<45}|{1:<40}\n"
-    CONTAINER_FORMAT = "ID={0}\n\tNamespace={1}\n\tClass={2}\n\tConnectedTo={3}\n\tConnectNamespace={4}\n\tConfig Type/Distribution Provider={5}\n"
+    CONTAINER_FORMAT = "ID={0}\n\tNamespace={1}\n\tClass={2}\n" \
+                       "\tConnectedTo={3}\n\tConnectNamespace={4}\n" \
+                       "\tConfig Type/Distribution Provider={5}\n"
     CONTAINER_TABLE_COLUMNS = ["Container ID/instance.name", "Class"]
     PROVIDER_FORMAT = (
         "ID={0}\n\tSupported Configs={1}\n\tSupportedIntents={2}\n"
@@ -123,7 +137,7 @@ class RSACommandHandler(object):
     PROVIDER_TABLE_COLUMNS = ["Distribution Provider/Config", "Class"]
 
     def __init__(self):
-        self._context = None
+        self._context = None  # type: BundleContext
         self._rsa = None
         self._imp_containers = []
         self._exp_containers = []
@@ -176,6 +190,7 @@ class RSACommandHandler(object):
         self._unbind_lists(self._exp_dist_providers, service)
 
     def _get_containers(self, containerid=None):
+        # type: (Optional[str]) -> List[Container]
         with self._bind_lock:
             containers = list(set(self._imp_containers + self._exp_containers))
             if containerid:
@@ -184,6 +199,7 @@ class RSACommandHandler(object):
                 return containers
 
     def _get_dist_providers(self, providerid=None):
+        # type: (Optional[str]) -> List[DistributionProvider]
         with self._bind_lock:
             providers = list(
                 set(self._imp_dist_providers + self._exp_dist_providers)
@@ -196,18 +212,31 @@ class RSACommandHandler(object):
 
     @Validate
     def _validate(self, bundle_context):
+        # type: (BundleContext) -> None
+        """
+        Component validated
+        """
         self._context = bundle_context
 
     @Invalidate
     def _invalidate(self, _):
+        """
+        Component invalidated
+        """
         if self._edef_filename and os.path.isfile(self._edef_filename):
             os.remove(self._edef_filename)
 
     @staticmethod
     def get_namespace():
+        """
+        Returns the namespace of the shell commands
+        """
         return RSACommandHandler.SHELL_NAMESPACE
 
     def get_methods(self):
+        """
+        Returns the commands provided by this service
+        """
         return [
             ("listconfigs", self._list_providers),
             ("lcfgs", self._list_providers),
@@ -232,24 +261,29 @@ class RSACommandHandler(object):
         ]
 
     def remote_admin_event(self, event):
+        # type: (RemoteServiceAdminEvent) -> None
+        """
+        Handle a remote service admin event
+        """
         if event.get_type() == RemoteServiceAdminEvent.EXPORT_REGISTRATION:
             EDEFWriter().write(
                 [event.get_description()], self._edef_filename
             )
 
     def _show_defaults(self, io_handler):
+        # type: (ShellSession) -> None
         """
         Show default edeffile and default export_config
         """
-        io_handler.write(
-            "Defaults\n\texport_config={0}\n\tEDEF file={1};exists={2}\n".format(
-                self._export_config,
-                self._edef_filename,
-                os.path.isfile(self._edef_filename),
-            )
+        io_handler.write_line(
+            "Defaults\n\texport_config={0}\n\tEDEF file={1};exists={2}",
+            self._export_config,
+            self._edef_filename,
+            os.path.isfile(self._edef_filename),
         )
 
     def _set_defaults(self, io_handler, export_config, edeffile=None):
+        # type: (ShellSession, str, str) -> None
         """
         Set the export_config and optionally the edeffile default values
         """
@@ -259,22 +293,25 @@ class RSACommandHandler(object):
         self._show_defaults(io_handler)
 
     def _show_edef(self, io_handler):
+        # type: (ShellSession) -> None
         """
         Show contents of edef file
         """
         if not os.path.isfile(self._edef_filename):
-            io_handler.write(
-                "EDEF file={0} does not exist!\n".format(self._edef_filename)
+            io_handler.write_line(
+                "EDEF file={0} does not exist!", self._edef_filename
             )
         else:
             with open(self._edef_filename, "r") as f:
                 eds = EDEFReader().parse(f.read())
-            io_handler.write(EDEFWriter().to_string(eds) + "\n")
+            io_handler.write_line(EDEFWriter().to_string(eds))
         io_handler.flush()
 
     def _list_providers(self, io_handler, providerid=None):
+        # type: (ShellSession, str) -> None
         """
-        List export/import providers. If <providerid> given, details on that provider
+        List export/import providers. If <providerid> given,
+        details on that provider
         """
         with self._bind_lock:
             providers = self._get_dist_providers(providerid)
@@ -302,8 +339,10 @@ class RSACommandHandler(object):
                     )
 
     def _list_containers(self, io_handler, containerid=None):
+        # type: (ShellSession, str) -> None
         """
-        List existing import/export containers.  If <containerid> given, details on that container
+        List existing import/export containers.
+        If <containerid> given, details on that container
         """
         with self._bind_lock:
             containers = self._get_containers(containerid)
@@ -336,6 +375,7 @@ class RSACommandHandler(object):
                     )
 
     def _list_configs(self, io_handler, expimp, endpoint_id=None):
+        # type: (ShellSession, Tuple[Callable[[], List[Any]], str], str) -> None
         configs = expimp[0]()
         if endpoint_id:
             matching_eds = [
@@ -371,6 +411,7 @@ class RSACommandHandler(object):
         io_handler.write("\n")
 
     def _list_exported_configs(self, io_handler, endpoint_id=None):
+        # type: (ShellSession, str) -> None
         """
         List exported services.  If <endpoint_id> given, details on that export
         """
@@ -379,6 +420,7 @@ class RSACommandHandler(object):
         )
 
     def _list_imported_configs(self, io_handler, endpoint_id=None):
+        # type: (ShellSession, str) -> None
         """
         List imported endpoints.  If <endpoint_id> given, details on that import
         """
@@ -387,6 +429,7 @@ class RSACommandHandler(object):
         )
 
     def _unimport(self, io_handler, endpointid):
+        # type: (ShellSession, str) -> None
         """
         Unimport endpoint with given endpoint.id (required)
         """
@@ -403,11 +446,12 @@ class RSACommandHandler(object):
                 )
             )
             io_handler.flush()
-            return
-        # now close it
-        found_reg.close()
+        else:
+            # now close it
+            found_reg.close()
 
     def _unexport(self, io_handler, endpointid):
+        # type: (ShellSession, str) -> None
         """
         Unimport endpoint with given endpoint.id (required)
         """
@@ -424,16 +468,18 @@ class RSACommandHandler(object):
                 )
             )
             io_handler.flush()
-            return
-        # now close it
-        found_reg.close()
+        else:
+            # now close it
+            found_reg.close()
 
     def _get_edef_fullname(self):
+        # type: () -> str
         return self._edef_filename
 
     def _export_service(
         self, io_handler, service_id, export_config=None, filename=None
     ):
+        # type: (ShellSession, str, str, str) -> None
         """
         Export service with given service.id.
         """
@@ -441,18 +487,21 @@ class RSACommandHandler(object):
             None, "(service.id={0})".format(service_id)
         )
         if not svc_ref:
-            io_handler.write(
-                "Service with id={0} cannot be found so no service can be exported\n".format(
-                    service_id
-                )
+            io_handler.write_line(
+                "Service with id={0} cannot be found so no service "
+                "can be exported",
+                service_id
             )
             io_handler.flush()
             return
+
         if export_config:
             self._export_config = export_config
         if filename:
             self._edef_filename = filename
-        # Finally export with required SERVICE_EXPORTED_INTERFACES = '*' and SERVICE_EXPORTED_CONFIGS to self._export_config
+
+        # Finally export with required SERVICE_EXPORTED_INTERFACES = '*'
+        # and SERVICE_EXPORTED_CONFIGS to self._export_config
         export_regs = self._rsa.export_service(
             svc_ref,
             {
@@ -485,6 +534,7 @@ class RSACommandHandler(object):
         io_handler.flush()
 
     def _import_edef(self, io_handler, edeffile=None):
+        # type: (ShellSession, str) -> None
         """
         Import endpoint
         """
@@ -494,10 +544,10 @@ class RSACommandHandler(object):
         full_name = self._get_edef_fullname()
         with open(full_name) as f:
             eds = EDEFReader().parse(f.read())
-            io_handler.write(
-                "Imported {0} endpoints from EDEF file={1}\n".format(
-                    len(eds), full_name
-                )
+            io_handler.write_line(
+                "Imported {0} endpoints from EDEF file={1}",
+                len(eds),
+                full_name
             )
 
         for ed in eds:
@@ -506,19 +556,17 @@ class RSACommandHandler(object):
                 exp = import_reg.get_exception()
                 ed = import_reg.get_description()
                 if exp:
-                    io_handler.write(
-                        "Exception importing endpoint.id={0}\n".format(
-                            ed.get_id()
-                        )
+                    io_handler.write_line(
+                        "Exception importing endpoint.id={0}",
+                        ed.get_id()
                     )
                     print_exception(
                         exp[0], exp[1], exp[2], limit=None, file=io_handler
                     )
                 else:
-                    io_handler.write(
-                        "Proxy service={0} imported. rsid={1}\n".format(
-                            import_reg.get_reference(),
-                            ed.get_remoteservice_idstr(),
-                        )
+                    io_handler.write_line(
+                        "Proxy service={0} imported. rsid={1}",
+                        import_reg.get_reference(),
+                        ed.get_remoteservice_idstr(),
                     )
                 io_handler.flush()

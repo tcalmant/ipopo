@@ -40,10 +40,13 @@ from pelix.ipopo.constants import (
     ARG_PROPERTIES,
 )
 
+# Typing
 try:
     from typing import Any, Dict, List, Tuple, Optional, Callable
 except ImportError:
     pass
+
+from pelix.rsa import ImportRegistration
 
 from pelix.rsa import (
     get_dot_properties,
@@ -94,6 +97,8 @@ DISTRIBUTION_PROVIDER_CONTAINER_PROP = "pelix.rsa.distributionprovider"
 
 # ------------------------------------------------------------------------------
 # Abstract DistributionProvider superclass
+
+
 @Requires("_rsa", SERVICE_REMOTE_SERVICE_ADMIN)
 @Requires("_ipopo", SERVICE_IPOPO)
 class DistributionProvider(object):
@@ -130,15 +135,19 @@ class DistributionProvider(object):
         self._ipopo = None
 
     def get_config_name(self):
+        # type: () -> str
         return self._config_name
 
     def get_supported_configs(self):
+        # type: () -> List[str]
         return self._supported_configs
 
     def get_supported_intents(self):
+        # type: () -> List[str]
         return self._supported_intents
 
     def _get_imported_configs(self, exported_configs):
+        # type: (List[str]) -> List[str]
         """
         Get any imported configs (list) given a set of exported_configs.
         Default implementation simply returns [self._config_name]
@@ -146,6 +155,7 @@ class DistributionProvider(object):
         return [self._config_name]
 
     def _match_intents_supported(self, intents, supported_intents):
+        # type: (List[str], List[str]) -> bool
         """
         Match the list of given intents with given supported_intents.
         This method is used by the other _match methods.
@@ -159,9 +169,9 @@ class DistributionProvider(object):
     def _match_required_configs(self, required_configs):
         """
         Match required configs list(string).
-        Default implementation compares required configs with self._supported_configs
-        to make sure that all required configs are present for this distribution
-        provider.
+        Default implementation compares required configs with
+        self._supported_configs to make sure that all required configs are
+        present for this distribution provider.
         """
         if required_configs is None or not self._supported_configs:
             return False
@@ -170,6 +180,7 @@ class DistributionProvider(object):
         ) == len(required_configs)
 
     def _match_intents(self, intents):
+        # type: (List[str]) -> bool
         """
         Match list(string) of intents against self._supported_intents.
         Default implementation compares intents against self._supported_intents
@@ -177,6 +188,7 @@ class DistributionProvider(object):
         return self._match_intents_supported(intents, self._supported_intents)
 
     def _find_container(self, container_id, container_props):
+        # type: (str, Dict[str, Any]) -> Any
         """
         Uses given container_id to get an ipopo instance with name=container_id.
         If instance is returned from ipopo.get_instance(container_id), then
@@ -196,17 +208,20 @@ class DistributionProvider(object):
         self._get_or_create_container to create an id prior to instantiating
         and instance of the appropriate Container with the instance.name set
         to the container_id returned from this method.
-        This method must be overridden by subclasses as the default implementation
-        raises an Exception.   If it returns None, then no container will be created.
+        This method must be overridden by subclasses as the default
+        implementation raises an Exception.
+        If it returns None, then no container will be created.
         """
         raise Exception(
-            "DistributionProvider._prepare_container_id must be implemented by distribution provider"
+            "DistributionProvider._prepare_container_id must be implemented "
+            "by distribution provider"
         )
 
     def _prepare_container_props(self, service_intents, export_props):
         """
         Prepare container props (dict).
-        Creates dict of props subsequently passed to ipopo.instantiate(factory,container_name,container_props).
+        Creates dict of props subsequently passed to
+        ipopo.instantiate(factory,container_name,container_props).
         default implementation copies . properties (as per OSGi spec)
         along with service.intents and <intent>. properties.
         Also sets DISTRIBUTION_PROVIDER_CONTAINER_PROP to self.  This
@@ -248,8 +263,17 @@ class DistributionProvider(object):
         return container
 
     def _find_import_registration(self, ed):
+        # type: (EndpointDescription) -> Optional[ImportRegistration]
+        """
+        Looks for the Import Registration matching the given endpoint
+        description
+
+        :param ed: An endpoint description
+        :return: The matching ImportRegistration or None
+        """
         if not ed:
             return None
+
         import_regs = self._rsa._get_import_regs()
         if import_regs:
             for import_reg in import_regs:
@@ -257,9 +281,22 @@ class DistributionProvider(object):
                     return import_reg
 
     def _handle_import(self, ed):
+        # type: (EndpointDescription) -> ImportRegistration
+        """
+        Handle the import of an endpoint
+
+        :param ed: An endpoint description
+        :return: An import registration
+        """
         return self._rsa.import_service(ed)
 
     def _handle_import_update(self, ed):
+        # type: (EndpointDescription) -> None
+        """
+        Handle the update of an endpoint
+
+        :param ed: An endpoint description
+        """
         import_reg = self._find_import_registration(ed)
         if import_reg:
             import_ref = import_reg.get_import_reference()
@@ -267,16 +304,24 @@ class DistributionProvider(object):
                 import_ref.update(ed)
 
     def _handle_import_close(self, ed):
+        # type: (EndpointDescription) -> None
+        """
+        Cleans up import registration
+
+        :param ed: An endpoint description
+        """
         import_reg = self._find_import_registration(ed)
         if import_reg:
             import_reg.close()
 
 
-# ------------------------------------------------------------------------------#
+# ------------------------------------------------------------------------------
 # Specification for SERVICE_EXPORT_DISTRIBUTION_PROVIDER
 SERVICE_EXPORT_DISTRIBUTION_PROVIDER = "pelix.rsa.exportdistributionprovider"
 # Abstract implementation of SERVICE_EXPORT_DISTRIBUTION_PROVIDER extends
 # DistributionProvider superclass
+
+
 class ExportDistributionProvider(DistributionProvider):
     """
     Export distribution provider.
@@ -292,8 +337,9 @@ class ExportDistributionProvider(DistributionProvider):
 
     def supports_export(self, exported_configs, service_intents, export_props):
         """
-        Method called by rsa.export_service to ask if this ExportDistributionProvider
-        supports export for given exported_configs (list), service_intents (list), and
+        Method called by rsa.export_service to ask if this
+        ExportDistributionProvider supports export for given
+        exported_configs (list), service_intents (list), and
         export_props (dict).
 
         If a ExportContainer instance is returned then it is used to export
@@ -307,12 +353,16 @@ class ExportDistributionProvider(DistributionProvider):
         )
 
 
-# ------------------------------------------------------------------------------#
+# ------------------------------------------------------------------------------
 # Specification for SERVICE_IMPORT_DISTRIBUTION_PROVIDER
 SERVICE_IMPORT_DISTRIBUTION_PROVIDER = "pelix.rsa.importdistributionprovider"
-# Abstract implementation of SERVICE_EXPORT_DISTRIBUTION_PROVIDER
-# extends DistributionProvider superclass
+
+
 class ImportDistributionProvider(DistributionProvider):
+    """
+    Abstract implementation of SERVICE_EXPORT_DISTRIBUTION_PROVIDER
+    extends DistributionProvider superclass
+    """
     def _prepare_container_id(self, container_props):
         """
         Default for import containers creates a UUID for the created container.
@@ -323,8 +373,9 @@ class ImportDistributionProvider(DistributionProvider):
         self, exported_configs, service_intents, endpoint_props
     ):
         """
-        Method called by rsa.export_service to ask if this ImportDistributionProvider
-        supports import for given exported_configs (list), service_intents (list), and
+        Method called by rsa.export_service to ask if this
+        ImportDistributionProvider supports import for given
+        exported_configs (list), service_intents (list), and
         export_props (dict).
 
         If a ImportContainer instance is returned then it is used to import
@@ -507,6 +558,7 @@ class ExportContainer(Container):
     class as a superclass to inherit required behavior.
     """
     def _get_supported_intents(self):
+        # type: () -> List[str]
         return self._get_distribution_provider().get_supported_intents()
 
     def _export_service(self, svc, ed):
