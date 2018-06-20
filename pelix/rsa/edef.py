@@ -287,7 +287,7 @@ class EDEFWriter(object):
         """
         element_prefix = "\n{0}".format(level * prefix)
 
-        if element:
+        if element is not None:
             if not element.text or not element.text.strip():
                 element.text = element_prefix + prefix
 
