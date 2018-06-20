@@ -31,6 +31,7 @@ from threading import RLock
 import logging
 
 from pelix.constants import OBJECTCLASS, SERVICE_SCOPE, FRAMEWORK_UID
+from pelix.framework import ServiceRegistration, ServiceReference, BundleContext
 from pelix.ipopo.decorators import Requires, ValidateComponent, Invalidate
 from pelix.ipopo.constants import (
     SERVICE_IPOPO,
@@ -38,6 +39,11 @@ from pelix.ipopo.constants import (
     ARG_BUNDLE_CONTEXT,
     ARG_PROPERTIES,
 )
+
+try:
+    from typing import Any, Dict, List, Tuple, Optional, Callable
+except ImportError:
+    pass
 
 from pelix.rsa import (
     get_dot_properties,
@@ -332,22 +338,38 @@ class ImportDistributionProvider(DistributionProvider):
         )
 
 
-# ------------------------------------------------------------------------------#
-# Abstract Container type supporting both ImportContainer and ExportContainer
+# ------------------------------------------------------------------------------
+
+
 class Container:
+    """
+    Abstract Container type supporting both ImportContainer and ExportContainer
+    """
     def __init__(self):
-        self._bundle_context = None
-        self._container_props = None
-        self._exported_services = {}
+        self._bundle_context = None  # type: BundleContext
+        self._container_props = None  # type: Dict[str, Any]
+        self._exported_services = {}  # type: Dict[str, Tuple[Any, EndpointDescription]]
         self._exported_instances_lock = RLock()
 
     def get_id(self):
         # type: () -> str
+        """
+        Returns the ID of this container (its component name)
+
+        :return: The ID of this containers
+        """
         return self._container_props.get(IPOPO_INSTANCE_NAME, None)
 
     def is_valid(self):
+        # type: () -> bool
+        """
+        Checks if the component is valid
+
+        :return: Always True if it doesn't raise an exception
+        :raises AssertionError: Invalid properties
+        """
         assert self._bundle_context
-        assert self._container_props != None
+        assert self._container_props is not None
         assert self._get_distribution_provider()
         assert self.get_config_name()
         assert self.get_namespace()
@@ -355,47 +377,118 @@ class Container:
 
     @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_PROPERTIES)
     def _validate_component(self, bundle_context, container_props):
+        # type: (BundleContext, Dict[str, Any]) -> None
+        """
+        Component validated
+
+        :param bundle_context: Bundle context
+        :param container_props: Instance properties
+        :raises AssertionError: Invalid properties
+        """
         self._bundle_context = bundle_context
         self._container_props = container_props
         self.is_valid()
 
     @Invalidate
     def _invalidate_component(self, bundle_context):
+        # type: (BundleContext) -> None
+        """
+        Component invalidated
+
+        :param bundle_context: The bundle context
+        """
         with self._exported_instances_lock:
             self._exported_services.clear()
 
     def _get_bundle_context(self):
+        # type: () -> BundleContext
+        """
+        Returns the bundle context of this container
+
+        :return: A bundle context
+        """
         return self._bundle_context
 
     def _add_export(self, ed_id, inst):
+        # type: (str, Tuple[Any, EndpointDescription]) -> None
+        """
+        Keeps track of an exported service
+
+        :param ed_id: ID of the endpoint description
+        :param inst: A tuple: (service instance, endpoint description)
+        """
         with self._exported_instances_lock:
             self._exported_services[ed_id] = inst
 
     def _remove_export(self, ed_id):
+        # type: (str) -> Optional[Tuple[Any, EndpointDescription]]
+        """
+        Cleans up an exported service
+
+        :param ed_id: ID of the endpoint description
+        :return: The stored tuple (service instance, endpoint description)
+                 or None
+        """
         with self._exported_instances_lock:
             return self._exported_services.pop(ed_id, None)
 
     def _get_export(self, ed_id):
+        # type: (str) -> Optional[Tuple[Any, EndpointDescription]]
+        """
+        Get the details of an exported service
+
+        :param ed_id: ID of an endpoint description
+        :return: The stored tuple (service instance, endpoint description)
+                 or None
+        """
         with self._exported_instances_lock:
             return self._exported_services.get(ed_id, None)
 
     def _find_export(self, func):
+        # type: (Callable[[Tuple[Any, EndpointDescription]], bool]) -> Optional[Tuple[Any, EndpointDescription]]
+        """
+        Look for an export using the given lookup method
+
+        The lookup method must accept a single parameter, which is a tuple
+        containing a service instance and endpoint description.
+
+        :param func: A function to look for the excepted export
+        :return: The found tuple or None
+        """
         with self._exported_instances_lock:
             for val in self._exported_services.values():
                 if func(val):
                     return val
-        return None
 
     def _get_distribution_provider(self):
+        # type: () -> DistributionProvider
+        """
+        Returns the distribution provider associated to this container
+
+        :return: A distribution provider
+        """
         return self._container_props[DISTRIBUTION_PROVIDER_CONTAINER_PROP]
 
     def get_config_name(self):
+        # type: () -> str
+        """
+        Returns the configuration name handled by this container
+
+        :return: A configuration name
+        """
         return self._get_distribution_provider()._config_name
 
     def get_namespace(self):
+        # type: () -> str
+        """
+        Returns the namespace of this container
+
+        :return: A namespace ID
+        """
         return self._get_distribution_provider()._namespace
 
     def _match_container_props(self, container_props):
+        # type: (Dict[str, Any]) -> bool
         return True
 
     def get_connected_id(self):
@@ -405,24 +498,52 @@ class Container:
 # ------------------------------------------------------------------------------#
 # Service specification for SERVICE_EXPORT_CONTAINER
 SERVICE_EXPORT_CONTAINER = "pelix.rsa.exportcontainer"
-# Abstract implementation of SERVICE_EXPORT_CONTAINER service specification
-# extends Container class.  New export distribution containers should use this
-# class as a superclass to inherit required behavior.
+
+
 class ExportContainer(Container):
+    """
+    Abstract implementation of SERVICE_EXPORT_CONTAINER service specification
+    extends Container class. New export distribution containers should use this
+    class as a superclass to inherit required behavior.
+    """
     def _get_supported_intents(self):
         return self._get_distribution_provider().get_supported_intents()
 
     def _export_service(self, svc, ed):
+        # type: (Any, EndpointDescription) -> None
+        """
+        Registers a service export
+
+        :param svc: Service instance
+        :param ed: Endpoint description
+        """
         self._add_export(ed.get_id(), (svc, ed))
 
     def _update_service(self, ed):
+        # type: (EndpointDescription) -> Any
         # do nothing by default, subclasses may override
         pass
 
     def _unexport_service(self, ed):
+        # type: (EndpointDescription) -> Optional[Tuple[Any, EndpointDescription]]
+        """
+        Clears a service export
+
+        :param ed: The endpoint description
+        :return: The service instance and endpoint description or None
+        """
         return self._remove_export(ed.get_id())
 
     def prepare_endpoint_props(self, intfs, svc_ref, export_props):
+        # type: (List[str], ServiceReference, Dict[str, Any]) -> Dict[str, Any]
+        """
+        Sets up the properties of an endpoint
+
+        :param intfs: Specifications to export
+        :param svc_ref: Reference of the exported service
+        :param export_props: Export properties
+        :return: The properties of the endpoint
+        """
         pkg_vers = rsa.get_package_versions(intfs, export_props)
         exported_configs = get_string_plus_property_value(
             svc_ref.get_property(SERVICE_EXPORTED_CONFIGS)
@@ -466,6 +587,14 @@ class ExportContainer(Container):
         return merged
 
     def export_service(self, svc_ref, export_props):
+        # type: (ServiceReference, Dict[str, Any]) -> EndpointDescription
+        """
+        Exports the given service
+
+        :param svc_ref: Reference to the service to export
+        :param export_props: Export properties
+        :return: The endpoint description
+        """
         ed = EndpointDescription.fromprops(export_props)
         self._export_service(
             self._get_bundle_context().get_service(svc_ref), ed
@@ -473,13 +602,28 @@ class ExportContainer(Container):
         return ed
 
     def update_service(self, ed):
+        # type: (EndpointDescription) -> Any
+        """
+        Updates a service with a new endpoint description
+
+        :param ed: The new state of the endpoint description
+        :return:
+        """
         return self._update_service(ed)
 
     def unexport_service(self, ed):
+        # type: (EndpointDescription) -> Optional[Tuple[Any, EndpointDescription]]
+        """
+        Clears a service export
+
+        :param ed: The endpoint description
+        :return: The service instance and endpoint description or None
+        """
         return self._unexport_service(ed)
 
     def _dispatch_exported(self, rs_id, method_name, params):
-        # first lookup service instance by comparing the rs_id against the service's remote service id
+        # first lookup service instance by comparing the rs_id against the
+        # service's remote service id
         service = self._find_export(
             lambda val: val[1].get_remoteservice_id()[1] == int(rs_id)
         )
@@ -500,22 +644,35 @@ class ExportContainer(Container):
             return method_ref(**params)
 
     def get_connected_id(self):
+        # type: () -> str
+        """
+        Returns the ID of this container
+
+        :return: The ID of the container
+        """
         return self.get_id()
 
 
 # ------------------------------------------------------------------------------#
 # Service specification for SERVICE_IMPORT_CONTAINER
 SERVICE_IMPORT_CONTAINER = "pelix.rsa.importcontainer"
-# Abstract implementation of SERVICE_IMPORT_CONTAINER service specification
-# extends Container class.  New import container classes should
-# subclass this ImportContainer class to inherit necessary functionality.
+
+
 class ImportContainer(Container):
+    """
+    Abstract implementation of SERVICE_IMPORT_CONTAINER service specification
+    extends Container class.  New import container classes should
+    subclass this ImportContainer class to inherit necessary functionality.
+    """
+
     def _get_imported_configs(self, exported_configs):
+        # type: (List[str]) -> List[str]
         return self._get_distribution_provider()._get_imported_configs(
             exported_configs
         )
 
     def _prepare_proxy_props(self, ed):
+        # type: (EndpointDescription) -> Dict[str, Any]
         result_props = copy_non_reserved(ed.get_properties(), dict())
         # remove these props
         result_props.pop(OBJECTCLASS, None)
@@ -535,19 +692,24 @@ class ImportContainer(Container):
         return result_props
 
     def _prepare_proxy(self, ed):
+        # type: (EndpointDescription) -> Any
         raise Exception(
             "ImportContainer._prepare_proxy must be implemented by subclass"
         )
 
     def import_service(self, ed):
+        # type: (EndpointDescription) -> ServiceRegistration
         ed.update_imported_configs(
             self._get_imported_configs(ed.get_remote_configs_supported())
         )
         proxy = self._prepare_proxy(ed)
+        print("proxy:", proxy)
+        print("type:", type(proxy).__name__)
         if proxy:
             return self._get_bundle_context().register_service(
                 ed.get_interfaces(), proxy, self._prepare_proxy_props(ed)
             )
 
     def unimport_service(self, ed):
+        # type: (EndpointDescription) -> None
         pass
