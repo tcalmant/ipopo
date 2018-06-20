@@ -302,6 +302,17 @@ class ExportRegistration(object):
         """
         raise Exception("{0}.get_description not implemented".format(self))
 
+    def match_sr(self, svc_ref, cid=None):
+        # type: (ServiceReference, Optional[Tuple[str, str]] ) -> bool
+        """
+        Checks if this export registration matches the given service reference
+
+        :param svc_ref: A service reference
+        :param cid: A container ID
+        :return: True if the service matches this export registration
+        """
+        raise Exception("{0}.get_description not implemented".format(self))
+
     def close(self):
         # type: () -> None
         """
@@ -373,7 +384,7 @@ class ExportReference(object):
         raise Exception("{0}.get_description not implemented".format(self))
 
     def get_exception(self):
-        # type: () -> Tuple[Tuple[str, str], int]
+        # type: () -> Tuple[Any, Any, Any]
         """
         Get any exception associated with the attempted export.  If not None,
         will be of form:  tuple(exc_type,exc_msg,exc_stack).  For example:

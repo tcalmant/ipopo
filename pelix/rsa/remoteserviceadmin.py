@@ -663,6 +663,8 @@ class _ExportEndpoint(object):
         # type: (Dict[str, Any]) -> EndpointDescription
         with self.__lock:
             srprops = self.get_reference().get_properties().copy()
+
+            # FIXME: unknown field __orig_props
             rsprops = self.__orig_props.copy()
             updateprops = (
                 rsprops if props is None else props.update(rsprops).copy()
@@ -697,9 +699,13 @@ class _ExportEndpoint(object):
 
 
 # ------------------------------------------------------------------------------
-# Implementation of ExportReference API.  See ExportReference class for external
-# contract and documentation
+
+
 class ExportReferenceImpl(ExportReference):
+    """
+    Implementation of ExportReference API. See ExportReference class for
+    external contract and documentation
+    """
     @classmethod
     def fromendpoint(cls, endpoint):
         # type: (_ExportEndpoint) -> ExportReference
@@ -707,16 +713,17 @@ class ExportReferenceImpl(ExportReference):
 
     @classmethod
     def fromexception(cls, e, ed):
-        # type: (Exception, EndpointDescription) -> ExportReference
+        # type: (Optional[Tuple[Any, Any, Any]], EndpointDescription) -> ExportReference
         return cls(endpoint=None, exception=e, errored=ed)
 
     def __init__(self, endpoint=None, exception=None, errored=None):
-        # type: (Optional[_ExportEndpoint], Optional[Exception], Optional[EndpointDescription]) -> None
+        # type: (Optional[_ExportEndpoint], Optional[Tuple[Any, Any, Any]], Optional[EndpointDescription]) -> None
         self.__lock = threading.RLock()
         if endpoint is None:
             if exception is None or errored is None:
                 raise ArgumentError(
-                    "Must supply either endpoint or throwable/errorEndpointDescription"
+                    "Must supply either endpoint or "
+                    "throwable/error EndpointDescription"
                 )
             self.__exception = exception
             self.__errored = errored
@@ -762,7 +769,7 @@ class ExportReferenceImpl(ExportReference):
             )
 
     def get_exception(self):
-        # type: () -> Exception
+        # type: () -> Tuple[Any, Any, Any]
         with self.__lock:
             return self.__exception
 
@@ -787,12 +794,17 @@ class ExportReferenceImpl(ExportReference):
 
 
 # ------------------------------------------------------------------------------
-# Implementation of ExportRegistration API.  See ExportRegistration class for external
-# contract and documentation
+
+
 class ExportRegistrationImpl(ExportRegistration):
+    """
+    Implementation of ExportRegistration API.
+    See ExportRegistration class for external contract and documentation
+    """
     @classmethod
     def fromreg(cls, export_reg):
         # type: (ExportRegistration) -> ExportRegistration
+        # FIXME: access to an undefined field (exportendpoint)
         return cls(export_reg.__rsa, export_reg.__exportref.exportendpoint)
 
     @classmethod
@@ -802,11 +814,11 @@ class ExportRegistrationImpl(ExportRegistration):
 
     @classmethod
     def fromexception(cls, e, ed):
-        # type: (Exception, EndpointDescription) -> ExportRegistration
+        # type: (Tuple[Any, Any, Any], EndpointDescription) -> ExportRegistration
         return cls(rsa=None, endpoint=None, exception=e, errored=ed)
 
     def __init__(self, rsa=None, endpoint=None, exception=None, errored=None):
-        # type: (Optional[RemoteServiceAdminImpl], Optional[_ExportEndpoint], Optional[Exception], Optional[EndpointDescription]) -> None
+        # type: (Optional[RemoteServiceAdminImpl], Optional[_ExportEndpoint], Optional[Tuple[Any, Any, Any]], Optional[EndpointDescription]) -> None
         if endpoint is None:
             if exception is None or errored is None:
                 raise ArgumentError(
@@ -824,35 +836,60 @@ class ExportRegistrationImpl(ExportRegistration):
         self.__updateexception = None
         self.__lock = threading.RLock()
 
-    def match_sr(self, sr, cid=None):
+    def match_sr(self, svc_ref, cid=None):
+        # type: (ServiceReference, Optional[Tuple[str, str]] ) -> bool
+        """
+        Checks if this export registration matches the given service reference
+
+        :param svc_ref: A service reference
+        :param cid: A container ID
+        :return: True if the service matches this export registration
+        """
         with self.__lock:
-            oursr = self.get_reference()
-            if oursr is None:
+            our_sr = self.get_reference()
+            if our_sr is None:
                 return False
-            srcompare = oursr == sr
+
+            sr_compare = our_sr == svc_ref
             if cid is None:
-                return srcompare
-            ourcid = self.get_export_container_id()
-            if ourcid is None:
+                return sr_compare
+
+            our_cid = self.get_export_container_id()
+            if our_cid is None:
                 return False
-            return srcompare and ourcid == cid
+
+            return sr_compare and our_cid == cid
 
     def get_export_reference(self):
         # type: () -> ExportReference
+        """
+        Returns the reference matching this registration
+
+        :return: An export reference
+        """
         with self.__lock:
             return None if self.__closed else self.__exportref
 
-    def _exportendpoint(self, sr, cid):
+    def _exportendpoint(self, svc_ref, cid):
+        # type: (ServiceReference, Tuple[str, str]) -> Optional
+        # FIXME: find result type
         with self.__lock:
+            # FIXME: access to an undefined field: exportendpoint
             return (
                 None
                 if self.__closed
                 else self.__exportref.exportendpoint
-                if self.match_sr(sr, cid)
+                if self.match_sr(svc_ref, cid)
                 else None
             )
 
     def get_export_container_id(self):
+        # type: () -> Optional[Tuple[str, str]]
+        """
+        Returns the export container ID
+
+        :return: An export container ID
+        """
         with self.__lock:
             return (
                 None
@@ -861,6 +898,12 @@ class ExportRegistrationImpl(ExportRegistration):
             )
 
     def get_remoteservice_id(self):
+        # type: () -> Optional[Tuple[Tuple[str, str], int]]
+        """
+        Returns the remote service ID
+
+        :return: The remote service ID
+        """
         with self.__lock:
             return (
                 None
@@ -869,10 +912,22 @@ class ExportRegistrationImpl(ExportRegistration):
             )
 
     def get_reference(self):
+        # type: () -> Optional[ServiceReference]
+        """
+        Retruns the service reference of the exported service
+
+        :return: A service reference
+        """
         with self.__lock:
             return None if self.__closed else self.__exportref.get_reference()
 
     def get_exception(self):
+        # type: () -> Optional[Tuple[Any, Any, Any]]
+        """
+        Returns the exception associated to the export
+
+        :return: An exception tuple, if any
+        """
         with self.__lock:
             return (
                 self.__updateexception
@@ -881,10 +936,19 @@ class ExportRegistrationImpl(ExportRegistration):
             )
 
     def get_description(self):
+        # type: () -> Optional[EndpointDescription]
+        """
+        Returns the description of the endpoint
+
+        :return: An endpoint description
+        """
         with self.__lock:
             return None if self.__closed else self.__exportref.get_description()
 
     def close(self):
+        """
+        Cleans up the export endpoint
+        """
         publish = False
         exporterid = rsid = exception = export_ref = ed = None
         with self.__lock:
@@ -897,6 +961,7 @@ class ExportRegistrationImpl(ExportRegistration):
                 publish = self.__exportref.close(self)
                 self.__exportref = None
                 self.__closed = True
+
         if publish and export_ref and self.__rsa:
             self.__rsa._publish_event(
                 RemoteServiceAdminEvent.fromexportunreg(
@@ -923,7 +988,7 @@ class _ImportEndpoint(object):
         assert svc_reg
         self.__svc_reg = svc_reg
         self.__lock = threading.RLock()
-        self.__active_registrations = []
+        self.__active_registrations = []  # type: List[ImportRegistration]
 
     def _add_import_registration(self, import_reg):
         # type: (ImportRegistration) -> None
@@ -961,6 +1026,7 @@ class _ImportEndpoint(object):
             return None if self.__importer is None else self.__importer.get_id()
 
     def get_export_container_id(self):
+        # FIXME: call to an unknown method
         with self.__lock:
             return self.__ed.get_ecf_endpoint_id()
 
@@ -973,6 +1039,8 @@ class _ImportEndpoint(object):
         with self.__lock:
             if self.__svc_reg is None:
                 return None
+
+            # FIXME: unknown field: __proxy
             new_props = self.__rsa._create_proxy_properties(ed, self.__proxy)
             ed.update(new_props.get_properties())
             self.__ed = ed
@@ -1098,7 +1166,7 @@ class ImportReferenceImpl(ImportReference):
             )
 
     def get_exception(self):
-        # type: () -> Optional[Exception]
+        # type: () -> Optional[Tuple[Any, Any, Any]]
         with self.__lock:
             return self.__exception
 
@@ -1202,7 +1270,7 @@ class ImportRegistrationImpl(ImportRegistration):
             return None if self.__closed else self.__importref.get_reference()
 
     def get_exception(self):
-        # type: () -> Optional[Exception]
+        # type: () -> Optional[Tuple[Any, Any, Any]]
         with self.__lock:
             return None if self.__closed else self.__importref.get_exception()
 
