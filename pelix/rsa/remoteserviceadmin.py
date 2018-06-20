@@ -204,7 +204,8 @@ class ExportContainerSelectorImpl(ExportContainerSelector):
         exported_configs = get_string_plus_property(
             SERVICE_EXPORTED_CONFIGS, export_props, None
         )
-        # get service intents, via service.intents, services.exported.intents, and extra
+        # get service intents, via service.intents, services.exported.intents,
+        # and extra
         service_intents_set = set_append(
             set(), export_props.get(SERVICE_INTENTS, None)
         )
@@ -551,11 +552,12 @@ class RemoteServiceAdminImpl(object):
         with self._exported_regs_lock:
             for reg in self._exported_regs:
                 reg.close()
-            self._exported_regs.clear()
+            del self._exported_regs[:]
         with self._imported_regs_lock:
             for reg in self._imported_regs:
                 reg.close()
-                self._imported_regs.clear()
+
+            del self._imported_regs[:]
         self._context = None
 
     def _unexport_service(self, svc_ref):
