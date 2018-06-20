@@ -1640,7 +1640,7 @@ class BundleContext(object):
 
     def register_service(self, clazz, service, properties, send_event=True,
                          factory=False, prototype=False):
-        # type: (str, object, dict, bool, bool, bool) -> ServiceRegistration
+        # type: (Union[List[Any], type, str], object, dict, bool, bool, bool) -> ServiceRegistration
         """
         Registers a service
 
