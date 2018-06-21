@@ -621,6 +621,7 @@ class _ExportEndpoint(object):
         self.__svc_ref = svc_ref
         self.__lock = threading.RLock()
         self.__active_registrations = []  # type: List[ExportRegistration]
+        self.__orig_props = self.__ed.get_properties()
 
     def _rsa(self):
         with self.__lock:
@@ -806,8 +807,7 @@ class ExportRegistrationImpl(ExportRegistration):
     @classmethod
     def fromreg(cls, export_reg):
         # type: (ExportRegistration) -> ExportRegistration
-        # FIXME: access to an undefined field (exportendpoint)
-        return cls(export_reg.__rsa, export_reg.__exportref.exportendpoint)
+        return cls(export_reg.__rsa,export_reg.__export_ref.__endpoint)
 
     @classmethod
     def fromendpoint(cls, rsa, exporter, ed, svc_ref):
@@ -876,11 +876,10 @@ class ExportRegistrationImpl(ExportRegistration):
         # type: (ServiceReference, Tuple[str, str]) -> Optional
         # FIXME: find result type
         with self.__lock:
-            # FIXME: access to an undefined field: exportendpoint
             return (
                 None
                 if self.__closed
-                else self.__exportref.exportendpoint
+                else self.__exportref.__endpoint
                 if self.match_sr(svc_ref, cid)
                 else None
             )
@@ -1030,7 +1029,7 @@ class _ImportEndpoint(object):
     def get_export_container_id(self):
         # FIXME: call to an unknown method
         with self.__lock:
-            return self.__ed.get_ecf_endpoint_id()
+            return self.__ed.get_container_id()
 
     def get_remoteservice_id(self):
         # type: () -> Tuple[Tuple[str, str], int]
@@ -1042,8 +1041,7 @@ class _ImportEndpoint(object):
             if self.__svc_reg is None:
                 return None
 
-            # FIXME: unknown field: __proxy
-            new_props = self.__rsa._create_proxy_properties(ed, self.__proxy)
+            new_props = self.__importer._prepare_proxy_props(ed)
             ed.update(new_props.get_properties())
             self.__ed = ed
             self.__svc_reg.set_properties(self.__ed.get_properties())
