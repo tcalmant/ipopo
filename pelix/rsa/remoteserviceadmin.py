@@ -434,6 +434,7 @@ class _ExportEndpoint(object):
         self.__svc_ref = svc_ref
         self.__lock = threading.RLock()
         self.__active_registrations = []
+        self.__orig_props = self.__ed.get_properties()
         
     def _rsa(self):
         with self.__lock:
@@ -558,7 +559,7 @@ class ExportRegistrationImpl(ExportRegistration):
 
     @classmethod
     def fromreg(cls, export_reg):
-        return cls(export_reg.__rsa,export_reg.__export_ref.exportendpoint)
+        return cls(export_reg.__rsa,export_reg.__export_ref.__endpoint)
     
     @classmethod
     def fromendpoint(cls, rsa, exporter, ed, svc_ref):
@@ -601,7 +602,7 @@ class ExportRegistrationImpl(ExportRegistration):
 
     def _exportendpoint(self,sr,cid):
         with self.__lock:
-            return None if self.__closed else self.__exportref.exportendpoint if self.match_sr(sr,cid) else None
+            return None if self.__closed else self.__exportref.__endpoint if self.match_sr(sr,cid) else None
 
     def get_export_container_id(self):
         with self.__lock:
@@ -682,7 +683,7 @@ class _ImportEndpoint(object):
 
     def get_export_container_id(self):
         with self.__lock:
-            return self.__ed.get_ecf_endpoint_id()
+            return self.__ed.get_container_id()
         
     def get_remoteservice_id(self):
         with self.__lock:
@@ -692,7 +693,7 @@ class _ImportEndpoint(object):
         with self.__lock:
             if self.__svc_reg is None:
                 return None
-            new_props = self.__rsa._create_proxy_properties(ed,self.__proxy)
+            new_props = self.__importer._prepare_proxy_props(ed)
             ed.update(new_props.get_properties())
             self.__ed = ed
             self.__svc_reg.set_properties(self.__ed.get_properties())
