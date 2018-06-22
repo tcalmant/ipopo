@@ -666,8 +666,6 @@ class _ExportEndpoint(object):
         # type: (Dict[str, Any]) -> EndpointDescription
         with self.__lock:
             srprops = self.get_reference().get_properties().copy()
-
-            # FIXME: unknown field __orig_props
             rsprops = self.__orig_props.copy()
             updateprops = (
                 rsprops if props is None else props.update(rsprops).copy()
@@ -730,9 +728,9 @@ class ExportReferenceImpl(ExportReference):
                 )
             self.__exception = exception
             self.__errored = errored
-            self.__endpoint = None
+            self._endpoint = None
         else:
-            self.__endpoint = endpoint
+            self._endpoint = endpoint
             self.__exception = self.__errored = None
 
     def get_export_container_id(self):
@@ -740,8 +738,8 @@ class ExportReferenceImpl(ExportReference):
         with self.__lock:
             return (
                 None
-                if self.__endpoint is None
-                else self.__endpoint.get_export_container_id()
+                if self._endpoint is None
+                else self._endpoint.get_export_container_id()
             )
 
     def get_remoteservice_id(self):
@@ -749,8 +747,8 @@ class ExportReferenceImpl(ExportReference):
         with self.__lock:
             return (
                 None
-                if self.__endpoint is None
-                else self.__endpoint.get_remoteservice_id()
+                if self._endpoint is None
+                else self._endpoint.get_remoteservice_id()
             )
 
     def get_reference(self):
@@ -758,8 +756,8 @@ class ExportReferenceImpl(ExportReference):
         with self.__lock:
             return (
                 None
-                if self.__endpoint is None
-                else self.__endpoint.get_reference()
+                if self._endpoint is None
+                else self._endpoint.get_reference()
             )
 
     def get_description(self):
@@ -767,8 +765,8 @@ class ExportReferenceImpl(ExportReference):
         with self.__lock:
             return (
                 self.__errored
-                if self.__endpoint is None
-                else self.__endpoint.get_description()
+                if self._endpoint is None
+                else self._endpoint.get_description()
             )
 
     def get_exception(self):
@@ -781,18 +779,18 @@ class ExportReferenceImpl(ExportReference):
         with self.__lock:
             return (
                 None
-                if self.__endpoint is None
-                else self.__endpoint.update(properties)
+                if self._endpoint is None
+                else self._endpoint.update(properties)
             )
 
     def close(self, export_reg):
         # type: (ExportRegistration) -> bool
         with self.__lock:
-            if self.__endpoint is None:
+            if self._endpoint is None:
                 return False
             else:
-                result = self.__endpoint.close(export_reg)
-                self.__endpoint = None
+                result = self._endpoint.close(export_reg)
+                self._endpoint = None
                 return bool(result)
 
 
@@ -806,8 +804,8 @@ class ExportRegistrationImpl(ExportRegistration):
     """
     @classmethod
     def fromreg(cls, export_reg):
-        # type: (ExportRegistration) -> ExportRegistration
-        return cls(export_reg.__rsa,export_reg.__export_ref.__endpoint)
+        # type: (ExportRegistrationImpl) -> ExportRegistrationImpl
+        return cls(export_reg.__rsa, export_reg.__exportref._endpoint)
 
     @classmethod
     def fromendpoint(cls, rsa, exporter, ed, svc_ref):
@@ -828,12 +826,12 @@ class ExportRegistrationImpl(ExportRegistration):
                 )
             self.__exportref = ExportReferenceImpl.fromexception(
                 exception, errored
-            )
+            )  # type: ExportReferenceImpl
             self.__rsa = None
         else:
             self.__rsa = endpoint._rsa()
             endpoint._add_export_registration(self)
-            self.__exportref = ExportReferenceImpl.fromendpoint(endpoint)
+            self.__exportref = ExportReferenceImpl.fromendpoint(endpoint)  # type: ExportReferenceImpl
         self.__closed = False
         self.__updateexception = None
         self.__lock = threading.RLock()
@@ -873,13 +871,12 @@ class ExportRegistrationImpl(ExportRegistration):
             return None if self.__closed else self.__exportref
 
     def _exportendpoint(self, svc_ref, cid):
-        # type: (ServiceReference, Tuple[str, str]) -> Optional
-        # FIXME: find result type
+        # type: (ServiceReference, Tuple[str, str]) -> Optional[_ExportEndpoint]
         with self.__lock:
             return (
                 None
                 if self.__closed
-                else self.__exportref.__endpoint
+                else self.__exportref._endpoint
                 if self.match_sr(svc_ref, cid)
                 else None
             )
@@ -1027,7 +1024,7 @@ class _ImportEndpoint(object):
             return None if self.__importer is None else self.__importer.get_id()
 
     def get_export_container_id(self):
-        # FIXME: call to an unknown method
+        # type: () -> Tuple[str, str]
         with self.__lock:
             return self.__ed.get_container_id()
 
@@ -1042,7 +1039,7 @@ class _ImportEndpoint(object):
                 return None
 
             new_props = self.__importer._prepare_proxy_props(ed)
-            ed.update(new_props.get_properties())
+            ed.update(new_props)
             self.__ed = ed
             self.__svc_reg.set_properties(self.__ed.get_properties())
 
