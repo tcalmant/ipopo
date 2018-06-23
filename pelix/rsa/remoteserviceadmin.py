@@ -326,12 +326,12 @@ class RemoteServiceAdminImpl(object):
     def _get_export_regs(self):
         # type: () -> List[ExportRegistration]
         with self._exported_regs_lock:
-            return self._exported_regs.copy()
+            return self._exported_regs[:]
 
     def _get_import_regs(self):
         # type: () -> List[ImportRegistration]
         with self._imported_regs_lock:
-            return self._imported_regs.copy()
+            return self._imported_regs[:]
 
     def export_service(self, service_ref, overriding_props=None):
         # type: (ServiceReference, Dict[str, Any]) -> List[ExportRegistration]
