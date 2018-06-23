@@ -299,7 +299,7 @@ class EndpointDescription(object):
         else:
             self._properties = all_properties
 
-        self._interfaces = list(self._properties.get(OBJECTCLASS))
+        self._interfaces = self._properties.get(OBJECTCLASS)[:]
         self._service_id = self._verify_long_prop(ENDPOINT_SERVICE_ID)
         self._framework_uuid = self._verify_str_prop(ENDPOINT_FRAMEWORK_UUID)
         endpoint_id = self._verify_str_prop(ENDPOINT_ID)
@@ -398,7 +398,7 @@ class EndpointDescription(object):
 
     def _verify_async_intfs(self):
         # type: () -> List[str]
-        matching = []
+        matching = []  # type: List[str]
         no_async_prop = self._get_prop(ECF_SERVICE_EXPORTED_ASYNC_NOPROXY)
         if no_async_prop is None:
             async_inf_val = self._get_prop(

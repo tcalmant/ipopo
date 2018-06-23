@@ -239,7 +239,7 @@ SERVICE_IMPORT_CONTAINER_SELECTOR = "pelix.rsa.importcontainerselector"
 
 class ImportContainerSelector:
     def select_import_container(self, remote_configs, endpoint_description):
-        # type: (List[str], EndpointDescription) -> List[ImportContainer]
+        # type: (List[str], EndpointDescription) -> ImportContainer
         """
         Select import container, given endpoint_description
         (EndpointDescription).
@@ -269,7 +269,7 @@ class ImportContainerSelectorImpl(ImportContainerSelector):
         self._import_distribution_providers = []
 
     def select_import_container(self, remote_configs, endpoint_description):
-        # type: (List[str], EndpointDescription) -> List[ImportContainer]
+        # type: (List[str], EndpointDescription) -> ImportContainer
         for import_provider in self._import_distribution_providers:
             import_container = import_provider.supports_import(
                 remote_configs,
@@ -297,9 +297,9 @@ class RemoteServiceAdminImpl(object):
 
     def __init__(self):
         self._context = None  # type: BundleContext
-        self._exported_regs = []  # type: List[ExportRegistration]
+        self._exported_regs = []  # type: List[ExportRegistrationImpl]
         self._exported_regs_lock = threading.RLock()
-        self._imported_regs = []  # type: List[ImportRegistration]
+        self._imported_regs = []  # type: List[ImportRegistrationImpl]
         self._imported_regs_lock = threading.RLock()
         self._rsa_event_listeners = []
         self._export_container_selector = None  # type: ExportContainerSelector
@@ -581,7 +581,7 @@ class RemoteServiceAdminImpl(object):
 
     def _find_existing_export_endpoint(self, svc_ref, cid):
         # type: (ServiceReference, str) -> Optional[ExportRegistration]
-        for er in self.__exported_registrations:
+        for er in self._exported_regs:
             if er.match_sr(svc_ref, cid):
                 return er
 
@@ -1036,7 +1036,7 @@ class _ImportEndpoint(object):
             return self.__ed.get_remoteservice_id()
 
     def update(self, ed):
-        # type: (EndpointDescription) -> None
+        # type: (EndpointDescription) -> Optional[EndpointDescription]
         with self.__lock:
             if self.__svc_reg is None:
                 return None
@@ -1051,6 +1051,7 @@ class _ImportEndpoint(object):
 
             # Update the exported service
             self.__svc_reg.set_properties(self.__ed.get_properties())
+            return self.__ed
 
     def close(self, import_reg):
         with self.__lock:
