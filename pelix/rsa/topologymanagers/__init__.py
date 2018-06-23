@@ -58,15 +58,16 @@ from pelix.rsa import (
     ECF_ENDPOINT_CONTAINERID_NAMESPACE,
     RemoteServiceAdminListener,
     RemoteServiceAdminEvent,
-    EndpointDescription,
     ImportRegistration,
 )
+from pelix.rsa.endpointdescription import EndpointDescription
 
 # ------------------------------------------------------------------------------
 # Module version
 
 __version_info__ = (0, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
+
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
@@ -138,8 +139,11 @@ class TopologyManager(
 
     def _handle_service_modified(self, service_ref):
         # type: (ServiceReference) -> None
-        # XXX TODO
-        return
+        export_regs = self._rsa._get_export_regs()
+        if export_regs:
+            for export_reg in export_regs:
+                if export_reg.match_sr(service_ref):
+                    export_reg.get_export_reference().update({})
 
     def _handle_event(self, service_event):
         # type: (ServiceEvent) -> None
@@ -152,7 +156,7 @@ class TopologyManager(
         elif kind == ServiceEvent.MODIFIED:
             self._handle_service_modified(service_ref)
 
-    # impl of EventListenerHoook
+    # impl of EventListenerHook
     def event(self, service_event, listener_dict):
         # type: (ServiceEvent, Dict[Any, Any]) -> None
         self._handle_event(service_event)
