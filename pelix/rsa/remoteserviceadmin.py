@@ -467,9 +467,6 @@ class RemoteServiceAdminImpl(object):
                 ),
             )
 
-        import_reg = None
-        import_event = None
-
         try:
             importer = self._import_container_selector.select_import_container(
                 remote_configs, endpoint_description
@@ -487,8 +484,7 @@ class RemoteServiceAdminImpl(object):
             import_event = RemoteServiceAdminEvent.fromimportreg(
                 self._get_bundle(), import_reg
             )
-
-        if not import_reg:
+        else:
             with self._imported_regs_lock:
                 found_reg = None
                 for reg in self._imported_regs:
@@ -496,7 +492,7 @@ class RemoteServiceAdminImpl(object):
                         found_reg = reg
                         break
 
-                if found_reg:
+                if found_reg is not None:
                     # if so then found_regs will be non-empty
                     ex = found_reg.get_exception()
                     if ex:
@@ -505,6 +501,9 @@ class RemoteServiceAdminImpl(object):
                         )
                     else:
                         new_reg = ImportRegistrationImpl.fromreg(found_reg)
+                        new_reg.get_import_reference().update(
+                            endpoint_description
+                        )
 
                     self._add_imported_service(new_reg)
                     return new_reg
@@ -518,13 +517,14 @@ class RemoteServiceAdminImpl(object):
                     import_event = RemoteServiceAdminEvent.fromimportreg(
                         self._get_bundle(), import_reg
                     )
-                except Exception:
+                except:
                     import_reg = ImportRegistrationImpl.fromexception(
                         sys.exc_info(), endpoint_description
                     )
                     import_event = RemoteServiceAdminEvent.fromimportreg(
                         self._get_bundle(), import_reg
                     )
+
         self._imported_regs.append(import_reg)
         self._publish_event(import_event)
         return import_reg
@@ -665,14 +665,16 @@ class _ExportEndpoint(object):
     def update(self, props):
         # type: (Dict[str, Any]) -> EndpointDescription
         with self.__lock:
-            srprops = self.get_reference().get_properties().copy()
             rsprops = self.__orig_props.copy()
-            updateprops = (
-                rsprops if props is None else props.update(rsprops).copy()
-            )
-            updatedprops = updateprops.update(srprops).copy()
+            if not props:
+                updatedprops = rsprops
+            else:
+                updatedprops = props.copy()
+                updatedprops.update(rsprops)
+
+            updatedprops.update(self.__svc_ref.get_properties())
             updatedprops[ECF_ENDPOINT_TIMESTAMP] = get_current_time_millis()
-            self.__ed = EndpointDescription(updatedprops)
+            self.__ed = EndpointDescription(self.__svc_ref, updatedprops)
             return self.__ed
 
     def close(self, export_reg):
@@ -1034,13 +1036,20 @@ class _ImportEndpoint(object):
             return self.__ed.get_remoteservice_id()
 
     def update(self, ed):
+        # type: (EndpointDescription) -> None
         with self.__lock:
             if self.__svc_reg is None:
                 return None
 
+            # Prepare properties
+            ed_props = self.__ed.get_properties()
             new_props = self.__importer._prepare_proxy_props(ed)
-            ed.update(new_props)
-            self.__ed = ed
+            ed_props.update(new_props)
+
+            # Make a new endpoint description
+            self.__ed = EndpointDescription.fromprops(ed_props)
+
+            # Update the exported service
             self.__svc_reg.set_properties(self.__ed.get_properties())
 
     def close(self, import_reg):
@@ -1171,6 +1180,7 @@ class ImportReferenceImpl(ImportReference):
             return self.__exception
 
     def update(self, ed):
+        # type: (EndpointDescription) -> Optional[EndpointDescription]
         with self.__lock:
             return (
                 None if self.__endpoint is None else self.__endpoint.update(ed)

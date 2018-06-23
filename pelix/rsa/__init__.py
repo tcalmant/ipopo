@@ -610,12 +610,12 @@ class ImportReference:
         """
         raise Exception("{0}.get_exception not implemented".format(self))
 
-    def update(self, properties):
-        # type: (Dict[str, Any]) -> EndpointDescription
+    def update(self, ed):
+        # type: (EndpointDescription) -> Optional[EndpointDescription]
         """
         Update the service properties of the imported service.
 
-        :param properties: Dictionary of new properties. Should not be None
+        :param ed: Updated description of the endpoint. Should not be None
         :return EndpointDescription associated with existing or None
         if reference previously closed or exception occurred during
         import.
