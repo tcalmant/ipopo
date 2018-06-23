@@ -42,7 +42,7 @@ except ImportError:
 
 from pelix import constants
 from pelix.constants import BundleActivator, SERVICE_RANKING, OBJECTCLASS
-from pelix.framework import Bundle, BundleContext
+from pelix.framework import Bundle, BundleContext, BundleException
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 
 from pelix.ipopo.decorators import (
@@ -1049,10 +1049,13 @@ class _ImportEndpoint(object):
                 self.__active_registrations.remove(import_reg)
             except ValueError:
                 pass
-            if len(self.__active_registrations) is 0:
-                if self.__svc_reg:
+            if not self.__active_registrations:
+                if self.__svc_reg is not None:
                     try:
                         self.__svc_reg.unregister()
+                    except BundleException:
+                        # The service might already have unregistered
+                        pass
                     except:
                         _logger.exception(
                             "Exception unregistering local proxy={0}".format(
