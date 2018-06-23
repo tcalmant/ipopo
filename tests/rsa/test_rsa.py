@@ -13,12 +13,18 @@ try:
 except ImportError:
     import unittest
 
+try:
+    from typing import List
+except ImportError:
+    pass
+
 # Pelix
 from pelix.ipopo.constants import use_ipopo
 import pelix.constants
 import pelix.framework
 
 # Remote Services
+from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.rsa.edef import EDEFReader, EDEFWriter
 import pelix.rsa.remoteserviceadmin as rsa
 
@@ -191,3 +197,107 @@ class RSABasicFeatures(unittest.TestCase):
                     break
         else:
             self.fail("No imported service")
+
+    def test_export_import_update(self):
+        """
+        Tests an export of a service (with XML-RPC)
+        """
+        context = self.framework.get_bundle_context()
+
+        # Start an HTTP server, required by XML-RPC
+        context.install_bundle("pelix.http.basic").start()
+        with use_ipopo(context) as ipopo:
+            ipopo.instantiate(
+                'pelix.http.service.basic.factory',
+                'http-server',
+                {'pelix.http.address': 'localhost',
+                 'pelix.http.port': 0})
+
+        # Install the XML-RPC provider to have an endpoint
+        # Indicate the XML-RPC server
+        self.framework.add_property("ecf.xmlrpc.server.hostname", "localhost")
+        context.install_bundle(
+            "pelix.rsa.providers.distribution.xmlrpc").start()
+
+        # Register a service to be exported
+        spec = "test.svc"
+        key = "foo"
+        val_1 = "bar"
+        val_2 = "fighters"
+
+        svc_reg = context.register_service(spec, object(), {key: val_1})
+        svc_ref = svc_reg.get_reference()
+
+        # Export the service
+        export_regs = self.rsa.export_service(
+            svc_ref, {rsa.SERVICE_EXPORTED_INTERFACES: '*',
+                      rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"})
+
+        # Get the export endpoints
+        export_reg = None
+        export_endpoint = None
+        for export_reg in export_regs:
+            exp = export_reg.get_exception()
+            if exp:
+                self.fail("Error exporting service: {}".format(exp))
+            else:
+                export_endpoint = export_reg.get_description()
+                break
+
+        # Temporary file
+        tmp_file = tempfile.mktemp()
+
+        # Write the EDEF XML file
+        EDEFWriter().write([export_endpoint], tmp_file)
+
+        # Reload it
+        with open(tmp_file, "r") as fd:
+            parsed_endpoint = EDEFReader().parse(fd.read())[0]
+
+        import_endpoint = None
+        import_reg = self.rsa.import_service(parsed_endpoint)
+        if import_reg:
+            exp = import_reg.get_exception()
+            if exp:
+                self.fail("Error importing service: {}".format(exp))
+            else:
+                import_endpoint = import_reg.get_description()
+
+        # Get the imported service
+        imported_svc_ref = context.get_service_reference(
+            spec, "(service.imported=*)")
+
+        # Check property value in export and import beans
+        self.assertEqual(val_1, export_endpoint.get_properties()[key])
+        self.assertEqual(val_1, import_endpoint.get_properties()[key])
+        self.assertEqual(val_1, imported_svc_ref.get_property(key))
+
+        # Update service properties
+        svc_reg.set_properties({key: val_2})
+
+        # Update the endpoint
+        export_endpoint_2 = export_reg.get_export_reference().update({})
+        self.assertEqual(val_2, export_endpoint_2.get_properties()[key])
+
+        # Write & load it
+        EDEFWriter().write([export_endpoint_2], tmp_file)
+        with open(tmp_file, "r") as fd:
+            parsed_endpoint_2 = EDEFReader().parse(fd.read())[0]
+
+        # Check parsed file
+        self.assertEqual(val_2, parsed_endpoint_2.get_properties()[key])
+
+        import_endpoint_2 = None
+        import_reg_2 = self.rsa.import_service(parsed_endpoint_2)
+        if import_reg_2:
+            exp = import_reg_2.get_exception()
+            if exp:
+                self.fail("Error re-importing service: {}".format(exp))
+            else:
+                import_endpoint_2 = import_reg_2.get_description()
+
+        # Check property value in export and import beans
+        self.assertEqual(val_2, import_endpoint_2.get_properties()[key])
+
+        # Check if the imported have been updated
+        self.assertEqual(val_2, imported_svc_ref.get_property(key))
