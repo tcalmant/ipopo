@@ -1187,9 +1187,14 @@ class ImportReferenceImpl(ImportReference):
 
 
 # ------------------------------------------------------------------------------
-# Implementation of ExportRegistration API.  See ExportRegistration class for external
-# contract and documentation
+
+
 class ImportRegistrationImpl(ImportRegistration):
+    """
+    Implementation of ExportRegistration API.
+
+    See ExportRegistration class for external contract and documentation
+    """
     @classmethod
     def fromendpoint(cls, rsa, importer, ed, svc_reg):
         # type: (RemoteServiceAdminImpl, ImportContainer, EndpointDescription, ServiceRegistration) -> ImportRegistration
@@ -1202,8 +1207,8 @@ class ImportRegistrationImpl(ImportRegistration):
 
     @classmethod
     def fromreg(cls, reg):
-        # type: (ImportReferenceImpl) -> ImportRegistrationImpl
-        return cls(endpoint=reg._importendpoint())
+        # type: (ImportRegistrationImpl) -> ImportRegistrationImpl
+        return cls(endpoint=reg.__importref._importendpoint())
 
     def __init__(self, endpoint=None, exception=None, errored=None):
         # type: (Optional[_ImportEndpoint], Optional[Tuple[Any, Any, Any]], Optional[EndpointDescription]) -> None
