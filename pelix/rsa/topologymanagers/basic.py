@@ -115,6 +115,12 @@ class BasicTopologyManager(TopologyManager):
                 "BasicTopologyManager: endpoint removed. endpoint.id=%s",
                 ed_id
             )
+        elif event_type == EndpointEvent.MODIFIED:
+            self._update_imported_endpoint(ed)
+            _logger.debug(
+                "BasicTopologyManager: endpoint updated. endpoint.id=%s",
+                ed_id
+            )
 
     def remote_admin_event(self, event):
         # type: (RemoteServiceAdminEvent) -> None

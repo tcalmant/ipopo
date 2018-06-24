@@ -313,6 +313,17 @@ class ExportRegistration(object):
         """
         raise Exception("{0}.get_description not implemented".format(self))
 
+    def update(self, properties):
+        # type: (dictionary) -> EndpointDescription
+        """
+        Updates ExportRegistration with new properties.
+        
+        :param properties a dictionary of new properties.  May be None.
+        :return: EndpointDescription for ExportRegistration, or None if not
+        updated.
+        """
+        raise Exception("{0}.update not implemented".format(self))
+    
     def close(self):
         # type: () -> None
         """
@@ -514,6 +525,17 @@ class ImportRegistration(object):
         """
         raise Exception("{0}.get_description not implemented".format(self))
 
+    def update(self, endpoint_description):
+        # type: (EndpointDescription) -> boolean
+        """
+        Update the service properties of the imported service.
+
+        :param endpoint_description: EndpointDescription for updated endpoint. Will not
+        be None.
+        :return: True if update completed successfully, False if not.
+        """
+        raise Exception("{0}.update not implemented".format(self))
+        
     def close(self):
         # type: () -> None
         """
@@ -735,6 +757,60 @@ class RemoteServiceAdminEvent(object):
                 export_reg.get_export_reference(),
                 None,
                 export_reg.get_description(),
+            )
+
+    @classmethod
+    def fromexportupdate(cls, bundle, export_reg):
+        # type: (Bundle, ExportRegistration) -> RemoteServiceAdminEvent
+        exc = export_reg.get_exception()
+        if exc:
+            return RemoteServiceAdminEvent(
+                RemoteServiceAdminEvent.EXPORT_ERROR,
+                bundle,
+                export_reg.get_export_container_id(),
+                export_reg.get_remoteservice_id(),
+                None,
+                export_reg.get_export_reference(),
+                None,
+                export_reg.get_description(),
+            )
+        else:
+            return RemoteServiceAdminEvent(
+                RemoteServiceAdminEvent.EXPORT_UPDATE,
+                bundle,
+                export_reg.get_export_container_id(),
+                export_reg.get_remoteservice_id(),
+                None,
+                export_reg.get_export_reference(),
+                None,
+                export_reg.get_description(),
+            )
+
+    @classmethod
+    def fromimportupdate(cls, bundle, import_reg):
+        # type: (Bundle, ImportRegistration) -> RemoteServiceAdminEvent
+        exc = import_reg.get_exception()
+        if exc:
+            return RemoteServiceAdminEvent(
+                RemoteServiceAdminEvent.IMPORT_ERROR,
+                bundle,
+                import_reg.get_import_container_id(),
+                import_reg.get_remoteservice_id(),
+                None,
+                None,
+                exc,
+                import_reg.get_description(),
+            )
+        else:
+            return RemoteServiceAdminEvent(
+                RemoteServiceAdminEvent.IMPORT_UPDATE,
+                bundle,
+                import_reg.get_import_container_id(),
+                import_reg.get_remoteservice_id(),
+                import_reg.get_import_reference(),
+                None,
+                None,
+                import_reg.get_description(),
             )
 
     @classmethod

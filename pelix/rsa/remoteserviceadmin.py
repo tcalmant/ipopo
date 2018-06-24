@@ -931,7 +931,7 @@ class ExportRegistrationImpl(ExportRegistration):
         with self.__lock:
             return (
                 self.__updateexception
-                if self.__closed
+                if self.__updateexception or self.__closed
                 else self.__exportref.get_exception()
             )
 
@@ -944,6 +944,34 @@ class ExportRegistrationImpl(ExportRegistration):
         """
         with self.__lock:
             return None if self.__closed else self.__exportref.get_description()
+
+    def update(self, properties):
+        # type: (dictionary) -> Optional[EndpointDescription]
+        with self.__lock:
+            if self.__closed:
+                self.__updateexception = ValueError("Update failed since ExportRegistration already closed")
+                return None
+            # if properties is set then copy
+            props = properties.copy() if properties else dict()
+            try:
+                updated_ed = self.__exportref.update(props)
+            except Exception as e:
+                self.__updateexception = e
+                return None
+            
+            if not updated_ed:
+                self.__updatexception = ValueError("Update failed because ExportEndpoint was None")
+                return None
+            
+            self.__updateexception = None
+            if self.__rsa:
+                self.__rsa._publish_event(
+                    RemoteServiceAdminEvent.fromexportupdate(
+                        self.__rsa._get_bundle(),
+                        self
+                    )
+                )
+            return updated_ed
 
     def close(self):
         """
@@ -1237,6 +1265,7 @@ class ImportRegistrationImpl(ImportRegistration):
             endpoint._add_import_registration(self)
             self.__importref = ImportReferenceImpl.fromendpoint(endpoint)
         self.__closed = False
+        self.__updateexception = None
         self.__lock = threading.RLock()
 
     def _import_endpoint(self):
@@ -1288,13 +1317,37 @@ class ImportRegistrationImpl(ImportRegistration):
     def get_exception(self):
         # type: () -> Optional[Tuple[Any, Any, Any]]
         with self.__lock:
-            return None if self.__closed else self.__importref.get_exception()
-
+            return (
+                self.__updateexception
+                if self.__updateexception or self.__closed
+                else self.__importref.get_exception()
+            )
+            
     def get_description(self):
         # type: () -> Optional[EndpointDescription]
         with self.__lock:
             return None if self.__closed else self.__importref.get_description()
 
+    def update(self, endpoint_description):
+        # type: (EndpointDescription) -> boolean
+        with self.__lock:
+            if self.__closed:
+                self.__updateexception = ValueError("Update failed since ImportRegistration already closed")
+                return False
+            try:
+                self.__importref.update(endpoint_description)
+            except Exception as e:
+                self.__updateexception = e
+                return False
+            if self.__rsa:
+                self.__rsa._publish_event(RemoteServiceAdminEvent.fromimportupdate(
+                    self.__rsa._get_bundle(),
+                    self)
+                    )
+                return True
+            else:
+                return False
+            
     def close(self):
         publish = False
         importerid = rsid = import_ref = exception = ed = None

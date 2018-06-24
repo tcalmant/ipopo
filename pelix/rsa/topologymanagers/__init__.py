@@ -62,6 +62,7 @@ from pelix.rsa import (
 )
 from pelix.rsa.endpointdescription import EndpointDescription
 
+from pelix.rsa.endpointdescription import EndpointDescription
 # ------------------------------------------------------------------------------
 # Module version
 
@@ -113,7 +114,14 @@ class TopologyManager(
         for import_reg in import_regs:
             if import_reg.match_ed(endpoint_description):
                 import_reg.close()
-
+                
+    def _update_imported_endpoint(self, endpoint_description):
+        # type: (EndpointDescription) -> None
+        import_regs = self._rsa._get_import_regs()
+        for import_reg in import_regs:
+            if import_reg.match_ed(endpoint_description):
+                import_reg.update(endpoint_description)
+                
     def _handle_service_registered(self, service_ref):
         # type: (ServiceReference) -> None
         exp_intfs = get_exported_interfaces(service_ref)
@@ -138,12 +146,23 @@ class TopologyManager(
                     export_reg.close()
 
     def _handle_service_modified(self, service_ref):
-        # type: (ServiceReference) -> None
+        # type: (ServiceReference) -> EndpointDescription
         export_regs = self._rsa._get_export_regs()
         if export_regs:
             for export_reg in export_regs:
                 if export_reg.match_sr(service_ref):
-                    export_reg.get_export_reference().update({})
+                    _logger.debug(
+                        "_handle_service_modified. updating "
+                        "export_registration for service reference=%s",
+                        service_ref
+                    )
+
+                    # actually update the export_reg here
+                    if not export_reg.update(None):
+                        _logger.warning(
+                            "_handle_service_modified. updating"
+                            "update for service_ref=%s failed", service_ref
+                        )
 
     def _handle_event(self, service_event):
         # type: (ServiceEvent) -> None
@@ -173,6 +192,17 @@ class TopologyManager(
                     adv, ed
                 )
 
+    def _update_endpoint(self, ed):
+        # type: (EndpointDescription) -> None
+        for adv in self._advertisers:
+            try:
+                adv.update_endpoint(ed)
+            except:
+                _logger.exception(
+                    "Exception in update_endpoint for advertiser=%s "
+                    "endpoint=%s", adv, ed
+                )
+
     def _unadvertise_endpoint(self, ed):
         # type: (EndpointDescription) -> None
         for adv in self._advertisers:
@@ -192,6 +222,8 @@ class TopologyManager(
             self._advertise_endpoint(event.get_description())
         elif kind == RemoteServiceAdminEvent.EXPORT_UNREGISTRATION:
             self._unadvertise_endpoint(event.get_description())
+        elif kind == RemoteServiceAdminEvent.EXPORT_UPDATE:
+            self._update_endpoint(event.get_description())
 
     def endpoint_changed(self, endpoint_event, matched_filter):
         # type: (EndpointEvent, Any) -> None

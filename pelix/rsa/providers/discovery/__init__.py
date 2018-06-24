@@ -86,6 +86,27 @@ class EndpointAdvertiser(object):
             if advertise_result:
                 self._add_advertised(endpoint_description, advertise_result)
                 return True
+            else:
+                return False
+
+    def update_endpoint(self, updated_ed):
+        """
+        Update a previously advertised endpoint_description.
+
+        :param endpoint_description an instance of EndpointDescription to update.  Must not be None.
+        :return True if advertised, False if not (e.g. it's already been advertised)
+        """
+        endpointid = updated_ed.get_id()
+        with self._published_endpoints_lock:
+            if self.get_advertised_endpoint(endpointid) == None:
+                return False
+            advertise_result = self._update(updated_ed)
+            if advertise_result:
+                self._remove_advertised(endpointid)
+                self._add_advertised(updated_ed, advertise_result)
+                return True
+            else:
+                return False
 
     def unadvertise_endpoint(self, endpointid):
         """
@@ -151,6 +172,9 @@ class EndpointAdvertiser(object):
     def _advertise(self, endpoint_description):
         raise Exception("Endpoint._advertise must be overridden by subclasses")
 
+    def _update(self, endpoint_description):
+        raise Exception("Endpoint._update must be overrridden by subclasses")
+    
     def _unadvertise(self, advertised):
         raise Exception(
             "Endpoint._unadvertise must be overridden by subclasses"
@@ -295,6 +319,10 @@ class EndpointSubscriber(object):
                 result.append((l[0], matching_filter))
         return result
 
+    def _has_discovered_endpoint(self, ed_id):
+        with self._discovered_endpoints_lock:
+            return self._discovered_endpoints.get(ed_id,None)
+            
     def _add_discovered_endpoint(self, ed):
         with self._discovered_endpoints_lock:
             _logger.debug("_add_discovered_endpoint ed=%s", ed)

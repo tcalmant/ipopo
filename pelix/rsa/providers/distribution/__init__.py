@@ -173,7 +173,9 @@ class DistributionProvider(object):
         self._supported_configs to make sure that all required configs are
         present for this distribution provider.
         """
-        if required_configs is None or not self._supported_configs:
+        if not required_configs:
+            return True
+        if not self._supported_configs:
             return False
         return len(
             [x for x in required_configs if x in self._supported_configs]
