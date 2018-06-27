@@ -1195,7 +1195,7 @@ def get_package_from_classname(class_name):
     :return: The name of a package or None
     """
     try:
-        return class_name[:class_name.rindex(".")]
+        return class_name[: class_name.rindex(".")]
     except ValueError:
         return None
 
@@ -1285,11 +1285,13 @@ def get_rsa_props(
     results = {}
     if not object_class:
         raise ArgumentError(
-            "object_class", "object_class must be an [] of Strings")
+            "object_class", "object_class must be an [] of Strings"
+        )
     results["objectClass"] = object_class
     if not exported_cfgs:
         raise ArgumentError(
-            "exported_cfgs", "exported_cfgs must be an array of Strings")
+            "exported_cfgs", "exported_cfgs must be an array of Strings"
+        )
     results[REMOTE_CONFIGS_SUPPORTED] = exported_cfgs
     results[SERVICE_IMPORTED_CONFIGS] = exported_cfgs
     if remote_intents:
@@ -1339,9 +1341,13 @@ def get_extra_props(props):
     :param props: A dictionary of properties
     :return: A filtered dictionary
     """
-    return {key: value for key, value in props.items()
-            if key not in ECFPROPNAMES and key not in RSA_PROP_NAMES
-            and not key.startswith(ENDPOINT_PACKAGE_VERSION_)}
+    return {
+        key: value
+        for key, value in props.items()
+        if key not in ECFPROPNAMES
+        and key not in RSA_PROP_NAMES
+        and not key.startswith(ENDPOINT_PACKAGE_VERSION_)
+    }
 
 
 def get_edef_props(
@@ -1390,7 +1396,7 @@ def get_dot_properties(prefix, props, remove_prefix):
         dot_keys = [x for x in props.keys() if x.startswith(prefix + ".")]
         for dot_key in dot_keys:
             if remove_prefix:
-                new_key = dot_key[len(prefix)+1:]
+                new_key = dot_key[len(prefix) + 1 :]
             else:
                 new_key = dot_key
             result_props[new_key] = props.get(dot_key)
@@ -1439,8 +1445,13 @@ def copy_non_reserved(props, target):
     :param target: Another dictionary
     :return: The target dictionary
     """
-    target.update({key: value for key, value in props.items()
-                   if not is_reserved_property(key)})
+    target.update(
+        {
+            key: value
+            for key, value in props.items()
+            if not is_reserved_property(key)
+        }
+    )
     return target
 
 
@@ -1453,8 +1464,9 @@ def copy_non_ecf(props, target):
     :param target: The dictionary to copy non-ECF properties to
     :return: The ``target`` dictionary
     """
-    target.update({key: value for key, value in props.items()
-                   if key not in ECFPROPNAMES})
+    target.update(
+        {key: value for key, value in props.items() if key not in ECFPROPNAMES}
+    )
     return target
 
 

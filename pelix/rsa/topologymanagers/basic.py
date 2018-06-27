@@ -36,8 +36,10 @@ except ImportError:
 from pelix.framework import ServiceEvent
 from pelix.ipopo.decorators import ComponentFactory, Instantiate
 
-from pelix.rsa import ECF_ENDPOINT_CONTAINERID_NAMESPACE, \
-    RemoteServiceAdminEvent
+from pelix.rsa import (
+    ECF_ENDPOINT_CONTAINERID_NAMESPACE,
+    RemoteServiceAdminEvent,
+)
 from pelix.rsa.providers.discovery import EndpointEvent
 from pelix.rsa.topologymanagers import TopologyManager
 
@@ -61,8 +63,9 @@ _logger = logging.getLogger(__name__)
 @Instantiate(
     "basic-topology-manager",
     {
-        TopologyManager.ENDPOINT_LISTENER_SCOPE:
-            "({0}=*)".format(ECF_ENDPOINT_CONTAINERID_NAMESPACE)
+        TopologyManager.ENDPOINT_LISTENER_SCOPE: "({0}=*)".format(
+            ECF_ENDPOINT_CONTAINERID_NAMESPACE
+        )
     },
 )
 class BasicTopologyManager(TopologyManager):
@@ -101,25 +104,24 @@ class BasicTopologyManager(TopologyManager):
             if exc:
                 _logger.exception(
                     "BasicTopologyManager import failed for endpoint.id=%s",
-                    ed_id
+                    ed_id,
                 )
             else:
                 _logger.debug(
                     "BasicTopologyManager: service imported! "
                     "endpoint.id=%s, service_ref=%s",
-                    ed_id, imported_reg.get_reference()
+                    ed_id,
+                    imported_reg.get_reference(),
                 )
         elif event_type == EndpointEvent.REMOVED:
             self._unimport_removed_endpoint(ed)
             _logger.debug(
-                "BasicTopologyManager: endpoint removed. endpoint.id=%s",
-                ed_id
+                "BasicTopologyManager: endpoint removed. endpoint.id=%s", ed_id
             )
         elif event_type == EndpointEvent.MODIFIED:
             self._update_imported_endpoint(ed)
             _logger.debug(
-                "BasicTopologyManager: endpoint updated. endpoint.id=%s",
-                ed_id
+                "BasicTopologyManager: endpoint updated. endpoint.id=%s", ed_id
             )
 
     def remote_admin_event(self, event):

@@ -166,11 +166,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         service_props = self._service_props.copy()
         # set 'properties field'
         service_props["properties"] = [
-            {
-                "type": "string",
-                "name": key,
-                "value": encoded_props.get(key)
-            }
+            {"type": "string", "name": key, "value": encoded_props.get(key)}
             for key in encoded_props
         ]
         # dump service_props to json
@@ -189,7 +185,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         # type: (EndpointDescription) -> etcd.EtcdResult
         _logger.debug("advertising ed=%s", endpoint_description)
         return self._write_description(endpoint_description)
-            
+
     def _update(self, endpoint_description):
         # type: (EndpointDescription) -> etcd.EtcdResult
         _logger.debug("updating ed=%s", endpoint_description)
@@ -329,7 +325,9 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                         if new_ts > old_ts:
                             self._remove_discovered_endpoint(old_ed.get_id())
                             self._add_discovered_endpoint(new_ed)
-                            self._fire_endpoint_event(EndpointEvent.MODIFIED, new_ed)
+                            self._fire_endpoint_event(
+                                EndpointEvent.MODIFIED, new_ed
+                            )
 
     def _handle_update_nodes(self, nodes):
         for node in nodes:
@@ -352,8 +350,10 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                     if old_ed:
                         self._add_discovered_endpoint(new_ed)
                         # dispatch
-                        self._fire_endpoint_event(EndpointEvent.MODIFIED, new_ed)
-                        
+                        self._fire_endpoint_event(
+                            EndpointEvent.MODIFIED, new_ed
+                        )
+
     def _handle_remove_node(self, endpointid):
         ed = self._remove_discovered_endpoint(endpointid)
         if ed:
@@ -413,7 +413,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                                 self._handle_remove_node(endpointid)
                             elif action in self.ADD_ACTIONS:
                                 self._handle_add_nodes([result])
-                                 
+
             except:
                 _logger.exception("watch_job:Exception in watch loop")
 

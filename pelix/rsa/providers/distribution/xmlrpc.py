@@ -319,4 +319,5 @@ class XmlRpcImportDistributionProvider(ImportDistributionProvider):
     """
     We get all necessary methods from ImportDistributionProvider
     """
+
     pass

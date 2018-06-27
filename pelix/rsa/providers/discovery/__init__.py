@@ -174,7 +174,7 @@ class EndpointAdvertiser(object):
 
     def _update(self, endpoint_description):
         raise Exception("Endpoint._update must be overrridden by subclasses")
-    
+
     def _unadvertise(self, advertised):
         raise Exception(
             "Endpoint._unadvertise must be overridden by subclasses"
@@ -321,8 +321,8 @@ class EndpointSubscriber(object):
 
     def _has_discovered_endpoint(self, ed_id):
         with self._discovered_endpoints_lock:
-            return self._discovered_endpoints.get(ed_id,None)
-            
+            return self._discovered_endpoints.get(ed_id, None)
+
     def _add_discovered_endpoint(self, ed):
         with self._discovered_endpoints_lock:
             _logger.debug("_add_discovered_endpoint ed=%s", ed)

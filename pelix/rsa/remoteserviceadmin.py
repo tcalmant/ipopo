@@ -41,8 +41,12 @@ except ImportError:
     pass
 
 from pelix import constants
-from pelix.constants import BundleActivator, SERVICE_RANKING, OBJECTCLASS, \
-    OSGI_FRAMEWORK_UUID
+from pelix.constants import (
+    BundleActivator,
+    SERVICE_RANKING,
+    OBJECTCLASS,
+    OSGI_FRAMEWORK_UUID,
+)
 from pelix.framework import Bundle, BundleContext, BundleException
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 
@@ -296,7 +300,6 @@ class ImportContainerSelectorImpl(ImportContainerSelector):
 @Requires("_rsa_event_listeners", SERVICE_RSA_EVENT_LISTENER, True, True)
 @Instantiate("pelix-rsa-remoteserviceadminimpl")
 class RemoteServiceAdminImpl(object):
-
     def __init__(self):
         self._context = None  # type: BundleContext
         self._exported_regs = []  # type: List[ExportRegistrationImpl]
@@ -361,8 +364,9 @@ class RemoteServiceAdminImpl(object):
 
         # Force the framework UID, as the one from error_props
         # was generated
-        export_props[ENDPOINT_FRAMEWORK_UUID] = \
-            self._context.get_property(OSGI_FRAMEWORK_UUID)
+        export_props[ENDPOINT_FRAMEWORK_UUID] = self._context.get_property(
+            OSGI_FRAMEWORK_UUID
+        )
 
         result_regs = []
         result_events = []
@@ -721,6 +725,7 @@ class ExportReferenceImpl(ExportReference):
     Implementation of ExportReference API. See ExportReference class for
     external contract and documentation
     """
+
     @classmethod
     def fromendpoint(cls, endpoint):
         # type: (_ExportEndpoint) -> ExportReference
@@ -816,6 +821,7 @@ class ExportRegistrationImpl(ExportRegistration):
     Implementation of ExportRegistration API.
     See ExportRegistration class for external contract and documentation
     """
+
     @classmethod
     def fromreg(cls, export_reg):
         # type: (ExportRegistrationImpl) -> ExportRegistrationImpl
@@ -845,7 +851,9 @@ class ExportRegistrationImpl(ExportRegistration):
         else:
             self.__rsa = endpoint._rsa()
             endpoint._add_export_registration(self)
-            self.__exportref = ExportReferenceImpl.fromendpoint(endpoint)  # type: ExportReferenceImpl
+            self.__exportref = ExportReferenceImpl.fromendpoint(
+                endpoint
+            )  # type: ExportReferenceImpl
         self.__closed = False
         self.__updateexception = None
         self.__lock = threading.RLock()
@@ -961,7 +969,9 @@ class ExportRegistrationImpl(ExportRegistration):
         # type: (Dict[str, Any]) -> Optional[EndpointDescription]
         with self.__lock:
             if self.__closed:
-                self.__updateexception = ValueError("Update failed since ExportRegistration already closed")
+                self.__updateexception = ValueError(
+                    "Update failed since ExportRegistration already closed"
+                )
                 return None
             # if properties is set then copy
             props = properties.copy() if properties else dict()
@@ -972,15 +982,16 @@ class ExportRegistrationImpl(ExportRegistration):
                 return None
 
             if not updated_ed:
-                self.__updatexception = ValueError("Update failed because ExportEndpoint was None")
+                self.__updatexception = ValueError(
+                    "Update failed because ExportEndpoint was None"
+                )
                 return None
 
             self.__updateexception = None
             if self.__rsa:
                 self.__rsa._publish_event(
                     RemoteServiceAdminEvent.fromexportupdate(
-                        self.__rsa._get_bundle(),
-                        self
+                        self.__rsa._get_bundle(), self
                     )
                 )
             return updated_ed
@@ -1246,6 +1257,7 @@ class ImportRegistrationImpl(ImportRegistration):
 
     See ExportRegistration class for external contract and documentation
     """
+
     @classmethod
     def fromendpoint(cls, rsa, importer, ed, svc_reg):
         # type: (RemoteServiceAdminImpl, ImportContainer, EndpointDescription, ServiceRegistration) -> ImportRegistration
@@ -1344,7 +1356,9 @@ class ImportRegistrationImpl(ImportRegistration):
         # type: (EndpointDescription) -> boolean
         with self.__lock:
             if self.__closed:
-                self.__updateexception = ValueError("Update failed since ImportRegistration already closed")
+                self.__updateexception = ValueError(
+                    "Update failed since ImportRegistration already closed"
+                )
                 return False
             try:
                 self.__importref.update(endpoint_description)
@@ -1352,10 +1366,11 @@ class ImportRegistrationImpl(ImportRegistration):
                 self.__updateexception = e
                 return False
             if self.__rsa:
-                self.__rsa._publish_event(RemoteServiceAdminEvent.fromimportupdate(
-                    self.__rsa._get_bundle(),
-                    self)
+                self.__rsa._publish_event(
+                    RemoteServiceAdminEvent.fromimportupdate(
+                        self.__rsa._get_bundle(), self
                     )
+                )
                 return True
             else:
                 return False

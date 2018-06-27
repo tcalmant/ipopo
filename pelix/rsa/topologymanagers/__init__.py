@@ -35,12 +35,7 @@ except ImportError:
 
 from pelix.framework import ServiceEvent, ServiceReference, BundleContext
 from pelix.internals.hooks import EventListenerHook
-from pelix.ipopo.decorators import (
-    Validate,
-    Invalidate,
-    Provides,
-    Requires,
-)
+from pelix.ipopo.decorators import Validate, Invalidate, Provides, Requires
 from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 
 from pelix.rsa.providers.discovery import (
@@ -63,6 +58,7 @@ from pelix.rsa import (
 from pelix.rsa.endpointdescription import EndpointDescription
 
 from pelix.rsa.endpointdescription import EndpointDescription
+
 # ------------------------------------------------------------------------------
 # Module version
 
@@ -114,14 +110,14 @@ class TopologyManager(
         for import_reg in import_regs:
             if import_reg.match_ed(endpoint_description):
                 import_reg.close()
-                
+
     def _update_imported_endpoint(self, endpoint_description):
         # type: (EndpointDescription) -> None
         import_regs = self._rsa._get_import_regs()
         for import_reg in import_regs:
             if import_reg.match_ed(endpoint_description):
                 import_reg.update(endpoint_description)
-                
+
     def _handle_service_registered(self, service_ref):
         # type: (ServiceReference) -> None
         exp_intfs = get_exported_interfaces(service_ref)
@@ -141,7 +137,7 @@ class TopologyManager(
                     _logger.debug(
                         "handle_service_unregistering. closing "
                         "export_registration for service reference=%s",
-                        service_ref
+                        service_ref,
                     )
                     export_reg.close()
 
@@ -154,14 +150,15 @@ class TopologyManager(
                     _logger.debug(
                         "_handle_service_modified. updating "
                         "export_registration for service reference=%s",
-                        service_ref
+                        service_ref,
                     )
 
                     # actually update the export_reg here
                     if not export_reg.update(None):
                         _logger.warning(
                             "_handle_service_modified. updating"
-                            "update for service_ref=%s failed", service_ref
+                            "update for service_ref=%s failed",
+                            service_ref,
                         )
 
     def _handle_event(self, service_event):
@@ -189,7 +186,8 @@ class TopologyManager(
                 _logger.exception(
                     "Exception in advertise_endpoint for "
                     "advertiser=%s endpoint=%s",
-                    adv, ed
+                    adv,
+                    ed,
                 )
 
     def _update_endpoint(self, ed):
@@ -200,7 +198,9 @@ class TopologyManager(
             except:
                 _logger.exception(
                     "Exception in update_endpoint for advertiser=%s "
-                    "endpoint=%s", adv, ed
+                    "endpoint=%s",
+                    adv,
+                    ed,
                 )
 
     def _unadvertise_endpoint(self, ed):
@@ -211,7 +211,9 @@ class TopologyManager(
             except:
                 _logger.exception(
                     "Exception in unadvertise_endpoint for advertiser=%s "
-                    "endpoint=%s", adv, ed
+                    "endpoint=%s",
+                    adv,
+                    ed,
                 )
 
     # impl of RemoteServiceAdminListener

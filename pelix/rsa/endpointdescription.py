@@ -113,8 +113,9 @@ def encode_osgi_props(ed):
         pkg_name = package_name(intf)
         ver = ed.get_package_version(pkg_name)
         if ver and not ver == (0, 0, 0):
-            result_props[ENDPOINT_PACKAGE_VERSION_] = \
-                ".".join(str(v) for v in ver)
+            result_props[ENDPOINT_PACKAGE_VERSION_] = ".".join(
+                str(v) for v in ver
+            )
 
     result_props[ENDPOINT_ID] = ed.get_id()
     result_props[ENDPOINT_SERVICE_ID] = "{0}".format(ed.get_service_id())

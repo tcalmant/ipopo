@@ -366,6 +366,7 @@ class ImportDistributionProvider(DistributionProvider):
     Abstract implementation of SERVICE_EXPORT_DISTRIBUTION_PROVIDER
     extends DistributionProvider superclass
     """
+
     def _prepare_container_id(self, container_props):
         """
         Default for import containers creates a UUID for the created container.
@@ -399,6 +400,7 @@ class Container:
     """
     Abstract Container type supporting both ImportContainer and ExportContainer
     """
+
     def __init__(self):
         self._bundle_context = None  # type: BundleContext
         self._container_props = None  # type: Dict[str, Any]
@@ -560,6 +562,7 @@ class ExportContainer(Container):
     extends Container class. New export distribution containers should use this
     class as a superclass to inherit required behavior.
     """
+
     def _get_supported_intents(self):
         # type: () -> List[str]
         return self._get_distribution_provider().get_supported_intents()

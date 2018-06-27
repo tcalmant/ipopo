@@ -127,9 +127,7 @@ class RSACommandHandler(object):
     EXPIMP_LINE_FORMAT = "{0:<37}|{1:<43}|{2:<3}\n"
 
     CONTAINER_LINE_FORMAT = "{0:<45}|{1:<40}\n"
-    CONTAINER_FORMAT = "ID={0}\n\tNamespace={1}\n\tClass={2}\n" \
-                       "\tConnectedTo={3}\n\tConnectNamespace={4}\n" \
-                       "\tConfig Type/Distribution Provider={5}\n"
+    CONTAINER_FORMAT = "ID={0}\n\tNamespace={1}\n\tClass={2}\n" "\tConnectedTo={3}\n\tConnectNamespace={4}\n" "\tConfig Type/Distribution Provider={5}\n"
     CONTAINER_TABLE_COLUMNS = ["Container ID/instance.name", "Class"]
     PROVIDER_FORMAT = (
         "ID={0}\n\tSupported Configs={1}\n\tSupportedIntents={2}\n"
@@ -266,9 +264,7 @@ class RSACommandHandler(object):
         Handle a remote service admin event
         """
         if event.get_type() == RemoteServiceAdminEvent.EXPORT_REGISTRATION:
-            EDEFWriter().write(
-                [event.get_description()], self._edef_filename
-            )
+            EDEFWriter().write([event.get_description()], self._edef_filename)
 
     def _show_defaults(self, io_handler):
         # type: (ShellSession) -> None
@@ -490,7 +486,7 @@ class RSACommandHandler(object):
             io_handler.write_line(
                 "Service with id={0} cannot be found so no service "
                 "can be exported",
-                service_id
+                service_id,
             )
             io_handler.flush()
             return
@@ -545,9 +541,7 @@ class RSACommandHandler(object):
         with open(full_name) as f:
             eds = EDEFReader().parse(f.read())
             io_handler.write_line(
-                "Imported {0} endpoints from EDEF file={1}",
-                len(eds),
-                full_name
+                "Imported {0} endpoints from EDEF file={1}", len(eds), full_name
             )
 
         for ed in eds:
@@ -557,8 +551,7 @@ class RSACommandHandler(object):
                 ed = import_reg.get_description()
                 if exp:
                     io_handler.write_line(
-                        "Exception importing endpoint.id={0}",
-                        ed.get_id()
+                        "Exception importing endpoint.id={0}", ed.get_id()
                     )
                     print_exception(
                         exp[0], exp[1], exp[2], limit=None, file=io_handler
