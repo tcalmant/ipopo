@@ -41,7 +41,8 @@ except ImportError:
     pass
 
 from pelix import constants
-from pelix.constants import BundleActivator, SERVICE_RANKING, OBJECTCLASS
+from pelix.constants import BundleActivator, SERVICE_RANKING, OBJECTCLASS, \
+    OSGI_FRAMEWORK_UUID
 from pelix.framework import Bundle, BundleContext, BundleException
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 
@@ -73,6 +74,7 @@ from pelix.rsa import (
     SERVICE_EXPORTED_INTENTS,
     SERVICE_EXPORTED_INTENTS_EXTRA,
     ECF_ENDPOINT_TIMESTAMP,
+    ENDPOINT_FRAMEWORK_UUID,
     get_current_time_millis,
     get_string_plus_property,
     ExportReference,
@@ -351,10 +353,16 @@ class RemoteServiceAdminImpl(object):
             service_ref.get_property(OBJECTCLASS), exported_intfs
         ):
             return []
-        # get export props by overriding service get_reference properties (if overriding_props set)
+        # get export props by overriding service get_reference properties
+        # (if overriding_props set)
         export_props = service_ref.get_properties().copy()
         if overriding_props:
             export_props.update(overriding_props)
+
+        # Force the framework UID, as the one from error_props
+        # was generated
+        export_props[ENDPOINT_FRAMEWORK_UUID] = \
+            self._context.get_property(OSGI_FRAMEWORK_UUID)
 
         result_regs = []
         result_events = []
@@ -386,8 +394,9 @@ class RemoteServiceAdminImpl(object):
             result_regs.append(error_reg)
             self._add_exported_service(error_reg)
             result_events.append(export_event)
+
         # If no errors added to result_regs then we continue
-        if len(result_regs) == 0:
+        if not result_regs:
             # get _exported_regs_lock
             with self._exported_regs_lock:
                 # cycle through all exporters
@@ -409,12 +418,15 @@ class RemoteServiceAdminImpl(object):
                         export_reg = None
                         export_event = None
                         ed_props = error_props
+
                         try:
-                            # use exporter.make_endpoint_props to make endpoint props, expect dictionary in response
+                            # use exporter.make_endpoint_props to make endpoint
+                            # props, expect dictionary in response
                             ed_props = exporter.prepare_endpoint_props(
                                 exported_intfs, service_ref, export_props
                             )
-                            # export service and expect and EndpointDescription instance in response
+                            # export service and expect and EndpointDescription
+                            # instance in response
                             export_ed = exporter.export_service(
                                 service_ref, ed_props
                             )
@@ -946,7 +958,7 @@ class ExportRegistrationImpl(ExportRegistration):
             return None if self.__closed else self.__exportref.get_description()
 
     def update(self, properties):
-        # type: (dictionary) -> Optional[EndpointDescription]
+        # type: (Dict[str, Any]) -> Optional[EndpointDescription]
         with self.__lock:
             if self.__closed:
                 self.__updateexception = ValueError("Update failed since ExportRegistration already closed")
@@ -958,11 +970,11 @@ class ExportRegistrationImpl(ExportRegistration):
             except Exception as e:
                 self.__updateexception = e
                 return None
-            
+
             if not updated_ed:
                 self.__updatexception = ValueError("Update failed because ExportEndpoint was None")
                 return None
-            
+
             self.__updateexception = None
             if self.__rsa:
                 self.__rsa._publish_event(
@@ -1322,7 +1334,7 @@ class ImportRegistrationImpl(ImportRegistration):
                 if self.__updateexception or self.__closed
                 else self.__importref.get_exception()
             )
-            
+
     def get_description(self):
         # type: () -> Optional[EndpointDescription]
         with self.__lock:
@@ -1347,7 +1359,7 @@ class ImportRegistrationImpl(ImportRegistration):
                 return True
             else:
                 return False
-            
+
     def close(self):
         publish = False
         importerid = rsid = import_ref = exception = ed = None

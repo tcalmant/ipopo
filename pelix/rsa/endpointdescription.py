@@ -89,14 +89,18 @@ def encode_list(key, list_):
     # type: (str, Iterable) -> Dict[str, str]
     if not list_:
         return {}
-    return {key: " ".join(list_)}
+    return {key: " ".join(str(i) for i in list_)}
 
 
 def package_name(package):
     # type: (str) -> str
+    if not package:
+        return ""
+
     lastdot = package.rfind(".")
     if lastdot == -1:
         return package
+
     return package[:lastdot]
 
 
@@ -265,23 +269,21 @@ class EndpointDescription(object):
     @classmethod
     def _verify_export_props(cls, svc_ref, all_properties):
         # type: (ServiceReference, Dict[str, Any]) -> Dict[str, Any]
-        props = {}
-        props.update(all_properties)
-
+        props = all_properties.copy()
         set_prop_if_null(
             ENDPOINT_SERVICE_ID, props, svc_ref.get_property(SERVICE_ID)
         )
         set_prop_if_null(
             ENDPOINT_FRAMEWORK_UUID, props, svc_ref.get_property(FRAMEWORK_UID)
         )
-
         return props
 
     def __init__(self, svc_ref=None, properties=None):
         # type: (Optional[ServiceReference], Optional[Dict[str, Any]]) -> None
         if svc_ref is None and properties is None:
             raise ValueError(
-                "Either service reference or properties argument must be non-null"
+                "Either service reference or properties argument must be "
+                "non-null"
             )
 
         all_properties = {}  # type: Dict[str, Any]
@@ -527,7 +529,6 @@ class EndpointDescription(object):
             version = self._properties[name]
             # Split dots ('.')
             return tuple(version.split("."))
-
         except KeyError:
             # No version
             return 0, 0, 0

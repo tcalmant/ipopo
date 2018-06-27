@@ -314,16 +314,16 @@ class ExportRegistration(object):
         raise Exception("{0}.get_description not implemented".format(self))
 
     def update(self, properties):
-        # type: (dictionary) -> EndpointDescription
+        # type: (Dict[str, Any]) -> EndpointDescription
         """
         Updates ExportRegistration with new properties.
-        
+
         :param properties a dictionary of new properties.  May be None.
         :return: EndpointDescription for ExportRegistration, or None if not
         updated.
         """
         raise Exception("{0}.update not implemented".format(self))
-    
+
     def close(self):
         # type: () -> None
         """
@@ -535,7 +535,7 @@ class ImportRegistration(object):
         :return: True if update completed successfully, False if not.
         """
         raise Exception("{0}.update not implemented".format(self))
-        
+
     def close(self):
         # type: () -> None
         """
@@ -1196,7 +1196,7 @@ def get_package_from_classname(class_name):
     """
     try:
         return class_name[:class_name.rindex(".")]
-    except KeyError:
+    except ValueError:
         return None
 
 
@@ -1301,7 +1301,8 @@ def get_rsa_props(
     results[ENDPOINT_SERVICE_ID] = ep_svc_id
     results[SERVICE_ID] = ep_svc_id
     if not fw_id:
-        fw_id = create_uuid()
+        # No framework ID means an error
+        fw_id = "endpoint-in-error"
     results[ENDPOINT_FRAMEWORK_UUID] = fw_id
     if pkg_vers:
         if isinstance(pkg_vers, type(tuple())):

@@ -30,7 +30,7 @@ Distribution Provider API
 from threading import RLock
 import logging
 
-from pelix.constants import OBJECTCLASS, SERVICE_SCOPE, FRAMEWORK_UID
+from pelix.constants import OBJECTCLASS, SERVICE_SCOPE
 from pelix.framework import ServiceRegistration, ServiceReference, BundleContext
 from pelix.ipopo.decorators import Requires, ValidateComponent, Invalidate
 from pelix.ipopo.constants import (
@@ -57,6 +57,7 @@ from pelix.rsa import (
     copy_non_reserved,
     ECF_SERVICE_EXPORTED_ASYNC_INTERFACES,
     ENDPOINT_ID,
+    ENDPOINT_FRAMEWORK_UUID,
     SERVICE_ID,
     SERVICE_IMPORTED,
     SERVICE_IMPORTED_CONFIGS,
@@ -622,7 +623,7 @@ class ExportContainer(Container):
             exported_configs,
             self._get_supported_intents(),
             svc_ref.get_property(SERVICE_ID),
-            svc_ref.get_property(FRAMEWORK_UID),
+            export_props.get(ENDPOINT_FRAMEWORK_UUID),
             pkg_vers,
             list(service_intents),
         )
