@@ -761,8 +761,6 @@ class ImportContainer(Container):
             self._get_imported_configs(ed.get_remote_configs_supported())
         )
         proxy = self._prepare_proxy(ed)
-        print("proxy:", proxy)
-        print("type:", type(proxy).__name__)
         if proxy:
             return self._get_bundle_context().register_service(
                 ed.get_interfaces(), proxy, self._prepare_proxy_props(ed)
