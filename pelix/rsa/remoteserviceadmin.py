@@ -114,7 +114,7 @@ _logger = logging.getLogger(__name__)
 # output of RSA events, set the property 'pelix.rsa.remoteserviceadmin.debug
 # to some string other than 'true' (the default)
 DEBUG_PROPERTY = "pelix.rsa.remoteserviceadmin.debug"
-DEBUG_PROPERTY_DEFAULT = "true"
+DEBUG_PROPERTY_DEFAULT = "false"
 
 # ------------------------------------------------------------------------------
 
@@ -140,6 +140,7 @@ class Activator(object):
         debug_str = self._context.get_property(DEBUG_PROPERTY)
         if not debug_str:
             debug_str = DEBUG_PROPERTY_DEFAULT
+
         if strtobool(debug_str):
             self._debug_reg = self._context.register_service(
                 SERVICE_RSA_EVENT_LISTENER,
@@ -1403,10 +1404,13 @@ class ImportRegistrationImpl(ImportRegistration):
 
 
 # ------------------------------------------------------------------------------
-# ----------------------------------------------------------------------------------
-# Implementation of RemoteServiceAdminListener that supports debugging by printing
-# out information about the RemoteServiceAdminEvents.
+
+
 class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
+    """
+    Implementation of RemoteServiceAdminListener that supports debugging by
+    printing out information about the RemoteServiceAdminEvents.
+    """
 
     EXPORT_MASK = (
         RemoteServiceAdminEvent.EXPORT_ERROR
