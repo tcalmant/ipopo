@@ -244,15 +244,9 @@ class RSABasicFeatures(unittest.TestCase):
                 export_endpoint = export_reg.get_description()
                 break
 
-        # Temporary file
-        tmp_file = tempfile.mktemp()
-
-        # Write the EDEF XML file
-        EDEFWriter().write([export_endpoint], tmp_file)
-
-        # Reload it
-        with open(tmp_file, "r") as fd:
-            parsed_endpoint = EDEFReader().parse(fd.read())[0]
+        # Export & import the EDEF XML
+        edef_1 = EDEFWriter().to_string([export_endpoint])
+        parsed_endpoint = EDEFReader().parse(edef_1)[0]
 
         import_endpoint = None
         import_reg = self.rsa.import_service(parsed_endpoint)
@@ -280,9 +274,9 @@ class RSABasicFeatures(unittest.TestCase):
         self.assertEqual(val_2, export_endpoint_2.get_properties()[key])
 
         # Write & load it
-        EDEFWriter().write([export_endpoint_2], tmp_file)
-        with open(tmp_file, "r") as fd:
-            parsed_endpoint_2 = EDEFReader().parse(fd.read())[0]
+        # Export & import the EDEF XML
+        edef_2 = EDEFWriter().to_string([export_endpoint_2])
+        parsed_endpoint_2 = EDEFReader().parse(edef_2)[0]
 
         # Check parsed file
         self.assertEqual(val_2, parsed_endpoint_2.get_properties()[key])
