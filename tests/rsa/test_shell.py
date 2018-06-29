@@ -150,7 +150,7 @@ class ShellTest(unittest.TestCase):
         filename = "test.xml"
         try:
             os.remove(filename)
-        except IOError:
+        except OSError:
             pass
 
         self.assertFalse(os.path.exists(filename))
