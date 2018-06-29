@@ -744,6 +744,7 @@ class ImportContainer(Container):
         result_props[SERVICE_IMPORTED] = True
         result_props[SERVICE_IMPORTED_CONFIGS] = ed.get_imported_configs()
         result_props[ENDPOINT_ID] = ed.get_id()
+        result_props[ENDPOINT_FRAMEWORK_UUID] = ed.get_framework_uuid()
         asyn = ed.get_async_interfaces()
         if asyn:
             result_props[ECF_SERVICE_EXPORTED_ASYNC_INTERFACES] = asyn
