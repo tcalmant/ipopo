@@ -34,6 +34,7 @@ try:
 except ImportError:
     pass
 
+from pelix.constants import SERVICE_ID
 from pelix.framework import BundleContext
 from pelix.ipopo.decorators import (
     ComponentFactory,
@@ -46,7 +47,7 @@ from pelix.ipopo.decorators import (
     UnbindField,
     Invalidate,
 )
-from pelix.shell import SERVICE_SHELL_COMMAND
+from pelix.shell import SERVICE_SHELL_COMMAND, SERVICE_SHELL_UTILS
 from pelix.shell.beans import ShellSession
 
 from pelix.rsa import (
@@ -56,7 +57,11 @@ from pelix.rsa import (
     prop_dot_suffix,
 )
 from pelix.rsa.edef import EDEFReader, EDEFWriter
-from pelix.rsa.remoteserviceadmin import RemoteServiceAdminEvent
+from pelix.rsa.remoteserviceadmin import (
+    RemoteServiceAdminEvent,
+    ImportRegistration,
+    ExportRegistration,
+)
 from pelix.rsa.providers.distribution import (
     SERVICE_IMPORT_CONTAINER,
     SERVICE_EXPORT_CONTAINER,
@@ -102,6 +107,7 @@ RSA_COMMAND_EXPORT_CONFIG_PROP = "defaultexportconfig"
 
 
 @ComponentFactory("rsa-command-factory")
+@Requires("_utils", SERVICE_SHELL_UTILS)
 @Requires("_rsa", SERVICE_REMOTE_SERVICE_ADMIN)
 @Requires("_imp_containers", SERVICE_IMPORT_CONTAINER, True, True)
 @Requires("_exp_containers", SERVICE_EXPORT_CONTAINER, True, True)
@@ -131,11 +137,9 @@ class RSACommandHandler(object):
     """
 
     SHELL_NAMESPACE = "rsa"
-    EXPIMP_LINE_FORMAT = "{0:<37}|{1:<43}|{2:<3}\n"
 
     CONTAINER_LINE_FORMAT = "{0:<45}|{1:<40}\n"
     CONTAINER_FORMAT = "ID={0}\n\tNamespace={1}\n\tClass={2}\n" "\tConnectedTo={3}\n\tConnectNamespace={4}\n" "\tConfig Type/Distribution Provider={5}\n"
-    CONTAINER_TABLE_COLUMNS = ["Container ID/instance.name", "Class"]
     PROVIDER_FORMAT = (
         "ID={0}\n\tSupported Configs={1}\n\tSupportedIntents={2}\n"
     )
@@ -143,6 +147,7 @@ class RSACommandHandler(object):
 
     def __init__(self):
         self._context = None  # type: BundleContext
+        self._utils = None
         self._rsa = None
         self._imp_containers = []
         self._exp_containers = []
@@ -341,16 +346,16 @@ class RSACommandHandler(object):
                         )
                     )
 
-    def _list_containers(self, io_handler, containerid=None):
+    def _list_containers(self, io_handler, container_id=None):
         # type: (ShellSession, str) -> None
         """
         List existing import/export containers.
         If <containerid> given, details on that container
         """
         with self._bind_lock:
-            containers = self._get_containers(containerid)
+            containers = self._get_containers(container_id)
         if containers:
-            if containerid:
+            if container_id:
                 container = containers[0]
                 connected_id = container.get_connected_id()
                 ns = container.get_namespace()
@@ -365,21 +370,12 @@ class RSACommandHandler(object):
                     )
                 )
             else:
-                io_handler.write(
-                    self.CONTAINER_LINE_FORMAT.format(
-                        *self.CONTAINER_TABLE_COLUMNS
-                    )
-                )
-                for c in containers:
-                    io_handler.write(
-                        self.CONTAINER_LINE_FORMAT.format(
-                            c.get_id(), _full_class_name(c)
-                        )
-                    )
+                title = ("Container ID/instance.name", "Class")
+                rows = [(c.get_id(), _full_class_name(c)) for c in containers]
+                io_handler.write_line(self._utils.make_table(title, rows))
 
-    def _list_configs(self, io_handler, expimp, endpoint_id=None):
-        # type: (ShellSession, Tuple[Callable[[], List[Any]], str], str) -> None
-        configs = expimp[0]()
+    def _list_imports(self, session, configs, endpoint_id=None):
+        # type: (ShellSession, List[ImportRegistration], str) -> None
         if endpoint_id:
             matching_eds = [
                 x.get_description()
@@ -387,37 +383,62 @@ class RSACommandHandler(object):
                 if x.get_description().get_id() == endpoint_id
             ]
             if matching_eds:
-                io_handler.write_line(
+                session.write_line(
                     "Endpoint description for endpoint.id={0}:", endpoint_id
                 )
-                io_handler.write(EDEFWriter().to_string(matching_eds))
+                session.write_line(EDEFWriter().to_string(matching_eds))
         else:
-            io_handler.write(
-                self.EXPIMP_LINE_FORMAT.format(
-                    "endpoint.id",
-                    expimp[1] + " Container ID",
-                    expimp[1] + " Service ID",
-                )
+            title = (
+                "Endpoint ID",
+                "Container ID",
+                "Local Service ID",
+                "Remote Service ID",
             )
-            for export_reg in configs:
-                ed = export_reg.get_description()
-                if ed:
-                    io_handler.write(
-                        self.EXPIMP_LINE_FORMAT.format(
-                            ed.get_id(),
-                            ed.get_container_id()[1],
-                            ed.get_service_id(),
-                        )
+            rows = []
+            for import_reg in configs:
+                ed = import_reg.get_description()
+                rows.append(
+                    (
+                        ed.get_id(),
+                        ed.get_container_id()[1],
+                        import_reg.get_reference().get_property(SERVICE_ID),
+                        ed.get_service_id(),
                     )
-        io_handler.write("\n")
+                )
+
+            session.write_line(self._utils.make_table(title, rows))
+
+    def _list_exports(self, session, configs, endpoint_id=None):
+        # type: (ShellSession, List[ExportRegistration], str) -> None
+        if endpoint_id:
+            matching_eds = [
+                x.get_description()
+                for x in configs
+                if x.get_description().get_id() == endpoint_id
+            ]
+            if matching_eds:
+                session.write_line(
+                    "Endpoint description for endpoint.id={0}:", endpoint_id
+                )
+                session.write_line(EDEFWriter().to_string(matching_eds))
+        else:
+            title = ("Endpoint ID", "Container ID", "Service ID")
+            rows = []
+            for import_reg in configs:
+                ed = import_reg.get_description()
+                rows.append(
+                    (ed.get_id(), ed.get_container_id()[1], ed.get_service_id())
+                )
+
+            session.write_line(self._utils.make_table(title, rows))
 
     def _list_exported_configs(self, io_handler, endpoint_id=None):
         # type: (ShellSession, str) -> None
         """
         List exported services.  If <endpoint_id> given, details on that export
         """
-        self._list_configs(
-            io_handler, (self._rsa._get_export_regs, "Export"), endpoint_id
+        self._list_exports(
+            io_handler, self._rsa._get_export_regs(), endpoint_id
         )
 
     def _list_imported_configs(self, io_handler, endpoint_id=None):
@@ -425,8 +446,8 @@ class RSACommandHandler(object):
         """
         List imported endpoints.  If <endpoint_id> given, details on that import
         """
-        self._list_configs(
-            io_handler, (self._rsa._get_import_regs, "Import"), endpoint_id
+        self._list_imports(
+            io_handler, self._rsa._get_import_regs(), endpoint_id
         )
 
     def _unimport(self, io_handler, endpointid):
