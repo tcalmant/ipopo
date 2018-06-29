@@ -26,7 +26,6 @@ Remote Service Admin Shell Commands
 
 from threading import RLock
 from traceback import print_exception
-import logging
 import os
 
 try:
@@ -79,9 +78,6 @@ __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-
-# Standard logging
-_logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
@@ -151,7 +147,8 @@ class RSACommandHandler(object):
         self._exp_containers = []
         self._imp_dist_providers = []
         self._exp_dist_providers = []
-        self._edef_filename = self._export_config = None
+        self._edef_filename = None
+        self._export_config = None
         self._bind_lock = RLock()
 
     def _bind_lists(self, field, service):
