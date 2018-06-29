@@ -82,6 +82,12 @@ _logger = logging.getLogger(__name__)
 
 
 def _full_class_name(obj):
+    """
+    Returns the full name of the class of the given object
+
+    :param obj: Any Python object
+    :return: The full name of the class of the object (if possible)
+    """
     module = obj.__class__.__module__
     if module is None or module == str.__class__.__module__:
         return obj.__class__.__name__
@@ -92,10 +98,6 @@ RSA_COMMAND_NAME_PROP = "rsa.command"
 RSA_COMMAND_FILENAME_PROP = "edeffilename"
 RSA_COMMAND_EXPORT_CONFIG_PROP = "defaultexportconfig"
 
-# ------------------------------------------------------------------------------
-# RSA implementation of command handler service...e.g. SERVICE_SHELL_COMMAND
-# Exposes a number of shell commands for RSA operations...e.g. exportservice
-# importservice, listconfigs, listproviders, listcontainers, etc
 # ------------------------------------------------------------------------------
 
 
@@ -122,6 +124,11 @@ RSA_COMMAND_EXPORT_CONFIG_PROP = "defaultexportconfig"
 )
 @Instantiate("rsa-command")
 class RSACommandHandler(object):
+    """
+    RSA implementation of command handler service...e.g. SERVICE_SHELL_COMMAND
+    Exposes a number of shell commands for RSA operations...e.g. exportservice
+    importservice, listconfigs, listproviders, listcontainers, etc
+    """
 
     SHELL_NAMESPACE = "rsa"
     EXPIMP_LINE_FORMAT = "{0:<37}|{1:<43}|{2:<3}\n"
@@ -380,10 +387,8 @@ class RSACommandHandler(object):
                 if x.get_description().get_id() == endpoint_id
             ]
             if matching_eds:
-                io_handler.write(
-                    "Endpoint description for endpoint.id={0}:\n".format(
-                        endpoint_id
-                    )
+                io_handler.write_line(
+                    "Endpoint description for endpoint.id={0}:", endpoint_id
                 )
                 io_handler.write(EDEFWriter().to_string(matching_eds))
         else:
@@ -391,7 +396,7 @@ class RSACommandHandler(object):
                 self.EXPIMP_LINE_FORMAT.format(
                     "endpoint.id",
                     expimp[1] + " Container ID",
-                    expimp[1] + " Service Id",
+                    expimp[1] + " Service ID",
                 )
             )
             for export_reg in configs:
@@ -436,12 +441,10 @@ class RSACommandHandler(object):
             if ed and ed.get_id() == endpointid:
                 found_reg = import_reg
         if not found_reg:
-            io_handler.write(
-                "Cannot find import registration with endpoint.id={0}\n".format(
-                    endpointid
-                )
+            io_handler.write_line(
+                "Cannot find import registration with endpoint.id={0}",
+                endpointid,
             )
-            io_handler.flush()
         else:
             # now close it
             found_reg.close()
@@ -458,12 +461,10 @@ class RSACommandHandler(object):
             if ed and ed.get_id() == endpointid:
                 found_reg = export_reg
         if not found_reg:
-            io_handler.write(
-                "Cannot find export registration with endpoint.id={0}\n".format(
-                    endpointid
-                )
+            io_handler.write_line(
+                "Cannot find export registration with endpoint.id={0}",
+                endpointid,
             )
-            io_handler.flush()
         else:
             # now close it
             found_reg.close()
@@ -509,10 +510,9 @@ class RSACommandHandler(object):
         for export_reg in export_regs:
             exp = export_reg.get_exception()
             if exp:
-                io_handler.write(
-                    "\nException exporting service={0}\n".format(
-                        export_reg.get_reference()
-                    )
+                io_handler.write_line(
+                    "\nException exporting service={0}",
+                    export_reg.get_reference(),
                 )
                 print_exception(
                     exp[0], exp[1], exp[2], limit=None, file=io_handler
@@ -522,12 +522,12 @@ class RSACommandHandler(object):
         # write exported_eds to filename
         EDEFWriter().write(exported_eds, self._edef_filename)
 
-        io_handler.write(
-            "Service={0} exported by {1} providers.  EDEF written to file={2}\n".format(
-                svc_ref, len(exported_eds), self._edef_filename
-            )
+        io_handler.write_line(
+            "Service={0} exported by {1} providers.  EDEF written to file={2}",
+            svc_ref,
+            len(exported_eds),
+            self._edef_filename,
         )
-        io_handler.flush()
 
     def _import_edef(self, io_handler, edeffile=None):
         # type: (ShellSession, str) -> None
