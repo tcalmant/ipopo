@@ -1354,7 +1354,7 @@ class ImportRegistrationImpl(ImportRegistration):
             return None if self.__closed else self.__importref.get_description()
 
     def update(self, endpoint_description):
-        # type: (EndpointDescription) -> boolean
+        # type: (EndpointDescription) -> bool
         with self.__lock:
             if self.__closed:
                 self.__updateexception = ValueError(
