@@ -1,5 +1,6 @@
+#!/usr/bin/env python
+# -- Content-Encoding: UTF-8 --
 """
-
 Remote Service Admin Shell Commands
 
 :author: Scott Lewis
@@ -458,7 +459,7 @@ class RSACommandHandler(object):
     def _list_exported_configs(self, io_handler, endpoint_id=None):
         # type: (ShellSession, str) -> None
         """
-        List exported services.  If <endpoint_id> given, details on that export
+        List exported services. If <endpoint_id> given, details on that export
         """
         self._list_exports(
             io_handler, self._rsa._get_export_regs(), endpoint_id
@@ -467,7 +468,7 @@ class RSACommandHandler(object):
     def _list_imported_configs(self, io_handler, endpoint_id=None):
         # type: (ShellSession, str) -> None
         """
-        List imported endpoints.  If <endpoint_id> given, details on that import
+        List imported endpoints. If <endpoint_id> given, details on that import
         """
         self._list_imports(
             io_handler, self._rsa._get_import_regs(), endpoint_id
