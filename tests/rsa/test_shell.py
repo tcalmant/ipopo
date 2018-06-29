@@ -112,6 +112,24 @@ class ShellTest(unittest.TestCase):
         self._run_command("listimports")
         self._run_command("showdefaults")
 
+    @staticmethod
+    def _extract_list(cmd_output):
+        """
+        Parses the list printed by listexports/listimports
+
+        :param cmd_output: A command output
+        :return: A list of exported/imported endpoints
+        """
+        results = []
+        for line in cmd_output.splitlines()[3:-1]:
+            if line.startswith("+"):
+                continue
+
+            items = [item.strip() for item in line.split("|") if item]
+            if items:
+                results.append(items)
+        return results
+
     def test_import_export(self):
         """
         Tests service export/import with
@@ -124,7 +142,9 @@ class ShellTest(unittest.TestCase):
         str_id = str(svc_id)
 
         # Assert that the service is not yet exported
-        self.assertNotIn(str_id, self._run_command("listexports"))
+        for line in self._extract_list(self._run_command("listexports")):
+            if line[2] == str_id:
+                self.fail("Service ID already in exports list")
 
         # Export it in a custom EDEF file
         filename = "test.xml"
@@ -138,20 +158,27 @@ class ShellTest(unittest.TestCase):
         self.assertTrue(os.path.exists(filename))
 
         # Assert that the service is exported
-        self.assertIn(str_id, self._run_command("listexports"))
+        for line in self._extract_list(self._run_command("listexports")):
+            if line[2] == str_id:
+                break
+        else:
+            self.fail("Export endpoint not found")
 
         # Import it from the EDEF file
         self._run_command("importservice {0}", filename)
 
         # Check if we imported the service
-        imp_ref = context.get_service_reference(None, "(service.imported=*)")
+        imp_ref = context.get_service_reference("toto", "(service.imported=*)")
         fw_uid = context.get_property(FRAMEWORK_UID)
         self.assertEqual(imp_ref.get_property(ENDPOINT_FRAMEWORK_UUID), fw_uid)
 
         imp_id = str(imp_ref.get_property(SERVICE_ID))
         imp_ed_id = str(imp_ref.get_property(ENDPOINT_ID))
-        self.assertIn(imp_id, self._run_command("listimports"))
-        self.assertIn(imp_ed_id, self._run_command("listimports"))
+        for line in self._extract_list(self._run_command("listimports")):
+            if line[0] == imp_ed_id and line[2] == imp_id:
+                break
+        else:
+            self.fail("Service not imported")
 
         # Un-import service
         self._run_command("unimportservice {0}", imp_ed_id)
@@ -160,14 +187,21 @@ class ShellTest(unittest.TestCase):
         self.assertRaises(BundleException, context.get_service, imp_ref)
 
         # Get the endpoint ID of the exported service
-        exports = self._run_command("listexports")
-        export = exports.splitlines()[1]
-        svc_ed_id = export.split("|", 1)[0]
+        for line in self._extract_list(self._run_command("listexports")):
+            if line[2] == str_id:
+                svc_ed_id = line[0]
+                break
+        else:
+            self.fail("Couldn't find endpoint ID")
 
         # Simple test
         self._run_command("listexports {0}", svc_ed_id)
 
         # Un-export service
         self._run_command("unexportservice {0}", svc_ed_id)
-        self.assertNotIn(str_id, self._run_command("listexports"))
+
+        # Assert that the service is not yet exported
         self.assertNotIn(svc_ed_id, self._run_command("listexports"))
+        for line in self._extract_list(self._run_command("listexports")):
+            if line[2] == str_id:
+                self.fail("Service ID still in exports list")
