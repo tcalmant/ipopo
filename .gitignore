@@ -3,9 +3,10 @@
 *.pyo
 __pycache__/
 
-# MyPy
+# MyPy & other tools
 .mypy_cache/
 .cache/
+.pytest_cache/
 
 # IDE
 .project
