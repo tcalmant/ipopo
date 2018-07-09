@@ -339,7 +339,9 @@ class EndpointSubscriber(object):
 
     def _remove_discovered_endpoint(self, endpointid):
         with self._discovered_endpoints_lock:
-            return self._discovered_endpoints.pop(endpointid, None)[1]
+            node = self._discovered_endpoints.pop(endpointid, None)
+            if node:
+                return node[1]
 
     def _fire_endpoint_event(self, event_type, ed):
         listeners = self._get_matching_endpoint_event_listeners(ed)

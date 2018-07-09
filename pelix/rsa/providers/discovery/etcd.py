@@ -341,31 +341,6 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         for endpointid in endpointids:
             self._handle_remove_node(endpointid)
 
-    def _handle_update_nodes(self, sessionid, nodes):
-        for node in nodes:
-            # we only care about properties
-            node_val = node.value
-            if node_val:
-                json_obj = json.loads(node_val)
-                if isinstance(json_obj, dict):
-                    json_properties = json_obj["properties"]
-                    # get the name and value from each entry
-                    raw_props = {
-                        entry["name"]: entry["value"]
-                        for entry in json_properties
-                        if entry["type"] == "string"
-                    }
-                    # decode
-                    decoded_props = decode_endpoint_props(raw_props)
-                    new_ed = EndpointDescription(properties=decoded_props)
-                    old_ed = self._remove_discovered_endpoint(new_ed.get_id())
-                    if old_ed:
-                        self._add_discovered_endpoint(sessionid, new_ed)
-                        # dispatch
-                        self._fire_endpoint_event(
-                            EndpointEvent.MODIFIED, new_ed
-                        )
-
     def _handle_remove_node(self, endpointid):
         ed = self._remove_discovered_endpoint(endpointid)
         if ed:
@@ -418,7 +393,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                             if action in self.REMOVE_ACTIONS:
                                 self._handle_remove_node(endpointid)
                             elif action in self.ADD_ACTIONS:
-                                self._handle_add_nodes([result])
+                                self._handle_add_nodes(sessionid, [result])
                         # otherwise it's a branch/dir node
                         else:
                             if action in self.REMOVE_ACTIONS:
