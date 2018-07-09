@@ -47,7 +47,8 @@ from pelix.rsa.topologymanagers import TopologyManager
 from pelix.rsa.providers.discovery import SERVICE_ENDPOINT_ADVERTISER,\
     EndpointEvent
 
-EXTERNAL_ETCD_HOSTNAME = 'disco.ecf-project.org'
+TEST_ETCD_HOSTNAME = 'disco.ecf-project.org'
+TEST_ETCD_TOPPATH = '/etcddiscovery.tests'
 
 ENDPOINT_LISTENER_SCOPE = "({0}=*)".format(ECF_ENDPOINT_CONTAINERID_NAMESPACE)
 # ------------------------------------------------------------------------------
@@ -78,7 +79,8 @@ def start_framework_for_advertise(state_queue):
              'pelix.rsa.topologymanagers.basic',
              'samples.rsa.helloimpl_xmlrpc'],
             {'ecf.xmlrpc.server.hostname': 'localhost',
-             'etcd.hostname': EXTERNAL_ETCD_HOSTNAME})
+             'etcd.hostname': TEST_ETCD_HOSTNAME,
+             'etcd.toppath': TEST_ETCD_TOPPATH})
         framework.start()
 
         context = framework.get_bundle_context()
@@ -127,6 +129,10 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
         remote service.  Then starts a local framework to register the
         TestEndpointEventListener
         """
+        print(
+            "EtcdDiscoveryListenerTest etcd_hostname={0},toppath={1}".format(
+                TEST_ETCD_HOSTNAME,
+                TEST_ETCD_TOPPATH))
         # start external framework that publishes remote service
         self.status_queue = Queue()
         self.publisher_process = WrappedProcess(target=start_framework_for_advertise,
@@ -141,7 +147,10 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
              'pelix.rsa.remoteserviceadmin',  # RSA implementation
              'tests.rsa.endpoint_event_listener',
              'pelix.rsa.providers.discovery.etcd'],
-            {'etcd.hostname': EXTERNAL_ETCD_HOSTNAME})
+            {'etcd.hostname': TEST_ETCD_HOSTNAME,
+             'etcd.toppath': TEST_ETCD_TOPPATH
+             }
+        )
         self.framework.start()
         # Start the framework and return TestEndpointEventListener
         context = self.framework.get_bundle_context()
@@ -255,7 +264,8 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
              "pelix.rsa.providers.distribution.xmlrpc",
              'pelix.rsa.providers.discovery.etcd'],
             {'ecf.xmlrpc.server.hostname': 'localhost',
-             'etcd.hostname': EXTERNAL_ETCD_HOSTNAME})
+             'etcd.hostname': TEST_ETCD_HOSTNAME,
+             'etcd.toppath': TEST_ETCD_TOPPATH})
         self.framework.start()
 
         context = self.framework.get_bundle_context()

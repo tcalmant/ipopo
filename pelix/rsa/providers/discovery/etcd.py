@@ -245,7 +245,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 # if this happens, attempt to write it
                 try:
                     top_response = self._client.write(
-                        self._top_path, None, 0, True
+                        self._top_path, None, None, True
                     )
                 except Exception as e:
                     _logger.exception(
