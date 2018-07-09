@@ -80,7 +80,7 @@ class EndpointAdvertiser(object):
         """
         endpointid = endpoint_description.get_id()
         with self._published_endpoints_lock:
-            if self.get_advertised_endpoint(endpointid) != None:
+            if self.get_advertised_endpoint(endpointid) is not None:
                 return False
             advertise_result = self._advertise(endpoint_description)
             if advertise_result:
@@ -98,7 +98,7 @@ class EndpointAdvertiser(object):
         """
         endpointid = updated_ed.get_id()
         with self._published_endpoints_lock:
-            if self.get_advertised_endpoint(endpointid) == None:
+            if self.get_advertised_endpoint(endpointid) is None:
                 return False
             advertise_result = self._update(updated_ed)
             if advertise_result:
@@ -136,7 +136,7 @@ class EndpointAdvertiser(object):
         :return True if the given endpointid has previously been
         advertised (and not unadvertised) by this advertiser
         """
-        return self.get_advertised_endpoint(endpointid) != None
+        return self.get_advertised_endpoint(endpointid) is not None
 
     def get_advertised_endpoint(self, endpointid):
         """
@@ -276,8 +276,6 @@ class EndpointSubscriber(object):
     """
 
     def __init__(self):
-        self._other_sessions = set()
-        self._other_sessions_lock = RLock()
         self._endpoint_event_listeners = []
         self._endpoint_event_listeners_lock = RLock()
         self._discovered_endpoints = {}
@@ -295,7 +293,7 @@ class EndpointSubscriber(object):
                 return self._endpoint_event_listeners.remove(
                     (listener, service_ref)
                 )
-            except:
+            except Exception:
                 pass
 
     def _get_matching_endpoint_event_listeners(self, ed):
@@ -321,33 +319,33 @@ class EndpointSubscriber(object):
 
     def _has_discovered_endpoint(self, ed_id):
         with self._discovered_endpoints_lock:
-            return self._discovered_endpoints.get(ed_id, None)
+            ep = self._discovered_endpoints.get(ed_id, None)
+            if ep:
+                return ep[1]
 
-    def _add_discovered_endpoint(self, ed):
+    def _get_endpointids_for_sessionid(self, sessionid):
+        result = []
+        with self._discovered_endpoints_lock:
+            for epid in self._discovered_endpoints.keys():
+                ep = self._discovered_endpoints.get(epid, None)
+                if ep and sessionid == ep[0]:
+                    result.append(epid)
+        return result
+
+    def _add_discovered_endpoint(self, sessionid, ed):
         with self._discovered_endpoints_lock:
             _logger.debug("_add_discovered_endpoint ed=%s", ed)
-            self._discovered_endpoints[ed.get_id()] = ed
+            self._discovered_endpoints[ed.get_id()] = (sessionid, ed)
 
     def _remove_discovered_endpoint(self, endpointid):
         with self._discovered_endpoints_lock:
-            return self._discovered_endpoints.pop(endpointid, None)
-
-    def _add_other_session(self, sessionid):
-        with self._other_sessions_lock:
-            self._other_sessions.add(sessionid)
-
-    def _remove_other_session(self, sessionid):
-        with self._other_sessions_lock:
-            try:
-                return self._other_sessions.remove(sessionid)
-            except KeyError:
-                pass
+            return self._discovered_endpoints.pop(endpointid, None)[1]
 
     def _fire_endpoint_event(self, event_type, ed):
         listeners = self._get_matching_endpoint_event_listeners(ed)
         if not listeners:
             logging.error(
-                "TopologyManager._fire_endpoint_event found no matching listeners for event_type=%s and endpoint=%s",
+                "EndpointSubscriber._fire_endpoint_event found no matching listeners for event_type=%s and endpoint=%s",
                 event_type,
                 ed,
             )
@@ -356,7 +354,7 @@ class EndpointSubscriber(object):
         for listener in listeners:
             try:
                 listener[0].endpoint_changed(event, listener[1])
-            except:
+            except Exception:
                 _logger.exception(
                     "Exception calling endpoint event listener.endpoint_changed for listener=%s and event=%s",
                     listener,

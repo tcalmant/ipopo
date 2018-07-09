@@ -158,9 +158,8 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     def _invalidate(self, _):
         self._disconnect()
 
-    def _write_description(self, endpoint_description):
-        # type: (EndpointDescription) -> etcd.EtcdResult
-        # encode props as string -> string
+    def _encode_description(self, endpoint_description):
+        # type: (EndpointDescription) -> dict
         encoded_props = encode_endpoint_props(endpoint_description)
         # get copy of service props
         service_props = self._service_props.copy()
@@ -169,6 +168,12 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             {"type": "string", "name": key, "value": encoded_props.get(key)}
             for key in encoded_props
         ]
+        return service_props
+
+    def _write_description(self, endpoint_description):
+        # type: (EndpointDescription) -> etcd.EtcdResult
+        # encode props as string -> string
+        service_props = self._encode_description(endpoint_description)
         # dump service_props to json
         props_json = json.dumps(service_props)
         # write to etcd
@@ -217,7 +222,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 session_path = self._get_session_path()
                 try:
                     self._client.delete(session_path, True, True)
-                except:
+                except Exception:
                     _logger.exception(
                         "Exception deleting session_path=%s", session_path
                     )
@@ -234,7 +239,8 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             self._client = etcd.Client(host=self._hostname, port=self._port)
             # now make request against basic
             try:
-                top_response = self._client.read(self._top_path, recursive=True)
+                top_response = self._client.read(
+                    self._top_path, recursive=True)
             except etcd.EtcdKeyNotFound:
                 # if this happens, attempt to write it
                 try:
@@ -269,10 +275,11 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 raise e
 
             self._wait_index = session_exists_result.createdIndex + 1
-            self._ttl_thread = Thread(target=self._ttl_job, name="Etcd TTL Job")
+            self._ttl_thread = Thread(
+                target=self._ttl_job, name="Etcd TTL Job")
             self._ttl_thread.daemon = True
             self._watch_thread = Thread(
-                target=self._watch_job, name="Etcd Watch Job"
+                target=self._watch_job, name="Etcd Listen Job"
             )
             self._watch_thread.daemon = True
             self._ttl_thread.start()
@@ -283,19 +290,19 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         return int(self._session_ttl - (self._session_ttl / 10))
 
     def _handle_add_dir(self, dir_node):
-        # get sessionid from key
-        sessionid = dir_node.key[len(self._top_path) + 1 :]
+        sessionid = dir_node.key[len(self._top_path) + 1:]
         _logger.debug("_handle_add_dir sessionid=%s", sessionid)
-        self._add_other_session(sessionid)
-        self._handle_add_nodes(
-            [node for node in list(dir_node.children) if not node.dir]
-        )
+        self._handle_add_nodes(sessionid,
+                               [node for node in list(
+                                   dir_node.children) if not node.dir]
+                               )
 
     def _handle_remove_dir(self, sessionid):
         _logger.debug("_handle_remove_dir sessionid=%s", sessionid)
-        self._remove_other_session(sessionid)
+        endpointids = self._get_endpointids_for_sessionid(sessionid)
+        self._handle_remove_nodes(endpointids)
 
-    def _handle_add_nodes(self, nodes):
+    def _handle_add_nodes(self, sessionid, nodes):
         for node in nodes:
             # we only care about properties
             node_val = node.value
@@ -315,21 +322,26 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                     old_ed = self._has_discovered_endpoint(new_ed.get_id())
                     if not old_ed:
                         # add discovered endpoint to our internal list
-                        self._add_discovered_endpoint(new_ed)
+                        self._add_discovered_endpoint(sessionid, new_ed)
                         # dispatch
                         self._fire_endpoint_event(EndpointEvent.ADDED, new_ed)
                     else:
-                        # get timestamp and make sure new one is newer (an update)
+                        # get timestamp and make sure new one is newer (an
+                        # update)
                         old_ts = old_ed.get_timestamp()
                         new_ts = new_ed.get_timestamp()
                         if new_ts > old_ts:
                             self._remove_discovered_endpoint(old_ed.get_id())
-                            self._add_discovered_endpoint(new_ed)
+                            self._add_discovered_endpoint(sessionid, new_ed)
                             self._fire_endpoint_event(
                                 EndpointEvent.MODIFIED, new_ed
                             )
 
-    def _handle_update_nodes(self, nodes):
+    def _handle_remove_nodes(self, endpointids):
+        for endpointid in endpointids:
+            self._handle_remove_node(endpointid)
+
+    def _handle_update_nodes(self, sessionid, nodes):
         for node in nodes:
             # we only care about properties
             node_val = node.value
@@ -348,7 +360,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                     new_ed = EndpointDescription(properties=decoded_props)
                     old_ed = self._remove_discovered_endpoint(new_ed.get_id())
                     if old_ed:
-                        self._add_discovered_endpoint(new_ed)
+                        self._add_discovered_endpoint(sessionid, new_ed)
                         # dispatch
                         self._fire_endpoint_event(
                             EndpointEvent.MODIFIED, new_ed
@@ -395,26 +407,26 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                         return
                 else:
                     # split id into [sessionid] or [sessionid,endpointid]
-                    splitid = key[len(self._top_path) + 1 :].split("/")
+                    splitid = key[len(self._top_path) + 1:].split("/")
                     sessionid = splitid[0]
+                    # only process sessionids that are not ours
                     if self._sessionid != sessionid:
-                        if isinstance(splitid, list):
+                        # if length of splitid list is > 1 then it's a leaf
+                        # node
+                        if len(splitid) > 1:
                             endpointid = splitid[len(splitid) - 1]
-                        else:
-                            endpointid = None
-                        if not endpointid:
-                            if action in self.REMOVE_ACTIONS:
-                                # other session deleted
-                                self._handle_remove_dir(sessionid)
-                            elif action in self.ADD_ACTIONS:
-                                self._handle_add_dir(result)
-                        else:
                             if action in self.REMOVE_ACTIONS:
                                 self._handle_remove_node(endpointid)
                             elif action in self.ADD_ACTIONS:
                                 self._handle_add_nodes([result])
+                        # otherwise it's a branch/dir node
+                        else:
+                            if action in self.REMOVE_ACTIONS:
+                                self._handle_remove_dir(sessionid)
+                            elif action in self.ADD_ACTIONS:
+                                self._handle_add_dir(result)
 
-            except:
+            except Exception:
                 _logger.exception("watch_job:Exception in watch loop")
 
     def _ttl_job(self):
@@ -449,6 +461,6 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                     _logger.debug(
                         "ttl_job: updated with session_ttl=%s", session_ttl
                     )
-                except:
+                except Exception:
                     _logger.exception("Exception updating in ttl job")
                 waittime = self._get_start_wait()
