@@ -233,6 +233,7 @@ class EndpointEvent(object):
 # a service endpoint listener so that discovery subscribers can
 # notify all such services when an endpoint event has been received.
 SERVICE_ENDPOINT_LISTENER = "pelix.rsa.discovery.endpointeventlistener"
+SERVICE_ENDPOINT_EVENT_LISTENER = SERVICE_ENDPOINT_LISTENER
 
 
 class EndpointEventListener(object):
