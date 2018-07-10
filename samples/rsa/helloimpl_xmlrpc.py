@@ -18,6 +18,7 @@ service consumers may be notified via either discovery provider publishing
 (e.g. etcd) or via the rsa importservice command.
 """
 
+
 from pelix.ipopo.decorators import Instantiate, ComponentFactory, Provides
 from samples.rsa.helloimpl import HelloImpl
 
@@ -26,7 +27,9 @@ from samples.rsa.helloimpl import HelloImpl
 @Provides(
     "org.eclipse.ecf.examples.hello.IHello"
 )  # Provides IHello interface as specified by Java interface.
-# See <a href="https://github.com/ECF/Py4j-RemoteServicesProvider/blob/master/examples/org.eclipse.ecf.examples.hello/src/org/eclipse/ecf/examples/hello/IHello.java">IHello service interface</a>
+# See <a
+# href="https://github.com/ECF/Py4j-RemoteServicesProvider/blob/master/examples/org.eclipse.ecf.examples.hello/src/org/eclipse/ecf/examples/hello/IHello.java">IHello
+# service interface</a>
 @Instantiate(
     "helloimpl-xmlrpc",
     {
