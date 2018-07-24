@@ -18,6 +18,7 @@ Pelix/iPOPO.
    http
    http_routing
    remote_services
+   rsa
    shell
    shell_report
    configadmin
