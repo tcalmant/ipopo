@@ -11,14 +11,12 @@ This tutorial shows how to launch and use the sample application for `OSGi R7
 Remote Services Admin (RSA) between Python and Java <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java>`_.  
 This sample shows
 how to use the iPOPO RSA impl to export and/or import remote
-services from a OSGi/Java process.   
+services from/to a OSGi/Java process to a Python iPOPO process.   
 
 Requirements
 ============
-This sample requires Python 3
-
-The requirement for running this sample is launching the Java sample 
-prior to starting the Python sample.
+This sample requires Python 3 and launching the Java sample
+prior to proceeding with Starting the Python Sample below.
 
 This `ECF tutorial page <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java>`_ describes how to launch the Java-side sample.   
 One can `start via Bndtools project template <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java#Running_via_Bndtools_Project_Template>`_, or `start via Apache Karaf <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java#Running_via_Apache_Karaf>`_
@@ -46,10 +44,14 @@ This should produce output to the Python std out like the following:
     async response: JavaAsync says: Hi PythonAsync, nice to see you
     promise response: JavaPromise says: Hi PythonPromise, nice to see you
 
-This output indicates that the Python process connected to the Java process using the Py4j distribution provider, imported
-the Java-exported HelloImpl service, created a Python proxy for the IHello service instance hosted from Java, and injected that
-proxy into the sample consumer in samples/rsa/helloconsumer.py by using iPOPO to set the self._helloservice to the proxy,
-and calling the _validate method.   
+This output indicates that 
+
+1) The Python process connected to the Java process using the Py4j distribution provider
+2) RSA discovered and imported the Java-exported HelloImpl service
+3) RSA created a Python proxy for the IHello service instance hosted from Java
+4)  iPOPO injected the IHello proxy into the sample consumer iby 
+setting the self._helloservice requirement to the IHello proxy
+5) Calling the _validate method of the RemoteHelloConsumer class (in n samples/rsa/helloconsumer.py)
 
 .. code-block:: python
 
@@ -94,8 +96,8 @@ and calling the _validate method.
 	                    f.result())))
 	        print("done with sayHelloPromise method")
 
-When the _validate method is called it calls the self._helloservice.sayHello method and prints
-out the resp to the console:
+When the _validate method is called by iPOPO, it calls the self._helloservice.sayHello synchronous method and 
+prints out the result (resp) to the console:
 
 .. code-block:: python
 
@@ -108,7 +110,7 @@ out the resp to the console:
                 self._name,
                 resp))
 
-The print is responsible for the console output
+The print in the code above is responsible for the console output
 
 .. code-block:: none
 
@@ -150,9 +152,9 @@ Resulting in the console output
 
     done with sayHelloPromise method
      
-Note that the async response and promise response are received sometime later, after the
-remote (Java) call is completed and the lambda expression is executed via Future.add_done_callback.  This results
-in the output ordering of:
+Note that the async response and promise response are received after the print('done with sayHelloPromise')
+statement   Once the remote (Java) call is completed, the lambda expression callback is executed via Future.add_done_callback.  
+This results in the output ordering of:
 
 .. code-block:: none
 
@@ -162,5 +164,46 @@ in the output ordering of:
     async response: JavaAsync says: Hi PythonAsync, nice to see you
     promise response: JavaPromise says: Hi PythonPromise, nice to see you
     
+The 'done...' prints out prior to the execution of the print in the lambda expression callback passed to `Future.add_done_callback <https://docs.python.org/3/library/concurrent.futures.html>`_.
+
+Note that at the same time as the Python-side console output above, in the Java console this will appear:
+
+.. code-block:: none
+
+    Java.sayHello called by PythonSync with message: 'Hello Java'
+    Java.sayHelloAsync called by PythonAsync with message: 'Hello Java'
+    Java.sayHelloPromise called by PythonPromise with message: 'Hello Java'
+
+This is the output from the Java HelloImpl implementation code...e.g. 
+
+
+.. code-block:: java
+
+    public String sayHello(String from, String message) {
+        System.out.println("Java.sayHello called by "+from+" with message: '"+message+"'");
+        return "Java says: Hi "+from + ", nice to see you";
+    }
+    
+Exporting a Hello implementation from Python to Java
+=============================
+
+In the iPOPO console, give the following command to register and export a 
+IHello service instance from Python impl to Java consumer.
+
+.. code-block:: none
+
+    $ start samples.rsa.helloimpl_py4j
+    
+This should result in the Python console output
+
+.. code-block:: none
+
+    $ start samples.rsa.helloimpl_py4j
+    Bundle ID: 18
+    Starting bundle 18 (samples.rsa.helloimpl_py4j)...
+    Python.sayHello called by: Java with message: 'Hello Python'
+    Python.sayHelloAsync called by: JavaAsync with message: 'Howdy Python'
+    Python.sayHelloPromise called by: JavaPromise with message: 'Howdy Python'
+
 You can now go back to see other :ref:`Tutorials` or take a look at the
 :ref:`refcards`.
