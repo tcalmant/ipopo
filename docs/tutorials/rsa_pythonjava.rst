@@ -38,7 +38,7 @@ or
 
 This should produce output to the Python std out like the following:
 
-.. code-block:: none
+::
     ** Pelix Shell prompt **
     Python IHello service consumer received sync response: Java says: Hi PythonSync, nice to see you
     done with sayHelloAsync method
