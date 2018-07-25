@@ -28,11 +28,13 @@ Starting the Python Sample
 
 In the ipopo home directory, start the top-level script for this sample:
 
-$ samples/run_rsa_py4java.py
+.. code-block:: none
+    $ samples/run_rsa_py4java.py
 
 or
 
-$ python samples/run_rsa_py4java.py
+.. code-block:: none
+    $ python samples/run_rsa_py4java.py
 
 This should produce output to the Python std out like the following:
 
