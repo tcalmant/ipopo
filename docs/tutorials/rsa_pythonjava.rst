@@ -19,7 +19,8 @@ This sample requires Python 3 and launching the Java sample
 prior to proceeding with Starting the Python Sample below.
 
 This `ECF tutorial page <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java>`_ describes how to launch the Java-side sample.   
-One can `start via Bndtools project template <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java#Launching_via_Bndtools_Project_Template>`_, or `start via Apache Karaf <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java#Launching_via_Apache_Karaf>`_
+One can `start via Bndtools project template <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java#Launching_via_Bndtools_Project_Template>`_, or 
+`start via Apache Karaf <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java#Launching_via_Apache_Karaf>`_
 
 Once the Java sample has been successfully started, proceed below.
 
