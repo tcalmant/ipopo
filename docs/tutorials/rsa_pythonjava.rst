@@ -54,9 +54,8 @@ This output indicates that
 1) The Python process connected to the Java process using the Py4j distribution provider
 2) RSA discovered and imported the Java-exported HelloImpl service
 3) RSA created a Python proxy for the IHello service instance hosted from Java
-4) iPOPO injected the IHello proxy into the sample consumer iby 
-setting the self._helloservice requirement to the IHello proxy
-5) Calling the _validate method of the RemoteHelloConsumer class (in n samples/rsa/helloconsumer.py)
+4) iPOPO injected the IHello proxy into the sample consumer by setting the self._helloservice requirement to the IHello proxy
+5) Calling the _validate method of the RemoteHelloConsumer class (in samples/rsa/helloconsumer.py)
 
 .. code-block:: python
 
