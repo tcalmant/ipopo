@@ -28,19 +28,19 @@ Starting the Python Sample
 
 In the ipopo home directory, start the top-level script for this sample:
 
-.. code-block:: none
+.. code-block:: console
 
     $ samples/run_rsa_py4java.py
 
 or
 
-.. code-block:: none
+.. code-block:: console
 
     $ python samples/run_rsa_py4java.py
 
 This should produce output to the Python std out like the following:
 
-.. code-block:: none
+.. code-block:: console
 
     ** Pelix Shell prompt **
     Python IHello service consumer received sync response: Java says: Hi PythonSync, nice to see you
@@ -116,7 +116,7 @@ prints out the result (resp) to the console:
 
 The print in the code above is responsible for the console output
 
-.. code-block:: none
+.. code-block:: console
 
     Python IHello service consumer received sync response: Java says: Hi PythonSync, nice to see you    
 
@@ -134,7 +134,7 @@ Then the sayHelloAsync method is called
 
 The print is responsible for the console output
 
-.. code-block:: none
+.. code-block:: console
 
     done with sayHelloAsync method
     
@@ -152,7 +152,7 @@ Then the sayHelloPromise method is called
    
 Resulting in the console output
 
-.. code-block:: none
+.. code-block:: console
 
     done with sayHelloPromise method
      
@@ -160,7 +160,7 @@ Note that the async response and promise response are received after the print('
 statement   Once the remote (Java) call is completed, the lambda expression callback is executed via Future.add_done_callback.  
 This results in the output ordering of:
 
-.. code-block:: none
+.. code-block:: console
 
     Python IHello service consumer received sync response: Java says: Hi PythonSync, nice to see you
     done with sayHelloAsync method
@@ -172,7 +172,7 @@ The 'done...' prints out prior to the execution of the print in the lambda expre
 
 Note that at the same time as the Python-side console output above, in the Java console this will appear:
 
-.. code-block:: none
+.. code-block:: console
 
     Java.sayHello called by PythonSync with message: 'Hello Java'
     Java.sayHelloAsync called by PythonAsync with message: 'Hello Java'
@@ -193,13 +193,13 @@ Exporting a Hello implementation from Python to Java
 In the iPOPO console, give the following command to register and export a 
 IHello service instance from Python impl to Java consumer.
 
-.. code-block:: none
+.. code-block:: console
 
     $ start samples.rsa.helloimpl_py4j
     
 This should result in the Python console output
 
-.. code-block:: none
+.. code-block:: console
 
     $ start samples.rsa.helloimpl_py4j
     Bundle ID: 18
@@ -207,6 +207,91 @@ This should result in the Python console output
     Python.sayHello called by: Java with message: 'Hello Python'
     Python.sayHelloAsync called by: JavaAsync with message: 'Howdy Python'
     Python.sayHelloPromise called by: JavaPromise with message: 'Howdy Python'
+
+Here is the Python hello impl (samples/helloimpl_py4j.py))
+
+.. code-block:: python
+
+	from pelix.ipopo.decorators import Instantiate, ComponentFactory, Provides
+	from samples.rsa.helloimpl import HelloImpl
+	
+	@ComponentFactory('helloimpl-py4j-factory')
+	# Provides IHello interface as specified by Java interface.
+	@Provides('org.eclipse.ecf.examples.hello.IHello')
+	# See <a
+	# href="https://github.com/ECF/Py4j-RemoteServicesProvider/blob/master/examples/org.eclipse.ecf.examples.hello/src/org/eclipse/ecf/examples/hello/IHello.java">IHello
+	# service interface</a>
+	@Instantiate('helloimpl-py4j', {'service.exported.interfaces': '*',  # Required for export
+	                                # Required to use py4j python provider for
+	                                # export
+	                                'service.exported.configs': 'ecf.py4j.host.python',
+	                                # Required to use osgi.async intent
+	                                'service.intents': ['osgi.async'],
+	                                'osgi.basic.timeout': 30000})  # Timeout associated with remote calls (in ms)
+	class Py4jHelloImpl(HelloImpl):
+	    '''
+	    All method impls handled by HelloImpl superclass.  See samples.rsa.helloimpl module.
+	    '''
+	    pass
+
+and here is the HelloImpl superclass (samples/helloimpl.py)
+
+.. code-block:: python
+
+	class HelloImpl(object):
+	    '''
+	    Implementation of Java org.eclipse.ecf.examples.hello.IHello service interface.
+	    This interface declares on normal/synchronous method ('sayHello') and two
+	    async methods as defined by the OSGi Remote Services osgi.async intent.  Note
+	    that the service.intents property above includes the 'osgi.async' intent.  It
+	    also declares a property 'osgi.basic.timeout' which will be used to assure that
+	    the remote methods timeout after the given number of milliseconds.
+	
+	    See the OSGi Remote Services specification at
+	
+	    https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html
+	
+	    The specification defines the standard properties given above.
+	
+	    '''
+	
+	    def sayHello(self, name='Not given', message='nothing'):
+	        '''
+	        Synchronous implementation of IHello.sayHello synchronous method.  The remote
+	        calling thread will be blocked until this is executed and responds
+	        '''
+	        print(
+	            "Python.sayHello called by: {0} with message: '{1}'".format(
+	                name, message))
+	        return "PythonSync says: Howdy {0} that's a nice runtime you got there".format(
+	            name)
+	
+	    def sayHelloAsync(self, name='Not given', message='nothing'):
+	        '''
+	        Implementation of IHello.sayHelloAsync.  This method will be executed via
+	        some thread, and the remote caller will not block.  This method should return
+	        either a String result (since the return type of IHello.sayHelloAsync is
+	        CompletableFuture<String>, OR a Future that returns a python string.  In this case,
+	        it returns the string directly.
+	        '''
+	        print(
+	            "Python.sayHelloAsync called by: {0} with message: '{1}'".format(
+	                name,
+	                message))
+	        return "PythonAsync says: Howdy {0} that's a nice runtime you got there".format(
+	            name)
+	
+	    def sayHelloPromise(self, name='Not given', message='nothing'):
+	        '''
+	        Implementation of IHello.sayHelloPromise.  This method will be executed via
+	        some thread, and the remote caller will not block.
+	        '''
+	        print(
+	            "Python.sayHelloPromise called by: {0} with message: '{1}'".format(
+	                name,
+	                message))
+	        return "PythonPromise says: Howdy {0} that's a nice runtime you got there".format(
+	            name)
 
 You can now go back to see other :ref:`Tutorials` or take a look at the
 :ref:`refcards`.
