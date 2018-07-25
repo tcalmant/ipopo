@@ -29,16 +29,19 @@ Starting the Python Sample
 In the ipopo home directory, start the top-level script for this sample:
 
 .. code-block:: none
+
     $ samples/run_rsa_py4java.py
 
 or
 
 .. code-block:: none
+
     $ python samples/run_rsa_py4java.py
 
 This should produce output to the Python std out like the following:
 
-::
+.. code-block:: none
+
     ** Pelix Shell prompt **
     Python IHello service consumer received sync response: Java says: Hi PythonSync, nice to see you
     done with sayHelloAsync method
@@ -51,7 +54,7 @@ This output indicates that
 1) The Python process connected to the Java process using the Py4j distribution provider
 2) RSA discovered and imported the Java-exported HelloImpl service
 3) RSA created a Python proxy for the IHello service instance hosted from Java
-4)  iPOPO injected the IHello proxy into the sample consumer iby 
+4) iPOPO injected the IHello proxy into the sample consumer iby 
 setting the self._helloservice requirement to the IHello proxy
 5) Calling the _validate method of the RemoteHelloConsumer class (in n samples/rsa/helloconsumer.py)
 
@@ -177,7 +180,6 @@ Note that at the same time as the Python-side console output above, in the Java 
     Java.sayHelloPromise called by PythonPromise with message: 'Hello Java'
 
 This is the output from the Java HelloImpl implementation code...e.g. 
-
 
 .. code-block:: java
 
