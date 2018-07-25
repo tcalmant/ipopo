@@ -38,7 +38,7 @@ or
 
     $ python samples/run_rsa_py4java.py
 
-This should produce output to the Python std out like the following:
+This should produce output to the console like the following:
 
 .. code-block:: console
 
