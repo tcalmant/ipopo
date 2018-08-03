@@ -9,6 +9,10 @@ It has been contributed by `Scott Lewis <https://github.com/scottslewis>`_,
 leader of the `Eclipse Communication Framework <http://www.eclipse.org/ecf/>`_
 project.
 
+This feature can be use to let multiple iPOPO and OSGi frameworks share their
+services.
+Note that Java is not mandatory when used only between iPOPO frameworks.
+
 .. note:: This is a brand new feature, which might still contain some bugs and
    might not work with all versions of Python (especially 2.7).
 
@@ -18,8 +22,8 @@ project.
 Links to ECF
 ============
 
-The Remote Service Admin implementation in iPOPO is highly tied with the
-Eclipse Communication Framework (implemented in Java).
+The Remote Service Admin implementation in iPOPO is based an architecture
+similar to the Eclipse Communication Framework (implemented in Java).
 Most of the concepts have been kept in the Python implementation, it is
 therefore useful to check the documentation of this Eclipse project.
 
@@ -31,8 +35,9 @@ therefore useful to check the documentation of this Eclipse project.
 
 Some pages of the wiki are related to the links between Java and Python worlds:
 
-* `Python for OSGi Services <https://wiki.eclipse.org/Tutorial:_Python_for_OSGi_Services>`_,
-  describing a non-iPOPO way to work with ECF
+* `OSGi R7 Remote Services between Python and Java <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java>`_
+  describes how to share remote services between an iPOPO Framework and an OSGi
+  Framework.
 
 Package description
 ===================
