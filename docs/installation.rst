@@ -143,4 +143,4 @@ As the *develop* installation mode uses symbolic links, you simply
 have to run ``git pull origin`` to update to the latest version of
 iPOPO in your virtual environment.
 
-You can now continue to :ref:`Quick-start`
+You can now continue to :ref:`quickstart`
