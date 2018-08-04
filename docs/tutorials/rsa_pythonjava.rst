@@ -10,8 +10,8 @@ Introduction
 This tutorial shows how to launch and use the sample application for `OSGi R7
 Remote Services Admin (RSA) between Python and Java <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java>`_.
 This sample shows
-how to use the iPOPO RSA impl to export and/or import remote
-services from/to a OSGi/Java process to a Python iPOPO process.
+how to use the :ref:`iPOPO RSA implementation <rsa>` to export and/or import
+remote services from/to a OSGi/Java process to a Python iPOPO process.
 
 Requirements
 ============
