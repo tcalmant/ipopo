@@ -300,7 +300,7 @@ class EndpointSubscriber(object):
     def _get_matching_endpoint_event_listeners(self, ed):
         result = []
         with self._discovered_endpoints_lock:
-            ls = self._endpoint_event_listeners.copy()
+            ls = self._endpoint_event_listeners[:]
         for l in ls:
             svc_ref = l[1]
             filters = get_string_plus_property_value(
