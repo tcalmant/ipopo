@@ -67,7 +67,7 @@ added in future releases.
 etcd Discovery
 --------------
 
-:Bundle: pelix.rsa.providers.discovery.etcd
+:Bundle: pelix.rsa.providers.discovery.discovery_etcd
 :Requires: *none*
 :Libraries: `python-etcd <https://github.com/jplana/python-etcd>`_
 
@@ -132,6 +132,8 @@ Py4J Distribution
 
 .. note:: This provider works only in Python 3
 
+This provider allows to share a Python service through a Py4J gateway.
+
 ================================== ============= ==============================
 Property                           Default value Description
 ================================== ============= ==============================
@@ -139,3 +141,6 @@ Property                           Default value Description
 ``ecf.py4j.pythonport``            25334         Port of the Python proxy
 ``ecf.py4j.defaultservicetimeout`` 30            Timeout before gateway timeout
 ================================== ============= ==============================
+
+A sample usage of this provider can be found in the tutorial section:
+:ref:`rsa_tutorial`.
