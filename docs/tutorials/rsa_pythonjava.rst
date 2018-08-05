@@ -31,6 +31,37 @@ or `start via Apache Karaf <https://wiki.eclipse.org/OSGi_R7_Remote_Services_bet
 
 Once the Java sample has been successfully started, proceed below.
 
+TL;DR
+-----
+
+.. note:: You can skip this part if you executed the Java sample following the
+   instructions above.
+
+It is recommended to read the whole Java part of the tutorial before
+continuing; however, for those who just want to see if "it works", here are the
+commands to execute the Java sample:
+
+.. code-block:: console
+
+   # Download Karaf from https://karaf.apache.org/download.html
+   wget http://apache.mediamirrors.org/karaf/4.2.0/apache-karaf-4.2.0.tar.gz
+   tar xzf apache-karaf-4.2.0.tar.gz
+   cd apache-karaf-4.2.0.tar.gz
+   ./bin/karaf
+
+Once inside karaf, run the following commands:
+
+.. code-block:: console
+
+   feature:repo-add ecf
+   feature:install -v ecf-rs-examples-python.java-hello
+
+This will add the ECF repository to the Karaf framework, then install and start
+all the necessary Java bundles.
+
+Wait for a XML representation of an endpoint (in EDEF format) to be printed
+out: the Java side of the tutorial is now ready.
+
 Starting the Python Sample
 ==========================
 
