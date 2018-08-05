@@ -34,6 +34,7 @@ generated_bundle.py
 .coverage.*
 htmlcov/
 tmp/
+.noseids
 
 # ConfigurationAdmin folder
 conf/
