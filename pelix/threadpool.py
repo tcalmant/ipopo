@@ -53,6 +53,83 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # ------------------------------------------------------------------------------
 
 
+class EventData(object):
+    """
+    A threading event with some associated data
+    """
+    def __init__(self):
+        """
+        Sets up the event
+        """
+        self.__event = threading.Event()
+        self.__data = None
+        self.__exception = None
+
+    @property
+    def data(self):
+        """
+        Returns the associated value
+        """
+        return self.__data
+
+    @property
+    def exception(self):
+        """
+        Returns the exception used to stop the wait() method
+        """
+        return self.__exception
+
+    def clear(self):
+        """
+        Clears the event
+        """
+        self.__event.clear()
+        self.__data = None
+        self.__exception = None
+
+    def is_set(self):
+        """
+        Checks if the event is set
+        """
+        return self.__event.is_set()
+
+    def set(self, data=None):
+        """
+        Sets the event
+        """
+        self.__data = data
+        self.__exception = None
+        self.__event.set()
+
+    def raise_exception(self, exception):
+        """
+        Raises an exception in wait()
+
+        :param exception: An Exception object
+        """
+        self.__data = None
+        self.__exception = exception
+        self.__event.set()
+
+    def wait(self, timeout=None):
+        """
+        Waits for the event or for the timeout
+
+        :param timeout: Wait timeout (in seconds)
+        :return: True if the event as been set, else False
+        """
+        # The 'or' part is for Python 2.6
+        result = self.__event.wait(timeout)
+        # pylint: disable=E0702
+        # Pylint seems to miss the "is None" check below
+        if self.__exception is None:
+            return result
+        else:
+            raise self.__exception
+
+# ------------------------------------------------------------------------------
+
+
 class FutureResult(object):
     """
     An object to wait for the result of a threaded execution

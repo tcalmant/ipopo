@@ -9,7 +9,7 @@ Cached thread pool tests
 # ------------------------------------------------------------------------------
 
 # Tested module
-import jsonrpclib.threadpool as threadpool
+import pelix.threadpool as threadpool
 
 # Standard library
 import threading
@@ -472,6 +472,7 @@ class ThreadPoolTest(unittest.TestCase):
         self.pool.join()
 
 # ------------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     unittest.main()
