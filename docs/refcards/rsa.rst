@@ -132,7 +132,10 @@ Py4J Distribution
 
 .. note:: This provider works only in Python 3
 
-This provider allows to share a Python service through a Py4J gateway.
+This provider allows to discover and share a Python service with its Py4J
+gateway and vice versa.
+
+It can be configured with the following properties:
 
 ================================== ============= ==============================
 Property                           Default value Description
