@@ -298,7 +298,7 @@ class IPopoEvent(object):
     """ A component factory has been unregistered """
 
     def __init__(self, kind, factory_name, component_name):
-        # type: (int, str, str) -> None
+        # type: (int, str, Optional[str]) -> None
         """
         Sets up the iPOPO event
 
@@ -312,7 +312,7 @@ class IPopoEvent(object):
         self.__component_name = component_name
 
     def get_component_name(self):
-        # type: () -> str
+        # type: () -> Optional[str]
         """
         Retrieves the name of the component associated to the event
 

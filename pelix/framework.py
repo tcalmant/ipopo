@@ -45,8 +45,8 @@ except ImportError:
     pass
 
 # Pelix beans and constants
-from pelix.constants import ACTIVATOR, ACTIVATOR_LEGACY, FRAMEWORK_UID, OSGI_FRAMEWORK_UUID, \
-    BundleException, FrameworkException
+from pelix.constants import ACTIVATOR, ACTIVATOR_LEGACY, FRAMEWORK_UID, \
+    OSGI_FRAMEWORK_UUID, BundleException, FrameworkException
 from pelix.internals.events import BundleEvent, ServiceEvent
 from pelix.internals.registry import EventDispatcher, ServiceRegistry, \
     ServiceReference, ServiceRegistration
@@ -1402,7 +1402,7 @@ class BundleContext(object):
         The listener must be a callable accepting a single parameter:\
 
            * **event** -- The description of the event
-             (a :class:`~BundleEvent` object).
+             (a :class:`~pelix.internals.events.BundleEvent` object).
 
         :param listener: The bundle listener to register
         :return: True if the listener has been registered, False if it already

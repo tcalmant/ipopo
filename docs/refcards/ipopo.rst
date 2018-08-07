@@ -46,7 +46,7 @@ API
 
 iPOPO components are handled through the iPOPO core service, which can itself
 be accessed through the Pelix API or the utility context manager
-:meth:`~use_ipopo`.
+:meth:`~pelix.ipopo.constants.use_ipopo`.
 The core service provides the ``pelix.ipopo.core`` specification.
 
 .. autofunction:: pelix.ipopo.constants.use_ipopo

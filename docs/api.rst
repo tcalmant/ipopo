@@ -39,3 +39,14 @@ It is useful to check the path of the source module, the version, etc.
 .. autoclass:: pelix.framework.Bundle
    :members:
    :inherited-members:
+
+Events Objects
+--------------
+
+Those objects are given to listeners when a bundle or a service event occurs.
+
+.. autoclass:: pelix.internals.events.BundleEvent
+   :members:
+
+.. autoclass:: pelix.internals.events.ServiceEvent
+   :members:

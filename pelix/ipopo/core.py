@@ -151,7 +151,10 @@ def _load_bundle_factories(bundle):
 
 class _IPopoService(object):
     """
-    The iPOPO registry and service
+    The iPOPO registry and service.
+
+    This service is registered automatically and **must not** be started
+    manually.
     """
     def __init__(self, bundle_context):
         # type: (BundleContext) -> None
@@ -453,7 +456,7 @@ class _IPopoService(object):
                 pass
 
     def _fire_ipopo_event(self, kind, factory_name, instance_name=None):
-        # type: (int, str, str) -> None
+        # type: (int, str, Optional[str]) -> None
         """
         Triggers an iPOPO event
 
@@ -987,26 +990,27 @@ class _IPopoService(object):
         Retrieves a snapshot of the given component instance.
         The result dictionary has the following keys:
 
-        * name: The component name
-        * factory: The name of the component factory
-        * bundle_id: The ID of the bundle providing the component factory
-        * state: The current component state
-        * services: A {Service ID → Service reference} dictionary, with all
-          services provided by the component
-        * dependencies: A dictionary associating field names with the following
-          dictionary:
+        * ``name``: The component name
+        * ``factory``: The name of the component factory
+        * ``bundle_id``: The ID of the bundle providing the component factory
+        * ``state``: The current component state
+        * ``services``: A ``{Service ID → Service reference}`` dictionary, with
+          all services provided by the component
+        * ``dependencies``: A dictionary associating field names with the
+          following dictionary:
 
-          * handler: The name of the type of the dependency handler
-          * filter (optional): The requirement LDAP filter
-          * optional: A flag indicating whether the requirement is optional or
-            not
-          * aggregate: A flag indicating whether the requirement is a set of
-            services or not
-          * binding: A list of the ServiceReference the component is bound to
+          * ``handler``: The name of the type of the dependency handler
+          * ``filter`` (optional): The requirement LDAP filter
+          * ``optional``: A flag indicating whether the requirement is optional
+            or not
+          * ``aggregate``: A flag indicating whether the requirement is a set
+            of services or not
+          * ``binding``: A list of the ServiceReference the component is bound
+            to
 
-        * properties: A dictionary key → value, with all properties of the
+        * ``properties``: A dictionary key → value, with all properties of the
           component. The value is converted to its string representation, to
-          avoid unexpected behaviors.
+          avoid unexpected behaviours.
 
         :param name: The name of a component instance
         :return: A dictionary of details
@@ -1022,7 +1026,7 @@ class _IPopoService(object):
             stored_instance = self.__instances[name]
             assert isinstance(stored_instance, StoredInstance)
             with stored_instance._lock:
-                result = {}  # type: Dict[Any, Any]
+                result = {}  # type: Dict[str, Any]
                 result["name"] = stored_instance.name
 
                 # Factory name
@@ -1104,25 +1108,26 @@ class _IPopoService(object):
                 return factory_context.bundle_context.get_bundle()
 
     def get_factory_details(self, name):
-        # type: (str) -> dict
+        # type: (str) -> Dict[str, Any]
         """
         Retrieves a dictionary with details about the given factory
 
-        * name: The factory name
-        * bundle: The Bundle object of the bundle providing the factory
-        * properties: Copy of the components properties defined by the factory
-        * requirements: List of the requirements defined by the factory
+        * ``name``: The factory name
+        * ``bundle``: The Bundle object of the bundle providing the factory
+        * ``properties``: Copy of the components properties defined by the
+          factory
+        * ``requirements``: List of the requirements defined by the factory
 
-          * id: Requirement ID (field where it is injected)
-          * specification: Specification of the required service
-          * aggregate: If True, multiple services will be injected
-          * optional: If True, the requirement is optional
+          * ``id``: Requirement ID (field where it is injected)
+          * ``specification``: Specification of the required service
+          * ``aggregate``: If True, multiple services will be injected
+          * ``optional``: If True, the requirement is optional
 
-        * services: List of the specifications of the services provided by
+        * ``services``: List of the specifications of the services provided by
           components of this factory
-        * handlers: Dictionary of the non-built-in handlers required by this
-          factory. The dictionary keys are handler IDs, and it contains a tuple
-          with:
+        * ``handlers``: Dictionary of the non-built-in handlers required by
+          this factory.
+          The dictionary keys are handler IDs, and it contains a tuple with:
 
           * A copy of the configuration of the handler (0)
           * A flag indicating if the handler is present or not

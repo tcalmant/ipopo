@@ -3,9 +3,12 @@
 Installation
 ============
 
-iPOPO depends on only one external library,
+iPOPO strongly depends on only one external library,
 `jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`_, which
 provides some utility methods and is required to enable remote services.
+It relies on other libraries for extended features, which are listed in the
+`requirements <https://github.com/tcalmant/ipopo/blob/master/requirements.txt>`_
+file.
 
 To install iPOPO, you will need Python 2.7, Python 3.4 or newer.
 iPOPO is constantly tested, using Tox and Travis-CI, on the following
