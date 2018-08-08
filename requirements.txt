@@ -7,3 +7,4 @@ paho-mqtt>=1.3
 sleekxmpp>=1.3
 zeroconf==0.19
 python-etcd>=0.4.5
+osgiservicebridge>=1.4.1

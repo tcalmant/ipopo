@@ -19,6 +19,7 @@ addons:
     - prosody-0.10
     - lua-bitop
     - lua-sec
+    - openjdk-8-jre-headless
 
 services:
   - mosquitto
