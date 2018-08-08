@@ -15,7 +15,7 @@ except ImportError:
     import unittest
 
 if sys.version_info[0] < 3:
-    unittest.skip("The Py4J provider requires Python 3.")
+    raise unittest.SkipTest("The Py4J provider requires Python 3.")
 
 # Standard library
 from contextlib import contextmanager
@@ -203,7 +203,7 @@ class Py4JTutorialTest(unittest.TestCase):
             )
             java.wait()
         except OSError:
-            unittest.skip("Java is not installed.")
+            raise unittest.SkipTest("Java is not installed.")
 
     @classmethod
     def tearDownClass(cls):
