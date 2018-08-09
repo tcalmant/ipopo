@@ -146,11 +146,13 @@ def use_karaf():
     """
     A context that prepares a Karaf installation before giving the hand
     """
+    karaf_dir = os.environ.get("KARAF_DIR")
+
     # Start Karaf
     start = time.time()
-    install_karaf()
+    install_karaf(karaf_dir)
     print("Karaf installed in", round(time.time() - start, 3), "s")
-    karaf_root = find_karaf_root()
+    karaf_root = find_karaf_root(karaf_dir)
 
     start = time.time()
     with start_karaf(karaf_root) as karaf:
