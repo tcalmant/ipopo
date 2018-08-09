@@ -4,6 +4,7 @@ python:
   - "3.4"
   - "3.5"
   - "3.6"
+  - "3.7"
 
 sudo: required
 
@@ -36,7 +37,6 @@ install:
   - sudo prosodyctl register user2 localhost foobar
   - sudo prosodyctl restart
   - pip install nose coverage coverage_enable_subprocess coveralls
-  - pip install pytest>=2.7.3 --upgrade
   - pip install https://github.com/tcalmant/jsonrpclib/archive/master.zip
   - pip install -r requirements.txt
 
