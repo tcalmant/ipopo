@@ -37,7 +37,7 @@ Once the Java sample has been successfully started, proceed below.
    instructions above.
 
 It is recommended to read the whole Java part of the tutorial before
-continuing; however, for those who just want to see if "it works", here are the
+continuing.  However, for those who just want to see things working, here are the
 commands to execute the Java sample:
 
 .. code-block:: console
