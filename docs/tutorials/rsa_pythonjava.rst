@@ -31,10 +31,9 @@ or `start via Apache Karaf <https://wiki.eclipse.org/OSGi_R7_Remote_Services_bet
 
 Once the Java sample has been successfully started, proceed below.
 
-TL;DR
 -----
 
-.. note:: You can skip this part if you executed the Java sample following the
+.. note:: You may skip this part if you executed the Java sample following the
    instructions above.
 
 It is recommended to read the whole Java part of the tutorial before
