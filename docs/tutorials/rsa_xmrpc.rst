@@ -1,362 +1,265 @@
-.. OSGi R7 Remote Services between Python and Java
+.. OSGi R7 Remote Services using XmlRpc transport
 
 .. _rsa_tutorial:
 
-OSGi R7 Remote Services between Python and Java
+OSGi R7 Remote Services using XmlRpc transport
 ###############################################
 
 :Authors: Scott Lewis, Thomas Calmant
 
 Introduction
 ============
-This tutorial shows how to launch and use the sample application for `OSGi R7
-Remote Services Admin (RSA) between Python and Java <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java>`_.
-This sample shows
-how to use the :ref:`iPOPO RSA implementation <rsa>` to export and/or import
-remote services from/to a OSGi/Java process to a Python iPOPO process.
+This tutorial shows how to create and run a simple remote service using the XmlRpc provider.  The XmlRpc distribution provider is one of several supported by the OSGi R7 RSA implementation.
 
 Requirements
 ============
-This sample requires Python 3 and launching the Java sample
-prior to proceeding with Starting the Python Sample below.
+This tutorial sample requires Python 3.4+ or Python 2.7, and version 0.8.0+ of iPOPO.
 
-It is also required to have installed the
-`osgiservicebridge <https://pypi.org/project/osgiservicebridge/>`_ package
-(using ``pip`` or ``easy_install``) before continuing.
+Defining the Remote Service as a Python class
+=============================================
 
-This `ECF tutorial page <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java>`_
-describes how to launch the Java-side sample.
-One can `start via Bndtools project template <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java#Launching_via_Bndtools_Project_Template>`_,
-or `start via Apache Karaf <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java#Launching_via_Apache_Karaf>`_.
+We'll start by defining a Python 'hello' service that can to be exported by RSA for remote access.
 
-Once the Java sample has been successfully started, proceed below.
+In the sample.rsa package is the helloimpl_xmlrpc module, containing the XmlRpcHelloImpl class
 
-TL;DR
------
+.. code-block:: python
 
-.. note:: You can skip this part if you executed the Java sample following the
-   instructions above.
+    @ComponentFactory("helloimpl-xmlrpc-factory")
+    @Provides(
+       "org.eclipse.ecf.examples.hello.IHello"
+    )  
+    @Instantiate(
+       "helloimpl-xmlrpc",
+       {
+           "service.intents": ["osgi.async"],  # Required to use osgi.async intent
+           "osgi.basic.timeout": 60000,
+       },
+    )
+    class XmlRpcHelloImpl(HelloImpl):
+       pass
 
-It is recommended to read the whole Java part of the tutorial before
-continuing; however, for those who just want to see if "it works", here are the
-commands to execute the Java sample:
+The XmlRpcHelloImpl class has no body/implementation as it inherits it's implementation from the HelloImpl class, which we will discuss in a moment.
 
-.. code-block:: console
+The important parts of this class declaration for remote services are @Provides class decorator and the 'service.intents' and 'osgi.basic.timeout' properties in the @Instantiate decorator.
 
-   # Download Karaf from https://karaf.apache.org/download.html
-   wget http://apache.mediamirrors.org/karaf/4.2.0/apache-karaf-4.2.0.tar.gz
-   tar xzf apache-karaf-4.2.0.tar.gz
-   cd apache-karaf-4.2.0.tar.gz
-   ./bin/karaf
+The @Provides class decorator gives the **name** of the service provided by this instance.   This is the name that consumers use to get access to this service, even if it's local-only (i.e. not a remote service).
 
-Once inside karaf, run the following commands:
+The 'service.intents' property is a standardized service property defined in the `OSGi R7 Remote Services Chapter 100 <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html>`.   'osgi.basic.timeout' gives a maximum time (milliseconds) that the consumer will wait for a response.
 
-.. code-block:: console
 
-   feature:repo-add ecf
-   feature:install -v ecf-rs-examples-python.java-hello
 
-This will add the ECF repository to the Karaf framework, then install and start
-all the necessary Java bundles.
+The XmlRpcHelloImpl class delegates all the actual implementation to the HelloImpl class, which has the code for the methods defined for the 'org.eclipse.ecf.examples.hello.IHello' service specification name, with the main method 'sayHello':
 
-Wait for a XML representation of an endpoint (in EDEF format) to be printed
-out: the Java side of the tutorial is now ready.
+.. code-block:: python
 
-Starting the Python Sample
-==========================
+    class HelloImpl(object):
+        def sayHello(self, name='Not given', message='nothing'):
+            print(
+                "Python.sayHello called by: {0} with message: '{1}'".format(
+                    name, message))
+            return "PythonSync says: Howdy {0} that's a nice runtime you got there".format(
+                name)
 
-In the iPOPO project root directory, start the top-level script for this
-sample:
+The sayHello method is invoked via a remote service consumer once the service has been exporting.
 
-.. code-block:: console
+Exporting the XmlRpcHelloImpl Service
+=====================================
 
-    $ python samples/run_rsa_py4java.py
-
-This should produce output to the console like the following:
+Go to the pelixhome directory and start the 'run_rsa_xmlrpc.py' main program
 
 .. code-block:: console
 
+    ipopo-0.8.0$ python -m samples.run_rsa_xmlrpc
     ** Pelix Shell prompt **
-    Python IHello service consumer received sync response: Java says: Hi PythonSync, nice to see you
+    $ 
+    
+To load the XmlRpcHelloImpl class type
+
+    $ start samples.rsa.helloimpl_xmlrpc
+    Bundle ID: 18
+    Starting bundle 18 (samples.rsa.helloimpl_xmlrpc)...
+
+The bundle number might not be 18...that is fine.
+
+If you list services using the 'sl' console command you should see an instance of IHello service
+
+.. code-block:: console
+
+    $ sl org.eclipse.ecf.examples.hello.IHello
+    +----+-------------------------------------------+--------------------------------------------------+---------+
+    | ID |              Specifications               |                      Bundle                      | Ranking |
+    +====+===========================================+==================================================+=========+
+    | 20 | ['org.eclipse.ecf.examples.hello.IHello'] | Bundle(ID=18, Name=samples.rsa.helloimpl_xmlrpc) | 0       |
+    +----+-------------------------------------------+--------------------------------------------------+---------+
+    1 services registered
+    
+The service id (20 in this case) may not be the same in your environment, but that is ok.
+
+To export this service instance as remote service and make it available for remote access, use the **exportservice** console command in the pelix console, giving the number (20 from above) of the service to export:
+
+.. code-block:: console
+
+    $ exportservice 20        # use the service id for the org.eclipse.ecf.examples.hello.IHello service if not 20
+    Service=ServiceReference(ID=20, Bundle=18, Specs=['org.eclipse.ecf.examples.hello.IHello']) exported by 1 providers. EDEF written to file=edef.xml
+    $
+    
+This means that the service has been successfully exported to localhost, port 8181.   These defaults are set in the run_rsa_xmlrpc.py main program.    
+
+Also as indicated, a file edef.xml has been written to the filesystem containing the OSGi standardized **edef**...that stands for endpoint decription extension language.  This is an xml format that gives all of the remote service meta-data required by OSGi Remote Services/Remote Service Admin.   
+
+Here's the edef.xml for the above export
+
+.. code-block:: xml
+
+    <?xml version='1.0' encoding='cp1252'?>
+    <endpoint-descriptions xmlns="http://www.osgi.org/xmlns/rsa/v1.0.0">
+            <endpoint-description>
+                    <property name="objectClass" value-type="String">
+                            <array>
+                                    <value>org.eclipse.ecf.examples.hello.IHello</value>
+                            </array>
+                    </property>
+                    <property name="remote.configs.supported" value-type="String">
+                            <array>
+                                    <value>ecf.xmlrpc.server</value>
+                            </array>
+                    </property>
+                    <property name="service.imported.configs" value-type="String">
+                            <array>
+                                    <value>ecf.xmlrpc.server</value>
+                            </array>
+                    </property>
+                    <property name="remote.intents.supported" value-type="String">
+                            <array>
+                                    <value>osgi.basic</value>
+                                    <value>osgi.async</value>
+                            </array>
+                    </property>
+                    <property name="service.intents" value-type="String">
+                            <array>
+                                    <value>osgi.async</value>
+                            </array>
+                    </property>
+                    <property name="endpoint.service.id" value="20" value-type="Long">
+                            </property>
+                    <property name="service.id" value="20" value-type="Long">
+                            </property>
+                    <property name="endpoint.framework.uuid" value="4d541077-ee2a-4d68-85f5-be529f89bec0" value-type="String">
+                            </property>
+                    <property name="endpoint.id" value="b96927ad-1d00-45ad-848a-716d6cde8443" value-type="String">
+                            </property>
+                    <property name="service.imported" value="true" value-type="String">
+                            </property>
+                    <property name="ecf.endpoint.id" value="http://127.0.0.1:8181/xml-rpc" value-type="String">
+                            </property>
+                    <property name="ecf.endpoint.id.ns" value="ecf.namespace.xmlrpc" value-type="String">
+                            </property>
+                    <property name="ecf.rsvc.id" value="3" value-type="Long">
+                            </property>
+                    <property name="ecf.endpoint.ts" value="1534119904514" value-type="Long">
+                            </property>
+                    <property name="osgi.basic.timeout" value="60000" value-type="Long">
+                            </property>
+            </endpoint-description>
+    </endpoint-descriptions>
+    
+Importing the XmlRpcHelloImpl Remote Service
+============================================
+
+For a consumer to use this remote service, another python process should be started using the same command:
+
+.. code-block:: console
+
+    ipopo-0.8.0$ python -m samples.run_rsa_xmlrpc
+    ** Pelix Shell prompt **
+    $ 
+    
+If you have started this second python process from the same location, all that's necessary to trigger the import of the remote service, and have a consumer sample start to call it's methods is to use the console **importservice** command:
+
+.. code-block:: console
+
+    $ importservice
+    Imported 1 endpoints from EDEF file=edef.xml
+    Python IHello service consumer received sync response: PythonSync says: Howdy PythonSync that's a nice runtime you got there
     done with sayHelloAsync method
     done with sayHelloPromise method
-    async response: JavaAsync says: Hi PythonAsync, nice to see you
-    promise response: JavaPromise says: Hi PythonPromise, nice to see you
+    Proxy service=ServiceReference(ID=21, Bundle=7, Specs=['org.eclipse.ecf.examples.hello.IHello']) imported. rsid=http://127.0.0.1:8181/xml-rpc:3
+    $ async response: PythonAsync says: Howdy PythonAsync that's a nice runtime you got there
+    promise response: PythonPromise says: Howdy PythonPromise that's a nice runtime you got there
 
-This output indicates that
+This indicates that the remote service was imported, and the methods on the remote service were called by the consumer.
 
-#. The Python process connected to the Java process using the Py4j distribution
-   provider
-#. RSA discovered and imported the Java-exported ``HelloImpl`` service
-#. RSA created a Python proxy for the ``IHello`` service instance hosted from
-   Java
-#. iPOPO injected the ``IHello`` proxy into the sample consumer by setting the
-   ``self._helloservice`` requirement to the ``IHello`` proxy
-#. iPOPO then called the ``_validate`` method of the ``RemoteHelloConsumer``
-   class (in ``samples/rsa/helloconsumer.py``)
-
-Here is the source code of the ``helloconsumer.py`` file, from the
-``samples/rsa`` folder:
+Here is the code for the consumer (also in samples/rsa/helloconsumer_xmlrpc.py)
 
 .. code-block:: python
 
-   from pelix.ipopo.decorators import (
-      ComponentFactory,
-      Instantiate,
-      Requires,
-      Validate,
-   )
+    from pelix.ipopo.decorators import ComponentFactory, Instantiate, Requires, Validate
 
+    from concurrent.futures import ThreadPoolExecutor
 
-   @ComponentFactory("remote-hello-consumer-factory")
-   # The '(service.imported=*)' filter only allows remote services to be injected
-   @Requires(
-      "_helloservice",
-      "org.eclipse.ecf.examples.hello.IHello",
-      False,
-      False,
-      "(service.imported=*)",
-      False,
-   )
-   @Instantiate("remote-hello-consumer")
-   class RemoteHelloConsumer(object):
-       def __init__(self):
-           self._helloservice = None
-         self._name = "Python"
-         self._msg = "Hello Java"
+    @ComponentFactory("remote-hello-consumer-factory")
+    # The '(service.imported=*)' filter only allows remote services to be injected
+    @Requires("_helloservice", "org.eclipse.ecf.examples.hello.IHello",
+              False, False, "(service.imported=*)", False)
+    @Instantiate("remote-hello-consumer")
+    class RemoteHelloConsumer(object):
 
-       @Validate
-       def _validate(self, bundle_context):
-           # call it!
-         resp = self._helloservice.sayHello(self._name + "Sync", self._msg)
-           print(
-               self._name, "IHello service consumer received sync response:", resp
-         )
+        def __init__(self):
+            self._helloservice = None
+            self._name = 'Python'
+            self._msg = 'Hello Java'
+            self._executor = ThreadPoolExecutor()
 
-           # call sayHelloAsync which returns Future and we add lambda to print
-           # the result when done
-           self._helloservice.sayHelloAsync(
-               self._name + "Async", self._msg
-         ).add_done_callback(lambda f: print("async response:", f.result()))
-           print("done with sayHelloAsync method")
+        @Validate
+        def _validate(self, bundle_context):
+            # call it!
+            resp = self._helloservice.sayHello(self._name + 'Sync', self._msg)
+            print(
+                "{0} IHello service consumer received sync response: {1}".format(
+                    self._name,
+                    resp))
+            # call sayHelloAsync which returns Future and we add lambda to print
+            # the result when done
+            self._executor.submit(
+                self._helloservice.sayHelloAsync,
+                self._name + 'Async',
+                self._msg).add_done_callback(
+                lambda f: print(
+                    'async response: {0}'.format(
+                        f.result())))
+            print("done with sayHelloAsync method")
+            # call sayHelloAsync which returns Future and we add lambda to print
+            # the result when done
+            self._executor.submit(
+                self._helloservice.sayHelloPromise,
+                self._name + 'Promise',
+                self._msg).add_done_callback(
+                lambda f: print(
+                    'promise response: {0}'.format(
+                        f.result())))
+            print("done with sayHelloPromise method")
 
-           # call sayHelloAsync which returns Future and we add lambda to print
-           # the result when done
-           self._helloservice.sayHelloPromise(
-               self._name + "Promise", self._msg
-         ).add_done_callback(lambda f: print("promise response:", f.result()))
-           print("done with sayHelloPromise method")
-
-When the ``_validate`` method is called by iPOPO, it calls the
-``self._helloservice.sayHello`` synchronous method and prints out the result
-(``resp``) to the console:
+For having this remote service injected, the important part of things is the @Requires decorator
 
 .. code-block:: python
 
-    @Validate
-    def _validate(self, bundle_context):
-        # call it!
-        resp = self._helloservice.sayHello(self._name + "Sync", self._msg)
-        print(
-            self._name, "IHello service consumer received sync response:", resp
-        )
+    @Requires("_helloservice", "org.eclipse.ecf.examples.hello.IHello",
+              False, False, "(service.imported=*)", False)
 
-The print in the code above is responsible for the console output:
-
-.. code-block:: console
-
-   Python IHello service consumer received sync response:
-   Java says: Hi PythonSync, nice to see you
-
-Then the ``sayHelloAsync`` method is called:
+This gives the specification name required **org.eclipse.ecf.examples.hello.IHello**, and it also gives an OSGi filter
 
 .. code-block:: python
 
-    self._helloservice.sayHelloAsync(
-      self._name + "Async", self._msg
-   ).add_done_callback(lambda f: print("async response:", f.result()))
-    print("done with sayHelloAsync method")
+    "(service.imported=*)"
+    
+As per the `Remote Service spec <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html#i1710847>` this requires that the IHello service is a remote service, as all  proxies must have the **service.imported** property set, indicating that it was imported.
 
-The print is responsible for the console output:
+When **importservice** is executed it 
 
-.. code-block:: console
-
-   done with sayHelloAsync method
-
-Then the ``sayHelloPromise`` method is called:
-
-.. code-block:: python
-
-    self._helloservice.sayHelloPromise(
-      self._name + "Promise", self._msg
-   ).add_done_callback(lambda f: print("promise response:", f.result()))
-    print("done with sayHelloPromise method")
-
-Resulting in the console output:
-
-.. code-block:: console
-
-   done with sayHelloPromise method
-
-Note that the async response and promise response are received after the
-``print('done with sayHelloPromise')`` statement.
-Once the remote (Java) call is completed, the lambda expression callback is
-executed via ``Future.add_done_callback``.
-This results in the output ordering of:
-
-.. code-block:: console
-
-   Python IHello service consumer received sync response: Java says: Hi PythonSync, nice to see you
-   done with sayHelloAsync method
-   done with sayHelloPromise method
-   async response: JavaAsync says: Hi PythonAsync, nice to see you
-   promise response: JavaPromise says: Hi PythonPromise, nice to see you
-
-The 'done...' prints out prior to the execution of the print in the lambda
-expression callback passed to
-`Future.add_done_callback <https://docs.python.org/3/library/concurrent.futures.html>`_.
-
-Note that at the same time as the Python-side console output above, in the Java
-console this will appear:
-
-.. code-block:: console
-
-   Java.sayHello called by PythonSync with message: 'Hello Java'
-   Java.sayHelloAsync called by PythonAsync with message: 'Hello Java'
-   Java.sayHelloPromise called by PythonPromise with message: 'Hello Java'
-
-This is the output from the Java ``HelloImpl`` implementation code:
-
-.. code-block:: java
-
-   public String sayHello(String from, String message) {
-       System.out.println("Java.sayHello called by "+from+" with message: '"+message+"'");
-       return "Java says: Hi "+from + ", nice to see you";
-   }
-
-Exporting a Hello implementation from Python to Java
-====================================================
-
-In the iPOPO console, give the following command to register and export a
-``IHello`` service instance from Python impl to Java consumer.
-
-.. code-block:: console
-
-   $ start samples.rsa.helloimpl_py4j
-
-This should result in the Python console output
-
-.. code-block:: console
-
-   $ start samples.rsa.helloimpl_py4j
-   Bundle ID: 18
-   Starting bundle 18 (samples.rsa.helloimpl_py4j)...
-   Python.sayHello called by: Java with message: 'Hello Python'
-   Python.sayHelloAsync called by: JavaAsync with message: 'Howdy Python'
-   Python.sayHelloPromise called by: JavaPromise with message: 'Howdy Python'
-
-Here is the Python hello implementation from ``samples/helloimpl_py4j.py``:
-
-.. code-block:: python
-
-   from pelix.ipopo.decorators import Instantiate, ComponentFactory, Provides
-   from samples.rsa.helloimpl import HelloImpl
-
-
-   @ComponentFactory("helloimpl-py4j-factory")
-   # Provides IHello interface as specified by Java interface.
-   @Provides("org.eclipse.ecf.examples.hello.IHello")
-   # See https://github.com/ECF/Py4j-RemoteServicesProvider/blob/master/examples/org.eclipse.ecf.examples.hello/src/org/eclipse/ecf/examples/hello/IHello.java
-   @Instantiate(
-      "helloimpl-py4j",
-      {
-         "service.exported.interfaces": "*",  # Required for export
-         # Required to use py4j python provider for export
-         "service.exported.configs": "ecf.py4j.host.python",
-         # Required to use osgi.async intent
-         "service.intents": ["osgi.async"],
-         "osgi.basic.timeout": 30000,
-      },
-   )  # Timeout associated with remote calls (in ms)
-   class Py4jHelloImpl(HelloImpl):
-      """
-      All method implementations handled by HelloImpl super-class.
-
-      See samples.rsa.helloimpl module.
-      """
-      pass
-
-
-and here is the ``HelloImpl`` super-class from ``samples/helloimpl.py``:
-
-.. code-block:: python
-
-   class HelloImpl(object):
-      """
-      Implementation of Java org.eclipse.ecf.examples.hello.IHello service
-      interface.
-      This interface declares on normal/synchronous method ('sayHello') and two
-      async methods as defined by the OSGi Remote Services osgi.async intent.
-
-      Note that the service.intents property above includes the 'osgi.async'
-      intent. It also declares a property 'osgi.basic.timeout' which will be used
-      to assure that the remote methods timeout after the given number of
-      milliseconds.
-
-      See the OSGi Remote Services specification at:
-      https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html
-
-      The specification defines the standard properties given above.
-      """
-
-      def sayHello(self, name="Not given", message="nothing"):
-         """
-         Synchronous implementation of IHello.sayHello synchronous method.
-         The remote calling thread will be blocked until this is executed and
-         responds.
-         """
-         print(
-            "Python.sayHello called by: {0} with message: '{1}'".format(
-                  name, message
-            )
-         )
-         return "PythonSync says: Howdy {0} that's a nice runtime you got there".format(
-            name
-         )
-
-      def sayHelloAsync(self, name="Not given", message="nothing"):
-         """
-         Implementation of IHello.sayHelloAsync.
-         This method will be executed via some thread, and the remote caller
-         will not block.
-         This method should return either a String result (since the return type
-         of IHello.sayHelloAsync is CompletableFuture<String>, OR a Future that
-         returns a python string.  In this case, it returns the string directly.
-         """
-         print(
-            "Python.sayHelloAsync called by: {0} with message: '{1}'".format(
-                  name, message
-            )
-         )
-         return "PythonAsync says: Howdy {0} that's a nice runtime you got there".format(
-            name
-         )
-
-      def sayHelloPromise(self, name="Not given", message="nothing"):
-         """
-         Implementation of IHello.sayHelloPromise.
-         This method will be executed via some thread, and the remote caller
-         will not block.
-         """
-         print(
-            "Python.sayHelloPromise called by: {0} with message: '{1}'".format(
-                  name, message
-            )
-         )
-         return "PythonPromise says: Howdy {0} that's a nice runtime you got there".format(
-            name
-         )
-
+#1 Reads the edef.xml from filesystem (i.e. 'discovers the service')
+#2 Given the edef meta-data RSA creates a proxy for the service
+#3 The proxy is injected by iPOPO into the RemoteHelloConsumer._helloservice member
+#4 The _activated method is called by iPOPO, which uses the self._helloservice proxy to send the method calls to the remote service, using http and xmlrpc to serialize the sayHello method arguments, send the request via http, get the return value back, and print the return value to the consumer's console.
 
 You can now go back to see other :ref:`Tutorials` or take a look at the
 :ref:`refcards`.
