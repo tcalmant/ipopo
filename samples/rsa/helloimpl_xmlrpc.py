@@ -33,7 +33,8 @@ from samples.rsa.helloimpl import HelloImpl
 @Instantiate(
     "helloimpl-xmlrpc",
     {
-        "service.intents": ["osgi.async"],  # Required to use osgi.async intent
+        # uncomment to automatically export upon creation
+        # "service.exported.interfaces":"*",
         "osgi.basic.timeout": 60000,
     },
 )
