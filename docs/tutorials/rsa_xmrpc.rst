@@ -180,7 +180,7 @@ This means that the service has been successfully exported.   To see this use th
    
 Note that listexports produced a small table with **Endpoint ID**, **Container ID**, and **Service ID** columns.   As shown above, if the Endpoint ID is copyed and used in listexports, it will then print out the endpoint description (xml) for the newly-created endpoint.
 
-Also as indicated in the exportservice command output, a file edef.xml has also been written to the filesystem containing the endpoint description xml (known as EDEF).  EDEF is `standardized xml format <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteserviceadmin.html#i1889341>`_ that gives all of the remote service meta-data required for a consumer to import an endpoint.   The edef.xml file will contain the same xml printed to the console via the 'listexports b96927ad-1d00-45ad-848a-716d6cde8443' console command.
+Also as indicated in the exportservice command output, a file edef.xml has also been written to the filesystem containing the endpoint description xml known as EDEF).  `EDEF is a standardized xml format <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteserviceadmin.html#i1889341>`_ that gives all of the remote service meta-data required for a consumer to import an endpoint.   The edef.xml file will contain the same xml printed to the console via the 'listexports b96927ad-1d00-45ad-848a-716d6cde8443' console command.
    
 Importing the XmlRpcHelloImpl Remote Service
 ============================================
