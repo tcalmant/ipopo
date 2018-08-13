@@ -15,8 +15,8 @@ Requirements
 ============
 This tutorial sample requires Python 3.4+ or Python 2.7, and version 0.8.0+ of iPOPO.
 
-Defining the Remote Service as a Python class
-=============================================
+Defining the Remote Service with a Python Class
+===============================================
 
 We'll start by defining a Python 'hello' service that can to be exported by RSA for remote access.
 
@@ -46,7 +46,8 @@ The @Provides class decorator gives the **name** of the service provided by this
 
 The 'service.intents' property is a standardized service property defined in the `OSGi R7 Remote Services Chapter 100 <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html>`.   'osgi.basic.timeout' gives a maximum time (milliseconds) that the consumer will wait for a response.
 
-
+The HelloImpl Implementation
+============================
 
 The XmlRpcHelloImpl class delegates all the actual implementation to the HelloImpl class, which has the code for the methods defined for the 'org.eclipse.ecf.examples.hello.IHello' service specification name, with the main method 'sayHello':
 
@@ -62,8 +63,8 @@ The XmlRpcHelloImpl class delegates all the actual implementation to the HelloIm
 
 The sayHello method is invoked via a remote service consumer once the service has been exporting.
 
-Exporting the XmlRpcHelloImpl Service
-=====================================
+Exporting the XmlRpcHelloImpl as a Remote Service
+=================================================
 
 Go to the pelixhome directory and start the 'run_rsa_xmlrpc.py' main program
 
