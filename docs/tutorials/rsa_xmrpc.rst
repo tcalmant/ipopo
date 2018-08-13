@@ -303,7 +303,7 @@ To export automatically upon service registration, all that need be done is to u
     class XmlRpcHelloImpl(HelloImpl):
        pass
 
-Now, when this service is instantiated, it will also be automatically exported, and so it won't be necessary to use the exportservice command.
+Unlike in the example above, when this service is instantiated and registered, it will also be automatically exported, making unnecessary to use the exportservice command.
 
 You can now go back to see other :ref:`Tutorials` or take a look at the
 :ref:`refcards`.
