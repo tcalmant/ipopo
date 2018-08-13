@@ -24,27 +24,34 @@ In the sample.rsa package is the helloimpl_xmlrpc module, containing the XmlRpcH
 
 .. code-block:: python
 
-    @ComponentFactory("helloimpl-xmlrpc-factory")
-    @Provides(
+   @ComponentFactory("helloimpl-xmlrpc-factory")
+   @Provides(
        "org.eclipse.ecf.examples.hello.IHello"
-    )  
-    @Instantiate(
+   )     
+   @Instantiate(
        "helloimpl-xmlrpc",
        {
-           "service.intents": ["osgi.async"],  # Required to use osgi.async intent
+           # uncomment to automatically export upon creation
+           # "service.exported.interfaces":"*",
            "osgi.basic.timeout": 60000,
        },
-    )
-    class XmlRpcHelloImpl(HelloImpl):
+   )
+   class XmlRpcHelloImpl(HelloImpl):
        pass
-
+    
 The XmlRpcHelloImpl class has no body/implementation as it inherits it's implementation from the HelloImpl class, which we will discuss in a moment.
 
-The important parts of this class declaration for remote services are @Provides class decorator and the 'service.intents' and 'osgi.basic.timeout' properties in the @Instantiate decorator.
+The important parts of this class declaration for remote services are @Provides class decorator and the commented-out **service.exported.interfaces** and **osgi.basic.timeout** properties in the @Instantiate decorator.
 
-The @Provides class decorator gives the **name** of the service provided by this instance.   This is the name that consumers use to get access to this service, even if it's local-only (i.e. not a remote service).
+The @Provides class decorator gives the **name** of the service specification provided by this instance.   This is the name that both local and remote consumers use to lookup this service, even if it's local-only (i.e. not a remote service).  In this case, since the original IHello interface is a java interface class, the fully-qualified name of the `interface class is used <https://github.com/ECF/Py4j-RemoteServicesProvider/blob/master/examples/org.eclipse.ecf.examples.hello/src/org/eclipse/ecf/examples/hello/IHello.java>`.   For an example of Java<->Python remote services see `this tutorial <https://github.com/tcalmant/ipopo/blob/rsa-integration/docs/tutorials/rsa_pythonjava.rst>`.
 
-The 'service.intents' property is a standardized service property defined in the `OSGi R7 Remote Services Chapter 100 <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html>`.   'osgi.basic.timeout' gives a maximum time (milliseconds) that the consumer will wait for a response.
+For Python-only remote services it's not really necessary for this service specification be the name of a Java class, any unique String could have been used.
+
+The **osgi.basic.timeout** is an optional property that gives a maximum time (in milliseconds) that the consumer will wait for a response before timing out.
+
+The **service.exported.interfaces** property is a `required property for remote service export <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html#i1710847>`.   If one wants to have a remote service exported immediately upon instantiation and registration as an iPOPO service, this property can be set to value '*' which means to export all service interfaces.
+
+The **service.exported.interfaces** property is commented out so that it is **not** exported immediately upon instantiation and registration.   Instead, for this tutorial the export is performed via iPOPO console commands.  If these comments were to be removed, the RSA impl will export this service as soon as it is instantiated and registered, making it unnecessary to explicitly export the service as shown in **Exporting the XmlRpcHelloImpl as a Remote Service** section below.
 
 The HelloImpl Implementation
 ============================
@@ -74,13 +81,15 @@ Go to the pelixhome directory and start the 'run_rsa_xmlrpc.py' main program
     ** Pelix Shell prompt **
     $ 
     
-To load the XmlRpcHelloImpl class type
+To load the module and instantiate and register an XmlRpcHelloImpl instance type
+
+.. code-block:: console
 
     $ start samples.rsa.helloimpl_xmlrpc
     Bundle ID: 18
     Starting bundle 18 (samples.rsa.helloimpl_xmlrpc)...
 
-The bundle number might not be 18...that is fine.
+In your environment, bundle number might not be 18...that is fine.
 
 If you list services using the 'sl' console command you should see an instance of IHello service
 
@@ -94,7 +103,7 @@ If you list services using the 'sl' console command you should see an instance o
     +----+-------------------------------------------+--------------------------------------------------+---------+
     1 services registered
     
-The service id (20 in this case) may not be the same in your environment, but that is ok.
+The service ID (20 in this case) may not be the same in your environment...again that is ok...but make a note of what the service ID is.
 
 To export this service instance as remote service and make it available for remote access, use the **exportservice** console command in the pelix console, giving the number (20 from above) of the service to export:
 
@@ -104,66 +113,75 @@ To export this service instance as remote service and make it available for remo
     Service=ServiceReference(ID=20, Bundle=18, Specs=['org.eclipse.ecf.examples.hello.IHello']) exported by 1 providers. EDEF written to file=edef.xml
     $
     
-This means that the service has been successfully exported to localhost, port 8181.   These defaults are set in the run_rsa_xmlrpc.py main program.    
+This means that the service has been successfully exported.   To see this use the 'listexports' console command:
 
-Also as indicated, a file edef.xml has been written to the filesystem containing the OSGi standardized **edef**...that stands for endpoint decription extension language.  This is an xml format that gives all of the remote service meta-data required by OSGi Remote Services/Remote Service Admin.   
+.. code-block:: console
 
-Here's the edef.xml for the above export
+   $ listexports
+   +--------------------------------------+-------------------------------+------------+
+   |             Endpoint ID              |         Container ID          | Service ID |
+   +======================================+===============================+============+
+   | b96927ad-1d00-45ad-848a-716d6cde8443 | http://127.0.0.1:8181/xml-rpc | 20         |
+   +--------------------------------------+-------------------------------+------------+
+   $ listexports b96927ad-1d00-45ad-848a-716d6cde8443
+   Endpoint description for endpoint.id=b96927ad-1d00-45ad-848a-716d6cde8443:
+   <?xml version='1.0' encoding='cp1252'?>
+   <endpoint-descriptions xmlns="http://www.osgi.org/xmlns/rsa/v1.0.0">
+           <endpoint-description>
+                   <property name="objectClass" value-type="String">
+                           <array>
+                                   <value>org.eclipse.ecf.examples.hello.IHello</value>
+                           </array>
+                   </property>
+                   <property name="remote.configs.supported" value-type="String">
+                           <array>
+                                   <value>ecf.xmlrpc.server</value>
+                           </array>
+                   </property>
+                   <property name="service.imported.configs" value-type="String">
+                           <array>
+                                   <value>ecf.xmlrpc.server</value>
+                           </array>
+                   </property>
+                   <property name="remote.intents.supported" value-type="String">
+                           <array>
+                                   <value>osgi.basic</value>
+                                   <value>osgi.async</value>
+                           </array>
+                   </property>
+                   <property name="service.intents" value-type="String">
+                           <array>
+                                   <value>osgi.async</value>
+                           </array>
+                   </property>
+                   <property name="endpoint.service.id" value="20" value-type="Long">
+                           </property>
+                   <property name="service.id" value="20" value-type="Long">
+                           </property>
+                   <property name="endpoint.framework.uuid" value="4d541077-ee2a-4d68-85f5-be529f89bec0" value-type="String">
+                           </property>
+                   <property name="endpoint.id" value="b96927ad-1d00-45ad-848a-716d6cde8443" value-type="String">
+                           </property>
+                   <property name="service.imported" value="true" value-type="String">
+                           </property>
+                   <property name="ecf.endpoint.id" value="http://127.0.0.1:8181/xml-rpc" value-type="String">
+                           </property>
+                   <property name="ecf.endpoint.id.ns" value="ecf.namespace.xmlrpc" value-type="String">
+                           </property>
+                   <property name="ecf.rsvc.id" value="3" value-type="Long">
+                           </property>
+                   <property name="ecf.endpoint.ts" value="1534119904514" value-type="Long">
+                           </property>
+                   <property name="osgi.basic.timeout" value="60000" value-type="Long">
+                           </property>
+           </endpoint-description>
+   </endpoint-descriptions>
+   $
+   
+Note that listexports produced a small table with **Endpoint ID**, **Container ID**, and **Service ID** columns.   As shown above, if the Endpoint ID is copyed and used in listexports, it will then print out the endpoint description (xml) for the newly-created endpoint.
 
-.. code-block:: xml
-
-    <?xml version='1.0' encoding='cp1252'?>
-    <endpoint-descriptions xmlns="http://www.osgi.org/xmlns/rsa/v1.0.0">
-            <endpoint-description>
-                    <property name="objectClass" value-type="String">
-                            <array>
-                                    <value>org.eclipse.ecf.examples.hello.IHello</value>
-                            </array>
-                    </property>
-                    <property name="remote.configs.supported" value-type="String">
-                            <array>
-                                    <value>ecf.xmlrpc.server</value>
-                            </array>
-                    </property>
-                    <property name="service.imported.configs" value-type="String">
-                            <array>
-                                    <value>ecf.xmlrpc.server</value>
-                            </array>
-                    </property>
-                    <property name="remote.intents.supported" value-type="String">
-                            <array>
-                                    <value>osgi.basic</value>
-                                    <value>osgi.async</value>
-                            </array>
-                    </property>
-                    <property name="service.intents" value-type="String">
-                            <array>
-                                    <value>osgi.async</value>
-                            </array>
-                    </property>
-                    <property name="endpoint.service.id" value="20" value-type="Long">
-                            </property>
-                    <property name="service.id" value="20" value-type="Long">
-                            </property>
-                    <property name="endpoint.framework.uuid" value="4d541077-ee2a-4d68-85f5-be529f89bec0" value-type="String">
-                            </property>
-                    <property name="endpoint.id" value="b96927ad-1d00-45ad-848a-716d6cde8443" value-type="String">
-                            </property>
-                    <property name="service.imported" value="true" value-type="String">
-                            </property>
-                    <property name="ecf.endpoint.id" value="http://127.0.0.1:8181/xml-rpc" value-type="String">
-                            </property>
-                    <property name="ecf.endpoint.id.ns" value="ecf.namespace.xmlrpc" value-type="String">
-                            </property>
-                    <property name="ecf.rsvc.id" value="3" value-type="Long">
-                            </property>
-                    <property name="ecf.endpoint.ts" value="1534119904514" value-type="Long">
-                            </property>
-                    <property name="osgi.basic.timeout" value="60000" value-type="Long">
-                            </property>
-            </endpoint-description>
-    </endpoint-descriptions>
-    
+Also as indicated in the exportservice command output, a file edef.xml has also been written to the filesystem containing the endpoint description xml (known as EDEF).  EDEF is `standardized xml format <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteserviceadmin.html#i1889341>` that gives all of the remote service meta-data required for a consumer to import an endpoint.   The edef.xml file will contain the same xml printed to the console via the 'listexports b96927ad-1d00-45ad-848a-716d6cde8443' console command.
+   
 Importing the XmlRpcHelloImpl Remote Service
 ============================================
 
@@ -255,7 +273,7 @@ This gives the specification name required **org.eclipse.ecf.examples.hello.IHel
     
 As per the `Remote Service spec <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html#i1710847>` this requires that the IHello service is a remote service, as all  proxies must have the **service.imported** property set, indicating that it was imported.
 
-When **importservice** is executed it 
+When **importservice** is executed the RSA implementation does the following: 
 
  #. Reads the edef.xml from filesystem (i.e. 'discovers the service')
  #. Create a local proxy for the remote service using the edef.xml
@@ -263,6 +281,29 @@ When **importservice** is executed it
  #. The _activated method is called by iPOPO, which uses the self._helloservice proxy to send the method calls to the remote service, using http and xmlrpc to serialize the sayHello method arguments, send the request via http, get the return value back, and print the return value to the consumer's console.
 
 Note that with Export, rather than using the console's **exportservice** command, it may be invoked programmatically, or automatically by the topology manager (for example upon service registration).   For Import, the **importservice** command may also be invoked automatically, or via remote service discovery (e.g. etcd, zookeeper, zeroconf, custom, etc).   The use of the console commands in this example was to demonstrate the dynamics and flexibility provided by the OSGi R7-compliant RSA implementation.
+
+Exporting Automatically upon Service Registration
+=================================================
+
+To export automatically upon service registration, all that need be done is to un-comment the setting the **service.exported.interfaces** property in the @Instantiate decorator:
+
+.. code-block:: python
+
+   @ComponentFactory("helloimpl-xmlrpc-factory")
+   @Provides(
+       "org.eclipse.ecf.examples.hello.IHello"
+   ) 
+   @Instantiate(
+       "helloimpl-xmlrpc",
+       {
+           "service.exported.interfaces": "*",
+           "osgi.basic.timeout": 60000,
+       },
+   )
+   class XmlRpcHelloImpl(HelloImpl):
+       pass
+
+Now, when this service is instantiated, it will also be automatically exported, and so it won't be necessary to use the exportservice command.
 
 You can now go back to see other :ref:`Tutorials` or take a look at the
 :ref:`refcards`.
