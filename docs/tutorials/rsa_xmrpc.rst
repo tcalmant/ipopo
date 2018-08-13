@@ -43,13 +43,13 @@ The XmlRpcHelloImpl class has no body/implementation as it inherits it's impleme
 
 The important parts of this class declaration for remote services are @Provides class decorator and the commented-out **service.exported.interfaces** and **osgi.basic.timeout** properties in the @Instantiate decorator.
 
-The @Provides class decorator gives the **name** of the service specification provided by this instance.   This is the name that both local and remote consumers use to lookup this service, even if it's local-only (i.e. not a remote service).  In this case, since the original IHello interface is a java interface class, the fully-qualified name of the `interface class is used <https://github.com/ECF/Py4j-RemoteServicesProvider/blob/master/examples/org.eclipse.ecf.examples.hello/src/org/eclipse/ecf/examples/hello/IHello.java>`.   For an example of Java<->Python remote services see `this tutorial <https://github.com/tcalmant/ipopo/blob/rsa-integration/docs/tutorials/rsa_pythonjava.rst>`.
+The @Provides class decorator gives the **name** of the service specification provided by this instance.   This is the name that both local and remote consumers use to lookup this service, even if it's local-only (i.e. not a remote service).  In this case, since the original IHello interface is a java interface class, the fully-qualified name of the `interface class is used <https://github.com/ECF/Py4j-RemoteServicesProvider/blob/master/examples/org.eclipse.ecf.examples.hello/src/org/eclipse/ecf/examples/hello/IHello.java>`_.   For an example of Java<->Python remote services see `this tutorial <https://github.com/tcalmant/ipopo/blob/rsa-integration/docs/tutorials/rsa_pythonjava.rst>`_.
 
 For Python-only remote services it's not really necessary for this service specification be the name of a Java class, any unique String could have been used.
 
 The **osgi.basic.timeout** is an optional property that gives a maximum time (in milliseconds) that the consumer will wait for a response before timing out.
 
-The **service.exported.interfaces** property is a `required property for remote service export <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html#i1710847>`.   If one wants to have a remote service exported immediately upon instantiation and registration as an iPOPO service, this property can be set to value '*' which means to export all service interfaces.
+The **service.exported.interfaces** property is a `required property for remote service export <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html#i1710847>`_.   If one wants to have a remote service exported immediately upon instantiation and registration as an iPOPO service, this property can be set to value '*' which means to export all service interfaces.
 
 The **service.exported.interfaces** property is commented out so that it is **not** exported immediately upon instantiation and registration.   Instead, for this tutorial the export is performed via iPOPO console commands.  If these comments were to be removed, the RSA impl will export this service as soon as it is instantiated and registered, making it unnecessary to explicitly export the service as shown in **Exporting the XmlRpcHelloImpl as a Remote Service** section below.
 
@@ -117,16 +117,16 @@ This means that the service has been successfully exported.   To see this use th
 
 .. code-block:: console
 
-   $ listexports
-   +--------------------------------------+-------------------------------+------------+
-   |             Endpoint ID              |         Container ID          | Service ID |
-   +======================================+===============================+============+
-   | b96927ad-1d00-45ad-848a-716d6cde8443 | http://127.0.0.1:8181/xml-rpc | 20         |
-   +--------------------------------------+-------------------------------+------------+
-   $ listexports b96927ad-1d00-45ad-848a-716d6cde8443
-   Endpoint description for endpoint.id=b96927ad-1d00-45ad-848a-716d6cde8443:
-   <?xml version='1.0' encoding='cp1252'?>
-   <endpoint-descriptions xmlns="http://www.osgi.org/xmlns/rsa/v1.0.0">
+    $ listexports
+    +--------------------------------------+-------------------------------+------------+
+    |             Endpoint ID              |         Container ID          | Service ID |
+    +======================================+===============================+============+
+    | b96927ad-1d00-45ad-848a-716d6cde8443 | http://127.0.0.1:8181/xml-rpc | 20         |
+    +--------------------------------------+-------------------------------+------------+
+    $ listexports b96927ad-1d00-45ad-848a-716d6cde8443
+    Endpoint description for endpoint.id=b96927ad-1d00-45ad-848a-716d6cde8443:
+    <?xml version='1.0' encoding='cp1252'?>
+    <endpoint-descriptions xmlns="http://www.osgi.org/xmlns/rsa/v1.0.0">
            <endpoint-description>
                    <property name="objectClass" value-type="String">
                            <array>
@@ -175,12 +175,12 @@ This means that the service has been successfully exported.   To see this use th
                    <property name="osgi.basic.timeout" value="60000" value-type="Long">
                            </property>
            </endpoint-description>
-   </endpoint-descriptions>
-   $
+    </endpoint-descriptions>
+    $
    
 Note that listexports produced a small table with **Endpoint ID**, **Container ID**, and **Service ID** columns.   As shown above, if the Endpoint ID is copyed and used in listexports, it will then print out the endpoint description (xml) for the newly-created endpoint.
 
-Also as indicated in the exportservice command output, a file edef.xml has also been written to the filesystem containing the endpoint description xml (known as EDEF).  EDEF is `standardized xml format <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteserviceadmin.html#i1889341>` that gives all of the remote service meta-data required for a consumer to import an endpoint.   The edef.xml file will contain the same xml printed to the console via the 'listexports b96927ad-1d00-45ad-848a-716d6cde8443' console command.
+Also as indicated in the exportservice command output, a file edef.xml has also been written to the filesystem containing the endpoint description xml (known as EDEF).  EDEF is `standardized xml format <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteserviceadmin.html#i1889341>`_ that gives all of the remote service meta-data required for a consumer to import an endpoint.   The edef.xml file will contain the same xml printed to the console via the 'listexports b96927ad-1d00-45ad-848a-716d6cde8443' console command.
    
 Importing the XmlRpcHelloImpl Remote Service
 ============================================
@@ -271,7 +271,7 @@ This gives the specification name required **org.eclipse.ecf.examples.hello.IHel
 
     "(service.imported=*)"
     
-As per the `Remote Service spec <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html#i1710847>` this requires that the IHello service is a remote service, as all  proxies must have the **service.imported** property set, indicating that it was imported.
+As per the `Remote Service spec <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html#i1710847>`_ this requires that the IHello service is a remote service, as all  proxies must have the **service.imported** property set, indicating that it was imported.
 
 When **importservice** is executed the RSA implementation does the following: 
 
@@ -289,18 +289,18 @@ To export automatically upon service registration, all that need be done is to u
 
 .. code-block:: python
 
-   @ComponentFactory("helloimpl-xmlrpc-factory")
-   @Provides(
+    @ComponentFactory("helloimpl-xmlrpc-factory")
+    @Provides(
        "org.eclipse.ecf.examples.hello.IHello"
-   ) 
-   @Instantiate(
+    ) 
+    @Instantiate(
        "helloimpl-xmlrpc",
        {
            "service.exported.interfaces": "*",
            "osgi.basic.timeout": 60000,
        },
-   )
-   class XmlRpcHelloImpl(HelloImpl):
+    )
+    class XmlRpcHelloImpl(HelloImpl):
        pass
 
 Now, when this service is instantiated, it will also be automatically exported, and so it won't be necessary to use the exportservice command.
