@@ -262,5 +262,6 @@ When **importservice** is executed it
  #. The _activated method is called by iPOPO, which uses the self._helloservice proxy to send the method calls to the remote service, using http and xmlrpc to serialize the sayHello method arguments, send the request via http, get the return value back, and print the return value to the consumer's console.
 
 Note that with Export, rather than using the console's **exportservice** command, it may be invoked programmatically, or automatically by the topology manager (for example upon service registration).   For Import, the **importservice** command may also be invoked automatically, or via remote service discovery (e.g. etcd, zookeeper, zeroconf, custom, etc).   The use of the console commands in this example was to demonstrate the dynamics and flexibility provided by the OSGi R7-compliant RSA implementation.
+
 You can now go back to see other :ref:`Tutorials` or take a look at the
 :ref:`refcards`.
