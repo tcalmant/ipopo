@@ -1,4 +1,4 @@
-.. OSGi R7 Remote Services using XmlRpc transport
+.. RSA Remote Services using XmlRpc transport
 
 .. _rsa_tutorial:
 
