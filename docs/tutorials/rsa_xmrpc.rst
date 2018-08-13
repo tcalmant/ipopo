@@ -256,10 +256,10 @@ As per the `Remote Service spec <https://osgi.org/specification/osgi.cmpn/7.0.0/
 
 When **importservice** is executed it 
 
-    1 Reads the edef.xml from filesystem (i.e. 'discovers the service')
-    1 Create a local proxy for the remote service using the edef.xml
-    1 The proxy is injected by iPOPO into the RemoteHelloConsumer._helloservice member
-    1 The _activated method is called by iPOPO, which uses the self._helloservice proxy to send the method calls to the remote service, using http and xmlrpc to serialize the sayHello method arguments, send the request via http, get the return value back, and print the return value to the consumer's console.
+    #. Reads the edef.xml from filesystem (i.e. 'discovers the service')
+    #. Create a local proxy for the remote service using the edef.xml
+    #. The proxy is injected by iPOPO into the RemoteHelloConsumer._helloservice member
+    #. The _activated method is called by iPOPO, which uses the self._helloservice proxy to send the method calls to the remote service, using http and xmlrpc to serialize the sayHello method arguments, send the request via http, get the return value back, and print the return value to the consumer's console.
 
 You can now go back to see other :ref:`Tutorials` or take a look at the
 :ref:`refcards`.
