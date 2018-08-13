@@ -2,7 +2,7 @@
 
 .. _rsa_tutorial:
 
-OSGi R7 Remote Services using XmlRpc transport
+RSA Remote Services using XmlRpc transport
 ###############################################
 
 :Authors: Scott Lewis, Thomas Calmant
