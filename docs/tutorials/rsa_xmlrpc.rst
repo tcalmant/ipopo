@@ -305,6 +305,78 @@ To export automatically upon service registration, all that need be done is to u
 
 Unlike in the example above, when this service is instantiated and registered, it will also be automatically exported, making unnecessary to use the exportservice command.
 
+Using Etcd Discovery
+====================
+
+Rather than importing remote services manually via the 'importservice' command, it's also possible to import using supported network discovery protocols.   One discovery mechanism used in systems like `kubernetes <https://kubernetes.io/>`_ is `etcd<https://github.com/coreos/etcd>`_, and there is an etcd discovery provider available in **pelix.rsa.providers.discovery.discovery_etcd** module.  
+
+This is the list of bundles included in the samples.run_rsa_etcd_xmlrpc program
+
+.. code-block:: console
+
+    bundles = ['pelix.ipopo.core',
+               'pelix.shell.core',
+               'pelix.shell.ipopo',
+               'pelix.shell.console',
+               'pelix.rsa.remoteserviceadmin',  # RSA implementation
+               'pelix.http.basic',  # httpservice
+               # xmlrpc distribution provider (opt)
+               'pelix.rsa.providers.distribution.xmlrpc',
+               # etcd discovery provider (opt)
+               'pelix.rsa.providers.discovery.discovery_etcd',
+               # basic topology manager (opt)
+               'pelix.rsa.topologymanagers.basic',
+               'pelix.rsa.shell',  # RSA shell commands (opt)
+               'samples.rsa.helloconsumer_xmlrpc']  # Example helloconsumer.  Only uses remote proxies
+
+Note the presence of the etcd discovery proviver: 'pelix.rsa.providers.discovery.discovery_etcd'
+
+To start a consumer with etcd discovery run the samples.run_rsa_etcd_xmlrpc program:
+
+.. code-block:: console
+
+    $ python -m samples.run_rsa_etcd_xmlrpc
+    ** Pelix Shell prompt **
+    $ start samples.rsa.helloimpl_xmlrpc
+    Bundle ID: 19
+    Starting bundle 19 (samples.rsa.helloimpl_xmlrpc)...
+    $ sl org.eclipse.ecf.examples.hello.IHello
+    +----+-------------------------------------------+--------------------------------------------------+---------+
+    | ID |              Specifications               |                      Bundle                      | Ranking |
+    +====+===========================================+==================================================+=========+
+    | 21 | ['org.eclipse.ecf.examples.hello.IHello'] | Bundle(ID=19, Name=samples.rsa.helloimpl_xmlrpc) | 0       |
+    +----+-------------------------------------------+--------------------------------------------------+---------+
+    1 services registered
+    $ exportservice 21
+    Service=ServiceReference(ID=21, Bundle=19, Specs=['org.eclipse.ecf.examples.hello.IHello']) exported by 1 providers. EDEF written to file=edef.xml
+    $ lexps
+    +--------------------------------------+-------------------------------+------------+
+    |             Endpoint ID              |         Container ID          | Service ID |
+    +======================================+===============================+============+
+    | 0b5a6bf1-494e-41ef-861c-4c302ae75141 | http://127.0.0.1:8181/xml-rpc | 21         |
+    +--------------------------------------+-------------------------------+------------+
+    $
+
+Then start a consumer process
+
+.. code-block:: console
+
+    $ python -m samples.run_rsa_etcd_xmlrpc
+    ** Pelix Shell prompt **
+    $ Python IHello service consumer received sync response: PythonSync says: Howdy PythonSync that's a nice runtime you got there
+    done with sayHelloAsync method
+    done with sayHelloPromise method
+    async response: PythonAsync says: Howdy PythonAsync that's a nice runtime you got there
+    promise response: PythonPromise says: Howdy PythonPromise that's a nice runtime you got there
+
+This consumer uses etcd to discover the IHello remote service, a proxy is created and injected into the consumer (using the same consumer code shown above), and the consumer calls this proxy producing the text output above on the consumer and this output on the remote service impl:
+
+.. code-block:: console
+
+    $ Python.sayHello called by: PythonSync with message: 'Hello Java'
+    Python.sayHelloAsync called by: PythonAsync with message: 'Hello Java'
+    Python.sayHelloPromise called by: PythonPromise with message: 'Hello Java'
+
 You can now go back to see other :ref:`Tutorials` or take a look at the
 :ref:`refcards`.
 
