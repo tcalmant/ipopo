@@ -10,3 +10,4 @@ This section provides tutorials for various parts of iPOPO.
 
    ipopo_10min
    rsa_pythonjava
+   rsa_xmlrpc
