@@ -47,36 +47,40 @@ HTTP_PORT = 8181
 ETCD_HOSTNAME = 'disco.ecf-project.org'
 
 # ------------------------------------------------------------------------------
+
+
 def main():
     # Set the initial bundles
-    bundles = ['pelix.ipopo.core', 
-               'pelix.shell.core', 
+    bundles = ['pelix.ipopo.core',
+               'pelix.shell.core',
                'pelix.shell.ipopo',
-               'pelix.shell.console', 
-               'pelix.rsa.remoteserviceadmin', # RSA implementation
+               'pelix.shell.console',
+               'pelix.rsa.remoteserviceadmin',  # RSA implementation
                'pelix.http.basic',  # httpservice
-               'pelix.rsa.providers.distribution.xmlrpc',   # xmlrpc distribution provider (opt)
-               'pelix.rsa.providers.discovery.etcd',   # etcd discovery provider (opt)
-               'pelix.rsa.topologymanagers.basic',  # basic topology manager (opt)
-               'pelix.rsa.shell', # RSA shell commands (opt)
-               'samples.rsa.helloconsumer_xmlrpc' ]  # Example helloconsumer.  Only uses remote proxies
+               # xmlrpc distribution provider (opt)
+               'pelix.rsa.providers.distribution.xmlrpc',
+               # etcd discovery provider (opt)
+               'pelix.rsa.providers.discovery.discovery_etcd',
+               # basic topology manager (opt)
+               'pelix.rsa.topologymanagers.basic',
+               'pelix.rsa.shell',  # RSA shell commands (opt)
+               'samples.rsa.helloconsumer_xmlrpc']  # Example helloconsumer.  Only uses remote proxies
 
     # Use the utility method to create, run and delete the framework
     framework = pelix.create_framework(
-        bundles, { 'etcd.hostname': ETCD_HOSTNAME, 'ecf.xmlrpc.server.hostname': HTTP_HOSTNAME })
+        bundles, {'etcd.hostname': ETCD_HOSTNAME, 'ecf.xmlrpc.server.hostname': HTTP_HOSTNAME})
     framework.start()
-
 
     with use_ipopo(framework.get_bundle_context()) as ipopo:
         ipopo.instantiate(
             'pelix.http.service.basic.factory', 'http-server',
             {'pelix.http.address': HTTP_HOSTNAME,
-            'pelix.http.port': HTTP_PORT})
+             'pelix.http.port': HTTP_PORT})
     try:
         framework.wait_for_stop()
     except KeyboardInterrupt:
         framework.stop()
 
-    
+
 if __name__ == '__main__':
     main()
