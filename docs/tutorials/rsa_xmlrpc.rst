@@ -377,6 +377,5 @@ This consumer uses etcd to discover the IHello remote service, a proxy is create
     Python.sayHelloAsync called by: PythonAsync with message: 'Hello Java'
     Python.sayHelloPromise called by: PythonPromise with message: 'Hello Java'
 
-You can now go back to see other :ref:`Tutorials` or take a look at the
-:ref:`refcards`.
+The consumer discovered the org.eclipse.ecf.examples.hello.IHello service published via etcd discovery, injected it into the consumer and the consumer called the methods on the IHello remote service, producing output on both the consumer and the remote service impl.
 
