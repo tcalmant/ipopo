@@ -72,26 +72,26 @@ In the following example, we install the ``pelix.shell.remote`` bundle,
 and play a little with it::
 
     $ install pelix.shell.remote
-    Bundle ID: 12
-    $ start 12
-    Starting bundle 12 (pelix.shell.remote)...
+    Bundle ID: 14
+    $ start 14
+    Starting bundle 14 (pelix.shell.remote)...
     $ bl
     +----+----------------------------------------+--------+---------+
     | ID |                  Name                  | State  | Version |
     +====+========================================+========+=========+
-    | 0  | pelix.framework                        | ACTIVE | 0.6.4   |
+    | 0  | pelix.framework                        | ACTIVE | 0.8.0   |
     +----+----------------------------------------+--------+---------+
     ...
     +----+----------------------------------------+--------+---------+
-    | 12 | pelix.shell.remote                     | ACTIVE | 0.6.4   |
+    | 14 | pelix.shell.remote                     | ACTIVE | 0.8.0   |
     +----+----------------------------------------+--------+---------+
-    13 bundles installed
-    $ update 12
-    Updating bundle 12 (pelix.shell.remote)...
-    $ stop 12
-    Stopping bundle 12 (pelix.shell.remote)...
-    $ uninstall 12
-    Uninstalling bundle 12 (pelix.shell.remote)...
+    15 bundles installed
+    $ update 14
+    Updating bundle 14 (pelix.shell.remote)...
+    $ stop 14
+    Stopping bundle 14 (pelix.shell.remote)...
+    $ uninstall 14
+    Uninstalling bundle 14 (pelix.shell.remote)...
     $
 
 While the ``install`` command requires the name of a module as argument,
@@ -124,7 +124,7 @@ This sample prints the details about the iPOPO core service::
     | 8  | ['pelix.ipopo.core']      | Bundle(ID=1, Name=pelix.ipopo.core)                | 0       |
     +----+---------------------------+----------------------------------------------------+---------+
     ...
-    11 services registered
+    16 services registered
     $ sd 8
     ID............: 8
     Rank..........: 0
@@ -161,14 +161,14 @@ This snippets installs the ``pelix.shell.remote`` bundle and
 instantiate a new remote shell component::
 
     $ install pelix.shell.remote
-    Bundle ID: 12
-    $ start 12
-    Starting bundle 12 (pelix.shell.remote)...
+    Bundle ID: 15
+    $ start 15
+    Starting bundle 15 (pelix.shell.remote)...
     $ factories
     +------------------------------+----------------------------------------+
     |           Factory            |                 Bundle                 |
     +==============================+========================================+
-    | ipopo-remote-shell-factory   | Bundle(ID=12, Name=pelix.shell.remote) |
+    | ipopo-remote-shell-factory   | Bundle(ID=15, Name=pelix.shell.remote) |
     +------------------------------+----------------------------------------+
     | ipopo-shell-commands-factory | Bundle(ID=4, Name=pelix.shell.ipopo)   |
     +------------------------------+----------------------------------------+
@@ -231,9 +231,9 @@ the provider bundle::
 
     ** Pelix Shell prompt **
     $ install provider
-    Bundle ID: 12
-    $ start 12
-    Starting bundle 12 (provider)...
+    Bundle ID: 14
+    $ start 14
+    Starting bundle 14 (provider)...
     $
 
 The consumer will require the ``hello.world`` service and use it when it is
@@ -269,20 +269,20 @@ Install and start the ``consumer`` bundle in the active Pelix shell and play
 with the various commands described in the :ref:`previous section <quick_shell>`::
 
     $ install consumer
-    Bundle ID: 13
-    $ start 13
-    Starting bundle 13 (consumer)...
+    Bundle ID: 15
+    $ start 15
+    Starting bundle 15 (consumer)...
     Component validated, calling the service...
     Hello, World !
     Done.
-    $ update 12
-    Updating bundle 12 (provider)...
+    $ update 14
+    Updating bundle 14 (provider)...
     Component invalidated, the service is gone
     Component validated, calling the service...
     Hello, World !
     Done.
-    $ uninstall 12
-    Uninstalling bundle 12 (provider)...
+    $ uninstall 14
+    Uninstalling bundle 14 (provider)...
     Component invalidated, the service is gone
 
 Hello from somewhere else!
@@ -313,13 +313,13 @@ requests::
     bash$ python -m pelix.shell
     ** Pelix Shell prompt **
     $ install pelix.remote.registry
-    Bundle ID: 11
-    $ start 11
-    Starting bundle 11 (pelix.remote.registry)...
+    Bundle ID: 14
+    $ start 14
+    Starting bundle 14 (pelix.remote.registry)...
     $ install pelix.remote.dispatcher
-    Bundle ID: 12
-    $ start 12
-    Starting bundle 12 (pelix.remote.dispatcher)...
+    Bundle ID: 15
+    $ start 15
+    Starting bundle 15 (pelix.remote.dispatcher)...
     $ instantiate pelix-remote-dispatcher-servlet-factory dispatcher-servlet
     Component 'dispatcher-servlet' instantiated.
 
@@ -328,9 +328,9 @@ server. As we are using two framework on the same machine, don't forget to use
 different HTTP ports for each framework::
 
     $ install pelix.http.basic
-    Bundle ID: 13
-    $ start 13
-    Starting bundle 13 (pelix.http.basic)...
+    Bundle ID: 16
+    $ start 16
+    Starting bundle 16 (pelix.http.basic)...
     $ instantiate pelix.http.service.basic.factory httpd pelix.http.port=8000
     INFO:httpd:Starting HTTP server: [0.0.0.0]:8000 ...
     INFO:httpd:HTTP server started: [0.0.0.0]:8000
@@ -353,9 +353,9 @@ component::
 
 
     $ install pelix.remote.discovery.multicast
-    Bundle ID: 14
-    $ start 14
-    Starting bundle 14 (pelix.remote.discovery.multicast)...
+    Bundle ID: 17
+    $ start 17
+    Starting bundle 17 (pelix.remote.discovery.multicast)...
     $ instantiate pelix-remote-discovery-multicast-factory discovery
     Component 'discovery' instantiated.
 
@@ -370,9 +370,9 @@ This allows to instantiate the export part only, avoiding every single
 framework to know about all available services::
 
     $ install pelix.remote.json_rpc
-    Bundle ID: 15
-    $ start 15
-    Starting bundle 15 (pelix.remote.json_rpc)...
+    Bundle ID: 18
+    $ start 18
+    Starting bundle 18 (pelix.remote.json_rpc)...
     $ instantiate pelix-jsonrpc-importer-factory importer
     Component 'importer' instantiated.
     $ instantiate pelix-jsonrpc-exporter-factory exporter
@@ -415,16 +415,16 @@ That's all!
 Now you can install this provider in a framework, using::
 
     $ install provider
-    Bundle ID: 16
-    $ start 16
-    Starting bundle 16 (provider)...
+    Bundle ID: 19
+    $ start 19
+    Starting bundle 19 (provider)...
 
 When installing a consumer in another framework, it will see the provider and
 use it::
 
     $ install consumer
-    Bundle ID: 16
-    $ start 16
+    Bundle ID: 19
+    $ start 19
     Component validated, calling the service...
     Done.
 

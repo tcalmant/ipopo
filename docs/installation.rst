@@ -5,7 +5,8 @@ Installation
 
 iPOPO strongly depends on only one external library,
 `jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib>`_, which
-provides some utility methods and is required to enable remote services.
+provides some utility methods and is required to enable remote services based
+on JSON-RPC.
 It relies on other libraries for extended features, which are listed in the
 `requirements <https://github.com/tcalmant/ipopo/blob/master/requirements.txt>`_
 file.
