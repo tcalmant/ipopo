@@ -38,8 +38,9 @@ About this documentation
 
 The previous documentation was provided as a wiki, which has been shut down
 for various reasons.
-A copy of the previous content is available in the *convert_doc* branch, even
-though it's starting to age.
+A copy of the previous content is available in the
+`convert_doc <https://github.com/tcalmant/ipopo/tree/convert_doc>`_
+branch, even though it's starting to age.
 The documentation is now hosted on `Read the Docs <https://readthedocs.org/>`_.
 The main advantages are that it is now included in the Git repository of the
 project, and it can include *docstrings* directly from the source code.
