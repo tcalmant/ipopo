@@ -393,10 +393,10 @@ class RSACommandHandler(object):
                 io_handler.write_line(self._utils.make_table(title, rows))
 
     def _list_imports(self, session, import_regs, endpoint_id=None):
+        # type: (ShellSession, List[ImportRegistration], str) -> None
         """
         Lists the imported services
         """
-        # type: (ShellSession, List[ImportRegistration], str) -> None
         if endpoint_id:
             matching_eds = [
                 x.get_description()
@@ -430,10 +430,10 @@ class RSACommandHandler(object):
             session.write_line(self._utils.make_table(title, rows))
 
     def _list_exports(self, session, configs, endpoint_id=None):
+        # type: (ShellSession, List[ExportRegistration], str) -> None
         """
         Lists the exported services
         """
-        # type: (ShellSession, List[ExportRegistration], str) -> None
         if endpoint_id:
             matching_eds = [
                 x.get_description()
