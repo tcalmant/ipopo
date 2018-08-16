@@ -7,7 +7,7 @@ specifications, section 122.8.
 :author: Thomas Calmant and Scott Lewis
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.1
+:version: 0.8.0
 
 ..
 
@@ -52,7 +52,7 @@ import pelix.constants
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (0, 1, 0)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

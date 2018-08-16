@@ -8,7 +8,7 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -58,7 +58,7 @@ from pelix.shell.completion import Completion, BUNDLE, SERVICE
 __all__ = ()
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

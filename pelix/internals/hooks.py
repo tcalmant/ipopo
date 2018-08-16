@@ -6,7 +6,7 @@ EventListenerHook for Pelix.
 :author: Scott Lewis
 :copyright: Copyright 2018, Scott Lewis
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -30,7 +30,7 @@ from collections import MutableMapping, MutableSequence
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
