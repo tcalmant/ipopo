@@ -1,6 +1,6 @@
 .. OSGi R7 Remote Services between Python and Java
 
-.. _rsa_tutorial:
+.. _rsa_tutorial_py4j:
 
 OSGi R7 Remote Services between Python and Java
 ###############################################

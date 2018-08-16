@@ -122,6 +122,9 @@ Property                       Default value Description
 Other properties are available but not presented here as they describe constants
 used to mimic the Java side configuration.
 
+A sample usage of this provider can be found in the tutorial section:
+:ref:`rsa_tutorial_xmlrpc`.
+
 Py4J Distribution
 -----------------
 
@@ -146,4 +149,4 @@ Property                           Default value Description
 ================================== ============= ==============================
 
 A sample usage of this provider can be found in the tutorial section:
-:ref:`rsa_tutorial`.
+:ref:`rsa_tutorial_py4j`.

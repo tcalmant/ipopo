@@ -1,6 +1,6 @@
 .. RSA Remote Services using XmlRpc transport
 
-.. _rsa_tutorial:
+.. _rsa_tutorial_xmlrpc:
 
 RSA Remote Services using XmlRpc transport
 ###########################################
@@ -400,8 +400,9 @@ command, it's also possible to import using supported network discovery
 protocols.
 One discovery mechanism used in systems like
 `kubernetes <https://kubernetes.io/>`_ is
-`etcd<https://github.com/coreos/etcd>`_, and there is an etcd discovery provider
-available in the ``pelix.rsa.providers.discovery.discovery_etcd`` module.
+`etcd <https://github.com/coreos/etcd>`_, and there is an etcd discovery
+provider available in the ``pelix.rsa.providers.discovery.discovery_etcd``
+module.
 
 This is the list of bundles included in the ``samples.run_rsa_etcd_xmlrpc``
 program:
