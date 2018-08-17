@@ -541,7 +541,7 @@ class _IPopoService(object):
             except ValueError as ex:
                 # Already known factory
                 _logger.error(
-                    "Cannot register factory '%s' of bundle %d (%s):" " %s",
+                    "Cannot register factory '%s' of bundle %d (%s): %s",
                     context.name,
                     bundle.get_bundle_id(),
                     bundle.get_symbolic_name(),
@@ -758,7 +758,7 @@ class _IPopoService(object):
                     instance = factory()
                 except Exception:
                     _logger.exception(
-                        "Error creating the instance '%s' " "from factory '%s'",
+                        "Error creating the instance '%s' from factory '%s'",
                         name,
                         factory_name,
                     )
@@ -1276,6 +1276,7 @@ class _IPopoActivator(object):
 
     def start(self, context):
         # type: (BundleContext) -> None
+        # pylint: disable=W0212
         """
         The bundle has started
 
@@ -1313,6 +1314,7 @@ class _IPopoActivator(object):
 
     def stop(self, context):
         # type: (BundleContext) -> None
+        # pylint: disable=W0212
         """
         The bundle has stopped
 

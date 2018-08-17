@@ -499,7 +499,7 @@ class Instantiate(object):
 
         except NameError:
             _logger.warning(
-                "Component '%s' defined twice, new definition " "ignored",
+                "Component '%s' defined twice, new definition ignored",
                 self.__name,
             )
 
@@ -850,7 +850,7 @@ def _get_specifications(specifications):
         if Provides.USE_MODULE_QUALNAME:
             if sys.version_info < (3, 3, 0):
                 raise ValueError(
-                    "Qualified name capability requires " "Python 3.3+"
+                    "Qualified name capability requires Python 3.3+"
                 )
 
             # Get the name of the class
@@ -1057,7 +1057,7 @@ class Provides(object):
                 )
             except AttributeError as ex:
                 raise TypeError(
-                    "Service factories must provide an " "{} method".format(ex)
+                    "Service factories must provide an {} method".format(ex)
                 )
 
         if self.__is_prototype:
@@ -1193,7 +1193,7 @@ class Requires(object):
 
         if self._multi_specs:
             _logger.warning(
-                "%s: Only one specification can be required: " "%s -> %s",
+                "%s: Only one specification can be required: %s -> %s",
                 type(self).__name__,
                 clazz.__name__,
                 self._field,
@@ -1862,7 +1862,7 @@ class ValidateComponent(object):
         """
         if not isinstance(method, types.FunctionType):
             raise TypeError(
-                "@ValidateComponent can only be applied " "on functions"
+                "@ValidateComponent can only be applied on functions"
             )
 
         # Tests the number of parameters
@@ -1906,7 +1906,7 @@ class InvalidateComponent(ValidateComponent):
         """
         if not isinstance(method, types.FunctionType):
             raise TypeError(
-                "@InvalidateComponent can only be applied " "on functions"
+                "@InvalidateComponent can only be applied on functions"
             )
 
         # Tests the number of parameters
