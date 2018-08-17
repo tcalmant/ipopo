@@ -31,8 +31,14 @@ import json
 import logging
 
 # Pelix
-from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
-    Validate, Invalidate, Requires
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Provides,
+    Property,
+    Validate,
+    Invalidate,
+    Requires,
+)
 from pelix.utilities import to_str
 import pelix.constants as constants
 import pelix.misc.mqtt_client
@@ -51,29 +57,30 @@ __docformat__ = "restructuredtext en"
 
 _logger = logging.getLogger(__name__)
 
-DEFAULT_MQTT_TOPIC = 'pelix/eventadmin'
+DEFAULT_MQTT_TOPIC = "pelix/eventadmin"
 """ Default MQTT topic to use to propagate events """
 
-EVENT_PROP_SOURCE_UID = 'pelix.eventadmin.mqtt.source'
+EVENT_PROP_SOURCE_UID = "pelix.eventadmin.mqtt.source"
 """ UID of the framework that sent the event """
 
-EVENT_PROP_STARTING_SLASH = 'pelix.eventadmin.mqtt.start_slash'
+EVENT_PROP_STARTING_SLASH = "pelix.eventadmin.mqtt.start_slash"
 """ Flag to indicate that the EventAdmin topic starts with a '/' """
 
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory(services.FACTORY_EVENT_ADMIN_MQTT)
-@Provides(services.SERVICE_EVENT_HANDLER, '_controller')
-@Requires('_event', services.SERVICE_EVENT_ADMIN)
-@Property('_event_topics', services.PROP_EVENT_TOPICS, '*')
-@Property('_host', 'mqtt.host', 'localhost')
-@Property('_port', 'mqtt.port', 1883)
-@Property('_mqtt_topic', 'mqtt.topic.prefix', DEFAULT_MQTT_TOPIC)
+@Provides(services.SERVICE_EVENT_HANDLER, "_controller")
+@Requires("_event", services.SERVICE_EVENT_ADMIN)
+@Property("_event_topics", services.PROP_EVENT_TOPICS, "*")
+@Property("_host", "mqtt.host", "localhost")
+@Property("_port", "mqtt.port", 1883)
+@Property("_mqtt_topic", "mqtt.topic.prefix", DEFAULT_MQTT_TOPIC)
 class MqttEventAdminBridge(object):
     """
     The EventAdmin MQTT bridge
     """
+
     def __init__(self):
         """
         Sets up the members
@@ -108,7 +115,7 @@ class MqttEventAdminBridge(object):
             # No topic given, use the default one
             self._mqtt_topic = DEFAULT_MQTT_TOPIC
 
-        if self._mqtt_topic[-1] == '/':
+        if self._mqtt_topic[-1] == "/":
             # Remove trailing slash
             self._mqtt_topic = self._mqtt_topic[:-1]
 
@@ -127,7 +134,7 @@ class MqttEventAdminBridge(object):
         self._mqtt.connect(self._host, self._port)
 
     @Invalidate
-    def _invalidate(self, context):
+    def _invalidate(self, _):
         """
         Component invalidated
         """
@@ -147,18 +154,19 @@ class MqttEventAdminBridge(object):
         """
         return "{0}/{1}".format(self._mqtt_topic, suffix)
 
-    def __on_connect(self, client, rc):
+    def __on_connect(self, client, result_code):
         """
         Client connected to the server
         """
-        if not rc:
+        if not result_code:
             # Connection is OK, subscribe to the topic
             client.subscribe(self._make_topic("#"))
 
             # Provide the service
             self._controller = True
 
-    def __on_disconnect(self, client, rc):
+    def __on_disconnect(self, client, result_code):
+        # pylint: disable=W0613
         """
         Client has been disconnected from the server
         """
@@ -166,6 +174,7 @@ class MqttEventAdminBridge(object):
         self._controller = False
 
     def __on_message(self, client, msg):
+        # pylint: disable=W0613
         """
         A message has been received from a server
 
@@ -175,8 +184,9 @@ class MqttEventAdminBridge(object):
         try:
             self.handle_mqtt_message(msg.topic, msg.payload)
         except Exception as ex:
-            _logger.exception("Error handling an MQTT EventAdmin message: %s",
-                              ex)
+            _logger.exception(
+                "Error handling an MQTT EventAdmin message: %s", ex
+            )
 
     def handle_event(self, topic, properties):
         """
@@ -192,7 +202,7 @@ class MqttEventAdminBridge(object):
             return
 
         # Remove starting '/' in the event, and set up the flag
-        if topic[0] == '/':
+        if topic[0] == "/":
             topic = topic[1:]
             properties[EVENT_PROP_STARTING_SLASH] = True
 
@@ -211,7 +221,7 @@ class MqttEventAdminBridge(object):
         :param payload: Payload of the message
         """
         # +1 to ignore the joining slash (prefix => prefix/)
-        evt_topic = mqtt_topic[len(self._mqtt_topic) + 1:]
+        evt_topic = mqtt_topic[len(self._mqtt_topic) + 1 :]
         if not evt_topic:
             # Empty EventAdmin topic
             _logger.debug("Empty EventAdmin topic: %s", mqtt_topic)
@@ -244,7 +254,7 @@ class MqttEventAdminBridge(object):
         # Update the topic if necessary
         if properties.pop(EVENT_PROP_STARTING_SLASH, False):
             # Topic has a starting '/'
-            evt_topic = '/{0}'.format(evt_topic)
+            evt_topic = "/{0}".format(evt_topic)
 
         # Post the event
         self._event.post(evt_topic, properties)

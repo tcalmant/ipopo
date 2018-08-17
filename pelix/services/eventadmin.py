@@ -32,8 +32,13 @@ import logging
 import time
 
 # Pelix
-from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
-    Validate, Invalidate
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Provides,
+    Property,
+    Validate,
+    Invalidate,
+)
 from pelix.utilities import to_iterable
 import pelix.constants
 import pelix.framework
@@ -64,6 +69,7 @@ class EventAdmin(object):
     """
     The EventAdmin implementation
     """
+
     def __init__(self):
         # The bundle context
         self._context = None
@@ -89,23 +95,24 @@ class EventAdmin(object):
 
         # Get the handler service references
         handlers_refs = self._context.get_all_service_references(
-            pelix.services.SERVICE_EVENT_HANDLER, None)
+            pelix.services.SERVICE_EVENT_HANDLER, None
+        )
 
         if handlers_refs is None:
             # No service found
-            return
+            return None
 
         for svc_ref in handlers_refs:
             # Check the LDAP filter
-            ldap_filter = \
-                svc_ref.get_property(pelix.services.PROP_EVENT_FILTER)
+            ldap_filter = svc_ref.get_property(pelix.services.PROP_EVENT_FILTER)
             if self.__match_filter(properties, ldap_filter):
                 # Get the service ID
                 svc_id = svc_ref.get_property(pelix.constants.SERVICE_ID)
 
                 # Filter matches the event, test the topic
-                topics = to_iterable(svc_ref.get_property(
-                    pelix.services.PROP_EVENT_TOPICS), True)
+                topics = to_iterable(
+                    svc_ref.get_property(pelix.services.PROP_EVENT_TOPICS), True
+                )
                 if not topics:
                     # Filter matches, and no topic filter given: notify it
                     handlers.append(svc_id)
@@ -148,8 +155,9 @@ class EventAdmin(object):
         """
         try:
             # Prepare the filter
-            ldap_filter = "({0}={1})".format(pelix.constants.SERVICE_ID,
-                                             service_id)
+            ldap_filter = "({0}={1})".format(
+                pelix.constants.SERVICE_ID, service_id
+            )
 
             # Get the reference
             ref = self._context.get_service_reference(None, ldap_filter)
@@ -186,8 +194,12 @@ class EventAdmin(object):
                     # Use a copy of the properties each time
                     handler.handle_event(topic, copy.deepcopy(properties))
             except Exception as ex:
-                _logger.exception("Error notifying event handler %d: %s (%s)",
-                                  handler_id, ex, type(ex).__name__)
+                _logger.exception(
+                    "Error notifying event handler %d: %s (%s)",
+                    handler_id,
+                    ex,
+                    type(ex).__name__,
+                )
             finally:
                 if ref is not None:
                     self._context.unget_service(ref)
@@ -249,8 +261,9 @@ class EventAdmin(object):
         handlers_ids = self._get_handlers_ids(topic, properties)
         if handlers_ids:
             # Enqueue the task in the thread pool
-            self._pool.enqueue(self.__notify_handlers, topic, properties,
-                               handlers_ids)
+            self._pool.enqueue(
+                self.__notify_handlers, topic, properties, handlers_ids
+            )
 
     @Validate
     def validate(self, context):
@@ -275,12 +288,13 @@ class EventAdmin(object):
             self._nb_threads = 10
 
         # Create the thread pool
-        self._pool = pelix.threadpool.ThreadPool(self._nb_threads,
-                                                 logname="eventadmin-pool")
+        self._pool = pelix.threadpool.ThreadPool(
+            self._nb_threads, logname="eventadmin-pool"
+        )
         self._pool.start()
 
     @Invalidate
-    def invalidate(self, context):
+    def invalidate(self, _):
         """
         Component invalidated
         """
