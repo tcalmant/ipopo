@@ -57,8 +57,6 @@ from pelix.rsa import (
 )
 from pelix.rsa.endpointdescription import EndpointDescription
 
-from pelix.rsa.endpointdescription import EndpointDescription
-
 # ------------------------------------------------------------------------------
 # Module version
 
@@ -106,6 +104,7 @@ class TopologyManager(
 
     def _unimport_removed_endpoint(self, endpoint_description):
         # type: (EndpointDescription) -> None
+        # pylint: disable=W0212
         import_regs = self._rsa._get_import_regs()
         for import_reg in import_regs:
             if import_reg.match_ed(endpoint_description):
@@ -113,6 +112,7 @@ class TopologyManager(
 
     def _update_imported_endpoint(self, endpoint_description):
         # type: (EndpointDescription) -> None
+        # pylint: disable=W0212
         import_regs = self._rsa._get_import_regs()
         for import_reg in import_regs:
             if import_reg.match_ed(endpoint_description):
@@ -130,6 +130,7 @@ class TopologyManager(
 
     def _handle_service_unregistering(self, service_ref):
         # type: (ServiceReference) -> None
+        # pylint: disable=W0212
         export_regs = self._rsa._get_export_regs()
         if export_regs:
             for export_reg in export_regs:
@@ -143,6 +144,7 @@ class TopologyManager(
 
     def _handle_service_modified(self, service_ref):
         # type: (ServiceReference) -> EndpointDescription
+        # pylint: disable=W0212
         export_regs = self._rsa._get_export_regs()
         if export_regs:
             for export_reg in export_regs:
@@ -217,15 +219,15 @@ class TopologyManager(
                 )
 
     # impl of RemoteServiceAdminListener
-    def remote_admin_event(self, event):
+    def remote_admin_event(self, rsa_event):
         # type: (RemoteServiceAdminEvent) -> None
-        kind = event.get_type()
+        kind = rsa_event.get_type()
         if kind == RemoteServiceAdminEvent.EXPORT_REGISTRATION:
-            self._advertise_endpoint(event.get_description())
+            self._advertise_endpoint(rsa_event.get_description())
         elif kind == RemoteServiceAdminEvent.EXPORT_UNREGISTRATION:
-            self._unadvertise_endpoint(event.get_description())
+            self._unadvertise_endpoint(rsa_event.get_description())
         elif kind == RemoteServiceAdminEvent.EXPORT_UPDATE:
-            self._update_endpoint(event.get_description())
+            self._update_endpoint(rsa_event.get_description())
 
     def endpoint_changed(self, endpoint_event, matched_filter):
         # type: (EndpointEvent, Any) -> None

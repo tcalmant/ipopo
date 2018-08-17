@@ -40,6 +40,7 @@ except ImportError:
 
 # Typing
 try:
+    # pylint: disable=W0611
     from typing import Iterable, List, Tuple, Any, Union
 except ImportError:
     pass
@@ -295,6 +296,7 @@ class EDEFWriter(object):
                 element.tail = element_prefix
 
             # Yep, let the "element" variable be overwritten
+            # pylint: disable=R1704
             for element in element:
                 self._indent(element, level + 1, prefix)
 

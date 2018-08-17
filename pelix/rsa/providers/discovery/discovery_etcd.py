@@ -33,6 +33,7 @@ import socket
 import time
 
 try:
+    # pylint: disable=W0611
     from typing import List
 except ImportError:
     pass
@@ -239,8 +240,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             self._client = etcd.Client(host=self._hostname, port=self._port)
             # now make request against basic
             try:
-                top_response = self._client.read(
-                    self._top_path, recursive=True)
+                top_response = self._client.read(self._top_path, recursive=True)
             except etcd.EtcdKeyNotFound:
                 # if this happens, attempt to write it
                 try:
@@ -274,9 +274,10 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 )
                 raise e
 
+            # Note: error disabled as EtcdResult object is too dynamic
+            # pylint: disable=E1101
             self._wait_index = session_exists_result.createdIndex + 1
-            self._ttl_thread = Thread(
-                target=self._ttl_job, name="Etcd TTL Job")
+            self._ttl_thread = Thread(target=self._ttl_job, name="Etcd TTL Job")
             self._ttl_thread.daemon = True
             self._watch_thread = Thread(
                 target=self._watch_job, name="Etcd Listen Job"
@@ -290,12 +291,12 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         return int(self._session_ttl - (self._session_ttl / 10))
 
     def _handle_add_dir(self, dir_node):
-        sessionid = dir_node.key[len(self._top_path) + 1:]
+        sessionid = dir_node.key[len(self._top_path) + 1 :]
         _logger.debug("_handle_add_dir sessionid=%s", sessionid)
-        self._handle_add_nodes(sessionid,
-                               [node for node in list(
-                                   dir_node.children) if not node.dir]
-                               )
+        self._handle_add_nodes(
+            sessionid,
+            [node for node in list(dir_node.children) if not node.dir],
+        )
 
     def _handle_remove_dir(self, sessionid):
         _logger.debug("_handle_remove_dir sessionid=%s", sessionid)
@@ -369,7 +370,10 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                     wait=True,
                     waitIndex=self._wait_index,
                 )
+
                 # reset wait_index
+                # Note: error disabled as EtcdResult object is too dynamic
+                # pylint: disable=E1101
                 self._wait_index = result.modifiedIndex + 1
                 key = result.key
                 action = result.action
@@ -382,7 +386,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                         return
                 else:
                     # split id into [sessionid] or [sessionid,endpointid]
-                    splitid = key[len(self._top_path) + 1:].split("/")
+                    splitid = key[len(self._top_path) + 1 :].split("/")
                     sessionid = splitid[0]
                     # only process sessionids that are not ours
                     if self._sessionid != sessionid:

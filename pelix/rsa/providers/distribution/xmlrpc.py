@@ -111,6 +111,7 @@ class ServerDispatcher(SimpleXMLRPCDispatcher, object):
         self._executor = executor
 
     def do_POST(self, request, response):
+        # pylint: disable=C0103
         data = to_str(request.read_data())
         result = self._marshaled_dispatch(data, self._dispatch)
         response.send_content(200, result, "text/xml")
@@ -131,10 +132,10 @@ class ServerDispatcher(SimpleXMLRPCDispatcher, object):
                 obj_method_list[1],
                 params,
             ).result(self._timeout)
-        else:
-            return self._dispatch_func(
-                obj_method_list[0], obj_method_list[1], params
-            )
+
+        return self._dispatch_func(
+            obj_method_list[0], obj_method_list[1], params
+        )
 
 
 # ------------------------------------------------------------------------------
@@ -153,6 +154,7 @@ class XmlRpcExportContainer(ExportContainer):
 
     @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_PROPERTIES)
     def _validate_component(self, bundle_context, container_props):
+        # pylint: disable=W0212
         ExportContainer._validate_component(
             self, bundle_context, container_props
         )
@@ -170,7 +172,9 @@ class XmlRpcExportContainer(ExportContainer):
 
     @Invalidate
     def _invalidate_component(self, bundle_context):
-        """First invalidate by unregistering the servlet/dispatcher,
+        # pylint: disable=W0212
+        """
+        First invalidate by unregistering the servlet/dispatcher,
         and then call super._invalidate
         """
         try:
@@ -239,32 +243,37 @@ class XmlRpcExportDistributionProvider(ExportDistributionProvider):
             container_props[ECF_XMLRPC_TIMEOUT_PROP] = self._timeout
         return container_props
 
-    """
-    This method is called prior to actual container creation in order to
-    create the name/id of the ExportContainer to be subsequently created
-    via ipopo.instantiate(ECF_XMLRPC_SERVER_CONFIG,container_id,props).  The String
-    returned from this method is used in the instantiate call as the
-    container_id.
-    """
-
     def _prepare_container_id(self, container_props):
+        """
+        This method is called prior to actual container creation in order to
+        create the name/id of the ExportContainer to be subsequently created
+        via ipopo.instantiate(ECF_XMLRPC_SERVER_CONFIG,container_id,props).
+
+        The String returned from this method is used in the instantiate call as
+        the container_id.
+        """
         uri = "http://"
         if self._httpservice.is_https():
             uri = "https://"
+
         hostname = container_props.get(ECF_XMLRPC_HOSTNAME_PROP, None)
         if not hostname:
             hostname = self._hostname
             if not hostname:
                 self._httpservice.get_hostname()
+
         port = container_props.get("port")
         if not port:
             port = str(self._httpservice.get_access()[1])
+
         uri = uri + "{0}:{1}".format(hostname, port)
         return uri + self._uri_path
 
 
 # ------------------------------------------------------------------------------
 # Implementation of SERVICE_IMPORT_CONTAINER
+
+
 @ComponentFactory(ECF_XMLRPC_CLIENT_CONFIG)
 @Provides(SERVICE_IMPORT_CONTAINER)
 class XmlRpcImportContainer(ImportContainer):
@@ -287,6 +296,7 @@ class XmlRpcImportContainer(ImportContainer):
         """
 
         class XmlRpcProxy(object):
+            # pylint: disable=R0903
             def __init__(self, get_remoteservice_id):
                 self._url = get_remoteservice_id[0][1]
                 self._rsid = str(get_remoteservice_id[1])

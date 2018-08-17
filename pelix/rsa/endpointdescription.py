@@ -30,12 +30,13 @@ import logging
 
 # Typing
 try:
+    # pylint: disable=W0611
     from typing import Dict, Any, Optional, List, Tuple, Iterable
+    from pelix.framework import ServiceReference
 except ImportError:
     pass
 
 from pelix.constants import SERVICE_ID, FRAMEWORK_UID, OBJECTCLASS
-from pelix.framework import ServiceReference
 from pelix.ldapfilter import get_ldap_filter
 
 from pelix.rsa import (
@@ -87,6 +88,13 @@ _logger = logging.getLogger(__name__)
 
 def encode_list(key, list_):
     # type: (str, Iterable) -> Dict[str, str]
+    """
+    Converts a list into a space-separated string and puts it in a dictionary
+
+    :param key: Dictionary key to store the list
+    :param list_: A list of objects
+    :return: A dictionary key->string or an empty dictionary
+    """
     if not list_:
         return {}
     return {key: " ".join(str(i) for i in list_)}
@@ -94,6 +102,9 @@ def encode_list(key, list_):
 
 def package_name(package):
     # type: (str) -> str
+    """
+    Returns the package name of the given module name
+    """
     if not package:
         return ""
 
@@ -106,6 +117,9 @@ def package_name(package):
 
 def encode_osgi_props(ed):
     # type: (EndpointDescription) -> Dict[str, str]
+    """
+    Prepares a dictionary of OSGi properties for the given EndpointDescription
+    """
     result_props = {}
     intfs = ed.get_interfaces()
     result_props[OBJECTCLASS] = " ".join(intfs)
@@ -139,6 +153,9 @@ def encode_osgi_props(ed):
 
 def decode_list(input_props, name):
     # type: (Dict[str, str], str) -> List[str]
+    """
+    Decodes a space-separated list
+    """
     val_str = input_props.get(name, None)
     if val_str:
         return val_str.split(" ")
@@ -147,6 +164,9 @@ def decode_list(input_props, name):
 
 def decode_osgi_props(input_props):
     # type: (Dict[str, Any]) -> Dict[str, Any]
+    """
+    Decodes the OSGi properties of the given endpoint properties
+    """
     result_props = {}
     intfs = decode_list(input_props, OBJECTCLASS)
     result_props[OBJECTCLASS] = intfs
@@ -174,6 +194,10 @@ def decode_osgi_props(input_props):
 
 
 def decode_endpoint_props(input_props):
+    # type: (Dict) -> Dict[str, Any]
+    """
+    Decodes the endpoint properties from the given dictionary
+    """
     ed_props = decode_osgi_props(input_props)
     ed_props[ECF_ENDPOINT_CONTAINERID_NAMESPACE] = input_props[
         ECF_ENDPOINT_CONTAINERID_NAMESPACE
@@ -210,6 +234,9 @@ def decode_endpoint_props(input_props):
 
 
 def encode_endpoint_props(ed):
+    """
+    Encodes the properties of the given EndpointDescription
+    """
     props = encode_osgi_props(ed)
     props[ECF_RSVC_ID] = "{0}".format(ed.get_remoteservice_id()[1])
     props[ECF_ENDPOINT_ID] = "{0}".format(ed.get_container_id()[1])
@@ -242,7 +269,13 @@ def encode_endpoint_props(ed):
 # ------------------------------------------------------------------------------
 # EndpointDescription class
 # ------------------------------------------------------------------------------
+
+
 class EndpointDescription(object):
+    """
+    Description of an RSA Endpoint
+    """
+
     @classmethod
     def fromsvcref(cls, svc_ref):
         # type: (ServiceReference) -> EndpointDescription
@@ -352,9 +385,11 @@ class EndpointDescription(object):
         return hash(self._id)
 
     def __eq__(self, other):
+        # pylint: disable=W0212
         return self._id == other._id
 
     def __ne__(self, other):
+        # pylint: disable=W0212
         return self._id != other._id
 
     def __str__(self):
@@ -394,10 +429,11 @@ class EndpointDescription(object):
         async_proxy_intf = self._get_prop(ECF_SERVICE_ASYNC_RSPROXY_CLASS_)
         if async_proxy_intf is not None:
             return async_proxy_intf
+
         if intf.endswith(ECF_ASYNC_INTERFACE_SUFFIX):
             return intf
-        else:
-            return intf + ECF_ASYNC_INTERFACE_SUFFIX
+
+        return intf + ECF_ASYNC_INTERFACE_SUFFIX
 
     def _verify_async_intfs(self):
         # type: () -> List[str]

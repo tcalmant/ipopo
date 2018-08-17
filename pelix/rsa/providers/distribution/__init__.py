@@ -130,7 +130,7 @@ class DistributionProvider(object):
         self._namespace = None
         self._allow_reuse = True
         self._auto_create = True
-        self._supported_configs = None
+        self._supported_configs = []
         self._supported_intents = None
         self._rsa = None
         self._ipopo = None
@@ -149,13 +149,15 @@ class DistributionProvider(object):
 
     def _get_imported_configs(self, exported_configs):
         # type: (List[str]) -> List[str]
+        # pylint: disable=W0613
         """
         Get any imported configs (list) given a set of exported_configs.
         Default implementation simply returns [self._config_name]
         """
         return [self._config_name]
 
-    def _match_intents_supported(self, intents, supported_intents):
+    @staticmethod
+    def _match_intents_supported(intents, supported_intents):
         # type: (List[str], List[str]) -> bool
         """
         Match the list of given intents with given supported_intents.
@@ -163,6 +165,7 @@ class DistributionProvider(object):
         """
         if intents is None or not supported_intents:
             return False
+
         return len([x for x in intents if x in supported_intents]) == len(
             intents
         )
@@ -192,6 +195,7 @@ class DistributionProvider(object):
 
     def _find_container(self, container_id, container_props):
         # type: (str, Dict[str, Any]) -> Any
+        # pylint: disable=W0212
         """
         Uses given container_id to get an ipopo instance with name=container_id.
         If instance is returned from ipopo.get_instance(container_id), then
@@ -203,9 +207,12 @@ class DistributionProvider(object):
             if instance and instance._match_container_props(container_props):
                 return instance
         except KeyError:
-            return None
+            pass
+
+        return None
 
     def _prepare_container_id(self, container_props):
+        # pylint: disable=R0201, W0613
         """
         Prepare and return a (string) container id.  This method is called by
         self._get_or_create_container to create an id prior to instantiating
@@ -267,6 +274,7 @@ class DistributionProvider(object):
 
     def _find_import_registration(self, ed):
         # type: (EndpointDescription) -> Optional[ImportRegistration]
+        # pylint: disable=W0212
         """
         Looks for the Import Registration matching the given endpoint
         description
@@ -282,6 +290,8 @@ class DistributionProvider(object):
             for import_reg in import_regs:
                 if import_reg.match_ed(ed):
                     return import_reg
+
+        return None
 
     def _handle_import(self, ed):
         # type: (EndpointDescription) -> ImportRegistration
@@ -446,7 +456,7 @@ class Container:
         self.is_valid()
 
     @Invalidate
-    def _invalidate_component(self, bundle_context):
+    def _invalidate_component(self, _):
         # type: (BundleContext) -> None
         """
         Component invalidated
@@ -516,6 +526,8 @@ class Container:
                 if func(val):
                     return val
 
+            return None
+
     def _get_distribution_provider(self):
         # type: () -> DistributionProvider
         """
@@ -532,6 +544,7 @@ class Container:
 
         :return: A configuration name
         """
+        # pylint: disable=W0212
         return self._get_distribution_provider()._config_name
 
     def get_namespace(self):
@@ -541,13 +554,16 @@ class Container:
 
         :return: A namespace ID
         """
+        # pylint: disable=W0212
         return self._get_distribution_provider()._namespace
 
     def _match_container_props(self, container_props):
         # type: (Dict[str, Any]) -> bool
+        # pylint: disable=R0201, W0613
         return True
 
     def get_connected_id(self):
+        # pylint: disable=R0201
         return None
 
 
@@ -698,8 +714,8 @@ class ExportContainer(Container):
         # Call it (let the errors be propagated)
         if isinstance(params, (list, tuple)):
             return method_ref(*params)
-        else:
-            return method_ref(**params)
+
+        return method_ref(**params)
 
     def get_connected_id(self):
         # type: () -> str
@@ -725,48 +741,63 @@ class ImportContainer(Container):
 
     def _get_imported_configs(self, exported_configs):
         # type: (List[str]) -> List[str]
+        # pylint: disable=W0212
         return self._get_distribution_provider()._get_imported_configs(
             exported_configs
         )
 
-    def _prepare_proxy_props(self, ed):
+    def _prepare_proxy_props(self, endpoint_description):
+        # pylint: disable=R0201
         # type: (EndpointDescription) -> Dict[str, Any]
-        result_props = copy_non_reserved(ed.get_properties(), dict())
+        result_props = copy_non_reserved(
+            endpoint_description.get_properties(), dict()
+        )
         # remove these props
         result_props.pop(OBJECTCLASS, None)
         result_props.pop(SERVICE_ID, None)
         result_props.pop(SERVICE_BUNDLE_ID, None)
         result_props.pop(SERVICE_SCOPE, None)
         result_props.pop(IPOPO_INSTANCE_NAME, None)
-        intents = ed.get_intents()
+        intents = endpoint_description.get_intents()
         if intents:
             result_props[SERVICE_INTENTS] = intents
         result_props[SERVICE_IMPORTED] = True
-        result_props[SERVICE_IMPORTED_CONFIGS] = ed.get_imported_configs()
-        result_props[ENDPOINT_ID] = ed.get_id()
-        result_props[ENDPOINT_FRAMEWORK_UUID] = ed.get_framework_uuid()
-        asyn = ed.get_async_interfaces()
-        if asyn:
-            result_props[ECF_SERVICE_EXPORTED_ASYNC_INTERFACES] = asyn
+        result_props[
+            SERVICE_IMPORTED_CONFIGS
+        ] = endpoint_description.get_imported_configs()
+        result_props[ENDPOINT_ID] = endpoint_description.get_id()
+        result_props[
+            ENDPOINT_FRAMEWORK_UUID
+        ] = endpoint_description.get_framework_uuid()
+        async_ = endpoint_description.get_async_interfaces()
+        if async_:
+            result_props[ECF_SERVICE_EXPORTED_ASYNC_INTERFACES] = async_
         return result_props
 
-    def _prepare_proxy(self, ed):
+    def _prepare_proxy(self, endpoint_description):
         # type: (EndpointDescription) -> Any
+        # pylint: disable=R0201, W0613
         raise Exception(
             "ImportContainer._prepare_proxy must be implemented by subclass"
         )
 
-    def import_service(self, ed):
+    def import_service(self, endpoint_description):
         # type: (EndpointDescription) -> ServiceRegistration
-        ed.update_imported_configs(
-            self._get_imported_configs(ed.get_remote_configs_supported())
+        endpoint_description.update_imported_configs(
+            self._get_imported_configs(
+                endpoint_description.get_remote_configs_supported()
+            )
         )
-        proxy = self._prepare_proxy(ed)
+        proxy = self._prepare_proxy(endpoint_description)
         if proxy:
             return self._get_bundle_context().register_service(
-                ed.get_interfaces(), proxy, self._prepare_proxy_props(ed)
+                endpoint_description.get_interfaces(),
+                proxy,
+                self._prepare_proxy_props(endpoint_description),
             )
 
-    def unimport_service(self, ed):
+        return None
+
+    def unimport_service(self, endpoint_description):
         # type: (EndpointDescription) -> None
         pass

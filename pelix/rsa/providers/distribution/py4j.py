@@ -31,6 +31,20 @@ from queue import Queue
 from threading import Thread
 import logging
 
+from osgiservicebridge.bridge import (
+    JavaServiceProxy,
+    Py4jServiceBridgeEventListener,
+    Py4jServiceBridge,
+    PythonService,
+)
+from osgiservicebridge.protobuf import (
+    ProtobufJavaServiceProxy,
+    ProtobufPythonService,
+)
+
+from py4j.java_gateway import GatewayParameters, CallbackServerParameters
+from py4j.java_gateway import DEFAULT_PORT, DEFAULT_PYTHON_PROXY_PORT
+
 # needed ipopo decorators
 from pelix.ipopo.decorators import (
     ComponentFactory,
@@ -54,20 +68,6 @@ from pelix.rsa.providers.distribution import (
     SERVICE_IMPORT_DISTRIBUTION_PROVIDER,
 )
 from pelix.rsa.endpointdescription import EndpointDescription
-
-from osgiservicebridge.bridge import (
-    JavaServiceProxy,
-    Py4jServiceBridgeEventListener,
-    Py4jServiceBridge,
-    PythonService,
-)
-from osgiservicebridge.protobuf import (
-    ProtobufJavaServiceProxy,
-    ProtobufPythonService,
-)
-
-from py4j.java_gateway import GatewayParameters, CallbackServerParameters
-from py4j.java_gateway import DEFAULT_PORT, DEFAULT_PYTHON_PROXY_PORT
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -135,6 +135,7 @@ class Py4jContainer(ExportContainer, ImportContainer):
         return ExportContainer.get_connected_id(self)
 
     def _export_service(self, svc, ed):
+        # pylint: disable=W0212
         # modify svc class to have appropriate metadata for py4j
         timeout = ed.get_osgi_basic_timeout()
         if not timeout:
@@ -165,39 +166,47 @@ class Py4jContainer(ExportContainer, ImportContainer):
         return True
 
     def _unexport_service(self, ed):
+        # pylint: disable=W0212
         self._get_distribution_provider()._get_bridge().unexport(ed.get_id())
         ExportContainer._unexport_service(self, ed)
         return True
 
-    def _prepare_proxy(self, ed):
-        # lookup the bridge proxy associated with the ed.get_id()
+    def _prepare_proxy(self, endpoint_description):
+        # pylint: disable=W0212
+        # lookup the bridge proxy associated with the
+        # endpoint_description.get_id()
         bridge = self._get_distribution_provider()._get_bridge()
-        proxy = bridge.get_import_endpoint(ed.get_id())[0]
-        timeout = ed.get_osgi_basic_timeout()
+        proxy = bridge.get_import_endpoint(endpoint_description.get_id())[0]
+        timeout = endpoint_description.get_osgi_basic_timeout()
         if not timeout:
             timeout = self._container_props.get(
                 ECF_PY4J_DEFAULT_SERVICE_TIMEOUT, 30
             )
+
         args = [
             bridge.get_jvm(),
-            ed.get_interfaces(),
+            endpoint_description.get_interfaces(),
             proxy,
             self._executor,
             timeout,
         ]
+
         clazz = JavaServiceProxy
+
         if (
             ECF_PY4JPB_JAVA_HOST_CONFIG_TYPE
-            in ed.get_remote_configs_supported()
+            in endpoint_description.get_remote_configs_supported()
         ):
             clazz = ProtobufJavaServiceProxy
+
         return clazz(*args)
 
-    def unimport_service(self, ed):
+    def unimport_service(self, endpoint_description):
+        # pylint: disable=W0212
         self._get_distribution_provider()._get_bridge().remove_import_endpoint(
-            ed.get_id()
+            endpoint_description.get_id()
         )
-        ImportContainer.unimport_service(self, ed)
+        ImportContainer.unimport_service(self, endpoint_description)
         if self._executor:
             self._executor.shutdown()
             self._executor = None
@@ -266,6 +275,7 @@ class Py4jDistributionProvider(
 
     # Implementation of ImportDistributionProvider
     def supports_import(self, exported_configs, service_intents, import_props):
+        # pylint: disable=W0613
         if ECF_PY4JPB_JAVA_HOST_CONFIG_TYPE in exported_configs:
             if self._match_intents_supported(
                 service_intents, self._supported_pb_intents
@@ -275,14 +285,19 @@ class Py4jDistributionProvider(
             if self._match_intents(service_intents):
                 return self._container
 
+        return None
+
     # Implementation of ExportDistributionProvider
     def supports_export(self, exported_configs, service_intents, export_props):
+        # pylint: disable=W0613
         if self._match_intents(service_intents):
             if (
                 ECF_PY4J_PYTHON_HOST_CONFIG_TYPE in exported_configs
                 or ECF_PY4JPB_PYTHON_HOST_CONFIG_TYPE in exported_configs
             ):
                 return self._container
+
+        return None
 
     @Validate
     def _validate(self, _):

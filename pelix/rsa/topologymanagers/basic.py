@@ -29,17 +29,16 @@ BasicTopologyManager implements TopologyManager API
 import logging
 
 try:
+    # pylint: disable=W0611
     from typing import Any, Dict
+    from pelix.framework import ServiceEvent
+    from pelix.rsa import RemoteServiceAdminEvent
 except ImportError:
     pass
 
-from pelix.framework import ServiceEvent
 from pelix.ipopo.decorators import ComponentFactory, Instantiate
 
-from pelix.rsa import (
-    ECF_ENDPOINT_CONTAINERID_NAMESPACE,
-    RemoteServiceAdminEvent,
-)
+from pelix.rsa import ECF_ENDPOINT_CONTAINERID_NAMESPACE
 from pelix.rsa.providers.discovery import EndpointEvent
 from pelix.rsa.topologymanagers import TopologyManager
 
@@ -77,7 +76,7 @@ class BasicTopologyManager(TopologyManager):
         # type: (ServiceEvent, Dict[Any, Any]) -> None
         """
         Implementation of EventListenerHook.  Called by local
-        service registry when a service is registered, unregistered o
+        service registry when a service is registered, unregistered
         or modified.  Will be called by thread doing registration/unregister
         service
         """
@@ -123,14 +122,3 @@ class BasicTopologyManager(TopologyManager):
             _logger.debug(
                 "BasicTopologyManager: endpoint updated. endpoint.id=%s", ed_id
             )
-
-    def remote_admin_event(self, event):
-        # type: (RemoteServiceAdminEvent) -> None
-        """
-        Implementation of RemoteServiceAdminEventListener.
-
-        Called by RSA service when a remote service event occurs.
-        See RemoteServiceAdminEventListener class and
-        RemoteServiceAdminEvent classes.
-        """
-        super(BasicTopologyManager, self).remote_admin_event(event)

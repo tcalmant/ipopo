@@ -58,13 +58,18 @@ __docformat__ = "restructuredtext en"
 _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
-# Endpoint advertiser service specification.  EndpointAdvertiser services
-# are used to advertise exported remote services.  See EndpointAdvertiser
-# class below.
+
+
 SERVICE_ENDPOINT_ADVERTISER = "pelix.rsa.discovery.endpointadvertiser"
 
 
 class EndpointAdvertiser(object):
+    """
+    Endpoint advertiser service specification.  EndpointAdvertiser services
+    are used to advertise exported remote services.  See EndpointAdvertiser
+    class below.
+    """
+
     def __init__(self):
         self._published_endpoints = {}
         self._published_endpoints_lock = RLock()
@@ -75,38 +80,44 @@ class EndpointAdvertiser(object):
         If it hasn't already been a endpoint_description will be advertised via
         a some protocol.
 
-        :param endpoint_description an instance of EndpointDescription to advertise.  Must not be None.
-        :return True if advertised, False if not (e.g. it's already been advertised)
+        :param endpoint_description: an instance of EndpointDescription to
+        advertise. Must not be None.
+        :return: True if advertised, False if not
+        (e.g. it's already been advertised)
         """
-        endpointid = endpoint_description.get_id()
+        endpoint_id = endpoint_description.get_id()
         with self._published_endpoints_lock:
-            if self.get_advertised_endpoint(endpointid) is not None:
+            if self.get_advertised_endpoint(endpoint_id) is not None:
                 return False
+
             advertise_result = self._advertise(endpoint_description)
             if advertise_result:
                 self._add_advertised(endpoint_description, advertise_result)
                 return True
-            else:
-                return False
+
+            return False
 
     def update_endpoint(self, updated_ed):
         """
         Update a previously advertised endpoint_description.
 
-        :param endpoint_description an instance of EndpointDescription to update.  Must not be None.
-        :return True if advertised, False if not (e.g. it's already been advertised)
+        :param endpoint_description: an instance of EndpointDescription to
+        update. Must not be None.
+        :return: True if advertised, False if not
+        (e.g. it's already been advertised)
         """
-        endpointid = updated_ed.get_id()
+        endpoint_id = updated_ed.get_id()
         with self._published_endpoints_lock:
-            if self.get_advertised_endpoint(endpointid) is None:
+            if self.get_advertised_endpoint(endpoint_id) is None:
                 return False
+
             advertise_result = self._update(updated_ed)
             if advertise_result:
-                self._remove_advertised(endpointid)
+                self._remove_advertised(endpoint_id)
                 self._add_advertised(updated_ed, advertise_result)
                 return True
-            else:
-                return False
+
+            return False
 
     def unadvertise_endpoint(self, endpointid):
         """
@@ -123,9 +134,12 @@ class EndpointAdvertiser(object):
                 advertised = self.get_advertised_endpoint(endpointid)
                 if not advertised:
                     return None
+
                 unadvertise_result = self._unadvertise(advertised)
                 if unadvertise_result:
                     self._remove_advertised(endpointid)
+
+                return None
 
     def is_advertised(self, endpointid):
         """
@@ -170,20 +184,25 @@ class EndpointAdvertiser(object):
             return self._published_endpoints.pop(endpointid, None)
 
     def _advertise(self, endpoint_description):
+        # pylint: disable=R0201, W0613
         raise Exception("Endpoint._advertise must be overridden by subclasses")
 
     def _update(self, endpoint_description):
-        raise Exception("Endpoint._update must be overrridden by subclasses")
+        # pylint: disable=R0201, W0613
+        raise Exception("Endpoint._update must be overridden by subclasses")
 
     def _unadvertise(self, advertised):
+        # pylint: disable=R0201, W0613
         raise Exception(
             "Endpoint._unadvertise must be overridden by subclasses"
         )
 
 
-# ------------------------------------------------------------------------------# Standard library
-# EndpointEvent implemenatation used to provide EndpointEventListener service
+# ------------------------------------------------------------------------------
+# EndpointEvent implementation used to provide EndpointEventListener service
 # instances with valid EndpointEvent by endpoint advertisers
+
+
 class EndpointEvent(object):
     """
     EndpointEvents are used by endpoint advertisers to call
@@ -225,18 +244,20 @@ class EndpointEvent(object):
         )
 
 
-# ------------------------------------------------------------------------------# Standard library
+# ------------------------------------------------------------------------------
 # Endpoint listener service specification
 # This service specification is exposed by instances that wish to be
 # notified by discovery providers when an EndpointEvent has occurred.
 # For example, TopologyManagers will typically expose themselves as
 # a service endpoint listener so that discovery subscribers can
 # notify all such services when an endpoint event has been received.
+
 SERVICE_ENDPOINT_LISTENER = "pelix.rsa.discovery.endpointeventlistener"
 SERVICE_ENDPOINT_EVENT_LISTENER = SERVICE_ENDPOINT_LISTENER
 
 
 class EndpointEventListener(object):
+    # pylint: disable=R0903
     """
     Subclasses should override the endpoint_changed method
     so that they will receive notification (via an arbitrary
@@ -258,6 +279,7 @@ class EndpointEventListener(object):
     ENDPOINT_LISTENER_SCOPE = "endpoint.listener.scope"
 
     def endpoint_changed(self, endpoint_event, matched_filter):
+        # pylint: disable=W0613
         """
         Called by discovery providers when an endpoint has been
         ADDED,REMOVED or MODIFIED.
@@ -272,6 +294,7 @@ class EndpointEventListener(object):
 
 @Requires("_event_listeners", SERVICE_ENDPOINT_LISTENER, True, True)
 class EndpointSubscriber(object):
+    # pylint: disable=R0903
     """
     Utility superclass for EndpointSubscribers.
     """
@@ -284,11 +307,13 @@ class EndpointSubscriber(object):
 
     @BindField("_event_listeners")
     def _add_endpoint_event_listener(self, field, listener, service_ref):
+        # pylint: disable=W0613
         with self._endpoint_event_listeners_lock:
             self._endpoint_event_listeners.append((listener, service_ref))
 
     @UnbindField("_event_listeners")
     def _remove_endpoint_event_listener(self, field, listener, service_ref):
+        # pylint: disable=W0613
         with self._endpoint_event_listeners_lock:
             try:
                 return self._endpoint_event_listeners.remove(
@@ -324,11 +349,12 @@ class EndpointSubscriber(object):
             if ep:
                 return ep[1]
 
+            return None
+
     def _get_endpointids_for_sessionid(self, sessionid):
         result = []
         with self._discovered_endpoints_lock:
-            for epid in self._discovered_endpoints.keys():
-                ep = self._discovered_endpoints.get(epid, None)
+            for epid, ep in self._discovered_endpoints.items():
                 if ep and sessionid == ep[0]:
                     result.append(epid)
         return result
@@ -344,22 +370,27 @@ class EndpointSubscriber(object):
             if node:
                 return node[1]
 
+            return None
+
     def _fire_endpoint_event(self, event_type, ed):
         listeners = self._get_matching_endpoint_event_listeners(ed)
         if not listeners:
             logging.error(
-                "EndpointSubscriber._fire_endpoint_event found no matching listeners for event_type=%s and endpoint=%s",
+                "EndpointSubscriber._fire_endpoint_event found no matching "
+                "listeners for event_type=%s and endpoint=%s",
                 event_type,
                 ed,
             )
             return
+
         event = EndpointEvent(event_type, ed)
         for listener in listeners:
             try:
                 listener[0].endpoint_changed(event, listener[1])
             except Exception:
                 _logger.exception(
-                    "Exception calling endpoint event listener.endpoint_changed for listener=%s and event=%s",
+                    "Exception calling endpoint event "
+                    "listener.endpoint_changed for listener=%s and event=%s",
                     listener,
                     event,
                 )

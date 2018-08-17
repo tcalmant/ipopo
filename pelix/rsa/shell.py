@@ -30,12 +30,19 @@ from traceback import print_exception
 import os
 
 try:
+    # pylint: disable=W0611
     from typing import Any, Tuple, List, Callable, Optional
+    from pelix.framework import BundleContext
+    from pelix.rsa.remoteserviceadmin import (
+        ImportRegistration,
+        ExportRegistration,
+    )
+    from pelix.rsa.providers.distribution import Container, DistributionProvider
+    from pelix.shell.beans import ShellSession
 except ImportError:
     pass
 
 from pelix.constants import SERVICE_ID
-from pelix.framework import BundleContext
 from pelix.ipopo.decorators import (
     ComponentFactory,
     Provides,
@@ -48,7 +55,6 @@ from pelix.ipopo.decorators import (
     Invalidate,
 )
 from pelix.shell import SERVICE_SHELL_COMMAND, SERVICE_SHELL_UTILS
-from pelix.shell.beans import ShellSession
 
 from pelix.rsa import (
     SERVICE_REMOTE_SERVICE_ADMIN,
@@ -57,18 +63,13 @@ from pelix.rsa import (
     prop_dot_suffix,
 )
 from pelix.rsa.edef import EDEFReader, EDEFWriter
-from pelix.rsa.remoteserviceadmin import (
-    RemoteServiceAdminEvent,
-    ImportRegistration,
-    ExportRegistration,
-)
+from pelix.rsa.remoteserviceadmin import RemoteServiceAdminEvent
+
 from pelix.rsa.providers.distribution import (
     SERVICE_IMPORT_CONTAINER,
     SERVICE_EXPORT_CONTAINER,
     SERVICE_IMPORT_DISTRIBUTION_PROVIDER,
     SERVICE_EXPORT_DISTRIBUTION_PROVIDER,
-    Container,
-    DistributionProvider,
 )
 
 # ------------------------------------------------------------------------------
@@ -179,34 +180,42 @@ class RSACommandHandler(object):
 
     @BindField("_imp_containers")
     def _bind_imp_containers(self, field, service, service_ref):
+        # pylint: disable=W0613
         self._bind_lists(self._imp_containers, service)
 
     @UnbindField("_imp_containers")
     def _unbind_imp_containers(self, field, service, service_ref):
+        # pylint: disable=W0613
         self._unbind_lists(self._imp_containers, service)
 
     @BindField("_exp_containers")
     def _bind_exp_containers(self, field, service, service_ref):
+        # pylint: disable=W0613
         self._bind_lists(self._exp_containers, service)
 
     @UnbindField("_exp_containers")
     def _unbind_exp_containers(self, field, service, service_ref):
+        # pylint: disable=W0613
         self._unbind_lists(self._exp_containers, service)
 
     @BindField("_imp_dist_providers")
     def _bind_imp_dist_providers(self, field, service, service_ref):
+        # pylint: disable=W0613
         self._bind_lists(self._imp_dist_providers, service)
 
     @UnbindField("_imp_dist_providers")
     def _unbind_imp_dist_providers(self, field, service, service_ref):
+        # pylint: disable=W0613
         self._unbind_lists(self._imp_dist_providers, service)
 
     @BindField("_exp_dist_providers")
     def _bind_exp_dist_providers(self, field, service, service_ref):
+        # pylint: disable=W0613
         self._bind_lists(self._exp_dist_providers, service)
 
     @UnbindField("_exp_dist_providers")
     def _unbind_exp_dist_providers(self, field, service, service_ref):
+        # pylint: disable=W0613
         self._unbind_lists(self._exp_dist_providers, service)
 
     def _get_containers(self, container_id=None):
@@ -221,8 +230,8 @@ class RSACommandHandler(object):
             containers = set(self._imp_containers + self._exp_containers)
             if container_id:
                 return [c for c in containers if c.get_id() == container_id]
-            else:
-                return list(containers)
+
+            return list(containers)
 
     def _get_dist_providers(self, provider_id=None):
         # type: (Optional[str]) -> List[DistributionProvider]
@@ -238,8 +247,8 @@ class RSACommandHandler(object):
                 return [
                     p for p in providers if p.get_config_name() == provider_id
                 ]
-            else:
-                return list(providers)
+
+            return list(providers)
 
     @Validate
     def _validate(self, bundle_context):
@@ -458,6 +467,7 @@ class RSACommandHandler(object):
 
     def _list_exported_configs(self, io_handler, endpoint_id=None):
         # type: (ShellSession, str) -> None
+        # pylint: disable=W0212
         """
         List exported services. If <endpoint_id> given, details on that export
         """
@@ -467,6 +477,7 @@ class RSACommandHandler(object):
 
     def _list_imported_configs(self, io_handler, endpoint_id=None):
         # type: (ShellSession, str) -> None
+        # pylint: disable=W0212
         """
         List imported endpoints. If <endpoint_id> given, details on that import
         """
@@ -476,6 +487,7 @@ class RSACommandHandler(object):
 
     def _unimport(self, io_handler, endpoint_id):
         # type: (ShellSession, str) -> None
+        # pylint: disable=W0212
         """
         Un-import endpoint with given endpoint_id (required)
         """
@@ -499,6 +511,7 @@ class RSACommandHandler(object):
         """
         Un-export endpoint with given endpoint_id (required)
         """
+        # pylint: disable=W0212
         export_regs = self._rsa._get_export_regs()
         found_reg = None
         for export_reg in export_regs:
