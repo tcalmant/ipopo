@@ -63,6 +63,7 @@ class ShellSession(object):
     Represents a shell session. This is the kind of object given as parameter
     to shell commands
     """
+
     def __init__(self, io_handler, initial_vars=None):
         # type: (IOHandler, dict) -> None
         """
@@ -137,6 +138,7 @@ class ShellSession(object):
         """
         del self.__variables[name]
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -145,7 +147,8 @@ class IOHandler(object):
     Handles I/O operations between the command handler and the client
     It automatically converts the given data to bytes in Python 3.
     """
-    def __init__(self, in_stream, out_stream, encoding='UTF-8'):
+
+    def __init__(self, in_stream, out_stream, encoding="UTF-8"):
         """
         Sets up the printer
 
@@ -173,8 +176,9 @@ class IOHandler(object):
             # In Python 3.6, the "mode" field is not available on file-like
             # objects, but the "encoding" field seems to be present only in
             # string compatible ones
-            if 'b' in getattr(out_stream, 'mode', '') \
-                    or not hasattr(out_stream, 'encoding'):
+            if "b" in getattr(out_stream, "mode", "") or not hasattr(
+                out_stream, "encoding"
+            ):
                 # Bytes conversion
                 self.write = self._write_bytes
             else:
@@ -221,8 +225,11 @@ class IOHandler(object):
         :return: The result of ``self.output.write()``
         """
         with self.__lock:
-            self.output.write(to_str(data, self.encoding).encode()
-                              .decode(self.out_encoding, errors="replace"))
+            self.output.write(
+                to_str(data, self.encoding)
+                .encode()
+                .decode(self.out_encoding, errors="replace")
+            )
 
     def write_line(self, line=None, *args, **kwargs):
         """
@@ -230,7 +237,7 @@ class IOHandler(object):
         """
         if line is None:
             # Empty line
-            self.write('\n')
+            self.write("\n")
         else:
             # Format the line, if arguments have been given
             if args or kwargs:
@@ -240,12 +247,12 @@ class IOHandler(object):
                 # Write it
                 self.write(line)
                 try:
-                    if line[-1] != '\n':
+                    if line[-1] != "\n":
                         # Add the trailing new line
-                        self.write('\n')
+                        self.write("\n")
                 except IndexError:
                     # Got an empty string
-                    self.write('\n')
+                    self.write("\n")
 
         self.flush()
 
@@ -262,7 +269,7 @@ class IOHandler(object):
                 line = line.format(*args, **kwargs)
 
             # Remove the trailing line feed
-            if line[-1] == '\n':
+            if line[-1] == "\n":
                 line = line[:-1]
 
         # Write it

@@ -31,8 +31,12 @@ Provides commands to the Pelix shell to work with the EventAdmin service
 from pelix.shell import SERVICE_SHELL_COMMAND
 
 # iPOPO Decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Instantiate
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Requires,
+    Provides,
+    Instantiate,
+)
 import pelix.services
 
 # ------------------------------------------------------------------------------
@@ -55,6 +59,7 @@ class EventAdminCommands(object):
     """
     EventAdmin shell commands
     """
+
     def __init__(self):
         """
         Sets up members
@@ -73,16 +78,15 @@ class EventAdminCommands(object):
         """
         Retrieves the list of tuples (command, method) for this command handler
         """
-        return [("send", self.send),
-                ("post", self.post)]
+        return [("send", self.send), ("post", self.post)]
 
-    def send(self, io_handler, topic, **kwargs):
+    def send(self, _, topic, **kwargs):
         """
         Sends an event (blocking)
         """
         self._events.send(topic, kwargs)
 
-    def post(self, io_handler, topic, **kwargs):
+    def post(self, _, topic, **kwargs):
         """
         Posts an event (asynchronous)
         """

@@ -72,7 +72,8 @@ PROP_RUN_FILE = "pelix.shell.console.script_file"
 try:
     # Set up readline if available
     import readline
-    readline.parse_and_bind('tab: complete')
+
+    readline.parse_and_bind("tab: complete")
     readline.set_completer(None)
 except ImportError:
     # Readline is missing, not critical
@@ -85,6 +86,7 @@ class InteractiveShell(object):
     """
     The interactive shell handler
     """
+
     def __init__(self, context):
         """
         Sets up the members
@@ -92,7 +94,7 @@ class InteractiveShell(object):
         :param context: The bundle context
         """
         self._context = context  # type: pelix.BundleContext
-        self._shell_ref = None   # type: pelix.ServiceReference
+        self._shell_ref = None  # type: pelix.ServiceReference
         self._shell = None
 
         # Single session
@@ -151,7 +153,8 @@ class InteractiveShell(object):
         """
         # Start the init script
         self._run_script(
-            self.__session, self._context.get_property(PROP_INIT_FILE))
+            self.__session, self._context.get_property(PROP_INIT_FILE)
+        )
 
         # Run the script
         script_file = self._context.get_property(PROP_RUN_FILE)
@@ -163,7 +166,7 @@ class InteractiveShell(object):
 
         # Nothing more to do
         self._stop_event.set()
-        sys.stdout.write('Bye !\n')
+        sys.stdout.write("Bye !\n")
         sys.stdout.flush()
         if on_quit is not None:
             # Call a handler if needed
@@ -182,6 +185,8 @@ class InteractiveShell(object):
             # The 'execute' method returns False if the run command fails
             return self._shell.execute('run "{0}"'.format(file_path), session)
 
+        return None
+
     def _run_loop(self, session):
         """
         Runs the main input loop
@@ -192,8 +197,11 @@ class InteractiveShell(object):
             first_prompt = True
 
             # Set up the prompt
-            prompt = self._readline_prompt if readline is not None \
+            prompt = (
+                self._readline_prompt
+                if readline is not None
                 else self._normal_prompt
+            )
 
             while not self._stop_event.is_set():
                 # Wait for the shell to be there
@@ -215,7 +223,7 @@ class InteractiveShell(object):
 
                         elif not self._stop_event.is_set():
                             # Shell service lost while not stopping
-                            sys.stdout.write('Shell service lost.')
+                            sys.stdout.write("Shell service lost.")
                             sys.stdout.flush()
         except (EOFError, KeyboardInterrupt, SystemExit):
             # Input closed or keyboard interruption
@@ -258,48 +266,59 @@ class InteractiveShell(object):
                 # Use the completer associated to the command, if any
                 try:
                     configuration = self._shell.get_command_completers(
-                        ns, command)
+                        ns, command
+                    )
                     if configuration is not None:
                         self._readline_matches = completion_hints(
-                            configuration, self.__get_ps1(),
-                            self.__session, self._context, text, arguments)
+                            configuration,
+                            self.__get_ps1(),
+                            self.__session,
+                            self._context,
+                            text,
+                            arguments,
+                        )
                 except KeyError:
                     # Unknown command
                     pass
 
-            elif '.' in command:
+            elif "." in command:
                 # Completing the command, and a name space is given
-                namespace, prefix = text.split('.', 2)
+                namespace, prefix = text.split(".", 2)
                 commands = self._shell.get_commands(namespace)
 
                 # Filter methods according to the prefix
                 self._readline_matches = [
-                    '{0}.{1}'.format(namespace, command)
+                    "{0}.{1}".format(namespace, command)
                     for command in commands
-                    if command.startswith(prefix)]
+                    if command.startswith(prefix)
+                ]
             else:
                 # Completing a command or namespace
                 prefix = command
 
                 # Default commands goes first...
                 possibilities = [
-                    '{0} '.format(command)
+                    "{0} ".format(command)
                     for command in self._shell.get_commands(None)
-                    if command.startswith(prefix)]
+                    if command.startswith(prefix)
+                ]
 
                 # ... then name spaces
                 namespaces = self._shell.get_namespaces()
                 possibilities.extend(
-                    '{0}.'.format(namespace)
+                    "{0}.".format(namespace)
                     for namespace in namespaces
-                    if namespace.startswith(prefix))
+                    if namespace.startswith(prefix)
+                )
 
                 # ... then commands in those name spaces
                 possibilities.extend(
-                    '{0} '.format(command)
-                    for namespace in namespaces if namespace is not None
+                    "{0} ".format(command)
+                    for namespace in namespaces
+                    if namespace is not None
                     for command in self._shell.get_commands(namespace)
-                    if command.startswith(prefix))
+                    if command.startswith(prefix)
+                )
 
                 # Filter methods according to the prefix
                 self._readline_matches = possibilities
@@ -313,6 +332,8 @@ class InteractiveShell(object):
         elif state < len(self._readline_matches):
             # Next try
             return self._readline_matches[state]
+
+        return None
 
     def search_shell(self):
         """
@@ -334,8 +355,7 @@ class InteractiveShell(object):
         kind = event.get_kind()
         reference = event.get_service_reference()
 
-        if kind in (pelix.ServiceEvent.REGISTERED,
-                    pelix.ServiceEvent.MODIFIED):
+        if kind in (pelix.ServiceEvent.REGISTERED, pelix.ServiceEvent.MODIFIED):
             # A service matches our filter
             self.set_shell(reference)
 
@@ -405,6 +425,7 @@ class InteractiveShell(object):
             self.clear_shell()
             self._context = None
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -413,6 +434,7 @@ class Activator(object):
     """
     The bundle activator
     """
+
     def __init__(self):
         """
         Sets up the members
@@ -429,9 +451,11 @@ class Activator(object):
         self._shell = InteractiveShell(context)
 
         # Run the loop thread
-        self._thread = threading.Thread(target=self._shell.loop_input,
-                                        args=[self._quit],
-                                        name="Pelix-Shell-TextConsole")
+        self._thread = threading.Thread(
+            target=self._shell.loop_input,
+            args=[self._quit],
+            name="Pelix-Shell-TextConsole",
+        )
         # Set the thread as a daemon, to let it be killed by the interpreter
         # once all other threads stopped.
         self._thread.daemon = True
@@ -466,6 +490,7 @@ class Activator(object):
         self._thread = None
         self._shell = None
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -480,11 +505,13 @@ def _resolve_file(file_name):
     :return: An absolute path, or None
     """
     if not file_name:
-        return
+        return None
 
     path = os.path.realpath(file_name)
     if os.path.isfile(path):
         return path
+
+    return None
 
 
 def make_common_parser():
@@ -501,40 +528,69 @@ def make_common_parser():
 
     # Version number
     parser.add_argument(
-        "--version", action="version",
-        version="Pelix {0} from {1}".format(pelix.__version__, pelix.__file__))
+        "--version",
+        action="version",
+        version="Pelix {0} from {1}".format(pelix.__version__, pelix.__file__),
+    )
 
     # Framework options
     group = parser.add_argument_group("Framework options")
     group.add_argument(
-        "-D", nargs="+", dest="properties", metavar="KEY=VALUE",
-        help="Sets framework properties")
+        "-D",
+        nargs="+",
+        dest="properties",
+        metavar="KEY=VALUE",
+        help="Sets framework properties",
+    )
     group.add_argument(
-        "-v", "--verbose", action="store_true",
-        help="Set loggers to DEBUG level")
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Set loggers to DEBUG level",
+    )
 
     # Initial configuration
     group = parser.add_argument_group("Initial configuration")
     group.add_argument(
-        "-c", "--conf", dest="init_conf", metavar="FILE",
+        "-c",
+        "--conf",
+        dest="init_conf",
+        metavar="FILE",
         help="Name of an initial configuration file to use "
-             "(default configuration is also loaded)")
+        "(default configuration is also loaded)",
+    )
     group.add_argument(
-        "-C", "--exclusive-conf", dest="init_conf_exclusive", metavar="FILE",
+        "-C",
+        "--exclusive-conf",
+        dest="init_conf_exclusive",
+        metavar="FILE",
         help="Name of an initial configuration file to use "
-             "(without the default configuration)")
+        "(without the default configuration)",
+    )
     group.add_argument(
-        "-e", "--empty-conf", dest="init_empty", action="store_true",
-        help="Don't load any initial configuration")
+        "-e",
+        "--empty-conf",
+        dest="init_empty",
+        action="store_true",
+        help="Don't load any initial configuration",
+    )
 
     # Initial script
     group = parser.add_argument_group("Script execution arguments")
     group.add_argument(
-        "--init", action="store", dest="init_script", metavar="SCRIPT",
-        help="Runs the given shell script before starting the console")
+        "--init",
+        action="store",
+        dest="init_script",
+        metavar="SCRIPT",
+        help="Runs the given shell script before starting the console",
+    )
     group.add_argument(
-        "--run", action="store", dest="run_script", metavar="SCRIPT",
-        help="Runs the given shell script then stops the framework")
+        "--run",
+        action="store",
+        dest="run_script",
+        metavar="SCRIPT",
+        help="Runs the given shell script then stops the framework",
+    )
     return parser
 
 
@@ -548,7 +604,8 @@ def handle_common_arguments(parsed_args):
     """
     # Setup the logger
     logging.basicConfig(
-        level=logging.DEBUG if parsed_args.verbose else logging.WARNING)
+        level=logging.DEBUG if parsed_args.verbose else logging.WARNING
+    )
 
     # Framework properties dictionary
     props = {}
@@ -573,22 +630,26 @@ def handle_common_arguments(parsed_args):
 
     # Compute framework properties
     for prop_def in parsed_args.properties or []:
-        key, value = prop_def.split('=', 1)
+        key, value = prop_def.split("=", 1)
         props[key] = value
 
     # Check initial run script(s)
     if parsed_args.init_script:
         path = props[PROP_INIT_FILE] = _resolve_file(parsed_args.init_script)
         if not path:
-            raise IOError("Initial script file not found: {0}"
-                          .format(parsed_args.init_script))
+            raise IOError(
+                "Initial script file not found: {0}".format(
+                    parsed_args.init_script
+                )
+            )
 
     if parsed_args.run_script:
         # Find the file
         path = props[PROP_RUN_FILE] = _resolve_file(parsed_args.run_script)
         if not path:
-            raise IOError("Script file not found: {0}"
-                          .format(parsed_args.run_script))
+            raise IOError(
+                "Script file not found: {0}".format(parsed_args.run_script)
+            )
 
     # Update the stored configuration
     init.properties.update(props)
@@ -604,8 +665,10 @@ def main(argv=None):
     """
     # Parse arguments
     parser = argparse.ArgumentParser(
-        prog="pelix.shell.console", parents=[make_common_parser()],
-        description="Pelix Shell Console")
+        prog="pelix.shell.console",
+        parents=[make_common_parser()],
+        description="Pelix Shell Console",
+    )
 
     # Parse arguments
     args = parser.parse_args(argv)
@@ -614,14 +677,20 @@ def main(argv=None):
     init = handle_common_arguments(args)
 
     # Set the initial bundles
-    bundles = ['pelix.ipopo.core', 'pelix.shell.core', 'pelix.shell.ipopo',
-               'pelix.shell.completion.pelix', 'pelix.shell.completion.ipopo',
-               'pelix.shell.console']
+    bundles = [
+        "pelix.ipopo.core",
+        "pelix.shell.core",
+        "pelix.shell.ipopo",
+        "pelix.shell.completion.pelix",
+        "pelix.shell.completion.ipopo",
+        "pelix.shell.console",
+    ]
     bundles.extend(init.bundles)
 
     # Use the utility method to create, run and delete the framework
     framework = pelix.create_framework(
-        remove_duplicates(bundles), init.properties)
+        remove_duplicates(bundles), init.properties
+    )
     framework.start()
 
     # Instantiate components
@@ -633,6 +702,6 @@ def main(argv=None):
         framework.stop()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Run the entry point
     sys.exit(main() or 0)

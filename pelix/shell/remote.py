@@ -55,8 +55,15 @@ except ImportError:
 
 # iPOPO
 from pelix.ipopo.constants import use_ipopo
-from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
-    Validate, Invalidate, Provides, HiddenProperty
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Requires,
+    Property,
+    Validate,
+    Invalidate,
+    Provides,
+    HiddenProperty,
+)
 
 # Pelix
 from pelix.shell.console import make_common_parser, handle_common_arguments
@@ -86,6 +93,7 @@ class SharedBoolean(object):
     """
     Shared boolean between objects / threads
     """
+
     def __init__(self, value=False):
         """
         Set up members
@@ -107,6 +115,7 @@ class SharedBoolean(object):
         with self._lock:
             self._value = value
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -114,6 +123,7 @@ class RemoteConsole(socketserver.StreamRequestHandler):
     """
     Handles incoming connections and redirect network stream to the Pelix shell
     """
+
     def __init__(self, shell_svc, active_flag, *args):
         """
         Sets up members
@@ -150,13 +160,17 @@ class RemoteConsole(socketserver.StreamRequestHandler):
         """
         Handles a TCP client
         """
-        _logger.info("RemoteConsole client connected: [%s]:%d",
-                     self.client_address[0], self.client_address[1])
+        _logger.info(
+            "RemoteConsole client connected: [%s]:%d",
+            self.client_address[0],
+            self.client_address[1],
+        )
 
         # Prepare the session
         session = beans.ShellSession(
             beans.IOHandler(self.rfile, self.wfile),
-            {"remote_client_ip": self.client_address[0]})
+            {"remote_client_ip": self.client_address[0]},
+        )
 
         # Print the banner
         def get_ps1():
@@ -202,19 +216,24 @@ class RemoteConsole(socketserver.StreamRequestHandler):
                 except IOError as ex:
                     # I/O errors are fatal
                     _logger.exception(
-                        "Error communicating with a client: %s", ex)
+                        "Error communicating with a client: %s", ex
+                    )
                     break
                 except Exception as ex:
                     # Other exceptions are not important
                     import traceback
+
                     self.send("\nError during last command: {0}\n".format(ex))
                     self.send(traceback.format_exc())
 
                 # Print the prompt
                 self.send(get_ps1())
         finally:
-            _logger.info("RemoteConsole client gone: [%s]:%d",
-                         self.client_address[0], self.client_address[1])
+            _logger.info(
+                "RemoteConsole client gone: [%s]:%d",
+                self.client_address[0],
+                self.client_address[1],
+            )
 
             try:
                 # Be polite
@@ -223,6 +242,7 @@ class RemoteConsole(socketserver.StreamRequestHandler):
             except IOError as ex:
                 _logger.warning("Error cleaning up connection: %s", ex)
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -230,9 +250,16 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
     """
     Threaded TCP Server handling different address families
     """
+
     def __init__(
-            self, server_address, request_handler_class,
-            cert_file=None, key_file=None, key_password=None, ca_file=None):
+        self,
+        server_address,
+        request_handler_class,
+        cert_file=None,
+        key_file=None,
+        key_password=None,
+        ca_file=None,
+    ):
         """
         Sets up the TCP server. Doesn't bind nor activate it.
 
@@ -245,7 +272,8 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         """
         # Determine the address family
         addr_info = socket.getaddrinfo(
-            server_address[0], server_address[1], 0, 0, socket.SOL_TCP)
+            server_address[0], server_address[1], 0, 0, socket.SOL_TCP
+        )
 
         # Change the address family before the socket is created
         # Get the family of the first possibility
@@ -259,7 +287,8 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
 
         # Call the super constructor
         socketserver.ThreadingTCPServer.__init__(
-            self, server_address, request_handler_class, False)
+            self, server_address, request_handler_class, False
+        )
         if self.address_family == socket.AF_INET6:
             # Explicitly ask to be accessible both by IPv4 and IPv6
             try:
@@ -291,7 +320,8 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
                 context.load_cert_chain(
                     certfile=self.cert_file,
                     keyfile=self.key_file,
-                    password=self.key_password)
+                    password=self.key_password,
+                )
 
                 if self.ca_file:
                     # Load the given authority chain
@@ -307,11 +337,13 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
             try:
                 # SSL handshake
                 client_stream = context.wrap_socket(
-                    client_socket, server_side=True)
+                    client_socket, server_side=True
+                )
             except ssl.SSLError as ex:
                 # Explicitly log the exception before re-raising it
                 _logger.warning(
-                    "Error during SSL handshake with %s: %s", client_address, ex)
+                    "Error during SSL handshake with %s: %s", client_address, ex
+                )
                 raise
         else:
             # Nothing to do, use the raw socket
@@ -326,16 +358,24 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         """
         thread = threading.Thread(
             name="RemoteShell-{0}-Client-{1}".format(
-                self.server_address[1], client_address[:2]),
+                self.server_address[1], client_address[:2]
+            ),
             target=self.process_request_thread,
-            args=(request, client_address))
+            args=(request, client_address),
+        )
         thread.daemon = self.daemon_threads
         thread.start()
 
 
 def _create_server(
-        shell, server_address, port,
-        cert_file=None, key_file=None, key_password=None, ca_file=None):
+    shell,
+    server_address,
+    port,
+    cert_file=None,
+    key_file=None,
+    key_password=None,
+    ca_file=None,
+):
     """
     Creates the TCP console on the given address and port
 
@@ -359,8 +399,13 @@ def _create_server(
 
     # Set up the server
     server = ThreadingTCPServerFamily(
-        (server_address, port), request_handler,
-        cert_file, key_file, key_password, ca_file)
+        (server_address, port),
+        request_handler,
+        cert_file,
+        key_file,
+        key_password,
+        ca_file,
+    )
 
     # Set flags
     server.daemon_threads = True
@@ -371,12 +416,14 @@ def _create_server(
     server.server_activate()
 
     # Serve clients
-    server_thread = threading.Thread(target=server.serve_forever,
-                                     name="RemoteShell-{0}".format(port))
+    server_thread = threading.Thread(
+        target=server.serve_forever, name="RemoteShell-{0}".format(port)
+    )
     server_thread.daemon = True
     server_thread.start()
 
     return server_thread, server, active_flag
+
 
 # ------------------------------------------------------------------------------
 
@@ -394,6 +441,7 @@ class IPopoRemoteShell(object):
     """
     The iPOPO Remote Shell, based on the Pelix Shell
     """
+
     def __init__(self):
         """
         Sets up the component
@@ -428,11 +476,12 @@ class IPopoRemoteShell(object):
 
         :return: The shell banner
         """
-        line = '-' * 72
+        line = "-" * 72
         shell_banner = self._shell.get_banner()
 
-        return "{lines}\n{shell_banner}\niPOPO Remote Shell\n{lines}\n" \
-            .format(lines=line, shell_banner=shell_banner)
+        return "{lines}\n{shell_banner}\niPOPO Remote Shell\n{lines}\n".format(
+            lines=line, shell_banner=shell_banner
+        )
 
     def get_ps1(self):
         """
@@ -474,9 +523,14 @@ class IPopoRemoteShell(object):
 
         # Start the TCP server
         self._thread, self._server, self._server_flag = _create_server(
-            self, self._address, self._port,
-            self._cert_file, self._key_file, self._key_password,
-            self._ca_file)
+            self,
+            self._address,
+            self._port,
+            self._cert_file,
+            self._key_file,
+            self._key_password,
+            self._ca_file,
+        )
 
         # Property update (if port was 0)
         self._port = self._server.socket.getsockname()[1]
@@ -504,6 +558,7 @@ class IPopoRemoteShell(object):
         self._server = None
         self._server_flag = None
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -516,9 +571,11 @@ def _run_interpreter(variables, banner):
     """
     # Script-only imports
     import code
+
     try:
         import readline
         import rlcompleter
+
         readline.set_completer(rlcompleter.Completer(variables).complete)
         readline.parse_and_bind("tab: complete")
     except ImportError:
@@ -539,39 +596,55 @@ def main(argv=None):
     """
     # Prepare arguments
     parser = argparse.ArgumentParser(
-        prog="pelix.shell.remote", parents=[make_common_parser()],
-        description="Pelix Remote Shell ({} SSL support)"
-                    .format("with" if ssl is not None else "without"))
+        prog="pelix.shell.remote",
+        parents=[make_common_parser()],
+        description="Pelix Remote Shell ({} SSL support)".format(
+            "with" if ssl is not None else "without"
+        ),
+    )
 
     # Remote shell options
     group = parser.add_argument_group("Remote Shell options")
-    group.add_argument("-a", "--address", default="localhost",
-                       help="The remote shell binding address")
-    group.add_argument("-p", "--port", type=int, default=9000,
-                       help="The remote shell binding port")
+    group.add_argument(
+        "-a",
+        "--address",
+        default="localhost",
+        help="The remote shell binding address",
+    )
+    group.add_argument(
+        "-p",
+        "--port",
+        type=int,
+        default=9000,
+        help="The remote shell binding port",
+    )
 
     if ssl is not None:
         # Remote Shell TLS options
         group = parser.add_argument_group("TLS Options")
-        group.add_argument(
-            "--cert",
-            help="Path to the server certificate file")
+        group.add_argument("--cert", help="Path to the server certificate file")
         group.add_argument(
             "--key",
             help="Path to the server key file "
-                 "(can be omitted if the key is in the certificate)")
+            "(can be omitted if the key is in the certificate)",
+        )
         group.add_argument(
             "--key-password",
             help="Password of the server key."
-                 "Set to '-' for a password request.")
+            "Set to '-' for a password request.",
+        )
         group.add_argument(
             "--ca-chain",
-            help="Path to the CA chain file to authenticate clients")
+            help="Path to the CA chain file to authenticate clients",
+        )
 
     # Local options
     group = parser.add_argument_group("Local options")
-    group.add_argument("--no-input", action="store_true",
-                       help="Run without input (for daemon mode)")
+    group.add_argument(
+        "--no-input",
+        action="store_true",
+        help="Run without input (for daemon mode)",
+    )
 
     # Parse them
     args = parser.parse_args(argv)
@@ -580,13 +653,18 @@ def main(argv=None):
     init = handle_common_arguments(args)
 
     # Set the initial bundles
-    bundles = ['pelix.ipopo.core', 'pelix.shell.core', 'pelix.shell.ipopo',
-               'pelix.shell.remote']
+    bundles = [
+        "pelix.ipopo.core",
+        "pelix.shell.core",
+        "pelix.shell.ipopo",
+        "pelix.shell.remote",
+    ]
     bundles.extend(init.bundles)
 
     # Start a Pelix framework
     framework = pelix.framework.create_framework(
-        utilities.remove_duplicates(bundles), init.properties)
+        utilities.remove_duplicates(bundles), init.properties
+    )
     framework.start()
     context = framework.get_bundle_context()
 
@@ -608,10 +686,12 @@ def main(argv=None):
                 key = args.key
 
                 # Normalize the TLS key file password argument
-                if args.key_password == '-':
+                if args.key_password == "-":
                     import getpass
+
                     key_password = getpass.getpass(
-                        "Password for {}: ".format(args.key or args.cert))
+                        "Password for {}: ".format(args.key or args.cert)
+                    )
                 else:
                     key_password = args.key_password
             else:
@@ -624,20 +704,26 @@ def main(argv=None):
 
             # Setup the component
             rshell = ipopo.instantiate(
-                pelix.shell.FACTORY_REMOTE_SHELL, rshell_name,
-                {"pelix.shell.address": args.address,
-                 "pelix.shell.port": args.port,
-                 "pelix.shell.ssl.ca": ca_chain,
-                 "pelix.shell.ssl.cert": cert,
-                 "pelix.shell.ssl.key": key,
-                 "pelix.shell.ssl.key_password": key_password,
-                 })
+                pelix.shell.FACTORY_REMOTE_SHELL,
+                rshell_name,
+                {
+                    "pelix.shell.address": args.address,
+                    "pelix.shell.port": args.port,
+                    "pelix.shell.ssl.ca": ca_chain,
+                    "pelix.shell.ssl.cert": cert,
+                    "pelix.shell.ssl.key": key,
+                    "pelix.shell.ssl.key_password": key_password,
+                },
+            )
 
             # Avoid loose reference to the password
             del key_password
         else:
-            logging.error("A remote shell component (%s) is already "
-                          "configured. Abandon.", rshell_name)
+            logging.error(
+                "A remote shell component (%s) is already "
+                "configured. Abandon.",
+                rshell_name,
+            )
             return 1
 
     # Prepare a banner
@@ -657,18 +743,22 @@ def main(argv=None):
                 return 127
         else:
             # Prepare interpreter variables
-            variables = {'__name__': '__console__',
-                         '__doc__': None,
-                         '__package__': None,
-                         'framework': framework,
-                         'context': context,
-                         'use_ipopo': use_ipopo}
+            variables = {
+                "__name__": "__console__",
+                "__doc__": None,
+                "__package__": None,
+                "framework": framework,
+                "context": context,
+                "use_ipopo": use_ipopo,
+            }
 
-            banner = "{lines}\nPython interpreter with Pelix Remote Shell\n" \
-                     "Remote shell bound to: {host}:{port}\n{lines}\n" \
-                     "Python version: {version}\n" \
-                .format(lines='-' * 80, version=sys.version,
-                        host=host, port=port)
+            banner = (
+                "{lines}\nPython interpreter with Pelix Remote Shell\n"
+                "Remote shell bound to: {host}:{port}\n{lines}\n"
+                "Python version: {version}\n".format(
+                    lines="-" * 80, version=sys.version, host=host, port=port
+                )
+            )
 
             # Run an interpreter
             _run_interpreter(variables, banner)
@@ -677,6 +767,6 @@ def main(argv=None):
         framework.stop()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Run the entry point
     sys.exit(main() or 0)
