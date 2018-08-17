@@ -62,11 +62,23 @@ class StoredInstance(object):
     """
     Represents a component instance
     """
+
     # Try to reduce memory footprint (stored instances)
-    __slots__ = ('bundle_context', 'context', 'factory_name', 'instance',
-                 'name', 'state', '_controllers_state', '_handlers',
-                 '_ipopo_service', '_lock', '_logger', 'error_trace',
-                 '__all_handlers')
+    __slots__ = (
+        "bundle_context",
+        "context",
+        "factory_name",
+        "instance",
+        "name",
+        "state",
+        "_controllers_state",
+        "_handlers",
+        "_ipopo_service",
+        "_lock",
+        "_logger",
+        "error_trace",
+        "__all_handlers",
+    )
 
     INVALID = 0
     """ This component has been invalidated """
@@ -96,7 +108,8 @@ class StoredInstance(object):
         """
         # The logger
         self._logger = logging.getLogger(
-            '-'.join(("InstanceManager", context.name)))
+            "-".join(("InstanceManager", context.name))
+        )
 
         # The lock
         self._lock = threading.RLock()
@@ -147,8 +160,9 @@ class StoredInstance(object):
         """
         String representation
         """
-        return "StoredInstance(Name={0}, State={1})" \
-            .format(self.name, self.state)
+        return "StoredInstance(Name={0}, State={1})".format(
+            self.name, self.state
+        )
 
     def check_event(self, event):
         # type: (ServiceEvent) -> bool
@@ -165,7 +179,7 @@ class StoredInstance(object):
                 # ignore it
                 return False
 
-            return self.__safe_handlers_callback('check_event', event)
+            return self.__safe_handlers_callback("check_event", event)
 
     def bind(self, dependency, svc, svc_ref):
         # type: (Any, Any, ServiceReference) -> None
@@ -177,8 +191,7 @@ class StoredInstance(object):
             self.__set_binding(dependency, svc, svc_ref)
             self.check_lifecycle()
 
-    def update(self, dependency, svc, svc_ref, old_properties,
-               new_value=False):
+    def update(self, dependency, svc, svc_ref, old_properties, new_value=False):
         # type: (Any, Any, ServiceReference, dict, bool) -> None
         """
         Called by a dependency manager when the properties of an injected
@@ -191,8 +204,9 @@ class StoredInstance(object):
         :param new_value: If True, inject the new value of the handler
         """
         with self._lock:
-            self.__update_binding(dependency, svc, svc_ref, old_properties,
-                                  new_value)
+            self.__update_binding(
+                dependency, svc, svc_ref, old_properties, new_value
+            )
             self.check_lifecycle()
 
     def unbind(self, dependency, svc, svc_ref):
@@ -233,7 +247,7 @@ class StoredInstance(object):
         """
         with self._lock:
             self._controllers_state[name] = value
-            self.__safe_handlers_callback('on_controller_change', name, value)
+            self.__safe_handlers_callback("on_controller_change", name, value)
 
     def update_property(self, name, old_value, new_value):
         # type: (str, Any, Any) -> None
@@ -245,8 +259,9 @@ class StoredInstance(object):
         :param new_value: The new property value
         """
         with self._lock:
-            self.__safe_handlers_callback('on_property_change', name,
-                                          old_value, new_value)
+            self.__safe_handlers_callback(
+                "on_property_change", name, old_value, new_value
+            )
 
     def update_hidden_property(self, name, old_value, new_value):
         # type: (str, Any, Any) -> None
@@ -259,7 +274,8 @@ class StoredInstance(object):
         """
         with self._lock:
             self.__safe_handlers_callback(
-                'on_hidden_property_change', name, old_value, new_value)
+                "on_hidden_property_change", name, old_value, new_value
+            )
 
     def get_handlers(self, kind=None):
         """
@@ -286,18 +302,22 @@ class StoredInstance(object):
         with self._lock:
             # Validation flags
             was_valid = self.state == StoredInstance.VALID
-            can_validate = self.state not in (StoredInstance.VALIDATING,
-                                              StoredInstance.VALID)
+            can_validate = self.state not in (
+                StoredInstance.VALIDATING,
+                StoredInstance.VALID,
+            )
 
             # Test the validity of all handlers
             handlers_valid = self.__safe_handlers_callback(
-                'is_valid', break_on_false=True)
+                "is_valid", break_on_false=True
+            )
 
             if was_valid and not handlers_valid:
                 # A dependency is missing
                 self.invalidate(True)
-            elif can_validate and handlers_valid \
-                    and self._ipopo_service.running:
+            elif (
+                can_validate and handlers_valid and self._ipopo_service.running
+            ):
                 # We're all good
                 self.validate(True)
 
@@ -312,11 +332,12 @@ class StoredInstance(object):
             all_valid = True
             for handler in self.get_handlers(handlers_const.KIND_DEPENDENCY):
                 # Try to bind
-                self.__safe_handler_callback(handler, 'try_binding')
+                self.__safe_handler_callback(handler, "try_binding")
 
                 # Update the validity flag
                 all_valid &= self.__safe_handler_callback(
-                    handler, 'is_valid', only_boolean=True, none_as_true=True)
+                    handler, "is_valid", only_boolean=True, none_as_true=True
+                )
             return all_valid
 
     def start(self):
@@ -324,7 +345,7 @@ class StoredInstance(object):
         Starts the handlers
         """
         with self._lock:
-            self.__safe_handlers_callback('start')
+            self.__safe_handlers_callback("start")
 
     def retry_erroneous(self, properties_update):
         # type: (dict) -> int
@@ -371,21 +392,24 @@ class StoredInstance(object):
             self.state = StoredInstance.INVALID
 
             # Call the handlers
-            self.__safe_handlers_callback('pre_invalidate')
+            self.__safe_handlers_callback("pre_invalidate")
 
             # Call the component
             if callback:
                 # pylint: disable=W0212
                 self.__safe_validation_callback(
-                    constants.IPOPO_CALLBACK_INVALIDATE)
+                    constants.IPOPO_CALLBACK_INVALIDATE
+                )
 
                 # Trigger an "Invalidated" event
                 self._ipopo_service._fire_ipopo_event(
                     constants.IPopoEvent.INVALIDATED,
-                    self.factory_name, self.name)
+                    self.factory_name,
+                    self.name,
+                )
 
             # Call the handlers
-            self.__safe_handlers_callback('post_invalidate')
+            self.__safe_handlers_callback("post_invalidate")
             return True
 
     def kill(self):
@@ -406,8 +430,9 @@ class StoredInstance(object):
             try:
                 self.invalidate(True)
             except:
-                self._logger.exception("%s: Error invalidating the instance",
-                                       self.name)
+                self._logger.exception(
+                    "%s: Error invalidating the instance", self.name
+                )
 
             # Now that we are nearly clean, be sure we were in a good registry
             # state
@@ -415,26 +440,29 @@ class StoredInstance(object):
 
             # Stop all handlers (can tell to unset a binding)
             for handler in self.get_handlers():
-                results = self.__safe_handler_callback(handler, 'stop')
+                results = self.__safe_handler_callback(handler, "stop")
                 if results:
                     try:
                         for binding in results:
-                            self.__unset_binding(handler, binding[0],
-                                                 binding[1])
+                            self.__unset_binding(
+                                handler, binding[0], binding[1]
+                            )
                     except Exception as ex:
                         self._logger.exception(
-                            "Error stopping handler '%s': %s", handler, ex)
+                            "Error stopping handler '%s': %s", handler, ex
+                        )
 
             # Call the handlers
-            self.__safe_handlers_callback('clear')
+            self.__safe_handlers_callback("clear")
 
             # Change the state
             self.state = StoredInstance.KILLED
 
             # Trigger the event
             # pylint: disable=W0212
-            self._ipopo_service._fire_ipopo_event(constants.IPopoEvent.KILLED,
-                                                  self.factory_name, self.name)
+            self._ipopo_service._fire_ipopo_event(
+                constants.IPopoEvent.KILLED, self.factory_name, self.name
+            )
 
             # Clean up members
             self._handlers.clear()
@@ -456,9 +484,11 @@ class StoredInstance(object):
         :raise RuntimeError: You try to awake a dead component
         """
         with self._lock:
-            if self.state in (StoredInstance.VALID,
-                              StoredInstance.VALIDATING,
-                              StoredInstance.ERRONEOUS):
+            if self.state in (
+                StoredInstance.VALID,
+                StoredInstance.VALIDATING,
+                StoredInstance.ERRONEOUS,
+            ):
                 # No work to do (yet)
                 return False
 
@@ -469,7 +499,7 @@ class StoredInstance(object):
             self.error_trace = None
 
             # Call the handlers
-            self.__safe_handlers_callback('pre_validate')
+            self.__safe_handlers_callback("pre_validate")
 
             if safe_callback:
                 # Safe call back needed and not yet passed
@@ -477,7 +507,8 @@ class StoredInstance(object):
 
                 # Call @ValidateComponent first, then @Validate
                 if not self.__safe_validation_callback(
-                        constants.IPOPO_CALLBACK_VALIDATE):
+                    constants.IPOPO_CALLBACK_VALIDATE
+                ):
                     # Stop there if the callback failed
                     self.state = StoredInstance.VALID
                     self.invalidate(True)
@@ -490,15 +521,15 @@ class StoredInstance(object):
             self.state = StoredInstance.VALID
 
             # Call the handlers
-            self.__safe_handlers_callback('post_validate')
+            self.__safe_handlers_callback("post_validate")
 
             # We may have caused a framework error, so check if iPOPO is active
             if self._ipopo_service is not None:
                 # pylint: disable=W0212
                 # Trigger the iPOPO event (after the service _registration)
                 self._ipopo_service._fire_ipopo_event(
-                    constants.IPopoEvent.VALIDATED,
-                    self.factory_name, self.name)
+                    constants.IPopoEvent.VALIDATED, self.factory_name, self.name
+                )
         return True
 
     def __callback(self, event, *args, **kwargs):
@@ -544,13 +575,14 @@ class StoredInstance(object):
             args = getattr(comp_callback, constants.IPOPO_VALIDATE_ARGS)
         except AttributeError:
             raise TypeError(
-                "@ValidateComponent callback is missing internal description")
+                "@ValidateComponent callback is missing internal description"
+            )
 
         # Associate values to arguments
         mapping = {
             constants.ARG_BUNDLE_CONTEXT: self.bundle_context,
             constants.ARG_COMPONENT_CONTEXT: self.context,
-            constants.ARG_PROPERTIES: self.context.properties.copy()
+            constants.ARG_PROPERTIES: self.context.properties.copy(),
         }
         mapped_args = [mapping[arg] for arg in args]
 
@@ -610,21 +642,26 @@ class StoredInstance(object):
             return self.__callback(event, *args, **kwargs)
         except FrameworkException as ex:
             # Important error
-            self._logger.exception("Critical error calling back %s: %s",
-                                   self.name, ex)
+            self._logger.exception(
+                "Critical error calling back %s: %s", self.name, ex
+            )
 
             # Kill the component
             self._ipopo_service.kill(self.name)
 
             if ex.needs_stop:
                 # Framework must be stopped...
-                self._logger.error("%s said that the Framework must be "
-                                   "stopped.", self.name)
+                self._logger.error(
+                    "%s said that the Framework must be " "stopped.", self.name
+                )
                 self.bundle_context.get_framework().stop()
             return False
         except:
-            self._logger.exception("Component '%s': error calling callback "
-                                   "method for event %s", self.name, event)
+            self._logger.exception(
+                "Component '%s': error calling callback " "method for event %s",
+                self.name,
+                event,
+            )
             return False
 
     def __safe_validation_callback(self, event):
@@ -645,7 +682,8 @@ class StoredInstance(object):
         except FrameworkException as ex:
             # Important error
             self._logger.exception(
-                "Critical error calling back %s: %s", self.name, ex)
+                "Critical error calling back %s: %s", self.name, ex
+            )
 
             # Kill the component
             self._ipopo_service.kill(self.name)
@@ -656,12 +694,15 @@ class StoredInstance(object):
             if ex.needs_stop:
                 # Framework must be stopped...
                 self._logger.error(
-                    "%s said that the Framework must be stopped.", self.name)
+                    "%s said that the Framework must be stopped.", self.name
+                )
                 self.bundle_context.get_framework().stop()
             return False
         except:
-            self._logger.exception("Component '%s': error calling "
-                                   "@ValidateComponent callback", self.name)
+            self._logger.exception(
+                "Component '%s': error calling " "@ValidateComponent callback",
+                self.name,
+            )
 
             # Store the exception as it is a validation error
             self.error_trace = traceback.format_exc()
@@ -686,22 +727,27 @@ class StoredInstance(object):
             return self.__field_callback(field, event, *args, **kwargs)
         except FrameworkException as ex:
             # Important error
-            self._logger.exception("Critical error calling back %s: %s",
-                                   self.name, ex)
+            self._logger.exception(
+                "Critical error calling back %s: %s", self.name, ex
+            )
 
             # Kill the component
             self._ipopo_service.kill(self.name)
 
             if ex.needs_stop:
                 # Framework must be stopped...
-                self._logger.error("%s said that the Framework must be "
-                                   "stopped.", self.name)
+                self._logger.error(
+                    "%s said that the Framework must be " "stopped.", self.name
+                )
                 self.bundle_context.get_framework().stop()
             return False
         except:
-            self._logger.exception("Component '%s' : error calling "
-                                   "callback method for event %s",
-                                   self.name, event)
+            self._logger.exception(
+                "Component '%s' : error calling "
+                "callback method for event %s",
+                self.name,
+                event,
+            )
             return False
 
     def __safe_handler_callback(self, handler, method_name, *args, **kwargs):
@@ -731,8 +777,8 @@ class StoredInstance(object):
             return None
 
         # Behavior flags
-        only_boolean = kwargs.pop('only_boolean', False)
-        none_as_true = kwargs.pop('none_as_true', False)
+        only_boolean = kwargs.pop("only_boolean", False)
+        none_as_true = kwargs.pop("none_as_true", False)
 
         # Get the method for each handler
         try:
@@ -749,8 +795,9 @@ class StoredInstance(object):
                 result = None
 
                 # Log error
-                self._logger.exception("Error calling handler '%s': %s",
-                                       handler, ex)
+                self._logger.exception(
+                    "Error calling handler '%s': %s", handler, ex
+                )
 
         if result is None and none_as_true:
             # Consider None (nothing returned) as True
@@ -789,8 +836,8 @@ class StoredInstance(object):
             return False
 
         # Behavior flags
-        exception_as_error = kwargs.pop('exception_as_error', False)
-        break_on_false = kwargs.pop('break_on_false', False)
+        exception_as_error = kwargs.pop("exception_as_error", False)
+        break_on_false = kwargs.pop("break_on_false", False)
 
         result = True
         for handler in self.get_handlers():
@@ -809,8 +856,9 @@ class StoredInstance(object):
                         result = False
                 except Exception as ex:
                     # Log errors
-                    self._logger.exception("Error calling handler '%s': %s",
-                                           handler, ex)
+                    self._logger.exception(
+                        "Error calling handler '%s': %s", handler, ex
+                    )
 
                     # We can consider exceptions as errors or ignore them
                     result = result and not exception_as_error
@@ -836,12 +884,16 @@ class StoredInstance(object):
         # Call the component back
         self.safe_callback(constants.IPOPO_CALLBACK_BIND, service, reference)
 
-        self.__safe_field_callback(dependency.get_field(),
-                                   constants.IPOPO_CALLBACK_BIND_FIELD,
-                                   service, reference)
+        self.__safe_field_callback(
+            dependency.get_field(),
+            constants.IPOPO_CALLBACK_BIND_FIELD,
+            service,
+            reference,
+        )
 
-    def __update_binding(self, dependency, service, reference, old_properties,
-                         new_value):
+    def __update_binding(
+        self, dependency, service, reference, old_properties, new_value
+    ):
         # type: (Any, Any, ServiceReference, dict, bool) -> None
         """
         Calls back component binding and field binding methods when the
@@ -855,16 +907,22 @@ class StoredInstance(object):
         """
         if new_value:
             # Set the value
-            setattr(self.instance, dependency.get_field(),
-                    dependency.get_value())
+            setattr(
+                self.instance, dependency.get_field(), dependency.get_value()
+            )
 
         # Call the component back
-        self.__safe_field_callback(dependency.get_field(),
-                                   constants.IPOPO_CALLBACK_UPDATE_FIELD,
-                                   service, reference, old_properties)
+        self.__safe_field_callback(
+            dependency.get_field(),
+            constants.IPOPO_CALLBACK_UPDATE_FIELD,
+            service,
+            reference,
+            old_properties,
+        )
 
-        self.safe_callback(constants.IPOPO_CALLBACK_UPDATE, service,
-                           reference, old_properties)
+        self.safe_callback(
+            constants.IPOPO_CALLBACK_UPDATE, service, reference, old_properties
+        )
 
     def __unset_binding(self, dependency, service, reference):
         # type: (Any, Any, ServiceReference) -> None
@@ -876,9 +934,12 @@ class StoredInstance(object):
         :param reference: The reference of the injected service
         """
         # Call the component back
-        self.__safe_field_callback(dependency.get_field(),
-                                   constants.IPOPO_CALLBACK_UNBIND_FIELD,
-                                   service, reference)
+        self.__safe_field_callback(
+            dependency.get_field(),
+            constants.IPOPO_CALLBACK_UNBIND_FIELD,
+            service,
+            reference,
+        )
 
         self.safe_callback(constants.IPOPO_CALLBACK_UNBIND, service, reference)
 
