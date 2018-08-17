@@ -48,9 +48,11 @@ __docformat__ = "restructuredtext en"
 
 
 class _HandlerFactory(constants.HandlerFactory):
+    # pylint: disable=R0903
     """
     Factory service for service registration handlers
     """
+
     def get_handlers(self, component_context, instance):
         """
         Sets up service providers for the given component
@@ -61,7 +63,8 @@ class _HandlerFactory(constants.HandlerFactory):
         """
         # Retrieve the handler configuration
         provides = component_context.get_handler(
-            ipopo_constants.HANDLER_PROVIDES)
+            ipopo_constants.HANDLER_PROVIDES
+        )
         if not provides:
             # Nothing to do
             return ()
@@ -69,7 +72,8 @@ class _HandlerFactory(constants.HandlerFactory):
         # 1 handler per provided service
         return [
             ServiceRegistrationHandler(
-                specs, controller, is_factory, is_prototype)
+                specs, controller, is_factory, is_prototype
+            )
             for specs, controller, is_factory, is_prototype in provides
         ]
 
@@ -79,6 +83,7 @@ class _Activator(object):
     """
     The bundle activator
     """
+
     def __init__(self):
         """
         Sets up members
@@ -90,21 +95,25 @@ class _Activator(object):
         Bundle started
         """
         # Set up properties
-        properties = {constants.PROP_HANDLER_ID:
-                      ipopo_constants.HANDLER_PROVIDES}
+        properties = {
+            constants.PROP_HANDLER_ID: ipopo_constants.HANDLER_PROVIDES
+        }
 
         # Register the handler factory service
         self._registration = context.register_service(
             constants.SERVICE_IPOPO_HANDLER_FACTORY,
-            _HandlerFactory(), properties)
+            _HandlerFactory(),
+            properties,
+        )
 
-    def stop(self, context):
+    def stop(self, _):
         """
         Bundle stopped
         """
         # Unregister the service
         self._registration.unregister()
         self._registration = None
+
 
 # ------------------------------------------------------------------------------
 
@@ -113,8 +122,10 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
     """
     Handles the registration of a service provided by a component
     """
-    def __init__(self, specifications, controller_name,
-                 is_factory, is_prototype):
+
+    def __init__(
+        self, specifications, controller_name, is_factory, is_prototype
+    ):
         """
         Sets up the handler
 
@@ -148,6 +159,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         stored_instance = self._ipopo_instance
 
         def get_value(self, name):
+            # pylint: disable=W0613
             """
             Retrieves the controller value, from the iPOPO dictionaries
 
@@ -157,6 +169,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
             return stored_instance.get_controller_state(name)
 
         def set_value(self, name, new_value):
+            # pylint: disable=W0613
             """
             Sets the property value and trigger an update event
 
@@ -191,30 +204,33 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         controller_value = getattr(component_instance, self.__controller, True)
 
         # Store the controller value
-        stored_instance.set_controller_state(self.__controller,
-                                             controller_value)
+        stored_instance.set_controller_state(
+            self.__controller, controller_value
+        )
 
         # Prepare the methods names
-        getter_name = "{0}{1}" \
-                      .format(ipopo_constants.IPOPO_CONTROLLER_PREFIX,
-                              ipopo_constants.IPOPO_GETTER_SUFFIX)
-        setter_name = "{0}{1}" \
-                      .format(ipopo_constants.IPOPO_CONTROLLER_PREFIX,
-                              ipopo_constants.IPOPO_SETTER_SUFFIX)
+        getter_name = "{0}{1}".format(
+            ipopo_constants.IPOPO_CONTROLLER_PREFIX,
+            ipopo_constants.IPOPO_GETTER_SUFFIX,
+        )
+        setter_name = "{0}{1}".format(
+            ipopo_constants.IPOPO_CONTROLLER_PREFIX,
+            ipopo_constants.IPOPO_SETTER_SUFFIX,
+        )
 
         # Inject the getter and setter at the instance level
         getter, setter = self._field_controller_generator()
         setattr(component_instance, getter_name, getter)
         setattr(component_instance, setter_name, setter)
 
-    def check_event(self, svc_event):
+    def check_event(self, event):
         """
         Tests if the given service event corresponds to the registered service
 
-        :param svc_event: A service event
+        :param event: A service event
         :return: True if the given event references the provided service
         """
-        return self._svc_reference is not svc_event.get_service_reference()
+        return self._svc_reference is not event.get_service_reference()
 
     def get_kinds(self):
         """
@@ -222,7 +238,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
 
         :return: the kinds of this handler
         """
-        return constants.KIND_SERVICE_PROVIDER,
+        return (constants.KIND_SERVICE_PROVIDER,)
 
     def get_service_reference(self):
         """
@@ -287,22 +303,31 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         """
         Registers the provided service, if possible
         """
-        if self._registration is None and self.specifications \
-                and self.__validated and self.__controller_on:
+        if (
+            self._registration is None
+            and self.specifications
+            and self.__validated
+            and self.__controller_on
+        ):
             # Use a copy of component properties
             properties = self._ipopo_instance.context.properties.copy()
             bundle_context = self._ipopo_instance.bundle_context
 
             # Register the service
             self._registration = bundle_context.register_service(
-                self.specifications, self._ipopo_instance.instance, properties,
-                factory=self.__is_factory, prototype=self.__is_prototype)
+                self.specifications,
+                self._ipopo_instance.instance,
+                properties,
+                factory=self.__is_factory,
+                prototype=self.__is_prototype,
+            )
             self._svc_reference = self._registration.get_reference()
 
             # Notify the component
             self._ipopo_instance.safe_callback(
                 ipopo_constants.IPOPO_CALLBACK_POST_REGISTRATION,
-                self._svc_reference)
+                self._svc_reference,
+            )
 
     def _unregister_service(self):
         """
@@ -314,14 +339,16 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
                 self._registration.unregister()
             except BundleException as ex:
                 # Only log the error at this level
-                logger = logging.getLogger('-'.join((self._ipopo_instance.name,
-                                                     'ServiceRegistration')))
+                logger = logging.getLogger(
+                    "-".join((self._ipopo_instance.name, "ServiceRegistration"))
+                )
                 logger.error("Error unregistering a service: %s", ex)
 
             # Notify the component (even in case of error)
             self._ipopo_instance.safe_callback(
                 ipopo_constants.IPOPO_CALLBACK_POST_UNREGISTRATION,
-                self._svc_reference)
+                self._svc_reference,
+            )
 
             self._registration = None
             self._svc_reference = None

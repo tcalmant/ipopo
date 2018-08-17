@@ -32,20 +32,19 @@ import traceback
 
 # Standard typing module should be optional
 try:
+    # pylint: disable=W0611
     from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+    from pelix.framework import ServiceEvent, ServiceReference
+    from pelix.ipopo.contexts import ComponentContext
 except ImportError:
     pass
 
 # Pelix
 from pelix.constants import FrameworkException
-from pelix.framework import ServiceEvent, ServiceReference
 
 # iPOPO constants
 import pelix.ipopo.constants as constants
 import pelix.ipopo.handlers.constants as handlers_const
-
-# iPOPO beans
-from pelix.ipopo.contexts import ComponentContext
 
 # ------------------------------------------------------------------------------
 
@@ -376,6 +375,7 @@ class StoredInstance(object):
 
             # Call the component
             if callback:
+                # pylint: disable=W0212
                 self.__safe_validation_callback(
                     constants.IPOPO_CALLBACK_INVALIDATE)
 
@@ -432,6 +432,7 @@ class StoredInstance(object):
             self.state = StoredInstance.KILLED
 
             # Trigger the event
+            # pylint: disable=W0212
             self._ipopo_service._fire_ipopo_event(constants.IPopoEvent.KILLED,
                                                   self.factory_name, self.name)
 
@@ -493,6 +494,7 @@ class StoredInstance(object):
 
             # We may have caused a framework error, so check if iPOPO is active
             if self._ipopo_service is not None:
+                # pylint: disable=W0212
                 # Trigger the iPOPO event (after the service _registration)
                 self._ipopo_service._fire_ipopo_event(
                     constants.IPopoEvent.VALIDATED,
