@@ -36,8 +36,12 @@ import traceback
 # Pelix
 import pelix.framework
 from pelix.constants import BundleActivator
-from pelix.misc import LOG_SERVICE, LOG_READER_SERVICE, \
-    PROPERTY_LOG_LEVEL, PROPERTY_LOG_MAX_ENTRIES
+from pelix.misc import (
+    LOG_SERVICE,
+    LOG_READER_SERVICE,
+    PROPERTY_LOG_LEVEL,
+    PROPERTY_LOG_MAX_ENTRIES,
+)
 
 # ------------------------------------------------------------------------------
 
@@ -62,7 +66,7 @@ OSGI_TO_LEVEL = {
     LOG_DEBUG: logging.DEBUG,
     LOG_INFO: logging.INFO,
     LOG_WARNING: logging.WARNING,
-    LOG_ERROR: logging.ERROR
+    LOG_ERROR: logging.ERROR,
 }
 
 # Python logging level => OSGi level
@@ -71,7 +75,7 @@ LEVEL_TO_OSGI = {
     logging.INFO: LOG_INFO,
     logging.WARNING: LOG_WARNING,
     logging.ERROR: LOG_ERROR,
-    logging.CRITICAL: LOG_ERROR
+    logging.CRITICAL: LOG_ERROR,
 }
 
 # ------------------------------------------------------------------------------
@@ -81,8 +85,15 @@ class LogEntry(object):
     """
     Represents a log entry
     """
-    __slots__ = ('__bundle', '__exception', '__level',
-                 '__message', '__reference', '__time')
+
+    __slots__ = (
+        "__bundle",
+        "__exception",
+        "__level",
+        "__message",
+        "__reference",
+        "__time",
+    )
 
     def __init__(self, level, message, exception, bundle, reference):
         """
@@ -107,22 +118,25 @@ class LogEntry(object):
             # 7: length of "WARNING"
             "{0: ^7} ::".format(logging.getLevelName(self.__level)),
             # Date
-            str(datetime.datetime.fromtimestamp(self.__time)), '::']
+            str(datetime.datetime.fromtimestamp(self.__time)),
+            "::",
+        ]
 
         if self.__bundle:
             # Bundle name
-            values.append("{0: <20s} ::".format(
-                self.__bundle.get_symbolic_name()))
+            values.append(
+                "{0: <20s} ::".format(self.__bundle.get_symbolic_name())
+            )
 
         # Message
         values.append(self.__message)
 
         if not self.__exception:
             # Print as is
-            return ' '.join(values)
-        else:
-            # Print the exception too
-            return '{0}\n{1}'.format(' '.join(values), self.__exception)
+            return " ".join(values)
+
+        # Print the exception too
+        return "{0}\n{1}".format(" ".join(values), self.__exception)
 
     @property
     def bundle(self):
@@ -178,6 +192,7 @@ class LogReaderService:
     """
     The LogReader service
     """
+
     def __init__(self, context, max_entries):
         """
         :param context: The bundle context
@@ -241,9 +256,13 @@ class LogReaderService:
                 # listener (to avoid a recursion)
                 err_entry = LogEntry(
                     logging.WARNING,
-                    "Error notifying logging listener {0}: {1}"
-                    .format(listener, ex), sys.exc_info(),
-                    self._context.get_bundle(), None)
+                    "Error notifying logging listener {0}: {1}".format(
+                        listener, ex
+                    ),
+                    sys.exc_info(),
+                    self._context.get_bundle(),
+                    None,
+                )
 
                 # Insert the new entry before the real one
                 self.__logs.pop()
@@ -252,10 +271,12 @@ class LogReaderService:
 
 
 class LogServiceInstance:
+    # pylint: disable=R0903
     """
     Instance of the log service given to a bundle by the factory
     """
-    __slots__ = ('__reader', '__bundle')
+
+    __slots__ = ("__reader", "__bundle")
 
     def __init__(self, reader, bundle):
         """
@@ -266,6 +287,7 @@ class LogServiceInstance:
         self.__bundle = bundle
 
     def log(self, level, message, exc_info=None, reference=None):
+        # pylint: disable=W0212
         """
         Logs a message, possibly with an exception
 
@@ -281,15 +303,16 @@ class LogServiceInstance:
         if exc_info is not None:
             # Format the exception to avoid memory leaks
             try:
-                exception_str = '\n'.join(traceback.format_exception(*exc_info))
+                exception_str = "\n".join(traceback.format_exception(*exc_info))
             except (TypeError, ValueError, AttributeError):
-                exception_str = '<Invalid exc_info>'
+                exception_str = "<Invalid exc_info>"
         else:
             exception_str = None
 
         # Store the LogEntry
         entry = LogEntry(
-            level, message, exception_str, self.__bundle, reference)
+            level, message, exception_str, self.__bundle, reference
+        )
         self.__reader._store_entry(entry)
 
 
@@ -297,6 +320,7 @@ class LogServiceFactory(logging.Handler):
     """
     Log Service Factory: provides a logger per bundle
     """
+
     def __init__(self, context, reader, level):
         """
         :param context: The bundle context
@@ -324,6 +348,7 @@ class LogServiceFactory(logging.Handler):
         return self._framework.get_bundle_by_name(module_object)
 
     def emit(self, record):
+        # pylint: disable=W0212
         """
         Handle a message logged with the logger
 
@@ -334,10 +359,12 @@ class LogServiceFactory(logging.Handler):
 
         # Convert to a LogEntry
         entry = LogEntry(
-            record.levelno, record.getMessage(), None, bundle, None)
+            record.levelno, record.getMessage(), None, bundle, None
+        )
         self._reader._store_entry(entry)
 
     def get_service(self, bundle, registration):
+        # pylint: disable=W0613
         """
         Returns an instance of the log service for the given bundle
 
@@ -363,6 +390,7 @@ class Activator(object):
     """
     The bundle activator
     """
+
     def __init__(self):
         self.__reader_reg = None
         self.__factory_reg = None
@@ -409,13 +437,16 @@ class Activator(object):
         # Register the LogReader service
         reader = LogReaderService(context, max_entries)
         self.__reader_reg = context.register_service(
-            LOG_READER_SERVICE, reader, {})
+            LOG_READER_SERVICE, reader, {}
+        )
 
         # Register the LogService factory
         self.__factory = LogServiceFactory(
-            context, reader, self.get_level(context))
+            context, reader, self.get_level(context)
+        )
         self.__factory_reg = context.register_service(
-            LOG_SERVICE, self.__factory, {}, factory=True)
+            LOG_SERVICE, self.__factory, {}, factory=True
+        )
 
         # Register the log service as a log handler
         logging.getLogger().addHandler(self.__factory)

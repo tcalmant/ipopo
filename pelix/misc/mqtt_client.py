@@ -58,6 +58,7 @@ class MqttClient(object):
     """
     Remote Service discovery provider based on MQTT
     """
+
     def __init__(self, client_id=None):
         """
         Sets up members
@@ -70,8 +71,11 @@ class MqttClient(object):
             self._client_id = self.generate_id()
         elif len(client_id) > 23:
             # ID too large
-            _logger.warning("MQTT Client ID '%s' is too long (23 chars max): "
-                            "generating a random one", client_id)
+            _logger.warning(
+                "MQTT Client ID '%s' is too long (23 chars max): "
+                "generating a random one",
+                client_id,
+            )
             # Keep the client ID as it might be accepted
             self._client_id = client_id
         else:
@@ -157,7 +161,7 @@ class MqttClient(object):
         else:
             random_ints = [ord(char) for char in random_bytes]
 
-        random_id = ''.join('{0:02x}'.format(value) for value in random_ints)
+        random_id = "".join("{0:02x}".format(value) for value in random_ints)
         return "{0}{1}".format(prefix, random_id)
 
     @classmethod
@@ -323,8 +327,9 @@ class MqttClient(object):
             result_code = self.__mqtt.reconnect()
             if result_code:
                 # Something wrong happened
-                message = "Error connecting the MQTT server: {0} ({1})" \
-                    .format(result_code, paho.error_string(result_code))
+                message = "Error connecting the MQTT server: {0} ({1})".format(
+                    result_code, paho.error_string(result_code)
+                )
                 _logger.error(message)
                 raise ValueError(message)
         except Exception as ex:
@@ -336,6 +341,7 @@ class MqttClient(object):
             self.__start_timer(10)
 
     def __on_connect(self, client, userdata, flags, result_code):
+        # pylint: disable=W0613
         """
         Client connected to the server
 
@@ -346,8 +352,11 @@ class MqttClient(object):
         """
         if result_code:
             # result_code != 0: something wrong happened
-            _logger.error("Error connecting the MQTT server: %s (%d)",
-                          paho.connack_string(result_code), result_code)
+            _logger.error(
+                "Error connecting the MQTT server: %s (%d)",
+                paho.connack_string(result_code),
+                result_code,
+            )
         else:
             # Connection is OK: stop the reconnection timer
             self.__stop_timer()
@@ -360,6 +369,7 @@ class MqttClient(object):
                 _logger.exception("Error notifying MQTT listener: %s", ex)
 
     def __on_disconnect(self, client, userdata, result_code):
+        # pylint: disable=W0613
         """
         Client has been disconnected from the server
 
@@ -371,7 +381,9 @@ class MqttClient(object):
             # rc != 0: unexpected disconnection
             _logger.error(
                 "Unexpected disconnection from the MQTT server: %s (%d)",
-                paho.connack_string(result_code), result_code)
+                paho.connack_string(result_code),
+                result_code,
+            )
 
             # Try to reconnect
             self.__stop_timer()
@@ -385,6 +397,7 @@ class MqttClient(object):
                 _logger.exception("Error notifying MQTT listener: %s", ex)
 
     def __on_message(self, client, userdata, msg):
+        # pylint: disable=W0613
         """
         A message has been received from a server
 
@@ -400,6 +413,7 @@ class MqttClient(object):
                 _logger.exception("Error notifying MQTT listener: %s", ex)
 
     def __on_publish(self, client, userdata, mid):
+        # pylint: disable=W0613
         """
         A message has been published by a server
 

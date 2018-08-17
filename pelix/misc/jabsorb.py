@@ -56,7 +56,7 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-JSON_CLASS = '__jsonclass__'
+JSON_CLASS = "__jsonclass__"
 """
 Tuple used by jsonrpclib to indicate wich Python class corresponds to its
 content
@@ -84,6 +84,7 @@ class HashableDict(dict):
     """
     Small workaround because dictionaries are not hashable in Python
     """
+
     def __hash__(self):
         """
         Computes the hash of the dictionary
@@ -95,6 +96,7 @@ class HashableSet(set):
     """
     Small workaround because sets are not hashable in Python
     """
+
     def __hash__(self):
         """
         Computes the hash of the set
@@ -106,6 +108,7 @@ class HashableList(list):
     """
     Small workaround because lists are not hashable in Python
     """
+
     def __hash__(self):
         """
         Computes the hash of the list
@@ -117,6 +120,7 @@ class AttributeMap(dict):
     """
     Wraps a map to have the same behaviour between getattr and getitem
     """
+
     def __init__(self, *args, **kwargs):
         """
         Adds a __dict__ member to this dictionary
@@ -129,6 +133,7 @@ class AttributeMap(dict):
         Computes the hash of the dictionary
         """
         return hash("AttributeMap({0})".format(sorted(self.items())))
+
 
 # ------------------------------------------------------------------------------
 
@@ -143,8 +148,8 @@ def _compute_jsonclass(obj):
     # It's not a standard type, so it needs __jsonclass__
     module_name = inspect.getmodule(obj).__name__
     json_class = obj.__class__.__name__
-    if module_name not in ('', '__main__'):
-        json_class = '{0}.{1}'.format(module_name, json_class)
+    if module_name not in ("", "__main__"):
+        json_class = "{0}.{1}".format(module_name, json_class)
 
     return [json_class, []]
 
@@ -159,8 +164,8 @@ def _is_builtin(obj):
     module_ = inspect.getmodule(obj)
     if module_ in (None, builtins):
         return True
-    else:
-        return module_.__name__ in ('', '__main__')
+
+    return module_.__name__ in ("", "__main__")
 
 
 def _is_converted_class(java_class):
@@ -170,9 +175,12 @@ def _is_converted_class(java_class):
     if not java_class:
         return False
 
-    return JAVA_MAPS_PATTERN.match(java_class) is not None \
-        or JAVA_LISTS_PATTERN.match(java_class) is not None \
+    return (
+        JAVA_MAPS_PATTERN.match(java_class) is not None
+        or JAVA_LISTS_PATTERN.match(java_class) is not None
         or JAVA_SETS_PATTERN.match(java_class) is not None
+    )
+
 
 # ------------------------------------------------------------------------------
 
@@ -226,13 +234,17 @@ def to_jabsorb(value):
 
     # List ? (consider tuples as an array)
     elif isinstance(value, list):
-        converted_result = {JAVA_CLASS: "java.util.ArrayList",
-                            'list': [to_jabsorb(entry) for entry in value]}
+        converted_result = {
+            JAVA_CLASS: "java.util.ArrayList",
+            "list": [to_jabsorb(entry) for entry in value],
+        }
 
     # Set ?
     elif isinstance(value, (set, frozenset)):
-        converted_result = {JAVA_CLASS: "java.util.HashSet",
-                            'set': [to_jabsorb(entry) for entry in value]}
+        converted_result = {
+            JAVA_CLASS: "java.util.HashSet",
+            "set": [to_jabsorb(entry) for entry in value],
+        }
 
     # Tuple ? (used as array, except if it is empty)
     elif isinstance(value, tuple):
@@ -240,13 +252,17 @@ def to_jabsorb(value):
 
     elif hasattr(value, JAVA_CLASS):
         # Class with a Java class hint: convert into a dictionary
-        class_members = {name: getattr(value, name) for name in dir(value)
-                         if not name.startswith('_')}
+        class_members = {
+            name: getattr(value, name)
+            for name in dir(value)
+            if not name.startswith("_")
+        }
 
         converted_result = HashableDict(
             (name, to_jabsorb(content))
             for name, content in class_members.items()
-            if not inspect.ismethod(content))
+            if not inspect.ismethod(content)
+        )
 
         # Do not forget the Java class
         converted_result[JAVA_CLASS] = getattr(value, JAVA_CLASS)
@@ -280,8 +296,8 @@ def from_jabsorb(request, seems_raw=False):
         # Check if we were a list or a tuple
         if seems_raw:
             return list(from_jabsorb(element) for element in request)
-        else:
-            return tuple(from_jabsorb(element) for element in request)
+
+        return tuple(from_jabsorb(element) for element in request)
 
     elif isinstance(request, dict):
         # Dictionary
@@ -292,23 +308,28 @@ def from_jabsorb(request, seems_raw=False):
         if java_class:
             # Java Map ?
             if JAVA_MAPS_PATTERN.match(java_class) is not None:
-                return HashableDict((from_jabsorb(key), from_jabsorb(value))
-                                    for key, value in request["map"].items())
+                return HashableDict(
+                    (from_jabsorb(key), from_jabsorb(value))
+                    for key, value in request["map"].items()
+                )
 
             # Java List ?
             elif JAVA_LISTS_PATTERN.match(java_class) is not None:
-                return HashableList(from_jabsorb(element)
-                                    for element in request["list"])
+                return HashableList(
+                    from_jabsorb(element) for element in request["list"]
+                )
 
             # Java Set ?
             elif JAVA_SETS_PATTERN.match(java_class) is not None:
-                return HashableSet(from_jabsorb(element)
-                                   for element in request["set"])
+                return HashableSet(
+                    from_jabsorb(element) for element in request["set"]
+                )
 
         # Any other case
-        result = AttributeMap((from_jabsorb(key),
-                               from_jabsorb(value, seems_raw))
-                              for key, value in request.items())
+        result = AttributeMap(
+            (from_jabsorb(key), from_jabsorb(value, seems_raw))
+            for key, value in request.items()
+        )
 
         # Keep JSON class information as is
         if json_class:
@@ -320,7 +341,7 @@ def from_jabsorb(request, seems_raw=False):
         # Bean
         for attr in dir(request):
             # Only convert public fields
-            if not attr[0] == '_':
+            if not attr[0] == "_":
                 # Field conversion
                 setattr(request, attr, from_jabsorb(getattr(request, attr)))
 
