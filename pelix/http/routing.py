@@ -33,12 +33,16 @@ import uuid
 
 # Standard typing module should be optional
 try:
+    # pylint: disable=W0611
     from typing import Any, Callable, Dict, Pattern, Tuple
+    from pelix.http import (
+        AbstractHTTPServletRequest,
+        AbstractHTTPServletResponse,
+    )
 except ImportError:
     pass
 
 # Pelix utility methods
-from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse
 from pelix.utilities import get_method_arguments
 
 # ------------------------------------------------------------------------------
@@ -73,8 +77,8 @@ TYPE_PATTERNS = {
     "int": r"(?:[+\-]?\d+)",
     "float": r"(?:[+\-]?\d+\.?\d*)",
     "path": r"(?:[\w\s/]+)",
-    "uuid": r'(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}'
-            r'-[0-9a-fA-F]{12})'
+    "uuid": r"(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}"
+    r"-[0-9a-fA-F]{12})",
 }
 TYPE_PATTERNS[None] = TYPE_PATTERNS["string"]
 
@@ -92,7 +96,7 @@ def path_filter(path):
     :param path: A parsed path
     :return: The parsed path without its trailing /
     """
-    return path[:-1] if path and path[-1] == '/' else path
+    return path[:-1] if path and path[-1] == "/" else path
 
 
 # Type name -> conversion method (for types other than str)
@@ -110,6 +114,7 @@ class Http(object):
     """
     Decorator indicating which route a method handles
     """
+
     def __init__(self, route, methods=None):
         """
         :param route: Path handled by the method (beginning with a '/')
@@ -137,8 +142,11 @@ class Http(object):
         :param decorated_method: The decorated method
         """
         if not inspect.isroutine(decorated_method):
-            raise TypeError("@Http can decorate only methods, not {0}"
-                            .format(type(decorated_method).__name__))
+            raise TypeError(
+                "@Http can decorate only methods, not {0}".format(
+                    type(decorated_method).__name__
+                )
+            )
 
         try:
             config = getattr(decorated_method, HTTP_ROUTE_ATTRIBUTE)
@@ -156,6 +164,7 @@ class HttpGet(Http):
     """
     Decorates a method handling GET requests
     """
+
     def __init__(self, route):
         """
         :param route: Path handled by the method (beginning with a '/')
@@ -167,6 +176,7 @@ class HttpHead(Http):
     """
     Decorates a method handling HEAD requests
     """
+
     def __init__(self, route):
         """
         :param route: Path handled by the method (beginning with a '/')
@@ -178,6 +188,7 @@ class HttpPost(Http):
     """
     Decorates a method handling POST requests
     """
+
     def __init__(self, route):
         """
         :param route: Path handled by the method (beginning with a '/')
@@ -189,6 +200,7 @@ class HttpPut(Http):
     """
     Decorates a method handling PUT requests
     """
+
     def __init__(self, route):
         """
         :param route: Path handled by the method (beginning with a '/')
@@ -200,11 +212,13 @@ class HttpDelete(Http):
     """
     Decorates a method handling DELETE requests
     """
+
     def __init__(self, route):
         """
         :param route: Path handled by the method (beginning with a '/')
         """
         super(HttpDelete, self).__init__(route, methods=["DELETE"])
+
 
 # ------------------------------------------------------------------------------
 
@@ -214,6 +228,7 @@ class RestDispatcher(object):
     Parent class for servlets: dispatches requests according to the @Http
     decorator
     """
+
     def __init__(self):
         """
         Looks for the methods where to dispatch requests
@@ -228,30 +243,35 @@ class RestDispatcher(object):
         self._setup_rest_dispatcher()
 
     def do_GET(self, request, response):
+        # pylint: disable=C0103
         """
         Handles a GET request
         """
         self._rest_dispatch(request, response)
 
     def do_HEAD(self, request, response):
+        # pylint: disable=C0103
         """
         Handles a HEAD request
         """
         self._rest_dispatch(request, response)
 
     def do_POST(self, request, response):
+        # pylint: disable=C0103
         """
         Handles a POST request
         """
         self._rest_dispatch(request, response)
 
     def do_PUT(self, request, response):
+        # pylint: disable=C0103
         """
         Handles a PUT request
         """
         self._rest_dispatch(request, response)
 
     def do_DELETE(self, request, response):
+        # pylint: disable=C0103
         """
         Handles a DELETE request
         """
@@ -303,8 +323,10 @@ class RestDispatcher(object):
         if best_method is None:
             # No match: return a 404 plain text error
             response.send_content(
-                404, "No method to handle path {0}".format(sub_path),
-                "text/plain")
+                404,
+                "No method to handle path {0}".format(sub_path),
+                "text/plain",
+            )
         else:
             # Found a method
             # ... convert arguments
@@ -352,10 +374,10 @@ class RestDispatcher(object):
                 # Not a REST method
                 continue
 
-            for route in config['routes']:
+            for route in config["routes"]:
                 pattern, arguments = self.__convert_route(route)
                 self.__methods_args.setdefault(method, {}).update(arguments)
-                for http_verb in config['methods']:
+                for http_verb in config["methods"]:
                     self.__routes.setdefault(http_verb, {})[pattern] = method
 
     @staticmethod
@@ -374,19 +396,22 @@ class RestDispatcher(object):
         arguments = {}  # type: Dict[str, Callable[[str], Any]]
         last_idx = 0
         final_pattern = []
-        miter = _MARKER_PATTERN.finditer(route)
-        for m in miter:
+        match_iter = _MARKER_PATTERN.finditer(route)
+        for match_pattern in match_iter:
             # Copy intermediate string
-            final_pattern.append(route[last_idx:m.start()])
-            last_idx = m.end() + 1
+            final_pattern.append(route[last_idx : match_pattern.start()])
+            last_idx = match_pattern.end() + 1
 
             # Extract type declaration
-            m2 = _TYPED_MARKER_PATTERN.match(m.group())
-            if not m2:
+            match_type = _TYPED_MARKER_PATTERN.match(match_pattern.group())
+            if not match_type:
                 raise ValueError(
-                    "Invalid argument declaration: {0}".format(m.group()))
+                    "Invalid argument declaration: {0}".format(
+                        match_pattern.group()
+                    )
+                )
 
-            name, kind = m2.groups()
+            name, kind = match_type.groups()
             if kind:
                 kind = kind.lower()
 
@@ -397,15 +422,15 @@ class RestDispatcher(object):
             arguments[name] = TYPE_CONVERTERS.get(kind)
 
             # Generate the regex pattern for this part
-            final_pattern.append('((?P<')
-            final_pattern.append(m2.group(1))
-            final_pattern.append('>')
+            final_pattern.append("((?P<")
+            final_pattern.append(match_type.group(1))
+            final_pattern.append(">")
             final_pattern.append(regex)
-            final_pattern.append(')/?)?')
-        else:
-            # Copy trailing string
-            final_pattern.append(route[last_idx:])
+            final_pattern.append(")/?)?")
+
+        # Copy trailing string
+        final_pattern.append(route[last_idx:])
 
         # Ensure we don't accept trailing values
         final_pattern.append("$")
-        return re.compile(''.join(final_pattern)), arguments
+        return re.compile("".join(final_pattern)), arguments

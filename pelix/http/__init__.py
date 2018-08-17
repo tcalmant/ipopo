@@ -29,6 +29,7 @@ Defines the interfaces that must respect HTTP service implementations.
 
 # Standard typing module should be optional
 try:
+    # pylint: disable=W0611
     from typing import Any, ByteString, Dict, Iterable, IO, Tuple
 except ImportError:
     pass
@@ -137,9 +138,11 @@ def make_html_list(items, tag="ul"):
     :param tag: The tag to use (ul or ol)
     :return: The HTML list code
     """
-    html_list = "\n".join('<li><a href="{0}">{0}</a></li>'.format(item)
-                          for item in items)
+    html_list = "\n".join(
+        '<li><a href="{0}">{0}</a></li>'.format(item) for item in items
+    )
     return "<{0}>\n{1}\n</{0}>".format(tag, html_list)
+
 
 # ------------------------------------------------------------------------------
 
@@ -148,13 +151,15 @@ class AbstractHTTPServletRequest(object):
     """
     Abstract HTTP Servlet request helper
     """
+
     def get_command(self):
         # type: () -> str
         """
         Returns the HTTP verb (GET, POST, ...) used for the request
         """
-        raise NotImplementedError("This method must be implemented by a "
-                                  "child class")
+        raise NotImplementedError(
+            "This method must be implemented by a child class"
+        )
 
     def get_client_address(self):
         # type: () -> Tuple[str, int]
@@ -163,8 +168,9 @@ class AbstractHTTPServletRequest(object):
 
         :return: A (host, port) tuple
         """
-        raise NotImplementedError("This method must be implemented by a "
-                                  "child class")
+        raise NotImplementedError(
+            "This method must be implemented by a child class"
+        )
 
     def get_header(self, name, default=None):
         # type: (str, Any) -> Any
@@ -175,8 +181,9 @@ class AbstractHTTPServletRequest(object):
         :param default: Default value if the header doesn't exist
         :return: The header value or the default one
         """
-        raise NotImplementedError("This method must be implemented by a "
-                                  "child class")
+        raise NotImplementedError(
+            "This method must be implemented by a child class"
+        )
 
     def get_headers(self):
         # type: () -> Dict[str, Any]
@@ -185,8 +192,9 @@ class AbstractHTTPServletRequest(object):
 
         :return: A dictionary-like object
         """
-        raise NotImplementedError("This method must be implemented by a "
-                                  "child class")
+        raise NotImplementedError(
+            "This method must be implemented by a child class"
+        )
 
     def get_path(self):
         # type: () -> str
@@ -195,8 +203,9 @@ class AbstractHTTPServletRequest(object):
 
         :return: A request full path (string)
         """
-        raise NotImplementedError("This method must be implemented by a "
-                                  "child class")
+        raise NotImplementedError(
+            "This method must be implemented by a child class"
+        )
 
     def get_prefix_path(self):
         # type: () -> str
@@ -205,8 +214,9 @@ class AbstractHTTPServletRequest(object):
 
         :return: A request path (string)
         """
-        raise NotImplementedError("This method must be implemented by a "
-                                  "child class")
+        raise NotImplementedError(
+            "This method must be implemented by a child class"
+        )
 
     def get_sub_path(self):
         # type: () -> str
@@ -215,8 +225,9 @@ class AbstractHTTPServletRequest(object):
 
         :return: A request path (string)
         """
-        raise NotImplementedError("This method must be implemented by a "
-                                  "child class")
+        raise NotImplementedError(
+            "This method must be implemented by a child class"
+        )
 
     def get_rfile(self):
         # type: () -> IO
@@ -225,8 +236,9 @@ class AbstractHTTPServletRequest(object):
 
         :return: A file-like input stream
         """
-        raise NotImplementedError("This method must be implemented by a "
-                                  "child class")
+        raise NotImplementedError(
+            "This method must be implemented by a child class"
+        )
 
     def read_data(self):
         # type: () -> ByteString
@@ -236,7 +248,7 @@ class AbstractHTTPServletRequest(object):
         :return: The read data
         """
         try:
-            size = int(self.get_header('content-length'))
+            size = int(self.get_header("content-length"))
         except (ValueError, TypeError):
             size = -1
 
@@ -247,6 +259,7 @@ class AbstractHTTPServletResponse(object):
     """
     HTTP Servlet response helper
     """
+
     def set_response(self, code, message=None):
         # type: (int, str) -> None
         """
@@ -256,8 +269,9 @@ class AbstractHTTPServletResponse(object):
         :param code: HTTP result code
         :param message: Associated message
         """
-        raise NotImplementedError("This method must be implemented "
-                                  "by a child class")
+        raise NotImplementedError(
+            "This method must be implemented by a child class"
+        )
 
     def set_header(self, name, value):
         # type: (str, Any) -> None
@@ -268,8 +282,9 @@ class AbstractHTTPServletResponse(object):
         :param name: Header name
         :param value: Header value
         """
-        raise NotImplementedError("This method must be implemented "
-                                  "by a child class")
+        raise NotImplementedError(
+            "This method must be implemented by a child class"
+        )
 
     def is_header_set(self, name):
         # type: (str) -> bool
@@ -279,15 +294,17 @@ class AbstractHTTPServletResponse(object):
         :param name: Header name
         :return: True if it has already been set
         """
-        raise NotImplementedError("This method must be implemented "
-                                  "by a child class")
+        raise NotImplementedError(
+            "This method must be implemented by a child class"
+        )
 
     def end_headers(self):
         """
         Ends the headers part
         """
-        raise NotImplementedError("This method must be implemented "
-                                  "by a child class")
+        raise NotImplementedError(
+            "This method must be implemented by a child class"
+        )
 
     def get_wfile(self):
         # type: () -> IO
@@ -298,8 +315,9 @@ class AbstractHTTPServletResponse(object):
 
         :return: A file-like output stream
         """
-        raise NotImplementedError("This method must be implemented "
-                                  "by a child class")
+        raise NotImplementedError(
+            "This method must be implemented by a child class"
+        )
 
     def write(self, data):
         # type: (ByteString) -> None
@@ -310,11 +328,18 @@ class AbstractHTTPServletResponse(object):
 
         :param data: Data to be written
         """
-        raise NotImplementedError("This method must be implemented "
-                                  "by a child class")
+        raise NotImplementedError(
+            "This method must be implemented by a child class"
+        )
 
-    def send_content(self, http_code, content, mime_type="text/html",
-                     http_message=None, content_length=-1):
+    def send_content(
+        self,
+        http_code,
+        content,
+        mime_type="text/html",
+        http_message=None,
+        content_length=-1,
+    ):
         # type: (int, str, str, str, int) -> None
         """
         Utility method to send the given content as an answer.
@@ -339,8 +364,9 @@ class AbstractHTTPServletResponse(object):
         # Convert the content
         raw_content = to_bytes(content)
 
-        if content_length is not None \
-                and not self.is_header_set("content-length"):
+        if content_length is not None and not self.is_header_set(
+            "content-length"
+        ):
             if content_length < 0:
                 # Compute the length
                 content_length = len(raw_content)
