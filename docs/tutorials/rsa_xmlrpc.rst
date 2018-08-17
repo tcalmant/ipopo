@@ -12,8 +12,8 @@ Introduction
 
 This tutorial shows how to create and run a simple remote service using the
 XmlRpc provider.
-The XmlRpc distribution provider is one of several supported by the OSGi R7 RSA
-implementation.
+The XmlRpc distribution provider is one of several supported by the RSA Remote
+Services (OSGi R7-compliant) implementation.
 
 Requirements
 ============
