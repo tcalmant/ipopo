@@ -36,8 +36,14 @@ import logging
 import pelix.misc.mqtt_client
 
 # iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Validate, Property, Invalidate
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Requires,
+    Provides,
+    Validate,
+    Property,
+    Invalidate,
+)
 
 # Pelix & Remote services
 from pelix.remote.edef_io import EDEFWriter, EDEFReader
@@ -81,6 +87,7 @@ class MqttDiscovery(object):
     """
     Remote Service discovery provider based on MQTT
     """
+
     def __init__(self):
         """
         Sets up members
@@ -134,14 +141,15 @@ class MqttDiscovery(object):
         self.__mqtt.on_message = self.__on_message
 
         # Prepare the will packet
-        self.__mqtt.set_will(self._make_topic(EVENT_LOST),
-                             self._framework_uid, qos=2)
+        self.__mqtt.set_will(
+            self._make_topic(EVENT_LOST), self._framework_uid, qos=2
+        )
 
         # Prepare the connection
         self.__mqtt.connect(self._host, self._port)
 
     @Invalidate
-    def _invalidate(self, context):
+    def _invalidate(self, _):
         """
         Component invalidated
         """
@@ -165,11 +173,11 @@ class MqttDiscovery(object):
         """
         return "{0}/{1}".format(self._real_prefix, event)
 
-    def __on_connect(self, client, rc):
+    def __on_connect(self, client, result_code):
         """
         Client connected to the server
         """
-        if not rc:
+        if not result_code:
             # Connection is OK, subscribe to the topic
             client.subscribe(self._make_topic("#"))
 
@@ -179,7 +187,8 @@ class MqttDiscovery(object):
             # Send a discovery packet
             self.__send_message(EVENT_DISCOVER, self._framework_uid)
 
-    def __on_disconnect(self, client, rc):
+    def __on_disconnect(self, client, result_code):
+        # pylint: disable=W0613
         """
         Client has been disconnected from the server
         """
@@ -187,6 +196,7 @@ class MqttDiscovery(object):
         self._controller = False
 
     def __on_message(self, client, msg):
+        # pylint: disable=W0613
         """
         A message has been received from a server
 
@@ -203,11 +213,14 @@ class MqttDiscovery(object):
             if event in ENDPOINT_EVENTS:
                 # Parse the endpoints (from EDEF XML to ImportEndpoint)
                 endpoints_descr = EDEFReader().parse(msg.payload)
-                endpoints = [endpoint.to_import()
-                             for endpoint in endpoints_descr]
+                endpoints = [
+                    endpoint.to_import() for endpoint in endpoints_descr
+                ]
 
-                if not endpoints or \
-                        endpoints[0].framework == self._framework_uid:
+                if (
+                    not endpoints
+                    or endpoints[0].framework == self._framework_uid
+                ):
                     # No enpoints to read or Loopback message
                     return
 
@@ -223,8 +236,9 @@ class MqttDiscovery(object):
                 _logger.error("Unhandled MQTT event: %s", event)
 
         except Exception as ex:
-            _logger.exception("Error handling an MQTT message '%s': %s",
-                              topic, ex)
+            _logger.exception(
+                "Error handling an MQTT message '%s': %s", topic, ex
+            )
 
     def __send_message(self, event, payload, wait=False):
         """
@@ -235,8 +249,9 @@ class MqttDiscovery(object):
         :return: The local message ID
         """
         # Publish the MQTT message (QoS 2 - Exactly Once)
-        return self.__mqtt.publish(self._make_topic(event), payload, qos=2,
-                                   wait=wait)
+        return self.__mqtt.publish(
+            self._make_topic(event), payload, qos=2, wait=wait
+        )
 
     def _handle_add(self, endpoints):
         """
@@ -287,7 +302,8 @@ class MqttDiscovery(object):
         # Convert the beans to XML (EDEF format)
         xml_string = EDEFWriter().to_string(
             beans.EndpointDescription.from_export(endpoint)
-            for endpoint in endpoints)
+            for endpoint in endpoints
+        )
 
         # Send the message
         self.__send_message(EVENT_ADD, xml_string)
@@ -309,12 +325,14 @@ class MqttDiscovery(object):
         # Convert the beans to XML (EDEF format)
         xml_string = EDEFWriter().to_string(
             beans.EndpointDescription.from_export(endpoint)
-            for endpoint in endpoints)
+            for endpoint in endpoints
+        )
 
         # Send the message
         self.__send_message(EVENT_ADD, xml_string)
 
     def endpoint_updated(self, endpoint, old_properties):
+        # pylint: disable=W0613
         """
         An end point is updated
 

@@ -42,8 +42,13 @@ import uuid
 import pelix.misc.mqtt_client
 
 # iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
-    Validate, Invalidate
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Property,
+    Provides,
+    Validate,
+    Invalidate,
+)
 
 # Pelix & Remote services
 from pelix.utilities import to_str
@@ -62,10 +67,10 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-MQTTRPC_CONFIGURATION = 'mqttrpc'
+MQTTRPC_CONFIGURATION = "mqttrpc"
 """ Remote Service configuration constant """
 
-PROP_MQTT_TOPIC = 'mqttrpc.topic'
+PROP_MQTT_TOPIC = "mqttrpc.topic"
 """ Remote Service property: topic to use to contact the service """
 
 _logger = logging.getLogger(__name__)
@@ -75,15 +80,16 @@ TOPIC_REQUEST = "request"
 TOPIC_RESPONSE = "reply"
 
 # JSON dictionary keys
-KEY_ERROR = 'err'
-KEY_DATA = 'data'
-KEY_CORRELATION_ID = '_correlationId'
+KEY_ERROR = "err"
+KEY_DATA = "data"
+KEY_CORRELATION_ID = "_correlationId"
 KEY_SENDER = pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID
 
 # ------------------------------------------------------------------------------
 
 
 def make_topic(topic, suffix):
+    # pylint: disable=W0613
     """
     Prepares a topic with the given suffix
 
@@ -96,15 +102,19 @@ def make_topic(topic, suffix):
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_MQTTRPC_EXPORTER)
 @Provides(pelix.remote.SERVICE_EXPORT_PROVIDER)
-@Property('_topic', PROP_MQTT_TOPIC, "pelix/remote-services/mqttrpc/{fw_uid}")
-@Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
-          (MQTTRPC_CONFIGURATION,))
+@Property("_topic", PROP_MQTT_TOPIC, "pelix/remote-services/mqttrpc/{fw_uid}")
+@Property(
+    "_kinds",
+    pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
+    (MQTTRPC_CONFIGURATION,),
+)
 @Property("_host", "mqtt.host", "localhost")
 @Property("_port", "mqtt.port", 1883)
 class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
     """
     MQTT-RPC Remote Services exporter
     """
+
     def __init__(self):
         """
         Sets up the exporter
@@ -167,17 +177,19 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # Clean up members
         self.__mqtt = None
 
-    def __on_connect(self, client, rc):
+    def __on_connect(self, client, result_code):
+        # pylint: disable=W0613
         """
         Client connected to the server
         """
-        if not rc:
+        if not result_code:
             # Connection is OK, subscribe to the topic
             # Subscribe to endpoints calls
             request_topic_filter = make_topic(self.__real_topic, TOPIC_REQUEST)
             self.__mqtt.subscribe(request_topic_filter)
 
     def __on_message(self, client, msg):
+        # pylint: disable=W0613
         """
         An MQTT message has been received
 
@@ -201,8 +213,9 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
             pass
 
         # Handle the request in a different thread
-        threading.Thread(name="MQTT-RPC-Exporter",
-                         target=self.__handle_rpc, args=(data,)).start()
+        threading.Thread(
+            name="MQTT-RPC-Exporter", target=self.__handle_rpc, args=(data,)
+        ).start()
 
     def __handle_rpc(self, data):
         """
@@ -211,10 +224,12 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         :param data: RPC description
         """
         # Prepare the result dictionary
-        result = {KEY_ERROR: None,
-                  KEY_DATA: None,
-                  KEY_CORRELATION_ID: data.get(KEY_CORRELATION_ID),
-                  KEY_SENDER: self._framework_uid}
+        result = {
+            KEY_ERROR: None,
+            KEY_DATA: None,
+            KEY_CORRELATION_ID: data.get(KEY_CORRELATION_ID),
+            KEY_SENDER: self._framework_uid,
+        }
 
         # Extract parameters
         try:
@@ -236,8 +251,7 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
         try:
             # Publish the result
-            self.__mqtt.publish(
-                self.__reply_topic, json.dumps(result), qos=2)
+            self.__mqtt.publish(self.__reply_topic, json.dumps(result), qos=2)
         except (ValueError, AttributeError) as ex:
             _logger.error("Error replying an RPC request: %s", ex)
 
@@ -252,13 +266,16 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         """
         return {PROP_MQTT_TOPIC: self.__real_topic}
 
+
 # ------------------------------------------------------------------------------
 
 
 class _MqttCallableProxy(object):
+    # pylint: disable=R0903
     """
     Callable object that makes the real request to the MQTT server
     """
+
     def __init__(self, uid, topic, method, publish_method):
         """
         Stores parameters
@@ -320,9 +337,11 @@ class _MqttCallableProxy(object):
 
 
 class _ServiceCallProxy(object):
+    # pylint: disable=R0903
     """
     Service call proxy
     """
+
     def __init__(self, uid, name, topic_prefix, publish_method):
         """
         Sets up the call proxy
@@ -345,21 +364,28 @@ class _ServiceCallProxy(object):
         # This is an ugly trick to handle multi-threaded calls, as the
         # underlying proxy re-uses the same connection when possible: sometimes
         # it means sending a request before retrieving a result
-        return _MqttCallableProxy(self.__uid, self.__topic_prefix,
-                                  "{0}.{1}".format(self.__name, name),
-                                  self.__publish)
+        return _MqttCallableProxy(
+            self.__uid,
+            self.__topic_prefix,
+            "{0}.{1}".format(self.__name, name),
+            self.__publish,
+        )
 
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_MQTTRPC_IMPORTER)
 @Provides(pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER)
-@Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
-          (MQTTRPC_CONFIGURATION,))
+@Property(
+    "_kinds",
+    pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
+    (MQTTRPC_CONFIGURATION,),
+)
 @Property("_host", "mqtt.host", "localhost")
 @Property("_port", "mqtt.port", 1883)
 class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
     """
     MQTT-RPC Remote Services importer
     """
+
     def __init__(self):
         """
         Sets up the exporter
@@ -395,10 +421,11 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         if not topic_prefix:
             # No topic information
             _logger.warning("No MQTT topic given: %s", endpoint)
+            return None
 
-        else:
-            return _ServiceCallProxy(endpoint.uid, endpoint.name, topic_prefix,
-                                     self.__send_request)
+        return _ServiceCallProxy(
+            endpoint.uid, endpoint.name, topic_prefix, self.__send_request
+        )
 
     def clear_service_proxy(self, endpoint):
         """
@@ -415,8 +442,9 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
             # Unused endpoint
             return
 
-    def __send_request(self, endpoint_uid, proxy, topic_prefix,
-                       request_parameters):
+    def __send_request(
+        self, endpoint_uid, proxy, topic_prefix, request_parameters
+    ):
         """
         Sends a request to the given topic
 
@@ -430,13 +458,18 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
 
         try:
             # Prepare the data
-            request = json.dumps({KEY_DATA: request_parameters,
-                                  KEY_CORRELATION_ID: correlation_id,
-                                  KEY_SENDER: self._framework_uid})
+            request = json.dumps(
+                {
+                    KEY_DATA: request_parameters,
+                    KEY_CORRELATION_ID: correlation_id,
+                    KEY_SENDER: self._framework_uid,
+                }
+            )
 
         except ValueError as ex:
-            raise RemoteServiceError("Cannot convert request to JSON: {0}"
-                                     .format(ex))
+            raise RemoteServiceError(
+                "Cannot convert request to JSON: {0}".format(ex)
+            )
 
         # Keep the callable in the waiting list
         self.__waiting[correlation_id] = proxy
@@ -446,10 +479,12 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         self.__mqtt.subscribe(make_topic(topic_prefix, TOPIC_RESPONSE))
 
         # Send the request
-        self.__mqtt.publish(make_topic(topic_prefix, TOPIC_REQUEST), request,
-                            qos=2)
+        self.__mqtt.publish(
+            make_topic(topic_prefix, TOPIC_REQUEST), request, qos=2
+        )
 
     def __on_message(self, client, msg):
+        # pylint: disable=W0613
         """
         An MQTT reply has been received
         """

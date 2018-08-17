@@ -37,6 +37,7 @@ except ImportError:
 
 # Standard typing module should be optional
 try:
+    # pylint: disable=W0611
     from typing import Any, Dict, Iterable, List, Optional, Tuple
 except ImportError:
     pass
@@ -70,8 +71,10 @@ class ExportEndpoint(object):
     """
     Represents an export end point (one per group of configuration types)
     """
-    def __init__(self, uid, fw_uid, configurations, name,
-                 svc_ref, service, properties):
+
+    def __init__(
+        self, uid, fw_uid, configurations, name, svc_ref, service, properties
+    ):
         # type: (str, str, Any[str, List[str]], str, pelix.framework.ServiceReference, object, dict) -> None
         """
         :param uid: Unique identified of the end point
@@ -114,8 +117,11 @@ class ExportEndpoint(object):
             # Transform the specifications for export (add the language prefix)
             self.__exported_specs = format_specifications(exported_specs)
         else:
-            raise ValueError("Endpoint {0}, {1}, exports nothing"
-                             .format(self.__uid, self.__name))
+            raise ValueError(
+                "Endpoint {0}, {1}, exports nothing".format(
+                    self.__uid, self.__name
+                )
+            )
 
     def __hash__(self):
         """
@@ -139,9 +145,9 @@ class ExportEndpoint(object):
         """
         String representation
         """
-        return "ExportEndpoint(uid={0}, types={1}, specs={2})" \
-            .format(self.__uid, self.__configurations,
-                    self.__exported_specs)
+        return "ExportEndpoint(uid={0}, types={1}, specs={2})".format(
+            self.__uid, self.__configurations, self.__exported_specs
+        )
 
     def get_properties(self):
         # type: () -> dict
@@ -249,6 +255,7 @@ class ExportEndpoint(object):
         """
         return self.__exported_specs
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -256,8 +263,10 @@ class ImportEndpoint(object):
     """
     Represents an end point to access an imported service
     """
-    def __init__(self, uid, framework, configurations, name, specifications,
-                 properties):
+
+    def __init__(
+        self, uid, framework, configurations, name, specifications, properties
+    ):
         # type: (str, str, Any[str, List[str]], Optional[str], List[str], dict) -> None
         """
         :param uid: Unique identified of the end point
@@ -283,7 +292,8 @@ class ImportEndpoint(object):
 
         # Extract the language prefix in specifications
         self.__specifications = extract_specifications(
-            specifications, self.__properties)
+            specifications, self.__properties
+        )
 
         # Public variable: the source server,
         # set up by a Pelix discovery service
@@ -293,9 +303,15 @@ class ImportEndpoint(object):
         """
         String representation of the end point
         """
-        return "ImportEndpoint(uid={0}, framework={1}, configurations={2}, " \
-            "specs={3})".format(self.__uid, self.__fw_uid,
-                                self.__configurations, self.__specifications)
+        return (
+            "ImportEndpoint(uid={0}, framework={1}, configurations={2}, "
+            "specs={3})".format(
+                self.__uid,
+                self.__fw_uid,
+                self.__configurations,
+                self.__specifications,
+            )
+        )
 
     # Access to the service details
     @property
@@ -356,6 +372,7 @@ class ImportEndpoint(object):
         """
         return self.__name
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -368,6 +385,7 @@ class EndpointDescription(object):
 
     This is an importer-side description
     """
+
     def __init__(self, svc_ref, properties):
         # type: (Optional[pelix.framework.ServiceReference], dict) -> None
         """
@@ -386,8 +404,9 @@ class EndpointDescription(object):
         # Add  some properties if the service reference is given
         if svc_ref is not None:
             # Service ID
-            all_properties[pelix.remote.PROP_ENDPOINT_SERVICE_ID] = \
-                svc_ref.get_property(pelix.constants.SERVICE_ID)
+            all_properties[
+                pelix.remote.PROP_ENDPOINT_SERVICE_ID
+            ] = svc_ref.get_property(pelix.constants.SERVICE_ID)
 
         # Convert properties
         self.__properties = to_import_properties(all_properties)
@@ -408,22 +427,26 @@ class EndpointDescription(object):
         """
         Equality checked by UID
         """
+        # pylint: disable=W0212
         return self.__endpoint_id == other.__endpoint_id
 
     def __ne__(self, other):
         """
         Inequality checked by UID
         """
+        # pylint: disable=W0212
         return self.__endpoint_id != other.__endpoint_id
 
     def __str__(self):
         """
         String representation
         """
-        return "EndpointDescription(id={0}; endpoint.service.id={1}; " \
-               "framework.uuid={2})".format(self.get_id(),
-                                            self.get_service_id(),
-                                            self.get_framework_uuid())
+        return (
+            "EndpointDescription(id={0}; endpoint.service.id={1}; "
+            "framework.uuid={2})".format(
+                self.get_id(), self.get_service_id(), self.get_framework_uuid()
+            )
+        )
 
     @staticmethod
     def __check_properties(props):
@@ -436,16 +459,20 @@ class EndpointDescription(object):
         :raise ValueError: Invalid properties
         """
         # Mandatory properties
-        mandatory = (pelix.remote.PROP_ENDPOINT_ID,
-                     pelix.remote.PROP_IMPORTED_CONFIGS,
-                     pelix.constants.OBJECTCLASS)
+        mandatory = (
+            pelix.remote.PROP_ENDPOINT_ID,
+            pelix.remote.PROP_IMPORTED_CONFIGS,
+            pelix.constants.OBJECTCLASS,
+        )
         for key in mandatory:
             if key not in props:
                 raise ValueError("Missing property: {0}".format(key))
 
         # Export/Import properties
-        props_export = (pelix.remote.PROP_EXPORTED_CONFIGS,
-                        pelix.remote.PROP_EXPORTED_INTERFACES)
+        props_export = (
+            pelix.remote.PROP_EXPORTED_CONFIGS,
+            pelix.remote.PROP_EXPORTED_INTERFACES,
+        )
 
         for key in props_export:
             if key in props:
@@ -527,13 +554,14 @@ class EndpointDescription(object):
         :return: The version of the specified package as a tuple or (0,0,0)
         """
         name = "{0}{1}".format(
-            pelix.remote.PROP_ENDPOINT_PACKAGE_VERSION_, package)
+            pelix.remote.PROP_ENDPOINT_PACKAGE_VERSION_, package
+        )
         try:
             # Get the version string
             version = self.__properties[name]
 
             # Split dots ('.')
-            return tuple(version.split('.'))
+            return tuple(version.split("."))
         except KeyError:
             # No version
             return 0, 0, 0
@@ -569,8 +597,10 @@ class EndpointDescription(object):
         :param endpoint: Another endpoint
         :return: True if both endpoints represent the same remote service
         """
-        return self.get_framework_uuid() == endpoint.get_framework_uuid() \
+        return (
+            self.get_framework_uuid() == endpoint.get_framework_uuid()
             and self.get_service_id() == endpoint.get_service_id()
+        )
 
     def matches(self, ldap_filter):
         # type: (Any[str, pelix.ldapfilter.LDAPFilter]) -> bool
@@ -581,8 +611,9 @@ class EndpointDescription(object):
         :param ldap_filter: A filter
         :return: True if properties matches the filter
         """
-        return pelix.ldapfilter.get_ldap_filter(ldap_filter) \
-            .matches(self.__properties)
+        return pelix.ldapfilter.get_ldap_filter(ldap_filter).matches(
+            self.__properties
+        )
 
     def to_import(self):
         # type: () -> ImportEndpoint
@@ -603,7 +634,7 @@ class EndpointDescription(object):
             name = properties[pelix.remote.PROP_ENDPOINT_NAME]
         except KeyError:
             # Generated
-            name = '{0}.{1}'.format(fw_uid, self.get_service_id())
+            name = "{0}.{1}".format(fw_uid, self.get_service_id())
 
         # Configuration / kind
         configurations = self.get_configuration_types()
@@ -611,8 +642,14 @@ class EndpointDescription(object):
         # Interfaces
         specifications = self.get_interfaces()
 
-        return ImportEndpoint(self.get_id(), fw_uid, configurations, name,
-                              specifications, properties)
+        return ImportEndpoint(
+            self.get_id(),
+            fw_uid,
+            configurations,
+            name,
+            specifications,
+            properties,
+        )
 
     @classmethod
     def from_export(cls, endpoint):
@@ -630,16 +667,18 @@ class EndpointDescription(object):
 
         # Set import keys
         properties[pelix.remote.PROP_ENDPOINT_ID] = endpoint.uid
-        properties[pelix.remote.PROP_IMPORTED_CONFIGS] = \
-            endpoint.configurations
-        properties[pelix.remote.PROP_EXPORTED_INTERFACES] = \
-            endpoint.specifications
+        properties[pelix.remote.PROP_IMPORTED_CONFIGS] = endpoint.configurations
+        properties[
+            pelix.remote.PROP_EXPORTED_INTERFACES
+        ] = endpoint.specifications
 
         # Remove export keys
-        for key in (pelix.remote.PROP_EXPORTED_CONFIGS,
-                    pelix.remote.PROP_EXPORTED_INTERFACES,
-                    pelix.remote.PROP_EXPORTED_INTENTS,
-                    pelix.remote.PROP_EXPORTED_INTENTS_EXTRA):
+        for key in (
+            pelix.remote.PROP_EXPORTED_CONFIGS,
+            pelix.remote.PROP_EXPORTED_INTERFACES,
+            pelix.remote.PROP_EXPORTED_INTENTS,
+            pelix.remote.PROP_EXPORTED_INTENTS_EXTRA,
+        ):
             try:
                 del properties[key]
             except KeyError:
@@ -647,10 +686,12 @@ class EndpointDescription(object):
 
         # Other information
         properties[pelix.remote.PROP_ENDPOINT_NAME] = endpoint.name
-        properties[pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID] = \
-            endpoint.framework
+        properties[
+            pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID
+        ] = endpoint.framework
 
         return EndpointDescription(None, properties)
+
 
 # ------------------------------------------------------------------------------
 
@@ -672,8 +713,9 @@ def to_import_properties(properties):
 
     # Remote service ID
     try:
-        props[pelix.remote.PROP_ENDPOINT_SERVICE_ID] = \
-            props.pop(pelix.constants.SERVICE_ID)
+        props[pelix.remote.PROP_ENDPOINT_SERVICE_ID] = props.pop(
+            pelix.constants.SERVICE_ID
+        )
     except KeyError:
         # No service ID
         pass
@@ -684,9 +726,11 @@ def to_import_properties(properties):
         props[pelix.remote.PROP_IMPORTED_CONFIGS] = configs
 
     # Clear other export properties
-    for key in (pelix.remote.PROP_EXPORTED_INTENTS,
-                pelix.remote.PROP_EXPORTED_INTENTS_EXTRA,
-                pelix.remote.PROP_EXPORTED_INTERFACES):
+    for key in (
+        pelix.remote.PROP_EXPORTED_INTENTS,
+        pelix.remote.PROP_EXPORTED_INTENTS_EXTRA,
+        pelix.remote.PROP_EXPORTED_INTERFACES,
+    ):
         try:
             del props[key]
         except KeyError:
@@ -694,6 +738,7 @@ def to_import_properties(properties):
             pass
 
     return props
+
 
 # ------------------------------------------------------------------------------
 
@@ -714,33 +759,34 @@ def compute_exported_specifications(svc_ref):
     specs = svc_ref.get_property(pelix.constants.OBJECTCLASS)
 
     # Exported specifications
-    exported_specs = svc_ref.get_property(
-        pelix.remote.PROP_EXPORTED_INTERFACES)
+    exported_specs = svc_ref.get_property(pelix.remote.PROP_EXPORTED_INTERFACES)
 
     if exported_specs and exported_specs != "*":
         # A set of specifications is exported, replace "objectClass"
         iterable_exports = pelix.utilities.to_iterable(exported_specs, False)
-        all_exported_specs = [spec for spec in specs
-                              if spec in iterable_exports]
+        all_exported_specs = [
+            spec for spec in specs if spec in iterable_exports
+        ]
     else:
         # Export everything
         all_exported_specs = pelix.utilities.to_iterable(specs)
 
     # Authorized and rejected specifications
     export_only_specs = pelix.utilities.to_iterable(
-        svc_ref.get_property(pelix.remote.PROP_EXPORT_ONLY), False)
+        svc_ref.get_property(pelix.remote.PROP_EXPORT_ONLY), False
+    )
 
     if export_only_specs:
         # Filter specifications (keep authorized specifications)
-        return [spec for spec in all_exported_specs
-                if spec in export_only_specs]
-    else:
-        # Filter specifications (reject)
-        rejected_specs = pelix.utilities.to_iterable(
-            svc_ref.get_property(pelix.remote.PROP_EXPORT_REJECT), False)
+        return [
+            spec for spec in all_exported_specs if spec in export_only_specs
+        ]
 
-        return [spec for spec in all_exported_specs
-                if spec not in rejected_specs]
+    # Filter specifications (reject)
+    rejected_specs = pelix.utilities.to_iterable(
+        svc_ref.get_property(pelix.remote.PROP_EXPORT_REJECT), False
+    )
+    return [spec for spec in all_exported_specs if spec not in rejected_specs]
 
 
 def extract_specifications(specifications, properties):
@@ -755,9 +801,9 @@ def extract_specifications(specifications, properties):
     """
     all_specs = set(pelix.utilities.to_iterable(specifications))
     try:
-        synonyms = \
-            pelix.utilities.to_iterable(properties[pelix.remote.PROP_SYNONYMS],
-                                        False)
+        synonyms = pelix.utilities.to_iterable(
+            properties[pelix.remote.PROP_SYNONYMS], False
+        )
         all_specs.update(synonyms)
     except KeyError:
         # No synonyms property
@@ -817,8 +863,7 @@ def _extract_specification_parts(specification):
         parsed = urlparse(specification)
     except:
         # Invalid URL
-        raise ValueError("Invalid specification URL: {0}"
-                         .format(specification))
+        raise ValueError("Invalid specification URL: {0}".format(specification))
 
     # Extract the interface name
     interface = parsed.path
@@ -855,7 +900,7 @@ def _escape_specification(specification):
     :param specification: Specification name
     :return: The escaped name
     """
-    return specification.replace('/', '%2F')
+    return specification.replace("/", "%2F")
 
 
 def _unescape_specification(specification):
@@ -866,4 +911,4 @@ def _unescape_specification(specification):
     :param specification: Specification name
     :return: The unescaped name
     """
-    return specification.replace('%2F', '/')
+    return specification.replace("%2F", "/")

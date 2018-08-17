@@ -36,8 +36,14 @@ import socket
 import zeroconf
 
 # iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Invalidate, Validate, Property
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Requires,
+    Provides,
+    Invalidate,
+    Validate,
+    Property,
+)
 import pelix.constants
 
 # Remote services
@@ -63,16 +69,17 @@ _logger = logging.getLogger(__name__)
 
 @ComponentFactory(pelix.remote.FACTORY_DISCOVERY_ZEROCONF)
 @Provides(pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER)
-@Property('_rs_type', pelix.remote.PROP_ZEROCONF_TYPE, '_pelix-rs._tcp.local.')
-@Property('_ttl', 'zeroconf.ttl', 60)
-@Requires('_access', pelix.remote.SERVICE_DISPATCHER_SERVLET)
+@Property("_rs_type", pelix.remote.PROP_ZEROCONF_TYPE, "_pelix-rs._tcp.local.")
+@Property("_ttl", "zeroconf.ttl", 60)
+@Requires("_access", pelix.remote.SERVICE_DISPATCHER_SERVLET)
 @Requires("_registry", pelix.remote.SERVICE_REGISTRY)
 class ZeroconfDiscovery(object):
     """
     Remote services discovery and notification using the module zeroconf
     """
+
     # Service type for the Pelix dispatcher servlet
-    DNS_DISPATCHER_TYPE = '_rs-dispatcher._tcp.local.'
+    DNS_DISPATCHER_TYPE = "_rs-dispatcher._tcp.local."
 
     def __init__(self):
         """
@@ -107,7 +114,7 @@ class ZeroconfDiscovery(object):
         self._imported_endpoints = {}
 
     @Invalidate
-    def invalidate(self, context):
+    def invalidate(self, _):
         """
         Component invalidated
         """
@@ -136,7 +143,8 @@ class ZeroconfDiscovery(object):
 
         # Get the host address
         self._address = socket.inet_aton(
-            socket.gethostbyname(socket.gethostname()))
+            socket.gethostbyname(socket.gethostname())
+        )
 
         # Prepare Zeroconf
         self._zeroconf = zeroconf.Zeroconf()
@@ -145,10 +153,14 @@ class ZeroconfDiscovery(object):
         self.__register_servlet()
 
         # Listen to our types
-        self._browsers.append(zeroconf.ServiceBrowser(
-            self._zeroconf, ZeroconfDiscovery.DNS_DISPATCHER_TYPE, self))
-        self._browsers.append(zeroconf.ServiceBrowser(
-            self._zeroconf, self._rs_type, self))
+        self._browsers.append(
+            zeroconf.ServiceBrowser(
+                self._zeroconf, ZeroconfDiscovery.DNS_DISPATCHER_TYPE, self
+            )
+        )
+        self._browsers.append(
+            zeroconf.ServiceBrowser(self._zeroconf, self._rs_type, self)
+        )
 
         _logger.debug("Zeroconf discovery validated")
 
@@ -167,12 +179,15 @@ class ZeroconfDiscovery(object):
                     new_props[key] = json.dumps(value)
                 except ValueError:
                     new_props[key] = "pelix-type:{0}:{1}".format(
-                        type(value).__name__, repr(value))
+                        type(value).__name__, repr(value)
+                    )
 
         # FIXME: to simplify the usage with ECF, send single strings instead of
         # arrays
-        for key in (pelix.constants.OBJECTCLASS,
-                    pelix.remote.PROP_IMPORTED_CONFIGS):
+        for key in (
+            pelix.constants.OBJECTCLASS,
+            pelix.remote.PROP_IMPORTED_CONFIGS,
+        ):
             try:
                 new_props[key] = props[key][0]
             except KeyError:
@@ -200,10 +215,11 @@ class ZeroconfDiscovery(object):
                     if is_string(value) and value.startswith("pelix-type:"):
                         # Pseudo-serialized
                         value_type, value = value.split(":", 3)[2:]
-                        if '.' in value_type and value_type not in value:
+                        if "." in value_type and value_type not in value:
                             # Not a builtin type...
                             _logger.warning(
-                                "Won't work: %s (%s)", value, value_type)
+                                "Won't work: %s (%s)", value, value_type
+                            )
 
                         new_props[key] = eval(value)
                     else:
@@ -223,23 +239,27 @@ class ZeroconfDiscovery(object):
         access = self._access.get_access()
 
         # Convert properties to be stored as strings
-        properties = {"pelix.version": pelix.__version__,
-                      pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID: self._fw_uid,
-                      "pelix.access.port": access[0],
-                      "pelix.access.path": access[1]}
+        properties = {
+            "pelix.version": pelix.__version__,
+            pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID: self._fw_uid,
+            "pelix.access.port": access[0],
+            "pelix.access.path": access[1],
+        }
         properties = self._serialize_properties(properties)
 
         # Prepare the service type
         svc_name = "{0}.{1}".format(
-            self._fw_uid, ZeroconfDiscovery.DNS_DISPATCHER_TYPE)
+            self._fw_uid, ZeroconfDiscovery.DNS_DISPATCHER_TYPE
+        )
 
         # Prepare the mDNS entry
         info = zeroconf.ServiceInfo(
             ZeroconfDiscovery.DNS_DISPATCHER_TYPE,  # Type
-            svc_name,       # Name
+            svc_name,  # Name
             self._address,  # Access address
-            access[0],      # Access port
-            properties=properties)
+            access[0],  # Access port
+            properties=properties,
+        )
 
         # Register the service
         self._zeroconf.register_service(info, self._ttl)
@@ -275,15 +295,17 @@ class ZeroconfDiscovery(object):
 
         # Prepare the service name
         svc_name = "{0}.{1}".format(
-            endpoint.get_id().replace('-', ''), self._rs_type)
+            endpoint.get_id().replace("-", ""), self._rs_type
+        )
 
         # Prepare the mDNS entry
         info = zeroconf.ServiceInfo(
             self._rs_type,  # Type
-            svc_name,       # Name
+            svc_name,  # Name
             self._address,  # Access address
-            access_port,    # Access port
-            properties=properties)
+            access_port,  # Access port
+            properties=properties,
+        )
 
         self._export_infos[exp_endpoint.uid] = info
 
@@ -292,6 +314,7 @@ class ZeroconfDiscovery(object):
 
     @staticmethod
     def endpoint_updated(endpoint, old_properties):
+        # pylint: disable=W0613
         """
         An end point is updated
 
@@ -330,28 +353,32 @@ class ZeroconfDiscovery(object):
         """
         info = None
         retries = 0
-        while self._zeroconf is not None \
-                and info is None and retries < max_retries:
+        while (
+            self._zeroconf is not None
+            and info is None
+            and retries < max_retries
+        ):
             # Try to get information about the service...
             info = self._zeroconf.get_service_info(svc_type, name)
             retries += 1
 
         return info
 
-    def add_service(self, zeroconf, svc_type, name):
+    def add_service(self, zeroconf_, svc_type, name):
         """
         Called by Zeroconf when a record is updated
 
-        :param zeroconf: The Zeroconf instance than notifies of the
-                         modification
+        :param zeroconf_: The Zeroconf instance than notifies of the
+                          modification
         :param svc_type: Service type
         :param name: Service name
         """
         # Get information about the service
         info = self._get_service_info(svc_type, name)
         if info is None:
-            _logger.warning("Timeout reading service information: %s - %s",
-                            svc_type, name)
+            _logger.warning(
+                "Timeout reading service information: %s - %s", svc_type, name
+            )
             return
 
         # Read properties
@@ -372,7 +399,8 @@ class ZeroconfDiscovery(object):
             address = to_str(socket.inet_ntoa(info.address))
             port = info.port
             self._access.send_discovered(
-                address, port, properties['pelix.access.path'])
+                address, port, properties["pelix.access.path"]
+            )
         elif svc_type == self._rs_type:
             # Remote service
             # Get the first available configuration
@@ -390,12 +418,18 @@ class ZeroconfDiscovery(object):
                 endpoint = beans.ImportEndpoint(
                     properties[pelix.remote.PROP_ENDPOINT_ID],
                     properties[pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID],
-                    [configuration], None, specs, properties)
+                    [configuration],
+                    None,
+                    specs,
+                    properties,
+                )
             except KeyError as ex:
                 # Log a warning on incomplete endpoints
                 _logger.warning(
                     "Incomplete endpoint description, missing %s: %s",
-                    ex, properties)
+                    ex,
+                    properties,
+                )
                 return
             else:
                 # Register the endpoint
@@ -403,12 +437,12 @@ class ZeroconfDiscovery(object):
                     # Associate the mDNS name to the endpoint on success
                     self._imported_endpoints[name] = endpoint.uid
 
-    def remove_service(self, zeroconf, svc_type, name):
+    def remove_service(self, zeroconf_, svc_type, name):
         """
         Called by Zeroconf when a record is removed
 
-        :param zeroconf: The Zeroconf instance than notifies of the
-                         modification
+        :param zeroconf_: The Zeroconf instance than notifies of the
+                          modification
         :param svc_type: Service type
         :param name: Service name
         """
@@ -425,7 +459,7 @@ class ZeroconfDiscovery(object):
                 self._registry.remove(uid)
         elif svc_type == ZeroconfDiscovery.DNS_DISPATCHER_TYPE:
             # A dispatcher servlet is gone
-            fw_uid = name.split('.', 1)[0]
+            fw_uid = name.split(".", 1)[0]
             if fw_uid == self._fw_uid:
                 # Local message: ignore
                 return

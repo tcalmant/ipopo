@@ -43,8 +43,14 @@ except ImportError:
     import xmlrpclib
 
 # iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Validate, \
-    Invalidate, Property, Provides
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Requires,
+    Validate,
+    Invalidate,
+    Property,
+    Provides,
+)
 
 # Pelix constants
 from pelix.utilities import to_str
@@ -63,10 +69,10 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-XMLRPC_CONFIGURATION = 'xmlrpc'
+XMLRPC_CONFIGURATION = "xmlrpc"
 """ Remote Service configuration constant """
 
-PROP_XMLRPC_URL = '{0}.url'.format(XMLRPC_CONFIGURATION)
+PROP_XMLRPC_URL = "{0}.url".format(XMLRPC_CONFIGURATION)
 """ XML-RPC servlet URL """
 
 _logger = logging.getLogger(__name__)
@@ -80,12 +86,14 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher):
 
     Calls the dispatch method given in the constructor
     """
+
     def __init__(self, dispatch_method, encoding=None):
         """
         Sets up the servlet
         """
-        SimpleXMLRPCDispatcher.__init__(self, allow_none=True,
-                                        encoding=encoding)
+        SimpleXMLRPCDispatcher.__init__(
+            self, allow_none=True, encoding=encoding
+        )
 
         # Register the system.* functions
         self.register_introspection_functions()
@@ -109,6 +117,7 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher):
         return self._dispatch_method(name, params)
 
     def do_POST(self, request, response):
+        # pylint: disable=C0103
         """
         Handles a HTTP POST request
 
@@ -122,21 +131,26 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher):
         result = self._marshaled_dispatch(data, self._simple_dispatch)
 
         # Send the result
-        response.send_content(200, result, 'text/xml')
+        response.send_content(200, result, "text/xml")
+
 
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_XMLRPC_EXPORTER)
 @Provides(pelix.remote.SERVICE_EXPORT_PROVIDER)
-@Requires('_http', pelix.http.HTTP_SERVICE)
-@Property('_path', pelix.http.HTTP_SERVLET_PATH, '/XML-RPC')
-@Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
-          (XMLRPC_CONFIGURATION,))
+@Requires("_http", pelix.http.HTTP_SERVICE)
+@Property("_path", pelix.http.HTTP_SERVLET_PATH, "/XML-RPC")
+@Property(
+    "_kinds",
+    pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
+    (XMLRPC_CONFIGURATION,),
+)
 class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
     """
     XML-RPC Remote Services exporter
     """
+
     def __init__(self):
         """
         Sets up the exporter
@@ -160,7 +174,8 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
         """
         port = self._http.get_access()[1]
         return "http{2}://{{server}}:{0}{1}".format(
-            port, self._path, "s" if self._http.is_https() else "")
+            port, self._path, "s" if self._http.is_https() else ""
+        )
 
     def make_endpoint_properties(self, svc_ref, name, fw_uid):
         """
@@ -199,13 +214,16 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # Clean up members
         self._servlet = None
 
+
 # ------------------------------------------------------------------------------
 
 
 class _ServiceCallProxy(object):
+    # pylint: disable=R0903
     """
     Service call proxy
     """
+
     def __init__(self, name, url):
         """
         Sets up the call proxy
@@ -230,12 +248,16 @@ class _ServiceCallProxy(object):
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_XMLRPC_IMPORTER)
 @Provides(pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER)
-@Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
-          (XMLRPC_CONFIGURATION,))
+@Property(
+    "_kinds",
+    pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
+    (XMLRPC_CONFIGURATION,),
+)
 class XmlRpcServiceImporter(commons.AbstractRpcServiceImporter):
     """
     XML-RPC Remote Services importer
     """
+
     def __init__(self):
         """
         Sets up the exporter
@@ -258,7 +280,7 @@ class XmlRpcServiceImporter(commons.AbstractRpcServiceImporter):
         if not access_url:
             # No URL information
             _logger.warning("No access URL given: %s", endpoint)
-            return
+            return None
 
         if endpoint.server is not None:
             # Server information given

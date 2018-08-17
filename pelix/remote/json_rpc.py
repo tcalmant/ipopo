@@ -35,8 +35,14 @@ import jsonrpclib.jsonrpc
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCDispatcher
 
 # iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Validate, \
-    Invalidate, Property, Provides
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Requires,
+    Validate,
+    Invalidate,
+    Property,
+    Provides,
+)
 
 # Pelix constants
 from pelix.utilities import to_str
@@ -55,10 +61,10 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-JSONRPC_CONFIGURATION = 'jsonrpc'
+JSONRPC_CONFIGURATION = "jsonrpc"
 """ Remote Service configuration constant """
 
-PROP_JSONRPC_URL = '{0}.url'.format(JSONRPC_CONFIGURATION)
+PROP_JSONRPC_URL = "{0}.url".format(JSONRPC_CONFIGURATION)
 """ JSON-RPC servlet URL """
 
 _logger = logging.getLogger(__name__)
@@ -72,6 +78,7 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
 
     Calls the dispatch method given in the constructor
     """
+
     def __init__(self, dispatch_method, encoding=None):
         """
         Sets up the servlet
@@ -98,14 +105,15 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
             # Internal method found
             if isinstance(params, (list, tuple)):
                 return func(*params)
-            else:
-                return func(**params)
+
+            return func(**params)
 
         # Call the other method outside the except block, to avoid messy logs
         # in case of error
         return self._dispatch_method(name, params)
 
     def do_POST(self, request, response):
+        # pylint: disable=C0103
         """
         Handles a HTTP POST request
 
@@ -120,24 +128,30 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
             result = self._marshaled_dispatch(data, self._simple_dispatch)
 
             # Send the result
-            response.send_content(200, result, 'application/json-rpc')
+            response.send_content(200, result, "application/json-rpc")
         except Exception as ex:
-            response.send_content(500, "Internal error:\n{0}\n".format(ex),
-                                  'text/plain')
+            response.send_content(
+                500, "Internal error:\n{0}\n".format(ex), "text/plain"
+            )
+
 
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_JSONRPC_EXPORTER)
 @Provides(pelix.remote.SERVICE_EXPORT_PROVIDER)
-@Requires('_http', pelix.http.HTTP_SERVICE)
-@Property('_path', pelix.http.HTTP_SERVLET_PATH, '/JSON-RPC')
-@Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
-          (JSONRPC_CONFIGURATION,))
+@Requires("_http", pelix.http.HTTP_SERVICE)
+@Property("_path", pelix.http.HTTP_SERVLET_PATH, "/JSON-RPC")
+@Property(
+    "_kinds",
+    pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
+    (JSONRPC_CONFIGURATION,),
+)
 class JsonRpcServiceExporter(commons.AbstractRpcServiceExporter):
     """
     JSON-RPC Remote Services exporter
     """
+
     def __init__(self):
         """
         Sets up the exporter
@@ -161,7 +175,8 @@ class JsonRpcServiceExporter(commons.AbstractRpcServiceExporter):
         """
         port = self._http.get_access()[1]
         return "http{2}://{{server}}:{0}{1}".format(
-            port, self._path, "s" if self._http.is_https() else "")
+            port, self._path, "s" if self._http.is_https() else ""
+        )
 
     def make_endpoint_properties(self, svc_ref, name, fw_uid):
         """
@@ -200,13 +215,16 @@ class JsonRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # Clean up members
         self._servlet = None
 
+
 # ------------------------------------------------------------------------------
 
 
 class _ServiceCallProxy(object):
+    # pylint: disable=R0903
     """
     Service call proxy
     """
+
     def __init__(self, name, url):
         """
         Sets up the call proxy
@@ -231,12 +249,16 @@ class _ServiceCallProxy(object):
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_JSONRPC_IMPORTER)
 @Provides(pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER)
-@Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
-          (JSONRPC_CONFIGURATION,))
+@Property(
+    "_kinds",
+    pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
+    (JSONRPC_CONFIGURATION,),
+)
 class JsonRpcServiceImporter(commons.AbstractRpcServiceImporter):
     """
     JSON-RPC Remote Services importer
     """
+
     def __init__(self):
         """
         Sets up the exporter
@@ -259,7 +281,7 @@ class JsonRpcServiceImporter(commons.AbstractRpcServiceImporter):
         if not access_url:
             # No URL information
             _logger.warning("No access URL given: %s", endpoint)
-            return
+            return None
 
         if endpoint.server is not None:
             # Server information given

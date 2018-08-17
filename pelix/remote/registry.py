@@ -35,8 +35,15 @@ import pelix.remote
 import pelix.remote.beans as beans
 
 # iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Instantiate, Invalidate, Validate, BindField
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Requires,
+    Provides,
+    Instantiate,
+    Invalidate,
+    Validate,
+    BindField,
+)
 
 # ------------------------------------------------------------------------------
 
@@ -54,15 +61,20 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-@ComponentFactory('pelix-remote-imports-registry-factory')
+@ComponentFactory("pelix-remote-imports-registry-factory")
 @Provides(pelix.remote.SERVICE_REGISTRY)
-@Requires('_listeners', pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER,
-          aggregate=True, optional=True)
-@Instantiate('pelix-remote-imports-registry')
+@Requires(
+    "_listeners",
+    pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER,
+    aggregate=True,
+    optional=True,
+)
+@Instantiate("pelix-remote-imports-registry")
 class ImportsRegistry(object):
     """
     Registry of discovered end points. End points are identified by their UID
     """
+
     def __init__(self):
         # Listeners (injected)
         self._listeners = []
@@ -79,8 +91,9 @@ class ImportsRegistry(object):
         # Lock
         self.__lock = threading.Lock()
 
-    @BindField('_listeners', if_valid=True)
+    @BindField("_listeners", if_valid=True)
     def _bind_listener(self, field, listener, svc_ref):
+        # pylint: disable=W0613
         """
         New listener bound
         """
@@ -114,8 +127,9 @@ class ImportsRegistry(object):
             # Store the end point
             self._registry[endpoint.uid] = endpoint
             if endpoint.framework:
-                self._frameworks.setdefault(endpoint.framework, []) \
-                    .append(endpoint)
+                self._frameworks.setdefault(endpoint.framework, []).append(
+                    endpoint
+                )
 
         # Notify listeners (out of lock)
         if self._listeners:
@@ -151,7 +165,8 @@ class ImportsRegistry(object):
                 for listener in self._listeners[:]:
                     try:
                         listener.endpoint_updated(
-                            stored_endpoint, old_properties)
+                            stored_endpoint, old_properties
+                        )
                     except Exception as ex:
                         _logger.exception("Error calling listener: %s", ex)
             return True
@@ -166,8 +181,8 @@ class ImportsRegistry(object):
         """
         if isinstance(endpoint, beans.ImportEndpoint):
             return endpoint.uid in self._registry
-        else:
-            return endpoint in self._registry
+
+        return endpoint in self._registry
 
     # Support for the 'in' keyword
     __contains__ = contains
