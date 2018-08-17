@@ -36,6 +36,9 @@ htmlcov/
 tmp/
 .noseids
 
+# Used during tests
+apache-karaf-*/
+
 # ConfigurationAdmin folder
 conf/
 
