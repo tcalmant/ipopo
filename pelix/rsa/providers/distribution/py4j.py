@@ -208,7 +208,7 @@ class Py4jContainer(ExportContainer, ImportContainer):
         )
         ImportContainer.unimport_service(self, endpoint_description)
         if self._executor:
-            self._executor.shutdown()
+            self._executor.shutdown(False)
             self._executor = None
 
 
