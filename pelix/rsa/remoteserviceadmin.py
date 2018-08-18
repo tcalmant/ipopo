@@ -1036,9 +1036,9 @@ class ExportRegistrationImpl(ExportRegistration):
                 rsid = self.__exportref.get_remoteservice_id()
                 ed = self.__exportref.get_description()
                 exception = self.__exportref.get_exception()
+                self.__closed = True
                 publish = self.__exportref.close(self)
                 self.__exportref = None
-                self.__closed = True
 
         # pylint: disable=W0212
         if publish and export_ref and self.__rsa:
@@ -1426,9 +1426,9 @@ class ImportRegistrationImpl(ImportRegistration):
                 import_ref = self.__importref
                 exception = self.__importref.get_exception()
                 ed = self.__importref.get_description()
+                self.__closed = True
                 publish = self.__importref.close(self)
                 self.__importref = None
-                self.__closed = True
         if publish and import_ref and self.__rsa:
             # pylint: disable=W0212
             self.__rsa._publish_event(
