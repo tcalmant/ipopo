@@ -652,13 +652,13 @@ class StoredInstance(object):
             if ex.needs_stop:
                 # Framework must be stopped...
                 self._logger.error(
-                    "%s said that the Framework must be " "stopped.", self.name
+                    "%s said that the Framework must be stopped.", self.name
                 )
                 self.bundle_context.get_framework().stop()
             return False
         except:
             self._logger.exception(
-                "Component '%s': error calling callback " "method for event %s",
+                "Component '%s': error calling callback method for event %s",
                 self.name,
                 event,
             )
@@ -700,7 +700,7 @@ class StoredInstance(object):
             return False
         except:
             self._logger.exception(
-                "Component '%s': error calling " "@ValidateComponent callback",
+                "Component '%s': error calling @ValidateComponent callback",
                 self.name,
             )
 
@@ -737,7 +737,7 @@ class StoredInstance(object):
             if ex.needs_stop:
                 # Framework must be stopped...
                 self._logger.error(
-                    "%s said that the Framework must be " "stopped.", self.name
+                    "%s said that the Framework must be stopped.", self.name
                 )
                 self.bundle_context.get_framework().stop()
             return False
