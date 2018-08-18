@@ -35,6 +35,7 @@ generated_bundle.py
 htmlcov/
 tmp/
 .noseids
+nosetests.xml
 
 # Used during tests
 apache-karaf-*/
