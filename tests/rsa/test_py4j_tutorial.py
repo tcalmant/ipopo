@@ -207,18 +207,6 @@ class Py4JTutorialTest(unittest.TestCase):
         except OSError:
             raise unittest.SkipTest("Java is not installed.")
 
-    @classmethod
-    def tearDownClass(cls):
-        """
-        Clean up Karaf after the test
-        """
-        try:
-            folder = find_karaf_root()
-        except IOError:
-            pass
-        else:
-            shutil.rmtree(folder)
-
     def test_service_import(self):
         """
         Tests the import of a service from Py4J
@@ -251,12 +239,11 @@ class Py4JTutorialTest(unittest.TestCase):
                     if svc_ref is not None:
                         # Found the service reference: service imported
                         break
-                    else:
-                        time.sleep(.5)
+
+                    time.sleep(.5)
                 else:
+                    # Service not found after 5 seconds
                     self.fail("Py4J service not found")
             finally:
-                # Stop the framework
-                fw.stop()
-                fw.wait_for_stop()
+                # Clean up the framework
                 fw.delete(True)
