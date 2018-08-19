@@ -14,7 +14,7 @@ when using remote services on the local host only.
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -43,8 +43,14 @@ import struct
 import threading
 
 # iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Invalidate, Validate, Property
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Requires,
+    Provides,
+    Invalidate,
+    Validate,
+    Property,
+)
 
 # Pelix utilities
 import pelix.constants
@@ -57,7 +63,7 @@ import pelix.remote
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -85,18 +91,23 @@ if os.name == "nt":
         elif family == socket.AF_INET6:
             # Do it using WinSocks
             import ctypes
+
             winsock = ctypes.windll.ws2_32
 
             # Prepare structure
             class sockaddr_in6(ctypes.Structure):
+                # pylint: disable=C0103, R0903
                 """
                 Definition of the C structure 'sockaddr_in6'
                 """
-                _fields_ = [("sin6_family", ctypes.c_short),
-                            ("sin6_port", ctypes.c_ushort),
-                            ("sin6_flowinfo", ctypes.c_ulong),
-                            ("sin6_addr", ctypes.c_ubyte * 16),
-                            ("sin6_scope_id", ctypes.c_ulong)]
+
+                _fields_ = [
+                    ("sin6_family", ctypes.c_short),
+                    ("sin6_port", ctypes.c_ushort),
+                    ("sin6_flowinfo", ctypes.c_ulong),
+                    ("sin6_addr", ctypes.c_ubyte * 16),
+                    ("sin6_scope_id", ctypes.c_ulong),
+                ]
 
             # Prepare pointers
             addr_ptr = ctypes.c_char_p(to_bytes(address))
@@ -106,8 +117,9 @@ if os.name == "nt":
             size_ptr = ctypes.pointer(size)
 
             # Second call
-            winsock.WSAStringToAddressA(addr_ptr, family, 0,
-                                        out_address, size_ptr)
+            winsock.WSAStringToAddressA(
+                addr_ptr, family, 0, out_address, size_ptr
+            )
 
             # Convert the array...
             bin_addr = 0
@@ -118,6 +130,7 @@ if os.name == "nt":
 
         else:
             raise ValueError("Unhandled socket family: {0}".format(family))
+
 
 else:
     # Other systems
@@ -130,6 +143,7 @@ else:
         :return: The binary form of the given address
         """
         return socket.inet_pton(family, address)
+
 
 # ------------------------------------------------------------------------------
 
@@ -169,6 +183,7 @@ def make_mreq(family, address):
 
     raise ValueError("Unknown family {0}".format(family))
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -184,15 +199,20 @@ def create_multicast_socket(address, port):
     """
     # Get the information about a datagram (UDP) socket, of any family
     try:
-        addrs_info = socket.getaddrinfo(address, port, socket.AF_UNSPEC,
-                                        socket.SOCK_DGRAM)
+        addrs_info = socket.getaddrinfo(
+            address, port, socket.AF_UNSPEC, socket.SOCK_DGRAM
+        )
     except socket.gaierror:
-        raise ValueError("Error retrieving address informations ({0}, {1})"
-                         .format(address, port))
+        raise ValueError(
+            "Error retrieving address informations ({0}, {1})".format(
+                address, port
+            )
+        )
 
     if len(addrs_info) > 1:
-        _logger.debug("More than one address information found. "
-                      "Using the first one.")
+        _logger.debug(
+            "More than one address information found. Using the first one."
+        )
 
     # Get the first entry : (family, socktype, proto, canonname, sockaddr)
     addr_info = addrs_info[0]
@@ -207,7 +227,7 @@ def create_multicast_socket(address, port):
 
     # Reuse address
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    if hasattr(socket, 'SO_REUSEPORT'):
+    if hasattr(socket, "SO_REUSEPORT"):
         # Special for MacOS
         # pylint: disable=E1101
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
@@ -215,11 +235,11 @@ def create_multicast_socket(address, port):
     # Bind the socket
     if sock.family == socket.AF_INET:
         # IPv4 binding
-        sock.bind(('0.0.0.0', port))
+        sock.bind(("0.0.0.0", port))
 
     else:
         # IPv6 Binding
-        sock.bind(('::', port))
+        sock.bind(("::", port))
 
     # Prepare the mreq structure to join the group
     # addrinfo[4] = (addr,port)
@@ -272,12 +292,13 @@ def close_multicast_socket(sock, address):
     # Close the socket
     sock.close()
 
+
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory(pelix.remote.FACTORY_DISCOVERY_MULTICAST)
 @Provides(pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER)
-@Requires('_access', pelix.remote.SERVICE_DISPATCHER_SERVLET)
+@Requires("_access", pelix.remote.SERVICE_DISPATCHER_SERVLET)
 @Requires("_registry", pelix.remote.SERVICE_REGISTRY)
 @Property("_group", "multicast.group", "239.0.0.1")
 @Property("_port", "multicast.port", 42000)
@@ -285,6 +306,7 @@ class MulticastDiscovery(object):
     """
     Remote services discovery and notification using multicast packets
     """
+
     def __init__(self):
         """
         Sets up the component
@@ -320,10 +342,14 @@ class MulticastDiscovery(object):
         access = self._access.get_access()
 
         # Make the event packet content
-        return {"sender": self._fw_uid,
-                "event": event,  # Kind of event
-                "access": {"port": access[0],  # Access to the dispatcher
-                           "path": access[1]}}  # servlet
+        return {
+            "sender": self._fw_uid,
+            "event": event,  # Kind of event
+            "access": {
+                "port": access[0],  # Access to the dispatcher
+                "path": access[1],
+            },
+        }  # servlet
 
     def _make_endpoint_dict(self, event, endpoint):
         """
@@ -337,7 +363,7 @@ class MulticastDiscovery(object):
         packet = self.__make_basic_dict(event)
 
         # Add endpoint information
-        packet['uid'] = endpoint.uid
+        packet["uid"] = endpoint.uid
         if event == "update":
             # Give the new end point properties
             packet["new_properties"] = endpoint.make_import_properties()
@@ -356,7 +382,7 @@ class MulticastDiscovery(object):
         packet = self.__make_basic_dict(event)
 
         # Add endpoints information
-        packet['uids'] = [endpoint.uid for endpoint in endpoints]
+        packet["uids"] = [endpoint.uid for endpoint in endpoints]
 
         return packet
 
@@ -395,6 +421,7 @@ class MulticastDiscovery(object):
         self.__send_packet(data)
 
     def endpoint_updated(self, endpoint, old_properties):
+        # pylint: disable=W0613
         """
         An end point is updated
         """
@@ -422,19 +449,20 @@ class MulticastDiscovery(object):
         data = json.loads(raw_data)
 
         # Avoid handling our own packets
-        sender_uid = data['sender']
+        sender_uid = data["sender"]
         if sender_uid == self._fw_uid:
             return
 
         # Dispatch the event
-        event = data['event']
+        event = data["event"]
         if event == "discovery":
             # Discovery request
-            access = data['access']
-            self._access.send_discovered(sender[0], access['port'],
-                                         access['path'])
+            access = data["access"]
+            self._access.send_discovered(
+                sender[0], access["port"], access["path"]
+            )
 
-        elif event in ('add', 'update', 'remove'):
+        elif event in ("add", "update", "remove"):
             # End point event
             self._handle_event_packet(sender, data)
 
@@ -449,29 +477,30 @@ class MulticastDiscovery(object):
         :param data: Decoded packet content
         """
         # Get the event
-        event = data['event']
+        event = data["event"]
 
-        if event == 'add':
+        if event == "add":
             # Store it
-            port = data['access']['port']
-            path = data['access']['path']
+            port = data["access"]["port"]
+            path = data["access"]["path"]
 
-            for uid in data['uids']:
+            for uid in data["uids"]:
                 # Get the description of the endpoint
-                endpoint = self._access.grab_endpoint(sender[0], port,
-                                                      path, uid)
+                endpoint = self._access.grab_endpoint(
+                    sender[0], port, path, uid
+                )
                 if endpoint is not None:
                     # Register the endpoint
                     self._registry.add(endpoint)
 
-        elif event == 'remove':
+        elif event == "remove":
             # Remove it
-            self._registry.remove(data['uid'])
+            self._registry.remove(data["uid"])
 
-        elif event == 'update':
+        elif event == "update":
             # Update it
-            endpoint_uid = data['uid']
-            new_properties = data['new_properties']
+            endpoint_uid = data["uid"]
+            new_properties = data["new_properties"]
             self._registry.update(endpoint_uid, new_properties)
 
     def _read_loop(self):
@@ -492,7 +521,7 @@ class MulticastDiscovery(object):
                     _logger.exception("Error handling the packet: %s", ex)
 
     @Invalidate
-    def invalidate(self, context):
+    def invalidate(self, _):
         """
         Component invalidated
         """
@@ -525,8 +554,7 @@ class MulticastDiscovery(object):
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
         # Create the socket
-        self._socket, address = create_multicast_socket(self._group,
-                                                        self._port)
+        self._socket, address = create_multicast_socket(self._group, self._port)
 
         # Store group access information
         self._target = (address, self._port)
@@ -539,5 +567,8 @@ class MulticastDiscovery(object):
         # Send a discovery request
         self._send_discovery()
 
-        _logger.debug("Multicast discovery validated: group=%s port=%d",
-                      self._group, self._port)
+        _logger.debug(
+            "Multicast discovery validated: group=%s port=%d",
+            self._group,
+            self._port,
+        )

@@ -9,7 +9,7 @@ Requires Paho MQTT client (paho-mqtt).
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -37,9 +37,18 @@ import uuid
 import paho.mqtt.client as paho
 
 # Pelix
-from pelix.ipopo.decorators import ComponentFactory, Provides, Requires, \
-    Validate, Invalidate, Instantiate, BindField, UnbindField, UpdateField, \
-    Property
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Provides,
+    Requires,
+    Validate,
+    Invalidate,
+    Instantiate,
+    BindField,
+    UnbindField,
+    UpdateField,
+    Property,
+)
 from pelix.utilities import to_iterable
 import pelix.constants as constants
 import pelix.services as services
@@ -48,7 +57,7 @@ import pelix.threadpool
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -58,27 +67,35 @@ __docformat__ = "restructuredtext en"
 
 _logger = logging.getLogger(__name__)
 
-CONNECT_RC = {0: "Success",
-              1: "Refused - unacceptable protocol version",
-              2: "Refused - identifier rejected",
-              3: "Refused - server unavailable",
-              4: "Refused - bad user name or password (MQTT v3.1 broker only)",
-              5: "Refused - not authorized (MQTT v3.1 broker only)"}
+CONNECT_RC = {
+    0: "Success",
+    1: "Refused - unacceptable protocol version",
+    2: "Refused - identifier rejected",
+    3: "Refused - server unavailable",
+    4: "Refused - bad user name or password (MQTT v3.1 broker only)",
+    5: "Refused - not authorized (MQTT v3.1 broker only)",
+}
 
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory()
-@Provides((services.SERVICE_MQTT_CONNECTOR_FACTORY,
-           services.SERVICE_CONFIGADMIN_MANAGED_FACTORY))
-@Property('_pid', constants.SERVICE_PID, services.MQTT_CONNECTOR_FACTORY_PID)
-@Requires('_listeners', services.SERVICE_MQTT_LISTENER,
-          aggregate=True, optional=True)
-@Instantiate('mqtt-connection-factory')
+@Provides(
+    (
+        services.SERVICE_MQTT_CONNECTOR_FACTORY,
+        services.SERVICE_CONFIGADMIN_MANAGED_FACTORY,
+    )
+)
+@Property("_pid", constants.SERVICE_PID, services.MQTT_CONNECTOR_FACTORY_PID)
+@Requires(
+    "_listeners", services.SERVICE_MQTT_LISTENER, aggregate=True, optional=True
+)
+@Instantiate("mqtt-connection-factory")
 class MqttConnectionFactory(object):
     """
     Handles connections to MQTT servers
     """
+
     def __init__(self):
         """
         Sets up members
@@ -121,20 +138,22 @@ class MqttConnectionFactory(object):
 
         # Start the notification pool
         self._pool = pelix.threadpool.ThreadPool(
-            2, logname="mqtt-notifications")
+            2, logname="mqtt-notifications"
+        )
         self._pool.start()
 
         # Start the loop thread
         self.__stop_event.clear()
         self._thread = threading.Thread(
-            target=self.__clients_loop, name="mqtt-clients-loop")
+            target=self.__clients_loop, name="mqtt-clients-loop"
+        )
         self._thread.daemon = True
         self._thread.start()
 
         _logger.info("MQTT factory validated")
 
     @Invalidate
-    def _invalidate(self, context):
+    def _invalidate(self, _):
         """
         Component invalidated
         """
@@ -198,24 +217,26 @@ class MqttConnectionFactory(object):
             # Unused topic or listener not registered for it
             pass
 
-    @BindField('_listeners')
-    def _bind_listener(self, field, listener, svc_ref):
+    @BindField("_listeners")
+    def _bind_listener(self, _, listener, svc_ref):
         """
         A new MQTT listener has been bound
         """
-        topics = to_iterable(svc_ref.get_property(services.PROP_MQTT_TOPICS),
-                             False)
+        topics = to_iterable(
+            svc_ref.get_property(services.PROP_MQTT_TOPICS), False
+        )
         for topic in topics:
             self.__add_listener(topic, listener)
 
-    @UpdateField('_listeners')
-    def _update_listener(self, field, listener, svc_ref, old_props):
+    @UpdateField("_listeners")
+    def _update_listener(self, _, listener, svc_ref, old_props):
         """
         A listener has been updated
         """
         old_topics = set(old_props[services.PROP_MQTT_TOPICS])
-        topics = set(to_iterable(
-            svc_ref.get_property(services.PROP_MQTT_TOPICS), False))
+        topics = set(
+            to_iterable(svc_ref.get_property(services.PROP_MQTT_TOPICS), False)
+        )
 
         # New topics
         for topic in topics.difference(old_topics):
@@ -225,13 +246,14 @@ class MqttConnectionFactory(object):
         for topic in old_topics.difference(topics):
             self.__remove_listener(topic, listener)
 
-    @UnbindField('_listeners')
-    def _unbind_listener(self, field, listener, svc_ref):
+    @UnbindField("_listeners")
+    def _unbind_listener(self, _, listener, svc_ref):
         """
         An MQTT listener is gone
         """
         topics = to_iterable(
-            svc_ref.get_property(services.PROP_MQTT_TOPICS), False)
+            svc_ref.get_property(services.PROP_MQTT_TOPICS), False
+        )
         for topic in topics:
             self.__remove_listener(topic, listener)
 
@@ -239,8 +261,7 @@ class MqttConnectionFactory(object):
         """
         Control loop to let each client check its messages
         """
-        while not self.__stop_event.wait(.1) \
-                and not self.__stop_event.is_set():
+        while not self.__stop_event.wait(.1) and not self.__stop_event.is_set():
             # Copy clients using the lock
             with self.__lock:
                 clients = list(self._clients.items())
@@ -253,10 +274,13 @@ class MqttConnectionFactory(object):
                     # FIXME: do a better job
                     _logger.warning(
                         "Loop error for client %s, reconnecting it (%d)",
-                        pid, rc)
+                        pid,
+                        rc,
+                    )
                     # client.reconnect()
 
     def __on_message(self, client, obj, msg):
+        # pylint: disable=W0613
         """
         A message has been received from a server
 
@@ -275,8 +299,13 @@ class MqttConnectionFactory(object):
                     all_listeners.update(listeners)
 
             # Notify them using the pool
-            self._pool.enqueue(self.__notify_listeners, all_listeners,
-                               topic, msg.payload, msg.qos)
+            self._pool.enqueue(
+                self.__notify_listeners,
+                all_listeners,
+                topic,
+                msg.payload,
+                msg.qos,
+            )
         except KeyError:
             # No listener for this topic
             pass
@@ -321,26 +350,29 @@ class MqttConnectionFactory(object):
                 return
 
             # Extract properties
-            host = properties['host']
-            port = properties.get('port', 1883)
-            keep_alive = properties.get('keepalive', 60)
+            host = properties["host"]
+            port = properties.get("port", 1883)
+            keep_alive = properties.get("keepalive", 60)
 
             class Holder:
                 """
                 Reference holder for the service registration
                 """
+
                 registration = None
 
             holder = Holder()
 
             # Prepare operations once connected
             def on_connect(client, userdata, flags, result_code):
+                # pylint: disable=W0613
                 """
                 Connected to the server
                 """
                 # Success !
-                _logger.debug("Connected to [%s]:%s (%s) - %s",
-                              host, port, client, pid)
+                _logger.debug(
+                    "Connected to [%s]:%s (%s) - %s", host, port, client, pid
+                )
 
                 # Store PID -> Client
                 self._clients[pid] = client
@@ -355,14 +387,16 @@ class MqttConnectionFactory(object):
 
                 # Register an mqtt.connection service
                 svc = _MqttConnection(self, client)
-                props = {'id': pid, 'host': host, 'port': port}
+                props = {"id": pid, "host": host, "port": port}
                 holder.registration = self._context.register_service(
-                    services.SERVICE_MQTT_CONNECTION, svc, props)
+                    services.SERVICE_MQTT_CONNECTION, svc, props
+                )
 
                 # Store PID -> ServiceRegistration
                 self._services[pid] = holder.registration
 
             def on_disconnect(client, userdata, flags, result_code):
+                # pylint: disable=W0613
                 """
                 Disconnected from the server
                 """
@@ -381,11 +415,14 @@ class MqttConnectionFactory(object):
             client.on_disconnect = on_disconnect
             client.on_message = self.__on_message
 
-            rc = client.connect(host, port, keep_alive)
-            if rc != 0:
+            result_code = client.connect(host, port, keep_alive)
+            if result_code != 0:
                 # Can't connect to the server
-                _logger.error("Error connecting to the MQTT server: %d - %s",
-                              rc, CONNECT_RC.get(rc, "Unknown error"))
+                _logger.error(
+                    "Error connecting to the MQTT server: %d - %s",
+                    result_code,
+                    CONNECT_RC.get(result_code, "Unknown error"),
+                )
             else:
                 # Start a Paho loop, as it has a specific connection handling
                 client.loop_start()
@@ -427,13 +464,16 @@ class MqttConnectionFactory(object):
                 # TODO: check for success of at least one publication
                 client.publish(topic, payload, qos, retain)
 
+
 # ------------------------------------------------------------------------------
 
 
 class _MqttConnection(object):
+    # pylint: disable=R0903
     """
     Represents a connection to an MQTT server
     """
+
     def __init__(self, factory, connection):
         """
         Sets up members

@@ -6,7 +6,7 @@ An EventAdmin handler which prints to the standard output the events it receives
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -30,15 +30,19 @@ from pprint import pformat
 import logging
 
 # Pelix
-from pelix.ipopo.decorators import ComponentFactory, Provides, Property, \
-    Validate
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Provides,
+    Property,
+    Validate,
+)
 import pelix.misc
 import pelix.services as services
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -69,18 +73,21 @@ def _parse_boolean(value):
         # Not a string, but has a value
         return True
 
+
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory(pelix.misc.FACTORY_EVENT_ADMIN_PRINTER)
 @Provides(services.SERVICE_EVENT_HANDLER)
-@Property('_event_topics', services.PROP_EVENT_TOPICS, '*')
-@Property('_print', 'evt.print', True)
-@Property('_log', 'evt.log', False)
+@Property("_event_topics", services.PROP_EVENT_TOPICS, "*")
+@Property("_print", "evt.print", True)
+@Property("_log", "evt.log", False)
 class EventAdminPrinter(object):
+    # pylint: disable=R0903
     """
     Utility component which can print and log EventAdmin events
     """
+
     def __init__(self):
         """
         Sets up members
@@ -104,8 +111,11 @@ class EventAdminPrinter(object):
         """
         if self._print:
             # Print the event on standard output
-            print("Event: {0}\nProperties:\n{1}"
-                  .format(topic, pformat(properties)))
+            print(
+                "Event: {0}\nProperties:\n{1}".format(
+                    topic, pformat(properties)
+                )
+            )
 
         if self._log:
             # Log the event

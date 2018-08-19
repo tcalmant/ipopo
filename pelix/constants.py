@@ -6,7 +6,7 @@ Constants and exceptions for Pelix.
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -31,7 +31,7 @@ import inspect
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -75,7 +75,7 @@ SERVICE_BUNDLEID = "service.bundleid"
 Property containing the ID of the bundle providing the service.
 """
 
-SERVICE_PID = 'service.pid'
+SERVICE_PID = "service.pid"
 """
 Property containing the Persistent ID of a service, i.e. a string identifier
 that will always be the same for a (kind of) service, even after restarting
@@ -139,6 +139,7 @@ This allows all bundles to have multiples objects for the same service.
 
 
 def BundleActivator(clazz):
+    # pylint: disable=C0103
     """
     Decorator to declare the bundle activator
 
@@ -153,6 +154,7 @@ def BundleActivator(clazz):
     # Return the untouched class
     return clazz
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -160,6 +162,7 @@ class BundleException(Exception):
     """
     The base of all framework exceptions
     """
+
     def __init__(self, content):
         """
         Sets up the exception
@@ -176,6 +179,7 @@ class FrameworkException(Exception):
     A framework exception is raised when an error can force the framework to
     stop.
     """
+
     def __init__(self, message, needs_stop=False):
         """
         Sets up the exception

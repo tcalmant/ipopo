@@ -9,7 +9,7 @@ be used by shells to load a default configuration.
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -40,7 +40,7 @@ from pelix.utilities import remove_duplicates
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -54,6 +54,7 @@ class _Configuration(object):
     """
     Represents a configuration loaded from an initialization file
     """
+
     def __init__(self):
         """
         Sets up members
@@ -203,8 +204,10 @@ class _Configuration(object):
         """
         if components:
             for component in components:
-                self._components[component['name']] = \
-                    (component['factory'], component.get('properties', {}))
+                self._components[component["name"]] = (
+                    component["factory"],
+                    component.get("properties", {}),
+                )
 
     def set_components(self, components):
         """
@@ -231,7 +234,9 @@ class _Configuration(object):
         # Normalize paths and avoid duplicates
         self._paths = remove_duplicates(
             os.path.realpath(os.path.expanduser(os.path.expandvars(path)))
-            for path in self._paths if os.path.exists(path))
+            for path in self._paths
+            if os.path.exists(path)
+        )
 
         # Normalize the lists of bundles
         self._bundles = remove_duplicates(self._bundles)
@@ -241,8 +246,16 @@ class InitFileHandler(object):
     """
     Parses and handles the instructions of initial configuration files
     """
-    DEFAULT_PATH = ("/etc/default", "/etc", "/usr/local/etc",
-                    "~/.local/pelix", "~/.config", "~", ".")
+
+    DEFAULT_PATH = (
+        "/etc/default",
+        "/etc",
+        "/usr/local/etc",
+        "~/.local/pelix",
+        "~/.config",
+        "~",
+        ".",
+    )
     """
     Default path where to find the configuration file.
     Order is from system wide to user specific configuration.
@@ -315,10 +328,15 @@ class InitFileHandler(object):
 
         :param configuration: A configuration as a dictionary (JSON object)
         """
-        for entry in ('properties', 'environment', 'paths',
-                      'bundles', 'components'):
+        for entry in (
+            "properties",
+            "environment",
+            "paths",
+            "bundles",
+            "components",
+        ):
             # Check if current values must be reset
-            reset_key = 'reset_{0}'.format(entry)
+            reset_key = "reset_{0}".format(entry)
 
             # Compute the name of the method
             call_name = "add" if not configuration.get(reset_key) else "set"
@@ -343,7 +361,7 @@ class InitFileHandler(object):
         whole_path.extend(sys.path)
 
         # Ensure the working directory as first search path
-        sys.path = ['.']
+        sys.path = ["."]
         for path in whole_path:
             if path not in sys.path:
                 sys.path.append(path)

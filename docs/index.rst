@@ -23,10 +23,9 @@ You can also take a look at the slides of the
 `iPOPO tutorial <https://github.com/tcalmant/ipopo-tutorials/releases>`_
 to have a quick overview of iPOPO.
 
-This documentation is inspired by
-the `Flask's one <http://flask.pocoo.org/>`_.
-
-iPOPO depends on a fork of `jsonrpclib`_, called `jsonrpclib-pelix`_.
+iPOPO is released under the terms of the
+`Apache Software License 2.0 <https://www.apache.org/licenses/LICENSE-2.0.html>`_.
+It depends on a fork of `jsonrpclib`_, called `jsonrpclib-pelix`_.
 The documentation of this library is available on
 `GitHub <https://github.com/tcalmant/jsonrpclib>`_.
 
@@ -34,23 +33,20 @@ The documentation of this library is available on
 .. _jsonrpclib-pelix: https://github.com/tcalmant/jsonrpclib
 
 
-State of this documentation
-===========================
+About this documentation
+========================
 
-This documentation is a still work in progress.
-
-The previous documentation was provided as a wiki on a dedicated server which I
-had to take down due to many reasons (DoS attacks, update issues, ...).
-As a result, the documentation is now hosted by
-`Read the Docs <https://readthedocs.org/>`_.
+The previous documentation was provided as a wiki, which has been shut down
+for various reasons.
+A copy of the previous content is available in the
+`convert_doc <https://github.com/tcalmant/ipopo/tree/convert_doc>`_
+branch, even though it's starting to age.
+The documentation is now hosted on `Read the Docs <https://readthedocs.org/>`_.
 The main advantages are that it is now included in the Git repository of the
 project, and it can include *docstrings* directly from the source code.
 
-Alas, the wiki content must be completely rewritten in reStructuredText format.
-I take this opportunity to update the documentation, but it takes a lot of
-time, and I can't work on this project as much as I'd like to.
-So, if you have any question which hasn't been answered in the current
-documentation, please ask on the
+If you have any question which hasn't been answered in the documentation,
+please ask on the
 `users' mailing list <https://groups.google.com/forum/#!forum/ipopo-users>`_.
 
 As always, all contributions to the documentation and the code are very

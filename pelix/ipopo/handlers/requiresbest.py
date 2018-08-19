@@ -6,7 +6,7 @@ RequiresBest handler implementation
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -36,7 +36,7 @@ import pelix.ipopo.handlers.requires as requires
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -46,9 +46,11 @@ __docformat__ = "restructuredtext en"
 
 
 class _HandlerFactory(requires._HandlerFactory):
+    # pylint: disable=W0212, R0903
     """
     Factory service for service registration handlers
     """
+
     def get_handlers(self, component_context, instance):
         """
         Sets up service providers for the given component
@@ -59,17 +61,22 @@ class _HandlerFactory(requires._HandlerFactory):
         """
         # Extract information from the context
         requirements = component_context.get_handler(
-            ipopo_constants.HANDLER_REQUIRES_BEST)
+            ipopo_constants.HANDLER_REQUIRES_BEST
+        )
         requires_filters = component_context.properties.get(
-            ipopo_constants.IPOPO_REQUIRES_FILTERS, None)
+            ipopo_constants.IPOPO_REQUIRES_FILTERS, None
+        )
 
         # Prepare requirements
         requirements = self._prepare_requirements(
-            requirements, requires_filters)
+            requirements, requires_filters
+        )
 
         # Set up the runtime dependency handlers
-        return [BestDependency(field, requirement)
-                for field, requirement in requirements.items()]
+        return [
+            BestDependency(field, requirement)
+            for field, requirement in requirements.items()
+        ]
 
 
 @BundleActivator
@@ -77,6 +84,7 @@ class _Activator(object):
     """
     The bundle activator
     """
+
     def __init__(self):
         """
         Sets up members
@@ -88,21 +96,25 @@ class _Activator(object):
         Bundle started
         """
         # Set up properties
-        properties = {constants.PROP_HANDLER_ID:
-                      ipopo_constants.HANDLER_REQUIRES_BEST}
+        properties = {
+            constants.PROP_HANDLER_ID: ipopo_constants.HANDLER_REQUIRES_BEST
+        }
 
         # Register the handler factory service
         self._registration = context.register_service(
             constants.SERVICE_IPOPO_HANDLER_FACTORY,
-            _HandlerFactory(), properties)
+            _HandlerFactory(),
+            properties,
+        )
 
-    def stop(self, context):
+    def stop(self, _):
         """
         Bundle stopped
         """
         # Unregister the service
         self._registration.unregister()
         self._registration = None
+
 
 # ------------------------------------------------------------------------------
 
@@ -113,6 +125,7 @@ class BestDependency(requires.SimpleDependency):
 
     TODO: Allow to use a custom service reference comparator
     """
+
     def __init__(self, field, requirement):
         """
         Sets up members
@@ -180,8 +193,8 @@ class BestDependency(requires.SimpleDependency):
                 if self.requirement.immediate_rebind:
                     # Look for a replacement
                     self._pending_ref = self._context.get_service_reference(
-                        self.requirement.specification,
-                        self.requirement.filter)
+                        self.requirement.specification, self.requirement.filter
+                    )
                 else:
                     self._pending_ref = None
 
@@ -201,13 +214,17 @@ class BestDependency(requires.SimpleDependency):
             else:
                 # Check if the ranking changed the service to inject
                 best_ref = self._context.get_service_reference(
-                    self.requirement.specification, self.requirement.filter)
+                    self.requirement.specification, self.requirement.filter
+                )
                 if best_ref is self.reference:
                     # Still the best service: notify the property modification
                     if svc_ref is self.reference:
                         # Call update only if necessary
-                        self._ipopo_instance.update(self, self._value,
-                                                    svc_ref, old_properties)
+                        self._ipopo_instance.update(
+                            self, self._value, svc_ref, old_properties
+                        )
                 else:
                     # A new service is now the best: start a departure loop
                     self.on_service_departure(self.reference)
+
+            return None

@@ -6,7 +6,7 @@ EventListenerHook for Pelix.
 :author: Scott Lewis
 :copyright: Copyright 2018, Scott Lewis
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -30,7 +30,7 @@ from collections import MutableMapping, MutableSequence
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -40,10 +40,12 @@ __docformat__ = "restructuredtext en"
 
 
 class ShrinkableList(MutableSequence):
+    # pylint: disable=R0901
     """
     List where items can be removed, but nothing can be added.
     For use in ShrinkableMap
     """
+
     def __init__(self, delegate):
         self._delegate = delegate
 
@@ -71,6 +73,7 @@ class ShrinkableMap(MutableMapping):
     Map where item->value mappings can be removed, but nothing can be added.
     For use in EventListenerHook
     """
+
     def __init__(self, delegate):
         self._delegate = delegate
 
@@ -94,9 +97,14 @@ class ListenerInfo(object):
     """
     Keeps information about a listener
     """
+
     # Try to reduce memory footprint (stored instances)
-    __slots__ = ('__bundle_context', '__listener', '__specification',
-                 '__ldap_filter')
+    __slots__ = (
+        "__bundle_context",
+        "__listener",
+        "__specification",
+        "__ldap_filter",
+    )
 
     def __init__(self, bundle_context, listener, specification, ldap_filter):
         """
@@ -154,6 +162,7 @@ class ListenerInfo(object):
         """
         if self.__ldap_filter:
             return str(self.__ldap_filter)
+        return None
 
 
 class EventListenerHook(object):
@@ -162,5 +171,13 @@ class EventListenerHook(object):
     overridden for a service event listener hook to be called via whiteboard
     pattern
     """
-    def event(self,service_event,listener_dict):
+
+    def event(self, service_event, listener_dict):
+        """
+        Method called when a service event is triggered.
+
+        :param service_event: The ServiceEvent being triggered
+        :param listener_dict: A dictionary associating a bundle context to a
+                              list of listeners
+        """
         pass

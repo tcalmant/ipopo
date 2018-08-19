@@ -6,7 +6,7 @@ Utility methods and decorators
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -37,6 +37,7 @@ import traceback
 
 # Standard typing module should be optional
 try:
+    # pylint: disable=W0611
     from typing import Any, Optional, Union
 except ImportError:
     pass
@@ -47,7 +48,7 @@ import pelix.constants
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -86,6 +87,7 @@ def use_service(bundle_context, svc_reference):
             # Service might have already been unregistered
             pass
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -122,6 +124,8 @@ if hasattr(inspect, "signature"):
                 defaults.append(param.default)
 
         return ArgSpec(args, varargs, keywords, defaults or None)
+
+
 else:
     import types
 
@@ -134,6 +138,7 @@ else:
         :param method: The method to extract the signature from
         :return: The arguments specification, without self
         """
+        # pylint: disable=W1505
         arg_spec = inspect.getargspec(method)
 
         if not isinstance(method, types.FunctionType):
@@ -143,7 +148,9 @@ else:
             args = arg_spec.args
 
         return ArgSpec(
-            args, arg_spec.varargs, arg_spec.keywords, arg_spec.defaults)
+            args, arg_spec.varargs, arg_spec.keywords, arg_spec.defaults
+        )
+
 
 # ------------------------------------------------------------------------------
 
@@ -152,6 +159,7 @@ class Deprecated(object):
     """
     Prints a warning when using the decorated method
     """
+
     def __init__(self, message=None, logger=None):
         """
         Sets the deprecation message, e.g. to indicate which method to call
@@ -174,10 +182,11 @@ class Deprecated(object):
         """
         if not self.__already_logged:
             # Print only if not already done
-            stack = '\n\t'.join(traceback.format_stack())
+            stack = "\n\t".join(traceback.format_stack())
 
             logging.getLogger(self.__logger).warning(
-                "%s: %s\n%s", method_name, self.__message, stack)
+                "%s: %s\n%s", method_name, self.__message, stack
+            )
             self.__already_logged = True
 
     def __call__(self, method):
@@ -198,6 +207,7 @@ class Deprecated(object):
 
         return wrapped
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -205,6 +215,7 @@ class Synchronized(object):
     """
     A synchronizer for global methods
     """
+
     def __init__(self, lock=None):
         """
         Sets up the decorator. If 'lock' is None, an RLock() is created for
@@ -224,6 +235,7 @@ class Synchronized(object):
         :param method: The decorated method
         :return: The wrapped method
         """
+
         @functools.wraps(method)
         def wrapped(*args, **kwargs):
             """
@@ -236,6 +248,7 @@ class Synchronized(object):
 
 
 def SynchronizedClassMethod(*locks_attr_names, **kwargs):
+    # pylint: disable=C1801
     """
     A synchronizer decorator for class methods. An AttributeError can be raised
     at runtime if the given lock attribute doesn't exist or if it is None.
@@ -248,14 +261,14 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
     :return: The decorator method, surrounded with the lock
     """
     # Filter the names (remove empty ones)
-    locks_attr_names = [lock_name
-                        for lock_name in locks_attr_names
-                        if lock_name]
+    locks_attr_names = [
+        lock_name for lock_name in locks_attr_names if lock_name
+    ]
 
     if not locks_attr_names:
         raise ValueError("The lock names list can't be empty")
 
-    if 'sorted' not in kwargs or kwargs['sorted']:
+    if "sorted" not in kwargs or kwargs["sorted"]:
         # Sort the lock names if requested
         # (locking always in the same order reduces the risk of dead lock)
         locks_attr_names = list(locks_attr_names)
@@ -269,14 +282,14 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
         :return: The wrapped method
         :raise AttributeError: The given attribute name doesn't exist
         """
+
         @functools.wraps(method)
         def synchronized(self, *args, **kwargs):
             """
             Calls the wrapped method with a lock
             """
             # Raises an AttributeError if needed
-            locks = [getattr(self, attr_name)
-                     for attr_name in locks_attr_names]
+            locks = [getattr(self, attr_name) for attr_name in locks_attr_names]
             locked = collections.deque()
             i = 0
 
@@ -286,8 +299,10 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
                     if lock is None:
                         # No lock...
                         raise AttributeError(
-                            "Lock '{0}' can't be None in class {1}"
-                            .format(locks_attr_names[i], type(self).__name__))
+                            "Lock '{0}' can't be None in class {1}".format(
+                                locks_attr_names[i], type(self).__name__
+                            )
+                        )
 
                     # Get the lock
                     i += 1
@@ -319,13 +334,14 @@ def is_lock(lock):
         # Don't do useless tests
         return False
 
-    for attr in 'acquire', 'release', '__enter__', '__exit__':
+    for attr in "acquire", "release", "__enter__", "__exit__":
         if not hasattr(lock, attr):
             # Missing something
             return False
 
     # Same API as a lock
     return True
+
 
 # ------------------------------------------------------------------------------
 
@@ -335,6 +351,7 @@ def read_only_property(value):
     Makes a read-only property that always returns the given value
     """
     return property(lambda cls: value)
+
 
 # ------------------------------------------------------------------------------
 
@@ -369,6 +386,7 @@ def remove_duplicates(items):
             new_list.append(item)
     return new_list
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -400,6 +418,7 @@ def remove_listener(registry, listener):
         return True
 
     return False
+
 
 # ------------------------------------------------------------------------------
 
@@ -441,8 +460,8 @@ if PYTHON_3:
         if isinstance(data, bytes):
             # Nothing to do
             return data
-        else:
-            return data.encode(encoding)
+
+        return data.encode(encoding)
 
     def to_str(data, encoding="UTF-8"):
         """
@@ -456,8 +475,8 @@ if PYTHON_3:
         if isinstance(data, str):
             # Nothing to do
             return data
-        else:
-            return str(data, encoding)
+
+        return str(data, encoding)
 
     # Same operation
     # pylint: disable=C0103
@@ -525,6 +544,7 @@ else:
 
         return data.decode(encoding)
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -543,8 +563,8 @@ def to_iterable(value, allow_none=True):
         # None given
         if allow_none:
             return None
-        else:
-            return []
+
+        return []
 
     elif isinstance(value, (list, tuple, set, frozenset)):
         # Iterable given, return it as-is
@@ -553,6 +573,7 @@ def to_iterable(value, allow_none=True):
     # Return a one-value list
     return [value]
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -560,6 +581,7 @@ class EventData(object):
     """
     A threading event with some associated data
     """
+
     __slots__ = ("__event", "__data", "__exception")
 
     def __init__(self):
@@ -643,6 +665,7 @@ class CountdownEvent(object):
     Sets up an Event once the internal integer reaches 0
     (kind of the opposite of a semaphore)
     """
+
     def __init__(self, value):
         # type: (int) -> None
         """

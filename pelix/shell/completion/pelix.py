@@ -6,7 +6,7 @@ Defines the shell completion handlers for Pelix concepts
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 :status: Alpha
 
 ..
@@ -36,14 +36,15 @@ except ImportError:
 
 # Add some typing
 try:
+    # pylint: disable=W0611
     from typing import List
+    from pelix.framework import BundleContext
+    from pelix.shell.beans import ShellSession
 except ImportError:
     pass
 
 # Pelix
 from pelix.constants import SERVICE_ID, BundleActivator
-from pelix.framework import BundleContext
-from pelix.shell.beans import ShellSession
 
 # Completion classes
 from .decorators import SVC_COMPLETER, PROP_COMPLETER_ID, BUNDLE, SERVICE
@@ -52,7 +53,7 @@ from .core import Completer
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -65,6 +66,7 @@ class BundleCompleter(Completer):
     """
     Completes a bundle ID and display a bundle name in current matches
     """
+
     @staticmethod
     def display_hook(prompt, session, context, matches, longest_match_len):
         # type: (str, ShellSession, BundleContext, List[str], int) -> None
@@ -94,8 +96,9 @@ class BundleCompleter(Completer):
         session.write_line_no_feed(readline.get_line_buffer())
         readline.redisplay()
 
-    def complete(self, config, prompt, session, context,
-                 current_arguments, current):
+    def complete(
+        self, config, prompt, session, context, current_arguments, current
+    ):
         # type: (CompletionInfo, str, ShellSession, BundleContext, List[str], str) -> List[str]
         """
         Returns the list of bundle IDs matching the current state
@@ -126,6 +129,7 @@ class ServiceCompleter(Completer):
     """
     Completes a service ID and display a specification in current matches
     """
+
     @staticmethod
     def display_hook(prompt, session, context, matches, longest_match_len):
         # type: (str, ShellSession, BundleContext, List[str], int) -> None
@@ -149,7 +153,8 @@ class ServiceCompleter(Completer):
             session.write_line()
             for svc_id in matches:
                 svc_ref = context.get_service_reference(
-                    None, "({}={})".format(SERVICE_ID, svc_id))
+                    None, "({}={})".format(SERVICE_ID, svc_id)
+                )
                 session.write_line(match_pattern, svc_id, str(svc_ref))
 
             # Print the prompt, then current line
@@ -159,8 +164,9 @@ class ServiceCompleter(Completer):
         except Exception as ex:
             session.write_line("\n{}\n\n", ex)
 
-    def complete(self, config, prompt, session, context,
-                 current_arguments, current):
+    def complete(
+        self, config, prompt, session, context, current_arguments, current
+    ):
         # type: (CompletionInfo, str, ShellSession, BundleContext, List[str], str) -> List[str]
         """
         Returns the list of services IDs matching the current state
@@ -186,14 +192,12 @@ class ServiceCompleter(Completer):
 
         return rl_matches
 
+
 # ------------------------------------------------------------------------------
 
 
 # All completers for this bundle
-COMPLETERS = {
-    BUNDLE: BundleCompleter,
-    SERVICE: ServiceCompleter,
-}
+COMPLETERS = {BUNDLE: BundleCompleter, SERVICE: ServiceCompleter}
 
 
 @BundleActivator
@@ -201,6 +205,7 @@ class _Activator:
     """
     Bundle activator
     """
+
     def __init__(self):
         self._registrations = []
 
@@ -214,16 +219,17 @@ class _Activator:
         # Register all completers we know
         self._registrations = [
             context.register_service(
-                SVC_COMPLETER, completer_class(),
-                {PROP_COMPLETER_ID: completer_id})
-            for completer_id, completer_class in COMPLETERS.items()]
+                SVC_COMPLETER,
+                completer_class(),
+                {PROP_COMPLETER_ID: completer_id},
+            )
+            for completer_id, completer_class in COMPLETERS.items()
+        ]
 
-    def stop(self, context):
+    def stop(self, _):
         # type: (BundleContext) -> None
         """
         Bundle stopping
-
-        :param context: The bundle context
         """
         # Clean up
         for svc_reg in self._registrations:

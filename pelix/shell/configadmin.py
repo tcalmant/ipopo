@@ -9,7 +9,7 @@ service
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -32,14 +32,19 @@ service
 from pelix.shell import SERVICE_SHELL_COMMAND
 
 # iPOPO Decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Instantiate, Invalidate
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Requires,
+    Provides,
+    Instantiate,
+    Invalidate,
+)
 import pelix.services
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -56,6 +61,7 @@ class ConfigAdminCommands(object):
     """
     Configuration Admin shell commands
     """
+
     def __init__(self):
         """
         Sets up members
@@ -67,7 +73,7 @@ class ConfigAdminCommands(object):
         self._configs = {}
 
     @Invalidate
-    def invalidate(self, context):
+    def invalidate(self, _):
         """
         Component invalidated
         """
@@ -85,11 +91,13 @@ class ConfigAdminCommands(object):
         """
         Retrieves the list of tuples (command, method) for this command handler
         """
-        return [("create", self.create),
-                ("update", self.update),
-                ("reload", self.reload),
-                ("delete", self.delete),
-                ("list", self.list)]
+        return [
+            ("create", self.create),
+            ("update", self.update),
+            ("reload", self.reload),
+            ("delete", self.delete),
+            ("list", self.list),
+        ]
 
     def create(self, io_handler, factory_pid, **kwargs):
         """
@@ -105,7 +113,7 @@ class ConfigAdminCommands(object):
             # Update it immediately if some properties are already set
             config.update(kwargs)
 
-    def update(self, io_handler, pid, **kwargs):
+    def update(self, _, pid, **kwargs):
         """
         Updates a configuration
         """
@@ -140,12 +148,11 @@ class ConfigAdminCommands(object):
         try:
             # Reload the file
             config.reload()
-
         except Exception as ex:
             # Log errors
             io_handler.write_line("Error reloading {0}: {1}", pid, ex)
 
-    def delete(self, io_handler, pid):
+    def delete(self, _, pid):
         """
         Deletes a configuration
         """
@@ -179,12 +186,11 @@ class ConfigAdminCommands(object):
 
         lines = []
         for config in configs:
-            lines.append('* {0}:'.format(config.get_pid()))
+            lines.append("* {0}:".format(config.get_pid()))
             factory_pid = config.get_factory_pid()
             if factory_pid:
-                lines.append('\tFactory PID: {0}'.format(factory_pid))
-            lines.append('\tLocation: {0}'
-                         .format(config.get_bundle_location()))
+                lines.append("\tFactory PID: {0}".format(factory_pid))
+            lines.append("\tLocation: {0}".format(config.get_bundle_location()))
 
             try:
                 properties = config.get_properties()
@@ -192,12 +198,14 @@ class ConfigAdminCommands(object):
                     lines.append("\tNot yet updated")
 
                 else:
-                    lines.append('\tProperties:')
-                    lines.extend('\t\t{0} = {1}'.format(key, value)
-                                 for key, value in properties.items())
+                    lines.append("\tProperties:")
+                    lines.extend(
+                        "\t\t{0} = {1}".format(key, value)
+                        for key, value in properties.items()
+                    )
 
             except ValueError:
                 lines.append("\t** Deleted **")
 
-        lines.append('')
-        io_handler.write_line('{0}', '\n'.join(lines))
+        lines.append("")
+        io_handler.write_line("{0}", "\n".join(lines))

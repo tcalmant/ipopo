@@ -6,7 +6,7 @@ Shell commands for the log service
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -29,15 +29,20 @@ Shell commands for the log service
 import logging
 
 # Pelix
-from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Instantiate, PostRegistration
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Requires,
+    Provides,
+    Instantiate,
+    PostRegistration,
+)
 from pelix.misc import LOG_SERVICE, LOG_READER_SERVICE
 from pelix.shell import SERVICE_SHELL_COMMAND
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -55,6 +60,7 @@ class ShellLogCommand(object):
     """
     Provides shell commands to print the content of the log service
     """
+
     def __init__(self):
         """
         Sets up members
@@ -81,12 +87,14 @@ class ShellLogCommand(object):
         """
         Returns the methods of the shell command
         """
-        return [("log", self._log),
-                ("debug", self._debug),
-                ("info", self._info),
-                ("warn", self._warning),
-                ("warning", self._warning),
-                ("error", self._error)]
+        return [
+            ("log", self._log),
+            ("debug", self._debug),
+            ("info", self._info),
+            ("warn", self._warning),
+            ("warning", self._warning),
+            ("error", self._error),
+        ]
 
     def _log(self, session, level="WARNING", count=None):
         """
@@ -105,16 +113,19 @@ class ShellLogCommand(object):
 
         if count is not None:
             try:
-                count = int(count)
+                safe_count = int(count)
             except (TypeError, ValueError):
-                count = 0
+                safe_count = 0
         else:
-            count = 0
+            safe_count = 0
 
         # Filter the entries and keep the last ones only
         try:
-            for entry in [entry for entry in self._reader.get_log()
-                          if entry.level >= level][-count:]:
+            for entry in [
+                entry
+                for entry in self._reader.get_log()
+                if entry.level >= level
+            ][-safe_count:]:
                 session.write_line(str(entry))
         except StopIteration:
             pass
@@ -128,8 +139,12 @@ class ShellLogCommand(object):
         :param words: Message to log
         """
         if self._logger is not None:
-            self._logger.log(level, ' '.join(str(word) for word in words),
-                             None, self.__svc_ref)
+            self._logger.log(
+                level,
+                " ".join(str(word) for word in words),
+                None,
+                self.__svc_ref,
+            )
         else:
             session.write_line("No LogService available.")
 

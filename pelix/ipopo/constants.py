@@ -6,7 +6,7 @@ Defines some iPOPO constants
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -30,17 +30,20 @@ import contextlib
 
 # Standard typing module should be optional
 try:
+    # pylint: disable=W0611
     from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+
+    # Pelix
+    from pelix.framework import BundleContext, ServiceReference
 except ImportError:
     pass
 
-# Pelix
-from pelix.framework import BundleContext, BundleException, ServiceReference
+from pelix.framework import BundleException
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -59,25 +62,25 @@ SERVICE_IPOPO_WAITING_LIST = "pelix.ipopo.waiting_list"
 
 # ------------------------------------------------------------------------------
 
-HANDLER_REQUIRES = 'ipopo.requires'
+HANDLER_REQUIRES = "ipopo.requires"
 """ The @Requires handler ID """
 
-HANDLER_REQUIRES_BEST = 'ipopo.requires.best'
+HANDLER_REQUIRES_BEST = "ipopo.requires.best"
 """ The @RequiresBest handler ID """
 
-HANDLER_REQUIRES_MAP = 'ipopo.requires.map'
+HANDLER_REQUIRES_MAP = "ipopo.requires.map"
 """ The @RequiresMap handler ID """
 
-HANDLER_REQUIRES_VARIABLE_FILTER = 'ipopo.requires.variable_filter'
+HANDLER_REQUIRES_VARIABLE_FILTER = "ipopo.requires.variable_filter"
 """ The @RequiresVarFilter handler ID """
 
-HANDLER_TEMPORAL = 'ipopo.temporal'
+HANDLER_TEMPORAL = "ipopo.temporal"
 """ The @Temporal handler ID """
 
-HANDLER_PROVIDES = 'ipopo.provides'
+HANDLER_PROVIDES = "ipopo.provides"
 """ The @Provides handler ID """
 
-HANDLER_PROPERTY = 'ipopo.properties'
+HANDLER_PROPERTY = "ipopo.properties"
 """ The @Property handler ID """
 
 # ------------------------------------------------------------------------------
@@ -266,6 +269,7 @@ def use_waiting_list(bundle_context):
             # Service might have already been unregistered
             pass
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -273,6 +277,7 @@ class IPopoEvent(object):
     """
     An iPOPO event descriptor.
     """
+
     REGISTERED = 1
     """ A component factory has been registered """
 
@@ -298,7 +303,7 @@ class IPopoEvent(object):
     """ A component factory has been unregistered """
 
     def __init__(self, kind, factory_name, component_name):
-        # type: (int, str, str) -> None
+        # type: (int, str, Optional[str]) -> None
         """
         Sets up the iPOPO event
 
@@ -312,7 +317,7 @@ class IPopoEvent(object):
         self.__component_name = component_name
 
     def get_component_name(self):
-        # type: () -> str
+        # type: () -> Optional[str]
         """
         Retrieves the name of the component associated to the event
 

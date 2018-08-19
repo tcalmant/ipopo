@@ -6,7 +6,7 @@ Service registry and event dispatcher for Pelix.
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -32,14 +32,24 @@ import threading
 
 # Standard typing module should be optional
 try:
+    # pylint: disable=W0611
     from typing import Any, Dict, List, Optional, Set, Tuple, Union
 except ImportError:
     pass
 
 # Pelix beans
-from pelix.constants import OBJECTCLASS, SERVICE_ID, SERVICE_RANKING, \
-    SERVICE_BUNDLEID, SERVICE_SCOPE, SCOPE_SINGLETON, SCOPE_BUNDLE, \
-    SCOPE_PROTOTYPE, BundleException
+from pelix.constants import (
+    OBJECTCLASS,
+    SERVICE_ID,
+    SERVICE_RANKING,
+    SERVICE_BUNDLEID,
+    SERVICE_SCOPE,
+    SCOPE_SINGLETON,
+    SCOPE_BUNDLE,
+    SCOPE_PROTOTYPE,
+    BundleException,
+)
+from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 from pelix.internals.events import ServiceEvent
 
 # Pelix utility modules
@@ -47,13 +57,12 @@ from pelix.utilities import is_string
 import pelix.ldapfilter as ldapfilter
 
 # Event hooks
-from pelix.internals.hooks import ListenerInfo, ShrinkableList, \
-    ShrinkableMap
+from pelix.internals.hooks import ListenerInfo, ShrinkableList, ShrinkableMap
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -61,10 +70,12 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+
 class _UsageCounter(object):
     """
     Simple reference usage counter
     """
+
     __slots__ = ("__count",)
 
     def __init__(self):
@@ -93,6 +104,7 @@ class _UsageCounter(object):
         """
         return self.__count > 0
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -100,6 +112,7 @@ class _FactoryCounter(object):
     """
     A service factory usage counter per bundle and reference
     """
+
     __slots__ = ("__bundle", "__factored")
 
     def __init__(self, bundle):
@@ -187,8 +200,8 @@ class _FactoryCounter(object):
         svc_ref = svc_registration.get_reference()
         if svc_ref.is_prototype():
             return self._get_from_prototype(factory, svc_registration)
-        else:
-            return self._get_from_factory(factory, svc_registration)
+
+        return self._get_from_factory(factory, svc_registration)
 
     def unget_service(self, factory, svc_registration, service=None):
         # type: (Any, ServiceRegistration, Any) -> bool
@@ -206,12 +219,14 @@ class _FactoryCounter(object):
             _, counter = self.__factored[svc_ref]
         except KeyError:
             logging.warning(
-                "Trying to release an unknown service factory: %s", svc_ref)
+                "Trying to release an unknown service factory: %s", svc_ref
+            )
         else:
             if svc_ref.is_prototype():
                 # Notify the factory to clean up this instance
                 factory.unget_service_instance(
-                    self.__bundle, svc_registration, service)
+                    self.__bundle, svc_registration, service
+                )
 
             if not counter.dec():
                 # All references have been released: clean up
@@ -239,7 +254,7 @@ class _FactoryCounter(object):
         svc_ref = svc_registration.get_reference()
         try:
             # "service" for factories, "services" for prototypes
-            services, counter = self.__factored.pop(svc_ref)
+            services, _ = self.__factored.pop(svc_ref)
         except KeyError:
             return False
         else:
@@ -247,7 +262,8 @@ class _FactoryCounter(object):
                 for service in services:
                     try:
                         factory.unget_service_instance(
-                            self.__bundle, svc_registration, service)
+                            self.__bundle, svc_registration, service
+                        )
                     except Exception:
                         # Ignore instance-level exceptions, potential errors
                         # will reappear in unget_service()
@@ -260,6 +276,7 @@ class _FactoryCounter(object):
             svc_ref.unused_by(self.__bundle)
             return True
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -267,8 +284,16 @@ class ServiceReference(object):
     """
     Represents a reference to a service
     """
-    __slots__ = ("__bundle", "__properties", "__service_id", "__sort_key",
-                 "__using_bundles", "_props_lock", "__usage_lock")
+
+    __slots__ = (
+        "__bundle",
+        "__properties",
+        "__service_id",
+        "__sort_key",
+        "__using_bundles",
+        "_props_lock",
+        "__usage_lock",
+    )
 
     def __init__(self, bundle, properties):
         """
@@ -281,8 +306,10 @@ class ServiceReference(object):
         for mandatory in SERVICE_ID, OBJECTCLASS:
             if mandatory not in properties:
                 raise BundleException(
-                    "A Service must at least have a '{0}' entry"
-                    .format(mandatory))
+                    "A Service must at least have a '{0}' entry".format(
+                        mandatory
+                    )
+                )
 
         # Properties lock (used by ServiceRegistration too)
         self._props_lock = threading.RLock()
@@ -306,9 +333,11 @@ class ServiceReference(object):
         """
         String representation
         """
-        return "ServiceReference(ID={0}, Bundle={1}, Specs={2})" \
-            .format(self.__service_id, self.__bundle.get_bundle_id(),
-                    self.__properties[OBJECTCLASS])
+        return "ServiceReference(ID={0}, Bundle={1}, Specs={2})".format(
+            self.__service_id,
+            self.__bundle.get_bundle_id(),
+            self.__properties[OBJECTCLASS],
+        )
 
     def __hash__(self):
         """
@@ -322,36 +351,42 @@ class ServiceReference(object):
         """
         Two references are equal if they have the same service ID
         """
+        # pylint: disable=W0212
         return self.__service_id == other.__service_id
 
     def __lt__(self, other):
         """
         Lesser than other
         """
+        # pylint: disable=W0212
         return self.__sort_key < other.__sort_key
 
     def __gt__(self, other):
         """
         Greater than other
         """
+        # pylint: disable=W0212
         return self.__sort_key > other.__sort_key
 
     def __le__(self, other):
         """
         Lesser than or equal to other"
         """
+        # pylint: disable=W0212
         return self.__sort_key <= other.__sort_key
 
     def __ge__(self, other):
         """
         Greater than or equal to other
         """
+        # pylint: disable=W0212
         return self.__sort_key >= other.__sort_key
 
     def __ne__(self, other):
         """
         Two references are different if they have different service IDs
         """
+        # pylint: disable=W0212
         return self.__service_id != other.__service_id
 
     def get_bundle(self):
@@ -403,8 +438,10 @@ class ServiceReference(object):
 
         :return: True if the service provides from a factory
         """
-        return self.__properties[SERVICE_SCOPE] in \
-            (SCOPE_BUNDLE, SCOPE_PROTOTYPE)
+        return self.__properties[SERVICE_SCOPE] in (
+            SCOPE_BUNDLE,
+            SCOPE_PROTOTYPE,
+        )
 
     def is_prototype(self):
         """
@@ -456,8 +493,10 @@ class ServiceReference(object):
 
         :return: The sort key to use for this reference
         """
-        return (-int(self.__properties.get(SERVICE_RANKING, 0)),
-                self.__service_id)
+        return (
+            -int(self.__properties.get(SERVICE_RANKING, 0)),
+            self.__service_id,
+        )
 
     def needs_sort_update(self):
         """
@@ -476,6 +515,7 @@ class ServiceReference(object):
         """
         self.__sort_key = self.__compute_key()
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -483,8 +523,13 @@ class ServiceRegistration(object):
     """
     Represents a service registration object
     """
-    __slots__ = ("__framework", "__reference", "__properties",
-                 "__update_callback")
+
+    __slots__ = (
+        "__framework",
+        "__reference",
+        "__properties",
+        "__update_callback",
+    )
 
     def __init__(self, framework, reference, properties, update_callback):
         """
@@ -555,6 +600,7 @@ class ServiceRegistration(object):
             # Service ranking not updated: ignore
             pass
 
+        # pylint: disable=W0212
         with self.__reference._props_lock:
             # Update the properties
             previous = self.__properties.copy()
@@ -565,8 +611,9 @@ class ServiceRegistration(object):
                 self.__update_callback(self.__reference)
 
             # Trigger a new computation in the framework
-            event = ServiceEvent(ServiceEvent.MODIFIED, self.__reference,
-                                 previous)
+            event = ServiceEvent(
+                ServiceEvent.MODIFIED, self.__reference, previous
+            )
 
             self.__framework._dispatcher.fire_service_event(event)
 
@@ -576,14 +623,15 @@ class ServiceRegistration(object):
         """
         self.__framework.unregister_service(self)
 
+
 # ------------------------------------------------------------------------------
 
-from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 
 class EventDispatcher(object):
     """
     Simple event dispatcher
     """
+
     def __init__(self, registry, logger=None):
         """
         Sets up the dispatcher
@@ -632,13 +680,14 @@ class EventDispatcher(object):
                  already known
         :raise BundleException: An invalid listener has been given
         """
-        if listener is None or not hasattr(listener, 'bundle_changed'):
+        if listener is None or not hasattr(listener, "bundle_changed"):
             raise BundleException("Invalid bundle listener given")
 
         with self.__bnd_lock:
             if listener in self.__bnd_listeners:
                 self._logger.warning(
-                    "Already known bundle listener '%s'", listener)
+                    "Already known bundle listener '%s'", listener
+                )
                 return False
 
             self.__bnd_listeners.append(listener)
@@ -654,20 +703,22 @@ class EventDispatcher(object):
                  already known
         :raise BundleException: An invalid listener has been given
         """
-        if listener is None or not hasattr(listener, 'framework_stopping'):
+        if listener is None or not hasattr(listener, "framework_stopping"):
             raise BundleException("Invalid framework listener given")
 
         with self.__fw_lock:
             if listener in self.__fw_listeners:
                 self._logger.warning(
-                    "Already known framework listener '%s'", listener)
+                    "Already known framework listener '%s'", listener
+                )
                 return False
 
             self.__fw_listeners.append(listener)
             return True
 
-    def add_service_listener(self, bundle_context, listener, specification=None,
-                             ldap_filter=None):
+    def add_service_listener(
+        self, bundle_context, listener, specification=None, ldap_filter=None
+    ):
         """
         Registers a service listener
 
@@ -681,22 +732,24 @@ class EventDispatcher(object):
                  already known
         :raise BundleException: An invalid listener has been given
         """
-        if listener is None or not hasattr(listener, 'service_changed'):
+        if listener is None or not hasattr(listener, "service_changed"):
             raise BundleException("Invalid service listener given")
 
         with self.__svc_lock:
             if listener in self.__listeners_data:
                 self._logger.warning(
-                    "Already known service listener '%s'", listener)
+                    "Already known service listener '%s'", listener
+                )
                 return False
 
             try:
                 ldap_filter = ldapfilter.get_ldap_filter(ldap_filter)
             except ValueError as ex:
-                raise BundleException("Invalid service filter: {0}"
-                                      .format(ex))
+                raise BundleException("Invalid service filter: {0}".format(ex))
 
-            stored = ListenerInfo(bundle_context, listener, specification, ldap_filter)
+            stored = ListenerInfo(
+                bundle_context, listener, specification, ldap_filter
+            )
             self.__listeners_data[listener] = stored
             self.__svc_listeners.setdefault(specification, []).append(stored)
             return True
@@ -777,8 +830,10 @@ class EventDispatcher(object):
             try:
                 listener.framework_stopping()
             except:
-                self._logger.exception("An error occurred calling one of the "
-                                       "framework stop listeners")
+                self._logger.exception(
+                    "An error occurred calling one of the "
+                    "framework stop listeners"
+                )
 
     def fire_service_event(self, event):
         """
@@ -796,9 +851,11 @@ class EventDispatcher(object):
         if svc_modified:
             # Modified service event : prepare the end match event
             previous = event.get_previous_properties()
-            endmatch_event = ServiceEvent(ServiceEvent.MODIFIED_ENDMATCH,
-                                          event.get_service_reference(),
-                                          previous)
+            endmatch_event = ServiceEvent(
+                ServiceEvent.MODIFIED_ENDMATCH,
+                event.get_service_reference(),
+                previous,
+            )
 
         with self.__svc_lock:
             # Get the listeners for this specification
@@ -815,7 +872,7 @@ class EventDispatcher(object):
             except KeyError:
                 pass
 
-        # filter listeners with EventListenerHooks
+        # Filter listeners with EventListenerHooks
         listeners = self._filter_with_hooks(event, listeners)
 
         # Get the listeners for this specification
@@ -825,11 +882,13 @@ class EventDispatcher(object):
 
             # Test if the service properties matches the filter
             ldap_filter = data.ldap_filter
-            if ldap_filter is not None \
-                    and not ldap_filter.matches(properties):
+            if ldap_filter is not None and not ldap_filter.matches(properties):
                 # Event doesn't match listener filter...
-                if svc_modified and previous is not None \
-                        and ldap_filter.matches(previous):
+                if (
+                    svc_modified
+                    and previous is not None
+                    and ldap_filter.matches(previous)
+                ):
                     # ... but previous properties did match
                     sent_event = endmatch_event
                 else:
@@ -842,50 +901,67 @@ class EventDispatcher(object):
             except:
                 self._logger.exception("Error calling a service listener")
 
-    def _filter_with_hooks(self,svc_event,listeners):
+    def _filter_with_hooks(self, svc_event, listeners):
+        """
+        Filters listeners with EventListenerHooks
+
+        :param svc_event: ServiceEvent being triggered
+        :param listeners: Listeners to filter
+        :return: A list of listeners with hook references
+        """
         svc_ref = svc_event.get_service_reference()
         # Get EventListenerHooks service refs from registry
-        hook_refs = self._registry.find_service_references(SERVICE_EVENT_LISTENER_HOOK)
+        hook_refs = self._registry.find_service_references(
+            SERVICE_EVENT_LISTENER_HOOK
+        )
         # only do something if there are some hook_refs
         if hook_refs:
-            d = dict()
+            # Associate bundle context to hooks
+            ctx_listeners = {}
             for listener in listeners:
-                bc = listener.bundle_context
-                d.setdefault(bc,[]).append(listener)
+                context = listener.bundle_context
+                ctx_listeners.setdefault(context, []).append(listener)
 
-            hdict = dict()
-            for k,v in d.items():
-                hdict[k] = ShrinkableList(v)
-
-            sdict = ShrinkableMap(hdict)
+            # Convert the dictionary to a shrinkable one,
+            # with shrinkable lists of listeners
+            shrinkable_ctx_listeners = ShrinkableMap(
+                {
+                    context: ShrinkableList(value)
+                    for context, value in ctx_listeners.items()
+                }
+            )
 
             for hook_ref in hook_refs:
                 if not svc_ref == hook_ref:
-                    # Get hook_bundle
+                    # Get the bundle of the hook service
                     hook_bundle = hook_ref.get_bundle()
                     # lookup service from registry
-                    hook_svc = self._registry.get_service(hook_bundle,hook_ref)
-                    if hook_svc:
-                        # call event method with hook_svc instance,
-                        # pass in svc_event and sdict (which can be modified by
-                        # hook
+                    hook_svc = self._registry.get_service(hook_bundle, hook_ref)
+                    if hook_svc is not None:
+                        # call event method of the hook service,
+                        # pass in svc_event and shrinkable_ctx_listeners
+                        # (which can be modified by hook)
                         try:
-                            hook_svc.event(svc_event,sdict)
+                            hook_svc.event(svc_event, shrinkable_ctx_listeners)
                         except:
-                            self._logger.exception("Error calling EventListenerHook")
+                            self._logger.exception(
+                                "Error calling EventListenerHook"
+                            )
                         finally:
-                            self._registry.unget_service(hook_bundle,hook_ref)
+                            # Clean up the service
+                            self._registry.unget_service(hook_bundle, hook_ref)
 
-            # convert the sdict back to a list of listeners
+            # Convert the shrinkable_ctx_listeners back to a list of listeners
             # before returning
             ret_listeners = set()
-            for k,v in sdict.items():
-                for i in v:
-                    ret_listeners.add(i)
+            for bnd_listeners in shrinkable_ctx_listeners.values():
+                ret_listeners.update(bnd_listeners)
 
             return ret_listeners
-        else:
-            return listeners
+
+        # No hook ref
+        return listeners
+
 
 # ------------------------------------------------------------------------------
 
@@ -896,6 +972,7 @@ class ServiceRegistry(object):
 
     Associates service references to instances and bundles.
     """
+
     def __init__(self, framework, logger=None):
         """
         Sets up the registry
@@ -949,8 +1026,9 @@ class ServiceRegistry(object):
             self.__factory_usage.clear()
             self.__pending_services.clear()
 
-    def register(self, bundle, classes, properties, svc_instance,
-                 factory, prototype):
+    def register(
+        self, bundle, classes, properties, svc_instance, factory, prototype
+    ):
         """
         Registers a service.
 
@@ -990,7 +1068,8 @@ class ServiceRegistry(object):
 
             # Make the service registration
             svc_registration = ServiceRegistration(
-                self.__framework, svc_ref, properties, self.__sort_registry)
+                self.__framework, svc_ref, properties, self.__sort_registry
+            )
 
             # Store service information
             if prototype or factory:
@@ -1107,8 +1186,9 @@ class ServiceRegistry(object):
                         continue
 
                     # Remove direct references
-                    self.__pending_services[svc_ref] = \
-                        self.__svc_registry.pop(svc_ref)
+                    self.__pending_services[svc_ref] = self.__svc_registry.pop(
+                        svc_ref
+                    )
                     specs.update(svc_ref.get_property(OBJECTCLASS))
 
                     # Clean the specifications cache
@@ -1123,7 +1203,8 @@ class ServiceRegistry(object):
             return svc_refs
 
     def find_service_references(
-            self, clazz=None, ldap_filter=None, only_one=False):
+        self, clazz=None, ldap_filter=None, only_one=False
+    ):
         """
         Finds all services references matching the given filter.
 
@@ -1140,7 +1221,7 @@ class ServiceRegistry(object):
                 # Do not return None, as the whole content was required
                 return sorted(self.__svc_registry.keys())
 
-            if hasattr(clazz, '__name__'):
+            if hasattr(clazz, "__name__"):
                 # Escape the type name
                 clazz = ldapfilter.escape_LDAP(clazz.__name__)
             elif is_string(clazz):
@@ -1167,8 +1248,11 @@ class ServiceRegistry(object):
             if new_filter is not None:
                 # Prepare a generator, as we might not need a complete
                 # walk-through
-                refs_set = (ref for ref in refs_set
-                            if new_filter.matches(ref.get_properties()))
+                refs_set = (
+                    ref
+                    for ref in refs_set
+                    if new_filter.matches(ref.get_properties())
+                )
 
             if only_one:
                 # Return the first element in the list/generator
@@ -1236,7 +1320,8 @@ class ServiceRegistry(object):
             except KeyError:
                 # Not found
                 raise BundleException(
-                    "Service not found (reference: {0})".format(reference))
+                    "Service not found (reference: {0})".format(reference)
+                )
 
     def __get_service_from_factory(self, bundle, reference):
         # type: (Any, ServiceReference) -> Any
@@ -1264,12 +1349,14 @@ class ServiceRegistry(object):
 
             # Check the per-bundle usage counter
             factory_counter = self.__factory_usage.setdefault(
-                bundle, _FactoryCounter(bundle))
+                bundle, _FactoryCounter(bundle)
+            )
             return factory_counter.get_service(factory, svc_reg)
         except KeyError:
             # Not found
-            raise BundleException("Service not found (reference: {0})"
-                                  .format(reference))
+            raise BundleException(
+                "Service not found (reference: {0})".format(reference)
+            )
 
     def unget_used_services(self, bundle):
         """
@@ -1322,7 +1409,8 @@ class ServiceRegistry(object):
         with self.__svc_lock:
             if reference.is_prototype():
                 return self.__unget_service_from_factory(
-                    bundle, reference, service)
+                    bundle, reference, service
+                )
             elif reference.is_factory():
                 return self.__unget_service_from_factory(bundle, reference)
 

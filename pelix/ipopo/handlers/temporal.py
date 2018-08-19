@@ -6,7 +6,7 @@ Temporal dependency handler
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -40,7 +40,7 @@ import pelix.ipopo.handlers.requires as requires
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -50,9 +50,11 @@ __docformat__ = "restructuredtext en"
 
 
 class _HandlerFactory(constants.HandlerFactory):
+    # pylint: disable=R0903
     """
     Factory service for service registration handlers
     """
+
     @staticmethod
     def _prepare_configs(configs, requires_filters, temporal_timeouts):
         """
@@ -118,19 +120,25 @@ class _HandlerFactory(constants.HandlerFactory):
         """
         # Extract information from the context
         configs = component_context.get_handler(
-            ipopo_constants.HANDLER_TEMPORAL)
+            ipopo_constants.HANDLER_TEMPORAL
+        )
         requires_filters = component_context.properties.get(
-            ipopo_constants.IPOPO_REQUIRES_FILTERS, None)
+            ipopo_constants.IPOPO_REQUIRES_FILTERS, None
+        )
         temporal_timeouts = component_context.properties.get(
-            ipopo_constants.IPOPO_TEMPORAL_TIMEOUTS, None)
+            ipopo_constants.IPOPO_TEMPORAL_TIMEOUTS, None
+        )
 
         # Prepare requirements
-        new_configs = self._prepare_configs(configs, requires_filters,
-                                            temporal_timeouts)
+        new_configs = self._prepare_configs(
+            configs, requires_filters, temporal_timeouts
+        )
 
         # Return handlers
-        return [TemporalDependency(field, requirement, timeout)
-                for field, (requirement, timeout) in new_configs.items()]
+        return [
+            TemporalDependency(field, requirement, timeout)
+            for field, (requirement, timeout) in new_configs.items()
+        ]
 
 
 @BundleActivator
@@ -138,6 +146,7 @@ class _Activator(object):
     """
     The bundle activator
     """
+
     def __init__(self):
         """
         Sets up members
@@ -149,21 +158,25 @@ class _Activator(object):
         Bundle started
         """
         # Set up properties
-        properties = {constants.PROP_HANDLER_ID:
-                      ipopo_constants.HANDLER_TEMPORAL}
+        properties = {
+            constants.PROP_HANDLER_ID: ipopo_constants.HANDLER_TEMPORAL
+        }
 
         # Register the handler factory service
         self._registration = context.register_service(
             constants.SERVICE_IPOPO_HANDLER_FACTORY,
-            _HandlerFactory(), properties)
+            _HandlerFactory(),
+            properties,
+        )
 
-    def stop(self, context):
+    def stop(self, _):
         """
         Bundle stopped
         """
         # Unregister the service
         self._registration.unregister()
         self._registration = None
+
 
 # ------------------------------------------------------------------------------
 
@@ -172,6 +185,7 @@ class TemporalException(constants.HandlerException):
     """
     Temporal exception
     """
+
     pass
 
 
@@ -179,6 +193,7 @@ class _TemporalProxy(object):
     """
     The injected proxy
     """
+
     def __init__(self, timeout):
         """
         The temporal proxy
@@ -235,6 +250,7 @@ class TemporalDependency(requires.SimpleDependency):
     """
     Manages a temporal dependency field
     """
+
     def __init__(self, field, requirement, timeout):
         """
         Sets up the dependency
@@ -291,6 +307,8 @@ class TemporalDependency(requires.SimpleDependency):
                 self._ipopo_instance.bind(self, self._value, self.reference)
                 return True
 
+            return None
+
     def on_service_departure(self, svc_ref):
         """
         Called when a service has been unregistered from the framework
@@ -307,21 +325,24 @@ class TemporalDependency(requires.SimpleDependency):
 
                 # Look for a replacement
                 self._pending_ref = self._context.get_service_reference(
-                    self.requirement.specification,
-                    self.requirement.filter)
+                    self.requirement.specification, self.requirement.filter
+                )
 
                 if self._pending_ref is None:
                     # No replacement found yet, wait a little
                     self.__still_valid = True
                     self.__timer_args = (self._value, svc_ref)
                     self.__timer = threading.Timer(
-                        self.__timeout, self.__unbind_call, (False,))
+                        self.__timeout, self.__unbind_call, (False,)
+                    )
                     self.__timer.start()
 
                 else:
                     # Notify iPOPO immediately
                     self._ipopo_instance.unbind(self, self._value, svc_ref)
                 return True
+
+            return None
 
     def __cancel_timer(self):
         """
@@ -344,7 +365,8 @@ class TemporalDependency(requires.SimpleDependency):
                 self.__timer = None
                 self.__still_valid = still_valid
                 self._ipopo_instance.unbind(
-                    self, self.__timer_args[0], self.__timer_args[1])
+                    self, self.__timer_args[0], self.__timer_args[1]
+                )
 
     def is_valid(self):
         """
@@ -352,6 +374,8 @@ class TemporalDependency(requires.SimpleDependency):
         """
         # Don't use the parent method: it will return true as the "_value"
         # member is not None
-        return self.__still_valid \
-            or self._pending_ref is not None \
+        return (
+            self.__still_valid
+            or self._pending_ref is not None
             or self.requirement.optional
+        )

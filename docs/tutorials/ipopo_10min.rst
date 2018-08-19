@@ -214,7 +214,7 @@ language choice and then your passage.
 
 Here is a sample run, calling ``python main_pelix_launcher.py``:
 
-.. code-block:: none
+.. code-block:: console
 
    INFO:pelix.shell.core:Shell services registered
    An English dictionary has been added

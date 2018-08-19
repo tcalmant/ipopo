@@ -6,7 +6,7 @@ Pelix Utilities: Cached thread pool
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -47,8 +47,87 @@ import pelix.utilities
 __docformat__ = "restructuredtext en"
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
+
+# ------------------------------------------------------------------------------
+
+
+class EventData(object):
+    """
+    A threading event with some associated data
+    """
+
+    def __init__(self):
+        """
+        Sets up the event
+        """
+        self.__event = threading.Event()
+        self.__data = None
+        self.__exception = None
+
+    @property
+    def data(self):
+        """
+        Returns the associated value
+        """
+        return self.__data
+
+    @property
+    def exception(self):
+        """
+        Returns the exception used to stop the wait() method
+        """
+        return self.__exception
+
+    def clear(self):
+        """
+        Clears the event
+        """
+        self.__event.clear()
+        self.__data = None
+        self.__exception = None
+
+    def is_set(self):
+        """
+        Checks if the event is set
+        """
+        return self.__event.is_set()
+
+    def set(self, data=None):
+        """
+        Sets the event
+        """
+        self.__data = data
+        self.__exception = None
+        self.__event.set()
+
+    def raise_exception(self, exception):
+        """
+        Raises an exception in wait()
+
+        :param exception: An Exception object
+        """
+        self.__data = None
+        self.__exception = exception
+        self.__event.set()
+
+    def wait(self, timeout=None):
+        """
+        Waits for the event or for the timeout
+
+        :param timeout: Wait timeout (in seconds)
+        :return: True if the event as been set, else False
+        """
+        # The 'or' part is for Python 2.6
+        result = self.__event.wait(timeout)
+        # pylint: disable=E0702
+        # Pylint seems to miss the "is None" check below
+        if self.__exception is None:
+            return result
+        else:
+            raise self.__exception
+
 
 # ------------------------------------------------------------------------------
 
@@ -57,6 +136,7 @@ class FutureResult(object):
     """
     An object to wait for the result of a threaded execution
     """
+
     __slots__ = ("_logger", "_done_event", "__callback", "__extra")
 
     def __init__(self, logger=None):
@@ -76,9 +156,11 @@ class FutureResult(object):
         """
         if self.__callback is not None:
             try:
-                self.__callback(self._done_event.data,
-                                self._done_event.exception,
-                                self.__extra)
+                self.__callback(
+                    self._done_event.data,
+                    self._done_event.exception,
+                    self.__extra,
+                )
             except Exception as ex:
                 self._logger.exception("Error calling back method: %s", ex)
 
@@ -150,6 +232,7 @@ class FutureResult(object):
         else:
             raise OSError("Timeout raised")
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -157,8 +240,10 @@ class ThreadPool(object):
     """
     Executes the tasks stored in a FIFO in a thread pool
     """
-    def __init__(self, max_threads, min_threads=1, queue_size=0, timeout=60,
-                 logname=None):
+
+    def __init__(
+        self, max_threads, min_threads=1, queue_size=0, timeout=60, logname=None
+    ):
         """
         Sets up the thread pool.
 
@@ -245,7 +330,7 @@ class ThreadPool(object):
         for _ in range(nb_pending_tasks):
             self.__nb_pending_task += 1
             self.__start_thread()
-        for _ in range(nb_threads-nb_pending_tasks):
+        for _ in range(nb_threads - nb_pending_tasks):
             self.__start_thread()
 
     def __start_thread(self):
@@ -306,8 +391,9 @@ class ThreadPool(object):
                 thread.join(3)
                 if thread.is_alive():
                     # Thread is still alive: something might be wrong
-                    self._logger.warning("Thread %s is still alive...",
-                                         thread.name)
+                    self._logger.warning(
+                        "Thread %s is still alive...", thread.name
+                    )
 
         # Clear storage
         del self._threads[:]
@@ -322,9 +408,10 @@ class ThreadPool(object):
         :raise ValueError: Invalid method
         :raise Full: The task queue is full
         """
-        if not hasattr(method, '__call__'):
-            raise ValueError("{0} has no __call__ member."
-                             .format(method.__name__))
+        if not hasattr(method, "__call__"):
+            raise ValueError(
+                "{0} has no __call__ member.".format(method.__name__)
+            )
 
         # Prepare the future result object
         future = FutureResult(self._logger)
@@ -332,8 +419,7 @@ class ThreadPool(object):
         # Use a lock, as we might be "resetting" the queue
         with self.__lock:
             # Add the task to the queue
-            self._queue.put((method, args, kwargs, future), True,
-                            self._timeout)
+            self._queue.put((method, args, kwargs, future), True, self._timeout)
             self.__nb_pending_task += 1
 
             if self.__nb_pending_task > self.__nb_threads:
@@ -406,8 +492,9 @@ class ThreadPool(object):
                     # Call the method
                     future.execute(method, args, kwargs)
                 except Exception as ex:
-                    self._logger.exception("Error executing %s: %s",
-                                           method.__name__, ex)
+                    self._logger.exception(
+                        "Error executing %s: %s", method.__name__, ex
+                    )
                 finally:
                     # Mark the action as executed
                     self._queue.task_done()
@@ -420,8 +507,10 @@ class ThreadPool(object):
             # Clean up thread if necessary
             with self.__lock:
                 extra_threads = self.__nb_threads - self.__nb_active_threads
-                if self.__nb_threads > self._min_threads \
-                        and extra_threads > self._queue.qsize():
+                if (
+                    self.__nb_threads > self._min_threads
+                    and extra_threads > self._queue.qsize()
+                ):
                     # No more work for this thread
                     # if there are more non active_thread than task
                     # and we're above the  minimum number of threads:

@@ -9,7 +9,7 @@ PyPI), and a ZooKeeper server.
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -36,12 +36,18 @@ import threading
 import uuid
 
 # ZooKeeper library
-from kazoo.client import KazooClient, KazooState, EventType, WatchedEvent
+from kazoo.client import KazooClient, KazooState, EventType
 from kazoo.exceptions import KazooException, NodeExistsError
 
 # iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Invalidate, Validate, Property
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Requires,
+    Provides,
+    Invalidate,
+    Validate,
+    Property,
+)
 
 # Pelix utilities
 import pelix.constants
@@ -56,7 +62,7 @@ import pelix.remote.beans as beans
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -192,8 +198,8 @@ class ZooKeeperClient:
         """
         if path.startswith(self.__prefix):
             return path
-        else:
-            return "{}{}".format(self.__prefix, path)
+
+        return "{}{}".format(self.__prefix, path)
 
     def create(self, path, data, ephemeral=False, sequence=False):
         """
@@ -204,8 +210,9 @@ class ZooKeeperClient:
         :param ephemeral: Ephemeral flag
         :param sequence: Sequential flag
         """
-        return self._zk.create(self.__path(path), data,
-                               ephemeral=ephemeral, sequence=sequence)
+        return self._zk.create(
+            self.__path(path), data, ephemeral=ephemeral, sequence=sequence
+        )
 
     def ensure_path(self, path):
         """
@@ -255,12 +262,13 @@ class ZooKeeperClient:
 
 
 @ComponentFactory(pelix.remote.FACTORY_DISCOVERY_ZOOKEEPER)
-@Provides(pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER,
-          controller="_controller")
-@Requires('_dispatcher', pelix.remote.SERVICE_DISPATCHER)
-@Requires('_registry', pelix.remote.SERVICE_REGISTRY)
-@Property('_prefix', "zookeeper.prefix", "/pelix")
-@Property('_zk_hosts', "zookeeper.hosts", "localhost:2181")
+@Provides(
+    pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER, controller="_controller"
+)
+@Requires("_dispatcher", pelix.remote.SERVICE_DISPATCHER)
+@Requires("_registry", pelix.remote.SERVICE_REGISTRY)
+@Property("_prefix", "zookeeper.prefix", "/pelix")
+@Property("_zk_hosts", "zookeeper.hosts", "localhost:2181")
 class ZooKeeperDiscovery(object):
     """
     Pelix Remote Service discovery provider based on ZooKeeper
@@ -393,8 +401,11 @@ class ZooKeeperDiscovery(object):
         _logger.debug("Connected to ZooKeeper")
 
         # Ensure paths
-        for path in (FRAMEWORKS_ROOT, ENDPOINTS_ROOT,
-                     self._endpoints_path(self._fw_uid)):
+        for path in (
+            FRAMEWORKS_ROOT,
+            ENDPOINTS_ROOT,
+            self._endpoints_path(self._fw_uid),
+        ):
             self._zk.ensure_path(path)
 
         # Register the framework
@@ -413,8 +424,11 @@ class ZooKeeperDiscovery(object):
         # The host name
         hostname = socket.gethostname()
         if hostname == "localhost":
-            logging.warning("Hostname is '%s': this will be a problem for "
-                            "multi-host remote services", hostname)
+            logging.warning(
+                "Hostname is '%s': this will be a problem for "
+                "multi-host remote services",
+                hostname,
+            )
 
         # Prepare an ephemeral Z-Node
         self._zk.create(fw_node, to_bytes(hostname), True)
@@ -439,8 +453,10 @@ class ZooKeeperDiscovery(object):
             return self._frameworks_hosts[fw_uid]
         except KeyError:
             fw_host = self._frameworks_hosts[fw_uid] = to_str(
-                self._zk.get(self._framework_path(fw_uid),
-                             self._on_framework_event)[0])
+                self._zk.get(
+                    self._framework_path(fw_uid), self._on_framework_event
+                )[0]
+            )
             return fw_host
 
     def __read_endpoint(self, path):
@@ -452,8 +468,9 @@ class ZooKeeperDiscovery(object):
         :param path: Path to the Z-Node describing the endpoint
         :return: An EndpointDescription bean
         """
-        return EDEFReader().parse(to_str(self._zk.get(
-            path, self._on_endpoint_event)[0]))[0]
+        return EDEFReader().parse(
+            to_str(self._zk.get(path, self._on_endpoint_event)[0])
+        )[0]
 
     def _load_existing_endpoints(self):
         """
@@ -461,7 +478,8 @@ class ZooKeeperDiscovery(object):
         """
         # Get the list of frameworks
         frameworks = self._zk.get_children(
-            FRAMEWORKS_ROOT, watch=self._on_frameworks_event)
+            FRAMEWORKS_ROOT, watch=self._on_frameworks_event
+        )
 
         for fw_uid in frameworks:
             # Avoid ourselves
@@ -473,12 +491,14 @@ class ZooKeeperDiscovery(object):
 
             # List all endpoints of this framework
             endpoints = self._zk.get_children(
-                self._endpoints_path(fw_uid), self._on_fw_endpoints_event)
+                self._endpoints_path(fw_uid), self._on_fw_endpoints_event
+            )
 
             for endpoint_uid in endpoints:
                 # Get JSON description
                 endpoint = self.__read_endpoint(
-                    self._endpoint_path(fw_uid, endpoint_uid))
+                    self._endpoint_path(fw_uid, endpoint_uid)
+                )
 
                 # Register the remote service
                 self._register_remote(endpoint)
@@ -492,8 +512,11 @@ class ZooKeeperDiscovery(object):
         """
         # Prepare node content
         path = self._endpoint_path(self._fw_uid, endpoint.uid)
-        data = to_bytes(EDEFWriter().to_string(
-            [beans.EndpointDescription.from_export(endpoint)]))
+        data = to_bytes(
+            EDEFWriter().to_string(
+                [beans.EndpointDescription.from_export(endpoint)]
+            )
+        )
 
         try:
             try:
@@ -503,8 +526,9 @@ class ZooKeeperDiscovery(object):
                 # Service already exists: update it
                 self._zk.set(path, data)
         except KazooException as ex:
-            _logger.warning("Error registering local service: %s",
-                            type(ex).__name__)
+            _logger.warning(
+                "Error registering local service: %s", type(ex).__name__
+            )
 
     def _unregister_service(self, endpoint):
         # type: (beans.ExportEndpoint) -> None
@@ -604,7 +628,8 @@ class ZooKeeperDiscovery(object):
         try:
             # Get the list of frameworks
             frameworks = self._zk.get_children(
-                FRAMEWORKS_ROOT, watch=self._on_frameworks_event)
+                FRAMEWORKS_ROOT, watch=self._on_frameworks_event
+            )
         except KazooException:
             # Error reading the list of frameworks
             _logger.warning("Error looking for new frameworks")
@@ -624,11 +649,13 @@ class ZooKeeperDiscovery(object):
             self._cache_fw_host(fw_uid)
 
             endpoints = self._zk.get_children(
-                self._endpoints_path(fw_uid), self._on_fw_endpoints_event)
+                self._endpoints_path(fw_uid), self._on_fw_endpoints_event
+            )
 
             for endpoint_uid in endpoints:
                 endpoint = self.__read_endpoint(
-                    self._endpoint_path(fw_uid, endpoint_uid))
+                    self._endpoint_path(fw_uid, endpoint_uid)
+                )
                 self._register_remote(endpoint)
 
     def _on_fw_endpoints_event(self, event):
@@ -637,7 +664,7 @@ class ZooKeeperDiscovery(object):
         Handles an event on the endpoints Z-node of a framework
         """
         if event.type == EventType.CHILD:
-            fw_uid = event.path.rsplit('/', 1)[-1]
+            fw_uid = event.path.rsplit("/", 1)[-1]
             self.__check_framework_endpoints(fw_uid)
         elif event.type != EventType.DELETED:
             # Reset the listener in any case
@@ -654,7 +681,7 @@ class ZooKeeperDiscovery(object):
             self._register_remote(endpoint)
         elif event.type == EventType.DELETED:
             # Endpoint deleted
-            endpoint_uid = event.path.rsplit('/', 1)[-1]
+            endpoint_uid = event.path.rsplit("/", 1)[-1]
             self._registry.remove(endpoint_uid)
 
     def __check_framework_endpoints(self, fw_uid):
@@ -665,7 +692,8 @@ class ZooKeeperDiscovery(object):
         try:
             # Get the list of frameworks
             endpoints = self._zk.get_children(
-                self._endpoints_path(fw_uid), self._on_fw_endpoints_event)
+                self._endpoints_path(fw_uid), self._on_fw_endpoints_event
+            )
         except KazooException:
             # No more endpoints for this framework
             return
@@ -674,9 +702,14 @@ class ZooKeeperDiscovery(object):
             if not self._registry.contains(endpoint_uid):
                 try:
                     # New endpoint found
-                    self._register_remote(self.__read_endpoint(
-                        self._endpoint_path(fw_uid, endpoint_uid)))
+                    self._register_remote(
+                        self.__read_endpoint(
+                            self._endpoint_path(fw_uid, endpoint_uid)
+                        )
+                    )
                 except KazooException:
                     logging.warning(
                         "Error reading endpoint %s of framework %s",
-                        fw_uid, endpoint_uid)
+                        fw_uid,
+                        endpoint_uid,
+                    )

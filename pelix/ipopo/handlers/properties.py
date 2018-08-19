@@ -6,7 +6,7 @@ Properties handler
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -35,7 +35,7 @@ import pelix.ipopo.handlers.constants as constants
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -45,9 +45,11 @@ __docformat__ = "restructuredtext en"
 
 
 class _HandlerFactory(constants.HandlerFactory):
+    # pylint: disable=R0903
     """
     Factory service for service registration handlers
     """
+
     def get_handlers(self, component_context, instance):
         """
         Sets up service providers for the given component
@@ -57,7 +59,7 @@ class _HandlerFactory(constants.HandlerFactory):
         :return: The list/tuple of handlers associated to the given component
         """
         # 1 handler per provided service
-        return PropertiesHandler(),
+        return (PropertiesHandler(),)
 
 
 @BundleActivator
@@ -65,6 +67,7 @@ class _Activator(object):
     """
     The bundle activator
     """
+
     def __init__(self):
         """
         Sets up members
@@ -76,21 +79,25 @@ class _Activator(object):
         Bundle started
         """
         # Set up properties
-        properties = {constants.PROP_HANDLER_ID:
-                      ipopo_constants.HANDLER_PROPERTY}
+        properties = {
+            constants.PROP_HANDLER_ID: ipopo_constants.HANDLER_PROPERTY
+        }
 
         # Register the handler factory service
         self._registration = context.register_service(
             constants.SERVICE_IPOPO_HANDLER_FACTORY,
-            _HandlerFactory(), properties)
+            _HandlerFactory(),
+            properties,
+        )
 
-    def stop(self, context):
+    def stop(self, _):
         """
         Bundle stopped
         """
         # Unregister the service
         self._registration.unregister()
         self._registration = None
+
 
 # ------------------------------------------------------------------------------
 
@@ -99,6 +106,7 @@ class PropertiesHandler(constants.Handler):
     """
     Handles the properties
     """
+
     def __init__(self):
         """
         Sets up the handler
@@ -172,8 +180,10 @@ class PropertiesHandler(constants.Handler):
         else:
             prefix = ipopo_constants.IPOPO_HIDDEN_PROPERTY_PREFIX
 
-        return "{0}{1}".format(prefix, ipopo_constants.IPOPO_GETTER_SUFFIX), \
+        return (
+            "{0}{1}".format(prefix, ipopo_constants.IPOPO_GETTER_SUFFIX),
             "{0}{1}".format(prefix, ipopo_constants.IPOPO_SETTER_SUFFIX),
+        )
 
     def manipulate(self, stored_instance, component_instance):
         """

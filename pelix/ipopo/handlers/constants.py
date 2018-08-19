@@ -6,7 +6,7 @@ iPOPO handlers constants and base classes
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -26,7 +26,7 @@ iPOPO handlers constants and base classes
 """
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -34,24 +34,24 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-SERVICE_IPOPO_HANDLER_FACTORY = 'ipopo.handler.factory'
+SERVICE_IPOPO_HANDLER_FACTORY = "ipopo.handler.factory"
 """
 iPOPO handler factory service specification. Those services should implement
 the methods of HandlerFactory.
 """
 
-PROP_HANDLER_ID = 'ipopo.handler.id'
+PROP_HANDLER_ID = "ipopo.handler.id"
 """ Service property: the ID of the iPOPO handler factory """
 
 # ------------------------------------------------------------------------------
 
-KIND_PROPERTIES = 'properties'
+KIND_PROPERTIES = "properties"
 """
 Represents the 'properties' kind of handler, which manipulates the component
 to notify property changes.
 """
 
-KIND_DEPENDENCY = 'dependency'
+KIND_DEPENDENCY = "dependency"
 """
 Represents the 'dependency' kind of handler.
 Those handlers must implement the following methods:
@@ -60,7 +60,7 @@ Those handlers must implement the following methods:
 * is_valid(): Returns True if the dependency is in a valid state
 """
 
-KIND_SERVICE_PROVIDER = 'service_provider'
+KIND_SERVICE_PROVIDER = "service_provider"
 """
 Represents the 'service_provider' kind of handler.
 Those handlers must implement the following method:
@@ -81,9 +81,11 @@ It should also implement the following ones:
 
 
 class HandlerFactory(object):
+    # pylint: disable=R0903
     """
     Handler factory abstract class
     """
+
     def get_handlers(self, component_context, instance):
         """
         Prepares handlers for the given component
@@ -94,6 +96,7 @@ class HandlerFactory(object):
         """
         pass
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -101,7 +104,9 @@ class Handler(object):
     """
     Basic handler abstract class
     """
+
     def get_kinds(self):
+        # pylint: disable=R0201
         """
         Returns the kinds of this handler
 
@@ -116,6 +121,7 @@ class Handler(object):
         pass
 
     def check_event(self, event):
+        # pylint: disable=R0201, W0613
         """
         Tests if the given service event must be handled or ignored, based
         on the state of the iPOPO service and on the content of the event.
@@ -126,6 +132,7 @@ class Handler(object):
         return True
 
     def is_valid(self):
+        # pylint: disable=R0201
         """
         Checks this handler is valid. All handlers must be valid for a
         component to be validated
@@ -203,7 +210,9 @@ class HandlerException(Exception):
     """
     Kind of exception used by handlers
     """
+
     pass
+
 
 # ------------------------------------------------------------------------------
 
@@ -212,11 +221,14 @@ class ServiceProviderHandler(Handler):
     """
     Service provider handler abstract class
     """
+
     def get_service_reference(self):
+        # pylint: disable=R0201
         """
         Returns the reference to the service provided by this handler
         """
         return None
+
 
 # ------------------------------------------------------------------------------
 
@@ -225,19 +237,23 @@ class DependencyHandler(Handler):
     """
     Dependency handler abstract class
     """
+
     def get_field(self):
+        # pylint: disable=R0201
         """
         Returns the name of the field where to inject the dependency
         """
         return None
 
     def try_binding(self):
+        # pylint: disable=R0201
         """
         Forces the handler to try to bind to existing services
         """
         pass
 
     def get_bindings(self):
+        # pylint: disable=R0201
         """
         Retrieves the list of the references to the bound services
 
@@ -246,6 +262,7 @@ class DependencyHandler(Handler):
         return None
 
     def get_value(self):
+        # pylint: disable=R0201
         """
         Returns the value to inject
         """

@@ -8,7 +8,7 @@ Pelix is a Python framework that aims to act as OSGi as much as possible
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -35,21 +35,34 @@ import logging
 import os
 import sys
 import threading
-import types
 import uuid
 
 # Standard typing module should be optional
 try:
+    # pylint: disable=W0611
     from typing import Any, List, Optional, Set, Union
+    import types
 except ImportError:
     pass
 
 # Pelix beans and constants
-from pelix.constants import ACTIVATOR, ACTIVATOR_LEGACY, FRAMEWORK_UID, OSGI_FRAMEWORK_UUID, \
-    BundleException, FrameworkException
+from pelix.constants import (
+    ACTIVATOR,
+    ACTIVATOR_LEGACY,
+    FRAMEWORK_UID,
+    OSGI_FRAMEWORK_UUID,
+    BundleException,
+    FrameworkException,
+)
 from pelix.internals.events import BundleEvent, ServiceEvent
-from pelix.internals.registry import EventDispatcher, ServiceRegistry, \
-    ServiceReference, ServiceRegistration
+
+# pylint: disable=W0611
+from pelix.internals.registry import (
+    EventDispatcher,
+    ServiceRegistry,
+    ServiceReference,
+    ServiceRegistration,
+)
 
 # Pelix utility modules
 from pelix.utilities import is_string
@@ -67,6 +80,8 @@ if hasattr(importlib, "reload"):
         :raise SyntaxError: Syntax error in imported module
         """
         return importlib.reload(module_)
+
+
 else:
     # Before Python 3.4
     import imp
@@ -106,13 +121,13 @@ def walk_modules(path):
 
     for filename in file_names:
         modname = inspect.getmodulename(filename)
-        if modname == '__init__' or modname in yielded:
+        if modname == "__init__" or modname in yielded:
             continue
 
         file_path = os.path.join(path, filename)
         is_package = False
 
-        if not modname and os.path.isdir(file_path) and '.' not in filename:
+        if not modname and os.path.isdir(file_path) and "." not in filename:
             modname = filename
             try:
                 dir_contents = os.listdir(file_path)
@@ -122,22 +137,23 @@ def walk_modules(path):
 
             for sub_filename in dir_contents:
                 sub_name = inspect.getmodulename(sub_filename)
-                if sub_name == '__init__':
+                if sub_name == "__init__":
                     is_package = True
                     break
             else:
                 # not a package
                 continue
 
-        if modname and '.' not in modname:
+        if modname and "." not in modname:
             yielded.add(modname)
             yield modname, is_package
+
 
 # ------------------------------------------------------------------------------
 
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -150,12 +166,22 @@ _logger = logging.getLogger("pelix.main")
 
 
 class Bundle(object):
+    # pylint: disable=W0212
     """
     Represents a "bundle" in Pelix
     """
-    __slots__ = ("_lock", "__context", "__id", "__module", "__name",
-                 "__framework", "_state", "__registered_services",
-                 "__registration_lock")
+
+    __slots__ = (
+        "_lock",
+        "__context",
+        "__id",
+        "__module",
+        "__name",
+        "__framework",
+        "_state",
+        "__registered_services",
+        "__registration_lock",
+    )
 
     UNINSTALLED = 1
     """ The bundle is uninstalled and may not be used """
@@ -224,7 +250,9 @@ class Bundle(object):
                 _logger.warning(
                     "Bundle %s uses the deprecated '%s' to declare"
                     " its activator. Use @BundleActivator instead.",
-                    self.__name, ACTIVATOR_LEGACY)
+                    self.__name,
+                    ACTIVATOR_LEGACY,
+                )
         return getattr(activator, method_name, None)
 
     def _fire_bundle_event(self, kind):
@@ -283,7 +311,7 @@ class Bundle(object):
 
         :return: The location of the Pelix module, or an empty string
         """
-        return getattr(self.__module, '__file__', "")
+        return getattr(self.__module, "__file__", "")
 
     def get_module(self):
 
@@ -309,8 +337,10 @@ class Bundle(object):
         :raise BundleException: If the bundle has been uninstalled
         """
         if self._state == Bundle.UNINSTALLED:
-            raise BundleException("Can't call 'get_registered_services' on an "
-                                  "uninstalled bundle")
+            raise BundleException(
+                "Can't call 'get_registered_services' on an "
+                "uninstalled bundle"
+            )
         return self.__framework._registry.get_bundle_registered_services(self)
 
     def get_services_in_use(self):
@@ -329,8 +359,9 @@ class Bundle(object):
         :raise BundleException: If the bundle has been uninstalled
         """
         if self._state == Bundle.UNINSTALLED:
-            raise BundleException("Can't call 'get_services_in_use' on an "
-                                  "uninstalled bundle")
+            raise BundleException(
+                "Can't call 'get_services_in_use' on an uninstalled bundle"
+            )
         return self.__framework._registry.get_bundle_imported_services(self)
 
     def get_state(self):
@@ -382,8 +413,9 @@ class Bundle(object):
         """
         if self.__framework._state not in (Bundle.STARTING, Bundle.ACTIVE):
             # Framework is not running
-            raise BundleException("Framework must be started before its "
-                                  "bundles")
+            raise BundleException(
+                "Framework must be started before its bundles"
+            )
 
         with self._lock:
             if self._state in (Bundle.ACTIVE, Bundle.STARTING):
@@ -398,7 +430,7 @@ class Bundle(object):
             self._fire_bundle_event(BundleEvent.STARTING)
 
             # Call the activator, if any
-            starter = self.__get_activator_method('start')
+            starter = self.__get_activator_method("start")
             if starter is not None:
                 try:
                     # Call the start method
@@ -408,16 +440,18 @@ class Bundle(object):
                     self._state = previous_state
 
                     # Re-raise directly Pelix exceptions
-                    _logger.exception("Pelix error raised by %s while "
-                                      "starting", self.__name)
+                    _logger.exception(
+                        "Pelix error raised by %s while starting", self.__name
+                    )
                     raise
                 except Exception as ex:
                     # Restore previous state
                     self._state = previous_state
 
                     # Raise the error
-                    _logger.exception("Error raised by %s while starting",
-                                      self.__name)
+                    _logger.exception(
+                        "Error raised by %s while starting", self.__name
+                    )
                     raise BundleException(ex)
 
             # Bundle is now active
@@ -444,7 +478,7 @@ class Bundle(object):
             self._fire_bundle_event(BundleEvent.STOPPING)
 
             # Call the activator, if any
-            stopper = self.__get_activator_method('stop')
+            stopper = self.__get_activator_method("stop")
             if stopper is not None:
                 try:
                     # Call the start method
@@ -454,12 +488,14 @@ class Bundle(object):
                     self._state = previous_state
 
                     # Re-raise directly Pelix exceptions
-                    _logger.exception("Pelix error raised by %s while "
-                                      "stopping", self.__name)
+                    _logger.exception(
+                        "Pelix error raised by %s while stopping", self.__name
+                    )
                     exception = ex
                 except Exception as ex:
-                    _logger.exception("Error raised by %s while stopping",
-                                      self.__name)
+                    _logger.exception(
+                        "Error raised by %s while stopping", self.__name
+                    )
                     # Store the exception (raised after service clean up)
                     exception = BundleException(ex)
 
@@ -550,20 +586,24 @@ class Bundle(object):
 
                     # Change modification time to bypass weak time resolution
                     # of the underlying file system
-                    os.utime(module_file,
-                             (module_stat.st_atime, module_stat.st_mtime + 1))
+                    os.utime(
+                        module_file,
+                        (module_stat.st_atime, module_stat.st_mtime + 1),
+                    )
                 except OSError:
                     # Can't touch the file
                     _logger.warning(
                         "Failed to update the modification time of '%s'. "
                         "The bundle update might not reflect the latest "
-                        "changes.", module_file)
+                        "changes.",
+                        module_file,
+                    )
 
             # Clean up the module constants (otherwise kept by reload)
             # Keep special members (__name__, __file__, ...)
             old_content = self.__module.__dict__.copy()
             for name in list(self.__module.__dict__):
-                if not (name.startswith('__') and name.endswith('__')):
+                if not (name.startswith("__") and name.endswith("__")):
                     del self.__module.__dict__[name]
 
             try:
@@ -580,13 +620,16 @@ class Bundle(object):
             if module_stat is not None:
                 try:
                     # Reset times
-                    os.utime(module_file,
-                             (module_stat.st_atime, module_stat.st_mtime))
+                    os.utime(
+                        module_file,
+                        (module_stat.st_atime, module_stat.st_mtime),
+                    )
                 except OSError:
                     # Shouldn't occur, since we succeeded before the update
                     _logger.debug(
                         "Failed to reset the modification time of '%s'",
-                        module_file)
+                        module_file,
+                    )
 
             if restart:
                 try:
@@ -600,14 +643,17 @@ class Bundle(object):
             # Bundle update finished
             self._fire_bundle_event(BundleEvent.UPDATED)
 
+
 # ------------------------------------------------------------------------------
 
 
 class Framework(Bundle):
+    # pylint: disable=W0212
     """
     The Pelix framework (main) class. It must be instantiated using
     FrameworkFactory
     """
+
     def __init__(self, properties=None):
         """
         Sets up the framework.
@@ -615,8 +661,9 @@ class Framework(Bundle):
         :param properties: The framework properties
         """
         # Framework bundle set up
-        Bundle.__init__(self, self, 0, self.get_symbolic_name(),
-                        sys.modules[__name__])
+        Bundle.__init__(
+            self, self, 0, self.get_symbolic_name(), sys.modules[__name__]
+        )
 
         # Framework properties
         if not isinstance(properties, dict):
@@ -678,7 +725,8 @@ class Framework(Bundle):
             return True
 
     def find_service_references(
-            self, clazz=None, ldap_filter=None, only_one=False):
+        self, clazz=None, ldap_filter=None, only_one=False
+    ):
         # type: (Optional[str], Optional[str], bool) -> Optional[List[ServiceReference]]
         """
         Finds all services references matching the given filter.
@@ -691,7 +739,8 @@ class Framework(Bundle):
                                 references
         """
         return self._registry.find_service_references(
-            clazz, ldap_filter, only_one)
+            clazz, ldap_filter, only_one
+        )
 
     def get_bundle_by_id(self, bundle_id):
         # type: (int) -> Union[Bundle, Framework]
@@ -708,8 +757,7 @@ class Framework(Bundle):
 
         with self.__bundles_lock:
             if bundle_id not in self.__bundles:
-                raise BundleException(
-                    "Invalid bundle ID {0}".format(bundle_id))
+                raise BundleException("Invalid bundle ID {0}".format(bundle_id))
 
             return self.__bundles[bundle_id]
 
@@ -746,8 +794,10 @@ class Framework(Bundle):
         :return: the list of all installed bundles
         """
         with self.__bundles_lock:
-            return [self.__bundles[bundle_id]
-                    for bundle_id in sorted(self.__bundles.keys())]
+            return [
+                self.__bundles[bundle_id]
+                for bundle_id in sorted(self.__bundles.keys())
+            ]
 
     def get_properties(self):
         # type: () -> dict
@@ -792,8 +842,7 @@ class Framework(Bundle):
         if not isinstance(bundle, Bundle):
             raise TypeError("First argument must be a Bundle object")
         elif not isinstance(reference, ServiceReference):
-            raise TypeError(
-                "Second argument must be a ServiceReference object")
+            raise TypeError("Second argument must be a ServiceReference object")
 
         try:
             # Unregistering service, just give it
@@ -843,7 +892,7 @@ class Framework(Bundle):
             # A bundle can't be installed twice
             for bundle in self.__bundles.values():
                 if bundle.get_symbolic_name() == name:
-                    _logger.debug('Already installed bundle: %s', name)
+                    _logger.debug("Already installed bundle: %s", name)
                     return bundle
 
             # Load the module
@@ -862,8 +911,9 @@ class Framework(Bundle):
                     module_ = importlib.import_module(name)
             except (ImportError, IOError) as ex:
                 # Error importing the module
-                raise BundleException("Error installing bundle {0}: {1}"
-                                      .format(name, ex))
+                raise BundleException(
+                    "Error installing bundle {0}: {1}".format(name, ex)
+                )
             finally:
                 if path:
                     # Clean up the path. The loaded module(s) might
@@ -915,6 +965,7 @@ class Framework(Bundle):
 
         # Create a simple visitor
         def visitor(fullname, is_package, module_path):
+            # pylint: disable=W0613
             """
             Package visitor: accepts everything in recursive mode,
             else avoids packages
@@ -935,7 +986,8 @@ class Framework(Bundle):
 
                 # Visit the package
                 visited, sub_failed = self.install_visiting(
-                    path, visitor, prefix)
+                    path, visitor, prefix
+                )
 
                 # Update the sets
                 bundles.update(visited)
@@ -991,11 +1043,11 @@ class Framework(Bundle):
             # Walk through the folder to find modules
             for name, is_package in walk_modules(path):
                 # Ignore '__main__' modules
-                if name == '__main__':
+                if name == "__main__":
                     continue
 
                 # Compute the full name of the module
-                fullname = '.'.join((prefix, name)) if prefix else name
+                fullname = ".".join((prefix, name)) if prefix else name
                 try:
                     if visitor(fullname, is_package, path):
                         if is_package:
@@ -1004,9 +1056,9 @@ class Framework(Bundle):
 
                             # Visit the package
                             sub_path = os.path.join(path, name)
-                            sub_bundles, sub_failed = \
-                                self.install_visiting(
-                                    sub_path, visitor, fullname)
+                            sub_bundles, sub_failed = self.install_visiting(
+                                sub_path, visitor, fullname
+                            )
                             bundles.update(sub_bundles)
                             failed.update(sub_failed)
                         else:
@@ -1022,8 +1074,16 @@ class Framework(Bundle):
 
         return bundles, failed
 
-    def register_service(self, bundle, clazz, service, properties, send_event,
-                         factory=False, prototype=False):
+    def register_service(
+        self,
+        bundle,
+        clazz,
+        service,
+        properties,
+        send_event,
+        factory=False,
+        prototype=False,
+    ):
         # type: (Bundle, Union[List[Any], type, str], object, dict, bool, bool, bool) -> ServiceRegistration
         """
         Registers a service and calls the listeners
@@ -1064,22 +1124,25 @@ class Framework(Bundle):
             if not svc_clazz or not is_string(svc_clazz):
                 # Invalid class name
                 raise BundleException(
-                    "Invalid class name: {0}".format(svc_clazz))
+                    "Invalid class name: {0}".format(svc_clazz)
+                )
 
             # Class OK
             classes.append(svc_clazz)
 
         # Make the service registration
         registration = self._registry.register(
-            bundle, classes, properties, service, factory, prototype)
+            bundle, classes, properties, service, factory, prototype
+        )
 
         # Update the bundle registration information
         bundle._registered_service(registration)
 
         if send_event:
             # Call the listeners
-            event = ServiceEvent(ServiceEvent.REGISTERED,
-                                 registration.get_reference())
+            event = ServiceEvent(
+                ServiceEvent.REGISTERED, registration.get_reference()
+            )
             self._dispatcher.fire_service_event(event)
 
         return registration
@@ -1104,7 +1167,8 @@ class Framework(Bundle):
             # Starting...
             self._state = Bundle.STARTING
             self._dispatcher.fire_bundle_event(
-                BundleEvent(BundleEvent.STARTING, self))
+                BundleEvent(BundleEvent.STARTING, self)
+            )
 
             # Start all registered bundles (use a copy, just in case...)
             for bundle in self.__bundles.copy().values():
@@ -1112,8 +1176,9 @@ class Framework(Bundle):
                     bundle.start()
                 except FrameworkException as ex:
                     # Important error
-                    _logger.exception("Important error starting bundle: %s",
-                                      bundle)
+                    _logger.exception(
+                        "Important error starting bundle: %s", bundle
+                    )
                     if ex.needs_stop:
                         # Stop the framework (has to be in active state)
                         self._state = Bundle.ACTIVE
@@ -1146,7 +1211,8 @@ class Framework(Bundle):
             # Stopping...
             self._state = Bundle.STOPPING
             self._dispatcher.fire_bundle_event(
-                BundleEvent(BundleEvent.STOPPING, self))
+                BundleEvent(BundleEvent.STOPPING, self)
+            )
 
             # Notify listeners that the bundle is stopping
             self._dispatcher.fire_framework_stopping()
@@ -1164,13 +1230,17 @@ class Framework(Bundle):
                     bundle.stop()
                 except Exception as ex:
                     # Just log exceptions
-                    _logger.exception("Error stopping bundle %s: %s",
-                                      bundle.get_symbolic_name(), ex)
+                    _logger.exception(
+                        "Error stopping bundle %s: %s",
+                        bundle.get_symbolic_name(),
+                        ex,
+                    )
 
             # Framework is now stopped
             self._state = Bundle.RESOLVED
             self._dispatcher.fire_bundle_event(
-                BundleEvent(BundleEvent.STOPPED, self))
+                BundleEvent(BundleEvent.STOPPED, self)
+            )
 
             # All bundles have been stopped, release "wait_for_stop"
             self._fw_stop_event.set()
@@ -1186,8 +1256,11 @@ class Framework(Bundle):
         :param force: If True, stops the framework before deleting it
         :return: True if the framework has been delete, False if is couldn't
         """
-        if not force and self._state not in \
-                (Bundle.INSTALLED, Bundle.RESOLVED, Bundle.STOPPING):
+        if not force and self._state not in (
+            Bundle.INSTALLED,
+            Bundle.RESOLVED,
+            Bundle.STOPPING,
+        ):
             _logger.warning("Trying to delete an active framework")
             return False
 
@@ -1223,7 +1296,8 @@ class Framework(Bundle):
 
             # Notify listeners
             self._dispatcher.fire_bundle_event(
-                BundleEvent(BundleEvent.UNINSTALLED, bundle))
+                BundleEvent(BundleEvent.UNINSTALLED, bundle)
+            )
 
             # Remove it from the dictionary
             del self.__bundles[bundle_id]
@@ -1239,7 +1313,7 @@ class Framework(Bundle):
 
             try:
                 # Clear reference in parent
-                parent, basename = name.rsplit('.', 1)
+                parent, basename = name.rsplit(".", 1)
                 if parent:
                     delattr(sys.modules[parent], basename)
             except (KeyError, AttributeError, ValueError):
@@ -1327,6 +1401,7 @@ class Framework(Bundle):
             # If the timeout raised, we should be in another state
             return self._state == Bundle.RESOLVED
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -1334,6 +1409,7 @@ class ServiceObjects(object):
     """
     Allows multiple service objects for a service to be obtained.
     """
+
     def __init__(self, registry, bundle, svc_ref):
         # type: (ServiceRegistry, Bundle, ServiceReference) -> None
         """
@@ -1370,15 +1446,18 @@ class ServiceObjects(object):
         :return: True if the bundle usage has been removed
         """
         return self.__registry.unget_service(
-            self.__bundle, self.__reference, service)
+            self.__bundle, self.__reference, service
+        )
 
 
 class BundleContext(object):
+    # pylint: disable=W0212
     """
     The bundle context is the link between a bundle and the framework.
     It is unique for a bundle and is created by the framework once the bundle
     is installed.
     """
+
     def __init__(self, framework, bundle):
         # type: (Framework, Bundle) -> None
         """
@@ -1402,7 +1481,7 @@ class BundleContext(object):
         The listener must be a callable accepting a single parameter:\
 
            * **event** -- The description of the event
-             (a :class:`~BundleEvent` object).
+             (a :class:`~pelix.internals.events.BundleEvent` object).
 
         :param listener: The bundle listener to register
         :return: True if the listener has been registered, False if it already
@@ -1428,8 +1507,9 @@ class BundleContext(object):
         """
         return self.__framework._dispatcher.add_framework_listener(listener)
 
-    def add_service_listener(self, listener, ldap_filter=None,
-                             specification=None):
+    def add_service_listener(
+        self, listener, ldap_filter=None, specification=None
+    ):
         """
         Registers a service listener
 
@@ -1451,8 +1531,9 @@ class BundleContext(object):
                               (optional, None to accept all services)
         :return: True if the listener has been successfully registered
         """
-        return self.__framework._dispatcher.add_service_listener(self,
-            listener, specification, ldap_filter)
+        return self.__framework._dispatcher.add_service_listener(
+            self, listener, specification, ldap_filter
+        )
 
     def get_all_service_references(self, clazz, ldap_filter=None):
         """
@@ -1548,7 +1629,8 @@ class BundleContext(object):
         :return: A service reference, None if not found
         """
         result = self.__framework.find_service_references(
-            clazz, ldap_filter, True)
+            clazz, ldap_filter, True
+        )
         try:
             return result[0]
         except TypeError:
@@ -1638,9 +1720,16 @@ class BundleContext(object):
         """
         return self.__framework.install_visiting(path, visitor)
 
-    def register_service(self, clazz, service, properties, send_event=True,
-                         factory=False, prototype=False):
-        # type: (str, object, dict, bool, bool, bool) -> ServiceRegistration
+    def register_service(
+        self,
+        clazz,
+        service,
+        properties,
+        send_event=True,
+        factory=False,
+        prototype=False,
+    ):
+        # type: (Union[List[Any], type, str], object, dict, bool, bool, bool) -> ServiceRegistration
         """
         Registers a service
 
@@ -1655,8 +1744,14 @@ class BundleContext(object):
         :raise BundleException: An error occurred while registering the service
         """
         return self.__framework.register_service(
-            self.__bundle, clazz, service, properties, send_event,
-            factory, prototype)
+            self.__bundle,
+            clazz,
+            service,
+            properties,
+            send_event,
+            factory,
+            prototype,
+        )
 
     def remove_bundle_listener(self, listener):
         """
@@ -1695,7 +1790,9 @@ class BundleContext(object):
         """
         # Lose the dependency
         return self.__framework._registry.unget_service(
-            self.__bundle, reference)
+            self.__bundle, reference
+        )
+
 
 # ------------------------------------------------------------------------------
 
@@ -1704,6 +1801,7 @@ class FrameworkFactory(object):
     """
     A framework factory
     """
+
     __singleton = None  # type: Framework
     """ The framework singleton """
 
@@ -1736,12 +1834,13 @@ class FrameworkFactory(object):
         """
         if framework is None:
             return cls.__singleton is not None
-        else:
-            return cls.__singleton == framework
+
+        return cls.__singleton == framework
 
     @classmethod
     def delete_framework(cls, framework=None):
         # type: (Optional[Framework]) -> bool
+        # pylint: disable=W0212
         """
         Removes the framework singleton
 
@@ -1763,8 +1862,10 @@ class FrameworkFactory(object):
                 try:
                     bundle.uninstall()
                 except:
-                    _logger.exception("Error uninstalling bundle %s",
-                                      bundle.get_symbolic_name())
+                    _logger.exception(
+                        "Error uninstalling bundle %s",
+                        bundle.get_symbolic_name(),
+                    )
 
             # Clear the event dispatcher
             framework._dispatcher.clear()
@@ -1775,11 +1876,17 @@ class FrameworkFactory(object):
 
         return False
 
+
 # ------------------------------------------------------------------------------
 
 
-def create_framework(bundles, properties=None,
-                     auto_start=False, wait_for_stop=False, auto_delete=False):
+def create_framework(
+    bundles,
+    properties=None,
+    auto_start=False,
+    wait_for_stop=False,
+    auto_delete=False,
+):
     # type: (Union[list, tuple], dict, bool, bool, bool) -> Framework
     """
     Creates a Pelix framework, installs the given bundles and returns its
@@ -1804,7 +1911,7 @@ def create_framework(bundles, properties=None,
     """
     # Test if a framework already exists
     if FrameworkFactory.is_framework_running(None):
-        raise ValueError('A framework is already running')
+        raise ValueError("A framework is already running")
 
     # Create the framework
     framework = FrameworkFactory.get_framework(properties)
@@ -1858,14 +1965,14 @@ def normalize_path():
     Normalizes sys.path to avoid the use of relative folders
     """
     # Normalize Python paths
-    whole_path = [os.path.abspath(path) for path in sys.path
-                  if os.path.exists(path)]
+    whole_path = [
+        os.path.abspath(path) for path in sys.path if os.path.exists(path)
+    ]
 
     # Keep the "dynamic" current folder indicator and add the "static"
     # current path
     # Use an OrderedDict to have a faster lookup (path not in whole_set)
-    whole_set = collections.OrderedDict(
-        (('', 1), (os.getcwd(), 1)))
+    whole_set = collections.OrderedDict((("", 1), (os.getcwd(), 1)))
 
     # Add original path entries
     for path in whole_path:
@@ -1876,11 +1983,13 @@ def normalize_path():
     sys.path = list(whole_set)
 
     # Normalize paths in loaded modules
-    for name, module_ in sys.modules.items():
+    for module_ in sys.modules.values():
         try:
             module_.__path__ = [
-                os.path.abspath(path) for path in module_.__path__
-                if _package_exists(path)]
+                os.path.abspath(path)
+                for path in module_.__path__
+                if _package_exists(path)
+            ]
         except AttributeError:
             # builtin modules don't have a __path__
             pass

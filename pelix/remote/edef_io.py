@@ -9,7 +9,7 @@ specifications, section 122.8.
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -30,6 +30,7 @@ specifications, section 122.8.
 
 # Standard library
 import xml.etree.ElementTree as ElementTree
+
 try:
     # Python 2
     from StringIO import StringIO
@@ -45,7 +46,7 @@ from pelix.remote.beans import EndpointDescription
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -57,8 +58,9 @@ __docformat__ = "restructuredtext en"
 EDEF_NAMESPACE = "http://www.osgi.org/xmlns/rsa/v1.0.0"
 
 # EDEF tags
-TAG_ENDPOINT_DESCRIPTIONS = "{{{0}}}endpoint-descriptions" \
-    .format(EDEF_NAMESPACE)
+TAG_ENDPOINT_DESCRIPTIONS = "{{{0}}}endpoint-descriptions".format(
+    EDEF_NAMESPACE
+)
 TAG_ENDPOINT_DESCRIPTION = "{{{0}}}endpoint-description".format(EDEF_NAMESPACE)
 TAG_PROPERTY = "{{{0}}}property".format(EDEF_NAMESPACE)
 TAG_ARRAY = "{{{0}}}array".format(EDEF_NAMESPACE)
@@ -81,18 +83,28 @@ TYPE_STRING = "String"
 TYPES_BOOLEAN = ("boolean", "Boolean")
 TYPES_CHAR = ("char", "Character")
 TYPES_FLOAT = ("float", "Float", "double", "Double")
-TYPES_INT = ("int", "Integer", "long", "Long", "short", "Short",
-             "bytes", "Bytes")
+TYPES_INT = (
+    "int",
+    "Integer",
+    "long",
+    "Long",
+    "short",
+    "Short",
+    "bytes",
+    "Bytes",
+)
 
 # Type of properties
 TYPED_BOOL = (pelix.remote.PROP_IMPORTED,)
 TYPED_LONG = (pelix.remote.PROP_ENDPOINT_SERVICE_ID,)
-TYPED_STRING = (pelix.constants.OBJECTCLASS,
-                pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID,
-                pelix.remote.PROP_ENDPOINT_ID,
-                pelix.remote.PROP_ENDPOINT_PACKAGE_VERSION_,
-                pelix.remote.PROP_IMPORTED_CONFIGS,
-                pelix.remote.PROP_INTENTS)
+TYPED_STRING = (
+    pelix.constants.OBJECTCLASS,
+    pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID,
+    pelix.remote.PROP_ENDPOINT_ID,
+    pelix.remote.PROP_ENDPOINT_PACKAGE_VERSION_,
+    pelix.remote.PROP_IMPORTED_CONFIGS,
+    pelix.remote.PROP_INTENTS,
+)
 
 # Special case: XML value given
 XML_VALUE = object()
@@ -101,9 +113,11 @@ XML_VALUE = object()
 
 
 class EDEFReader(object):
+    # pylint: disable=R0903
     """
     Reads an EDEF XML data. Inspired from EndpoitnDescriptionParser from ECF
     """
+
     @staticmethod
     def _convert_value(vtype, value):
         """
@@ -186,18 +200,24 @@ class EDEFReader(object):
 
         elif kind == TAG_LIST:
             # List
-            return [self._convert_value(vtype, value_node.text)
-                    for value_node in node.findall(TAG_VALUE)]
+            return [
+                self._convert_value(vtype, value_node.text)
+                for value_node in node.findall(TAG_VALUE)
+            ]
 
         elif kind == TAG_ARRAY:
             # Tuple (array)
-            return tuple(self._convert_value(vtype, value_node.text)
-                         for value_node in node.findall(TAG_VALUE))
+            return tuple(
+                self._convert_value(vtype, value_node.text)
+                for value_node in node.findall(TAG_VALUE)
+            )
 
         elif kind == TAG_SET:
             # Set
-            return set(self._convert_value(vtype, value_node.text)
-                       for value_node in node.findall(TAG_VALUE))
+            return set(
+                self._convert_value(vtype, value_node.text)
+                for value_node in node.findall(TAG_VALUE)
+            )
 
         else:
             # Unknown
@@ -216,8 +236,11 @@ class EDEFReader(object):
             raise ValueError("Not an EDEF XML: {0}".format(root.tag))
 
         # Parse content
-        return [self._parse_description(node)
-                for node in root.findall(TAG_ENDPOINT_DESCRIPTION)]
+        return [
+            self._parse_description(node)
+            for node in root.findall(TAG_ENDPOINT_DESCRIPTION)
+        ]
+
 
 # ------------------------------------------------------------------------------
 
@@ -226,7 +249,8 @@ class EDEFWriter(object):
     """
     EDEF XML file writer
     """
-    def _indent(self, element, level=0, prefix='\t'):
+
+    def _indent(self, element, level=0, prefix="\t"):
         """
         In-place Element text auto-indent, for pretty printing.
 
@@ -246,6 +270,7 @@ class EDEFWriter(object):
                 element.tail = element_prefix
 
             # Yep, let the "element" variable be overwritten
+            # pylint: disable=R1704
             for element in element:
                 self._indent(element, level + 1, prefix)
 
@@ -325,16 +350,18 @@ class EDEFWriter(object):
         :param endpoint: An EndpointDescription bean
         :return: An Element
         """
-        endpoint_node = ElementTree.SubElement(root_node,
-                                               TAG_ENDPOINT_DESCRIPTION)
+        endpoint_node = ElementTree.SubElement(
+            root_node, TAG_ENDPOINT_DESCRIPTION
+        )
 
         for name, value in endpoint.get_properties().items():
             # Compute value type
             vtype = self._get_type(name, value)
 
             # Prepare the property node
-            prop_node = ElementTree.SubElement(endpoint_node, TAG_PROPERTY,
-                                               {ATTR_NAME: name})
+            prop_node = ElementTree.SubElement(
+                endpoint_node, TAG_PROPERTY, {ATTR_NAME: name}
+            )
 
             if vtype == XML_VALUE:
                 # Special case, we have to store the value as a child
@@ -398,14 +425,18 @@ class EDEFWriter(object):
         ElementTree.register_namespace("", EDEF_NAMESPACE)
 
         # Make the XML
-        for encoding in 'unicode', 'UTF-8':
+        for encoding in "unicode", "UTF-8":
             # Prepare a StringIO output
             output = StringIO()
 
             try:
                 # Try to write with a correct encoding
-                tree.write(output, encoding=encoding, xml_declaration=True,
-                           method="xml")
+                tree.write(
+                    output,
+                    encoding=encoding,
+                    xml_declaration=True,
+                    method="xml",
+                )
                 break
 
             except LookupError:

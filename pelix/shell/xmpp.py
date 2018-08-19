@@ -8,7 +8,7 @@ This module depends on the sleekxmpp package: http://sleekxmpp.com/
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -40,9 +40,18 @@ except ImportError:
     # Python 3
     from io import StringIO
 
+# SleekXMPP
+import sleekxmpp
+
 # iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Property, \
-    Validate, Invalidate, HiddenProperty
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Requires,
+    Property,
+    Validate,
+    Invalidate,
+    HiddenProperty,
+)
 from pelix.ipopo.constants import use_ipopo
 
 # Pelix utilities
@@ -52,18 +61,18 @@ import pelix.threadpool
 import pelix.utilities
 
 # Shell constants
-from pelix.shell.console import make_common_parser, handle_common_arguments, \
-    remove_duplicates
+from pelix.shell.console import (
+    make_common_parser,
+    handle_common_arguments,
+    remove_duplicates,
+)
 import pelix.shell
 import pelix.shell.beans as beans
-
-# SleekXMPP
-import sleekxmpp
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -81,6 +90,7 @@ class _XmppOutStream(object):
     """
     File-like XMPP output. For shell IOHandler use only
     """
+
     def __init__(self, client, target):
         """
         Sets up the stream
@@ -118,6 +128,7 @@ class _XmppInStream(object):
     """
     File-like XMPP input. For shell IOHandler use only
     """
+
     def __init__(self, xmpp_ui, source_jid):
         """
         Sets up the object
@@ -134,6 +145,7 @@ class _XmppInStream(object):
         # Wait for content from the user
         return self._ui.read_from(self._jid)
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -149,6 +161,7 @@ class IPopoXMPPShell(object):
     """
     The iPOPO XMPP Shell, based on the Pelix Shell
     """
+
     def __init__(self):
         """
         Sets up the component
@@ -185,7 +198,7 @@ class IPopoXMPPShell(object):
             return default
 
     @Validate
-    def validate(self, context):
+    def validate(self, _):
         """
         Component validated
         """
@@ -197,10 +210,15 @@ class IPopoXMPPShell(object):
         # Start the thread pool
         self.__pool.start()
 
-        _logger.info("""XMPP shell:
+        _logger.info(
+            """XMPP shell:
 - JID: %s
 - host: %s
-- port: %s""", self._jid, self._host, self._port)
+- port: %s""",
+            self._jid,
+            self._host,
+            self._port,
+        )
 
         # Create the bot. Negative priority avoids listening to human messages
         self.__bot = pelix.misc.xmpp.BasicBot(self._jid, self._password)
@@ -214,11 +232,12 @@ class IPopoXMPPShell(object):
         self.__bot.add_event_handler("got_offline", self.__on_offline)
 
         # Connect to the server
-        self.__bot.connect(self._host, self._port, False,
-                           self._use_tls, self._use_ssl)
+        self.__bot.connect(
+            self._host, self._port, False, self._use_tls, self._use_ssl
+        )
 
     @Invalidate
-    def invalidate(self, context):
+    def invalidate(self, _):
         """
         Component invalidated
         """
@@ -245,25 +264,27 @@ class IPopoXMPPShell(object):
         """
         XMPP session started
         """
-        _logger.info("XMPP shell connected with JID: %s",
-                     self.__bot.boundjid.full)
+        _logger.info(
+            "XMPP shell connected with JID: %s", self.__bot.boundjid.full
+        )
 
     def __on_end(self, _):
         """
         XMPP session ended
         """
-        _logger.info("XMPP shell disconnected from %s",
-                     self.__bot.boundjid.full)
+        _logger.info(
+            "XMPP shell disconnected from %s", self.__bot.boundjid.full
+        )
 
     def __on_offline(self, data):
         """
         XMPP client got offline
         :param data: Message stanza
         """
-        source_jid = data['from'].full
+        source_jid = data["from"].full
         try:
             # Unsubscribe to presence events
-            self.__bot.sendPresence(pto=source_jid, ptype='unsubscribe')
+            self.__bot.sendPresence(pto=source_jid, ptype="unsubscribe")
 
             # Delete the corresponding session
             del self.__sessions[source_jid]
@@ -277,12 +298,12 @@ class IPopoXMPPShell(object):
 
         :param data: Message stanza (see SleekXMPP)
         """
-        if data['type'] in ('normal', 'chat'):
+        if data["type"] in ("normal", "chat"):
             # Got a message
-            body = data['body'].strip()
+            body = data["body"].strip()
             if body:
                 # Valid content, check the sender
-                sender = data['from'].full
+                sender = data["from"].full
                 try:
                     # Are we listening to this JID ?
                     event = self.__waiting[sender].popleft()
@@ -306,14 +327,16 @@ class IPopoXMPPShell(object):
             session = self.__sessions[source_jid]
         except KeyError:
             # Subscribe to presence messages
-            self.__bot.sendPresence(pto=source_jid, ptype='subscribe')
+            self.__bot.sendPresence(pto=source_jid, ptype="subscribe")
 
             # Create and store the session
             session = self.__sessions[source_jid] = beans.ShellSession(
                 beans.IOHandler(
                     _XmppInStream(self, source_jid),
-                    _XmppOutStream(self.__bot, source_jid)),
-                {"xmpp.jid": source_jid})
+                    _XmppOutStream(self.__bot, source_jid),
+                ),
+                {"xmpp.jid": source_jid},
+            )
 
         self._shell.execute(content, session)
 
@@ -334,6 +357,7 @@ class IPopoXMPPShell(object):
         # Return the message content
         return event.data
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -346,20 +370,35 @@ def main(argv=None):
     """
     # Prepare arguments
     parser = argparse.ArgumentParser(
-        prog="pelix.shell.xmpp", parents=[make_common_parser()],
-        description="Pelix XMPP Shell")
+        prog="pelix.shell.xmpp",
+        parents=[make_common_parser()],
+        description="Pelix XMPP Shell",
+    )
 
     group = parser.add_argument_group("XMPP options")
     group.add_argument("-j", "--jid", dest="jid", help="Jabber ID")
     group.add_argument("--password", dest="password", help="JID password")
-    group.add_argument("-s", "--server", dest="server",
-                       help="XMPP server host")
-    group.add_argument("-p", "--port", dest="port", type=int, default=5222,
-                       help="XMPP server port")
-    group.add_argument("--tls", dest="use_tls", action="store_true",
-                       help="Use a STARTTLS connection")
-    group.add_argument("--ssl", dest="use_ssl", action="store_true",
-                       help="Use an SSL connection")
+    group.add_argument("-s", "--server", dest="server", help="XMPP server host")
+    group.add_argument(
+        "-p",
+        "--port",
+        dest="port",
+        type=int,
+        default=5222,
+        help="XMPP server port",
+    )
+    group.add_argument(
+        "--tls",
+        dest="use_tls",
+        action="store_true",
+        help="Use a STARTTLS connection",
+    )
+    group.add_argument(
+        "--ssl",
+        dest="use_ssl",
+        action="store_true",
+        help="Use an SSL connection",
+    )
 
     # Parse them
     args = parser.parse_args(argv)
@@ -382,7 +421,8 @@ def main(argv=None):
             import getpass
         except ImportError:
             _logger.error(
-                "getpass() unavailable: give a password in command line")
+                "getpass() unavailable: give a password in command line"
+            )
         else:
             try:
                 password = getpass.getpass()
@@ -395,25 +435,35 @@ def main(argv=None):
         server = sleekxmpp.JID(args.jid).domain
 
     # Set the initial bundles
-    bundles = ['pelix.ipopo.core', 'pelix.shell.core', 'pelix.shell.ipopo',
-               'pelix.shell.console', 'pelix.shell.xmpp']
+    bundles = [
+        "pelix.ipopo.core",
+        "pelix.shell.core",
+        "pelix.shell.ipopo",
+        "pelix.shell.console",
+        "pelix.shell.xmpp",
+    ]
     bundles.extend(init.bundles)
 
     # Use the utility method to create, run and delete the framework
     framework = pelix.framework.create_framework(
-        remove_duplicates(bundles), init.properties)
+        remove_duplicates(bundles), init.properties
+    )
     framework.start()
 
     # Instantiate a Remote Shell
     with use_ipopo(framework.get_bundle_context()) as ipopo:
         ipopo.instantiate(
-            pelix.shell.FACTORY_XMPP_SHELL, "xmpp-shell",
-            {"shell.xmpp.server": server,
-             "shell.xmpp.port": args.port,
-             "shell.xmpp.jid": args.jid,
-             "shell.xmpp.password": password,
-             "shell.xmpp.tls": args.use_tls,
-             "shell.xmpp.ssl": args.use_ssl})
+            pelix.shell.FACTORY_XMPP_SHELL,
+            "xmpp-shell",
+            {
+                "shell.xmpp.server": server,
+                "shell.xmpp.port": args.port,
+                "shell.xmpp.jid": args.jid,
+                "shell.xmpp.password": password,
+                "shell.xmpp.tls": args.use_tls,
+                "shell.xmpp.ssl": args.use_ssl,
+            },
+        )
 
     # Instantiate configured components
     init.instantiate_components(framework.get_bundle_context())
@@ -424,6 +474,6 @@ def main(argv=None):
         framework.stop()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Run the entry point
     sys.exit(main() or 0)

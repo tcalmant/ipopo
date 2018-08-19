@@ -6,7 +6,7 @@ Pelix OSGi-like services packages
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -26,7 +26,7 @@ Pelix OSGi-like services packages
 """
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -85,39 +85,39 @@ SERVICE_CONFIGADMIN_PERSISTENCE = "pelix.configadmin.persistence"
 FACTORY_CONFIGADMIN_JSON = "pelix-configadmin-persistence-json-factory"
 """ Name of the JSON ConfigurationAdmin storage component factory """
 
-CONFIG_PROP_PID = 'service.pid'
+CONFIG_PROP_PID = "service.pid"
 """ Configuration property: the configuration PID """
 
-CONFIG_PROP_FACTORY_PID = 'service.factoryPid'
+CONFIG_PROP_FACTORY_PID = "service.factoryPid"
 """ Configuration property: factory PID (not used yet) """
 
-CONFIG_PROP_BUNDLE_LOCATION = 'service.bundleLocation'
+CONFIG_PROP_BUNDLE_LOCATION = "service.bundleLocation"
 """ Configuration property: bound location (not used yet) """
 
 # ------------------------------------------------------------------------------
 
-SERVICE_FILEINSTALL = 'pelix.services.fileinstall'
+SERVICE_FILEINSTALL = "pelix.services.fileinstall"
 """ Specification of the File Install service """
 
-SERVICE_FILEINSTALL_LISTENERS = 'pelix.services.fileinstall.listener'
+SERVICE_FILEINSTALL_LISTENERS = "pelix.services.fileinstall.listener"
 """ Specification of a listener of the File Install service """
 
-PROP_FILEINSTALL_FOLDER = 'fileinstall.folder'
+PROP_FILEINSTALL_FOLDER = "fileinstall.folder"
 """ Path to the folder to look after, in white board pattern """
 
 # ------------------------------------------------------------------------------
 
-SERVICE_MQTT_CONNECTOR_FACTORY = 'pelix.mqtt.factory'
+SERVICE_MQTT_CONNECTOR_FACTORY = "pelix.mqtt.factory"
 """ Specification of an MQTT connection factory """
 
-MQTT_CONNECTOR_FACTORY_PID = 'mqtt.connector'
+MQTT_CONNECTOR_FACTORY_PID = "mqtt.connector"
 """ PID of the MQTT connection factory """
 
-SERVICE_MQTT_CONNECTION = 'pelix.mqtt.connection'
+SERVICE_MQTT_CONNECTION = "pelix.mqtt.connection"
 """ Specification of an MQTT connection service """
 
-SERVICE_MQTT_LISTENER = 'pelix.mqtt.listener'
+SERVICE_MQTT_LISTENER = "pelix.mqtt.listener"
 """ Specification of an MQTT message listener """
 
-PROP_MQTT_TOPICS = 'pelix.mqtt.topics'
+PROP_MQTT_TOPICS = "pelix.mqtt.topics"
 """ List of the topics a listener wants to subscribes to """

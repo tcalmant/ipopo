@@ -9,7 +9,7 @@ This module depends on the sleekxmpp package: http://sleekxmpp.com/
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -34,7 +34,7 @@ import sleekxmpp
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -47,6 +47,7 @@ class BasicBot(sleekxmpp.ClientXMPP):
     """
     Basic bot: connects to a server with the given credentials
     """
+
     def __init__(self, jid, password, initial_priority=0):
         """
         Sets up the robot
@@ -62,14 +63,16 @@ class BasicBot(sleekxmpp.ClientXMPP):
         self._initial_priority = initial_priority
 
         # Register the plug-ins: Form and Ping
-        self.register_plugin('xep_0004')
-        self.register_plugin('xep_0199')
+        self.register_plugin("xep_0004")
+        self.register_plugin("xep_0199")
 
         # Register to session start event
         self.add_event_handler("session_start", self.on_session_start)
 
-    def connect(self, host, port=5222, reattempt=False, use_tls=True,
-                use_ssl=False):
+    def connect(
+        self, host, port=5222, reattempt=False, use_tls=True, use_ssl=False
+    ):
+        # pylint: disable=W0221
         """
         Connects to the server.
 
@@ -92,7 +95,8 @@ class BasicBot(sleekxmpp.ClientXMPP):
 
         # Try to connect
         if super(BasicBot, self).connect(
-                (host, port), reattempt, use_tls, use_ssl):
+            (host, port), reattempt, use_tls, use_ssl
+        ):
             # On success, start the processing thread
             self.process(threaded=True)
             return True
@@ -100,6 +104,7 @@ class BasicBot(sleekxmpp.ClientXMPP):
         return False
 
     def on_session_start(self, data):
+        # pylint: disable=W0613
         """
         XMPP session started
         """
@@ -109,6 +114,7 @@ class BasicBot(sleekxmpp.ClientXMPP):
         # Request roster
         self.get_roster()
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -116,7 +122,9 @@ class InviteMixIn(sleekxmpp.BaseXMPP):
     """
     A bot that automatically accepts invites from other participants
     """
+
     def __init__(self, nick):
+        # pylint: disable=W0231
         """
         Sets up the Mix-in
 
@@ -126,7 +134,7 @@ class InviteMixIn(sleekxmpp.BaseXMPP):
         self._nick = nick
 
         # Register the Multi-User Chat plug-in
-        self.register_plugin('xep_0045')
+        self.register_plugin("xep_0045")
 
         # Activate the plug-in
         self.invite_start()
@@ -151,7 +159,8 @@ class InviteMixIn(sleekxmpp.BaseXMPP):
             self._nick = self.boundjid.user
 
         # Join the room
-        self.plugin['xep_0045'].joinMUC(data['from'], self._nick)
+        self.plugin["xep_0045"].joinMUC(data["from"], self._nick)
+
 
 # ------------------------------------------------------------------------------
 
@@ -160,12 +169,14 @@ class ServiceDiscoveryMixin(sleekxmpp.BaseXMPP):
     """
     Adds utility methods to a bot to look for services
     """
+
     def __init__(self):
+        # pylint: disable=W0231
         """
         Sets up the Mix-in
         """
         # Register the ServiceDiscovery plug-in
-        self.register_plugin('xep_0030')
+        self.register_plugin("xep_0030")
 
     def iter_services(self, feature=None):
         """
@@ -176,20 +187,26 @@ class ServiceDiscoveryMixin(sleekxmpp.BaseXMPP):
         :return: A generator of services JID
         """
         # Get the list of root services
-        items = self['xep_0030'].get_items(
-            jid=self.boundjid.domain, ifrom=self.boundjid.full,
-            block=True, timeout=10)
+        items = self["xep_0030"].get_items(
+            jid=self.boundjid.domain,
+            ifrom=self.boundjid.full,
+            block=True,
+            timeout=10,
+        )
 
-        for item in items['disco_items']['items']:
+        for item in items["disco_items"]["items"]:
             # Each item is a 3-tuple. The service JID is the first entry
             if not feature:
                 # No filter
                 yield item[0]
             else:
                 # Get service details
-                info = self['xep_0030'].get_info(
-                    jid=item[0], ifrom=self.boundjid.full,
-                    block=True, timeout=10)
-                if feature in info['disco_info']['features']:
+                info = self["xep_0030"].get_info(
+                    jid=item[0],
+                    ifrom=self.boundjid.full,
+                    block=True,
+                    timeout=10,
+                )
+                if feature in info["disco_info"]["features"]:
                     # The service provides the required feature
                     yield item[0]

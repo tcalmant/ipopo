@@ -6,7 +6,7 @@ Defines the decorators associated shell completion handlers to a shell function
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 :status: Alpha
 
 ..
@@ -28,6 +28,7 @@ Defines the decorators associated shell completion handlers to a shell function
 
 # Add some typing
 try:
+    # pylint: disable=W0611
     from typing import List, Dict
 except ImportError:
     pass
@@ -41,7 +42,7 @@ except ImportError:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -86,6 +87,7 @@ class CompletionInfo:
     """
     Keep track of the configuration of a completion
     """
+
     __slots__ = ("__completers", "__multiple")
 
     def __init__(self, completers, multiple):
@@ -113,9 +115,11 @@ class CompletionInfo:
 
 
 class Completion:
+    # pylint: disable=R0903
     """
     Decorator that sets up the arguments completion of a shell method
     """
+
     def __init__(self, *completers, **kwargs):
         # type: (List[str], Dict[str, bool]) -> None
         """
@@ -123,7 +127,7 @@ class Completion:
         :param multiple: If True, the last completer is reused multiple times
         """
         self._completers = completers  # type: List[str]
-        self._multiple = kwargs.get('multiple', False)
+        self._multiple = kwargs.get("multiple", False)
 
     def __call__(self, method):
         """
@@ -136,7 +140,10 @@ class Completion:
         """
         if readline is not None and self._completers:
             # No need to setup completion if readline isn't available
-            setattr(method, ATTR_COMPLETERS,
-                    CompletionInfo(self._completers, self._multiple))
+            setattr(
+                method,
+                ATTR_COMPLETERS,
+                CompletionInfo(self._completers, self._multiple),
+            )
 
         return method

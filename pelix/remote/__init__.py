@@ -6,7 +6,7 @@ Pelix remote services package
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -26,7 +26,7 @@ Pelix remote services package
 """
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -87,10 +87,10 @@ SERVICE_DISPATCHER_SERVLET = "pelix.remote.dispatcher.servlet"
 SERVICE_REGISTRY = "pelix.remote.registry"
 """ Registry of imported end points """
 
-SERVICE_IMPORT_PROVIDER = 'pelix.remote.provider.import'
+SERVICE_IMPORT_PROVIDER = "pelix.remote.provider.import"
 """ Remote Services: importer """
 
-SERVICE_EXPORT_PROVIDER = 'pelix.remote.provider.export'
+SERVICE_EXPORT_PROVIDER = "pelix.remote.provider.export"
 """ Remote Services: exporter """
 
 SERVICE_EXPORT_ENDPOINT_LISTENER = "pelix.remote.endpoint.export.listener"
@@ -226,7 +226,7 @@ vocabulary of implemented intents. (str or array of str)
 PROP_ZEROCONF_TYPE = "zeroconf.service.type"
 """ Name of the Zeroconf/mDNS discovery component factory """
 
-VALUE_ZEROCONF_TYPE_ECF = '_ecfosgirsvc._default.default.'
+VALUE_ZEROCONF_TYPE_ECF = "_ecfosgirsvc._default.default."
 """
 Service type recognized by Eclipse ECF as a description of a remote service.
 WARNING: Doesn't work as is with pyzeroconf: the library must be patched.
@@ -240,4 +240,5 @@ class RemoteServiceError(Exception):
     """
     Error while accessing a remote service entry
     """
+
     pass

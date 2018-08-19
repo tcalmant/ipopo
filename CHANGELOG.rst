@@ -1,6 +1,26 @@
 Release notes
 #############
 
+iPOPO 0.8.0
+***********
+
+Project
+=======
+
+* Version bump to 0.8 as the addition of Remote Service Admin is a big step
+  forward.
+* Fixed unit tests for ``pelix.threadpool``
+
+
+Remote Services
+===============
+
+* Added the implementation of Remote Service Admin OSGi specification,
+  contributed by Scott Lewis (@scottslewis).
+  This is a major feature which intends to be used instead of Pelix Remote
+  Services. The latter will be kept for retro-compatibility reasons.
+
+
 iPOPO 0.7.1
 ***********
 

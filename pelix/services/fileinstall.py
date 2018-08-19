@@ -6,7 +6,7 @@ FileInstall: Polls for changes on files in a directory and notifies listeners
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -32,16 +32,25 @@ import threading
 import zlib
 
 # Pelix
-from pelix.ipopo.decorators import ComponentFactory, Provides, Requires, \
-    Validate, Invalidate, Instantiate, BindField, UnbindField, UpdateField, \
-    Property
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Provides,
+    Requires,
+    Validate,
+    Invalidate,
+    Instantiate,
+    BindField,
+    UnbindField,
+    UpdateField,
+    Property,
+)
 import pelix.services as services
 import pelix.threadpool
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -56,14 +65,19 @@ _logger = logging.getLogger(__name__)
 
 @ComponentFactory()
 @Provides(services.SERVICE_FILEINSTALL)
-@Requires('_listeners', services.SERVICE_FILEINSTALL_LISTENERS,
-          aggregate=True, optional=True)
-@Property('_poll_time', 'poll.time', 1)
-@Instantiate('pelix-services-file-install')
+@Requires(
+    "_listeners",
+    services.SERVICE_FILEINSTALL_LISTENERS,
+    aggregate=True,
+    optional=True,
+)
+@Property("_poll_time", "poll.time", 1)
+@Instantiate("pelix-services-file-install")
 class FileInstall(object):
     """
     Polls folders to look for files modifications
     """
+
     def __init__(self):
         """
         Sets up members
@@ -82,7 +96,8 @@ class FileInstall(object):
 
         # Single thread task pool to notify listeners
         self.__pool = pelix.threadpool.ThreadPool(
-            1, logname="FileInstallNotifier")
+            1, logname="FileInstallNotifier"
+        )
 
         # 1 thread per watched folder (folder -> Thread)
         self.__threads = {}
@@ -94,7 +109,7 @@ class FileInstall(object):
         self.__validated = False
 
     @Validate
-    def _validate(self, context):
+    def _validate(self, _):
         """
         Component validated
         """
@@ -106,7 +121,7 @@ class FileInstall(object):
             self.__validated = True
 
     @Invalidate
-    def _invalidate(self, context):
+    def _invalidate(self, _):
         """
         Component invalidated
         """
@@ -129,7 +144,7 @@ class FileInstall(object):
             self.__stoppers.clear()
             self.__threads.clear()
 
-    @BindField('_listeners')
+    @BindField("_listeners")
     def _bind_listener(self, _, svc, svc_ref):
         """
         A new listener is bound
@@ -140,7 +155,7 @@ class FileInstall(object):
                 # Register the listener for this service
                 self.add_listener(folder, svc)
 
-    @UpdateField('_listeners')
+    @UpdateField("_listeners")
     def _update_field(self, _, svc, svc_ref, old_props):
         """
         A bound listener has been updated
@@ -154,7 +169,7 @@ class FileInstall(object):
                 self.remove_listener(old_folder, svc)
                 self.add_listener(new_folder, svc)
 
-    @UnbindField('_listeners')
+    @UnbindField("_listeners")
     def _unbind_listener(self, _, svc, svc_ref):
         """
         A listener is gone
@@ -188,7 +203,8 @@ class FileInstall(object):
                     thread = threading.Thread(
                         target=self.__watch,
                         args=(folder, event),
-                        name="FileInstall-{0}".format(folder))
+                        name="FileInstall-{0}".format(folder),
+                    )
                     thread.daemon = True
                     self.__threads[folder] = thread
                     thread.start()
@@ -262,7 +278,7 @@ class FileInstall(object):
         :raise IOError: File not readable
         """
         # Don't forget to open the file in binary mode
-        with open(filepath, 'rb') as filep:
+        with open(filepath, "rb") as filep:
             # Return the checksum of the given file
             return zlib.adler32(filep.read())
 
@@ -335,8 +351,11 @@ class FileInstall(object):
                 continue
 
             # Look for files
-            filenames = {filename for filename in os.listdir(folder)
-                         if os.path.isfile(os.path.join(folder, filename))}
+            filenames = {
+                filename
+                for filename in os.listdir(folder)
+                if os.path.isfile(os.path.join(folder, filename))
+            }
 
             # Prepare the sets
             added = set()
@@ -352,14 +371,16 @@ class FileInstall(object):
                 except KeyError:
                     # Unknown file: added one
                     added.add(filename)
-                    previous_info[filename] = self.__get_file_info(folder,
-                                                                   filename)
+                    previous_info[filename] = self.__get_file_info(
+                        folder, filename
+                    )
 
                 else:
                     try:
                         # Known file name
-                        new_info = self.__check_different(folder, filename,
-                                                          file_info, updated)
+                        new_info = self.__check_different(
+                            folder, filename, file_info, updated
+                        )
                         # Store new information
                         previous_info[filename] = new_info
 
@@ -373,5 +394,6 @@ class FileInstall(object):
 
             if added or updated or deleted:
                 # Something changed: notify listeners
-                self.__pool.enqueue(self.__notify, folder, added, updated,
-                                    deleted)
+                self.__pool.enqueue(
+                    self.__notify, folder, added, updated, deleted
+                )

@@ -9,7 +9,7 @@ components.
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -34,21 +34,26 @@ import threading
 
 # Standard typing module should be optional
 try:
+    # pylint: disable=W0611
     from typing import Any, Dict
+    from pelix.framework import BundleContext
 except ImportError:
     pass
 
 # Pelix
 from pelix.constants import BundleException, BundleActivator
-from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
-from pelix.ipopo.constants import IPopoEvent, use_ipopo, \
-    SERVICE_IPOPO, SERVICE_IPOPO_WAITING_LIST
+from pelix.ipopo.constants import (
+    IPopoEvent,
+    use_ipopo,
+    SERVICE_IPOPO,
+    SERVICE_IPOPO_WAITING_LIST,
+)
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -65,6 +70,7 @@ class IPopoWaitingList(object):
     """
     iPOPO instantiation waiting list
     """
+
     def __init__(self, bundle_context):
         # type: (BundleContext) -> None
         """
@@ -203,8 +209,9 @@ class IPopoWaitingList(object):
         """
         with self.__lock:
             if component in self.__names:
-                raise ValueError("Component name already queued: {0}"
-                                 .format(component))
+                raise ValueError(
+                    "Component name already queued: {0}".format(component)
+                )
 
             # Normalize properties
             if properties is None:
@@ -250,6 +257,7 @@ class IPopoWaitingList(object):
                 # iPOPO not yet started or component not instantiated
                 pass
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -258,6 +266,7 @@ class Activator(object):
     """
     The bundle activator
     """
+
     def __init__(self):
         """
         Constructor
@@ -267,6 +276,7 @@ class Activator(object):
 
     def start(self, context):
         # type: (BundleContext) -> None
+        # pylint: disable=W0212
         """
         Bundle started
         """
@@ -276,10 +286,12 @@ class Activator(object):
 
         # Register it
         self.__registration = context.register_service(
-            SERVICE_IPOPO_WAITING_LIST, self.__service, {})
+            SERVICE_IPOPO_WAITING_LIST, self.__service, {}
+        )
 
     def stop(self, _):
         # type: (BundleContext) -> None
+        # pylint: disable=W0212
         """
         Bundle stopped
         """

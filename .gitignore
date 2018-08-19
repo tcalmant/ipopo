@@ -3,8 +3,10 @@
 *.pyo
 __pycache__/
 
-# MyPy
+# MyPy & other tools
 .mypy_cache/
+.cache/
+.pytest_cache/
 
 # IDE
 .project
@@ -32,6 +34,11 @@ generated_bundle.py
 .coverage.*
 htmlcov/
 tmp/
+.noseids
+nosetests.xml
+
+# Used during tests
+apache-karaf-*/
 
 # ConfigurationAdmin folder
 conf/

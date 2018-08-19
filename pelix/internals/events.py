@@ -6,7 +6,7 @@ Event beans for Pelix.
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -26,7 +26,7 @@ Event beans for Pelix.
 """
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -39,6 +39,7 @@ class BundleEvent(object):
     """
     Represents a bundle event
     """
+
     __slots__ = ("__bundle", "__kind")
 
     INSTALLED = 1
@@ -100,6 +101,7 @@ class BundleEvent(object):
         """
         return self.__kind
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -107,6 +109,7 @@ class ServiceEvent(object):
     """
     Represents a service event
     """
+
     __slots__ = ("__kind", "__reference", "__previous_properties")
 
     REGISTERED = 1
@@ -136,8 +139,9 @@ class ServiceEvent(object):
         self.__kind = kind
         self.__reference = reference
 
-        if previous_properties is not None \
-                and not isinstance(previous_properties, dict):
+        if previous_properties is not None and not isinstance(
+            previous_properties, dict
+        ):
             # Accept None or dict() only
             previous_properties = {}
 

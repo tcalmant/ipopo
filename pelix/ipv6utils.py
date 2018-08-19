@@ -6,7 +6,7 @@ IPv6 double stack utility module
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -33,7 +33,7 @@ import socket
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -53,7 +53,7 @@ def ipproto_ipv6():
         # pylint: disable=E1101
         return socket.IPPROTO_IPV6
     except AttributeError:
-        if os.name == 'nt':
+        if os.name == "nt":
             # Known bug: http://bugs.python.org/issue6926
             return 41
         else:
@@ -76,10 +76,10 @@ def set_double_stack(socket_obj, double_stack=True):
         opt_ipv6_only = socket.IPV6_V6ONLY
     except AttributeError:
         # Use "known" value
-        if os.name == 'nt':
+        if os.name == "nt":
             # Windows: see ws2ipdef.h
             opt_ipv6_only = 27
-        elif platform.system() == 'Linux':
+        elif platform.system() == "Linux":
             # Linux: see linux/in6.h (in recent kernels)
             opt_ipv6_only = 26
         else:

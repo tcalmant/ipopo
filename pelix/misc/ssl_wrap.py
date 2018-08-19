@@ -6,7 +6,7 @@ Utility methods for SSL
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -34,15 +34,15 @@ try:
 except ImportError:
     # Restricted and more secure ciphers for the server side, from Python 3.5
     _RESTRICTED_SERVER_CIPHERS = (
-        'ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:'
-        'ECDH+HIGH:DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:'
-        'RSA+3DES:!aNULL:!eNULL:!MD5:!DSS:!RC4'
+        "ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:"
+        "ECDH+HIGH:DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:"
+        "RSA+3DES:!aNULL:!eNULL:!MD5:!DSS:!RC4"
     )
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -75,10 +75,14 @@ def wrap_socket(socket, certfile, keyfile, password=None):
         :raise OSError: If a password has been given
         """
         if password:
-            logger.error("The ssl.wrap_socket() fallback method doesn't "
-                         "support key files with a password.")
-            raise OSError("Can't decode the SSL key file: "
-                          "this version of Python doesn't support it")
+            logger.error(
+                "The ssl.wrap_socket() fallback method doesn't "
+                "support key files with a password."
+            )
+            raise OSError(
+                "Can't decode the SSL key file: "
+                "this version of Python doesn't support it"
+            )
 
     try:
         # Prefer the default context factory, as it will be updated to reflect
@@ -120,8 +124,10 @@ def wrap_socket(socket, certfile, keyfile, password=None):
 
     except AttributeError as ex:
         # Log a warning to advise the user of possible security holes
-        logger.warning("Can't create a custom SSLContext. "
-                       "The server should be considered insecure.")
+        logger.warning(
+            "Can't create a custom SSLContext. "
+            "The server should be considered insecure."
+        )
         logger.debug("Missing attribute: %s", ex)
 
     # Check support for key file password
@@ -129,4 +135,5 @@ def wrap_socket(socket, certfile, keyfile, password=None):
 
     # Fall back to the "old" wrap_socket method
     return ssl.wrap_socket(
-        socket, server_side=True, certfile=certfile, keyfile=keyfile)
+        socket, server_side=True, certfile=certfile, keyfile=keyfile
+    )

@@ -21,7 +21,8 @@ from tests.ipopo import install_bundle, install_ipopo
 from pelix.framework import FrameworkFactory, BundleContext
 
 # iPOPO
-from pelix.ipopo.instance import ComponentContext, StoredInstance
+from pelix.ipopo.contexts import ComponentContext
+from pelix.ipopo.instance import StoredInstance
 import pelix.ipopo.constants as constants
 import pelix.ipopo.decorators as decorators
 

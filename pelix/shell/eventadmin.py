@@ -8,7 +8,7 @@ Provides commands to the Pelix shell to work with the EventAdmin service
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -31,14 +31,18 @@ Provides commands to the Pelix shell to work with the EventAdmin service
 from pelix.shell import SERVICE_SHELL_COMMAND
 
 # iPOPO Decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Provides, \
-    Instantiate
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Requires,
+    Provides,
+    Instantiate,
+)
 import pelix.services
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -55,6 +59,7 @@ class EventAdminCommands(object):
     """
     EventAdmin shell commands
     """
+
     def __init__(self):
         """
         Sets up members
@@ -73,16 +78,15 @@ class EventAdminCommands(object):
         """
         Retrieves the list of tuples (command, method) for this command handler
         """
-        return [("send", self.send),
-                ("post", self.post)]
+        return [("send", self.send), ("post", self.post)]
 
-    def send(self, io_handler, topic, **kwargs):
+    def send(self, _, topic, **kwargs):
         """
         Sends an event (blocking)
         """
         self._events.send(topic, kwargs)
 
-    def post(self, io_handler, topic, **kwargs):
+    def post(self, _, topic, **kwargs):
         """
         Posts an event (asynchronous)
         """

@@ -6,7 +6,7 @@ Definition of Factory and Component context classes
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.7.2
+:version: 0.8.0
 
 ..
 
@@ -27,13 +27,14 @@ Definition of Factory and Component context classes
 
 # Standard typing module should be optional
 try:
+    # pylint: disable=W0611
     from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+    from pelix.framework import BundleContext
 except ImportError:
     pass
 
 # Pelix utilities
 from pelix.constants import OBJECTCLASS
-from pelix.framework import BundleContext
 from pelix.utilities import is_string
 import pelix.ldapfilter as ldapfilter
 
@@ -43,7 +44,7 @@ import pelix.ipopo.constants as constants
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 7, 2)
+__version_info__ = (0, 8, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -56,12 +57,23 @@ class Requirement(object):
     """
     Represents a component requirement
     """
-    # The dictionary form fields (filter is a special case)
-    __stored_fields__ = ('specification', 'aggregate', 'optional',
-                         'immediate_rebind')
 
-    def __init__(self, specification, aggregate=False, optional=False,
-                 spec_filter=None, immediate_rebind=False):
+    # The dictionary form fields (filter is a special case)
+    __stored_fields__ = (
+        "specification",
+        "aggregate",
+        "optional",
+        "immediate_rebind",
+    )
+
+    def __init__(
+        self,
+        specification,
+        aggregate=False,
+        optional=False,
+        spec_filter=None,
+        immediate_rebind=False,
+    ):
         # type: (str, bool, bool, Any, bool) -> None
         """
         Sets up the requirement
@@ -111,8 +123,7 @@ class Requirement(object):
             # Different types
             return False
 
-        if self.aggregate != other.aggregate \
-                or self.optional != other.optional:
+        if self.aggregate != other.aggregate or self.optional != other.optional:
             # Different flags
             return False
 
@@ -139,8 +150,13 @@ class Requirement(object):
 
         :return: A copy of this instance
         """
-        return Requirement(self.specification, self.aggregate, self.optional,
-                           self.__original_filter, self.immediate_rebind)
+        return Requirement(
+            self.specification,
+            self.aggregate,
+            self.optional,
+            self.__original_filter,
+            self.immediate_rebind,
+        )
 
     def matches(self, properties):
         # type: (Optional[dict]) -> bool
@@ -183,13 +199,16 @@ class Requirement(object):
         :param props_filter: The new requirement filter on service properties
         :raise TypeError: Unknown filter type
         """
-        if props_filter is not None and \
-                not (is_string(props_filter) or
-                     isinstance(props_filter, (ldapfilter.LDAPFilter,
-                                               ldapfilter.LDAPCriteria))):
+        if props_filter is not None and not (
+            is_string(props_filter)
+            or isinstance(
+                props_filter, (ldapfilter.LDAPFilter, ldapfilter.LDAPCriteria)
+            )
+        ):
             # Unknown type
-            raise TypeError("Invalid filter type {0}"
-                            .format(type(props_filter).__name__))
+            raise TypeError(
+                "Invalid filter type {0}".format(type(props_filter).__name__)
+            )
 
         if props_filter is not None:
             # Filter given, keep its string form
@@ -204,7 +223,9 @@ class Requirement(object):
         # Prepare the full filter
         spec_filter = "({0}={1})".format(OBJECTCLASS, self.specification)
         self.__full_filter = ldapfilter.combine_filters(
-            (spec_filter, self.filter))
+            (spec_filter, self.filter)
+        )
+
 
 # ------------------------------------------------------------------------------
 
@@ -213,10 +234,22 @@ class FactoryContext(object):
     """
     Represents the data stored in a component factory (class)
     """
-    __slots__ = ('bundle_context', 'callbacks', 'completed', 'field_callbacks',
-                 'is_singleton', 'is_singleton_active', 'name', 'properties',
-                 'hidden_properties', 'properties_fields', '__handlers',
-                 '__inherited_configuration', '__instances')
+
+    __slots__ = (
+        "bundle_context",
+        "callbacks",
+        "completed",
+        "field_callbacks",
+        "is_singleton",
+        "is_singleton_active",
+        "name",
+        "properties",
+        "hidden_properties",
+        "properties_fields",
+        "__handlers",
+        "__inherited_configuration",
+        "__instances",
+    )
 
     def __init__(self):
         """
@@ -314,9 +347,10 @@ class FactoryContext(object):
         # Create a new factory context and duplicate its values
         new_context = FactoryContext()
         for field in self.__slots__:
-            if not field.startswith('_'):
-                setattr(new_context, field,
-                        self._deepcopy(getattr(self, field)))
+            if not field.startswith("_"):
+                setattr(
+                    new_context, field, self._deepcopy(getattr(self, field))
+                )
 
         if inheritance:
             # Store configuration as inherited one
@@ -436,6 +470,7 @@ class FactoryContext(object):
         """
         self.bundle_context = bundle_context
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -443,8 +478,9 @@ class ComponentContext(object):
     """
     Represents the data stored in a component instance
     """
+
     # Try to reduce memory footprint (many instances)
-    __slots__ = ('factory_context', 'name', 'properties', '__hidden_properties')
+    __slots__ = ("factory_context", "name", "properties", "__hidden_properties")
 
     def __init__(self, factory_context, name, properties):
         # type: (FactoryContext, str, dict) -> None
@@ -462,18 +498,27 @@ class ComponentContext(object):
 
         # Hidden properties
         hidden_props_keys = set(properties).intersection(
-            factory_context.hidden_properties)
+            factory_context.hidden_properties
+        )
 
         self.__hidden_properties = factory_context.hidden_properties.copy()
-        self.__hidden_properties.update({
-            key: value for key, value in properties.items()
-            if key in hidden_props_keys})
+        self.__hidden_properties.update(
+            {
+                key: value
+                for key, value in properties.items()
+                if key in hidden_props_keys
+            }
+        )
 
         # Public properties
         self.properties = factory_context.properties.copy()
-        self.properties.update({
-            key: value for key, value in properties.items()
-            if key not in hidden_props_keys})
+        self.properties.update(
+            {
+                key: value
+                for key, value in properties.items()
+                if key not in hidden_props_keys
+            }
+        )
 
     def get_bundle_context(self):
         # type: () -> BundleContext
