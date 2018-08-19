@@ -72,3 +72,31 @@ components and factories:
    :members: add_listener, remove_listener, get_instances, get_instance_details,
              get_factories, get_factory_details, instantiate, kill,
              retry_erroneous
+
+A word on Python 3.7 Data classes
+=================================
+
+These indications have to be taken into account when using iPOPO decorators on
+`data classes <https://www.python.org/dev/peps/pep-0557/>`_.
+They are also valid when using the
+`dataclasses <https://pypi.org/project/dataclasses/>`_ package for Python 3.6.
+
+Important notes
+---------------
+
+* **All** fields of the Data Class **must** have a default value.
+  This will let the ``@dataclass`` decorator generate an ``__init__`` method
+  without explicit arguments, which is a requirement for iPOPO.
+
+* If the ``init=False`` argument is given to ``@dataclass``, it is necessary to
+  implement your own ``__init__``, defining all fields, otherwise generated
+  methods like ``__repr__`` won't work.
+
+Good to know
+------------
+
+* Injected fields (``@Property``, ``@Requires``, ...) will lose the default
+  value given in the class definition, in favor to the ones given to the iPOPO
+  decorators. This is due to the redefinition of the fields by those decorators.
+  Other fields are not touched at all.
+* The ``@dataclass`` decorator can be used before or after the iPOPO decorators
