@@ -6,7 +6,7 @@ Release Notes
 iPOPO 0.8.0
 ===========
 
-:Release Date: 2018-08-??
+:Release Date: 2018-08-19
 
 Project
 -------
@@ -14,7 +14,9 @@ Project
 * Version bump to 0.8 as the addition of Remote Service Admin is a big step
   forward.
 * Fixed unit tests for ``pelix.threadpool``
-
+* Added a word about Python 3.7 dataclasses in the iPOPO reference card
+* All the source code has been reformatted with
+  `black <https://github.com/ambv/black>`_ (``black -l 80 pelix``)
 
 Remote Services
 ---------------
