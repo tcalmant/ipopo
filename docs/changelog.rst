@@ -3,6 +3,27 @@
 Release Notes
 #############
 
+iPOPO 0.8.1
+===========
+
+:Release Date: 2018-??-??
+
+Pelix
+-----
+
+* Fixed a memory leak in the thread pool implementation. The patch comes from
+  issue #35 of the `jsonrpclib-pelix <https://github.com/tcalmant/jsonrpclib/>`_
+  project.
+
+Remote Services
+---------------
+
+* Fixed a deadlock in the Py4J provider (issue #100),
+  contributed by Scott Lewis (@scottslewis).
+  See `pull request #101 <https://github.com/tcalmant/ipopo/pull/101>`_
+  for more details.
+
+
 iPOPO 0.8.0
 ===========
 
