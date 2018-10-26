@@ -470,54 +470,65 @@ class ThreadPool(object):
         """
         The main loop
         """
-        while not self._done_event.is_set():
-            try:
-                # Wait for an action (blocking)
-                task = self._queue.get(True, self._timeout)
-                if task is self._done_event:
-                    # Stop event in the queue: get out
-                    self._queue.task_done()
-                    with self.__lock:
-                        self.__nb_threads -= 1
-                        return
-            except queue.Empty:
-                # Nothing to do yet
-                pass
-            else:
-                with self.__lock:
-                    self.__nb_active_threads += 1
-                # Extract elements
-                method, args, kwargs, future = task
+        already_cleaned = False
+        try:
+            while not self._done_event.is_set():
                 try:
-                    # Call the method
-                    future.execute(method, args, kwargs)
-                except Exception as ex:
-                    self._logger.exception(
-                        "Error executing %s: %s", method.__name__, ex
-                    )
-                finally:
-                    # Mark the action as executed
-                    self._queue.task_done()
-
-                    # Thread is not active anymore
+                    # Wait for an action (blocking)
+                    task = self._queue.get(True, self._timeout)
+                    if task is self._done_event:
+                        # Stop event in the queue: get out
+                        self._queue.task_done()
+                        return
+                except queue.Empty:
+                    # Nothing to do yet
+                    pass
+                else:
                     with self.__lock:
-                        self.__nb_pending_task -= 1
-                        self.__nb_active_threads -= 1
+                        self.__nb_active_threads += 1
+                    # Extract elements
+                    method, args, kwargs, future = task
+                    try:
+                        # Call the method
+                        future.execute(method, args, kwargs)
+                    except Exception as ex:
+                        self._logger.exception(
+                            "Error executing %s: %s", method.__name__, ex
+                        )
+                    finally:
+                        # Mark the action as executed
+                        self._queue.task_done()
 
-            # Clean up thread if necessary
+                        # Thread is not active anymore
+                        with self.__lock:
+                            self.__nb_pending_task -= 1
+                            self.__nb_active_threads -= 1
+
+                # Clean up thread if necessary
+                with self.__lock:
+                    extra_threads = self.__nb_threads - self.__nb_active_threads
+                    if (
+                        self.__nb_threads > self._min_threads
+                        and extra_threads > self._queue.qsize()
+                    ):
+                        # No more work for this thread
+                        # if there are more non active_thread than task
+                        # and we're above the  minimum number of threads:
+                        # stop this one
+                        self.__nb_threads -= 1
+
+                        # To avoid a race condition: decrease the number of
+                        # threads here and mark it as already accounted for
+                        already_cleaned = True
+                        return
+        finally:
+            # Always clean up
             with self.__lock:
-                extra_threads = self.__nb_threads - self.__nb_active_threads
-                if (
-                    self.__nb_threads > self._min_threads
-                    and extra_threads > self._queue.qsize()
-                ):
-                    # No more work for this thread
-                    # if there are more non active_thread than task
-                    # and we're above the  minimum number of threads:
-                    # stop this one
-                    self.__nb_threads -= 1
-                    return
+                # Thread stops: clean up references
+                try:
+                    self._threads.remove(threading.current_thread())
+                except ValueError:
+                    pass
 
-        with self.__lock:
-            # Thread stops
-            self.__nb_threads -= 1
+                if not already_cleaned:
+                    self.__nb_threads -= 1
