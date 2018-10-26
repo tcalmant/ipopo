@@ -43,7 +43,7 @@ commands to execute the Java sample:
 .. code-block:: console
 
    # Download Karaf from https://karaf.apache.org/download.html
-   wget http://apache.mediamirrors.org/karaf/4.2.1/apache-karaf-4.2.1.tar.gz
+   wget http://archive.apache.org/dist/karaf/4.2.1/apache-karaf-4.2.1.tar.gz
    tar xzf apache-karaf-4.2.1.tar.gz
    cd apache-karaf-4.2.1.tar.gz
    ./bin/karaf
