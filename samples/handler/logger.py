@@ -24,24 +24,24 @@ The logger handler implementation
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+
+# Standard library
+import logging
+
+import pelix.ipopo.handlers.constants as ipopo_constants
+# Logger handler constants
+import samples.handler.constants as constants
+# Pelix & iPOPO constants
+from pelix.constants import BundleActivator
+
+# ------------------------------------------------------------------------------
+
 # Module version
 __version_info__ = (0, 8, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# Logger handler constants
-import samples.handler.constants as constants
-
-# Pelix & iPOPO constants
-from pelix.constants import BundleActivator
-import pelix.ipopo.handlers.constants as ipopo_constants
-
-# Standard library
-import logging
 
 # ------------------------------------------------------------------------------
 
@@ -58,6 +58,7 @@ class _Activator(object):
     """
     The bundle activator
     """
+
     def __init__(self):
         """
         Sets up members
@@ -69,13 +70,14 @@ class _Activator(object):
         Bundle started
         """
         # Set up properties: declare the handler ID
-        properties = {ipopo_constants.PROP_HANDLER_ID:
-                      constants.HANDLER_LOGGER}
+        properties = {ipopo_constants.PROP_HANDLER_ID: constants.HANDLER_LOGGER}
 
         # Register an handler factory instance as a service
         self._registration = context.register_service(
             ipopo_constants.SERVICE_IPOPO_HANDLER_FACTORY,
-            _LoggerHandlerFactory(), properties)
+            _LoggerHandlerFactory(),
+            properties,
+        )
 
     def stop(self, context):
         """
@@ -85,6 +87,7 @@ class _Activator(object):
         self._registration.unregister()
         self._registration = None
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -93,6 +96,7 @@ class _LoggerHandlerFactory(ipopo_constants.HandlerFactory):
     The handler factory: used by iPOPO to create a handler per component
     instance
     """
+
     def get_handlers(self, component_context, instance):
         """
         Sets up service providers for the given component
@@ -107,8 +111,7 @@ class _LoggerHandlerFactory(ipopo_constants.HandlerFactory):
         if not logger_field:
             # Error: log it and either raise an exception
             # or ignore this handler
-            _logger.warning("Logger iPOPO handler can't find "
-                            "its configuration")
+            _logger.warning("Logger iPOPO handler can't find its configuration")
 
             # Here, we ignore the error and do not give any handler to iPOPO
             return []
@@ -122,6 +125,7 @@ class _LoggerHandler(object):
     """
     The logger handler, associated to a unique component instance
     """
+
     def __init__(self, field, name):
         """
         Sets up the handler. Arguments depends on the HandlerFactory.

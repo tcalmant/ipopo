@@ -43,6 +43,11 @@ Sample usage::
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+
+import pelix.framework
+
+# ------------------------------------------------------------------------------
+
 # Module version
 __version_info__ = (0, 8, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -52,37 +57,36 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-import pelix.framework
-
-# ------------------------------------------------------------------------------
-
 
 def main():
     """
     Runs the framework
     """
     # Create the framework
-    fw = pelix.framework.create_framework(('pelix.ipopo.core',
-#                                           'samples.hook_test',
-                                           'pelix.shell.core',
-                                           'pelix.shell.ipopo',
-                                           'pelix.shell.console',
-                                           # Logger handler
-                                           'samples.handler.logger',
-                                           # ... or:
-                                           # 'samples.handler.logger_minimal',
-                                           # Sample bundle
-                                           'samples.handler.sample'))
+    fw = pelix.framework.create_framework(
+        (
+            "pelix.ipopo.core",
+            "pelix.shell.core",
+            "pelix.shell.ipopo",
+            "pelix.shell.console",
+            # Logger handler
+            "samples.handler.logger",
+            # ... or:
+            # 'samples.handler.logger_minimal',
+            # Sample bundle
+            "samples.handler.sample",
+        )
+    )
 
     # Start the framework and wait for it to stop
     fw.start()
     fw.wait_for_stop()
 
-# ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Configure the logging package
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     # Run the sample

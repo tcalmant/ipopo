@@ -25,24 +25,23 @@ Defines the decorator for the logger iPOPO handler
     limitations under the License.
 """
 
+# Standard library
+import inspect
+import logging
+
+# iPOPO Decorators utility methods
+import pelix.ipopo.decorators as decorators
+# Logger handler constants
+import samples.handler.constants as constants
+
+# ------------------------------------------------------------------------------
+
 # Module version
 __version_info__ = (0, 8, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# Logger handler constants
-import samples.handler.constants as constants
-
-# iPOPO Decorators utility methods
-import pelix.ipopo.decorators as decorators
-
-# Standard library
-import inspect
-import logging
 
 # ------------------------------------------------------------------------------
 
@@ -56,6 +55,7 @@ class Logger(object):
     """
     The decorator to activate and configure the logger handler
     """
+
     def __init__(self, field):
         """
         Sets up the logger configuration
@@ -76,15 +76,20 @@ class Logger(object):
         """
         # Ensure that the decorator is applied on a class
         if not inspect.isclass(clazz):
-            raise TypeError("@Logger can decorate only classes, not '{0}'"
-                            .format(type(clazz).__name__))
+            raise TypeError(
+                "@Logger can decorate only classes, not '{0}'".format(
+                    type(clazz).__name__
+                )
+            )
 
         # Retrieve the Factory context
         context = decorators.get_factory_context(clazz)
         if context.completed:
             # Do nothing if the class has already been manipulated
-            _logger.warning("@Logger: Already manipulated class: %s",
-                            decorators.get_method_description(clazz))
+            _logger.warning(
+                "@Logger: Already manipulated class: %s",
+                decorators.get_method_description(clazz),
+            )
             return clazz
 
         # Store the handler information

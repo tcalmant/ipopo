@@ -27,21 +27,25 @@ this sample.
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+
+# iPOPO decorators
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Validate,
+    Invalidate,
+    Instantiate,
+)
+# Logger decorator
+from samples.handler.decorator import Logger
+
+# ------------------------------------------------------------------------------
+
 # Module version
 __version_info__ = (0, 8, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-
-# ------------------------------------------------------------------------------
-
-# Logger decorator
-from samples.handler.decorator import Logger
-
-# iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Validate, Invalidate, \
-    Instantiate
 
 # ------------------------------------------------------------------------------
 
@@ -53,6 +57,7 @@ class SampleLoggerComponent(object):
     """
     Sample component that uses the logger handler
     """
+
     def __init__(self):
         """
         Sets up members
