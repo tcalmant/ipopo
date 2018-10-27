@@ -13,9 +13,9 @@ distribution provider.
 
 On the Java-side, this will typically trigger a HelloConsumer instance e.g.:
 https://github.com/ECF/AsyncRemoteServiceExamples/blob/master/hello/org.eclipse.ecf.examples.hello.javahost/src/org/eclipse/ecf/examples/hello/javahost/HelloConsumer.java
-to have it's references to the IHello proxy... see @Reference(target='(service.imported=*)'
-which may then invoke the sayHello, sayHelloAsync, and/or sayHelloPromise on
-this remote service.
+to have it's references to the IHello proxy...
+see @Reference(target='(service.imported=*)' which may then invoke the
+sayHello, sayHelloAsync, and/or sayHelloPromise on this remote service.
 """
 
 from pelix.ipopo.decorators import Instantiate, ComponentFactory, Provides

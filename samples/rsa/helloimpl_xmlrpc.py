@@ -33,9 +33,9 @@ from samples.rsa.helloimpl import HelloImpl
 @Instantiate(
     "helloimpl-xmlrpc",
     {
+        "osgi.basic.timeout": 60000,
         # uncomment to automatically export upon creation
         # "service.exported.interfaces":"*",
-        "osgi.basic.timeout": 60000,
     },
 )
 class XmlRpcHelloImpl(HelloImpl):

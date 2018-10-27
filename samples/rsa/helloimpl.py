@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 """
 Provides the implementation of the Hello service, reused in RSA samples
 """
@@ -29,12 +29,12 @@ class HelloImpl(object):
         responds.
         """
         print(
-            "Python.sayHello called by: {0} with message: '{1}'".format(
-                name, message
-            )
+            "Python.sayHello called by: {0} "
+            "with message: '{1}'".format(name, message)
         )
-        return "PythonSync says: Howdy {0} that's a nice runtime you got there".format(
-            name
+        return (
+            "PythonSync says: Howdy {0} "
+            "that's a nice runtime you got there".format(name)
         )
 
     def sayHelloAsync(self, name="Not given", message="nothing"):
@@ -47,12 +47,12 @@ class HelloImpl(object):
         returns a python string.  In this case, it returns the string directly.
         """
         print(
-            "Python.sayHelloAsync called by: {0} with message: '{1}'".format(
-                name, message
-            )
+            "Python.sayHelloAsync called by: {0} "
+            "with message: '{1}'".format(name, message)
         )
-        return "PythonAsync says: Howdy {0} that's a nice runtime you got there".format(
-            name
+        return (
+            "PythonAsync says: Howdy {0} "
+            "that's a nice runtime you got there".format(name)
         )
 
     def sayHelloPromise(self, name="Not given", message="nothing"):
@@ -62,10 +62,10 @@ class HelloImpl(object):
         will not block.
         """
         print(
-            "Python.sayHelloPromise called by: {0} with message: '{1}'".format(
-                name, message
-            )
+            "Python.sayHelloPromise called by: {0} "
+            "with message: '{1}'".format(name, message)
         )
-        return "PythonPromise says: Howdy {0} that's a nice runtime you got there".format(
-            name
+        return (
+            "PythonPromise says: Howdy {0} "
+            "that's a nice runtime you got there".format(name)
         )
