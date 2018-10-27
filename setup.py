@@ -60,7 +60,7 @@ setup(
     long_description=read("README.rst"),
     author="Thomas Calmant",
     author_email="thomas.calmant@gmail.com",
-    url="https://ipopo.readthedocs.io/",
+    url="https://github.com/tcalmant/ipopo/",
     packages=[
         "pelix",
         "pelix.http",
