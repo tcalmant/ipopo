@@ -6,7 +6,7 @@ Pelix Remote Services: Java-compatible RPC, based on the Jabsorb library
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.8.0
+:version: 0.8.1
 
 ..
 
@@ -60,7 +60,7 @@ import pelix.remote.transport.commons as commons
 __docformat__ = "restructuredtext en"
 
 # Module version
-__version_info__ = (0, 8, 0)
+__version_info__ = (0, 8, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------

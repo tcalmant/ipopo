@@ -7,7 +7,7 @@ Run RSA with etcd-based discovery module
 :author: Scott Lewis
 :copyright: Copyright 2018, Scott Lewis
 :license: Apache License 2.0
-:version: 0.8.0
+:version: 0.8.1
 
 ..
 
@@ -31,7 +31,7 @@ import logging
 _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Module version
-__version_info__ = (0, 8, 0)
+__version_info__ = (0, 8, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
