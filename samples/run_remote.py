@@ -39,16 +39,16 @@ Usage: run_remote.py [-h] [-s] [-p HTTP_PORT] [-d [DISCOVERY [DISCOVERY ...]]]
     limitations under the License.
 """
 
-# Pelix
-from pelix.ipopo.constants import use_waiting_list
-import pelix.constants
-import pelix.framework
-import pelix.remote as rs
-
 # Standard library
 import argparse
 import logging
 import sys
+
+# Pelix
+import pelix.constants
+import pelix.framework
+import pelix.remote as rs
+from pelix.ipopo.constants import use_waiting_list
 
 # ------------------------------------------------------------------------------
 
@@ -62,10 +62,10 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 # Available discovery protocols
-DISCOVERIES = ('multicast', 'mqtt', 'mdns', 'redis', 'zookeeper')
+DISCOVERIES = ("multicast", "mqtt", "mdns", "redis", "zookeeper")
 
 # Available transport protocols
-TRANSPORTS = ('xmlrpc', 'jsonrpc', 'mqttrpc', 'jabsorbrpc')
+TRANSPORTS = ("xmlrpc", "jsonrpc", "mqttrpc", "jabsorbrpc")
 
 # ------------------------------------------------------------------------------
 
@@ -74,6 +74,7 @@ class InstallUtils(object):
     """
     Utility class to install services and instantiate components in a framework
     """
+
     def __init__(self, context, arguments):
         """
         Sets up the utility class
@@ -89,12 +90,13 @@ class InstallUtils(object):
         Installs the multicast discovery bundles and instantiates components
         """
         # Install the bundle
-        self.context.install_bundle('pelix.remote.discovery.multicast').start()
+        self.context.install_bundle("pelix.remote.discovery.multicast").start()
 
         with use_waiting_list(self.context) as ipopo:
             # Instantiate the discovery
-            ipopo.add(rs.FACTORY_DISCOVERY_MULTICAST,
-                      "pelix-discovery-multicast")
+            ipopo.add(
+                rs.FACTORY_DISCOVERY_MULTICAST, "pelix-discovery-multicast"
+            )
 
     def discovery_mdns(self):
         """
@@ -104,116 +106,147 @@ class InstallUtils(object):
         logging.getLogger("zeroconf").setLevel(logging.WARNING)
 
         # Install the bundle
-        self.context.install_bundle('pelix.remote.discovery.mdns').start()
+        self.context.install_bundle("pelix.remote.discovery.mdns").start()
 
         with use_waiting_list(self.context) as ipopo:
             # Instantiate the discovery
-            ipopo.add(rs.FACTORY_DISCOVERY_ZEROCONF,
-                      "pelix-discovery-zeroconf")
+            ipopo.add(rs.FACTORY_DISCOVERY_ZEROCONF, "pelix-discovery-zeroconf")
 
     def discovery_mqtt(self):
         """
         Installs the MQTT discovery bundles and instantiates components
         """
         # Install the bundle
-        self.context.install_bundle('pelix.remote.discovery.mqtt').start()
+        self.context.install_bundle("pelix.remote.discovery.mqtt").start()
 
         with use_waiting_list(self.context) as ipopo:
             # Instantiate the discovery
-            ipopo.add(rs.FACTORY_DISCOVERY_MQTT, "pelix-discovery-mqtt",
-                      {"application.id": "sample.rs",
-                       "mqtt.host": self.arguments.mqtt_host,
-                       "mqtt.port": self.arguments.mqtt_port})
+            ipopo.add(
+                rs.FACTORY_DISCOVERY_MQTT,
+                "pelix-discovery-mqtt",
+                {
+                    "application.id": "sample.rs",
+                    "mqtt.host": self.arguments.mqtt_host,
+                    "mqtt.port": self.arguments.mqtt_port,
+                },
+            )
 
     def discovery_redis(self):
         """
         Installs the Redis discovery bundles and instantiates components
         """
         # Install the bundle
-        self.context.install_bundle('pelix.remote.discovery.redis').start()
+        self.context.install_bundle("pelix.remote.discovery.redis").start()
 
         with use_waiting_list(self.context) as ipopo:
             # Instantiate the discovery
-            ipopo.add(rs.FACTORY_DISCOVERY_REDIS, "pelix-discovery-redis",
-                      {"application.id": "sample.rs",
-                       "redis.host": self.arguments.redis_host,
-                       "redis.port": self.arguments.redis_port})
+            ipopo.add(
+                rs.FACTORY_DISCOVERY_REDIS,
+                "pelix-discovery-redis",
+                {
+                    "application.id": "sample.rs",
+                    "redis.host": self.arguments.redis_host,
+                    "redis.port": self.arguments.redis_port,
+                },
+            )
 
     def discovery_zookeeper(self):
         """
         Installs the ZooKeeper discovery bundles and instantiates components
         """
         # Install the bundle
-        self.context.install_bundle('pelix.remote.discovery.zookeeper').start()
+        self.context.install_bundle("pelix.remote.discovery.zookeeper").start()
 
         with use_waiting_list(self.context) as ipopo:
             # Instantiate the discovery
-            ipopo.add(rs.FACTORY_DISCOVERY_ZOOKEEPER,
-                      "pelix-discovery-zookeeper",
-                      {"application.id": "sample.rs",
-                       "zookeeper.hosts": self.arguments.zk_hosts,
-                       "zookeeper.prefix": self.arguments.zk_prefix})
+            ipopo.add(
+                rs.FACTORY_DISCOVERY_ZOOKEEPER,
+                "pelix-discovery-zookeeper",
+                {
+                    "application.id": "sample.rs",
+                    "zookeeper.hosts": self.arguments.zk_hosts,
+                    "zookeeper.prefix": self.arguments.zk_prefix,
+                },
+            )
 
     def transport_jsonrpc(self):
         """
         Installs the JSON-RPC transport bundles and instantiates components
         """
         # Install the bundle
-        self.context.install_bundle('pelix.remote.json_rpc').start()
+        self.context.install_bundle("pelix.remote.json_rpc").start()
 
         with use_waiting_list(self.context) as ipopo:
             # Instantiate the discovery
-            ipopo.add(rs.FACTORY_TRANSPORT_JSONRPC_EXPORTER,
-                      "pelix-jsonrpc-exporter")
-            ipopo.add(rs.FACTORY_TRANSPORT_JSONRPC_IMPORTER,
-                      "pelix-jsonrpc-importer")
+            ipopo.add(
+                rs.FACTORY_TRANSPORT_JSONRPC_EXPORTER, "pelix-jsonrpc-exporter"
+            )
+            ipopo.add(
+                rs.FACTORY_TRANSPORT_JSONRPC_IMPORTER, "pelix-jsonrpc-importer"
+            )
 
     def transport_jabsorbrpc(self):
         """
         Installs the JABSORB-RPC transport bundles and instantiates components
         """
         # Install the bundle
-        self.context.install_bundle('pelix.remote.transport.jabsorb_rpc') \
-            .start()
+        self.context.install_bundle(
+            "pelix.remote.transport.jabsorb_rpc"
+        ).start()
 
         with use_waiting_list(self.context) as ipopo:
             # Instantiate the discovery
-            ipopo.add(rs.FACTORY_TRANSPORT_JABSORBRPC_EXPORTER,
-                      "pelix-jabsorbrpc-exporter")
-            ipopo.add(rs.FACTORY_TRANSPORT_JABSORBRPC_IMPORTER,
-                      "pelix-jabsorbrpc-importer")
+            ipopo.add(
+                rs.FACTORY_TRANSPORT_JABSORBRPC_EXPORTER,
+                "pelix-jabsorbrpc-exporter",
+            )
+            ipopo.add(
+                rs.FACTORY_TRANSPORT_JABSORBRPC_IMPORTER,
+                "pelix-jabsorbrpc-importer",
+            )
 
     def transport_mqttrpc(self):
         """
         Installs the MQTT-RPC transport bundles and instantiates components
         """
         # Install the bundle
-        self.context.install_bundle('pelix.remote.transport.mqtt_rpc').start()
+        self.context.install_bundle("pelix.remote.transport.mqtt_rpc").start()
 
         with use_waiting_list(self.context) as ipopo:
             # Instantiate the discovery
-            ipopo.add(rs.FACTORY_TRANSPORT_MQTTRPC_EXPORTER,
-                      "pelix-mqttrpc-exporter",
-                      {"mqtt.host": self.arguments.mqtt_host,
-                       "mqtt.port": self.arguments.mqtt_port})
-            ipopo.add(rs.FACTORY_TRANSPORT_MQTTRPC_IMPORTER,
-                      "pelix-mqttrpc-importer",
-                      {"mqtt.host": self.arguments.mqtt_host,
-                       "mqtt.port": self.arguments.mqtt_port})
+            ipopo.add(
+                rs.FACTORY_TRANSPORT_MQTTRPC_EXPORTER,
+                "pelix-mqttrpc-exporter",
+                {
+                    "mqtt.host": self.arguments.mqtt_host,
+                    "mqtt.port": self.arguments.mqtt_port,
+                },
+            )
+            ipopo.add(
+                rs.FACTORY_TRANSPORT_MQTTRPC_IMPORTER,
+                "pelix-mqttrpc-importer",
+                {
+                    "mqtt.host": self.arguments.mqtt_host,
+                    "mqtt.port": self.arguments.mqtt_port,
+                },
+            )
 
     def transport_xmlrpc(self):
         """
         Installs the XML-RPC transport bundles and instantiates components
         """
         # Install the bundle
-        self.context.install_bundle('pelix.remote.xml_rpc').start()
+        self.context.install_bundle("pelix.remote.xml_rpc").start()
 
         with use_waiting_list(self.context) as ipopo:
             # Instantiate the discovery
-            ipopo.add(rs.FACTORY_TRANSPORT_XMLRPC_EXPORTER,
-                      "pelix-xmlrpc-exporter")
-            ipopo.add(rs.FACTORY_TRANSPORT_XMLRPC_IMPORTER,
-                      "pelix-xmlrpc-importer")
+            ipopo.add(
+                rs.FACTORY_TRANSPORT_XMLRPC_EXPORTER, "pelix-xmlrpc-exporter"
+            )
+            ipopo.add(
+                rs.FACTORY_TRANSPORT_XMLRPC_IMPORTER, "pelix-xmlrpc-importer"
+            )
+
 
 # ------------------------------------------------------------------------------
 
@@ -231,19 +264,22 @@ def main(is_server, discoveries, transports, http_port, other_arguments):
     """
     # Create the framework
     framework = pelix.framework.create_framework(
-        ('pelix.ipopo.core',
-         'pelix.ipopo.waiting',
-         # Shell
-         'pelix.shell.core',
-         'pelix.shell.ipopo',
-         'pelix.shell.console',
-         # HTTP Service
-         "pelix.http.basic",
-         # Remote Services (core)
-         'pelix.remote.dispatcher',
-         'pelix.remote.registry'),
+        (
+            "pelix.ipopo.core",
+            "pelix.ipopo.waiting",
+            # Shell
+            "pelix.shell.core",
+            "pelix.shell.ipopo",
+            "pelix.shell.console",
+            # HTTP Service
+            "pelix.http.basic",
+            # Remote Services (core)
+            "pelix.remote.dispatcher",
+            "pelix.remote.registry",
+        ),
         # Framework properties
-        {pelix.constants.FRAMEWORK_UID: other_arguments.fw_uid})
+        {pelix.constants.FRAMEWORK_UID: other_arguments.fw_uid},
+    )
 
     # Start everything
     framework.start()
@@ -254,13 +290,16 @@ def main(is_server, discoveries, transports, http_port, other_arguments):
     with use_waiting_list(context) as ipopo:
         # Instantiate remote service components
         # ... HTTP server
-        ipopo.add("pelix.http.service.basic.factory", "http-server",
-                  {"pelix.http.address": "0.0.0.0",
-                   "pelix.http.port": http_port})
+        ipopo.add(
+            "pelix.http.service.basic.factory",
+            "http-server",
+            {"pelix.http.address": "0.0.0.0", "pelix.http.port": http_port},
+        )
 
         # ... servlet giving access to the registry
-        ipopo.add(rs.FACTORY_REGISTRY_SERVLET,
-                  "pelix-remote-dispatcher-servlet")
+        ipopo.add(
+            rs.FACTORY_REGISTRY_SERVLET, "pelix-remote-dispatcher-servlet"
+        )
 
     # Prepare the utility object
     util = InstallUtils(context, other_arguments)
@@ -285,79 +324,139 @@ def main(is_server, discoveries, transports, http_port, other_arguments):
     # Start the framework and wait for it to stop
     framework.wait_for_stop()
 
+
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Parse arguments
-    parser = argparse.ArgumentParser(
-        description="Pelix Remote Services sample")
+    parser = argparse.ArgumentParser(description="Pelix Remote Services sample")
 
     # Provider or consumer
-    parser.add_argument("-s", "--server", "--provider", action="store_true",
-                        dest="is_server",
-                        help="Runs the framework with a service provider")
+    parser.add_argument(
+        "-s",
+        "--server",
+        "--provider",
+        action="store_true",
+        dest="is_server",
+        help="Runs the framework with a service provider",
+    )
 
     # Discovery
-    parser.add_argument("-d", "--discovery", nargs="*",
-                        default=(DISCOVERIES[0],), choices=DISCOVERIES,
-                        dest="discoveries", metavar="DISCOVERY",
-                        help="Discovery protocols to use (one of {0})"
-                        .format(', '.join(DISCOVERIES)))
+    parser.add_argument(
+        "-d",
+        "--discovery",
+        nargs="*",
+        default=(DISCOVERIES[0],),
+        choices=DISCOVERIES,
+        dest="discoveries",
+        metavar="DISCOVERY",
+        help="Discovery protocols to use (one of {0})".format(
+            ", ".join(DISCOVERIES)
+        ),
+    )
 
     # Transport
-    parser.add_argument("-t", "--transport", nargs="*",
-                        default=(TRANSPORTS[0],), choices=TRANSPORTS,
-                        dest="transports", metavar="TRANSPORT",
-                        help="Transport protocols to use (one of {0})"
-                        .format(', '.join(TRANSPORTS)))
+    parser.add_argument(
+        "-t",
+        "--transport",
+        nargs="*",
+        default=(TRANSPORTS[0],),
+        choices=TRANSPORTS,
+        dest="transports",
+        metavar="TRANSPORT",
+        help="Transport protocols to use (one of {0})".format(
+            ", ".join(TRANSPORTS)
+        ),
+    )
 
     # Framework configuration
-    group = parser.add_argument_group("Framework Configuration",
-                                      "Configuration of the Pelix framework")
+    group = parser.add_argument_group(
+        "Framework Configuration", "Configuration of the Pelix framework"
+    )
     # ... HTTP server
-    parser.add_argument("-p", "--port", action="store", type=int, default=0,
-                        dest="http_port",
-                        help="Port of the framework HTTP server (can be 0)")
+    group.add_argument(
+        "-p",
+        "--port",
+        action="store",
+        type=int,
+        default=0,
+        dest="http_port",
+        help="Port of the framework HTTP server (can be 0)",
+    )
 
     # ... Framework UID
-    parser.add_argument("--uid", action="store", default=None,
-                        dest="fw_uid", help="Forces the framework UID")
+    group.add_argument(
+        "--uid",
+        action="store",
+        default=None,
+        dest="fw_uid",
+        help="Forces the framework UID",
+    )
 
     # MQTT configuration
-    group = parser.add_argument_group("MQTT Configuration",
-                                      "Configuration of the MQTT discovery and"
-                                      " RPC components")
+    group = parser.add_argument_group(
+        "MQTT Configuration",
+        "Configuration of the MQTT discovery and" " RPC components",
+    )
     # ... server
-    group.add_argument("--mqtt-host", action="store", dest="mqtt_host",
-                       default="test.mosquitto.org",
-                       help="MQTT server host (default: test.mosquitto.org)")
+    group.add_argument(
+        "--mqtt-host",
+        action="store",
+        dest="mqtt_host",
+        default="test.mosquitto.org",
+        help="MQTT server host (default: test.mosquitto.org)",
+    )
 
     # ... port
-    group.add_argument("--mqtt-port", action="store", dest="mqtt_port",
-                       type=int, default=1883,
-                       help="MQTT server port (default: 1883)")
+    group.add_argument(
+        "--mqtt-port",
+        action="store",
+        dest="mqtt_port",
+        type=int,
+        default=1883,
+        help="MQTT server port (default: 1883)",
+    )
 
     # Redis configuration
-    group = parser.add_argument_group("Redis Configuration",
-                                      "Configuration of Redis discovery")
+    group = parser.add_argument_group(
+        "Redis Configuration", "Configuration of Redis discovery"
+    )
     # ... server
-    group.add_argument("--redis-host", dest="redis_host", default="localhost",
-                       help="Redis server host (default: localhost)")
+    group.add_argument(
+        "--redis-host",
+        dest="redis_host",
+        default="localhost",
+        help="Redis server host (default: localhost)",
+    )
 
     # ... port
-    group.add_argument("--redis-port", dest="redis_port", default=6379,
-                       type=int, help="Redis server port (default: 6379)")
+    group.add_argument(
+        "--redis-port",
+        dest="redis_port",
+        default=6379,
+        type=int,
+        help="Redis server port (default: 6379)",
+    )
 
     # ZooKeeper configuration
-    group = parser.add_argument_group("ZooKeeper Configuration",
-                                      "Configuration of ZooKeeper discovery")
+    group = parser.add_argument_group(
+        "ZooKeeper Configuration", "Configuration of ZooKeeper discovery"
+    )
     # ... server
-    group.add_argument("--zk-hosts", dest="zk_hosts", default="localhost:2181",
-                       help="List of ZooKeeper servers (localhost:2181)")
+    group.add_argument(
+        "--zk-hosts",
+        dest="zk_hosts",
+        default="localhost:2181",
+        help="List of ZooKeeper servers (localhost:2181)",
+    )
 
     # ... port
-    group.add_argument("--zk-prefix", dest="zk_prefix", default="/pelix",
-                       help="Prefix for ZooKeeper paths (/pelix)")
+    group.add_argument(
+        "--zk-prefix",
+        dest="zk_prefix",
+        default="/pelix",
+        help="Prefix for ZooKeeper paths (/pelix)",
+    )
 
     # Parse arguments
     args = parser.parse_args(sys.argv[1:])
@@ -367,5 +466,6 @@ if __name__ == "__main__":
     logging.getLogger("kazoo.client").setLevel(logging.INFO)
 
     # Run the sample
-    main(args.is_server, args.discoveries, args.transports,
-         args.http_port, args)
+    main(
+        args.is_server, args.discoveries, args.transports, args.http_port, args
+    )

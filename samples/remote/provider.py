@@ -28,8 +28,8 @@ Greeting service provider
 from __future__ import print_function
 
 # Pelix remote services constants
-from pelix.constants import BundleActivator
 import pelix.remote
+from pelix.constants import BundleActivator
 
 # ------------------------------------------------------------------------------
 
@@ -52,6 +52,7 @@ class HelloWorldImpl(object):
     """
     Implementation of the greeting service
     """
+
     def sayHello(self, name):
         """
         Prints a greeting message
@@ -59,6 +60,7 @@ class HelloWorldImpl(object):
         @param name Some name
         """
         print("Python>> Hello,", name, "!")
+
 
 # ------------------------------------------------------------------------------
 
@@ -68,6 +70,7 @@ class Activator(object):
     """
     The bundle activator
     """
+
     def __init__(self):
         """
         Sets up members
@@ -81,12 +84,12 @@ class Activator(object):
         @param context The bundle context
         """
         # Prepare export properties
-        props = {pelix.remote.PROP_EXPORTED_INTERFACES:
-                 [SERVICE_SPECIFICATION]}
+        props = {pelix.remote.PROP_EXPORTED_INTERFACES: [SERVICE_SPECIFICATION]}
 
         # Register the service with the Java specification
         self.__registration = context.register_service(
-            SERVICE_SPECIFICATION, HelloWorldImpl(), props)
+            SERVICE_SPECIFICATION, HelloWorldImpl(), props
+        )
 
     def stop(self, context):
         """

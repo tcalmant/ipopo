@@ -30,12 +30,18 @@ from __future__ import print_function
 # Standard library
 import threading
 
-# iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Requires, Instantiate, \
-    BindField, UnbindField, Validate
-
 # Pelix constants
 import pelix.constants
+
+# iPOPO decorators
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Requires,
+    Instantiate,
+    BindField,
+    UnbindField,
+    Validate,
+)
 
 # ------------------------------------------------------------------------------
 
@@ -61,6 +67,7 @@ class HelloWorldConsumer(object):
     """
     Simple greeting service consumer
     """
+
     def __init__(self):
         """
         Sets up members
@@ -76,7 +83,7 @@ class HelloWorldConsumer(object):
         """
         service.sayHello("from {0} (Pelix framework)".format(self._fw_uid))
 
-    @BindField('_services', if_valid=True)
+    @BindField("_services", if_valid=True)
     def bind_greeting(self, field, service, reference):
         """
         A greeting service has been bound
@@ -91,7 +98,7 @@ class HelloWorldConsumer(object):
         # Use the service. Use a thread to avoid locking iPOPO for too long
         threading.Thread(target=self._use_service, args=[service]).start()
 
-    @UnbindField('_services', if_valid=True)
+    @UnbindField("_services", if_valid=True)
     def unbind_greeting(self, field, service, reference):
         """
         A greeting service has been bound
