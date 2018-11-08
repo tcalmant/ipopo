@@ -54,7 +54,7 @@ from pelix.rsa.providers.discovery import (
     EndpointEvent,
 )
 
-TEST_ETCD_HOSTNAME = "disco.ecf-project.org"
+TEST_ETCD_HOSTNAME = "localhost"
 TEST_ETCD_TOPPATH = "/etcddiscovery.tests"
 
 ENDPOINT_LISTENER_SCOPE = "({0}=*)".format(ECF_ENDPOINT_CONTAINERID_NAMESPACE)
