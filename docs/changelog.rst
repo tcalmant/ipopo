@@ -6,7 +6,7 @@ Release Notes
 iPOPO 0.8.1
 ===========
 
-:Release Date: 2018-??-??
+:Release Date: 2018-11-17
 
 Pelix
 -----
@@ -22,6 +22,7 @@ Remote Services
   contributed by Scott Lewis (@scottslewis).
   See `pull request #101 <https://github.com/tcalmant/ipopo/pull/101>`_
   for more details.
+* Use a local ``etcd`` server in Travis-CI instead of a public one.
 
 
 iPOPO 0.8.0

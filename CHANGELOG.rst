@@ -18,6 +18,7 @@ Remote Services
   contributed by Scott Lewis (@scottslewis).
   See `pull request #101 <https://github.com/tcalmant/ipopo/pull/101>`_
   for more details.
+* Use a local ``etcd`` server in Travis-CI instead of a public one.
 
 
 iPOPO 0.8.0
