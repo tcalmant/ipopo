@@ -38,7 +38,7 @@ from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 8, 1)
+__version_info__ = (0, 8, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

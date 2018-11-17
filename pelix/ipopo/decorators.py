@@ -6,7 +6,7 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 :author: Thomas Calmant
 :copyright: Copyright 2018, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.8.1
+:version: 0.8.2
 
 ..
 
@@ -47,7 +47,7 @@ import pelix.ipopo.constants as constants
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 8, 1)
+__version_info__ = (0, 8, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
