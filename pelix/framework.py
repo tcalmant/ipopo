@@ -1985,11 +1985,14 @@ def normalize_path():
     # Normalize paths in loaded modules
     for module_ in sys.modules.values():
         try:
-            module_.__path__ = [
-                os.path.abspath(path)
-                for path in module_.__path__
-                if _package_exists(path)
-            ]
+            if module_.__path__ is not None:
+                # Seems that (some?) DLL-based modules don't have a __path__
+                # but their __file__ is already absolute
+                module_.__path__ = [
+                    os.path.abspath(path)
+                    for path in module_.__path__
+                    if _package_exists(path)
+                ]
         except AttributeError:
             # builtin modules don't have a __path__
             pass
