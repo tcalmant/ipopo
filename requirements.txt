@@ -1,5 +1,3 @@
-# -e . => use this folder as a package one
--e .
 jsonrpclib-pelix>=0.3
 redis>=2.10
 kazoo>=2.4
