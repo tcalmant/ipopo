@@ -38,6 +38,19 @@ iPOPO enables to conceive long-running and modular IT services.
 See https://ipopo.readthedocs.io/ for documentation and more information.
 
 
+Note on this version
+====================
+
+This is the 2.x branch of iPOPO, which is intended to work with Python 3.7+.
+It is optimized to work with ``asyncio``.
+
+If you use a previous version of Python (2.7 or 3.x), you must use the 1.x
+branch of this framework.
+
+Note that you can make iPOPO 1.x and 2.x frameworks communicate using Remote
+Services.
+
+
 Usage survey
 ============
 

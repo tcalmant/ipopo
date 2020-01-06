@@ -4,13 +4,13 @@
 iPOPO installation script
 
 :author: Thomas Calmant
-:copyright: Copyright 2018, Thomas Calmant
+:copyright: Copyright 2020, Thomas Calmant
 :license: Apache License 2.0
-:version: 0.8.2
+:version: 2.0.0
 
 ..
 
-    Copyright 2018 Thomas Calmant
+    Copyright 2020 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ except ImportError:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 8, 2)
+__version_info__ = (2, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -53,7 +53,7 @@ def read(fname):
 
 
 setup(
-    name="iPOPO",
+    name="ipopo2",
     version=__version__,
     license="Apache License 2.0",
     description="A service-oriented component model framework",
@@ -86,11 +86,6 @@ setup(
         "Intended Audience :: Developers",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
-        "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.4",
-        "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Topic :: Software Development :: Libraries :: Application Frameworks",
     ],
