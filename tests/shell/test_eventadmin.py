@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the EventAdmin shell commands
@@ -14,10 +14,7 @@ import pelix.shell
 
 # Standard library
 import threading
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # ------------------------------------------------------------------------------
 

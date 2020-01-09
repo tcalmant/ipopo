@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests iPOPO handlers, using the sample logger handler
@@ -15,10 +15,7 @@ import pelix.ipopo.handlers.constants as constants
 
 # Standard library
 import sys
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # ------------------------------------------------------------------------------
 

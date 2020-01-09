@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Pelix framework test module. Tests the framework, bundles handling, service
@@ -9,10 +9,7 @@ handling and events.
 
 # Standard library
 import os
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # Pelix
 from pelix.framework import FrameworkFactory

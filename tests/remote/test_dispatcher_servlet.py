@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the Remote Services Exports Dispatcher
@@ -20,21 +20,12 @@ import pelix.framework
 import json
 import sys
 import uuid
+from urllib.parse import urljoin
+import http.client as httplib
 
-try:
-    # Python 3
-    from urllib.parse import urljoin
-    import http.client as httplib
-except ImportError:
-    # Python 2
-    from urlparse import urljoin
-    import httplib
 
 # Tests
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # ------------------------------------------------------------------------------
 

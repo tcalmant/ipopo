@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Defines the iPOPO decorators classes to manipulate component factory classes
@@ -31,16 +31,12 @@ import logging
 import sys
 import threading
 import types
+# pylint: disable=W0611
+from typing import Any, Callable
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Callable
-except ImportError:
-    pass
 
 # Pelix modules
-from pelix.utilities import is_string, to_iterable, get_method_arguments
+from pelix.utilities import to_iterable, get_method_arguments
 from pelix.ipopo.contexts import FactoryContext, Requirement
 import pelix.ipopo.constants as constants
 
@@ -465,7 +461,7 @@ class Instantiate(object):
         :param name: Instance name
         :param properties: Instance properties
         """
-        if not is_string(name):
+        if not isinstance(name, str):
             raise TypeError("Instance name must be a string")
 
         if properties is not None and not isinstance(properties, dict):
@@ -698,7 +694,7 @@ class Property(object):
         :raise ValueError: If the name or the name is None or empty
         """
         # Field validity test
-        if not is_string(field):
+        if not isinstance(field, str):
             raise TypeError("Field name must be a string")
 
         field = field.strip()
@@ -709,7 +705,7 @@ class Property(object):
 
         # Name validity test
         if name is not None:
-            if not is_string(name):
+            if not isinstance(name, str):
                 raise TypeError("Property name must be a string")
 
             name = name.strip()
@@ -865,7 +861,7 @@ def _get_specifications(specifications):
         else:
             # Legacy behavior
             return [specifications.__name__]
-    elif is_string(specifications):
+    elif isinstance(specifications, str):
         # Specification name
         specifications = specifications.strip()
         if not specifications:
@@ -955,7 +951,7 @@ class Provides(object):
         :raise ValueError: If the specifications are invalid
         """
         if controller is not None:
-            if not is_string(controller):
+            if not isinstance(controller, str):
                 raise ValueError("Controller name must be a string")
 
             controller = controller.strip()
@@ -1151,7 +1147,7 @@ class Requires(object):
         if not field:
             raise ValueError("Empty field name.")
 
-        if not is_string(field):
+        if not isinstance(field, str):
             raise TypeError(
                 "The field name must be a string, not {0}".format(
                     type(field).__name__

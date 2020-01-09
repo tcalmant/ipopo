@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Pelix remote services: Common dispatcher
@@ -31,17 +31,9 @@ Calls services according to the given method name and parameters
 import json
 import logging
 import threading
-
-try:
-    # Python 3
-    # pylint: disable=F0401,E0611
-    from urllib.parse import urljoin
-    import http.client as httplib
-except ImportError:
-    # Python 2 or IronPython
-    # pylint: disable=F0401
-    from urlparse import urljoin
-    import httplib
+# pylint: disable=F0401,E0611
+from urllib.parse import urljoin
+import http.client as httplib
 
 # iPOPO decorators
 from pelix.ipopo.decorators import (

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 Cached thread pool tests
@@ -16,10 +16,7 @@ import threading
 import time
 
 # Tests
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # ------------------------------------------------------------------------------
 

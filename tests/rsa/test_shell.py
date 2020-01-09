@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the RSA shell commands
@@ -8,15 +8,8 @@ Tests the RSA shell commands
 
 # Standard library
 import os
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+import unittest
+from io import StringIO
 
 # Pelix
 from pelix.constants import SERVICE_ID, FRAMEWORK_UID, BundleException

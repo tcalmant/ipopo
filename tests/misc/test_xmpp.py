@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the XMPP client module
@@ -13,10 +13,7 @@ import random
 import socket
 import string
 import threading
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 try:
     import pelix.misc.xmpp as xmpp

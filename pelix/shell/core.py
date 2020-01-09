@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Pelix shell service bundle.
@@ -32,13 +32,9 @@ import logging
 import os
 import sys
 import threading
+# pylint: disable=W0611
+from typing import Any, Dict, Tuple
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Dict, Tuple
-except ImportError:
-    pass
 
 # Pelix modules
 import pelix.constants as constants

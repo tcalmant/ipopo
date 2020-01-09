@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 Definition of classes used by the Pelix shell service and its consumers

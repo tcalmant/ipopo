@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the XMPP shell interface
@@ -11,16 +11,8 @@ users (user1 and user2) with "foobar" as password.
 
 import socket
 import threading
-
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+from io import StringIO
+import unittest
 
 try:
     import pelix.misc.xmpp as xmpp

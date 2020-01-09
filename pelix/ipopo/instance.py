@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Instance manager class definition
@@ -29,15 +29,10 @@ Instance manager class definition
 import logging
 import threading
 import traceback
-
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
-    from pelix.framework import ServiceEvent, ServiceReference
-    from pelix.ipopo.contexts import ComponentContext
-except ImportError:
-    pass
+# pylint: disable=W0611
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+from pelix.framework import ServiceEvent, ServiceReference
+from pelix.ipopo.contexts import ComponentContext
 
 # Pelix
 from pelix.constants import FrameworkException

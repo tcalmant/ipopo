@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the RSA basic topology manager
@@ -7,15 +7,9 @@ Tests the RSA basic topology manager
 """
 
 # Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
+from typing import List
 
-try:
-    from typing import List
-except ImportError:
-    pass
 
 # Pelix
 from pelix.ipopo.constants import use_ipopo

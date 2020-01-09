@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests remote services transports based on HTTP
@@ -33,11 +33,7 @@ import pelix.remote
 # Standard library
 import time
 import threading
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 try:
     # Try to import modules
@@ -48,10 +44,8 @@ except ImportError:
     # Some interpreters don't have support for multiprocessing
     raise unittest.SkipTest("Interpreter doesn't support multiprocessing")
 
-try:
-    import queue
-except ImportError:
-    import Queue as queue
+import queue
+
 
 # Local utilities
 from tests.utilities import WrappedProcess

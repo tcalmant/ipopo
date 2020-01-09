@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the behavior of iPOPO contexts classes
@@ -22,10 +22,7 @@ from pelix.ipopo.constants import use_ipopo
 from pelix.utilities import use_service
 
 # Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # ------------------------------------------------------------------------------
 

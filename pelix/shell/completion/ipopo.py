@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 Defines the shell completion handlers for iPOPO concepts
@@ -27,22 +27,13 @@ Defines the shell completion handlers for iPOPO concepts
 """
 
 from __future__ import absolute_import
+import readline
+# pylint: disable=W0611
+from typing import List
+from pelix.framework import BundleContext
+from pelix.shell.beans import ShellSession
+from .decorators import CompletionInfo
 
-# Try to import readline
-try:
-    import readline
-except ImportError:
-    readline = None
-
-# Add some typing
-try:
-    # pylint: disable=W0611
-    from typing import List
-    from pelix.framework import BundleContext
-    from pelix.shell.beans import ShellSession
-    from .decorators import CompletionInfo
-except ImportError:
-    pass
 
 # Pelix
 from pelix.constants import BundleActivator

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Core iPOPO implementation
@@ -31,20 +31,16 @@ import inspect
 import logging
 import sys
 import threading
+# pylint: disable=W0611
+from typing import Any, Dict, List, Optional, Set, Tuple
+from pelix.framework import BundleContext, ServiceReference
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Dict, List, Optional, Set, Tuple
-    from pelix.framework import BundleContext, ServiceReference
-except ImportError:
-    pass
 
 # Pelix
 from pelix.constants import SERVICE_ID, BundleActivator
 from pelix.framework import Bundle, BundleException
 from pelix.internals.events import BundleEvent, ServiceEvent
-from pelix.utilities import add_listener, remove_listener, is_string
+from pelix.utilities import add_listener, remove_listener
 
 # iPOPO constants
 import pelix.ipopo.constants as constants
@@ -570,7 +566,7 @@ class _IPopoService(object):
         :raise ValueError: The factory name already exists or is invalid
         :raise TypeError: Invalid factory type
         """
-        if not factory_name or not is_string(factory_name):
+        if not factory_name or not isinstance(factory_name, str):
             raise ValueError("A factory name must be a non-empty string")
 
         if not inspect.isclass(factory):
@@ -720,10 +716,10 @@ class _IPopoService(object):
         :raise Exception: Something wrong occurred in the factory
         """
         # Test parameters
-        if not factory_name or not is_string(factory_name):
+        if not factory_name or not isinstance(factory_name, str):
             raise ValueError("Invalid factory name")
 
-        if not name or not is_string(name):
+        if not name or not isinstance(name, str):
             raise ValueError("Invalid component name")
 
         if not self.running:
@@ -919,7 +915,7 @@ class _IPopoService(object):
         :return: True the factory has been removed, False if the factory is
                  unknown
         """
-        if not factory_name or not is_string(factory_name):
+        if not factory_name or not isinstance(factory_name, str):
             # Invalid name
             return False
 
@@ -1070,7 +1066,7 @@ class _IPopoService(object):
         :return: A dictionary of details
         :raise ValueError: Invalid component name
         """
-        if not is_string(name):
+        if not isinstance(name, str):
             raise ValueError("Component name must be a string")
 
         with self.__instances_lock:

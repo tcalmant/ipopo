@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the EventAdmin printer
@@ -14,16 +14,8 @@ import pelix.services
 
 # Standard library
 import logging
-
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+from io import StringIO
+import unittest
 
 # ------------------------------------------------------------------------------
 

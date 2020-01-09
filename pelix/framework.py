@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Core module for Pelix.
@@ -36,14 +36,9 @@ import os
 import sys
 import threading
 import uuid
-
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, List, Optional, Set, Union
-    import types
-except ImportError:
-    pass
+# pylint: disable=W0611
+from typing import Any, List, Optional, Set, Union
+import types
 
 # Pelix beans and constants
 from pelix.constants import (
@@ -64,38 +59,20 @@ from pelix.internals.registry import (
     ServiceRegistration,
 )
 
-# Pelix utility modules
-from pelix.utilities import is_string
 
 
-if hasattr(importlib, "reload"):
-    # This method has been added in Python 3.4 and deprecates imp.reload()
-    def reload_module(module_):
-        """
-        Reloads a module using ``importlib.reload()`` when available
+def reload_module(module_):
+    """
+    Reloads a module using ``importlib.reload()`` when available
 
-        :param module_: The module to update
-        :return: The new version of the module
-        :raise ImportError: Error looking for file
-        :raise SyntaxError: Syntax error in imported module
-        """
-        return importlib.reload(module_)
+    :param module_: The module to update
+    :return: The new version of the module
+    :raise ImportError: Error looking for file
+    :raise SyntaxError: Syntax error in imported module
+    """
+    return importlib.reload(module_)
 
 
-else:
-    # Before Python 3.4
-    import imp
-
-    def reload_module(module_):
-        """
-        Reloads a module using ``imp.reload()`` as fallback
-
-        :param module_: The module to update
-        :return: The new version of the module
-        :raise ImportError: Error looking for file
-        :raise SyntaxError: Syntax error in imported module
-        """
-        return imp.reload(module_)
 
 
 def walk_modules(path):
@@ -955,7 +932,7 @@ class Framework(Bundle):
         """
         if not path:
             raise ValueError("Empty path")
-        elif not is_string(path):
+        elif not isinstance(path, str):
             raise ValueError("Path must be a string")
 
         # Use an absolute path
@@ -1020,7 +997,7 @@ class Framework(Bundle):
         # Validate the path
         if not path:
             raise ValueError("Empty path")
-        elif not is_string(path):
+        elif not isinstance(path, str):
             raise ValueError("Path must be a string")
 
         # Validate the visitor
@@ -1121,7 +1098,7 @@ class Framework(Bundle):
                 # Keep the type name
                 svc_clazz = svc_clazz.__name__
 
-            if not svc_clazz or not is_string(svc_clazz):
+            if not svc_clazz or not isinstance(svc_clazz, str):
                 # Invalid class name
                 raise BundleException(
                     "Invalid class name: {0}".format(svc_clazz)

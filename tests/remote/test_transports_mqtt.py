@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests remote services transport and discovery based on MQTT
@@ -33,11 +33,7 @@ import pelix.remote
 import time
 import threading
 import uuid
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 try:
     # Try to import modules

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 Defines the ``Completer`` class, mother of all shell completion handlers
@@ -29,22 +29,12 @@ Defines the ``Completer`` class, mother of all shell completion handlers
 # Standard library
 from __future__ import absolute_import
 import logging
-
-# Try to import readline
-try:
-    import readline
-except ImportError:
-    readline = None
-
-# Add some typing
-try:
-    # pylint: disable=W0611
-    from typing import List
-    from pelix.framework import BundleContext
-    from pelix.shell.beans import ShellSession
-    from .decorators import CompletionInfo
-except ImportError:
-    pass
+import readline
+# pylint: disable=W0611
+from typing import List
+from pelix.framework import BundleContext
+from pelix.shell.beans import ShellSession
+from .decorators import CompletionInfo
 
 # Pelix
 from pelix.utilities import use_service

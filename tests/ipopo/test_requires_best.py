@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the iPOPO @RequiresBest decorator.
@@ -17,10 +17,7 @@ from pelix.framework import FrameworkFactory, BundleContext
 from pelix.constants import SERVICE_RANKING
 
 # Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # ------------------------------------------------------------------------------
 

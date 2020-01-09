@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the iPOPO decorators.
@@ -10,10 +10,7 @@ Tests the iPOPO decorators.
 import code
 import os
 import sys
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # Pelix
 from pelix.framework import FrameworkFactory

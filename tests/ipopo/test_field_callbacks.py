@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the iPOPO @Bind/Update/UnbindField decorators.
@@ -13,10 +13,7 @@ from tests.ipopo import install_bundle, install_ipopo
 from pelix.framework import FrameworkFactory
 
 # Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # ------------------------------------------------------------------------------
 

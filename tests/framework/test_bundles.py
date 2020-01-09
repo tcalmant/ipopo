@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the bundles handling.
@@ -15,11 +15,7 @@ from pelix.framework import FrameworkFactory, Bundle, BundleException, \
 
 # Standard library
 import os
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # ------------------------------------------------------------------------------
 

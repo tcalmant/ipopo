@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Definition of Factory and Component context classes
@@ -25,17 +25,12 @@ Definition of Factory and Component context classes
     limitations under the License.
 """
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
-    from pelix.framework import BundleContext
-except ImportError:
-    pass
+# pylint: disable=W0611
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from pelix.framework import BundleContext
 
 # Pelix utilities
 from pelix.constants import OBJECTCLASS
-from pelix.utilities import is_string
 import pelix.ldapfilter as ldapfilter
 
 # iPOPO constants
@@ -90,7 +85,7 @@ class Requirement(object):
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter
         """
-        if not is_string(specification):
+        if not isinstance(specification, str):
             raise TypeError("A Requirement specification must be a string")
 
         if not specification:
@@ -200,7 +195,7 @@ class Requirement(object):
         :raise TypeError: Unknown filter type
         """
         if props_filter is not None and not (
-            is_string(props_filter)
+            isinstance(props_filter, str)
             or isinstance(
                 props_filter, (ldapfilter.LDAPFilter, ldapfilter.LDAPCriteria)
             )

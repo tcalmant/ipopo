@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 
@@ -27,15 +27,10 @@ BasicTopologyManager implements TopologyManager API
 """
 
 import logging
-
-try:
-    # pylint: disable=W0611
-    from typing import Any, Dict
-    from pelix.framework import ServiceEvent
-    from pelix.rsa import RemoteServiceAdminEvent
-except ImportError:
-    pass
-
+# pylint: disable=W0611
+from typing import Any, Dict
+from pelix.framework import ServiceEvent
+from pelix.rsa import RemoteServiceAdminEvent
 from pelix.ipopo.decorators import ComponentFactory, Instantiate
 
 from pelix.rsa import ECF_ENDPOINT_CONTAINERID_NAMESPACE

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the shell report module
@@ -9,16 +9,10 @@ Tests the shell report module
 # Standard library
 import json
 import os
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 # Tests
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # Pelix
 from pelix.framework import FrameworkFactory, create_framework

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 
@@ -27,15 +27,9 @@ EndpointDescription class API
 """
 
 import logging
-
-# Typing
-try:
-    # pylint: disable=W0611
-    from typing import Dict, Any, Optional, List, Tuple, Iterable
-    from pelix.framework import ServiceReference
-except ImportError:
-    pass
-
+ # pylint: disable=W0611
+from typing import Dict, Any, Optional, List, Tuple, Iterable
+from pelix.framework import ServiceReference
 from pelix.constants import SERVICE_ID, FRAMEWORK_UID, OBJECTCLASS
 from pelix.ldapfilter import get_ldap_filter
 

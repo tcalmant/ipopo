@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Utility methods for SSL
@@ -28,16 +28,7 @@ Utility methods for SSL
 # Standard library
 import logging
 import ssl
-
-try:
-    from ssl import _RESTRICTED_SERVER_CIPHERS
-except ImportError:
-    # Restricted and more secure ciphers for the server side, from Python 3.5
-    _RESTRICTED_SERVER_CIPHERS = (
-        "ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:"
-        "ECDH+HIGH:DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:"
-        "RSA+3DES:!aNULL:!eNULL:!MD5:!DSS:!RC4"
-    )
+from ssl import _RESTRICTED_SERVER_CIPHERS
 
 # ------------------------------------------------------------------------------
 

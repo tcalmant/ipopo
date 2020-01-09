@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the iPOPO @HiddenProperty decorator.
@@ -15,10 +15,7 @@ from pelix.ipopo.constants import use_ipopo
 
 # Standard library
 import random
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # ------------------------------------------------------------------------------
 

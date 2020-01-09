@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 This sample presents the use of an EventListenerHook: a service that will be
@@ -28,8 +28,6 @@ from some listeners to avoid a double-action.
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
-from __future__ import print_function
 
 # Pelix remote services constants
 from pelix.constants import BundleActivator

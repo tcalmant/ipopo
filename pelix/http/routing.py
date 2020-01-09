@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Provides utility classes to develop REST-like API and to simplify the routing
@@ -30,17 +30,12 @@ of HTTP requests.
 import inspect
 import re
 import uuid
-
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Callable, Dict, Pattern, Tuple
-    from pelix.http import (
-        AbstractHTTPServletRequest,
-        AbstractHTTPServletResponse,
-    )
-except ImportError:
-    pass
+# pylint: disable=W0611
+from typing import Any, Callable, Dict, Pattern, Tuple
+from pelix.http import (
+    AbstractHTTPServletRequest,
+    AbstractHTTPServletResponse,
+)
 
 # Pelix utility methods
 from pelix.utilities import get_method_arguments

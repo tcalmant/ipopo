@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Pelix basic HTTP service bundle.
@@ -35,18 +35,11 @@ import threading
 import traceback
 
 # Basic HTTP server
-try:
-    # Python 3
-    # pylint: disable=F0401,E0611
-    from http.server import HTTPServer
-    from http.server import BaseHTTPRequestHandler
-    from socketserver import ThreadingMixIn, TCPServer
-except ImportError:
-    # Python 2 or IronPython
-    # pylint: disable=F0401
-    from BaseHTTPServer import HTTPServer
-    from BaseHTTPServer import BaseHTTPRequestHandler
-    from SocketServer import ThreadingMixIn, TCPServer
+# pylint: disable=F0401,E0611
+from http.server import HTTPServer
+from http.server import BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn, TCPServer
+
 
 # iPOPO
 from pelix.ipopo.decorators import (
@@ -560,7 +553,7 @@ class HttpService(object):
         """
         # Servlet bound
         paths = service_reference.get_property(http.HTTP_SERVLET_PATH)
-        if utilities.is_string(paths):
+        if isinstance(paths, str):
             # Register the servlet to a single path
             self.register_servlet(paths, service)
         elif isinstance(paths, (list, tuple)):

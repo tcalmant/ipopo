@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the EventAdmin MQTT bridge service
@@ -15,10 +15,7 @@ import pelix.services
 # Standard library
 import json
 import threading
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # Local utilities
 from tests.mqtt_utilities import find_mqtt_server

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 
@@ -27,22 +27,12 @@ XmlRpc-on-HttpService-based Export and Import Distribution Providers
 """
 
 import logging
+# pylint: disable=F0401
+from xmlrpc.server import SimpleXMLRPCDispatcher
+import xmlrpc.client as xmlrpclib
+from concurrent.futures import Executor
+from concurrent.futures.thread import ThreadPoolExecutor
 
-# XML RPC modules for Python 2 or 3
-try:
-    # Python 3
-    # pylint: disable=F0401
-    from xmlrpc.server import SimpleXMLRPCDispatcher
-    import xmlrpc.client as xmlrpclib
-    from concurrent.futures import Executor
-    from concurrent.futures.thread import ThreadPoolExecutor
-except ImportError:
-    # Python 2
-    # pylint: disable=F0401
-    from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
-    import xmlrpclib
-
-    Executor = None
 
 from pelix.http import HTTP_SERVICE
 from pelix.utilities import to_str

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Python JSON ↔ Java Jabsorb format converter
@@ -35,15 +35,8 @@ https://github.com/Thomas Calmant/cohorte-org.jabsorb.ng
 # Standard library
 import inspect
 import re
-
-try:
-    # Python 2
-    # pylint: disable=F0401
-    import __builtin__ as builtins
-except ImportError:
-    # Python 3
-    # pylint: disable=F0401
-    import builtins
+# pylint: disable=F0401
+import builtins
 
 # ------------------------------------------------------------------------------
 

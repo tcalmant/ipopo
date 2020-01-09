@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Dependency-less LDAP filter parser for Python
@@ -27,16 +27,11 @@ Dependency-less LDAP filter parser for Python
 
 # Standard library
 import inspect
+# pylint: disable=W0611
+from typing import Any, Callable, Iterable, Optional, Union
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Callable, Iterable, Optional, Union
-except ImportError:
-    pass
 
-# Pelix
-from pelix.utilities import is_string
+
 
 # ------------------------------------------------------------------------------
 
@@ -319,7 +314,7 @@ def escape_LDAP(ldap_string):
         return ldap_string
 
     # Protect escape character previously in the string
-    assert is_string(ldap_string)
+    assert isinstance(ldap_string, str)
     ldap_string = ldap_string.replace(
         ESCAPE_CHARACTER, ESCAPE_CHARACTER + ESCAPE_CHARACTER
     )
@@ -410,7 +405,7 @@ def _star_comparison(filter_value, tested_value):
     """
     Tests a filter containing a joker
     """
-    if not is_string(tested_value):
+    if not isinstance(tested_value, str):
         # Unhandled value type...
         return False
 
@@ -457,14 +452,14 @@ def _comparator_eq(filter_value, tested_value):
         # Convert the list items to strings
         for value in tested_value:
             # Try with the string conversion
-            if not is_string(value):
+            if not isinstance(value, str):
                 value = repr(value)
 
             if filter_value == value:
                 # Match !
                 return True
     # Standard comparison
-    elif not is_string(tested_value):
+    elif not isinstance(tested_value, str):
         # String vs string representation
         return filter_value == repr(tested_value)
     else:
@@ -483,14 +478,14 @@ def _comparator_approximate(filter_value, tested_value):
     """
     lower_filter_value = filter_value.lower()
 
-    if is_string(tested_value):
+    if isinstance(tested_value, str):
         # Lower case comparison
         return _comparator_eq(lower_filter_value, tested_value.lower())
 
     elif hasattr(tested_value, "__iter__"):
         # Extract a list of strings
         new_tested = [
-            value.lower() for value in tested_value if is_string(value)
+            value.lower() for value in tested_value if isinstance(value, str)
         ]
 
         if _comparator_eq(lower_filter_value, new_tested):
@@ -513,14 +508,14 @@ def _comparator_approximate_star(filter_value, tested_value):
     """
     lower_filter_value = filter_value.lower()
 
-    if is_string(tested_value):
+    if isinstance(tested_value, str):
         # Lower case comparison
         return _comparator_star(lower_filter_value, tested_value.lower())
 
     elif hasattr(tested_value, "__iter__"):
         # Extract a list of strings
         new_tested = [
-            value.lower() for value in tested_value if is_string(value)
+            value.lower() for value in tested_value if isinstance(value, str)
         ]
 
         if _comparator_star(lower_filter_value, new_tested):
@@ -550,7 +545,7 @@ def _comparator_lt(filter_value, tested_value):
 
     tested_value < filter_value
     """
-    if is_string(filter_value):
+    if isinstance(filter_value, str):
         value_type = type(tested_value)
         try:
             # Try a conversion
@@ -591,7 +586,7 @@ def _comparator_gt(filter_value, tested_value):
 
     tested_value > filter_value
     """
-    if is_string(filter_value):
+    if isinstance(filter_value, str):
         value_type = type(tested_value)
         try:
             # Try a conversion
@@ -844,7 +839,7 @@ def _parse_ldap(ldap_filter):
         # Nothing to do
         return None
 
-    assert is_string(ldap_filter)
+    assert isinstance(ldap_filter, str)
 
     # Remove surrounding spaces
     ldap_filter = ldap_filter.strip()
@@ -946,7 +941,7 @@ def get_ldap_filter(ldap_filter):
     if isinstance(ldap_filter, (LDAPFilter, LDAPCriteria)):
         # No conversion needed
         return ldap_filter
-    elif is_string(ldap_filter):
+    elif isinstance(ldap_filter, str):
         # Parse the filter
         return _parse_ldap(ldap_filter)
 
@@ -970,7 +965,7 @@ def combine_filters(filters, operator=AND):
     if not filters:
         return None
 
-    if not hasattr(filters, "__iter__") or is_string(filters):
+    if not hasattr(filters, "__iter__") or isinstance(filters, str):
         raise TypeError("Filters argument must be iterable")
 
     # Remove None filters and convert others

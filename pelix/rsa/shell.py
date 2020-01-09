@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Remote Service Admin Shell Commands
@@ -28,19 +28,15 @@ Remote Service Admin Shell Commands
 from threading import RLock
 from traceback import print_exception
 import os
-
-try:
-    # pylint: disable=W0611
-    from typing import Any, Tuple, List, Callable, Optional
-    from pelix.framework import BundleContext
-    from pelix.rsa.remoteserviceadmin import (
-        ImportRegistration,
-        ExportRegistration,
-    )
-    from pelix.rsa.providers.distribution import Container, DistributionProvider
-    from pelix.shell.beans import ShellSession
-except ImportError:
-    pass
+# pylint: disable=W0611
+from typing import Any, Tuple, List, Callable, Optional
+from pelix.framework import BundleContext
+from pelix.rsa.remoteserviceadmin import (
+    ImportRegistration,
+    ExportRegistration,
+)
+from pelix.rsa.providers.distribution import Container, DistributionProvider
+from pelix.shell.beans import ShellSession
 
 from pelix.constants import SERVICE_ID
 from pelix.ipopo.decorators import (

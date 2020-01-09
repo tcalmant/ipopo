@@ -27,11 +27,8 @@ Module checking the behaviour of iPOPO with PEP-557 Data Classes
 try:
     dataclass
 except NameError:
-    try:
-        from dataclasses import dataclass
-    except ImportError:
-        raise Exception("dataclass decorator not available "
-                        "(Python 3.6+ required)")
+    from dataclasses import dataclass
+    
 
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
     Requires

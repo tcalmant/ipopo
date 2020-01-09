@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 XMPP bot classes: Small classes inheriting from SleekXMPP to ease the

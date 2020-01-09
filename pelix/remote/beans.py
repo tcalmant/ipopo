@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Pelix remote services: Specifications handling utility methods
@@ -26,21 +26,11 @@ Pelix remote services: Specifications handling utility methods
 """
 
 # Standard library
-try:
-    # Python 3
-    # pylint: disable=F0401,E0611
-    from urllib.parse import urlparse
-except ImportError:
-    # Python 2
-    # pylint: disable=F0401
-    from urlparse import urlparse
+# pylint: disable=F0401,E0611
+from urllib.parse import urlparse
+# pylint: disable=W0611
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Dict, Iterable, List, Optional, Tuple
-except ImportError:
-    pass
 
 # Pelix
 from pelix.utilities import is_string

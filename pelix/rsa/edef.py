@@ -30,20 +30,10 @@ specifications, section 122.8.
 import logging
 import sys
 import xml.etree.ElementTree as ElementTree
+from io import StringIO
+# pylint: disable=W0611
+from typing import Iterable, List, Tuple, Any, Union
 
-try:
-    # Python 2
-    from StringIO import StringIO
-except ImportError:
-    # Python 3
-    from io import StringIO
-
-# Typing
-try:
-    # pylint: disable=W0611
-    from typing import Iterable, List, Tuple, Any, Union
-except ImportError:
-    pass
 
 # Pelix
 from pelix.rsa.endpointdescription import EndpointDescription

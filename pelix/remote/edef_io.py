@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Pelix remote services: EDEF file handler
@@ -30,13 +30,7 @@ specifications, section 122.8.
 
 # Standard library
 import xml.etree.ElementTree as ElementTree
-
-try:
-    # Python 2
-    from StringIO import StringIO
-except ImportError:
-    # Python 3
-    from io import StringIO
+from io import StringIO
 
 # Pelix
 import pelix.constants

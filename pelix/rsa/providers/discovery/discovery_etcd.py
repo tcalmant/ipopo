@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 
@@ -31,12 +31,9 @@ import logging
 import json
 import socket
 import time
+# pylint: disable=W0611
+from typing import List
 
-try:
-    # pylint: disable=W0611
-    from typing import List
-except ImportError:
-    pass
 
 import etcd
 

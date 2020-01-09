@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the RSA Py4J provider, using the tutorial
@@ -6,16 +6,10 @@ Tests the RSA Py4J provider, using the tutorial
 :author: Thomas Calmant
 """
 
-# The Py4J provider doesn't work on Python 2
-import sys
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+# Test
+import unittest
 
-if sys.version_info[0] < 3:
-    raise unittest.SkipTest("The Py4J provider requires Python 3.")
 
 # Standard library
 from contextlib import contextmanager

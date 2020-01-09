@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 Greeting service consumer
@@ -23,9 +23,6 @@ Greeting service consumer
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
-# Python 2 compatibility
-from __future__ import print_function
 
 # Standard library
 import threading

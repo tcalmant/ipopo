@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Service registry and event dispatcher for Pelix.
@@ -29,13 +29,8 @@ Service registry and event dispatcher for Pelix.
 import bisect
 import logging
 import threading
-
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Dict, List, Optional, Set, Tuple, Union
-except ImportError:
-    pass
+# pylint: disable=W0611
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 # Pelix beans
 from pelix.constants import (
@@ -53,7 +48,6 @@ from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 from pelix.internals.events import ServiceEvent
 
 # Pelix utility modules
-from pelix.utilities import is_string
 import pelix.ldapfilter as ldapfilter
 
 # Event hooks
@@ -1224,7 +1218,7 @@ class ServiceRegistry(object):
             if hasattr(clazz, "__name__"):
                 # Escape the type name
                 clazz = ldapfilter.escape_LDAP(clazz.__name__)
-            elif is_string(clazz):
+            elif isinstance(clazz, str):
                 # Escape the class name
                 clazz = ldapfilter.escape_LDAP(clazz)
 

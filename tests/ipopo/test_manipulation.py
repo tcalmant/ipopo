@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the iPOPO class manipulation.
@@ -16,10 +16,7 @@ from pelix.framework import FrameworkFactory
 import pelix.ipopo.decorators as decorators
 
 # Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # ------------------------------------------------------------------------------
 

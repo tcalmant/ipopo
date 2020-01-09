@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Pelix Utilities: Cached thread pool
@@ -28,15 +28,8 @@ Pelix Utilities: Cached thread pool
 # Standard library
 import logging
 import threading
+import queue
 
-try:
-    # Python 3
-    # pylint: disable=F0401
-    import queue
-except ImportError:
-    # Python 2
-    # pylint: disable=F0401
-    import Queue as queue
 
 # Pelix
 import pelix.utilities

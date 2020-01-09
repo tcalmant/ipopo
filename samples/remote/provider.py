@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 Greeting service provider
@@ -24,8 +24,6 @@ Greeting service provider
     limitations under the License.
 """
 
-# Python 2 compatibility
-from __future__ import print_function
 
 # Pelix remote services constants
 import pelix.remote

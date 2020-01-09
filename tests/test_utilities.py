@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the utility module
@@ -24,14 +24,9 @@ import pelix.utilities as utilities
 
 # Standard library
 import random
-import sys
 import threading
 import time
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # ------------------------------------------------------------------------------
 
@@ -276,20 +271,15 @@ class UtilitiesTest(unittest.TestCase):
         """
         valid = ["", "aaa", str(42)]
         invalid = [42, None, [], {}, tuple()]
-
-        if sys.version_info[0] >= 3:
-            # Python 3: test bytes
-            invalid.extend((b"", b"aaa"))
-        else:
-            # Python 2: test unicode
-            valid.extend((unicode(""), unicode("aaa"), unicode(42)))
+        invalid.extend((b"", b"aaa"))
+        
 
         for value in valid:
-            self.assertTrue(utilities.is_string(value),
+            self.assertTrue(isinstance(value, str),
                             "'{0}' is a string".format(value))
 
         for value in invalid:
-            self.assertFalse(utilities.is_string(value),
+            self.assertFalse(isinstance(value, str),
                              "'{0}' is not a string".format(value))
 
     def testAddRemoveListener(self):

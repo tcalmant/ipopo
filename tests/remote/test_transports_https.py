@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests remote services transports based on HTTPS
@@ -30,11 +30,7 @@ import shutil
 import ssl
 import threading
 import tempfile
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 try:
     # Try to import modules
@@ -45,10 +41,8 @@ except ImportError:
     # Some interpreters don't have support for multiprocessing
     raise unittest.SkipTest("Interpreter doesn't support multiprocessing")
 
-try:
-    import queue
-except ImportError:
-    import Queue as queue
+import queue
+
 
 # Pelix
 from pelix.framework import create_framework

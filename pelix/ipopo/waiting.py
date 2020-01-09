@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 iPOPO instantiation waiting list
@@ -31,14 +31,10 @@ components.
 # Standard library
 import logging
 import threading
+# pylint: disable=W0611
+from typing import Any, Dict
+from pelix.framework import BundleContext
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Dict
-    from pelix.framework import BundleContext
-except ImportError:
-    pass
 
 # Pelix
 from pelix.constants import BundleException, BundleActivator

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the MQTT service
@@ -12,10 +12,7 @@ import shutil
 import string
 import tempfile
 import time
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # Pelix
 import pelix.framework

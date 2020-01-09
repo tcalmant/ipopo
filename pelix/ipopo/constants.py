@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Defines some iPOPO constants
@@ -27,17 +27,11 @@ Defines some iPOPO constants
 
 # Standard library
 import contextlib
+# pylint: disable=W0611
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
-
-    # Pelix
-    from pelix.framework import BundleContext, ServiceReference
-except ImportError:
-    pass
-
+# Pelix
+from pelix.framework import BundleContext, ServiceReference
 from pelix.framework import BundleException
 
 # ------------------------------------------------------------------------------

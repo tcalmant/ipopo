@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Utility methods and decorators
@@ -31,16 +31,11 @@ import contextlib
 import functools
 import inspect
 import logging
-import sys
 import threading
 import traceback
+# pylint: disable=W0611
+from typing import Any, Optional
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Optional, Union
-except ImportError:
-    pass
 
 # Pelix constants
 import pelix.constants
@@ -54,8 +49,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-# Using Python 3
-PYTHON_3 = sys.version_info[0] == 3
+
 
 # ------------------------------------------------------------------------------
 
@@ -94,62 +88,34 @@ def use_service(bundle_context, svc_reference):
 # Mimic ArgSpec from getargspec()
 ArgSpec = collections.namedtuple("ArgSpec", "args varargs keywords defaults")
 
-if hasattr(inspect, "signature"):
-    # Python 3.3+
-    def get_method_arguments(method):
-        """
-        inspect.signature()-based way to get the arguments of a method.
+def get_method_arguments(method):
+    """
+    inspect.signature()-based way to get the arguments of a method.
 
-        :param method: The method to extract the signature from
-        :return: The arguments specification, without self
-        """
-        # Use the recommended signature method
-        signature = inspect.signature(method)
+    :param method: The method to extract the signature from
+    :return: The arguments specification, without self
+    """
+    # Use the recommended signature method
+    signature = inspect.signature(method)
 
-        args = []
-        varargs = None
-        keywords = None
-        defaults = []
+    args = []
+    varargs = None
+    keywords = None
+    defaults = []
 
-        for param in signature.parameters.values():
-            kind = param.kind
-            if kind == inspect.Parameter.VAR_POSITIONAL:
-                varargs = param.name
-            elif kind == inspect.Parameter.VAR_KEYWORD:
-                keywords = param.name
-            else:
-                args.append(param.name)
-
-            if param.default is not param.empty:
-                defaults.append(param.default)
-
-        return ArgSpec(args, varargs, keywords, defaults or None)
-
-
-else:
-    import types
-
-    def get_method_arguments(method):
-        """
-        inspect.getargspec()-based way to get the position of arguments.
-
-        The self argument is removed from the result.
-
-        :param method: The method to extract the signature from
-        :return: The arguments specification, without self
-        """
-        # pylint: disable=W1505
-        arg_spec = inspect.getargspec(method)
-
-        if not isinstance(method, types.FunctionType):
-            # Filter out the "self" argument
-            args = arg_spec.args[1:]
+    for param in signature.parameters.values():
+        kind = param.kind
+        if kind == inspect.Parameter.VAR_POSITIONAL:
+            varargs = param.name
+        elif kind == inspect.Parameter.VAR_KEYWORD:
+            keywords = param.name
         else:
-            args = arg_spec.args
+            args.append(param.name)
 
-        return ArgSpec(
-            args, arg_spec.varargs, arg_spec.keywords, arg_spec.defaults
-        )
+        if param.default is not param.empty:
+            defaults.append(param.default)
+
+    return ArgSpec(args, varargs, keywords, defaults or None)
 
 
 # ------------------------------------------------------------------------------
@@ -423,126 +389,35 @@ def remove_listener(registry, listener):
 # ------------------------------------------------------------------------------
 
 
-if PYTHON_3:
-    # Python 3 interpreter : bytes & str
-    def is_bytes(string):
-        """
-        Utility method to test if the given parameter is a string
-        (Python 2.x) or a bytes (Python 3.x) object
+def to_bytes(data, encoding="UTF-8"):
+    """
+    Converts the given string to an array of bytes.
+    Returns the first parameter if it is already an array of bytes.
 
-        :param string: A potential string object
-        :return: True if the given object is a bytes string
-        """
-        # str in Python 2 is bytes in Python 3
-        return isinstance(string, bytes)
+    :param data: A unicode string
+    :param encoding: The encoding of data
+    :return: The corresponding array of bytes
+    """
+    if isinstance(data, bytes):
+        # Nothing to do
+        return data
 
-    def is_string(string):
-        """
-        Utility method to test if the given parameter is a string
-        (Python 2.x, 3.x) or a unicode (Python 2.x) object
+    return data.encode(encoding)
 
-        :param string: A potential string object
-        :return: True if the given object is a string object or a Python 2.x
-                 unicode object
-        """
-        # Python 3 only have the str string type
-        return isinstance(string, str)
+def to_str(data, encoding="UTF-8"):
+    """
+    Converts the given parameter to a string.
+    Returns the first parameter if it is already an instance of ``str``.
 
-    def to_bytes(data, encoding="UTF-8"):
-        """
-        Converts the given string to an array of bytes.
-        Returns the first parameter if it is already an array of bytes.
+    :param data: A string
+    :param encoding: The encoding of data
+    :return: The corresponding string
+    """
+    if isinstance(data, str):
+        # Nothing to do
+        return data
 
-        :param data: A unicode string
-        :param encoding: The encoding of data
-        :return: The corresponding array of bytes
-        """
-        if isinstance(data, bytes):
-            # Nothing to do
-            return data
-
-        return data.encode(encoding)
-
-    def to_str(data, encoding="UTF-8"):
-        """
-        Converts the given parameter to a string.
-        Returns the first parameter if it is already an instance of ``str``.
-
-        :param data: A string
-        :param encoding: The encoding of data
-        :return: The corresponding string
-        """
-        if isinstance(data, str):
-            # Nothing to do
-            return data
-
-        return str(data, encoding)
-
-    # Same operation
-    # pylint: disable=C0103
-    to_unicode = to_str
-
-else:
-    # Python 2 interpreter : str & unicode
-    def is_bytes(string):
-        """
-        Utility method to test if the given parameter is a string
-        (Python 2.x) or a bytes (Python 3.x) object
-
-        :param string: A potential string object
-        :return: True if the given object is a bytes string
-        """
-        # str in Python 2 is bytes in Python 3
-        return isinstance(string, str)
-
-    def is_string(string):
-        """
-        Utility method to test if the given parameter is a string
-        (Python 2.x, 3.x) or a unicode (Python 2.x) object
-
-        :param string: A potential string object
-        :return: True if the given object is a string object or a Python 2.x
-                 unicode object
-        """
-        # Python 2 also have unicode
-        # pylint: disable=E0602
-        return isinstance(string, (str, unicode))
-
-    def to_str(data, encoding="UTF-8"):
-        """
-        Converts the given parameter to a string.
-        Returns the first parameter if it is already an instance of ``str``.
-
-        :param data: A string
-        :param encoding: The encoding of data
-        :return: The corresponding string
-        """
-        if type(data) is str:
-            # Nothing to do
-            return data
-
-        return data.encode(encoding)
-
-    # Same operation
-    # pylint: disable=C0103
-    to_bytes = to_str
-
-    def to_unicode(data, encoding="UTF-8"):
-        """
-        Converts the given string to an unicode string using ``str.decode()``.
-        Returns the first parameter if it is already an instance of
-        ``unicode``.
-
-        :param data: A string
-        :param encoding: The encoding of data
-        :return: The corresponding ``unicode`` string
-        """
-        # pylint: disable=E0602
-        if type(data) is unicode:
-            # Nothing to do
-            return data
-
-        return data.decode(encoding)
+    return str(data, encoding)
 
 
 # ------------------------------------------------------------------------------

@@ -11,18 +11,9 @@ from tests import log_on, log_off
 
 import pelix.ipopo.constants as constants
 import logging
+import unittest
+import http.client as httplib
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-try:
-    # Python 3
-    import http.client as httplib
-except (ImportError, AttributeError):
-    # Python 2 or IronPython
-    import httplib
 
 # HTTP service constants
 import pelix.http as http

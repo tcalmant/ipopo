@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the MQTT client module
@@ -12,10 +12,7 @@ import sys
 import threading
 import time
 import uuid
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # Pelix
 from pelix.utilities import to_str

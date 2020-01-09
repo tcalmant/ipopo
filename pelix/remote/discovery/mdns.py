@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Pelix remote services: Zeroconf (mDNS) discovery and event notification
@@ -49,7 +49,7 @@ import pelix.constants
 # Remote services
 import pelix.remote
 import pelix.remote.beans as beans
-from pelix.utilities import is_bytes, is_string, to_str
+from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
 
@@ -172,7 +172,7 @@ class ZeroconfDiscovery(object):
         new_props = {}
 
         for key, value in props.items():
-            if is_string(value):
+            if isinstance(value, str):
                 new_props[key] = value
             else:
                 try:
@@ -204,7 +204,7 @@ class ZeroconfDiscovery(object):
         for key, value in props.items():
             key = to_str(key)
 
-            if is_bytes(value):
+            if isinstance(value, bytes):
                 # Convert value to string if necessary
                 value = to_str(value)
 
@@ -212,7 +212,7 @@ class ZeroconfDiscovery(object):
                 try:
                     new_props[key] = json.loads(value)
                 except (TypeError, ValueError):
-                    if is_string(value) and value.startswith("pelix-type:"):
+                    if isinstance(value, str) and value.startswith("pelix-type:"):
                         # Pseudo-serialized
                         value_type, value = value.split(":", 3)[2:]
                         if "." in value_type and value_type not in value:
@@ -405,12 +405,12 @@ class ZeroconfDiscovery(object):
             # Remote service
             # Get the first available configuration
             configuration = properties[pelix.remote.PROP_IMPORTED_CONFIGS]
-            if not is_string(configuration):
+            if not isinstance(configuration, str):
                 configuration = configuration[0]
 
             # Ensure we have a list of specifications
             specs = properties[pelix.constants.OBJECTCLASS]
-            if is_string(specs):
+            if isinstance(specs, str):
                 specs = [specs]
 
             try:

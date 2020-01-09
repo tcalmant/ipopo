@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the RSA discovery provider
@@ -7,16 +7,8 @@ Tests the RSA discovery provider
 """
 # Standard library
 from pelix.rsa.endpointdescription import EndpointDescription
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+import unittest
+from io import StringIO
 
 try:
     # Try to import modules
@@ -28,10 +20,8 @@ except ImportError:
     # Some interpreters don't have support for multiprocessing
     raise unittest.SkipTest("Interpreter doesn't support multiprocessing")
 
-try:
-    import queue
-except ImportError:
-    import Queue as queue
+import queue
+
 
 # Local utilities
 from tests.utilities import WrappedProcess

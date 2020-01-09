@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Tests the log service
@@ -16,11 +16,7 @@ from pelix.misc.log import LOG_DEBUG, LOG_INFO, LOG_WARNING, LOG_ERROR
 import logging
 import sys
 import time
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # ------------------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 MQTT client utility: Tries to hide Paho client details to ease MQTT usage.

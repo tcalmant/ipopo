@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 Defines the decorators associated shell completion handlers to a shell function
@@ -25,19 +25,10 @@ Defines the decorators associated shell completion handlers to a shell function
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+# pylint: disable=W0611
+from typing import List, Dict
+import readline
 
-# Add some typing
-try:
-    # pylint: disable=W0611
-    from typing import List, Dict
-except ImportError:
-    pass
-
-try:
-    # Everything here relies on readline
-    import readline
-except ImportError:
-    readline = None
 
 # ------------------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Pelix remote services: XML-RPC implementation
@@ -31,16 +31,10 @@ Based on standard package xmlrpclib
 import logging
 
 # XML RPC modules
-try:
-    # Python 3
-    # pylint: disable=F0401
-    from xmlrpc.server import SimpleXMLRPCDispatcher
-    import xmlrpc.client as xmlrpclib
-except ImportError:
-    # Python 2
-    # pylint: disable=F0401
-    from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
-    import xmlrpclib
+# pylint: disable=F0401
+from xmlrpc.server import SimpleXMLRPCDispatcher
+import xmlrpc.client as xmlrpclib
+
 
 # iPOPO decorators
 from pelix.ipopo.decorators import (

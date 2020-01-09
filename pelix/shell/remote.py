@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 iPOPO remote shell
@@ -37,21 +37,8 @@ import logging
 import threading
 import socket
 import sys
-
-try:
-    # Some Python distributions don't support SSL
-    import ssl
-except ImportError:
-    ssl = None
-
-try:
-    # Python 3
-    # pylint: disable=F0401
-    import socketserver
-except ImportError:
-    # Python 2
-    # pylint: disable=F0401
-    import SocketServer as socketserver
+import ssl
+import socketserver
 
 # iPOPO
 from pelix.ipopo.constants import use_ipopo

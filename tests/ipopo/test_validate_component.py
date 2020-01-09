@@ -8,11 +8,7 @@ Tests the component life cycle callbacks decorators
 
 # Standard library
 import itertools
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 # Tests
 from tests.ipopo import install_bundle, install_ipopo

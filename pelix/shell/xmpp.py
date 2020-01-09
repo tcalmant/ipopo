@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 XMPP shell: XMPP interface for the Pelix shell
@@ -32,13 +32,7 @@ import argparse
 import collections
 import logging
 import sys
-
-try:
-    # Python 2
-    from StringIO import StringIO
-except ImportError:
-    # Python 3
-    from io import StringIO
+from io import StringIO
 
 # SleekXMPP
 import sleekxmpp
