@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 
@@ -41,10 +41,7 @@ from pelix.ipopo.constants import (
 )
 
 # Typing
-try:
-    from typing import Any, Dict, List, Tuple, Optional, Callable
-except ImportError:
-    pass
+from typing import Any, Dict, List, Tuple, Optional, Callable
 
 from pelix.rsa import ImportRegistration
 

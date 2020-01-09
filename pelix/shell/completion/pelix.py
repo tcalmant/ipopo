@@ -26,7 +26,6 @@ Defines the shell completion handlers for Pelix concepts
     limitations under the License.
 """
 
-from __future__ import absolute_import
 import readline
 # pylint: disable=W0611
 from typing import List

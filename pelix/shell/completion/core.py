@@ -27,7 +27,6 @@ Defines the ``Completer`` class, mother of all shell completion handlers
 """
 
 # Standard library
-from __future__ import absolute_import
 import logging
 import readline
 # pylint: disable=W0611

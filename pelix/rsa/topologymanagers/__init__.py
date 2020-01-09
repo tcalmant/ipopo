@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -- Content-Encoding: UTF-8 --
 """
 
@@ -27,11 +27,8 @@ Topology Manager API
 """
 
 import logging
+from typing import Any, Dict
 
-try:
-    from typing import Any, Dict
-except ImportError:
-    pass
 
 from pelix.framework import ServiceEvent, ServiceReference, BundleContext
 from pelix.internals.hooks import EventListenerHook

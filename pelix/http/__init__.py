@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -- Content-Encoding: UTF-8 --
 """
 Pelix HTTP package.
@@ -27,12 +27,9 @@ Defines the interfaces that must respect HTTP service implementations.
     limitations under the License.
 """
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, ByteString, Dict, Iterable, IO, Tuple
-except ImportError:
-    pass
+# pylint: disable=W0611
+from typing import Any, ByteString, Dict, Iterable, IO, Tuple
+
 
 # Pelix utility methods
 from pelix.utilities import to_bytes

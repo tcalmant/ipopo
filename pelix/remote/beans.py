@@ -33,7 +33,6 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
 # Pelix
-from pelix.utilities import is_string
 import pelix.constants
 import pelix.framework
 import pelix.ldapfilter
@@ -95,7 +94,7 @@ class ExportEndpoint(object):
             self.__properties = {}
 
         # Normalize the list of configurations
-        if is_string(configurations):
+        if isinstance(configurations, str):
             self.__configurations = (configurations,)
         else:
             self.__configurations = tuple(configurations)
@@ -273,7 +272,7 @@ class ImportEndpoint(object):
         self.__properties = properties.copy() if properties else {}
 
         # Normalize list of configurations
-        if is_string(configurations):
+        if isinstance(configurations, str):
             tuple_conf = (configurations,)  # type: Tuple[str, ...]
         else:
             tuple_conf = tuple(configurations)
