@@ -117,7 +117,7 @@ Go to the pelix home directory and start the ``run_rsa_xmlrpc.py`` main program
 
 .. code-block:: console
 
-    ipopo-0.8.0$ python -m samples.run_rsa_xmlrpc
+    ipopo-1.0.0$ python -m samples.run_rsa_xmlrpc
     ** Pelix Shell prompt **
     $
 
@@ -248,7 +248,7 @@ started using the same command:
 
 .. code-block:: console
 
-   ipopo-0.8.0$ python -m samples.run_rsa_xmlrpc
+   ipopo-1.0.0$ python -m samples.run_rsa_xmlrpc
    ** Pelix Shell prompt **
    $
 
