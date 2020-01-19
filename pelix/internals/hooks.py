@@ -25,7 +25,10 @@ EventListenerHook for Pelix.
     limitations under the License.
 """
 
-from collections import MutableMapping, MutableSequence
+try:
+    from collections.abc import MutableMapping, MutableSequence
+except ImportError:
+    from collections import MutableMapping, MutableSequence
 
 # ------------------------------------------------------------------------------
 
