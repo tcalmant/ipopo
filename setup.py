@@ -56,6 +56,7 @@ setup(
     name="iPOPO",
     version=__version__,
     license="Apache License 2.0",
+    license_file="LICENSE",
     description="A service-oriented component model framework",
     long_description=read("README.rst"),
     author="Thomas Calmant",
