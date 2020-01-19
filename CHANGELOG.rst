@@ -1,6 +1,26 @@
 Release notes
 #############
 
+iPOPO 1.0.0
+***********
+
+Project
+=======
+
+* The Pelix/iPOPO is now split in two branches: iPOPO (``v1`` branch) and
+  ipopo2 (``v2`` branch). The ``v2`` branch requires Python 3.7+, whereas ``v1``
+  will keep compatibility with Python 2.7.
+
+Pelix
+=====
+
+* Fixed an error when starting the framework after having loaded native modules,
+  *e.g.* ``numpy``. These modules don't have a ``__path__`` set, which case was
+  not handled when the framework normalizes the existing module paths.
+* Fixed an invalid import of ``collections`` abstract classes for Python 3.3+
+  in ``pelix.internal.hooks``.
+
+
 iPOPO 0.8.1
 ***********
 
