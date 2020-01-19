@@ -3,12 +3,17 @@
 """
 Tests using the RSA EndpointEventListener callback service
 
-@author: slewis
+:author: slewis
 """
+
+from threading import RLock
+
 from pelix.ipopo.decorators import ComponentFactory, Provides
 from pelix.rsa.providers.discovery import SERVICE_ENDPOINT_LISTENER,\
     EndpointEventListener
-from threading import RLock
+
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 
 @ComponentFactory("etcd-test-endpoint-event-listener-factory")

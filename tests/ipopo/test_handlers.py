@@ -6,13 +6,6 @@ Tests iPOPO handlers, using the sample logger handler
 :author: Thomas Calmant
 """
 
-# Tests
-from tests.ipopo import install_bundle, install_ipopo
-
-# Pelix
-from pelix.framework import FrameworkFactory
-import pelix.ipopo.handlers.constants as constants
-
 # Standard library
 import sys
 try:
@@ -20,9 +13,17 @@ try:
 except ImportError:
     import unittest
 
+# Pelix
+from pelix.framework import FrameworkFactory
+import pelix.ipopo.handlers.constants as constants
+
+# Tests
+from tests.ipopo import install_bundle, install_ipopo
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # Handler bundle name
 HANDLER_BUNDLE_NAME = "samples.handler.logger"

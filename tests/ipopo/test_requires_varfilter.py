@@ -6,15 +6,6 @@ Tests the iPOPO @RequiresVarFilter decorator.
 :author: Thomas Calmant
 """
 
-# Tests
-from tests.ipopo import install_bundle, install_ipopo
-from tests.interfaces import IEchoService
-
-# Pelix
-from pelix.ipopo.constants import IPopoEvent
-from pelix.ipopo.decorators import get_factory_context, RequiresVarFilter
-from pelix.framework import FrameworkFactory, BundleContext
-
 # Standard library
 import random
 import string
@@ -23,9 +14,19 @@ try:
 except ImportError:
     import unittest
 
+# Pelix
+from pelix.ipopo.constants import IPopoEvent
+from pelix.ipopo.decorators import get_factory_context, RequiresVarFilter
+from pelix.framework import FrameworkFactory, BundleContext
+
+# Tests
+from tests.ipopo import install_bundle, install_ipopo
+from tests.interfaces import IEchoService
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 NAME_A = "componentA"
 NAME_B = "componentB"

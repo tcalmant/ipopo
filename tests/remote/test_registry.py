@@ -6,6 +6,12 @@ Tests the Remote Services Imports Registry
 :author: Thomas Calmant
 """
 
+# Standard library
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
+
 # Remote Services
 import pelix.remote
 import pelix.remote.beans as beans
@@ -14,15 +20,10 @@ import pelix.remote.beans as beans
 import pelix.constants
 import pelix.framework
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 ADDED = 1
 UPDATED = 2

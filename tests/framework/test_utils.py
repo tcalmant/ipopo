@@ -6,19 +6,20 @@ Tests the framework utility methods.
 :author: Thomas Calmant
 """
 
-# Pelix
-from pelix.framework import FrameworkFactory
-import pelix.framework as pelix
-
 # Standard library
 try:
     import unittest2 as unittest
 except ImportError:
     import unittest
 
+# Pelix
+from pelix.framework import FrameworkFactory
+import pelix.framework as pelix
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 SERVICE_BUNDLE = "tests.framework.service_bundle"
 

@@ -6,12 +6,6 @@ Tests the log service
 :author: Thomas Calmant
 """
 
-# Pelix
-import pelix.framework
-import pelix.misc
-from pelix.ipopo.constants import use_ipopo
-from pelix.misc.log import LOG_DEBUG, LOG_INFO, LOG_WARNING, LOG_ERROR
-
 # Standard library
 import logging
 import sys
@@ -22,10 +16,16 @@ try:
 except ImportError:
     import unittest
 
+# Pelix
+import pelix.framework
+import pelix.misc
+from pelix.ipopo.constants import use_ipopo
+from pelix.misc.log import LOG_DEBUG, LOG_INFO, LOG_WARNING, LOG_ERROR
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
-
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

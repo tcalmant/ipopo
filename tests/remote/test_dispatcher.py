@@ -6,14 +6,6 @@ Tests the Remote Services Exports Dispatcher
 :author: Thomas Calmant
 """
 
-# Remote Services
-import pelix.remote
-import pelix.remote.beans as beans
-
-# Pelix
-import pelix.constants
-import pelix.framework
-
 # Standard library
 import sys
 import uuid
@@ -22,9 +14,18 @@ try:
 except ImportError:
     import unittest
 
+# Remote Services
+import pelix.remote
+import pelix.remote.beans as beans
+
+# Pelix
+import pelix.constants
+import pelix.framework
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 ADDED = 1
 UPDATED = 2

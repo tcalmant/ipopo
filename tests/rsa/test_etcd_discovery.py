@@ -5,9 +5,10 @@ Tests the RSA discovery provider
 
 :author: Scott Lewis
 """
-# Standard library
-from pelix.rsa.endpointdescription import EndpointDescription
 
+# Standard library
+import json
+import threading
 try:
     import unittest2 as unittest
 except ImportError:
@@ -33,16 +34,13 @@ try:
 except ImportError:
     import Queue as queue
 
-# Local utilities
-from tests.utilities import WrappedProcess
 
-import json
-import threading
 import pelix
 from pelix.rsa import (
     SERVICE_REMOTE_SERVICE_ADMIN,
     ECF_ENDPOINT_CONTAINERID_NAMESPACE,
 )
+from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.framework import create_framework
 from pelix.ipopo.constants import use_ipopo
 
@@ -54,13 +52,18 @@ from pelix.rsa.providers.discovery import (
     EndpointEvent,
 )
 
+# Local utilities
+from tests.utilities import WrappedProcess
+
 TEST_ETCD_HOSTNAME = "localhost"
 TEST_ETCD_TOPPATH = "/etcddiscovery.tests"
 
 ENDPOINT_LISTENER_SCOPE = "({0}=*)".format(ECF_ENDPOINT_CONTAINERID_NAMESPACE)
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

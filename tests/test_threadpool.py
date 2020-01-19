@@ -8,9 +8,6 @@ Cached thread pool tests
 
 # ------------------------------------------------------------------------------
 
-# Tested module
-import pelix.threadpool as threadpool
-
 # Standard library
 import threading
 import time
@@ -20,6 +17,14 @@ try:
     import unittest2 as unittest
 except ImportError:
     import unittest
+
+# Tested module
+import pelix.threadpool as threadpool
+
+# ------------------------------------------------------------------------------
+
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

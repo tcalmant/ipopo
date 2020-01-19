@@ -7,23 +7,24 @@ handling and events.
 :author: Thomas Calmant
 """
 
-# Tests
-from tests.interfaces import IEchoService
-
-# Pelix
-from pelix.framework import FrameworkFactory, Bundle, BundleException, \
-    BundleContext, ServiceReference
-import pelix.constants
-
 # Standard library
 try:
     import unittest2 as unittest
 except ImportError:
     import unittest
 
+# Pelix
+from pelix.framework import FrameworkFactory, Bundle, BundleException, \
+    BundleContext, ServiceReference
+import pelix.constants
+
+# Tests
+from tests.interfaces import IEchoService
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

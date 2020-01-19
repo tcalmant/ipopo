@@ -13,7 +13,8 @@ from pelix.ipopo.constants import IPopoEvent
 
 # ------------------------------------------------------------------------------
 
-__version__ = (1, 0, 0)
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 BASIC_FACTORY = "basic-component-factory"
 BASIC_INSTANCE = "basic-component-copy"

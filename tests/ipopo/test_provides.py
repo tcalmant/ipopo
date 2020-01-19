@@ -6,13 +6,6 @@ Tests the iPOPO @Provides decorator.
 :author: Thomas Calmant
 """
 
-# Tests
-from tests.interfaces import IEchoService
-from tests.ipopo import install_bundle, install_ipopo
-
-# Pelix
-from pelix.framework import FrameworkFactory, BundleContext
-
 # Standard library
 import sys
 try:
@@ -20,9 +13,17 @@ try:
 except ImportError:
     import unittest
 
+# Pelix
+from pelix.framework import FrameworkFactory, BundleContext
+
+# Tests
+from tests.interfaces import IEchoService
+from tests.ipopo import install_bundle, install_ipopo
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 NAME_A = "componentA"
 

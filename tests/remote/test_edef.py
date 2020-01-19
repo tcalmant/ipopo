@@ -6,6 +6,12 @@ Tests the Remote Services EDEF I/O operations
 :author: Thomas Calmant
 """
 
+# Standard library
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
+
 # Remote Services
 from pelix.remote.edef_io import EDEFReader, EDEFWriter
 import pelix.remote.beans as beans
@@ -15,15 +21,10 @@ import pelix.constants
 import pelix.framework
 import pelix.remote
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

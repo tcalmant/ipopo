@@ -22,7 +22,6 @@ from contextlib import contextmanager
 from urllib.request import urlopen
 import io
 import os
-import shutil
 import subprocess
 import tarfile
 import time
@@ -34,8 +33,11 @@ from pelix.framework import create_framework
 # ------------------------------------------------------------------------------
 
 KARAF_URL = (
-    "http://apache.mediamirrors.org/karaf/4.2.0/apache-karaf-4.2.0.tar.gz"
+    "http://apache.mediamirrors.org/karaf/4.2.7/apache-karaf-4.2.7.tar.gz"
 )
+
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

@@ -6,6 +6,12 @@ Tests the RSA EDEF I/O operations
 :author: Thomas Calmant
 """
 
+# Standard library
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
+
 # Remote Services
 from pelix.rsa.edef import EDEFReader, EDEFWriter
 from pelix.rsa.endpointdescription import EndpointDescription
@@ -14,15 +20,10 @@ from pelix.rsa.endpointdescription import EndpointDescription
 import pelix.constants
 import pelix.framework
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

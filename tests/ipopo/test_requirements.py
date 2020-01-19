@@ -6,10 +6,11 @@ Tests the component requirements behavior
 :author: Thomas Calmant
 """
 
-# Tests
-from tests import log_on, log_off
-from tests.interfaces import IEchoService
-from tests.ipopo import install_bundle, install_ipopo
+# Standard library
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
 
 # Pelix
 from pelix.framework import FrameworkFactory, Bundle
@@ -18,15 +19,15 @@ from pelix.framework import FrameworkFactory, Bundle
 from pelix.ipopo.constants import IPopoEvent
 import pelix.ipopo.constants as constants
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+# Tests
+from tests import log_on, log_off
+from tests.interfaces import IEchoService
+from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 NAME_A = "componentA"
 NAME_B = "componentB"

@@ -6,11 +6,6 @@ Tests for the ConfigurationAdmin tests
 :author: Thomas Calmant
 """
 
-# Pelix
-import pelix.framework
-import pelix.services as services
-from pelix.utilities import use_service
-
 # Standard library
 import json
 import os
@@ -22,9 +17,15 @@ try:
 except ImportError:
     import unittest
 
+# Pelix
+import pelix.framework
+import pelix.services as services
+from pelix.utilities import use_service
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"

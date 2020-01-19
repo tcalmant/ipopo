@@ -6,12 +6,6 @@ Tests the log shell commands
 :author: Thomas Calmant
 """
 
-# Pelix
-import pelix.framework
-import pelix.misc
-import pelix.shell
-import pelix.shell.beans as beans
-
 # Standard library
 import logging
 try:
@@ -24,9 +18,16 @@ try:
 except ImportError:
     import unittest
 
+# Pelix
+import pelix.framework
+import pelix.misc
+import pelix.shell
+import pelix.shell.beans as beans
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

@@ -6,9 +6,6 @@ LDAP filter parser tests
 :author: Thomas Calmant
 """
 
-from pelix.ldapfilter import get_ldap_filter
-import pelix.ldapfilter
-
 import inspect
 
 try:
@@ -16,9 +13,13 @@ try:
 except ImportError:
     import unittest
 
+from pelix.ldapfilter import get_ldap_filter
+import pelix.ldapfilter
+
 # ------------------------------------------------------------------------------
 
-__version__ = (1, 0, 0)
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"

@@ -6,13 +6,6 @@ Tests the iPOPO @HiddenProperty decorator.
 :author: Thomas Calmant
 """
 
-# Tests
-from tests.ipopo import install_bundle, install_ipopo
-
-# Pelix
-from pelix.framework import FrameworkFactory, BundleContext
-from pelix.ipopo.constants import use_ipopo
-
 # Standard library
 import random
 try:
@@ -20,9 +13,17 @@ try:
 except ImportError:
     import unittest
 
+# Pelix
+from pelix.framework import FrameworkFactory
+from pelix.ipopo.constants import use_ipopo
+
+# Tests
+from tests.ipopo import install_bundle, install_ipopo
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 NAME_A = "componentA"
 

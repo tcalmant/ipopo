@@ -6,8 +6,11 @@ Tests the behavior of iPOPO contexts classes
 :author: Thomas Calmant
 """
 
-# Tests
-from tests.ipopo import install_bundle
+# Standard library
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
 
 # Pelix
 from pelix.framework import FrameworkFactory
@@ -21,15 +24,13 @@ from pelix.ipopo.decorators import ComponentFactory, Provides, Property
 from pelix.ipopo.constants import use_ipopo
 from pelix.utilities import use_service
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+# Tests
+from tests.ipopo import install_bundle
 
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

@@ -6,12 +6,6 @@ Tests the EventAdmin MQTT bridge service
 :author: Thomas Calmant
 """
 
-# Pelix
-from pelix.ipopo.constants import use_ipopo
-import pelix.framework
-import pelix.misc.mqtt_client
-import pelix.services
-
 # Standard library
 import json
 import threading
@@ -20,12 +14,19 @@ try:
 except ImportError:
     import unittest
 
+# Pelix
+from pelix.ipopo.constants import use_ipopo
+import pelix.framework
+import pelix.misc.mqtt_client
+import pelix.services
+
 # Local utilities
 from tests.mqtt_utilities import find_mqtt_server
 
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

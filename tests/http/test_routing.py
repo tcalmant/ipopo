@@ -14,13 +14,6 @@ try:
 except ImportError:
     import unittest
 
-try:
-    # Python 3
-    import http.client as httplib
-except (ImportError, AttributeError):
-    # Python 2 or IronPython
-    import httplib
-
 # Pelix
 from pelix.framework import create_framework, FrameworkFactory
 from pelix.utilities import to_str
@@ -34,7 +27,8 @@ from tests.http.test_basic import install_ipopo, instantiate_server, \
 
 # ------------------------------------------------------------------------------
 
-__version__ = (1, 0, 0)
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080

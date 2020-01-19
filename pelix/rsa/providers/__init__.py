@@ -4,13 +4,13 @@
 Constants needed for all discovery and distribution providers
 
 :author: Scott Lewis
-:copyright: Copyright 2018, Scott Lewis
+:copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
-:version: 0.8.2
+:version: 1.0.0
 
 ..
 
-    Copyright 2018 Scott Lewis
+    Copyright 2020 Scott Lewis
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ Constants needed for all discovery and distribution providers
 """
 
 # Module version
-__version_info__ = (0, 8, 2)
+__version_info__ = (1, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

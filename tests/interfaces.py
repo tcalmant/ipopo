@@ -6,7 +6,8 @@ Simple bundle defining a class used as provided service type
 :author: Thomas Calmant
 """
 
-__version__ = (1, 0, 0)
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 
 class IEchoService:

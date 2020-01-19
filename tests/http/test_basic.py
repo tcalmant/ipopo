@@ -6,10 +6,6 @@ Pelix basic HTTP service test module.
 :author: Thomas Calmant
 """
 
-from pelix.framework import FrameworkFactory, BundleContext
-from tests import log_on, log_off
-
-import pelix.ipopo.constants as constants
 import logging
 
 try:
@@ -24,12 +20,18 @@ except (ImportError, AttributeError):
     # Python 2 or IronPython
     import httplib
 
+from pelix.framework import FrameworkFactory, BundleContext
+import pelix.ipopo.constants as constants
+
 # HTTP service constants
 import pelix.http as http
 
+from tests import log_on, log_off
+
 # ------------------------------------------------------------------------------
 
-__version__ = (1, 0, 0)
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080

@@ -6,10 +6,6 @@ Pelix basic HTTP service test module.
 :author: Thomas Calmant
 """
 
-from pelix.framework import FrameworkFactory
-from tests.http.gen_cert import make_certs
-from tests.http.test_basic import install_bundle, install_ipopo
-
 import logging
 import os
 import shutil
@@ -27,18 +23,23 @@ except (ImportError, AttributeError):
     # Python 2 or IronPython
     import httplib
 
-# HTTP service constants
-import pelix.http as http
-
 # Check if we can run the tests
 try:
     from ssl import SSLContext, create_default_context
 except ImportError:
     raise unittest.SkipTest("SSLContext not supported")
 
+# HTTP service constants
+import pelix.http as http
+
+from pelix.framework import FrameworkFactory
+from tests.http.gen_cert import make_certs
+from tests.http.test_basic import install_bundle, install_ipopo
+
 # ------------------------------------------------------------------------------
 
-__version__ = (1, 0, 0)
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 8043

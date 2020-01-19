@@ -5,6 +5,7 @@ Bundle defining multiple component factories for iPOPO tests
 
 :author: Thomas Calmant
 """
+
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
     Requires, Validate, Invalidate, Unbind, Bind, BindField, \
     UnbindField, Update, UpdateField
@@ -13,7 +14,8 @@ from pelix.constants import OBJECTCLASS
 
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 SVC_A = "service.a"
 SVC_B = "service.b"

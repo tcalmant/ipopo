@@ -6,12 +6,6 @@ Tests the EventAdmin printer
 :author: Thomas Calmant
 """
 
-# Pelix
-from pelix.ipopo.constants import use_ipopo
-import pelix.framework
-import pelix.misc
-import pelix.services
-
 # Standard library
 import logging
 
@@ -25,9 +19,16 @@ try:
 except ImportError:
     import unittest
 
+# Pelix
+from pelix.ipopo.constants import use_ipopo
+import pelix.framework
+import pelix.misc
+import pelix.services
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

@@ -6,16 +6,6 @@ Tests the Remote Services Exports Dispatcher
 :author: Thomas Calmant
 """
 
-# Remote Services
-from pelix.ipopo.constants import use_ipopo
-import pelix.remote
-import pelix.remote.beans as beans
-
-# Pelix
-from pelix.utilities import to_str
-import pelix.constants
-import pelix.framework
-
 # Standard library
 import json
 import sys
@@ -36,9 +26,20 @@ try:
 except ImportError:
     import unittest
 
+# Remote Services
+from pelix.ipopo.constants import use_ipopo
+import pelix.remote
+import pelix.remote.beans as beans
+
+# Pelix
+from pelix.utilities import to_str
+import pelix.constants
+import pelix.framework
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

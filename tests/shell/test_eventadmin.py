@@ -6,12 +6,6 @@ Tests the EventAdmin shell commands
 :author: Thomas Calmant
 """
 
-# Pelix
-from pelix.ipopo.constants import use_ipopo
-import pelix.framework
-import pelix.services
-import pelix.shell
-
 # Standard library
 import threading
 try:
@@ -19,9 +13,16 @@ try:
 except ImportError:
     import unittest
 
+# Pelix
+from pelix.ipopo.constants import use_ipopo
+import pelix.framework
+import pelix.services
+import pelix.shell
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

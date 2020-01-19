@@ -7,20 +7,13 @@ Tests the utility module
 """
 
 # Same version as the tested bundle
-__version__ = (0, 5, 6)
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
-
-# Tests
-from tests.interfaces import IEchoService
-
-# Pelix
-import pelix.constants
-import pelix.framework
-import pelix.utilities as utilities
 
 # Standard library
 import random
@@ -32,6 +25,14 @@ try:
     import unittest2 as unittest
 except ImportError:
     import unittest
+
+# Pelix
+import pelix.constants
+import pelix.framework
+import pelix.utilities as utilities
+
+# Tests
+from tests.interfaces import IEchoService
 
 # ------------------------------------------------------------------------------
 
@@ -234,7 +235,6 @@ class UtilitiesTest(unittest.TestCase):
         try:
             # Must not raise an exception
             utilities.remove_all_occurrences(None, 12)
-
         except:
             self.fail("remove_all_occurrences(None) must not raise an "
                       "exception")

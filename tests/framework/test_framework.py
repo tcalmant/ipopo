@@ -7,13 +7,6 @@ handling and events.
 :author: Thomas Calmant
 """
 
-# Tests
-from tests import log_on, log_off
-
-# Pelix
-from pelix.framework import FrameworkFactory, Bundle, BundleException, \
-    BundleContext
-
 # Standard library
 import os
 import sys
@@ -25,9 +18,17 @@ try:
 except ImportError:
     import unittest
 
+# Pelix
+from pelix.framework import FrameworkFactory, Bundle, BundleException, \
+    BundleContext
+
+# Tests
+from tests import log_on, log_off
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 SIMPLE_BUNDLE = "tests.framework.simple_bundle"
 

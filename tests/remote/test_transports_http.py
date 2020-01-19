@@ -4,12 +4,12 @@
 Tests remote services transports based on HTTP
 
 :author: Thomas Calmant
-:copyright: Copyright 2018, Thomas Calmant
+:copyright: Copyright 2020, Thomas Calmant
 :license: Apache License 2.0
 
 ..
 
-    Copyright 2018 Thomas Calmant
+    Copyright 2020 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -23,12 +23,6 @@ Tests remote services transports based on HTTP
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
-# Pelix
-from pelix.framework import create_framework, FrameworkFactory
-from pelix.ipopo.constants import use_ipopo
-import pelix.http
-import pelix.remote
 
 # Standard library
 import time
@@ -53,10 +47,19 @@ try:
 except ImportError:
     import Queue as queue
 
+# Pelix
+from pelix.framework import create_framework, FrameworkFactory
+from pelix.ipopo.constants import use_ipopo
+import pelix.http
+import pelix.remote
+
 # Local utilities
 from tests.utilities import WrappedProcess
 
 # ------------------------------------------------------------------------------
+
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"

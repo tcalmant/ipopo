@@ -8,7 +8,7 @@ Bundle to check the loading order when instantiating with iPOPO
 
 # Pelix
 from pelix.constants import BundleActivator
-from pelix.framework import BundleContext, BundleEvent
+from pelix.framework import BundleEvent
 
 # iPOPO
 from pelix.ipopo.decorators import ComponentFactory, Validate, Invalidate, \
@@ -17,7 +17,8 @@ from pelix.ipopo.constants import IPopoEvent
 
 # ------------------------------------------------------------------------------
 
-__version__ = (1, 0, 0)
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 BASIC_INSTANCE = "boot-component"
 

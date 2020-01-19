@@ -6,10 +6,11 @@ Tests the iPOPO core service.
 :author: Thomas Calmant
 """
 
-# Tests
-from tests import log_on, log_off
-from tests.ipopo import install_bundle, install_ipopo
-from tests.ipopo.ipopo_bundle import BASIC_INSTANCE
+# Standard library
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
 
 # Pelix
 from pelix.framework import FrameworkFactory
@@ -18,15 +19,15 @@ from pelix.framework import FrameworkFactory
 from pelix.ipopo.constants import IPopoEvent
 import pelix.ipopo.decorators as decorators
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+# Tests
+from tests import log_on, log_off
+from tests.ipopo import install_bundle, install_ipopo
+from tests.ipopo.ipopo_bundle import BASIC_INSTANCE
 
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

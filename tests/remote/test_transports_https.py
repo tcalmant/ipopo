@@ -4,12 +4,12 @@
 Tests remote services transports based on HTTPS
 
 :author: Thomas Calmant
-:copyright: Copyright 2018, Thomas Calmant
+:copyright: Copyright 2020, Thomas Calmant
 :license: Apache License 2.0
 
 ..
 
-    Copyright 2018 Thomas Calmant
+    Copyright 2020 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -64,6 +64,9 @@ from tests.remote.test_transports_http import RemoteService, SVC_SPEC, \
     HttpTransportsTest
 
 # ------------------------------------------------------------------------------
+
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"

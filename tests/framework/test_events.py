@@ -6,24 +6,25 @@ Tests the framework events.
 :author: Thomas Calmant
 """
 
-# Tests
-from tests import log_on, log_off
-from tests.interfaces import IEchoService
-
-# Pelix
-from pelix.framework import FrameworkFactory, Bundle, BundleException, \
-    BundleContext, BundleEvent, ServiceEvent
-from pelix.services import SERVICE_EVENT_LISTENER_HOOK
-
 # Standard library
 try:
     import unittest2 as unittest
 except ImportError:
     import unittest
 
+# Pelix
+from pelix.framework import FrameworkFactory, Bundle, BundleException, \
+    BundleContext, BundleEvent, ServiceEvent
+from pelix.services import SERVICE_EVENT_LISTENER_HOOK
+
+# Tests
+from tests import log_on, log_off
+from tests.interfaces import IEchoService
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 SERVICE_BUNDLE = "tests.framework.service_bundle"
 SIMPLE_BUNDLE = "tests.framework.simple_bundle"

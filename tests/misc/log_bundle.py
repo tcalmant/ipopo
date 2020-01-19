@@ -14,7 +14,8 @@ from pelix.misc import LOG_SERVICE
 
 # ------------------------------------------------------------------------------
 
-__version__ = (1, 0, 0)
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 SIMPLE_FACTORY = "log.test.simple"
 
@@ -43,4 +44,3 @@ class LoggerComponent(object):
         Removes __name__ from globals
         """
         del globals()['__name__']
-

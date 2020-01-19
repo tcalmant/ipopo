@@ -9,12 +9,12 @@ For example, this can be useful to handle an event very early and to hide it
 from some listeners to avoid a double-action.
 
 :author: Scott Lewis
-:copyright: Copyright 2018, Scott Lewis
+:copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
 
 ..
 
-    Copyright 2018 Scott Lewis
+    Copyright 2020 Scott Lewis
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (0, 8, 2)
+__version_info__ = (1, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

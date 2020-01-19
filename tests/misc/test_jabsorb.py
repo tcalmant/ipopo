@@ -6,9 +6,6 @@ Tests the Jabsorb conversion module
 :author: Thomas Calmant
 """
 
-# Pelix
-import pelix.misc.jabsorb as jabsorb
-
 # Standard library
 import uuid
 try:
@@ -16,9 +13,13 @@ try:
 except ImportError:
     import unittest
 
+# Pelix
+import pelix.misc.jabsorb as jabsorb
+
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 

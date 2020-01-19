@@ -12,14 +12,8 @@ try:
 except ImportError:
     import unittest
 
-try:
-    from typing import List
-except ImportError:
-    pass
-
 # Pelix
 from pelix.ipopo.constants import use_ipopo
-import pelix.constants
 import pelix.framework
 
 # Remote Services
@@ -27,7 +21,8 @@ import pelix.rsa.remoteserviceadmin as rsa
 
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
 
@@ -43,25 +38,29 @@ class TopologyManagerTest(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(
-            ["pelix.ipopo.core", "pelix.http.basic",
-             "pelix.rsa.remoteserviceadmin",
-             "pelix.rsa.providers.distribution.xmlrpc"],
-            {"ecf.xmlrpc.server.hostname": "localhost"})
+            [
+                "pelix.ipopo.core",
+                "pelix.http.basic",
+                "pelix.rsa.remoteserviceadmin",
+                "pelix.rsa.providers.distribution.xmlrpc",
+            ],
+            {"ecf.xmlrpc.server.hostname": "localhost"},
+        )
         self.framework.start()
 
         # Get the RSA service
         context = self.framework.get_bundle_context()
         self.rsa = context.get_service(
-            context.get_service_reference(
-                rsa.SERVICE_REMOTE_SERVICE_ADMIN))  # type: rsa.RemoteServiceAdminImpl
+            context.get_service_reference(rsa.SERVICE_REMOTE_SERVICE_ADMIN)
+        )  # type: rsa.RemoteServiceAdminImpl
 
         # Start an HTTP server, required by XML-RPC
         with use_ipopo(context) as ipopo:
             ipopo.instantiate(
-                'pelix.http.service.basic.factory',
-                'http-server',
-                {'pelix.http.address': 'localhost',
-                 'pelix.http.port': 0})
+                "pelix.http.service.basic.factory",
+                "http-server",
+                {"pelix.http.address": "localhost", "pelix.http.port": 0},
+            )
 
     def tearDown(self):
         """
@@ -81,11 +80,12 @@ class TopologyManagerTest(unittest.TestCase):
         spec = "test.svc"
         svc = object()
         svc_reg = context.register_service(
-            spec, svc,
+            spec,
+            svc,
             {
-                rsa.SERVICE_EXPORTED_INTERFACES: '*',
-                rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"
-            }
+                rsa.SERVICE_EXPORTED_INTERFACES: "*",
+                rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server",
+            },
         )
         svc_ref = svc_reg.get_reference()
 

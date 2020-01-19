@@ -6,6 +6,14 @@ Tests the Remote Services abstract transport classes
 :author: Thomas Calmant
 """
 
+# Standard library
+import sys
+import uuid
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
+
 # Remote Services
 from pelix.remote import RemoteServiceError
 from pelix.remote.beans import ImportEndpoint
@@ -18,17 +26,10 @@ from pelix.ipopo.decorators import ComponentFactory, Provides, Property
 import pelix.constants
 import pelix.framework
 
-# Standard library
-import sys
-import uuid
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
 # ------------------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
 
 # Test factories
 TEST_EXPORTER_FACTORY = "test-endpoint-exporter-factory"
