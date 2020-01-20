@@ -44,8 +44,10 @@ except ImportError:
     # Some interpreters don't have support for multiprocessing
     raise unittest.SkipTest("Interpreter doesn't support multiprocessing")
 
-import queue
-
+try:
+    import queue
+except ImportError:
+    import Queue as queue
 
 # Local utilities
 from tests.utilities import WrappedProcess
