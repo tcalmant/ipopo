@@ -32,9 +32,11 @@ import collections
 import importlib
 import inspect
 import logging
+from concurrent.futures import Future
 import os
 import sys
-import threading
+import asyncio
+#import threading
 import uuid
 # pylint: disable=W0611
 from typing import Any, List, Optional, Set, Union
@@ -158,6 +160,7 @@ class Bundle(object):
         "_state",
         "__registered_services",
         "__registration_lock",
+        "__loop"
     )
 
     UNINSTALLED = 1
@@ -188,8 +191,10 @@ class Bundle(object):
         :param name: The bundle symbolic name
         :param module_: The bundle module
         """
-        # A re-entrant lock for synchronization
-        self._lock = threading.RLock()
+        # Main Thread EventLoop
+        self.__loop = asyncio.get_event_loop()
+        # A lock for synchronization
+        self._lock = asyncio.Lock()
 
         # Bundle
         self.__context = BundleContext(framework, self)
@@ -202,7 +207,7 @@ class Bundle(object):
 
         # Registered services
         self.__registered_services = set()  # type: Set[ServiceRegistration]
-        self.__registration_lock = threading.Lock()
+        self.__registration_lock = asyncio.Lock()
 
     def __str__(self):
         """
@@ -210,7 +215,7 @@ class Bundle(object):
         """
         return "Bundle(ID={0}, Name={1})".format(self.__id, self.__name)
 
-    def __get_activator_method(self, method_name):
+    async def __get_activator_method(self, method_name):
         """
         Retrieves the requested method of the activator, or returns None
 
@@ -232,7 +237,7 @@ class Bundle(object):
                 )
         return getattr(activator, method_name, None)
 
-    def _fire_bundle_event(self, kind):
+    async def _fire_bundle_event(self, kind):
         # type: (int) -> None
         """
         Fires a bundle event of the given kind
@@ -241,7 +246,7 @@ class Bundle(object):
         """
         self.__framework._dispatcher.fire_bundle_event(BundleEvent(kind, self))
 
-    def _registered_service(self, registration):
+    async def _registered_service(self, registration):
         # type: (ServiceRegistration) -> None
         """
         Bundle is notified by the framework that a service has been registered
@@ -249,10 +254,10 @@ class Bundle(object):
 
         :param registration: The service registration object
         """
-        with self.__registration_lock:
+        async with self.__registration_lock:
             self.__registered_services.add(registration)
 
-    def _unregistered_service(self, registration):
+    async def _unregistered_service(self, registration):
         # type: (ServiceRegistration) -> None
         """
         Bundle is notified by the framework that a service has been
@@ -260,7 +265,7 @@ class Bundle(object):
 
         :param registration: The service registration object
         """
-        with self.__registration_lock:
+        async with self.__registration_lock:
             self.__registered_services.discard(registration)
 
     def get_bundle_context(self):
@@ -388,13 +393,37 @@ class Bundle(object):
         :raise BundleException: The framework is not yet started or the bundle
                                 activator failed.
         """
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_start(),
+             self.__loop)
+            try:
+                # Waiting for the end of the coroutine
+                result = future.result()
+            except BundleException:
+                raise BundleException
+        else:
+            try:
+                self.__loop.run_until_complete(self.async_start())
+            except BundleException:
+                raise BundleException
+
+    async def async_start(self):
+        """
+        Async Starts the bundle. Does nothing if the bundle
+        is already starting or active.
+
+        :raise BundleException: The framework is not yet started or the bundle
+                                activator failed.
+        """
         if self.__framework._state not in (Bundle.STARTING, Bundle.ACTIVE):
             # Framework is not running
             raise BundleException(
                 "Framework must be started before its bundles"
             )
 
-        with self._lock:
+        loop = asyncio.get_running_loop()
+        async with self._lock:
             if self._state in (Bundle.ACTIVE, Bundle.STARTING):
                 # Already started bundle, do nothing
                 return
@@ -404,10 +433,12 @@ class Bundle(object):
 
             # Starting...
             self._state = Bundle.STARTING
-            self._fire_bundle_event(BundleEvent.STARTING)
+            starting = loop.create_task(self._fire_bundle_event(BundleEvent.STARTING))
+            await starting
 
             # Call the activator, if any
-            starter = self.__get_activator_method("start")
+            activator = loop.create_task(self.__get_activator_method("start"))
+            starter = await activator
             if starter is not None:
                 try:
                     # Call the start method
@@ -433,11 +464,32 @@ class Bundle(object):
 
             # Bundle is now active
             self._state = Bundle.ACTIVE
-            self._fire_bundle_event(BundleEvent.STARTED)
+            started = loop.create_task(self._fire_bundle_event(BundleEvent.STARTED))
+            await started
 
     def stop(self):
         """
         Stops the bundle. Does nothing if the bundle is already stopped.
+
+        :raise BundleException: The bundle activator failed.
+        """
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_stop(), self.__loop)
+            try:
+                # Waiting for the end of the coroutine
+                result = future.result()
+            except BundleException:
+                raise BundleException
+        else:
+            try:
+                self.__loop.run_until_complete(self.async_stop())
+            except BundleException:
+                raise BundleException
+
+    async def async_stop(self):
+        """
+        Async Stops the bundle. Does nothing if the bundle is already stopped.
 
         :raise BundleException: The bundle activator failed.
         """
@@ -446,16 +498,19 @@ class Bundle(object):
             return
 
         exception = None
-        with self._lock:
+        loop = asyncio.get_running_loop()
+        async with self._lock:
             # Store the bundle current state
             previous_state = self._state
 
             # Stopping...
             self._state = Bundle.STOPPING
-            self._fire_bundle_event(BundleEvent.STOPPING)
+            stopping = loop.create_task(self._fire_bundle_event(BundleEvent.STOPPING))
+            await stopping
 
             # Call the activator, if any
-            stopper = self.__get_activator_method("stop")
+            activator = loop.create_task(self.__get_activator_method("stop"))
+            stopper = await activator
             if stopper is not None:
                 try:
                     # Call the start method
@@ -477,21 +532,26 @@ class Bundle(object):
                     exception = BundleException(ex)
 
             # Hide remaining services
-            self.__framework._hide_bundle_services(self)
+            hide_bundle_services = loop.create_task(self.__framework._hide_bundle_services(self))
+            await hide_bundle_services
 
             # Intermediate bundle event : activator should have cleaned up
             # everything, but some element could stay (iPOPO components, ...)
-            self._fire_bundle_event(BundleEvent.STOPPING_PRECLEAN)
+            stopping_preclean = loop.create_task(self._fire_bundle_event(BundleEvent.STOPPING_PRECLEAN))
+            await stopping_preclean
 
             # Remove remaining services (the hard way)
-            self.__unregister_services()
+            remove_services = loop.create_task(self.__unregister_services())
+            await remove_services
 
             # Cleanup service usages
-            self.__framework._unget_used_services(self)
+            clean_services = loop.create_task(self.__framework._unget_used_services(self))
+            await clean_services
 
             # Bundle is now stopped and all its services have been unregistered
             self._state = Bundle.RESOLVED
-            self._fire_bundle_event(BundleEvent.STOPPED)
+            stopped = loop.create_task(self._fire_bundle_event(BundleEvent.STOPPED))
+            await stopped
 
         # Raise the exception, if any
         # pylint: disable=E0702
@@ -499,12 +559,12 @@ class Bundle(object):
         if exception is not None:
             raise exception
 
-    def __unregister_services(self):
+    async def __unregister_services(self):
         """
         Unregisters all bundle services
         """
         # Copy the services list, as it will be modified during the process
-        with self.__registration_lock:
+        async with self.__registration_lock:
             registered_services = self.__registered_services.copy()
 
         for registration in registered_services:
@@ -517,7 +577,7 @@ class Bundle(object):
         if self.__registered_services:
             _logger.warning("Not all services have been unregistered...")
 
-        with self.__registration_lock:
+        async with self.__registration_lock:
             # Clear the list, just to be clean
             self.__registered_services.clear()
 
@@ -525,7 +585,20 @@ class Bundle(object):
         """
         Uninstalls the bundle
         """
-        with self._lock:
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_uninstall(), self.__loop)
+            # Waiting for the end of the coroutine
+            future.result()
+        else:
+            self.__loop.run_until_complete(self.async_uninstall())
+
+    async def async_uninstall(self):
+        """
+        Async Uninstalls the bundle
+        """
+        loop = asyncio.get_running_loop()
+        async with self._lock:
             if self._state == Bundle.ACTIVE:
                 self.stop()
 
@@ -533,25 +606,42 @@ class Bundle(object):
             self._state = Bundle.UNINSTALLED
 
             # Call the framework
-            self.__framework.uninstall_bundle(self)
+            uninstall = loop.create_task(self.__framework.uninstall_bundle(self))
+            await uninstall
 
     def update(self):
         """
         Updates the bundle
         """
-        with self._lock:
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_update(), self.__loop)
+            # Waiting for the end of the coroutine
+            future.result()
+        else:
+            self.__loop.run_until_complete(self.async_update())
+
+    async def async_update(self):
+        """
+        Async Updates the bundle
+        """
+        loop = asyncio.get_running_loop()
+        async with self._lock:
             # Was it active ?
             restart = self._state == Bundle.ACTIVE
 
             # Send the update event
-            self._fire_bundle_event(BundleEvent.UPDATE_BEGIN)
+            update_begin = loop.create_task(self._fire_bundle_event(BundleEvent.UPDATE_BEGIN))
+            await update_begin
 
             try:
                 # Stop the bundle
-                self.stop()
+                stop = loop.create_task(self.async_stop())
+                await stop
             except:
                 # Something wrong occurred, notify listeners
-                self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
+                update_fails = loop.create_task(self._fire_bundle_event(BundleEvent.UPDATE_FAILED))
+                await update_fails
                 raise
 
             # Change the source file age
@@ -611,14 +701,17 @@ class Bundle(object):
             if restart:
                 try:
                     # Re-start the bundle
-                    self.start()
+                    start = loop.create_task(self.async_start())
+                    await start
                 except:
                     # Something wrong occurred, notify listeners
-                    self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
+                    update_failed = loop.create_task(self._fire_bundle_event(BundleEvent.UPDATE_FAILED))
+                    await update_failed
                     raise
 
             # Bundle update finished
-            self._fire_bundle_event(BundleEvent.UPDATED)
+            updated = loop.create_task(self._fire_bundle_event(BundleEvent.UPDATED))
+            await updated
 
 
 # ------------------------------------------------------------------------------
@@ -637,6 +730,9 @@ class Framework(Bundle):
 
         :param properties: The framework properties
         """
+        # Main Thread EventLoop
+        self.__loop = asyncio.get_event_loop()
+
         # Framework bundle set up
         Bundle.__init__(
             self, self, 0, self.get_symbolic_name(), sys.modules[__name__]
@@ -659,7 +755,7 @@ class Framework(Bundle):
         self.__properties[OSGI_FRAMEWORK_UUID] = str(framework_uid)
 
         # Properties lock
-        self.__properties_lock = threading.Lock()
+        self.__properties_lock = asyncio.Lock()
 
         # Bundles (start at 1, as 0 is reserved for the framework itself)
         self.__next_bundle_id = 1
@@ -668,7 +764,7 @@ class Framework(Bundle):
         self.__bundles = {}
 
         # Bundles lock
-        self.__bundles_lock = threading.RLock()
+        self.__bundles_lock = asyncio.Lock()
 
         # Service registry
         self._registry = ServiceRegistry(self)
@@ -678,7 +774,7 @@ class Framework(Bundle):
         self._dispatcher = EventDispatcher(self._registry)
 
         # The wait_for_stop event (initially stopped)
-        self._fw_stop_event = threading.Event()
+        self._fw_stop_event = asyncio.Event()
         self._fw_stop_event.set()
 
     def add_property(self, name, value):
@@ -693,7 +789,26 @@ class Framework(Bundle):
         :param value: The value to set
         :return: True if the property was stored, else False
         """
-        with self.__properties_lock:
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_add_property(name, value), self.__loop)
+            # Waiting for the end of the coroutine
+            return future.result()
+        else:
+            return self.__loop.run_until_complete(self.async_uninstall())
+
+    async def async_add_property(self, name, value):
+        """
+        Async Adds a property to the framework **if it is not yet set**.
+
+        If the property already exists (same name), then nothing is done.
+        Properties can't be updated.
+
+        :param name: The property name
+        :param value: The value to set
+        :return: True if the property was stored, else False
+        """
+        async with self.__properties_lock:
             if name in self.__properties:
                 # Already stored property
                 return False
@@ -720,9 +835,32 @@ class Framework(Bundle):
         )
 
     def get_bundle_by_id(self, bundle_id):
-        # type: (int) -> Union[Bundle, Framework]
+         # type: (int) -> Union[Bundle, Framework]
         """
         Retrieves the bundle with the given ID
+
+        :param bundle_id: ID of an installed bundle
+        :return: The requested bundle
+        :raise BundleException: The ID is invalid
+        """
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_get_bundle_id(bundle_id), self.__loop)
+            # Waiting for the end of the coroutine
+            try:
+                return future.result()
+            except BundleException:
+                raise BundleException
+        else:
+            try:
+                return self.__loop.run_until_complete(self.async_get_bundle_id(bundle_id))
+            except BundleException:
+                raise BundleException
+
+    async def async_get_bundle_id(self, bundle_id):
+        # type: (int) -> Union[Bundle, Framework]
+        """
+        Async Retrieves the bundle with the given ID
 
         :param bundle_id: ID of an installed bundle
         :return: The requested bundle
@@ -732,7 +870,7 @@ class Framework(Bundle):
             # "System bundle"
             return self
 
-        with self.__bundles_lock:
+        async with self.__bundles_lock:
             if bundle_id not in self.__bundles:
                 raise BundleException("Invalid bundle ID {0}".format(bundle_id))
 
@@ -746,6 +884,22 @@ class Framework(Bundle):
         :param bundle_name: Name of the bundle to look for
         :return: The requested bundle, None if not found
         """
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_get_bundle_name(bundle_name), self.__loop)
+            # Waiting for the end of the coroutine
+            return future.result()
+        else:
+            return self.__loop.run_until_complete(self.async_get_bundle_name(bundle_name))
+
+    async def async_get_bundle_name(self, bundle_name):
+        # type: (str) -> Optional[Bundle]
+        """
+        Async Retrieves the bundle with the given name
+
+        :param bundle_name: Name of the bundle to look for
+        :return: The requested bundle, None if not found
+        """
         if bundle_name is None:
             # Nothing to do
             return None
@@ -754,7 +908,7 @@ class Framework(Bundle):
             # System bundle requested
             return self
 
-        with self.__bundles_lock:
+        async with self.__bundles_lock:
             for bundle in self.__bundles.values():
                 if bundle_name == bundle.get_symbolic_name():
                     # Found !
@@ -770,7 +924,21 @@ class Framework(Bundle):
 
         :return: the list of all installed bundles
         """
-        with self.__bundles_lock:
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_get_bundles(), self.__loop)
+            # Waiting for the end of the coroutine
+            return future.result()
+        else:
+            return self.__loop.run_until_complete(self.async_get_bundles())
+
+    async def async_get_bundles(self):
+        """
+        Async Returns the list of all installed bundles
+
+        :return: the list of all installed bundles
+        """
+        async with self.__bundles_lock:
             return [
                 self.__bundles[bundle_id]
                 for bundle_id in sorted(self.__bundles.keys())
@@ -781,7 +949,20 @@ class Framework(Bundle):
         """
         Retrieves a copy of the stored framework properties.
         """
-        with self.__properties_lock:
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_get_properties(), self.__loop)
+            # Waiting for the end of the coroutine
+            return future.result()
+        else:
+            return self.__loop.run_until_complete(self.async_get_properties(), self.__loop)
+
+    async def async_get_properties(self):
+        # type: () -> dict
+        """
+        Async Retrieves a copy of the stored framework properties.
+        """
+        async with self.__properties_lock:
             return self.__properties.copy()
 
     def get_property(self, name):
@@ -792,7 +973,23 @@ class Framework(Bundle):
 
         :param name: The property name
         """
-        with self.__properties_lock:
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_get_property(name), self.__loop)
+            # Waiting for the end of the coroutine
+            return future.result()
+        else:
+            return self.__loop.run_until_complete(self.async_get_property(name))
+
+    async def async_get_property(self, name):
+        # type: (str) -> object
+        """
+        Async Retrieves a framework or system property. As framework properties don't
+        change while it's running, this method don't need to be protected.
+
+        :param name: The property name
+        """
+        async with self.__properties_lock:
             return self.__properties.get(name, os.getenv(name))
 
     def get_property_keys(self):
@@ -802,7 +999,22 @@ class Framework(Bundle):
 
         :return: An array of property keys.
         """
-        with self.__properties_lock:
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_get_property_keys(), self.__loop)
+            # Waiting for the end of the coroutine
+            return future.result()
+        else:
+            return self.__loop.run_until_complete(self.async_get_property_keys(), self.__loop)
+
+    async def async_get_property_keys(self):
+        # type: () -> tuple
+        """
+        Async Returns an array of the keys in the properties of the service
+
+        :return: An array of property keys.
+        """
+        async with self.__properties_lock:
             return tuple(self.__properties.keys())
 
     def get_service(self, bundle, reference):
@@ -865,7 +1077,37 @@ class Framework(Bundle):
         :return: The installed Bundle object
         :raise BundleException: Something happened
         """
-        with self.__bundles_lock:
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_install_bundle(name, path), self.__loop)
+            try:
+                # Waiting for the end of the coroutine
+                return future.result()
+            except BundleException:
+                raise BundleException
+        else:
+            try:
+                return self.__loop.run_until_complete(self.async_install_bundle(name, path))
+            except BundleException:
+                raise BundleException
+
+    async def async_install_bundle(self, name, path=None):
+        """
+        Async Installs the bundle with the given name
+
+        *Note:* Before Pelix 0.5.0, this method returned the ID of the
+        installed bundle, instead of the Bundle object.
+
+        **WARNING:** The behavior of the loading process is subject to changes,
+        as it does not allow to safely run multiple frameworks in the same
+        Python interpreter, as they might share global module values.
+
+        :param name: A bundle name
+        :param path: Preferred path to load the module
+        :return: The installed Bundle object
+        :raise BundleException: Something happened
+        """
+        async with self.__bundles_lock:
             # A bundle can't be installed twice
             for bundle in self.__bundles.values():
                 if bundle.get_symbolic_name() == name:
@@ -930,6 +1172,32 @@ class Framework(Bundle):
                  of failed modules names
         :raise ValueError: Invalid path
         """
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_install_package(path, recursive=recursive, prefix=prefix), self.__loop)
+            try:
+                # Waiting for the end of the coroutine
+                return future.result()
+            except ValueError:
+                raise ValueError
+        else:
+            try:
+                return self.__loop.run_until_complete(self.async_install_package(path, recursive=recursive, prefix=prefix))
+            except ValueError:
+                raise ValueError
+
+    async def async_install_package(self, path, recursive=False, prefix=None):
+        # type: (str, bool, str) -> tuple
+        """
+        ASync Installs all the modules found in the given package
+
+        :param path: Path of the package (folder)
+        :param recursive: If True, install the sub-packages too
+        :param prefix: (**internal**) Prefix for all found modules
+        :return: A 2-tuple, with the list of installed bundles and the list
+                 of failed modules names
+        :raise ValueError: Invalid path
+        """
         if not path:
             raise ValueError("Empty path")
         elif not isinstance(path, str):
@@ -949,36 +1217,69 @@ class Framework(Bundle):
             """
             return recursive or not is_package
 
+        loop = asyncio.get_running_loop()
         # Set up the prefix if needed
         if prefix is None:
             prefix = os.path.basename(path)
 
         bundles = set()  # type: Set[Bundle]
         failed = set()  # type: Set[str]
+        try:
+            install = loop.create_task(self.async_install_bundle(prefix, os.path.dirname(path)))
+            # Install the package first, resolved from the parent directory
+            installed_bundles = await install
+            bundles.add(installed_bundles)
 
-        with self.__bundles_lock:
-            try:
-                # Install the package first, resolved from the parent directory
-                bundles.add(self.install_bundle(prefix, os.path.dirname(path)))
+            # Visit the package
+            visiting = loop.create_task(self.async_install_visiting(path, visitor, prefix=prefix))
+            visited, sub_failed = await visiting
 
-                # Visit the package
-                visited, sub_failed = self.install_visiting(
-                    path, visitor, prefix
-                )
+            # Update the sets
+            bundles.update(visited)
+            failed.update(sub_failed)
 
-                # Update the sets
-                bundles.update(visited)
-                failed.update(sub_failed)
-            except BundleException as ex:
-                # Error loading the module
-                _logger.warning("Error loading package %s: %s", prefix, ex)
-                failed.add(prefix)
+        except BundleException as ex:
+             # Error loading the module
+            _logger.warning("Error loading package %s: %s", prefix, ex)
+            failed.add(prefix)
 
         return bundles, failed
 
     def install_visiting(self, path, visitor, prefix=None):
         """
         Installs all the modules found in the given path if they are accepted
+        by the visitor.
+
+        The visitor must be a callable accepting 3 parameters:
+
+           * fullname: The full name of the module
+           * is_package: If True, the module is a package
+           * module_path: The path to the module file
+
+        :param path: Root search path
+        :param visitor: The visiting callable
+        :param prefix: (**internal**) Prefix for all found modules
+        :return: A 2-tuple, with the list of installed bundles and the list
+                 of failed modules names
+        :raise ValueError: Invalid path or visitor
+        """
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_install_visiting(path, visitor, prefix=prefix), self.__loop)
+            try:
+                # Waiting for the end of the coroutine
+                return future.result()
+            except ValueError:
+                raise ValueError
+        else:
+            try:
+                return self.__loop.run_until_complete(self.async_install_visiting(path, visitor, prefix=prefix))
+            except ValueError:
+                raise ValueError
+
+    async def async_install_visiting(self, path, visitor, prefix=None):
+        """
+        Async Installs all the modules found in the given path if they are accepted
         by the visitor.
 
         The visitor must be a callable accepting 3 parameters:
@@ -1013,41 +1314,44 @@ class Framework(Bundle):
         if prefix is None:
             prefix = os.path.basename(path)
 
+        loop = asyncio.get_running_loop()
         bundles = set()
         failed = set()
 
-        with self.__bundles_lock:
-            # Walk through the folder to find modules
-            for name, is_package in walk_modules(path):
-                # Ignore '__main__' modules
-                if name == "__main__":
-                    continue
+        # Walk through the folder to find modules
+        for name, is_package in walk_modules(path):
+            # Ignore '__main__' modules
+            if name == "__main__":
+                continue
 
-                # Compute the full name of the module
-                fullname = ".".join((prefix, name)) if prefix else name
-                try:
-                    if visitor(fullname, is_package, path):
-                        if is_package:
-                            # Install the package
-                            bundles.add(self.install_bundle(fullname, path))
+            # Compute the full name of the module
+            fullname = ".".join((prefix, name)) if prefix else name
+            try:
+                if visitor(fullname, is_package, path):
+                    if is_package:
+                        # Install the package
+                        install = loop.create_task(self.async_install_bundle(fullname, path))
+                        installed_bundles = await install
+                        bundles.add(installed_bundles)
 
-                            # Visit the package
-                            sub_path = os.path.join(path, name)
-                            sub_bundles, sub_failed = self.install_visiting(
-                                sub_path, visitor, fullname
-                            )
-                            bundles.update(sub_bundles)
-                            failed.update(sub_failed)
-                        else:
-                            # Install the bundle
-                            bundles.add(self.install_bundle(fullname, path))
-                except BundleException as ex:
-                    # Error loading the module
-                    _logger.warning("Error visiting %s: %s", fullname, ex)
+                        # Visit the package
+                        sub_path = os.path.join(path, name)
+                        visiting = loop.create_task(self.async_install_visiting(sub_path, visitor, fullname))
+                        sub_bundles, sub_failed = await visiting
+                        bundles.update(sub_bundles)
+                        failed.update(sub_failed)
+                    else:
+                        # Install the bundle
+                        install = loop.create_task(self.async_install_bundle(fullname, path))
+                        installed_bundles = await install
+                        bundles.add(installed_bundles)
+            except BundleException as ex:
+                # Error loading the module
+                _logger.warning("Error visiting %s: %s", fullname, ex)
 
-                    # Try the next module
-                    failed.add(fullname)
-                    continue
+                # Try the next module
+                failed.add(fullname)
+                continue
 
         return bundles, failed
 
@@ -1064,6 +1368,63 @@ class Framework(Bundle):
         # type: (Bundle, Union[List[Any], type, str], object, dict, bool, bool, bool) -> ServiceRegistration
         """
         Registers a service and calls the listeners
+
+        :param bundle: The bundle registering the service
+        :param clazz: Name(s) of the interface(s) implemented by service
+        :param service: The service to register
+        :param properties: Service properties
+        :param send_event: If not, doesn't trigger a service registered event
+        :param factory: If True, the given service is a service factory
+        :param prototype: If True, the given service is a prototype service
+                          factory (the factory argument is considered True)
+        :return: A ServiceRegistration object
+        :raise BundleException: An error occurred while registering the service
+        """
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_register_service(
+                bundle,
+                clazz,
+                service,
+                properties,
+                send_event,
+                factory=factory,
+                prototype=prototype
+                ), self.__loop)
+
+            try:
+                # Waiting for the end of the coroutine
+                return future.result()
+            except BundleException:
+                raise BundleException
+        else:
+            try:
+                return self.__loop.run_until_complite(self.async_register_service(
+                    bundle,
+                    clazz,
+                    service,
+                    properties,
+                    send_event,
+                    factory=factory,
+                    prototype=prototype
+                    ))
+
+            except BundleException:
+                raise BundleException
+
+    async def async_register_service(
+        self,
+        bundle,
+        clazz,
+        service,
+        properties,
+        send_event,
+        factory=False,
+        prototype=False,
+    ):
+        # type: (Bundle, Union[List[Any], type, str], object, dict, bool, bool, bool) -> ServiceRegistration
+        """
+        Async Registers a service and calls the listeners
 
         :param bundle: The bundle registering the service
         :param clazz: Name(s) of the interface(s) implemented by service
@@ -1107,13 +1468,15 @@ class Framework(Bundle):
             # Class OK
             classes.append(svc_clazz)
 
+        loop = asyncio.get_running_loop()
         # Make the service registration
         registration = self._registry.register(
             bundle, classes, properties, service, factory, prototype
         )
 
         # Update the bundle registration information
-        bundle._registered_service(registration)
+        service_registration = loop.create_task(bundle._registered_service(registration))
+        await service_registration
 
         if send_event:
             # Call the listeners
@@ -1133,7 +1496,31 @@ class Framework(Bundle):
                  running
         :raise BundleException: A bundle failed to start
         """
-        with self._lock:
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_start(), self.__loop)
+            try:
+                # Waiting for the end of the coroutine
+                return future.result()
+            except BundleException:
+                raise BundleException
+        else:
+            try:
+                return self.__loop.run_until_complete(self.async_start())
+            except BundleException:
+                raise BundleException
+
+    async def async_start(self):
+        # type: () -> bool
+        """
+        Async Starts the framework
+
+        :return: True if the bundle has been started, False if it was already
+                 running
+        :raise BundleException: A bundle failed to start
+        """
+        loop = asyncio.get_running_loop()
+        async with self._lock:
             if self._state in (Bundle.STARTING, Bundle.ACTIVE):
                 # Already started framework
                 return False
@@ -1149,18 +1536,22 @@ class Framework(Bundle):
 
             # Start all registered bundles (use a copy, just in case...)
             for bundle in self.__bundles.copy().values():
+                start = loop.create_task(bundle.start())
                 try:
-                    bundle.start()
+                    await start
+
                 except FrameworkException as ex:
                     # Important error
                     _logger.exception(
                         "Important error starting bundle: %s", bundle
-                    )
+                        )
+
                     if ex.needs_stop:
                         # Stop the framework (has to be in active state)
                         self._state = Bundle.ACTIVE
                         self.stop()
                         return False
+
                 except BundleException:
                     # A bundle failed to start : just log
                     _logger.exception("Error starting bundle: %s", bundle)
@@ -1176,7 +1567,20 @@ class Framework(Bundle):
 
         :return: True if the framework stopped, False it wasn't running
         """
-        with self._lock:
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_stop(), self.__loop)
+            return future.result()
+        else:
+            return self.__loop.run_until_complete(self.async_stop())
+
+    async def async_stop(self):
+        """
+        Async Stops the framework
+
+        :return: True if the framework stopped, False it wasn't running
+        """
+        async with self._lock:
             if self._state != Bundle.ACTIVE:
                 # Invalid state
                 return False
@@ -1259,13 +1663,38 @@ class Framework(Bundle):
         :param bundle: The bundle to uninstall
         :raise BundleException: Invalid bundle
         """
+        if self.__loop.is_running():
+            try:
+                # I'm in another thread, so I'm scheduling the coroutine
+                future = asyncio.run_coroutine_threadsafe(self.async_uninstall_bundle(bundle), self.__loop)
+                # Waiting for the end of the coroutine
+                future.result()
+            except BundleException:
+                raise BundleException
+
+        else:
+            try:
+                self.__loop.run_until_complite(self.async_uninstall_bundle(bundle))
+            except BundleException:
+                raise BundleException
+
+    async def async_uninstall_bundle(self, bundle):
+        # type: (Bundle) -> None
+        """
+        Async Ends the uninstallation of the given bundle (must be called by Bundle)
+
+        :param bundle: The bundle to uninstall
+        :raise BundleException: Invalid bundle
+        """
         if bundle is None:
             # Do nothing
             return
 
-        with self.__bundles_lock:
+        loop = asyncio.get_running_loop()
+        async with self.__bundles_lock:
             # Stop the bundle first
-            bundle.stop()
+            stop = loop.create_task(bundle.async_stop())
+            await stop
 
             bundle_id = bundle.get_bundle_id()
             if bundle_id not in self.__bundles:
@@ -1326,7 +1755,7 @@ class Framework(Bundle):
         del self.__unregistering_services[reference]
         return True
 
-    def _hide_bundle_services(self, bundle):
+    async def _hide_bundle_services(self, bundle):
         # type: (Bundle) -> List[ServiceReference]
         """
         Hides the services of the given bundle in the service registry
@@ -1336,7 +1765,7 @@ class Framework(Bundle):
         """
         return self._registry.hide_bundle_services(bundle)
 
-    def _unget_used_services(self, bundle):
+    async def _unget_used_services(self, bundle):
         # type: (Bundle) -> None
         """
         Cleans up all service usages of the given bundle
@@ -1352,10 +1781,30 @@ class Framework(Bundle):
         :raise BundleException: Something wrong occurred while stopping or
                                 starting the framework.
         """
-        with self._lock:
-            if self._state == Bundle.ACTIVE:
-                self.stop()
-                self.start()
+        if self.__loop.is_running():
+            try:
+                # I'm in another thread, so I'm scheduling the coroutine
+                future = asyncio.run_coroutine_threadsafe(self.async_update(), self.__loop)
+                # Waiting for the end of the coroutine
+                future.result()
+            except BundleException:
+                raise BundleException
+        else:
+            try:
+                self.__loop.run_until_complete(self.async_update())
+            except BundleException:
+                raise BundleException
+
+    async def async_update(self):
+        """
+        Async Stops and starts the framework, if the framework is active.
+
+        :raise BundleException: Something wrong occurred while stopping or
+                                starting the framework.
+        """
+        if self._state == Bundle.ACTIVE:
+            await self.async_stop()
+            await self.async_start()
 
     def wait_for_stop(self, timeout=None):
         # type: (Optional[int]) -> bool
@@ -1363,7 +1812,26 @@ class Framework(Bundle):
         Waits for the framework to stop. Does nothing if the framework bundle
         is not in ACTIVE state.
 
-        Uses a threading.Condition object
+        Uses a Asyncio.Condition object
+
+        :param timeout: The maximum time to wait (in seconds)
+        :return: True if the framework has stopped, False if the timeout raised
+        """
+        if self.__loop.is_running():
+            # I'm in another thread, so I'm scheduling the coroutine
+            future = asyncio.run_coroutine_threadsafe(self.async_wait_for_stop(timeout=timeout), self.__loop)
+            # Waiting for the end of the coroutine
+            return future.result()
+        else:
+            self.__loop.run_until_complete(self.async_wait_for_stop(timeout=timeout))
+
+    async def async_wait_for_stop(self, timeout=None):
+        # type: (Optional[int]) -> bool
+        """
+        Async Waits for the framework to stop. Does nothing if the framework bundle
+        is not in ACTIVE state.
+
+        Uses a Asyncio.Condition object
 
         :param timeout: The maximum time to wait (in seconds)
         :return: True if the framework has stopped, False if the timeout raised
@@ -1372,9 +1840,12 @@ class Framework(Bundle):
             # Inactive framework, ignore the call
             return True
 
-        self._fw_stop_event.wait(timeout)
+        try:
+            await asyncio.wait_for(self._fw_stop_event.wait(), timeout)
+        except asyncio.TimeoutError:
+            return False
 
-        with self._lock:
+        async with self._lock:
             # If the timeout raised, we should be in another state
             return self._state == Bundle.RESOLVED
 
