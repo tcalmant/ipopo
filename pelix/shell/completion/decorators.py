@@ -81,8 +81,7 @@ class CompletionInfo:
 
     __slots__ = ("__completers", "__multiple")
 
-    def __init__(self, completers, multiple):
-        # type: (List[str], bool) -> None
+    def __init__(self, completers: List[str], multiple: bool) -> None:
         """
         :param completers: The list of completers IDs
         :param multiple: Flag indicating the repetition of the last completer
@@ -111,13 +110,12 @@ class Completion:
     Decorator that sets up the arguments completion of a shell method
     """
 
-    def __init__(self, *completers, **kwargs):
-        # type: (List[str], Dict[str, bool]) -> None
+    def __init__(self, *completers: List[str], **kwargs: Dict[str, bool]) -> None:
         """
         :param completers: A list of IDs (str) of argument completers
         :param multiple: If True, the last completer is reused multiple times
         """
-        self._completers = completers  # type: List[str]
+        self._completers: List[str] = completers
         self._multiple = kwargs.get("multiple", False)
 
     def __call__(self, method):

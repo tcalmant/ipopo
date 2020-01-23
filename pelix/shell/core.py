@@ -33,7 +33,7 @@ import os
 import sys
 import threading
 # pylint: disable=W0611
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, List, Optional
 
 
 # Pelix modules
@@ -89,7 +89,7 @@ class _ShellUtils(object):
         return states.get(state, "Unknown state ({0})".format(state))
 
     @staticmethod
-    def make_table(headers, lines, prefix=None):
+    def make_table(headers: List[Tuple], lines: List[Tuple], prefix: Optional[str] = None):
         """
         Generates an ASCII table according to the given headers and lines
 
@@ -185,8 +185,7 @@ class _ShellService(parser.Shell):
     Provides the core shell service for Pelix
     """
 
-    def __init__(self, context, utilities):
-        # type: (pelix.BundleContext, _ShellUtils) -> None
+    def __init__(self, context: pelix.BundleContext, utilities: _ShellUtils) -> None:
         """
         Sets up the shell
 
@@ -197,11 +196,10 @@ class _ShellService(parser.Shell):
         self._utils = utilities
 
         # Bound services: reference -> service
-        self._bound_references = {}  # type: Dict[pelix.ServiceReference, Any]
+        self._bound_references: Dict[pelix.ServiceReference, Any] = {}
 
         # Service reference -> (name space, [commands])
-        self._reference_commands = {}  # type: Dict[pelix.ServiceReference, Tuple[str, str]]
-
+        self._reference_commands: Dict[pelix.ServiceReference, Tuple[str, str]] = {}
         # Last working directory
         self._previous_path = None
 
@@ -232,7 +230,7 @@ class _ShellService(parser.Shell):
         self.register_command(None, "cd", self.change_dir)
         self.register_command(None, "pwd", self.print_dir)
 
-    def bind_handler(self, svc_ref):
+    def bind_handler(self, svc_ref) -> bool:
         """
         Called if a command service has been found.
         Registers the methods of this service.
@@ -261,7 +259,7 @@ class _ShellService(parser.Shell):
         self._reference_commands[svc_ref] = (namespace, commands)
         return True
 
-    def unbind_handler(self, svc_ref):
+    def unbind_handler(self, svc_ref) -> bool:
         """
         Called if a command service is gone.
         Unregisters its commands.
@@ -852,8 +850,7 @@ class _Activator(object):
         self._utils_reg = None
         self._logger = logging.getLogger(__name__)
 
-    def service_changed(self, event):
-        # type: (pelix.ServiceEvent) -> None
+    def service_changed(self, event: pelix.ServiceEvent) -> None:
         """
         Called when a command provider service event occurred
         """
@@ -867,8 +864,7 @@ class _Activator(object):
             # Service gone or not matching anymore
             self._shell.unbind_handler(reference)
 
-    def start(self, context):
-        # type: (pelix.BundleContext) -> None
+    def start(self, context: pelix.BundleContext) -> None:
         """
         Bundle starting
 
@@ -901,8 +897,7 @@ class _Activator(object):
                 "Error registering the shell service: %s", ex
             )
 
-    def stop(self, context):
-        # type: (pelix.BundleContext) -> None
+    def stop(self, context: pelix.BundleContext) -> None:
         """
         Bundle stopping
 

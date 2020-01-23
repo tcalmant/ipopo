@@ -90,7 +90,7 @@ def ipopo_state_to_str(state):
 @Requires("_utils", pelix.shell.SERVICE_SHELL_UTILS)
 @Provides(pelix.shell.SERVICE_SHELL_COMMAND)
 @Instantiate("ipopo-shell-commands")
-class IPopoCommands(object):
+class IPopoCommands:
     """
     iPOPO shell commands
     """

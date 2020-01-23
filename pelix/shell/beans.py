@@ -44,13 +44,8 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-# Before Python 3, input() was raw_input()
-if sys.version_info[0] < 3:
-    # pylint: disable=E0602,C0103
-    safe_input = raw_input
-else:
-    # pylint: disable=C0103
-    safe_input = input
+# pylint: disable=C0103
+safe_input = input
 
 RESULT_VAR_NAME = "?"
 """ Name of the result variable """
@@ -58,14 +53,13 @@ RESULT_VAR_NAME = "?"
 # ------------------------------------------------------------------------------
 
 
-class ShellSession(object):
+class ShellSession:
     """
     Represents a shell session. This is the kind of object given as parameter
     to shell commands
     """
 
-    def __init__(self, io_handler, initial_vars=None):
-        # type: (IOHandler, dict) -> None
+    def __init__(self, io_handler, initial_vars: dict = None):
         """
         Sets up the shell session
 
@@ -92,23 +86,20 @@ class ShellSession(object):
         self.prompt = io_handler.prompt
 
     @property
-    def variables(self):
-        # type: () -> dict
+    def variables(self) -> dict:
         """
         A copy of the session variables
         """
         return self.__variables.copy()
 
     @property
-    def last_result(self):
-        # type: () -> object
+    def last_result(self) -> object:
         """
         Returns the content of $result
         """
         return self.__variables[RESULT_VAR_NAME]
 
-    def get(self, name):
-        # type: (str) -> object
+    def get(self, name: str) -> object:
         """
         Returns the value of a variable
 
@@ -118,8 +109,7 @@ class ShellSession(object):
         """
         return self.__variables[name]
 
-    def set(self, name, value):
-        # type: (str, object) -> None
+    def set(self, name: str, value: object) -> None:
         """
         Sets/overrides the value of a variable
 
@@ -128,8 +118,7 @@ class ShellSession(object):
         """
         self.__variables[name] = value
 
-    def unset(self, name):
-        # type: (str) -> None
+    def unset(self, name: str) -> None:
         """
         Unsets the variable with the given name
 
@@ -142,7 +131,7 @@ class ShellSession(object):
 # ------------------------------------------------------------------------------
 
 
-class IOHandler(object):
+class IOHandler:
     """
     Handles I/O operations between the command handler and the client
     It automatically converts the given data to bytes in Python 3.
@@ -169,21 +158,18 @@ class IOHandler(object):
 
         # Standard behavior
         self.flush = self.output.flush
-        self.write = self.output.write
 
-        # Specific behavior
-        if sys.version_info[0] >= 3:
-            # In Python 3.6, the "mode" field is not available on file-like
-            # objects, but the "encoding" field seems to be present only in
-            # string compatible ones
-            if "b" in getattr(out_stream, "mode", "") or not hasattr(
-                out_stream, "encoding"
-            ):
-                # Bytes conversion
-                self.write = self._write_bytes
-            else:
-                # Strings accepted
-                self.write = self._write_str
+        # In Python 3.7, the "mode" field is not available on file-like
+        # objects, but the "encoding" field seems to be present only in
+        # string compatible ones
+        if "b" in getattr(out_stream, "mode", "") or not hasattr(
+            out_stream, "encoding"
+        ):
+            # Bytes conversion
+            self.write = self._write_bytes
+        else:
+            # Strings accepted
+            self.write = self._write_str
 
         # Very specific
         if in_stream is sys.stdin:

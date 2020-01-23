@@ -68,14 +68,14 @@ NOT = 2
 # ------------------------------------------------------------------------------
 
 
-class LDAPFilter(object):
+class LDAPFilter:
     """
     Represents an LDAP filter
     """
 
     __slots__ = ("subfilters", "operator")
 
-    def __init__(self, operator):
+    def __init__(self, operator) -> None:
         """
         Initializer
         """
@@ -85,7 +85,7 @@ class LDAPFilter(object):
         self.subfilters = []
         self.operator = operator
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """
         Equality testing
         """
@@ -110,19 +110,19 @@ class LDAPFilter(object):
         # Same content
         return True
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         """
         Inequality testing
         """
         return not self.__eq__(other)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         String description
         """
         return "{0}.get_ldap_filter({1!r})".format(__name__, self.__str__())
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         String representation
         """
@@ -131,7 +131,7 @@ class LDAPFilter(object):
             "".join(str(subfilter) for subfilter in self.subfilters),
         )
 
-    def append(self, ldap_filter):
+    def append(self, ldap_filter) -> None:
         """
         Appends a filter or a criterion to this filter
 
@@ -150,7 +150,7 @@ class LDAPFilter(object):
 
         self.subfilters.append(ldap_filter)
 
-    def matches(self, properties):
+    def matches(self, properties: dict) -> bool:
         """
         Tests if the given properties matches this LDAP filter and its children
 
@@ -203,14 +203,14 @@ class LDAPFilter(object):
         return self.subfilters[0].normalize()
 
 
-class LDAPCriteria(object):
+class LDAPCriteria:
     """
     Represents an LDAP criterion
     """
 
     __slots__ = ("name", "value", "comparator")
 
-    def __init__(self, name, value, comparator):
+    def __init__(self, name, value, comparator) -> None:
         """
         Sets up the criterion
 
@@ -234,7 +234,7 @@ class LDAPCriteria(object):
         self.value = value
         self.comparator = comparator
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """
         Equality testing
         """
@@ -254,19 +254,19 @@ class LDAPCriteria(object):
         # Convert to strings for comparison
         return str(self.value) == str(other.value)
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         """
         Inequality testing
         """
         return not self.__eq__(other)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         String representation
         """
         return "{0}.get_ldap_filter({1!r})".format(__name__, self.__str__())
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         String description
         """
@@ -276,7 +276,7 @@ class LDAPCriteria(object):
             escape_LDAP(str(self.value)),
         )
 
-    def matches(self, properties):
+    def matches(self, properties: dict) -> bool:
         """
         Tests if the given criterion matches this LDAP criterion
 
@@ -300,8 +300,7 @@ class LDAPCriteria(object):
 # ------------------------------------------------------------------------------
 
 
-def escape_LDAP(ldap_string):
-    # type: (str) -> str
+def escape_LDAP(ldap_string: str) -> str:
     # pylint: disable=C0103
     """
     Escape a string to let it go in an LDAP filter
@@ -334,8 +333,7 @@ def escape_LDAP(ldap_string):
     return ldap_string
 
 
-def unescape_LDAP(ldap_string):
-    # type: (str) -> str
+def unescape_LDAP(ldap_string: str) -> str:
     # pylint: disable=C0103
     """
     Unespaces an LDAP string
@@ -372,7 +370,7 @@ ITERABLES = (list, tuple, set, frozenset)
 """ The types that are considered iterable in comparators """
 
 
-def _comparator_presence(_, tested_value):
+def _comparator_presence(_, tested_value) -> bool:
     """
     Tests a filter which simply a joker, i.e. a value presence test
     """
@@ -388,7 +386,7 @@ def _comparator_presence(_, tested_value):
     return True
 
 
-def _comparator_star(filter_value, tested_value):
+def _comparator_star(filter_value, tested_value) -> bool:
     """
     Tests a filter containing a joker
     """
@@ -401,7 +399,7 @@ def _comparator_star(filter_value, tested_value):
     return _star_comparison(filter_value, tested_value)
 
 
-def _star_comparison(filter_value, tested_value):
+def _star_comparison(filter_value, tested_value) -> bool:
     """
     Tests a filter containing a joker
     """
@@ -444,7 +442,7 @@ def _star_comparison(filter_value, tested_value):
     return True
 
 
-def _comparator_eq(filter_value, tested_value):
+def _comparator_eq(filter_value, tested_value) -> bool:
     """
     Tests if the filter value is equal to the tested value
     """
@@ -469,7 +467,7 @@ def _comparator_eq(filter_value, tested_value):
     return False
 
 
-def _comparator_approximate(filter_value, tested_value):
+def _comparator_approximate(filter_value, tested_value) -> bool:
     """
     Tests if the filter value is nearly equal to the tested value.
 
@@ -498,7 +496,7 @@ def _comparator_approximate(filter_value, tested_value):
     )
 
 
-def _comparator_approximate_star(filter_value, tested_value):
+def _comparator_approximate_star(filter_value, tested_value) -> bool:
     """
     Tests if the filter value, which contains a joker, is nearly equal to the
     tested value.
@@ -528,7 +526,7 @@ def _comparator_approximate_star(filter_value, tested_value):
     )
 
 
-def _comparator_le(filter_value, tested_value):
+def _comparator_le(filter_value, tested_value) -> bool:
     """
     Tests if the filter value is greater than the tested value
 
@@ -539,7 +537,7 @@ def _comparator_le(filter_value, tested_value):
     )
 
 
-def _comparator_lt(filter_value, tested_value):
+def _comparator_lt(filter_value, tested_value) -> bool:
     """
     Tests if the filter value is strictly greater than the tested value
 
@@ -569,7 +567,7 @@ def _comparator_lt(filter_value, tested_value):
         return False
 
 
-def _comparator_ge(filter_value, tested_value):
+def _comparator_ge(filter_value, tested_value) -> bool:
     """
     Tests if the filter value is lesser than the tested value
 
@@ -580,7 +578,7 @@ def _comparator_ge(filter_value, tested_value):
     )
 
 
-def _comparator_gt(filter_value, tested_value):
+def _comparator_gt(filter_value, tested_value) -> bool:
     """
     Tests if the filter value is strictly lesser than the tested value
 
@@ -621,8 +619,7 @@ _COMPARATOR_SYMBOL = {
 }
 
 
-def comparator2str(comparator):
-    # type: (Callable[[Any, Any], bool]) -> str
+def comparator2str(comparator: Callable[[Any, Any], bool]) -> str:
     """
     Converts an operator method to a string
 
@@ -632,8 +629,7 @@ def comparator2str(comparator):
     return _COMPARATOR_SYMBOL.get(comparator, "??")
 
 
-def operator2str(operator):
-    # type: (int) -> str
+def operator2str(operator: int) -> str:
     """
     Converts an operator value to a string
 
@@ -652,8 +648,7 @@ def operator2str(operator):
 # ------------------------------------------------------------------------------
 
 
-def _compute_comparator(string, idx):
-    # type: (str, int) -> Optional[Callable[[Any, Any], bool]]
+def _compute_comparator(string: str, idx: int) -> Optional[Callable[[Any, Any], bool]]:
     """
     Tries to compute the LDAP comparator at the given index
 
@@ -699,8 +694,7 @@ def _compute_comparator(string, idx):
     return None
 
 
-def _compute_operation(string, idx):
-    # type: (str, int) -> Optional[int]
+def _compute_operation(string: str, idx: int) -> Optional[int]:
     """
     Tries to compute the LDAP operation at the given index
 
@@ -725,8 +719,7 @@ def _compute_operation(string, idx):
     return None
 
 
-def _skip_spaces(string, idx):
-    # type: (str, int) -> int
+def _skip_spaces(string: str, idx: int) -> int:
     """
     Retrieves the next non-space character after idx index in the given string
 
@@ -743,8 +736,7 @@ def _skip_spaces(string, idx):
     return -1
 
 
-def _parse_ldap_criteria(ldap_filter, startidx=0, endidx=-1):
-    # type: (str, int, int) -> LDAPCriteria
+def _parse_ldap_criteria(ldap_filter: str, startidx: int = 0, endidx: int = -1) -> LDAPCriteria:
     """
     Parses an LDAP sub filter (criterion)
 
@@ -826,8 +818,7 @@ def _parse_ldap_criteria(ldap_filter, startidx=0, endidx=-1):
     )
 
 
-def _parse_ldap(ldap_filter):
-    # type: (str) -> Optional[LDAPFilter]
+def _parse_ldap(ldap_filter: str) -> Optional[LDAPFilter]:
     """
     Parses the given LDAP filter string
 
@@ -924,8 +915,7 @@ def _parse_ldap(ldap_filter):
     return root.normalize()
 
 
-def get_ldap_filter(ldap_filter):
-    # type: (Any) -> Optional[Union[LDAPFilter, LDAPCriteria]]
+def get_ldap_filter(ldap_filter: Any) -> Optional[Union[LDAPFilter, LDAPCriteria]]:
     """
     Retrieves the LDAP filter object corresponding to the given filter.
     Parses it the argument if it is an LDAPFilter instance
@@ -951,8 +941,7 @@ def get_ldap_filter(ldap_filter):
     )
 
 
-def combine_filters(filters, operator=AND):
-    # type: (Iterable[Any], int) -> Optional[Union[LDAPFilter, LDAPCriteria]]
+def combine_filters(filters: Iterable[Any], operator: int = AND) -> Optional[Union[LDAPFilter, LDAPCriteria]]:
     """
     Combines two LDAP filters, which can be strings or LDAPFilter objects
 

@@ -57,7 +57,7 @@ __docformat__ = "restructuredtext en"
 @Requires("_config_admin", pelix.services.SERVICE_CONFIGURATION_ADMIN)
 @Provides(SERVICE_SHELL_COMMAND)
 @Instantiate("configadmin-shell-commands")
-class ConfigAdminCommands(object):
+class ConfigAdminCommands:
     """
     Configuration Admin shell commands
     """

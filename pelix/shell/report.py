@@ -94,16 +94,10 @@ def format_frame_info(frame):
         # Pypy keeps f_locals as an empty dictionary
         arg_info = inspect.getargvalues(frame)
         for name in arg_info.args:
-            try:
-                output_lines.append(
-                    "    - {0:s} = {1}".format(name, repr(frame.f_locals[name]))
-                )
-            except TypeError:
-                # Happens in dict/list-comprehensions in Python 2.x
-                name = name[0]
-                output_lines.append(
-                    "    - {0:s} = {1}".format(name, repr(frame.f_locals[name]))
-                )
+            output_lines.append(
+                "    - {0:s} = {1}".format(name, repr(frame.f_locals[name]))
+            )
+
 
         if arg_info.varargs:
             output_lines.append(
@@ -180,7 +174,7 @@ def _extract_lines(filename, f_globals, line_no, around):
 # ------------------------------------------------------------------------------
 
 
-class _ReportCommands(object):
+class _ReportCommands:
     """
     Registers report shell commands
     """
@@ -712,7 +706,7 @@ class _ReportCommands(object):
 
 
 @BundleActivator
-class _Activator(object):
+class _Activator:
     """
     Activator class for Pelix
     """

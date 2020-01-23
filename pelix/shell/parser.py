@@ -242,8 +242,7 @@ class Shell(object):
         space[command] = method
         return True
 
-    def get_command_completers(self, namespace, command):
-        # type: (str, str) -> CompletionInfo
+    def get_command_completers(self, namespace: str, command: str) -> CompletionInfo:
         """
         Returns the completer method associated to the given command, or None
 

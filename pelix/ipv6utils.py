@@ -29,7 +29,6 @@ IPv6 double stack utility module
 import os
 import platform
 import socket
-
 # ------------------------------------------------------------------------------
 
 # Module version
@@ -61,8 +60,7 @@ def ipproto_ipv6():
             raise
 
 
-def set_double_stack(socket_obj, double_stack=True):
-    # type: (socket.socket, bool) -> None
+def set_double_stack(socket_obj: socket.socket, double_stack: bool = True) -> None:
     """
     Sets up the IPv6 double stack according to the operating system
 

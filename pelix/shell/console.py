@@ -93,8 +93,8 @@ class InteractiveShell(object):
 
         :param context: The bundle context
         """
-        self._context = context  # type: pelix.BundleContext
-        self._shell_ref = None  # type: pelix.ServiceReference
+        self._context: pelix.BundleContext = context
+        self._shell_ref: pelix.ServiceReference = None
         self._shell = None
 
         # Single session

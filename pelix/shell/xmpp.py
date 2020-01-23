@@ -80,7 +80,7 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class _XmppOutStream(object):
+class _XmppOutStream:
     """
     File-like XMPP output. For shell IOHandler use only
     """
@@ -118,7 +118,7 @@ class _XmppOutStream(object):
             self._client.send_message(self._target, content, mtype="chat")
 
 
-class _XmppInStream(object):
+class _XmppInStream:
     """
     File-like XMPP input. For shell IOHandler use only
     """
@@ -151,7 +151,7 @@ class _XmppInStream(object):
 @HiddenProperty("_password", "shell.xmpp.password")
 @Property("_use_tls", "shell.xmpp.tls", "1")
 @Property("_use_ssl", "shell.xmpp.ssl", "0")
-class IPopoXMPPShell(object):
+class IPopoXMPPShell:
     """
     The iPOPO XMPP Shell, based on the Pelix Shell
     """

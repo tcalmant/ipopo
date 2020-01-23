@@ -55,7 +55,7 @@ __docformat__ = "restructuredtext en"
 @Requires("_events", pelix.services.SERVICE_EVENT_ADMIN)
 @Provides(SERVICE_SHELL_COMMAND)
 @Instantiate("eventadmin-shell-commands")
-class EventAdminCommands(object):
+class EventAdminCommands:
     """
     EventAdmin shell commands
     """

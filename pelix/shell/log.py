@@ -56,7 +56,7 @@ __docformat__ = "restructuredtext en"
 @Requires("_logger", LOG_SERVICE, optional=True)
 @Requires("_reader", LOG_READER_SERVICE, optional=True)
 @Instantiate("pelix-shell-log")
-class ShellLogCommand(object):
+class ShellLogCommand:
     """
     Provides shell commands to print the content of the log service
     """

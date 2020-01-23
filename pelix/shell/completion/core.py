@@ -71,9 +71,8 @@ class Completer:
             pass
 
     def complete(
-        self, config, prompt, session, context, current_arguments, current
-    ):
-        # type: (CompletionInfo, str, ShellSession, BundleContext, List[str], str) -> List[str]
+        self, config: CompletionInfo, prompt: str, session: ShellSession, context: BundleContext, current_arguments: List[str], current: str
+    ) -> List[str]:
         """
         Returns the list of bundle IDs matching the current state
 
@@ -91,8 +90,8 @@ class Completer:
 # ------------------------------------------------------------------------------
 
 
-def completion_hints(config, prompt, session, context, current, arguments):
-    # type: (CompletionInfo, str, ShellSession, BundleContext, str, List[str]) -> List[str]
+def completion_hints(config: CompletionInfo, prompt: str, session: ShellSession, context: BundleContext, current: str, arguments: List[str]
+) -> List[str]:
     """
     Returns the possible completions of the current argument
 

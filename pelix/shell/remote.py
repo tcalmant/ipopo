@@ -75,7 +75,7 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class SharedBoolean(object):
+class SharedBoolean:
     """
     Shared boolean between objects / threads
     """
@@ -423,7 +423,7 @@ def _create_server(
 @Property("_cert_file", "pelix.shell.ssl.cert", None)
 @Property("_key_file", "pelix.shell.ssl.key", None)
 @HiddenProperty("_key_password", "pelix.shell.ssl.key_password", None)
-class IPopoRemoteShell(object):
+class IPopoRemoteShell:
     """
     The iPOPO Remote Shell, based on the Pelix Shell
     """

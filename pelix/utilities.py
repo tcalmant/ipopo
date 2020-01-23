@@ -121,7 +121,7 @@ def get_method_arguments(method):
 # ------------------------------------------------------------------------------
 
 
-class Deprecated(object):
+class Deprecated:
     """
     Prints a warning when using the decorated method
     """
@@ -177,7 +177,7 @@ class Deprecated(object):
 # ------------------------------------------------------------------------------
 
 
-class Synchronized(object):
+class Synchronized:
     """
     A synchronizer for global methods
     """
@@ -452,7 +452,7 @@ def to_iterable(value, allow_none=True):
 # ------------------------------------------------------------------------------
 
 
-class EventData(object):
+class EventData:
     """
     A threading event with some associated data
     """
@@ -468,16 +468,14 @@ class EventData(object):
         self.__exception = None
 
     @property
-    def data(self):
-        # type: () -> Any
+    def data(self) -> Any:
         """
         Returns the associated value
         """
         return self.__data
 
     @property
-    def exception(self):
-        # type: () -> BaseException
+    def exception(self) -> BaseException:
         """
         Returns the exception used to stop the wait() method
         """
@@ -491,15 +489,13 @@ class EventData(object):
         self.__data = None
         self.__exception = None
 
-    def is_set(self):
-        # type: () -> bool
+    def is_set(self) -> bool:
         """
         Checks if the event is set
         """
         return self.__event.is_set()
 
-    def set(self, data=None):
-        # type: (Any) -> None
+    def set(self, data: Any = None) -> None:
         """
         Sets the event
         """
@@ -507,8 +503,7 @@ class EventData(object):
         self.__exception = None
         self.__event.set()
 
-    def raise_exception(self, exception):
-        # type: (BaseException) -> None
+    def raise_exception(self, exception: BaseException) -> None:
         """
         Raises an exception in wait()
 
@@ -518,8 +513,7 @@ class EventData(object):
         self.__exception = exception
         self.__event.set()
 
-    def wait(self, timeout=None):
-        # type: (Optional[int]) -> object
+    def wait(self, timeout: Optional[int] = None) -> object:
         """
         Waits for the event or for the timeout
 
@@ -535,14 +529,13 @@ class EventData(object):
             raise self.__exception
 
 
-class CountdownEvent(object):
+class CountdownEvent:
     """
     Sets up an Event once the internal integer reaches 0
     (kind of the opposite of a semaphore)
     """
 
-    def __init__(self, value):
-        # type: (int) -> None
+    def __init__(self, value: int) -> None:
         """
         Sets up the counter
 
@@ -557,15 +550,13 @@ class CountdownEvent(object):
         self.__value = value
         self.__event = threading.Event()
 
-    def is_set(self):
-        # type: () -> bool
+    def is_set(self) -> bool:
         """
         Checks if the event is set
         """
         return self.__event.is_set()
 
-    def step(self):
-        # type: () -> bool
+    def step(self) -> bool:
         """
         Decreases the internal counter. Raises an error if the counter goes
         below 0
@@ -585,8 +576,7 @@ class CountdownEvent(object):
 
         return False
 
-    def wait(self, timeout=None):
-        # type: (Optional[int]) -> bool
+    def wait(self, timeout: Optional[int] = None) -> bool:
         """
         Waits for the event or for the timeout
 

@@ -26,12 +26,11 @@ Defines the shell completion handlers for Pelix concepts
     limitations under the License.
 """
 
+from typing import List
 import readline
 # pylint: disable=W0611
-from typing import List
 from pelix.framework import BundleContext
 from pelix.shell.beans import ShellSession
-
 
 # Pelix
 from pelix.constants import SERVICE_ID, BundleActivator
@@ -58,8 +57,7 @@ class BundleCompleter(Completer):
     """
 
     @staticmethod
-    def display_hook(prompt, session, context, matches, longest_match_len):
-        # type: (str, ShellSession, BundleContext, List[str], int) -> None
+    def display_hook(prompt: str, session: ShellSession, context: BundleContext, matches: List[str], longest_match_len: int) -> None:
         """
         Displays the available bundle matches and the bundle name
 
@@ -87,9 +85,8 @@ class BundleCompleter(Completer):
         readline.redisplay()
 
     def complete(
-        self, config, prompt, session, context, current_arguments, current
-    ):
-        # type: (CompletionInfo, str, ShellSession, BundleContext, List[str], str) -> List[str]
+        self, config, prompt: str, session: ShellSession, context: BundleContext, current_arguments: List[str], current: str
+    ) -> List[str]:
         """
         Returns the list of bundle IDs matching the current state
 
@@ -121,8 +118,8 @@ class ServiceCompleter(Completer):
     """
 
     @staticmethod
-    def display_hook(prompt, session, context, matches, longest_match_len):
-        # type: (str, ShellSession, BundleContext, List[str], int) -> None
+    def display_hook(prompt: str, session: ShellSession, context: BundleContext, matches: List[str], longest_match_len: int
+    ) -> None:
         """
         Displays the available services matches and the service details
 
@@ -155,9 +152,8 @@ class ServiceCompleter(Completer):
             session.write_line("\n{}\n\n", ex)
 
     def complete(
-        self, config, prompt, session, context, current_arguments, current
-    ):
-        # type: (CompletionInfo, str, ShellSession, BundleContext, List[str], str) -> List[str]
+        self, config, prompt: str, session: ShellSession, context: BundleContext, current_arguments: List[str], current: str
+    ) -> List[str]:
         """
         Returns the list of services IDs matching the current state
 
@@ -199,8 +195,7 @@ class _Activator:
     def __init__(self):
         self._registrations = []
 
-    def start(self, context):
-        # type: (BundleContext) -> None
+    def start(self, context: BundleContext) -> None:
         """
         Bundle starting
 
@@ -216,8 +211,7 @@ class _Activator:
             for completer_id, completer_class in COMPLETERS.items()
         ]
 
-    def stop(self, _):
-        # type: (BundleContext) -> None
+    def stop(self, _: BundleContext) -> None:
         """
         Bundle stopping
         """

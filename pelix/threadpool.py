@@ -46,7 +46,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # ------------------------------------------------------------------------------
 
 
-class EventData(object):
+class EventData:
     """
     A threading event with some associated data
     """
@@ -125,7 +125,7 @@ class EventData(object):
 # ------------------------------------------------------------------------------
 
 
-class FutureResult(object):
+class FutureResult:
     """
     An object to wait for the result of a threaded execution
     """
@@ -229,7 +229,7 @@ class FutureResult(object):
 # ------------------------------------------------------------------------------
 
 
-class ThreadPool(object):
+class ThreadPool:
     """
     Executes the tasks stored in a FIFO in a thread pool
     """
