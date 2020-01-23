@@ -67,7 +67,7 @@ class ShellSession:
         :param initial_vars: Initial variables
         """
         # Store parameters
-        self._io_handler = io_handler
+        self._io_handler: IOHandler = io_handler
 
         if not isinstance(initial_vars, dict):
             initial_vars = {}

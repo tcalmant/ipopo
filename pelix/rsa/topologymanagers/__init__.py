@@ -83,40 +83,35 @@ class TopologyManager(
 ):
     def __init__(self):
         self._advertisers = []
-        self._context = None  # type: BundleContext
+        self._context: BundleContext = None
         self._rsa = None
 
     @Validate
-    def _validate(self, context):
-        # type: (BundleContext) -> None
+    def _validate(self, context: BundleContext) -> None:
         self._context = context
 
     @Invalidate
     def _invalidate(self, _):
         self._context = None
 
-    def _import_added_endpoint(self, endpoint_description):
-        # type: (EndpointDescription) -> ImportRegistration
+    def _import_added_endpoint(self, endpoint_description: EndpointDescription) -> ImportRegistration:
         return self._rsa.import_service(endpoint_description)
 
-    def _unimport_removed_endpoint(self, endpoint_description):
-        # type: (EndpointDescription) -> None
+    def _unimport_removed_endpoint(self, endpoint_description: EndpointDescription) -> None:
         # pylint: disable=W0212
         import_regs = self._rsa._get_import_regs()
         for import_reg in import_regs:
             if import_reg.match_ed(endpoint_description):
                 import_reg.close()
 
-    def _update_imported_endpoint(self, endpoint_description):
-        # type: (EndpointDescription) -> None
+    def _update_imported_endpoint(self, endpoint_description: EndpointDescription) -> None:
         # pylint: disable=W0212
         import_regs = self._rsa._get_import_regs()
         for import_reg in import_regs:
             if import_reg.match_ed(endpoint_description):
                 import_reg.update(endpoint_description)
 
-    def _handle_service_registered(self, service_ref):
-        # type: (ServiceReference) -> None
+    def _handle_service_registered(self, service_ref: ServiceReference) -> None:
         exp_intfs = get_exported_interfaces(service_ref)
         # If no exported interfaces, then all done
         if not exp_intfs:
@@ -125,8 +120,7 @@ class TopologyManager(
             service_ref, {SERVICE_EXPORTED_INTERFACES: exp_intfs}
         )
 
-    def _handle_service_unregistering(self, service_ref):
-        # type: (ServiceReference) -> None
+    def _handle_service_unregistering(self, service_ref: ServiceReference) -> None:
         # pylint: disable=W0212
         export_regs = self._rsa._get_export_regs()
         if export_regs:
@@ -139,8 +133,7 @@ class TopologyManager(
                     )
                     export_reg.close()
 
-    def _handle_service_modified(self, service_ref):
-        # type: (ServiceReference) -> EndpointDescription
+    def _handle_service_modified(self, service_ref: ServiceReference) -> EndpointDescription:
         # pylint: disable=W0212
         export_regs = self._rsa._get_export_regs()
         if export_regs:
@@ -160,8 +153,7 @@ class TopologyManager(
                             service_ref,
                         )
 
-    def _handle_event(self, service_event):
-        # type: (ServiceEvent) -> None
+    def _handle_event(self, service_event: ServiceEvent) -> None:
         kind = service_event.get_kind()
         service_ref = service_event.get_service_reference()
         if kind == ServiceEvent.REGISTERED:
@@ -172,12 +164,10 @@ class TopologyManager(
             self._handle_service_modified(service_ref)
 
     # impl of EventListenerHook
-    def event(self, service_event, listener_dict):
-        # type: (ServiceEvent, Dict[Any, Any]) -> None
+    def event(self, service_event: ServiceEvent, listener_dict: Dict[Any, Any]) -> None:
         self._handle_event(service_event)
 
-    def _advertise_endpoint(self, ed):
-        # type: (EndpointDescription) -> None
+    def _advertise_endpoint(self, ed: EndpointDescription) -> None:
         for adv in self._advertisers:
             try:
                 adv.advertise_endpoint(ed)
@@ -189,8 +179,7 @@ class TopologyManager(
                     ed,
                 )
 
-    def _update_endpoint(self, ed):
-        # type: (EndpointDescription) -> None
+    def _update_endpoint(self, ed: EndpointDescription) -> None:
         for adv in self._advertisers:
             try:
                 adv.update_endpoint(ed)
@@ -202,8 +191,7 @@ class TopologyManager(
                     ed,
                 )
 
-    def _unadvertise_endpoint(self, ed):
-        # type: (EndpointDescription) -> None
+    def _unadvertise_endpoint(self, ed: EndpointDescription) -> None:
         for adv in self._advertisers:
             try:
                 adv.unadvertise_endpoint(ed.get_id())
@@ -216,8 +204,7 @@ class TopologyManager(
                 )
 
     # impl of RemoteServiceAdminListener
-    def remote_admin_event(self, rsa_event):
-        # type: (RemoteServiceAdminEvent) -> None
+    def remote_admin_event(self, rsa_event: RemoteServiceAdminEvent) -> None:
         kind = rsa_event.get_type()
         if kind == RemoteServiceAdminEvent.EXPORT_REGISTRATION:
             self._advertise_endpoint(rsa_event.get_description())
@@ -226,8 +213,7 @@ class TopologyManager(
         elif kind == RemoteServiceAdminEvent.EXPORT_UPDATE:
             self._update_endpoint(rsa_event.get_description())
 
-    def endpoint_changed(self, endpoint_event, matched_filter):
-        # type: (EndpointEvent, Any) -> None
+    def endpoint_changed(self, endpoint_event: EndpointEvent, matched_filter: Any) -> None:
         _logger.debug(
             "TopologyManager.endpoint_event called. "
             "You probably want to override this method"

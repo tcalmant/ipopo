@@ -155,7 +155,7 @@ DEFAULT_EXPORTED_CONFIGS = ["ecf.xmlrpc.server"]
 SERVICE_REMOTE_SERVICE_ADMIN = "pelix.rsa.remoteserviceadmin"
 
 
-class RemoteServiceAdmin(object):
+class RemoteServiceAdmin:
     """
     RSA service specification.  This specification is the core service
     implemented by the RSA package.  See the RemoteServiceAdmin
@@ -231,7 +231,7 @@ class RemoteServiceAdmin(object):
 # ------------------------------------------------------------------------------
 
 
-class ExportRegistration(object):
+class ExportRegistration:
     """
     Declaration of ExportRegistration signature.  Instance of this class
     are returned from RemoteServiceAdmin.export_service to describe the
@@ -353,7 +353,7 @@ class ExportRegistration(object):
 # ------------------------------------------------------------------------------
 
 
-class ExportReference(object):
+class ExportReference:
     """
     Declaration of ExportReference signature.  Instance of this class
     are returned from ExportRegistration.get_export_reference().
@@ -458,7 +458,7 @@ class ExportReference(object):
 # ------------------------------------------------------------------------------
 
 
-class ImportRegistration(object):
+class ImportRegistration:
     """
     Declaration of ImportRegistration signature.  Instance of this class
     are returned from RemoteServiceAdmin.import_service to allow the
@@ -722,7 +722,7 @@ class ImportReference:
 SERVICE_RSA_EVENT_LISTENER = "pelix.rsa.remoteserviceadmineventlistener"
 
 
-class RemoteServiceAdminListener(object):
+class RemoteServiceAdminListener:
     # pylint: disable=R0903
     """
     Remote service admin listener service interface.  Services
@@ -746,7 +746,7 @@ class RemoteServiceAdminListener(object):
 
 
 # ------------------------------------------------------------------------------
-class RemoteServiceAdminEvent(object):
+class RemoteServiceAdminEvent:
     """
     Remote service admin event instances are delivered to
     RemoteServiceAdminListener service instances when events of the types
@@ -1088,10 +1088,10 @@ def create_uuid_uri():
 
 
 def time_since_epoch():
+    # type: () -> int
     """
     Gives a timestamp floored to last second
     """
-    # type: () -> int
     return int(time.time() - 1000)
 
 

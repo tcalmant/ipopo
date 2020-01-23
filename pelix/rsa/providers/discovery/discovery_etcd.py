@@ -124,7 +124,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         self._hostname = self._port = self._top_path = None
         self._sessionid = create_uuid()
         self._session_ttl = self._watch_start_wait = None
-        self._client = None  # type: etcd.Client
+        self._client: etcd.Client = None
         self._client_lock = RLock()
         self._top_nodes = (
             self._wait_index
@@ -156,8 +156,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     def _invalidate(self, _):
         self._disconnect()
 
-    def _encode_description(self, endpoint_description):
-        # type: (EndpointDescription) -> dict
+    def _encode_description(self, endpoint_description: EndpointDescription) -> dict:
         encoded_props = encode_endpoint_props(endpoint_description)
         # get copy of service props
         service_props = self._service_props.copy()
@@ -168,8 +167,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         ]
         return service_props
 
-    def _write_description(self, endpoint_description):
-        # type: (EndpointDescription) -> etcd.EtcdResult
+    def _write_description(self, endpoint_description: EndpointDescription) -> etcd.EtcdResult:
         # encode props as string -> string
         service_props = self._encode_description(endpoint_description)
         # dump service_props to json
@@ -184,18 +182,15 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     # implementation of EndpointAdvertiser service.  These methods
     # are called when (e.g.) RSA asks us to advertise/unadvertise
     # an endpoint_description
-    def _advertise(self, endpoint_description):
-        # type: (EndpointDescription) -> etcd.EtcdResult
+    def _advertise(self, endpoint_description: EndpointDescription) -> etcd.EtcdResult:
         _logger.debug("advertising ed=%s", endpoint_description)
         return self._write_description(endpoint_description)
 
-    def _update(self, endpoint_description):
-        # type: (EndpointDescription) -> etcd.EtcdResult
+    def _update(self, endpoint_description: EndpointDescription) -> etcd.EtcdResult:
         _logger.debug("updating ed=%s", endpoint_description)
         return self._write_description(endpoint_description)
 
-    def _unadvertise(self, advertised):
-        # type: (List[EndpointDescription]) -> etcd.EtcdResult
+    def _unadvertise(self, advertised: List[EndpointDescription]) -> etcd.EtcdResult:
         _logger.debug("unadvertising ed=%s", advertised[0])
         # get endpoint id
         endpointid = advertised[0].get_id()
@@ -203,12 +198,10 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         with self._client_lock:
             return self._client.delete(key=self._get_endpoint_path(endpointid))
 
-    def _get_session_path(self):
-        # type: () -> str
+    def _get_session_path(self) -> str:
         return "{0}/{1}".format(self._top_path, self._sessionid)
 
-    def _get_endpoint_path(self, endpointid):
-        # type: (str) -> str
+    def _get_endpoint_path(self, endpointid) -> str:
         return "{0}/{1}".format(self._get_session_path(), endpointid)
 
     def _disconnect(self):
@@ -283,8 +276,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             self._ttl_thread.start()
             self._watch_thread.start()
 
-    def _get_start_wait(self):
-        # type: () -> int
+    def _get_start_wait(self) -> int:
         return int(self._session_ttl - (self._session_ttl / 10))
 
     def _handle_add_dir(self, dir_node):

@@ -186,7 +186,7 @@ class Bundle:
         self.__module = module_
         self.__name = name
 
-        self.__framework = framework
+        self.__framework: Framework = framework
         self._state = Bundle.RESOLVED
 
         # Registered services

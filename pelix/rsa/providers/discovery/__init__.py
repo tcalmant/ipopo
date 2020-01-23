@@ -63,7 +63,7 @@ _logger = logging.getLogger(__name__)
 SERVICE_ENDPOINT_ADVERTISER = "pelix.rsa.discovery.endpointadvertiser"
 
 
-class EndpointAdvertiser(object):
+class EndpointAdvertiser:
     """
     Endpoint advertiser service specification.  EndpointAdvertiser services
     are used to advertise exported remote services.  See EndpointAdvertiser
@@ -203,7 +203,7 @@ class EndpointAdvertiser(object):
 # instances with valid EndpointEvent by endpoint advertisers
 
 
-class EndpointEvent(object):
+class EndpointEvent:
     """
     EndpointEvents are used by endpoint advertisers to call
     EndpointEventListeners with the type of event (ADDED,REMOVED,MODIFIED)
@@ -256,7 +256,7 @@ SERVICE_ENDPOINT_LISTENER = "pelix.rsa.discovery.endpointeventlistener"
 SERVICE_ENDPOINT_EVENT_LISTENER = SERVICE_ENDPOINT_LISTENER
 
 
-class EndpointEventListener(object):
+class EndpointEventListener:
     # pylint: disable=R0903
     """
     Subclasses should override the endpoint_changed method
@@ -293,7 +293,7 @@ class EndpointEventListener(object):
 
 
 @Requires("_event_listeners", SERVICE_ENDPOINT_LISTENER, True, True)
-class EndpointSubscriber(object):
+class EndpointSubscriber:
     # pylint: disable=R0903
     """
     Utility superclass for EndpointSubscribers.

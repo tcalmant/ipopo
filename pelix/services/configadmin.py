@@ -76,7 +76,7 @@ Private version of ConfigAdmin, to handle loop-requirements ("that will do")
 # ------------------------------------------------------------------------------
 
 
-class Configuration(object):
+class Configuration:
     """
     Configuration object
     """
@@ -348,7 +348,7 @@ class Configuration(object):
 @Provides(SERVICE_CONFIGADMIN_DIRECTORY)
 @Requires("_admin", SERVICE_CONFIGURATION_ADMIN_PRIVATE)
 @Instantiate("pelix-services-configuration-directory")
-class _ConfigurationDirectory(object):
+class _ConfigurationDirectory:
     """
     A configuration directory
     """
@@ -524,7 +524,7 @@ class _ConfigurationDirectory(object):
     optional=True,
 )
 @Instantiate("pelix-services-configuration-admin")
-class ConfigurationAdmin(object):
+class ConfigurationAdmin:
     """
     ConfigurationAdmin basic implementation
     """
@@ -994,7 +994,7 @@ class ConfigurationAdmin(object):
 @Property("_conf_folder", "configuration.folder")
 @Property("_watched_folder", services.PROP_FILEINSTALL_FOLDER)
 @Instantiate("pelix-services-configuration-json-default")
-class JsonPersistence(object):
+class JsonPersistence:
     """
     JSON configuration persistence
     """

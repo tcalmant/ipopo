@@ -76,7 +76,7 @@ EVENT_PROP_STARTING_SLASH = "pelix.eventadmin.mqtt.start_slash"
 @Property("_host", "mqtt.host", "localhost")
 @Property("_port", "mqtt.port", 1883)
 @Property("_mqtt_topic", "mqtt.topic.prefix", DEFAULT_MQTT_TOPIC)
-class MqttEventAdminBridge(object):
+class MqttEventAdminBridge:
     """
     The EventAdmin MQTT bridge
     """

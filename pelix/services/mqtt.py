@@ -91,7 +91,7 @@ CONNECT_RC = {
     "_listeners", services.SERVICE_MQTT_LISTENER, aggregate=True, optional=True
 )
 @Instantiate("mqtt-connection-factory")
-class MqttConnectionFactory(object):
+class MqttConnectionFactory:
     """
     Handles connections to MQTT servers
     """

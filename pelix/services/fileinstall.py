@@ -73,7 +73,7 @@ _logger = logging.getLogger(__name__)
 )
 @Property("_poll_time", "poll.time", 1)
 @Instantiate("pelix-services-file-install")
-class FileInstall(object):
+class FileInstall:
     """
     Polls folders to look for files modifications
     """

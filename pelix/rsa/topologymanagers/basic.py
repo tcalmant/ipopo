@@ -67,8 +67,7 @@ class BasicTopologyManager(TopologyManager):
     BasicTopologyManager extends TopologyManager api
     """
 
-    def event(self, service_event, listener_dict):
-        # type: (ServiceEvent, Dict[Any, Any]) -> None
+    def event(self, service_event: ServiceEvent, listener_dict: Dict[Any, Any]) -> None:
         """
         Implementation of EventListenerHook.  Called by local
         service registry when a service is registered, unregistered
@@ -77,8 +76,7 @@ class BasicTopologyManager(TopologyManager):
         """
         self._handle_event(service_event)
 
-    def endpoint_changed(self, endpoint_event, matched_filter):
-        # type: (EndpointEvent, Any) -> None
+    def endpoint_changed(self, endpoint_event: EndpointEvent, matched_filter: Any) -> None:
         """
         Implementation of discovery API EndpointEventListener.
         Called by discovery provider when an endpoint change

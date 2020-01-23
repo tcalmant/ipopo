@@ -99,7 +99,7 @@ DISTRIBUTION_PROVIDER_CONTAINER_PROP = "pelix.rsa.distributionprovider"
 
 @Requires("_rsa", SERVICE_REMOTE_SERVICE_ADMIN)
 @Requires("_ipopo", SERVICE_IPOPO)
-class DistributionProvider(object):
+class DistributionProvider:
     """
     Abstract super class for all distribution providers.
     Does not expose and 'public' methods (all methods _)
