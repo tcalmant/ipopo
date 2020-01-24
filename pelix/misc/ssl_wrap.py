@@ -58,73 +58,21 @@ def wrap_socket(socket, certfile, keyfile, password=None):
     # Log warnings when some
     logger = logging.getLogger("ssl_wrap")
 
-    def _password_support_error():
-        """
-        Logs a warning and raises an OSError if a password has been given but
-        Python doesn't support ciphered key files.
+    # The default context factory
+    default_context = ssl.create_default_context()
 
-        :raise OSError: If a password has been given
-        """
-        if password:
-            logger.error(
-                "The ssl.wrap_socket() fallback method doesn't "
-                "support key files with a password."
-            )
-            raise OSError(
-                "Can't decode the SSL key file: "
-                "this version of Python doesn't support it"
-            )
+    # Create an SSL context and set its options
+    context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
 
-    try:
-        # Prefer the default context factory, as it will be updated to reflect
-        # security issues (Python >= 2.7.9 and >= 3.4)
-        default_context = ssl.create_default_context()
-    except AttributeError:
-        default_context = None
+    # Copy options
+    context.options = default_context.options
 
-    try:
-        # Try to equivalent to create_default_context() in Python 3.5
-        # Create an SSL context and set its options
-        context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+    # disallow ciphers with known vulnerabilities
+    context.set_ciphers(_RESTRICTED_SERVER_CIPHERS)
 
-        if default_context is not None:
-            # Copy options
-            context.options = default_context.options
-        else:
-            # Set up the context as create_default_context() does in Python 3.5
-            # SSLv2 considered harmful
-            # SSLv3 has problematic security
-            context.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3
+    # Load the certificate, with a password
+    context.load_cert_chain(certfile, keyfile, password)
 
-        # disallow ciphers with known vulnerabilities
-        context.set_ciphers(_RESTRICTED_SERVER_CIPHERS)
-
-        try:
-            # Load the certificate, with a password
-            context.load_cert_chain(certfile, keyfile, password)
-        except TypeError:
-            # The "password" argument isn't supported
-            # Check support for key file password
-            _password_support_error()
-
-            # Load the certificate, without the password argument
-            context.load_cert_chain(certfile, keyfile)
-
-        # Return the wrapped socket
-        return context.wrap_socket(socket, server_side=True)
-
-    except AttributeError as ex:
-        # Log a warning to advise the user of possible security holes
-        logger.warning(
-            "Can't create a custom SSLContext. "
-            "The server should be considered insecure."
-        )
-        logger.debug("Missing attribute: %s", ex)
-
-    # Check support for key file password
-    _password_support_error()
-
-    # Fall back to the "old" wrap_socket method
-    return ssl.wrap_socket(
-        socket, server_side=True, certfile=certfile, keyfile=keyfile
-    )
+    # Return the wrapped socket
+    return context.wrap_socket(socket, server_side=True)
+    

@@ -7,6 +7,7 @@ Tests the remote shell with the TLS feature
 """
 
 # Standard library
+import ssl
 import os
 import socket
 import sys
@@ -17,10 +18,6 @@ import time
 # Tests
 import unittest
 
-try:
-    import ssl
-except ImportError:
-    unittest.skip("SSL module not available")
 
 # Pelix
 from pelix.framework import FrameworkFactory, create_framework
@@ -153,7 +150,7 @@ def make_certs(out_dir, key_password):
 # ------------------------------------------------------------------------------
 
 
-class TLSShellClient(object):
+class TLSShellClient:
     """
     Simple client of the TLS remote shell
     """
