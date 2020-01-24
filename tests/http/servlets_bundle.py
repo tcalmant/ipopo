@@ -17,7 +17,7 @@ MULTIPLE_SERVLET_FACTORY = "multiple.servlet.factory"
 # ------------------------------------------------------------------------------
 
 
-class SimpleServlet(object):
+class SimpleServlet:
     """
     A simple servlet implementation
     """

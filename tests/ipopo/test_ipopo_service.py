@@ -55,10 +55,10 @@ class IPopoServiceTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
 
         @decorators.ComponentFactory(FACTORY)
-        class TestComponent(object):
+        class TestComponent:
             pass
 
-        class UnManipulatedClass(object):
+        class UnManipulatedClass:
             pass
 
         # Test if the framework is clean

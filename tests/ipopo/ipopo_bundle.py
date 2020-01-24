@@ -51,7 +51,7 @@ PROP_USABLE = "usable"
 @ComponentFactory(BASIC_FACTORY)
 @Instantiate(BASIC_INSTANCE)
 @Provides("basic-component-svc")
-class BasicComponent(object):
+class BasicComponent:
     """
     Dummy instantiated component
     """
@@ -81,7 +81,7 @@ class BasicComponent(object):
 
 
 @Property("name", IPOPO_INSTANCE_NAME)
-class TestComponentFactory(object):
+class TestComponentFactory:
     """
     Parent class of components
     """

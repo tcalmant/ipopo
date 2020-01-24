@@ -31,7 +31,7 @@ STATES = []
 
 @ComponentFactory("boot-factory")
 @Instantiate(BASIC_INSTANCE)
-class BasicComponent(object):
+class BasicComponent:
     """
     Dummy instantiated component
     """

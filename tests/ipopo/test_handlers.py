@@ -36,7 +36,7 @@ COMPONENT_NAME = "sample-logger-component"
 # ------------------------------------------------------------------------------
 
 
-class DummyHandlerFactory(object):
+class DummyHandlerFactory:
     """
     A dummy handler with a "called" flag
     """

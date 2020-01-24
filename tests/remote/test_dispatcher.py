@@ -15,7 +15,6 @@ import pelix.constants
 import pelix.framework
 
 # Standard library
-import sys
 import uuid
 import unittest
 
@@ -30,7 +29,7 @@ REMOVED = 3
 # ------------------------------------------------------------------------------
 
 
-class Exporter(object):
+class Exporter:
     """
     Service exporter
     """
@@ -78,7 +77,7 @@ class Exporter(object):
         self.events.append(REMOVED)
 
 
-class Listener(object):
+class Listener:
     """
     Export endpoints listener
     """
@@ -132,9 +131,6 @@ class DispatcherTest(unittest.TestCase):
         """
         Sets up the test
         """
-        # Compatibility issue between Python 2 & 3
-        if sys.version_info[0] < 3:
-            self.assertCountEqual = self.assertItemsEqual
 
         # Create the framework
         self.framework = pelix.framework.create_framework(['pelix.ipopo.core'])

@@ -62,7 +62,7 @@ class HttpRoutingTests(unittest.TestCase):
         Tests the @Http decorator type checking (all others depends on it)
         """
         # Define some invalid types
-        class BadClass(object):
+        class BadClass:
             pass
 
         # Define a valid methods

@@ -272,7 +272,7 @@ class UtilitiesTest(unittest.TestCase):
         valid = ["", "aaa", str(42)]
         invalid = [42, None, [], {}, tuple()]
         invalid.extend((b"", b"aaa"))
-        
+
 
         for value in valid:
             self.assertTrue(isinstance(value, str),

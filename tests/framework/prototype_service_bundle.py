@@ -9,7 +9,7 @@ Simple bundle providing a prototype service factory
 from pelix.constants import BundleActivator
 
 
-class Instance(object):
+class Instance:
     """
     Instance returned by the service factory
     """
@@ -29,7 +29,7 @@ class Instance(object):
             self.id, self.bundle, self.released)
 
 
-class PrototypeServiceFactory(object):
+class PrototypeServiceFactory:
     """
     Implementation of a prototype service factory
     """
@@ -97,7 +97,7 @@ class PrototypeServiceFactory(object):
 
 
 @BundleActivator
-class Activator(object):
+class Activator:
     """
     Simple activator
     """

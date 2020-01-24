@@ -18,7 +18,6 @@ import pelix.framework
 
 # Standard library
 import json
-import sys
 import uuid
 from urllib.parse import urljoin
 import http.client as httplib
@@ -34,7 +33,7 @@ __version__ = "1.0.0"
 # ------------------------------------------------------------------------------
 
 
-class Exporter(object):
+class Exporter:
     """
     Service exporter
     """
@@ -70,7 +69,7 @@ class Exporter(object):
         self.endpoints.remove(endpoint)
 
 
-class ImportListener(object):
+class ImportListener:
     """
     Imports listener
     """
@@ -99,7 +98,7 @@ class ImportListener(object):
         del self.endpoints[uid]
 
 
-class FakeSerlvet(object):
+class FakeSerlvet:
     """
     Fake servlet to grab POST data
     """
@@ -138,10 +137,7 @@ class DispatcherTest(unittest.TestCase):
         """
         Sets up the test
         """
-        # Compatibility issue between Python 2 & 3
-        if sys.version_info[0] < 3:
-            self.assertCountEqual = self.assertItemsEqual
-
+        
         # Create the framework
         self.framework = pelix.framework.create_framework(
             ('pelix.ipopo.core',

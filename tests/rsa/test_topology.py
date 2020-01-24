@@ -8,7 +8,6 @@ Tests the RSA basic topology manager
 
 # Standard library
 import unittest
-from typing import List
 
 
 # Pelix
@@ -45,9 +44,9 @@ class TopologyManagerTest(unittest.TestCase):
 
         # Get the RSA service
         context = self.framework.get_bundle_context()
-        self.rsa = context.get_service(
+        self.rsa: rsa.RemoteServiceAdminImpl = context.get_service(
             context.get_service_reference(
-                rsa.SERVICE_REMOTE_SERVICE_ADMIN))  # type: rsa.RemoteServiceAdminImpl
+                rsa.SERVICE_REMOTE_SERVICE_ADMIN))
 
         # Start an HTTP server, required by XML-RPC
         with use_ipopo(context) as ipopo:
