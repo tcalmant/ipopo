@@ -35,7 +35,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-class BundleEvent(object):
+class BundleEvent:
     """
     Represents a bundle event
     """
@@ -105,7 +105,7 @@ class BundleEvent(object):
 # ------------------------------------------------------------------------------
 
 
-class ServiceEvent(object):
+class ServiceEvent:
     """
     Represents a service event
     """

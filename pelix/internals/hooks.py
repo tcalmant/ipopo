@@ -165,7 +165,7 @@ class ListenerInfo(object):
         return None
 
 
-class EventListenerHook(object):
+class EventListenerHook:
     """
     Event listener hook interface prototype.  The method in this class must be
     overridden for a service event listener hook to be called via whiteboard

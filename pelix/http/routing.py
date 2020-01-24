@@ -83,8 +83,7 @@ _MARKER_PATTERN = re.compile(r"<[^<>]*>")
 _TYPED_MARKER_PATTERN = re.compile(r"<(\w+):?(\w+)?>")
 
 
-def path_filter(path):
-    # type: (str) -> str
+def path_filter(path: str) -> str:
     """
     Removes the trailing '/' of a path, if any
 
@@ -95,17 +94,16 @@ def path_filter(path):
 
 
 # Type name -> conversion method (for types other than str)
-TYPE_CONVERTERS = {
+TYPE_CONVERTERS: Dict[str, Callable[[str], Any]] = {
     "int": int,
     "float": float,
     "path": path_filter,
     "uuid": uuid.UUID,
-}  # type: Dict[str, Callable[[str], Any]]
-
+}
 # ------------------------------------------------------------------------------
 
 
-class Http(object):
+class Http:
     """
     Decorator indicating which route a method handles
     """
@@ -218,7 +216,7 @@ class HttpDelete(Http):
 # ------------------------------------------------------------------------------
 
 
-class RestDispatcher(object):
+class RestDispatcher:
     """
     Parent class for servlets: dispatches requests according to the @Http
     decorator
@@ -272,8 +270,11 @@ class RestDispatcher(object):
         """
         self._rest_dispatch(request, response)
 
-    def _rest_dispatch(self, request, response):
-        # type: (AbstractHTTPServletRequest, AbstractHTTPServletResponse) -> None
+    def _rest_dispatch(
+        self,
+        request: AbstractHTTPServletRequest,
+        response: AbstractHTTPServletResponse
+        ) -> None:
         """
         Dispatches the request
 
@@ -376,8 +377,8 @@ class RestDispatcher(object):
                     self.__routes.setdefault(http_verb, {})[pattern] = method
 
     @staticmethod
-    def __convert_route(route):
-        # type: (str) -> Tuple[Pattern[str], Dict[str, Callable[[str], Any]]]
+    def __convert_route(route: str
+    ) -> Tuple[Pattern[str], Dict[str, Callable[[str], Any]]]:
         """
         Converts a route pattern into a regex.
         The result is a tuple containing the regex pattern to match and a
@@ -388,7 +389,7 @@ class RestDispatcher(object):
         :param route: A route string, i.e. a path with type markers
         :return: A tuple (pattern, {argument name: converter})
         """
-        arguments = {}  # type: Dict[str, Callable[[str], Any]]
+        arguments: Dict[str, Callable[[str], Any]] = {}
         last_idx = 0
         final_pattern = []
         match_iter = _MARKER_PATTERN.finditer(route)

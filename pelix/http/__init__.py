@@ -28,7 +28,7 @@ Defines the interfaces that must respect HTTP service implementations.
 """
 
 # pylint: disable=W0611
-from typing import Any, ByteString, Dict, Iterable, IO, Tuple
+from typing import Any, ByteString, Dict, Iterable, IO, Tuple, Optional
 
 
 # Pelix utility methods
@@ -126,8 +126,7 @@ Contains a boolean: if True, the connection to the server is encrypted (HTTPS)
 # ------------------------------------------------------------------------------
 
 
-def make_html_list(items, tag="ul"):
-    # type: (Iterable[Any], str) -> str
+def make_html_list(items: Iterable[Any], tag: str = "ul") -> str:
     """
     Makes a HTML list from the given iterable
 
@@ -144,13 +143,12 @@ def make_html_list(items, tag="ul"):
 # ------------------------------------------------------------------------------
 
 
-class AbstractHTTPServletRequest(object):
+class AbstractHTTPServletRequest:
     """
     Abstract HTTP Servlet request helper
     """
 
-    def get_command(self):
-        # type: () -> str
+    def get_command(self) -> str:
         """
         Returns the HTTP verb (GET, POST, ...) used for the request
         """
@@ -158,8 +156,7 @@ class AbstractHTTPServletRequest(object):
             "This method must be implemented by a child class"
         )
 
-    def get_client_address(self):
-        # type: () -> Tuple[str, int]
+    def get_client_address(self) -> Tuple[str, int]:
         """
         Returns the address of the client
 
@@ -169,8 +166,7 @@ class AbstractHTTPServletRequest(object):
             "This method must be implemented by a child class"
         )
 
-    def get_header(self, name, default=None):
-        # type: (str, Any) -> Any
+    def get_header(self, name: str, default: Optional[Any] = None) -> Any:
         """
         Returns the value of a header
 
@@ -182,8 +178,7 @@ class AbstractHTTPServletRequest(object):
             "This method must be implemented by a child class"
         )
 
-    def get_headers(self):
-        # type: () -> Dict[str, Any]
+    def get_headers(self) -> Dict[str, Any]:
         """
         Returns a copy all headers, with a dictionary interface
 
@@ -193,8 +188,7 @@ class AbstractHTTPServletRequest(object):
             "This method must be implemented by a child class"
         )
 
-    def get_path(self):
-        # type: () -> str
+    def get_path(self) -> str:
         """
         Returns the request full path
 
@@ -204,8 +198,7 @@ class AbstractHTTPServletRequest(object):
             "This method must be implemented by a child class"
         )
 
-    def get_prefix_path(self):
-        # type: () -> str
+    def get_prefix_path(self) -> str:
         """
         Returns the path to the servlet root
 
@@ -215,8 +208,7 @@ class AbstractHTTPServletRequest(object):
             "This method must be implemented by a child class"
         )
 
-    def get_sub_path(self):
-        # type: () -> str
+    def get_sub_path(self) -> str:
         """
         Returns the servlet-relative path, i.e. after the prefix
 
@@ -226,8 +218,7 @@ class AbstractHTTPServletRequest(object):
             "This method must be implemented by a child class"
         )
 
-    def get_rfile(self):
-        # type: () -> IO
+    def get_rfile(self) -> IO:
         """
         Returns the request input as a file stream
 
@@ -237,8 +228,7 @@ class AbstractHTTPServletRequest(object):
             "This method must be implemented by a child class"
         )
 
-    def read_data(self):
-        # type: () -> ByteString
+    def read_data(self) -> ByteString:
         """
         Reads all the data in the input stream
 
@@ -252,13 +242,12 @@ class AbstractHTTPServletRequest(object):
         return self.get_rfile().read(size)
 
 
-class AbstractHTTPServletResponse(object):
+class AbstractHTTPServletResponse:
     """
     HTTP Servlet response helper
     """
 
-    def set_response(self, code, message=None):
-        # type: (int, str) -> None
+    def set_response(self, code: int, message: Optional[str] = None) -> None:
         """
         Sets the response line.
         This method should be the first called when sending an answer.
@@ -270,8 +259,7 @@ class AbstractHTTPServletResponse(object):
             "This method must be implemented by a child class"
         )
 
-    def set_header(self, name, value):
-        # type: (str, Any) -> None
+    def set_header(self, name: str, value: Any) -> None:
         """
         Sets the value of a header.
         This method should not be called after ``end_headers()``.
@@ -283,8 +271,7 @@ class AbstractHTTPServletResponse(object):
             "This method must be implemented by a child class"
         )
 
-    def is_header_set(self, name):
-        # type: (str) -> bool
+    def is_header_set(self, name: str) -> bool:
         """
         Checks if the given header has already been set
 
@@ -303,8 +290,7 @@ class AbstractHTTPServletResponse(object):
             "This method must be implemented by a child class"
         )
 
-    def get_wfile(self):
-        # type: () -> IO
+    def get_wfile(self) -> IO:
         """
         Retrieves the output as a file stream.
         ``end_headers()`` should have been called before, except if you want
@@ -316,8 +302,7 @@ class AbstractHTTPServletResponse(object):
             "This method must be implemented by a child class"
         )
 
-    def write(self, data):
-        # type: (ByteString) -> None
+    def write(self, data: ByteString) -> None:
         """
         Writes the given data.
         ``end_headers()`` should have been called before, except if you want
@@ -330,14 +315,13 @@ class AbstractHTTPServletResponse(object):
         )
 
     def send_content(
-        self,
-        http_code,
-        content,
-        mime_type="text/html",
-        http_message=None,
-        content_length=-1,
-    ):
-        # type: (int, str, str, str, int) -> None
+        self: int,
+        http_code: str,
+        content: str,
+        mime_type: str = "text/html",
+        http_message: Optional[str] = None,
+        content_length: int = -1,
+    ) -> None:
         """
         Utility method to send the given content as an answer.
         You can still use get_wfile or write afterwards, if you forced the

@@ -30,7 +30,7 @@ import bisect
 import logging
 import threading
 # pylint: disable=W0611
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, Type
 
 # Pelix beans
 from pelix.constants import (
@@ -65,7 +65,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-class _UsageCounter(object):
+class _UsageCounter:
     """
     Simple reference usage counter
     """
@@ -102,7 +102,7 @@ class _UsageCounter(object):
 # ------------------------------------------------------------------------------
 
 
-class _FactoryCounter(object):
+class _FactoryCounter:
     """
     A service factory usage counter per bundle and reference
     """
@@ -120,8 +120,7 @@ class _FactoryCounter(object):
         # Service Factory Reference -> (Service instance, Usage counter)
         self.__factored = {}
 
-    def is_used(self):
-        # type: () -> bool
+    def is_used(self) -> bool:
         """
         Checks if this counter has at least one value
 
@@ -129,8 +128,7 @@ class _FactoryCounter(object):
         """
         return bool(self.__factored)
 
-    def _get_from_factory(self, factory, svc_registration):
-        # type: (Any, ServiceRegistration) -> Any
+    def _get_from_factory(self, factory: Any, svc_registration: Type[object]) -> Any:
         """
         Returns a service instance from a Prototype Service Factory
 
@@ -154,8 +152,7 @@ class _FactoryCounter(object):
 
         return service
 
-    def _get_from_prototype(self, factory, svc_registration):
-        # type: (Any, ServiceRegistration) -> Any
+    def _get_from_prototype(self, factory: Any, svc_registration: Type[object]) -> Any:
         """
         Returns a service instance from a Prototype Service Factory
 
@@ -180,8 +177,11 @@ class _FactoryCounter(object):
 
         return service
 
-    def get_service(self, factory, svc_registration):
-        # type: (Any, ServiceRegistration) -> Any
+    def get_service(
+        self,
+        factory: Any,
+        svc_registration: Type[object]
+        ) -> Any:
         """
         Returns the service required by the bundle. The Service Factory is
         called only when necessary while the Prototype Service Factory is
@@ -197,8 +197,12 @@ class _FactoryCounter(object):
 
         return self._get_from_factory(factory, svc_registration)
 
-    def unget_service(self, factory, svc_registration, service=None):
-        # type: (Any, ServiceRegistration, Any) -> bool
+    def unget_service(
+        self,
+        factory: Any,
+        svc_registration: Type[object],
+        service: Optional[Any] = None
+        ) -> bool:
         """
         Releases references to the given service reference
 
@@ -235,8 +239,11 @@ class _FactoryCounter(object):
         # Some references are still there
         return False
 
-    def cleanup_service(self, factory, svc_registration):
-        # type: (Any, ServiceRegistration) -> bool
+    def cleanup_service(
+        self,
+        factory: Any,
+        svc_registration: Type[object]
+        ) -> bool:
         """
         If this bundle used that factory, releases the reference; else does
         nothing
@@ -274,7 +281,7 @@ class _FactoryCounter(object):
 # ------------------------------------------------------------------------------
 
 
-class ServiceReference(object):
+class ServiceReference:
     """
     Represents a reference to a service
     """
@@ -513,7 +520,7 @@ class ServiceReference(object):
 # ------------------------------------------------------------------------------
 
 
-class ServiceRegistration(object):
+class ServiceRegistration:
     """
     Represents a service registration object
     """
@@ -534,7 +541,7 @@ class ServiceRegistration(object):
         :param update_callback: Method to call when the sort key is modified
         """
         self.__framework = framework
-        self.__reference = reference  # type: ServiceReference
+        self.__reference: ServiceReference = reference
         self.__properties = properties
         self.__update_callback = update_callback
 
@@ -544,8 +551,7 @@ class ServiceRegistration(object):
         """
         return "ServiceRegistration({0})".format(self.__reference)
 
-    def get_reference(self):
-        # type: () -> ServiceReference
+    def get_reference(self) -> ServiceReference:
         """
         Returns the reference associated to this registration
 
@@ -621,7 +627,7 @@ class ServiceRegistration(object):
 # ------------------------------------------------------------------------------
 
 
-class EventDispatcher(object):
+class EventDispatcher:
     """
     Simple event dispatcher
     """
@@ -960,7 +966,7 @@ class EventDispatcher(object):
 # ------------------------------------------------------------------------------
 
 
-class ServiceRegistry(object):
+class ServiceRegistry:
     """
     Service registry for Pelix.
 
@@ -984,28 +990,28 @@ class ServiceRegistry(object):
         self.__next_service_id = 1
 
         # Service reference -> Service instance
-        self.__svc_registry = {}  # type: Dict[ServiceReference, Any]
+        self.__svc_registry: Dict[ServiceReference, Any] = {}
 
         # Service reference -> (Service factory, Service Registration)
-        self.__svc_factories = {}  # type: Dict[Any, Tuple[Any, ServiceRegistration]]
+        self.__svc_factories: Dict[Any, Tuple[Any, ServiceRegistration]] = {}
 
         # Specification -> Service references[] (always sorted)
         self.__svc_specs = {}
 
         # Services published: Bundle -> set(Service references)
-        self.__bundle_svc = {}  # type: Dict[Any, Set[ServiceReference]]
+        self.__bundle_svc: Dict[Any, Set[ServiceReference]] = {}
 
         # Services consumed: Bundle -> {Service reference -> UsageCounter}
-        self.__bundle_imports = {}  # type: Dict[Any, Dict[ServiceReference, _UsageCounter]]
+        self.__bundle_imports: Dict[Any, Dict[ServiceReference, _UsageCounter]] = {}
 
         # Service factories consumption: Bundle -> _FactoryCounter
-        self.__factory_usage = {}  # type: Dict[Any, _FactoryCounter]
+        self.__factory_usage: Dict[Any, _FactoryCounter] = {}
 
         # Locks
         self.__svc_lock = threading.RLock()
 
         # Pending unregistration: Service reference -> Service instance
-        self.__pending_services = {}  # type: Dict[ServiceReference, Any]
+        self.__pending_services: Dict[ServiceReference, Any] = {}
 
     def clear(self):
         """
@@ -1081,8 +1087,7 @@ class ServiceRegistry(object):
             bundle_services.add(svc_ref)
             return svc_registration
 
-    def __sort_registry(self, svc_ref):
-        # type: (ServiceReference) -> None
+    def __sort_registry(self, svc_ref: ServiceReference) -> None:
         """
         Sorts the registry, after the update of the sort key of given service
         reference
@@ -1108,8 +1113,7 @@ class ServiceRegistry(object):
                 spec_refs = self.__svc_specs[spec]
                 bisect.insort_left(spec_refs, svc_ref)
 
-    def unregister(self, svc_ref):
-        # type: (ServiceReference) -> Any
+    def unregister(self, svc_ref: ServiceReference) -> Any:
         """
         Unregisters a service
 
@@ -1197,8 +1201,11 @@ class ServiceRegistry(object):
             return svc_refs
 
     def find_service_references(
-        self, clazz=None, ldap_filter=None, only_one=False
-    ):
+        self,
+        clazz: Optional[Type[object]] = None,
+        ldap_filter: Optional[ldapfilter.LDAPFilter] = None,
+        only_one: bool = False
+    ) -> Union[list, None]:
         """
         Finds all services references matching the given filter.
 
@@ -1276,8 +1283,7 @@ class ServiceRegistry(object):
         with self.__svc_lock:
             return sorted(self.__bundle_imports.get(bundle, []))
 
-    def get_bundle_registered_services(self, bundle):
-        # type: (Any) -> List[ServiceReference]
+    def get_bundle_registered_services(self, bundle: Any) -> List[ServiceReference]:
         """
         Retrieves the services registered by the given bundle. Returns None
         if the bundle didn't register any service.
@@ -1288,8 +1294,7 @@ class ServiceRegistry(object):
         with self.__svc_lock:
             return sorted(self.__bundle_svc.get(bundle, []))
 
-    def get_service(self, bundle, reference):
-        # type: (Any, ServiceReference) -> Any
+    def get_service(self, bundle: Any, reference: ServiceReference) -> Any:
         """
         Retrieves the service corresponding to the given reference
 
@@ -1317,8 +1322,7 @@ class ServiceRegistry(object):
                     "Service not found (reference: {0})".format(reference)
                 )
 
-    def __get_service_from_factory(self, bundle, reference):
-        # type: (Any, ServiceReference) -> Any
+    def __get_service_from_factory(self, bundle: Any, reference: ServiceReference) -> Any:
         """
         Returns a service instance from a service factory or a prototype
         service factory
@@ -1390,8 +1394,12 @@ class ServiceRegistry(object):
         except KeyError:
             pass
 
-    def unget_service(self, bundle, reference, service=None):
-        # type: (Any, ServiceReference, Any) -> bool
+    def unget_service(
+        self,
+        bundle: Any,
+        reference: ServiceReference,
+        service: Optional[Any] = None
+        ) -> bool:
         """
         Removes the usage of a service by a bundle
 
@@ -1426,8 +1434,12 @@ class ServiceRegistry(object):
                 reference.unused_by(bundle)
                 return True
 
-    def __unget_service_from_factory(self, bundle, reference, service=None):
-        # type: (Any, ServiceReference, Any) -> bool
+    def __unget_service_from_factory(
+        self,
+        bundle: Any,
+        reference: ServiceReference,
+        service: Optional[Any] = None
+        ) -> bool:
         """
         Removes the usage of a a service factory or a prototype
         service factory by a bundle

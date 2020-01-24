@@ -458,7 +458,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 @Property("_logger_name", "pelix.http.logger.name", "")
 @Property("_logger_level", "pelix.http.logger.level", None)
 @Property("_request_queue_size", "pelix.http.request_queue_size", 100)
-class HttpService(object):
+class HttpService:
     """
     Basic HTTP service component
     """
