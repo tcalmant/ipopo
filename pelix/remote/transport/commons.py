@@ -59,7 +59,7 @@ _logger = logging.getLogger(__name__)
 
 @Provides(pelix.remote.SERVICE_EXPORT_PROVIDER)
 @Property("_kinds", pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED)
-class AbstractRpcServiceExporter(object):
+class AbstractRpcServiceExporter:
     """
     Abstract Remote Services exporter
     """
@@ -275,7 +275,7 @@ class AbstractRpcServiceExporter(object):
 
 @Provides(pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER)
 @Property("_kinds", pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED)
-class AbstractRpcServiceImporter(object):
+class AbstractRpcServiceImporter:
     """
     Abstract Remote Services importer
     """

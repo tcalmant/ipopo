@@ -29,7 +29,7 @@ Pelix remote services: Specifications handling utility methods
 # pylint: disable=F0401,E0611
 from urllib.parse import urlparse
 # pylint: disable=W0611
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 
 
 # Pelix
@@ -56,15 +56,20 @@ PYTHON_LANGUAGE = "python"
 # ------------------------------------------------------------------------------
 
 
-class ExportEndpoint(object):
+class ExportEndpoint:
     """
     Represents an export end point (one per group of configuration types)
     """
 
-    def __init__(
-        self, uid, fw_uid, configurations, name, svc_ref, service, properties
-    ):
-        # type: (str, str, Any[str, List[str]], str, pelix.framework.ServiceReference, object, dict) -> None
+    def __init__(self,
+    uid: str,
+    fw_uid: str,
+    configurations: Union[str, List[str]],
+    name: str,
+    svc_ref: pelix.framework.ServiceReference,
+    service: object,
+    properties: dict
+    ) -> None:
         """
         :param uid: Unique identified of the end point
         :param fw_uid: The framework UID
@@ -100,7 +105,7 @@ class ExportEndpoint(object):
             self.__configurations = tuple(configurations)
 
         # Exported specifications
-        self.__exported_specs = []  # type: List[str]
+        self.__exported_specs: List[str] = []
         exported_specs = compute_exported_specifications(svc_ref)
         if exported_specs:
             # Transform the specifications for export (add the language prefix)
@@ -138,8 +143,7 @@ class ExportEndpoint(object):
             self.__uid, self.__configurations, self.__exported_specs
         )
 
-    def get_properties(self):
-        # type: () -> dict
+    def get_properties(self) -> dict:
         """
         Returns merged properties
 
@@ -160,8 +164,7 @@ class ExportEndpoint(object):
 
         return properties
 
-    def make_import_properties(self):
-        # type: () -> dict
+    def make_import_properties(self) -> dict:
         """
         Returns the properties of this endpoint where export properties have
         been replaced by import ones
@@ -175,8 +178,7 @@ class ExportEndpoint(object):
         props[pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID] = self.__fw_uid
         return props
 
-    def rename(self, new_name):
-        # type: (str) -> None
+    def rename(self, new_name: str) -> None:
         """
         Updates the endpoint name
 
@@ -188,16 +190,14 @@ class ExportEndpoint(object):
 
     # Access to the service
     @property
-    def instance(self):
-        # type: () -> object
+    def instance(self) -> object:
         """
         Service instance
         """
         return self.__instance
 
     @property
-    def reference(self):
-        # type: () -> pelix.framework.ServiceReference
+    def reference(self) -> pelix.framework.ServiceReference:
         """
         Service reference
         """
@@ -205,40 +205,35 @@ class ExportEndpoint(object):
 
     # End point properties
     @property
-    def uid(self):
-        # type: () -> str
+    def uid(self) -> str:
         """
         End point unique identifier
         """
         return self.__uid
 
     @property
-    def framework(self):
-        # type: () -> str
+    def framework(self) -> str:
         """
         Framework UID
         """
         return self.__fw_uid
 
     @property
-    def configurations(self):
-        # type: () ->  Tuple[str, ...]
+    def configurations(self) -> Tuple[str, ...]:
         """
         Configurations of this end point
         """
         return self.__configurations
 
     @property
-    def name(self):
-        # type: () -> str
+    def name(self) -> str:
         """
         Name of the end point
         """
         return self.__name
 
     @property
-    def specifications(self):
-        # type: () -> List[str]
+    def specifications(self) -> List[str]:
         """
         Returns the exported specifications
         """
@@ -248,15 +243,19 @@ class ExportEndpoint(object):
 # ------------------------------------------------------------------------------
 
 
-class ImportEndpoint(object):
+class ImportEndpoint:
     """
     Represents an end point to access an imported service
     """
 
-    def __init__(
-        self, uid, framework, configurations, name, specifications, properties
-    ):
-        # type: (str, str, Any[str, List[str]], Optional[str], List[str], dict) -> None
+    def __init__(self,
+    uid: str,
+    framework: str,
+    configurations: Union[str, List[str]],
+    name: Optional[str],
+    specifications: List[str],
+    properties: dict
+    ) -> None:
         """
         :param uid: Unique identified of the end point
         :param framework: UID of the framework exporting the end point
@@ -273,7 +272,7 @@ class ImportEndpoint(object):
 
         # Normalize list of configurations
         if isinstance(configurations, str):
-            tuple_conf = (configurations,)  # type: Tuple[str, ...]
+            tuple_conf: Tuple[str, ...] = (configurations,)
         else:
             tuple_conf = tuple(configurations)
 
@@ -286,7 +285,7 @@ class ImportEndpoint(object):
 
         # Public variable: the source server,
         # set up by a Pelix discovery service
-        self.server = None  # type: str
+        self.server: str = None
 
     def __str__(self):
         """
@@ -304,24 +303,21 @@ class ImportEndpoint(object):
 
     # Access to the service details
     @property
-    def specifications(self):
-        # type: () -> List[str]
+    def specifications(self) -> List[str]:
         """
         Specifications of the service
         """
         return self.__specifications
 
     @property
-    def properties(self):
-        # type: () -> dict
+    def properties(self) -> dict:
         """
         Properties of the imported service
         """
         return self.__properties
 
     @properties.setter
-    def properties(self, properties):
-        # type: (dict) -> None
+    def properties(self, properties: dict) -> None:
         """
         Sets the properties of the imported service
         """
@@ -330,32 +326,28 @@ class ImportEndpoint(object):
 
     # End point properties
     @property
-    def uid(self):
-        # type: () -> str
+    def uid(self) -> str:
         """
         End point unique identifier
         """
         return self.__uid
 
     @property
-    def framework(self):
-        # type: () -> str
+    def framework(self) -> str:
         """
         UID of the framework exporting this end point
         """
         return self.__fw_uid
 
     @property
-    def configurations(self):
-        # type: () -> Tuple[str, ...]
+    def configurations(self) -> Tuple[str, ...]:
         """
         Kind of end point
         """
         return self.__configurations
 
     @property
-    def name(self):
-        # type: () -> str
+    def name(self) -> str:
         """
         Name of the end point
         """
@@ -365,7 +357,7 @@ class ImportEndpoint(object):
 # ------------------------------------------------------------------------------
 
 
-class EndpointDescription(object):
+class EndpointDescription:
     """
     Endpoint description bean, according to OSGi specifications:
 
@@ -375,15 +367,17 @@ class EndpointDescription(object):
     This is an importer-side description
     """
 
-    def __init__(self, svc_ref, properties):
-        # type: (Optional[pelix.framework.ServiceReference], dict) -> None
+    def __init__(self,
+    svc_ref: Optional[pelix.framework.ServiceReference],
+    properties: dict
+    ) -> None:
         """
         Sets up the description with the given properties
 
         :raise ValueError: Invalid properties
         """
         # Set up properties
-        all_properties = {}  # type: Dict[str, Any]
+        all_properties: Dict[str, Any] = {}
         if svc_ref is not None:
             all_properties.update(svc_ref.get_properties())
 
@@ -438,8 +432,7 @@ class EndpointDescription(object):
         )
 
     @staticmethod
-    def __check_properties(props):
-        # type: (dict) -> None
+    def __check_properties(props: dict) -> None:
         """
         Checks that the given dictionary doesn't have export keys and has
         import keys
@@ -467,8 +460,7 @@ class EndpointDescription(object):
             if key in props:
                 raise ValueError("Export property found: {0}".format(key))
 
-    def get_configuration_types(self):
-        # type: () -> List[str]
+    def get_configuration_types(self) -> List[str]:
         """
         Returns the configuration types.
 
@@ -489,8 +481,7 @@ class EndpointDescription(object):
         # Return a copy of the list
         return self.__properties[pelix.remote.PROP_IMPORTED_CONFIGS][:]
 
-    def get_framework_uuid(self):
-        # type: () -> str
+    def get_framework_uuid(self) -> str:
         """
         Returns the UUID of the framework exporting this endpoint, or None
 
@@ -498,15 +489,13 @@ class EndpointDescription(object):
         """
         return self.__properties.get(pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID)
 
-    def get_id(self):
-        # type: () -> str
+    def get_id(self) -> str:
         """
         Returns the endpoint's id.
         """
         return self.__properties[pelix.remote.PROP_ENDPOINT_ID]
 
-    def get_intents(self):
-        # type: () -> List[str]
+    def get_intents(self) -> List[str]:
         """
         Returns the list of intents implemented by this endpoint.
 
@@ -525,8 +514,7 @@ class EndpointDescription(object):
         except KeyError:
             return []
 
-    def get_interfaces(self):
-        # type: () -> List[str]
+    def get_interfaces(self) -> List[str]:
         """
         Provides the list of interfaces implemented by the exported service.
 
@@ -534,8 +522,7 @@ class EndpointDescription(object):
         """
         return self.__properties[pelix.constants.OBJECTCLASS][:]
 
-    def get_package_version(self, package):
-        # type: (str) -> Tuple[int, ...]
+    def get_package_version(self, package: str) -> Tuple[int, ...]:
         """
         Provides the version of the given package name.
 
@@ -555,8 +542,7 @@ class EndpointDescription(object):
             # No version
             return 0, 0, 0
 
-    def get_properties(self):
-        # type: () -> dict
+    def get_properties(self) -> dict:
         """
         Returns all endpoint properties.
 
@@ -564,8 +550,7 @@ class EndpointDescription(object):
         """
         return self.__properties.copy()
 
-    def get_service_id(self):
-        # type: () -> int
+    def get_service_id(self) -> int:
         """
         Returns the service id for the service exported through this endpoint.
 
@@ -577,8 +562,7 @@ class EndpointDescription(object):
             # Not found
             return 0
 
-    def is_same_service(self, endpoint):
-        # type: (EndpointDescription) -> bool
+    def is_same_service(self, endpoint: Type[object]) -> bool:
         """
         Tests if this endpoint and the given one have the same framework UUID
         and service ID
@@ -591,8 +575,9 @@ class EndpointDescription(object):
             and self.get_service_id() == endpoint.get_service_id()
         )
 
-    def matches(self, ldap_filter):
-        # type: (Any[str, pelix.ldapfilter.LDAPFilter]) -> bool
+    def matches(self,
+    ldap_filter: Union[str, pelix.ldapfilter.LDAPFilter]
+    ) -> bool:
         """
         Tests the properties of this EndpointDescription against the given
         filter
@@ -604,8 +589,7 @@ class EndpointDescription(object):
             self.__properties
         )
 
-    def to_import(self):
-        # type: () -> ImportEndpoint
+    def to_import(self) -> ImportEndpoint:
         """
         Converts an EndpointDescription bean to an ImportEndpoint
 
@@ -641,8 +625,7 @@ class EndpointDescription(object):
         )
 
     @classmethod
-    def from_export(cls, endpoint):
-        # type: (ExportEndpoint) -> EndpointDescription
+    def from_export(cls, endpoint: ExportEndpoint) -> Type[object]:
         """
         Converts an ExportEndpoint bean to an EndpointDescription
 
@@ -685,8 +668,7 @@ class EndpointDescription(object):
 # ------------------------------------------------------------------------------
 
 
-def to_import_properties(properties):
-    # type: (dict) -> dict
+def to_import_properties(properties: dict) -> dict:
     """
     Returns a dictionary where export properties have been replaced by import
     ones
@@ -732,8 +714,7 @@ def to_import_properties(properties):
 # ------------------------------------------------------------------------------
 
 
-def compute_exported_specifications(svc_ref):
-    # type: (pelix.framework.ServiceReference) -> List[str]
+def compute_exported_specifications(svc_ref: pelix.framework.ServiceReference) -> List[str]:
     """
     Computes the list of specifications exported by the given service
 
@@ -778,8 +759,10 @@ def compute_exported_specifications(svc_ref):
     return [spec for spec in all_exported_specs if spec not in rejected_specs]
 
 
-def extract_specifications(specifications, properties):
-    # type: (Any[str, List[str]], dict) -> List[str]
+def extract_specifications(
+    specifications: Union[str, List[str]],
+    properties: dict
+    ) -> List[str]:
     """
     Converts "python:/name" specifications to "name". Keeps the other
     specifications as is.
@@ -816,8 +799,7 @@ def extract_specifications(specifications, properties):
     return list(filtered_specs)
 
 
-def format_specifications(specifications):
-    # type: (Iterable[str]) -> List[str]
+def format_specifications(specifications: Iterable[str]) -> List[str]:
     """
     Transforms the interfaces names into URI strings, with the interface
     implementation language as a scheme.
@@ -837,8 +819,7 @@ def format_specifications(specifications):
     return list(transformed)
 
 
-def _extract_specification_parts(specification):
-    # type: (str) -> Tuple[str, str]
+def _extract_specification_parts(specification: str) -> Tuple[str, str]:
     """
     Extract the language and the interface from a "language:/interface"
     interface name
@@ -869,8 +850,7 @@ def _extract_specification_parts(specification):
     return language, interface
 
 
-def _format_specification(language, specification):
-    # type: (str, str) -> str
+def _format_specification(language: str, specification: str) -> str:
     """
     Formats a "language://interface" string
 
@@ -881,8 +861,7 @@ def _format_specification(language, specification):
     return "{0}:/{1}".format(language, _escape_specification(specification))
 
 
-def _escape_specification(specification):
-    # type: (str) -> str
+def _escape_specification(specification: str) -> str:
     """
     Escapes the interface string: replaces slashes '/' by '%2F'
 
@@ -892,8 +871,7 @@ def _escape_specification(specification):
     return specification.replace("/", "%2F")
 
 
-def _unescape_specification(specification):
-    # type: (str) -> str
+def _unescape_specification(specification: str) -> str:
     """
     Unescapes the interface string: replaces '%2F' by slashes '/'
 

@@ -29,6 +29,7 @@ PyPI), and a ZooKeeper server.
 """
 
 # Standard library
+from typing import List
 import logging
 import posixpath
 import socket
@@ -269,7 +270,7 @@ class ZooKeeperClient:
 @Requires("_registry", pelix.remote.SERVICE_REGISTRY)
 @Property("_prefix", "zookeeper.prefix", "/pelix")
 @Property("_zk_hosts", "zookeeper.hosts", "localhost:2181")
-class ZooKeeperDiscovery(object):
+class ZooKeeperDiscovery:
     """
     Pelix Remote Service discovery provider based on ZooKeeper
     """
@@ -283,7 +284,7 @@ class ZooKeeperDiscovery(object):
         self._controller = False
         self._prefix = None
         self._zk_hosts = None
-        self._zk = None  # type: ZooKeeperClient
+        self._zk: ZooKeeperClient = None
 
         # Framework properties
         self._fw_uid = None
@@ -316,8 +317,7 @@ class ZooKeeperDiscovery(object):
         _logger.debug("ZooKeeper Discovery validated")
 
     @staticmethod
-    def _endpoint_path(fw_uid, endpoint_uid):
-        # type: (str, str) -> str
+    def _endpoint_path(fw_uid: str, endpoint_uid: str) -> str:
         """
         Returns the path to the given endpoint
 
@@ -328,8 +328,7 @@ class ZooKeeperDiscovery(object):
         return posixpath.join(ENDPOINTS_ROOT, fw_uid, endpoint_uid)
 
     @staticmethod
-    def _endpoints_path(fw_uid):
-        # type: (str) -> str
+    def _endpoints_path(fw_uid: str) -> str:
         """
         Returns the path to the endpoints parent Z-node for the given framework
 
@@ -339,8 +338,7 @@ class ZooKeeperDiscovery(object):
         return posixpath.join(ENDPOINTS_ROOT, fw_uid)
 
     @staticmethod
-    def _framework_path(fw_uid):
-        # type: (str) -> str
+    def _framework_path(fw_uid: str) -> str:
         """
         Returns the path to the framework Z-node
 
@@ -362,8 +360,7 @@ class ZooKeeperDiscovery(object):
         # Stop the Kazoo Client
         self._zk.stop()
 
-    def _clear_framework(self, fw_uid):
-        # type: (str) -> None
+    def _clear_framework(self, fw_uid: str) -> None:
         """
         Clears all references to the given framework
 
@@ -440,8 +437,7 @@ class ZooKeeperDiscovery(object):
         for endpoint in self._dispatcher.get_endpoints():
             self._register_service(endpoint)
 
-    def _cache_fw_host(self, fw_uid):
-        # type: (str) -> str
+    def _cache_fw_host(self, fw_uid: str) -> str:
         """
         Gets the host name associated to a framework. Caches it if necessary.
         Also, adds a watcher on the framework Z-Node
@@ -459,8 +455,7 @@ class ZooKeeperDiscovery(object):
             )
             return fw_host
 
-    def __read_endpoint(self, path):
-        # type: (str) -> beans.EndpointDescription
+    def __read_endpoint(self, path: str) -> beans.EndpointDescription:
         """
         Reads the description of an endpoint at the given Z-Node path.
         Also set the endpoint event listener on the node.
@@ -503,8 +498,7 @@ class ZooKeeperDiscovery(object):
                 # Register the remote service
                 self._register_remote(endpoint)
 
-    def _register_service(self, endpoint):
-        # type: (beans.ExportEndpoint) -> None
+    def _register_service(self, endpoint: beans.ExportEndpoint) -> None:
         """
         Register a local endpoint
 
@@ -530,8 +524,7 @@ class ZooKeeperDiscovery(object):
                 "Error registering local service: %s", type(ex).__name__
             )
 
-    def _unregister_service(self, endpoint):
-        # type: (beans.ExportEndpoint) -> None
+    def _unregister_service(self, endpoint: beans.ExportEndpoint) -> None:
         """
         Unregisters an endpoint from Redis
 
@@ -542,18 +535,19 @@ class ZooKeeperDiscovery(object):
         except KazooException as ex:
             _logger.error("Error unregistering service %s:", ex)
 
-    def endpoints_added(self, endpoints):
-        # type: (list) -> None
+    def endpoints_added(self, endpoints: List[beans.ExportEndpoint]) -> None:
         """
         Multiple endpoints have been added
 
         :param endpoints: A list of ExportEndpoint beans
         """
-        for endpoint in endpoints:  # type: beans.ExportEndpoint
+        for endpoint in endpoints:
             self._register_service(endpoint)
 
-    def endpoint_updated(self, endpoint, _):
-        # type: (beans.ExportEndpoint, dict) -> None
+    def endpoint_updated(self,
+    endpoint: beans.ExportEndpoint,
+    _: dict
+    ) -> None:
         """
         An end point is updated
 
@@ -564,8 +558,7 @@ class ZooKeeperDiscovery(object):
         # Update and registration are the same with Redis
         self._register_service(endpoint)
 
-    def endpoint_removed(self, endpoint):
-        # type: (beans.ExportEndpoint) -> None
+    def endpoint_removed(self, endpoint: beans.ExportEndpoint) -> None:
         """
         An end point is removed
 
@@ -573,8 +566,7 @@ class ZooKeeperDiscovery(object):
         """
         self._unregister_service(endpoint)
 
-    def _register_remote(self, endpoint_desc):
-        # type: (beans.EndpointDescription) -> bool
+    def _register_remote(self, endpoint_desc: beans.EndpointDescription) -> bool:
         """
         Registers a discovered remote endpoint
 
@@ -595,8 +587,7 @@ class ZooKeeperDiscovery(object):
             self._registry.add(endpoint)
         return True
 
-    def _on_frameworks_event(self, event):
-        # type: (WatchedEvent) -> None
+    def _on_frameworks_event(self, event) -> None:
         """
         Handles an event on the Frameworks Z-node
         """
@@ -606,8 +597,7 @@ class ZooKeeperDiscovery(object):
             # Reset the listener in any case
             self._zk.get(event.path, self._on_frameworks_event)
 
-    def _on_framework_event(self, event):
-        # type: (WatchedEvent) -> None
+    def _on_framework_event(self, event) -> None:
         """
         Handles an event on a framework's Z-node
         """
@@ -658,8 +648,7 @@ class ZooKeeperDiscovery(object):
                 )
                 self._register_remote(endpoint)
 
-    def _on_fw_endpoints_event(self, event):
-        # type: (WatchedEvent) -> None
+    def _on_fw_endpoints_event(self, event) -> None:
         """
         Handles an event on the endpoints Z-node of a framework
         """
@@ -670,8 +659,7 @@ class ZooKeeperDiscovery(object):
             # Reset the listener in any case
             self._zk.get(event.path, self._on_fw_endpoints_event)
 
-    def _on_endpoint_event(self, event):
-        # type: (WatchedEvent) -> None
+    def _on_endpoint_event(self, event) -> None:
         """
         Handles an event on an endpoint Z-node
         """
@@ -684,8 +672,7 @@ class ZooKeeperDiscovery(object):
             endpoint_uid = event.path.rsplit("/", 1)[-1]
             self._registry.remove(endpoint_uid)
 
-    def __check_framework_endpoints(self, fw_uid):
-        # type: (str) -> None
+    def __check_framework_endpoints(self, fw_uid: str) -> None:
         """
         Checks the list of endpoints for a framework in ZooKeeper
         """

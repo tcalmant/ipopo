@@ -302,7 +302,7 @@ def close_multicast_socket(sock, address):
 @Requires("_registry", pelix.remote.SERVICE_REGISTRY)
 @Property("_group", "multicast.group", "239.0.0.1")
 @Property("_port", "multicast.port", 42000)
-class MulticastDiscovery(object):
+class MulticastDiscovery:
     """
     Remote services discovery and notification using multicast packets
     """

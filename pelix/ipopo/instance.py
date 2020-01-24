@@ -53,7 +53,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-class StoredInstance(object):
+class StoredInstance:
     """
     Represents a component instance
     """
@@ -90,8 +90,13 @@ class StoredInstance(object):
     ERRONEOUS = 4
     """ This component has failed while validating """
 
-    def __init__(self, ipopo_service, context, instance, handlers):
-        # type: (Any, ComponentContext, Any, Iterable[Any]) -> None
+    def __init__(
+        self,
+        ipopo_service: Any,
+        context: ComponentContext,
+        instance: Any,
+        handlers: Iterable[Any]
+    ) -> None:
         """
         Sets up the instance object
 
@@ -128,16 +133,16 @@ class StoredInstance(object):
         self.state = StoredInstance.INVALID
 
         # Stack track of validation error
-        self.error_trace = None  # type: str
+        self.error_trace: str = None
 
         # Store the bundle context
         self.bundle_context = self.context.get_bundle_context()
 
         # The controllers state dictionary
-        self._controllers_state = {}  # type: Dict[str, bool]
+        self._controllers_state: Dict[str, bool] = {}
 
         # Handlers: kind -> [handlers]
-        self._handlers = {}  # type: Dict[str, Any]
+        self._handlers: Dict[str, Any] = {}
         self.__all_handlers = set(handlers)
         for handler in handlers:
             kinds = handler.get_kinds()
@@ -159,8 +164,7 @@ class StoredInstance(object):
             self.name, self.state
         )
 
-    def check_event(self, event):
-        # type: (ServiceEvent) -> bool
+    def check_event(self, event: ServiceEvent) -> bool:
         """
         Tests if the given service event must be handled or ignored, based
         on the state of the iPOPO service and on the content of the event.
@@ -176,8 +180,8 @@ class StoredInstance(object):
 
             return self.__safe_handlers_callback("check_event", event)
 
-    def bind(self, dependency, svc, svc_ref):
-        # type: (Any, Any, ServiceReference) -> None
+    def bind(self, dependency: Any, svc: Any, svc_ref: ServiceReference
+    ) -> None:
         """
         Called by a dependency manager to inject a new service and update the
         component life cycle.
@@ -186,8 +190,14 @@ class StoredInstance(object):
             self.__set_binding(dependency, svc, svc_ref)
             self.check_lifecycle()
 
-    def update(self, dependency, svc, svc_ref, old_properties, new_value=False):
-        # type: (Any, Any, ServiceReference, dict, bool) -> None
+    def update(
+        self,
+        dependency: Any,
+        svc: Any,
+        svc_ref: ServiceReference,
+        old_properties: dict,
+        new_value: bool = False
+    ) -> None:
         """
         Called by a dependency manager when the properties of an injected
         dependency have been updated.
@@ -204,8 +214,12 @@ class StoredInstance(object):
             )
             self.check_lifecycle()
 
-    def unbind(self, dependency, svc, svc_ref):
-        # type: (Any, Any, ServiceReference) -> None
+    def unbind(
+        self,
+        dependency: Any,
+        svc: Any,
+        svc_ref: ServiceReference
+    ) -> None:
         """
         Called by a dependency manager to remove an injected service and to
         update the component life cycle.
@@ -221,8 +235,7 @@ class StoredInstance(object):
             if self.update_bindings():
                 self.check_lifecycle()
 
-    def get_controller_state(self, name):
-        # type: (str) -> bool
+    def get_controller_state(self, name: str) -> bool:
         """
         Retrieves the state of the controller with the given name
 
@@ -232,8 +245,7 @@ class StoredInstance(object):
         """
         return self._controllers_state[name]
 
-    def set_controller_state(self, name, value):
-        # type: (str, bool) -> None
+    def set_controller_state(self, name: str, value: bool) -> None:
         """
         Sets the state of the controller with the given name
 
@@ -244,8 +256,7 @@ class StoredInstance(object):
             self._controllers_state[name] = value
             self.__safe_handlers_callback("on_controller_change", name, value)
 
-    def update_property(self, name, old_value, new_value):
-        # type: (str, Any, Any) -> None
+    def update_property(self, name: str, old_value: Any, new_value: Any) -> None:
         """
         Handles a property changed event
 
@@ -258,8 +269,7 @@ class StoredInstance(object):
                 "on_property_change", name, old_value, new_value
             )
 
-    def update_hidden_property(self, name, old_value, new_value):
-        # type: (str, Any, Any) -> None
+    def update_hidden_property(self, name: str, old_value: Any, new_value: Any) -> None:
         """
         Handles an hidden property changed event
 
@@ -316,8 +326,7 @@ class StoredInstance(object):
                 # We're all good
                 self.validate(True)
 
-    def update_bindings(self):
-        # type: () -> bool
+    def update_bindings(self) -> bool:
         """
         Updates the bindings of the given component
 
@@ -342,8 +351,7 @@ class StoredInstance(object):
         with self._lock:
             self.__safe_handlers_callback("start")
 
-    def retry_erroneous(self, properties_update):
-        # type: (dict) -> int
+    def retry_erroneous(self, properties_update: dict) -> int:
         """
         Removes the ERRONEOUS state from a component and retries a validation
 
@@ -369,8 +377,7 @@ class StoredInstance(object):
             # Check if the component is still erroneous
             return self.state
 
-    def invalidate(self, callback=True):
-        # type: (bool) -> bool
+    def invalidate(self, callback: bool = True) -> bool:
         """
         Applies the component invalidation.
 
@@ -407,8 +414,7 @@ class StoredInstance(object):
             self.__safe_handlers_callback("post_invalidate")
             return True
 
-    def kill(self):
-        # type: () -> bool
+    def kill(self) -> bool:
         """
         This instance is killed : invalidate it if needed, clean up all members
 
@@ -469,8 +475,7 @@ class StoredInstance(object):
             self._ipopo_service = None
             return True
 
-    def validate(self, safe_callback=True):
-        # type: (bool) -> bool
+    def validate(self, safe_callback: bool = True) -> bool:
         """
         Ends the component validation, registering services
 
@@ -527,8 +532,7 @@ class StoredInstance(object):
                 )
         return True
 
-    def __callback(self, event, *args, **kwargs):
-        # type: (str, *Any, **Any) -> Any
+    def __callback(self, event: str, *args: Any, **kwargs: Any) -> Any:
         """
         Calls the registered method in the component for the given event
 
@@ -549,8 +553,7 @@ class StoredInstance(object):
 
         return result
 
-    def __validation_callback(self, event):
-        # type: (str) -> Any
+    def __validation_callback(self, event: str) -> Any:
         """
         Specific handling for the ``@ValidateComponent`` and
         ``@InvalidateComponent`` callback, as it requires checking arguments
@@ -589,8 +592,7 @@ class StoredInstance(object):
 
         return result
 
-    def __field_callback(self, field, event, *args, **kwargs):
-        # type: (str, str, *Any, **Any) -> Any
+    def __field_callback(self, field: str, event: str, *args: Any, **kwargs: Any) -> Any:
         """
         Calls the registered method in the component for the given field event
 
@@ -620,8 +622,7 @@ class StoredInstance(object):
 
         return result
 
-    def safe_callback(self, event, *args, **kwargs):
-        # type: (str, *Any, **Any) -> Any
+    def safe_callback(self, event: str, *args: Any, **kwargs: Any) -> Any:
         """
         Calls the registered method in the component for the given event,
         ignoring raised exceptions
@@ -659,8 +660,7 @@ class StoredInstance(object):
             )
             return False
 
-    def __safe_validation_callback(self, event):
-        # type: (str) -> Any
+    def __safe_validation_callback(self, event: str) -> Any:
         """
         Calls the ``@ValidateComponent`` or ``@InvalidateComponent`` callback,
         ignoring raised exceptions
@@ -704,8 +704,7 @@ class StoredInstance(object):
 
             return False
 
-    def __safe_field_callback(self, field, event, *args, **kwargs):
-        # type: (str, str, *Any, **Any) -> Any
+    def __safe_field_callback(self, field: str, event: str, *args: Any, **kwargs: Any) -> Any:
         """
         Calls the registered method in the component for the given event,
         ignoring raised exceptions
@@ -745,8 +744,7 @@ class StoredInstance(object):
             )
             return False
 
-    def __safe_handler_callback(self, handler, method_name, *args, **kwargs):
-        # type: (Any, str, *Any, **Any) -> Any
+    def __safe_handler_callback(self, handler: Any, method_name: str, *args: Any, **kwargs: Any) -> Any:
         """
         Calls the given method with the given arguments in the given handler.
         Logs exceptions, but doesn't propagate them.
@@ -804,8 +802,7 @@ class StoredInstance(object):
 
         return result
 
-    def __safe_handlers_callback(self, method_name, *args, **kwargs):
-        # type: (str, *Any, **Any) -> bool
+    def __safe_handlers_callback(self, method_name: str, *args: Any, **kwargs: Any) -> bool:
         """
         Calls the given method with the given arguments in all handlers.
         Logs exceptions, but doesn't propagate them.
@@ -864,8 +861,12 @@ class StoredInstance(object):
 
         return result
 
-    def __set_binding(self, dependency, service, reference):
-        # type: (Any, Any, ServiceReference) -> None
+    def __set_binding(
+        self,
+        dependency: Any,
+        service: Any,
+        reference: ServiceReference
+    ) -> None:
         """
         Injects a service in the component
 
@@ -887,9 +888,13 @@ class StoredInstance(object):
         )
 
     def __update_binding(
-        self, dependency, service, reference, old_properties, new_value
-    ):
-        # type: (Any, Any, ServiceReference, dict, bool) -> None
+        self,
+        dependency: Any,
+        service: Any,
+        reference: ServiceReference,
+        old_properties: dict,
+        new_value: bool
+    ) -> None:
         """
         Calls back component binding and field binding methods when the
         properties of an injected dependency have been updated.
@@ -919,8 +924,7 @@ class StoredInstance(object):
             constants.IPOPO_CALLBACK_UPDATE, service, reference, old_properties
         )
 
-    def __unset_binding(self, dependency, service, reference):
-        # type: (Any, Any, ServiceReference) -> None
+    def __unset_binding(self, dependency: Any, service: Any, reference: ServiceReference) -> None:
         """
         Removes a service from the component
 

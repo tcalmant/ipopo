@@ -83,7 +83,7 @@ ENDPOINT_EVENTS = (EVENT_ADD, EVENT_UPDATE, EVENT_REMOVE)
 @Property("_port", "mqtt.port", 1883)
 @Property("_prefix", "topic.prefix", "pelix/{appid}/remote-services")
 @Property("_appid", "application.id", None)
-class MqttDiscovery(object):
+class MqttDiscovery:
     """
     Remote Service discovery provider based on MQTT
     """

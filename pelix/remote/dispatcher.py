@@ -82,7 +82,7 @@ _logger = logging.getLogger(__name__)
     optional=True,
 )
 @Instantiate("pelix-remote-dispatcher")
-class Dispatcher(object):
+class Dispatcher:
     """
     Common dispatcher for all exporters
     """
@@ -520,7 +520,7 @@ class Dispatcher(object):
 @Requires("_dispatcher", pelix.remote.SERVICE_DISPATCHER)
 @Requires("_registry", pelix.remote.SERVICE_REGISTRY)
 @Property("_path", pelix.http.HTTP_SERVLET_PATH, "/pelix-dispatcher")
-class RegistryServlet(object):
+class RegistryServlet:
     """
     Servlet to access the content of the registry
     """

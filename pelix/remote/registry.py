@@ -70,7 +70,7 @@ _logger = logging.getLogger(__name__)
     optional=True,
 )
 @Instantiate("pelix-remote-imports-registry")
-class ImportsRegistry(object):
+class ImportsRegistry:
     """
     Registry of discovered end points. End points are identified by their UID
     """

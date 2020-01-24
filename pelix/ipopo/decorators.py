@@ -57,8 +57,7 @@ _logger = logging.getLogger("ipopo.decorators")
 # ------------------------------------------------------------------------------
 
 
-def is_from_parent(cls, attribute_name, value=None):
-    # type: (type, str, bool) -> bool
+def is_from_parent(cls: type, attribute_name: str, value: bool = None) -> bool:
     """
     Tests if the current attribute value is shared by a parent of the given
     class.
@@ -89,8 +88,7 @@ def is_from_parent(cls, attribute_name, value=None):
     return False
 
 
-def get_factory_context(cls):
-    # type: (type) -> FactoryContext
+def get_factory_context(cls: type) -> FactoryContext:
     """
     Retrieves the factory context object associated to a factory. Creates it
     if needed
@@ -117,8 +115,7 @@ def get_factory_context(cls):
     return context
 
 
-def get_method_description(method):
-    # type: (Callable) -> str
+def get_method_description(method: Callable) -> str:
     """
     Retrieves a description of the given method. If possible, the description
     contains the source file name and line.
@@ -142,8 +139,7 @@ def get_method_description(method):
         return "'{0}'".format(method.__name__)
 
 
-def validate_method_arity(method, *needed_args):
-    # type: (Callable, *str) -> None
+def validate_method_arity(method: Callable, *needed_args: str) -> None:
     """
     Tests if the decorated method has a sufficient number of parameters.
 
@@ -195,8 +191,7 @@ def validate_method_arity(method, *needed_args):
 # ------------------------------------------------------------------------------
 
 
-def _ipopo_setup_callback(cls, context):
-    # type: (type, FactoryContext) -> None
+def _ipopo_setup_callback(cls: type, context: FactoryContext) -> None:
     """
     Sets up the class _callback dictionary
 
@@ -253,8 +248,7 @@ def _ipopo_setup_callback(cls, context):
     context.callbacks.update(callbacks)
 
 
-def _ipopo_setup_field_callback(cls, context):
-    # type: (type, FactoryContext) -> None
+def _ipopo_setup_field_callback(cls: type, context: FactoryContext) -> None:
     """
     Sets up the class _field_callback dictionary
 
@@ -316,8 +310,7 @@ def _ipopo_setup_field_callback(cls, context):
 # ------------------------------------------------------------------------------
 
 
-def _set_object_entry(obj, entry_name, value):
-    # type: (Any, str, Any) -> None
+def _set_object_entry(obj: Any, entry_name: str, value: Any) -> None:
     """
     Sets the given value to the given attribute in the given object.
 
@@ -328,8 +321,7 @@ def _set_object_entry(obj, entry_name, value):
     setattr(obj, entry_name, value)
 
 
-def _append_object_entry(obj, list_name, entry):
-    # type: (Any, str, Any) -> None
+def _append_object_entry(obj: Any, list_name: str, entry: Any) -> None:
     """
     Appends the given entry in the given object list.
     Creates the list field if needed.
@@ -356,7 +348,7 @@ def _append_object_entry(obj, list_name, entry):
 # ------------------------------------------------------------------------------
 
 
-class Holder(object):
+class Holder:
     # pylint: disable=R0903
     """
     Simple class that holds a value
@@ -369,8 +361,7 @@ class Holder(object):
         self.value = value
 
 
-def _ipopo_class_field_property(name, value, methods_prefix):
-    # type: (str, Any, str) -> property
+def _ipopo_class_field_property(name: str, value: Any, methods_prefix: str):
     """
     Sets up an iPOPO field property, using Python property() capabilities
 
@@ -423,7 +414,7 @@ def _ipopo_class_field_property(name, value, methods_prefix):
 # ------------------------------------------------------------------------------
 
 
-class Instantiate(object):
+class Instantiate:
     # pylint: disable=R0903
     """
     This decorator tells iPOPO to instantiate a component instance from this
@@ -505,7 +496,7 @@ class Instantiate(object):
 # ------------------------------------------------------------------------------
 
 
-class ComponentFactory(object):
+class ComponentFactory:
     # pylint: disable=R0903
     """
     Manipulates the component class according to a ``FactoryContext`` object
@@ -653,7 +644,7 @@ class SingletonFactory(ComponentFactory):
 # ------------------------------------------------------------------------------
 
 
-class Property(object):
+class Property:
     # pylint: disable=R0903
     """
     The ``@Property`` decorator defines a component property. A property can
@@ -881,7 +872,7 @@ def _get_specifications(specifications):
         )
 
 
-class Provides(object):
+class Provides:
     # pylint: disable=R0903
     """
     The ``@Provides`` decorator defines a service to be exposed by component
@@ -1077,7 +1068,7 @@ class Provides(object):
 # ------------------------------------------------------------------------------
 
 
-class Requires(object):
+class Requires:
     # pylint: disable=R0903
     """
     The ``@Requires`` decorator defines the requirement of a service.
@@ -1467,7 +1458,7 @@ class Temporal(Requires):
 # ------------------------------------------------------------------------------
 
 
-class BindField(object):
+class BindField:
     # pylint: disable=R0903
     """
     The ``@BindField`` callback decorator is called when a component is bound
@@ -1531,7 +1522,7 @@ class BindField(object):
         return method
 
 
-class UpdateField(object):
+class UpdateField:
     # pylint: disable=R0903
     """
     The ``@UpdateField`` callback decorator is called when the properties of
@@ -1597,7 +1588,7 @@ class UpdateField(object):
         return method
 
 
-class UnbindField(object):
+class UnbindField:
     # pylint: disable=R0903
     """
     The ``@UnbindField`` callback decorator is called when an injected
@@ -1788,7 +1779,7 @@ def Unbind(method):
 # ------------------------------------------------------------------------------
 
 
-class ValidateComponent(object):
+class ValidateComponent:
     # pylint: disable=R0903
     """
     The ``@ValidateComponent`` decorator declares a callback method for

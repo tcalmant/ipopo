@@ -212,7 +212,7 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
 # ------------------------------------------------------------------------------
 
 
-class _ServiceCallProxy(object):
+class _ServiceCallProxy:
     # pylint: disable=R0903
     """
     Service call proxy

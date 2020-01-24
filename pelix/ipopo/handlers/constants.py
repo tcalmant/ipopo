@@ -80,7 +80,7 @@ It should also implement the following ones:
 # ------------------------------------------------------------------------------
 
 
-class HandlerFactory(object):
+class HandlerFactory:
     # pylint: disable=R0903
     """
     Handler factory abstract class
@@ -100,7 +100,7 @@ class HandlerFactory(object):
 # ------------------------------------------------------------------------------
 
 
-class Handler(object):
+class Handler:
     """
     Basic handler abstract class
     """

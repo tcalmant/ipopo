@@ -106,7 +106,7 @@ XML_VALUE = object()
 # ------------------------------------------------------------------------------
 
 
-class EDEFReader(object):
+class EDEFReader:
     # pylint: disable=R0903
     """
     Reads an EDEF XML data. Inspired from EndpoitnDescriptionParser from ECF
@@ -239,7 +239,7 @@ class EDEFReader(object):
 # ------------------------------------------------------------------------------
 
 
-class EDEFWriter(object):
+class EDEFWriter:
     """
     EDEF XML file writer
     """

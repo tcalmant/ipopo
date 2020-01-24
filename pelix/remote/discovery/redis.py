@@ -93,7 +93,7 @@ Pattern of endpoints keys, with the following format entries:
 @Property("_redis_db", "redis.db", 0)
 @Property("_redis_password", "redis.password")
 @Property("_heart_delay", "heartbeat.delay", 10)
-class RedisDiscovery(object):
+class RedisDiscovery:
     """
     Remote services discovery and notification using a Redis server
     """

@@ -73,7 +73,7 @@ _logger = logging.getLogger(__name__)
 @Property("_ttl", "zeroconf.ttl", 60)
 @Requires("_access", pelix.remote.SERVICE_DISPATCHER_SERVLET)
 @Requires("_registry", pelix.remote.SERVICE_REGISTRY)
-class ZeroconfDiscovery(object):
+class ZeroconfDiscovery:
     """
     Remote services discovery and notification using the module zeroconf
     """
@@ -341,8 +341,7 @@ class ZeroconfDiscovery(object):
             # Unregister the service
             self._zeroconf.unregister_service(info)
 
-    def _get_service_info(self, svc_type, name, max_retries=10):
-        # type: (str, str, int) -> zeroconf.ServiceInfo
+    def _get_service_info(self, svc_type: str, name: str, max_retries: int = 10) -> zeroconf.ServiceInfo:
         """
         Tries to get information about the given mDNS service
 

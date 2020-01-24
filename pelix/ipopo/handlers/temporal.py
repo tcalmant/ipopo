@@ -142,7 +142,7 @@ class _HandlerFactory(constants.HandlerFactory):
 
 
 @BundleActivator
-class _Activator(object):
+class _Activator:
     """
     The bundle activator
     """
@@ -189,7 +189,7 @@ class TemporalException(constants.HandlerException):
     pass
 
 
-class _TemporalProxy(object):
+class _TemporalProxy:
     """
     The injected proxy
     """
@@ -242,8 +242,6 @@ class _TemporalProxy(object):
         """
         return self.__event.is_set() and bool(self.__event.data)
 
-    # Python 2 compatibility
-    __nonzero__ = __bool__
 
 
 class TemporalDependency(requires.SimpleDependency):

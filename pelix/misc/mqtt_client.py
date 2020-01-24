@@ -54,7 +54,7 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class MqttClient(object):
+class MqttClient:
     """
     Remote Service discovery provider based on MQTT
     """

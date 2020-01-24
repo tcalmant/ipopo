@@ -50,7 +50,7 @@ __docformat__ = "restructuredtext en"
 # -----------------------------------------------------------------------------
 
 
-class _Configuration(object):
+class _Configuration:
     """
     Represents a configuration loaded from an initialization file
     """
@@ -242,7 +242,7 @@ class _Configuration(object):
         self._bundles = remove_duplicates(self._bundles)
 
 
-class InitFileHandler(object):
+class InitFileHandler:
     """
     Parses and handles the instructions of initial configuration files
     """

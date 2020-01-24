@@ -270,7 +270,7 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
 # ------------------------------------------------------------------------------
 
 
-class _MqttCallableProxy(object):
+class _MqttCallableProxy:
     # pylint: disable=R0903
     """
     Callable object that makes the real request to the MQTT server
@@ -336,7 +336,7 @@ class _MqttCallableProxy(object):
             return self._result
 
 
-class _ServiceCallProxy(object):
+class _ServiceCallProxy:
     # pylint: disable=R0903
     """
     Service call proxy

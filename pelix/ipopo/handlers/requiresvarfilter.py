@@ -94,7 +94,7 @@ class _HandlerFactory(requires._HandlerFactory):
 
 
 @BundleActivator
-class _Activator(object):
+class _Activator:
     """
     The bundle activator
     """

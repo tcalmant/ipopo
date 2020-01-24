@@ -81,7 +81,7 @@ LEVEL_TO_OSGI = {
 # ------------------------------------------------------------------------------
 
 
-class LogEntry(object):
+class LogEntry:
     """
     Represents a log entry
     """
@@ -386,7 +386,7 @@ class LogServiceFactory(logging.Handler):
 
 
 @BundleActivator
-class Activator(object):
+class Activator:
     """
     The bundle activator
     """

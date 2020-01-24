@@ -130,7 +130,7 @@ class _HandlerFactory(constants.HandlerFactory):
 
 
 @BundleActivator
-class _Activator(object):
+class _Activator:
     """
     The bundle activator
     """

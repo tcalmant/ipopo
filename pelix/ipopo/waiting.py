@@ -32,7 +32,7 @@ components.
 import logging
 import threading
 # pylint: disable=W0611
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from pelix.framework import BundleContext
 
 
@@ -62,13 +62,12 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class IPopoWaitingList(object):
+class IPopoWaitingList:
     """
     iPOPO instantiation waiting list
     """
 
-    def __init__(self, bundle_context):
-        # type: (BundleContext) -> None
+    def __init__(self, bundle_context: BundleContext) -> None:
         """
         Sets up members
 
@@ -78,16 +77,15 @@ class IPopoWaitingList(object):
         self.__context = bundle_context
 
         # The "queue": factory name -> {component name -> properties}
-        self.__queue = {}  # type: Dict[str, Dict[str, dict]]
+        self.__queue: Dict[str, Dict[str, dict]] = {}
 
         # Component Name -> Factory Name
-        self.__names = {}  # type: Dict[str, str]
+        self.__names: Dict[str, str] = {}
 
         # Some locking
         self.__lock = threading.RLock()
 
-    def _try_instantiate(self, ipopo, factory, component):
-        # type: (Any, str, str) -> None
+    def _try_instantiate(self, ipopo: Any, factory: str, component: str) -> None:
         """
         Tries to instantiate a component from the queue. Hides all exceptions.
 
@@ -154,8 +152,7 @@ class IPopoWaitingList(object):
         self.__queue.clear()
         self.__context = None
 
-    def service_changed(self, event):
-        # type: (ServiceEvent) -> None
+    def service_changed(self, event: ServiceEvent) -> None:
         """
         Handles an event about the iPOPO service
         """
@@ -165,8 +162,7 @@ class IPopoWaitingList(object):
             with use_ipopo(self.__context) as ipopo:
                 ipopo.add_listener(self)
 
-    def handle_ipopo_event(self, event):
-        # type: (IPopoEvent) -> None
+    def handle_ipopo_event(self, event: IPopoEvent) -> None:
         """
         Handles an iPOPO event
 
@@ -192,8 +188,7 @@ class IPopoWaitingList(object):
                 # No components for this new factory
                 pass
 
-    def add(self, factory, component, properties=None):
-        # type: (str, str, dict) -> None
+    def add(self, factory: str, component: str, properties: Optional[dict] = None) -> None:
         """
         Enqueues the instantiation of the given component
 
@@ -225,8 +220,7 @@ class IPopoWaitingList(object):
                 # iPOPO not yet started
                 pass
 
-    def remove(self, component):
-        # type: (str) -> None
+    def remove(self, component: str) -> None:
         """
         Kills/Removes the component with the given name
 
@@ -258,7 +252,7 @@ class IPopoWaitingList(object):
 
 
 @BundleActivator
-class Activator(object):
+class Activator:
     """
     The bundle activator
     """
@@ -270,8 +264,7 @@ class Activator(object):
         self.__registration = None
         self.__service = None
 
-    def start(self, context):
-        # type: (BundleContext) -> None
+    def start(self, context: BundleContext) -> None:
         # pylint: disable=W0212
         """
         Bundle started
@@ -285,8 +278,7 @@ class Activator(object):
             SERVICE_IPOPO_WAITING_LIST, self.__service, {}
         )
 
-    def stop(self, _):
-        # type: (BundleContext) -> None
+    def stop(self, _: BundleContext) -> None:
         # pylint: disable=W0212
         """
         Bundle stopped
