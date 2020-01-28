@@ -30,6 +30,7 @@ import collections
 import contextlib
 import functools
 import inspect
+import asyncio
 import logging
 import threading
 import traceback
@@ -347,10 +348,7 @@ def remove_duplicates(items):
         return items
 
     new_list = []
-    for item in items:
-        if item not in new_list:
-            new_list.append(item)
-    return new_list
+    return [new_list.append(item) for item in items if item not in new_list]
 
 
 # ------------------------------------------------------------------------------
@@ -584,3 +582,31 @@ class CountdownEvent:
         :return: True if the event as been set, else False
         """
         return self.__event.wait(timeout)
+
+
+# ------------------------------------------------------------------------------
+
+
+class RLock(asyncio.Lock):
+    """
+    A reentrant lock for Python coroutines.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._task = None
+        self._depth = 0
+
+    async def acquire(self):
+        if self._task is None or self._task != asyncio.current_task():
+            await super().acquire()
+            self._task = asyncio.current_task()
+            assert self._depth == 0
+        self._depth += 1
+
+    def release(self):
+        if self._depth > 0:
+            self._depth -= 1
+        if self._depth == 0:
+            super().release()
+            self._task = None
