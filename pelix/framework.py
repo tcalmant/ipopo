@@ -27,11 +27,13 @@ import inspect
 import logging
 import os
 import sys
-import threading
+import asyncio
 import uuid
+import types
 # pylint: disable=W0611
 from typing import Any, List, Optional, Set, Union, Type, Callable
-import types
+from concurrent.futures import ThreadPoolExecutor
+from pelix.utilities import RLock
 
 # Pelix beans and constants
 from pelix.constants import (
@@ -178,20 +180,20 @@ class Bundle:
         :param module_: The bundle module
         """
         # A re-entrant lock for synchronization
-        self._lock = threading.RLock()
+        self._lock: RLock = RLock()
 
         # Bundle
-        self.__context = BundleContext(framework, self)
-        self.__id = bundle_id
-        self.__module = module_
-        self.__name = name
+        self.__context: BundleContext = BundleContext(framework, self)
+        self.__id: int = bundle_id
+        self.__module: types.ModuleType = module_
+        self.__name: str = name
 
         self.__framework: Framework = framework
-        self._state = Bundle.RESOLVED
+        self._state: int = Bundle.RESOLVED
 
         # Registered services
         self.__registered_services: Set[ServiceRegistration] = set()
-        self.__registration_lock = threading.Lock()
+        self.__registration_lock = asyncio.Lock()
 
     def __str__(self) -> str:
         """
@@ -225,24 +227,24 @@ class Bundle:
         Fires a bundle event of the given kind
         :param kind: Kind of event
         """
-        self.__framework._dispatcher.fire_bundle_event(BundleEvent(kind, self))
+        return self.__framework._dispatcher.fire_bundle_event(BundleEvent(kind, self))
 
-    def _registered_service(self, registration: Type[ServiceRegistration]) -> None:
+    async def _registered_service(self, registration: Type[ServiceRegistration]) -> None:
         """
         Bundle is notified by the framework that a service has been registered
         in the name of this bundle.
         :param registration: The service registration object
         """
-        with self.__registration_lock:
+        async with self.__registration_lock:
             self.__registered_services.add(registration)
 
-    def _unregistered_service(self, registration: Type[ServiceRegistration]) -> None:
+    async def _unregistered_service(self, registration: Type[ServiceRegistration]) -> None:
         """
         Bundle is notified by the framework that a service has been
         unregistered in the name of this bundle.
         :param registration: The service registration object
         """
-        with self.__registration_lock:
+        async with self.__registration_lock:
             self.__registered_services.discard(registration)
 
     def get_bundle_context(self):
@@ -341,7 +343,7 @@ class Bundle:
         # No version
         return "0.0.0"
 
-    def start(self) -> None:
+    async def start(self) -> None:
         """
         Starts the bundle. Does nothing if the bundle is already starting or
         active.
@@ -354,10 +356,13 @@ class Bundle:
                 "Framework must be started before its bundles"
             )
 
-        with self._lock:
+        async with self._lock:
             if self._state in (Bundle.ACTIVE, Bundle.STARTING):
                 # Already started bundle, do nothing
                 return
+
+            # Get Event Loop
+            loop = asyncio.get_running_loop()
 
             # Store the bundle current state
             previous_state = self._state
@@ -366,12 +371,14 @@ class Bundle:
             self._state = Bundle.STARTING
             self._fire_bundle_event(BundleEvent.STARTING)
 
-            # Call the activator, if any
+            # Retriving Method
             starter = self.__get_activator_method("start")
+            # Call the activator, if any
             if starter is not None:
                 try:
-                    # Call the start method
-                    starter(self.__context)
+                    method_starter: asyncio.Task = asyncio.create_task(starter(self.__context))
+                    await method_starter
+
                 except (FrameworkException, BundleException):
                     # Restore previous state
                     self._state = previous_state
@@ -395,7 +402,7 @@ class Bundle:
             self._state = Bundle.ACTIVE
             self._fire_bundle_event(BundleEvent.STARTED)
 
-    def stop(self) -> None:
+    async def stop(self) -> None:
         """
         Stops the bundle. Does nothing if the bundle is already stopped.
         :raise BundleException: The bundle activator failed.
@@ -405,7 +412,10 @@ class Bundle:
             return
 
         exception = None
-        with self._lock:
+        async with self._lock:
+            # Get Event Loop
+            loop = asyncio.get_running_loop()
+
             # Store the bundle current state
             previous_state = self._state
 
@@ -417,8 +427,9 @@ class Bundle:
             stopper = self.__get_activator_method("stop")
             if stopper is not None:
                 try:
-                    # Call the start method
-                    stopper(self.__context)
+                    method_stopper: asyncio.Task = asyncio.create_task(stopper(self.__context))
+                    await method_stopper
+
                 except (FrameworkException, BundleException) as ex:
                     # Restore previous state
                     self._state = previous_state
@@ -443,7 +454,10 @@ class Bundle:
             self._fire_bundle_event(BundleEvent.STOPPING_PRECLEAN)
 
             # Remove remaining services (the hard way)
-            self.__unregister_services()
+            unregister_services = asyncio.create_task(
+                self.__unregister_services()
+                )
+            await unregister_services
 
             # Cleanup service usages
             self.__framework._unget_used_services(self)
@@ -458,47 +472,50 @@ class Bundle:
         if exception is not None:
             raise exception
 
-    def __unregister_services(self) -> None:
+    async def __unregister_services(self) -> None:
         """
         Unregisters all bundle services
         """
         # Copy the services list, as it will be modified during the process
-        with self.__registration_lock:
+        async with self.__registration_lock:
             registered_services = self.__registered_services.copy()
 
-        for registration in registered_services:
-            try:
-                registration.unregister()
-            except BundleException:
-                # Ignore errors at this level
-                pass
+        workload = [registration.unregister() for registration in registered_services]
+        try:
+            await asyncio.gather(*workload)
+        except BundleException:
+            # Ignore errors at this level
+            pass
 
         if self.__registered_services:
             _logger.warning("Not all services have been unregistered...")
 
-        with self.__registration_lock:
+        async with self.__registration_lock:
             # Clear the list, just to be clean
             self.__registered_services.clear()
 
-    def uninstall(self) -> None:
+    async def uninstall(self) -> None:
         """
         Uninstalls the bundle
         """
-        with self._lock:
+        async with self._lock:
             if self._state == Bundle.ACTIVE:
-                self.stop()
+                await self.stop()
 
             # Change the bundle state
             self._state = Bundle.UNINSTALLED
 
             # Call the framework
-            self.__framework.uninstall_bundle(self)
+            uninstall_bundle = asyncio.create_task(
+                self.__framework.uninstall_bundle(self)
+            )
+            await uninstall_bundle
 
-    def update(self) -> None:
+    async def update(self) -> None:
         """
         Updates the bundle
         """
-        with self._lock:
+        async with self._lock:
             # Was it active ?
             restart = self._state == Bundle.ACTIVE
 
@@ -507,7 +524,7 @@ class Bundle:
 
             try:
                 # Stop the bundle
-                self.stop()
+                await self.stop()
             except:
                 # Something wrong occurred, notify listeners
                 self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
@@ -570,7 +587,7 @@ class Bundle:
             if restart:
                 try:
                     # Re-start the bundle
-                    self.start()
+                    await self.start()
                 except:
                     # Something wrong occurred, notify listeners
                     self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
@@ -617,7 +634,7 @@ class Framework(Bundle):
         self.__properties[OSGI_FRAMEWORK_UUID] = str(framework_uid)
 
         # Properties lock
-        self.__properties_lock = threading.Lock()
+        self.__properties_lock = asyncio.Lock()
 
         # Bundles (start at 1, as 0 is reserved for the framework itself)
         self.__next_bundle_id = 1
@@ -626,20 +643,20 @@ class Framework(Bundle):
         self.__bundles = {}
 
         # Bundles lock
-        self.__bundles_lock = threading.RLock()
+        self.__bundles_lock = RLock()
 
         # Service registry
-        self._registry = ServiceRegistry(self)
+        self._registry: ServiceRegistry = ServiceRegistry(self)
         self.__unregistering_services = {}
 
         # Event dispatcher
-        self._dispatcher = EventDispatcher(self._registry)
+        self._dispatcher: EventDispatcher = EventDispatcher(self._registry)
 
         # The wait_for_stop event (initially stopped)
-        self._fw_stop_event = threading.Event()
+        self._fw_stop_event = asyncio.Event()
         self._fw_stop_event.set()
 
-    def add_property(self, name: str, value: object) -> bool:
+    async def add_property(self, name: str, value: object) -> bool:
         """
         Adds a property to the framework **if it is not yet set**.
         If the property already exists (same name), then nothing is done.
@@ -648,7 +665,7 @@ class Framework(Bundle):
         :param value: The value to set
         :return: True if the property was stored, else False
         """
-        with self.__properties_lock:
+        async with self.__properties_lock:
             if name in self.__properties:
                 # Already stored property
                 return False
@@ -672,7 +689,7 @@ class Framework(Bundle):
             clazz, ldap_filter, only_one
         )
 
-    def get_bundle_by_id(self, bundle_id: int) -> Union[Bundle, Type[Bundle]]:
+    async def get_bundle_by_id(self, bundle_id: int) -> Union[Bundle, Type[Bundle]]:
         """
         Retrieves the bundle with the given ID
         :param bundle_id: ID of an installed bundle
@@ -683,13 +700,13 @@ class Framework(Bundle):
             # "System bundle"
             return self
 
-        with self.__bundles_lock:
+        async with self.__bundles_lock:
             if bundle_id not in self.__bundles:
                 raise BundleException("Invalid bundle ID {0}".format(bundle_id))
 
             return self.__bundles[bundle_id]
 
-    def get_bundle_by_name(self, bundle_name: str) -> Optional[Bundle]:
+    async def get_bundle_by_name(self, bundle_name: str) -> Optional[Bundle]:
         """
         Retrieves the bundle with the given name
         :param bundle_name: Name of the bundle to look for
@@ -703,7 +720,7 @@ class Framework(Bundle):
             # System bundle requested
             return self
 
-        with self.__bundles_lock:
+        async with self.__bundles_lock:
             for bundle in self.__bundles.values():
                 if bundle_name == bundle.get_symbolic_name():
                     # Found !
@@ -712,39 +729,39 @@ class Framework(Bundle):
             # Not found...
             return None
 
-    def get_bundles(self) -> List[Bundle]:
+    async def get_bundles(self) -> List[Bundle]:
         """
         Returns the list of all installed bundles
         :return: the list of all installed bundles
         """
-        with self.__bundles_lock:
+        async with self.__bundles_lock:
             return [
                 self.__bundles[bundle_id]
                 for bundle_id in sorted(self.__bundles.keys())
             ]
 
-    def get_properties(self) -> dict:
+    async def get_properties(self) -> dict:
         """
         Retrieves a copy of the stored framework properties.
         """
-        with self.__properties_lock:
+        async with self.__properties_lock:
             return self.__properties.copy()
 
-    def get_property(self, name: str) -> object:
+    async def get_property(self, name: str) -> object:
         """
         Retrieves a framework or system property. As framework properties don't
         change while it's running, this method don't need to be protected.
         :param name: The property name
         """
-        with self.__properties_lock:
+        async with self.__properties_lock:
             return self.__properties.get(name, os.getenv(name))
 
-    def get_property_keys(self) -> tuple:
+    async def get_property_keys(self) -> tuple:
         """
         Returns an array of the keys in the properties of the service
         :return: An array of property keys.
         """
-        with self.__properties_lock:
+        async with self.__properties_lock:
             return tuple(self.__properties.keys())
 
     def get_service(self, bundle: Bundle, reference: ServiceReference) -> Any:
@@ -784,7 +801,7 @@ class Framework(Bundle):
         """
         return "pelix.framework"
 
-    def install_bundle(self, name: str, path: str = None) -> Bundle:
+    async def install_bundle(self, name: str, path: str = None) -> Bundle:
         """
         Installs the bundle with the given name
         *Note:* Before Pelix 0.5.0, this method returned the ID of the
@@ -797,7 +814,7 @@ class Framework(Bundle):
         :return: The installed Bundle object
         :raise BundleException: Something happened
         """
-        with self.__bundles_lock:
+        async with self.__bundles_lock:
             # A bundle can't be installed twice
             for bundle in self.__bundles.values():
                 if bundle.get_symbolic_name() == name:
@@ -837,7 +854,7 @@ class Framework(Bundle):
             bundle_id = self.__next_bundle_id
 
             # Prepare the bundle object and its context
-            bundle = Bundle(self, bundle_id, name, module_)
+            bundle: Bundle = Bundle(self, bundle_id, name, module_)
 
             # Store the bundle
             self.__bundles[bundle_id] = bundle
@@ -850,7 +867,7 @@ class Framework(Bundle):
         self._dispatcher.fire_bundle_event(event)
         return bundle
 
-    def install_package(self, path: str, recursive: bool = False, prefix: str = None) -> tuple:
+    async def install_package(self, path: str, recursive: bool = False, prefix: str = None) -> tuple:
         """
         Installs all the modules found in the given package
         :param path: Path of the package (folder)
@@ -886,13 +903,13 @@ class Framework(Bundle):
         bundles: Set[Bundle] = set()
         failed: Set[str] = set()
 
-        with self.__bundles_lock:
+        async with self.__bundles_lock:
             try:
                 # Install the package first, resolved from the parent directory
-                bundles.add(self.install_bundle(prefix, os.path.dirname(path)))
+                bundles.add(await self.install_bundle(prefix, os.path.dirname(path)))
 
                 # Visit the package
-                visited, sub_failed = self.install_visiting(
+                visited, sub_failed = await self.install_visiting(
                     path, visitor, prefix
                 )
 
@@ -906,7 +923,7 @@ class Framework(Bundle):
 
         return bundles, failed
 
-    def install_visiting(self, path: str, visitor, prefix: str = None) -> tuple:
+    async def install_visiting(self, path: str, visitor, prefix: str = None) -> tuple:
         """
         Installs all the modules found in the given path if they are accepted
         by the visitor.
@@ -943,7 +960,7 @@ class Framework(Bundle):
         bundles: Set[Bundle] = set()
         failed: Set[str] = set()
 
-        with self.__bundles_lock:
+        async with self.__bundles_lock:
             # Walk through the folder to find modules
             for name, is_package in walk_modules(path):
                 # Ignore '__main__' modules
@@ -956,18 +973,18 @@ class Framework(Bundle):
                     if visitor(fullname, is_package, path):
                         if is_package:
                             # Install the package
-                            bundles.add(self.install_bundle(fullname, path))
+                            bundles.add(await self.install_bundle(fullname, path))
 
                             # Visit the package
                             sub_path = os.path.join(path, name)
-                            sub_bundles, sub_failed = self.install_visiting(
+                            sub_bundles, sub_failed = await self.install_visiting(
                                 sub_path, visitor, fullname
                             )
                             bundles.update(sub_bundles)
                             failed.update(sub_failed)
                         else:
                             # Install the bundle
-                            bundles.add(self.install_bundle(fullname, path))
+                            bundles.add(await self.install_bundle(fullname, path))
                 except BundleException as ex:
                     # Error loading the module
                     _logger.warning("Error visiting %s: %s", fullname, ex)
@@ -978,7 +995,7 @@ class Framework(Bundle):
 
         return bundles, failed
 
-    def register_service(
+    async def register_service(
         self,
         bundle: Bundle,
         clazz: Union[List[Any], type, str],
@@ -1038,7 +1055,10 @@ class Framework(Bundle):
         )
 
         # Update the bundle registration information
-        bundle._registered_service(registration)
+        update_registration: asyncio.Task = asyncio.create_task(
+            bundle._registered_service(registration)
+        )
+        await update_registration
 
         if send_event:
             # Call the listeners
@@ -1049,14 +1069,14 @@ class Framework(Bundle):
 
         return registration
 
-    def start(self) -> bool:
+    async def start(self) -> bool:
         """
         Starts the framework
         :return: True if the bundle has been started, False if it was already
                  running
         :raise BundleException: A bundle failed to start
         """
-        with self._lock:
+        async with self._lock:
             if self._state in (Bundle.STARTING, Bundle.ACTIVE):
                 # Already started framework
                 return False
@@ -1073,7 +1093,7 @@ class Framework(Bundle):
             # Start all registered bundles (use a copy, just in case...)
             for bundle in self.__bundles.copy().values():
                 try:
-                    bundle.start()
+                    await bundle.start()
                 except FrameworkException as ex:
                     # Important error
                     _logger.exception(
@@ -1082,7 +1102,7 @@ class Framework(Bundle):
                     if ex.needs_stop:
                         # Stop the framework (has to be in active state)
                         self._state = Bundle.ACTIVE
-                        self.stop()
+                        await self.stop()
                         return False
                 except BundleException:
                     # A bundle failed to start : just log
@@ -1092,15 +1112,16 @@ class Framework(Bundle):
             self._state = Bundle.ACTIVE
             return True
 
-    def stop(self) -> bool:
+    async def stop(self) -> bool:
         """
         Stops the framework
         :return: True if the framework stopped, False it wasn't running
         """
-        with self._lock:
+        async with self._lock:
             if self._state != Bundle.ACTIVE:
                 # Invalid state
                 return False
+
 
             # Hide all services (they will be deleted by bundle.stop())
             for bundle in self.__bundles.values():
@@ -1125,7 +1146,7 @@ class Framework(Bundle):
                     continue
 
                 try:
-                    bundle.stop()
+                    await bundle.stop()
                 except Exception as ex:
                     # Just log exceptions
                     _logger.exception(
@@ -1147,7 +1168,7 @@ class Framework(Bundle):
             self._registry.clear()
             return True
 
-    def delete(self, force: bool = False) -> bool:
+    async def delete(self, force: bool = False) -> bool:
         """
         Deletes the current framework
         :param force: If True, stops the framework before deleting it
@@ -1161,7 +1182,8 @@ class Framework(Bundle):
             _logger.warning("Trying to delete an active framework")
             return False
 
-        return FrameworkFactory.delete_framework(self)
+        return await FrameworkFactory.delete_framework(self)
+
 
     def uninstall(self) -> None:
         """
@@ -1170,7 +1192,7 @@ class Framework(Bundle):
         """
         raise BundleException("A framework can't be uninstalled")
 
-    def uninstall_bundle(self, bundle: Bundle) -> None:
+    async def uninstall_bundle(self, bundle: Bundle) -> None:
         """
         Ends the uninstallation of the given bundle (must be called by Bundle)
         :param bundle: The bundle to uninstall
@@ -1180,9 +1202,9 @@ class Framework(Bundle):
             # Do nothing
             return
 
-        with self.__bundles_lock:
+        async with self.__bundles_lock:
             # Stop the bundle first
-            bundle.stop()
+            await bundle.stop()
 
             bundle_id = bundle.get_bundle_id()
             if bundle_id not in self.__bundles:
@@ -1214,7 +1236,7 @@ class Framework(Bundle):
                 # Ignore errors
                 pass
 
-    def unregister_service(self, registration: ServiceRegistration) -> bool:
+    async def unregister_service(self, registration: ServiceRegistration) -> bool:
         """
         Unregisters the given service
         :param registration: A ServiceRegistration to the service to unregister
@@ -1235,7 +1257,10 @@ class Framework(Bundle):
 
         # Update the bundle registration information
         bundle = reference.get_bundle()
-        bundle._unregistered_service(registration)
+        update_registration: asyncio.Task = asyncio.create_task(
+            bundle._unregistered_service(registration)
+        )
+        await update_registration
 
         # Remove the unregistering reference
         del self.__unregistering_services[reference]
@@ -1256,18 +1281,18 @@ class Framework(Bundle):
         """
         self._registry.unget_used_services(bundle)
 
-    def update(self) -> None:
+    async def update(self) -> None:
         """
         Stops and starts the framework, if the framework is active.
         :raise BundleException: Something wrong occurred while stopping or
                                 starting the framework.
         """
-        with self._lock:
+        async with self._lock:
             if self._state == Bundle.ACTIVE:
-                self.stop()
-                self.start()
+                await self.stop()
+                await self.start()
 
-    def wait_for_stop(self, timeout: Optional[int] = None) -> bool:
+    async def wait_for_stop(self, timeout: Optional[int] = None) -> bool:
         """
         Waits for the framework to stop. Does nothing if the framework bundle
         is not in ACTIVE state.
@@ -1279,9 +1304,12 @@ class Framework(Bundle):
             # Inactive framework, ignore the call
             return True
 
-        self._fw_stop_event.wait(timeout)
+        try:
+            await asyncio.wait_for(self._fw_stop_event.wait(), timeout=timeout)
+        except asyncio.TimeoutError:
+            pass
 
-        with self._lock:
+        async with self._lock:
             # If the timeout raised, we should be in another state
             return self._state == Bundle.RESOLVED
 
@@ -1414,7 +1442,7 @@ class BundleContext:
         """
         return self.__framework.find_service_references(clazz, ldap_filter)
 
-    def get_bundle(self, bundle_id: Union[Bundle, int] = None) -> Bundle:
+    async def get_bundle(self, bundle_id: Union[Bundle, int] = None) -> Bundle:
         """
         Retrieves the :class:`~pelix.framework.Bundle` object for the bundle
         matching the given ID (int). If no ID is given (None), the bundle
@@ -1430,14 +1458,14 @@ class BundleContext:
             # Got a bundle (compatibility with older install_bundle())
             bundle_id = bundle_id.get_bundle_id()
 
-        return self.__framework.get_bundle_by_id(bundle_id)
+        return await self.__framework.get_bundle_by_id(bundle_id)
 
-    def get_bundles(self) -> List[Bundle]:
+    async def get_bundles(self) -> List[Bundle]:
         """
         Returns the list of all installed bundles
         :return: A list of :class:`~pelix.framework.Bundle` objects
         """
-        return self.__framework.get_bundles()
+        return await self.__framework.get_bundles()
 
     def get_framework(self) -> Framework:
         """
@@ -1447,13 +1475,13 @@ class BundleContext:
         """
         return self.__framework
 
-    def get_property(self, name: str) -> object:
+    async def get_property(self, name: str) -> object:
         """
         Returns the value of a property of the framework, else returns the OS
         environment value.
         :param name: A property name
         """
-        return self.__framework.get_property(name)
+        return await self.__framework.get_property(name)
 
     def get_service(self, reference: ServiceReference) -> Any:
         """
@@ -1505,7 +1533,7 @@ class BundleContext:
 
         return refs
 
-    def install_bundle(self, name: str, path: str = None) -> Bundle:
+    async def install_bundle(self, name: str, path: str = None) -> Bundle:
         """
         Installs the bundle (module) with the given name.
         If a path is given, it is inserted in first place in the Python loading
@@ -1526,9 +1554,9 @@ class BundleContext:
         :raise BundleException: Error importing the module or one of its
                                 dependencies
         """
-        return self.__framework.install_bundle(name, path)
+        return await self.__framework.install_bundle(name, path)
 
-    def install_package(self, path: str, recursive: bool = False) -> tuple:
+    async def install_package(self, path: str, recursive: bool = False) -> tuple:
         """
         Installs all the modules found in the given package (directory).
         It is a utility method working like
@@ -1541,9 +1569,9 @@ class BundleContext:
                  of the modules which import failed.
         :raise ValueError: The given path is invalid
         """
-        return self.__framework.install_package(path, recursive)
+        return await self.__framework.install_package(path, recursive)
 
-    def install_visiting(self, path: str, visitor) -> tuple:
+    async def install_visiting(self, path: str, visitor) -> tuple:
         """
         Looks for modules in the given path and installs those accepted by the
         given visitor.
@@ -1558,9 +1586,9 @@ class BundleContext:
                  of the modules which import failed.
         :raise ValueError: Invalid path or visitor
         """
-        return self.__framework.install_visiting(path, visitor)
+        return await self.__framework.install_visiting(path, visitor)
 
-    def register_service(
+    async def register_service(
         self,
         clazz: Union[List[Any], type, str],
         service: object,
@@ -1581,7 +1609,7 @@ class BundleContext:
         :return: A ServiceRegistration object
         :raise BundleException: An error occurred while registering the service
         """
-        return self.__framework.register_service(
+        return await self.__framework.register_service(
             self.__bundle,
             clazz,
             service,
@@ -1667,7 +1695,7 @@ class FrameworkFactory:
         return cls.__singleton == framework
 
     @classmethod
-    def delete_framework(cls, framework: Optional[Framework] = None) -> bool:
+    async def delete_framework(cls, framework: Optional[Framework] = None) -> bool:
         # pylint: disable=W0212
         """
         Removes the framework singleton
@@ -1679,20 +1707,31 @@ class FrameworkFactory:
         if framework is cls.__singleton:
             # Stop the framework
             try:
-                framework.stop()
+                await framework.stop()
             except:
                 _logger.exception("Error stopping the framework")
 
             # Uninstall its bundles
-            bundles = framework.get_bundles()
+            bundles = await framework.get_bundles()
             for bundle in bundles:
                 try:
-                    bundle.uninstall()
+                    await bundle.uninstall()
                 except:
                     _logger.exception(
                         "Error uninstalling bundle %s",
                         bundle.get_symbolic_name(),
                     )
+
+            #workload = [bundle.uninstall() for bundle in bundles]
+            #results = await asyncio.gather(*workload, return_exceptions=True)
+
+            # Collect all failed bundle
+            #failed_bundles = [i for i, v in enumerate(results) if v is not None]
+            #if len(failed_bundles) > 0:
+            #    for bundle in failed_bundles:
+            #        _logger.exception(
+            #            "Error uninstalling bundle %s", bundles[bundle].get_symbolic_name()
+            #        )
 
             # Clear the event dispatcher
             framework._dispatcher.clear()
@@ -1707,7 +1746,7 @@ class FrameworkFactory:
 # ------------------------------------------------------------------------------
 
 
-def create_framework(
+async def create_framework(
     bundles: Union[list, tuple],
     properties: dict = None,
     auto_start: bool = False,
@@ -1743,25 +1782,25 @@ def create_framework(
 
     # Install bundles
     context = framework.get_bundle_context()
-    for bundle in bundles:
-        context.install_bundle(bundle)
+    workload = [context.install_bundle(bundle) for bundle in bundles]
+    await asyncio.gather(*workload)
 
     if auto_start:
         # Automatically start the framework
-        framework.start()
+        await framework.start()
 
         if wait_for_stop:
             # Wait for the framework to stop
             try:
-                framework.wait_for_stop(None)
+                await framework.wait_for_stop(None)
             except KeyboardInterrupt:
                 # Stop keyboard interruptions
                 if framework.get_state() == Bundle.ACTIVE:
-                    framework.stop()
+                    await framework.stop()
 
             if auto_delete:
                 # Delete the framework
-                FrameworkFactory.delete_framework(framework)
+                await FrameworkFactory.delete_framework(framework)
                 framework = None
 
     return framework
