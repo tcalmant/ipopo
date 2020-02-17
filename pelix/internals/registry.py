@@ -28,6 +28,7 @@ Service registry and event dispatcher for Pelix.
 # Standard library
 import bisect
 import logging
+import asyncio
 import threading
 # pylint: disable=W0611
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, Type
@@ -617,11 +618,11 @@ class ServiceRegistration:
 
             self.__framework._dispatcher.fire_service_event(event)
 
-    def unregister(self):
+    async def unregister(self):
         """
         Unregisters the service
         """
-        self.__framework.unregister_service(self)
+        return await self.__framework.unregister_service(self)
 
 
 # ------------------------------------------------------------------------------
