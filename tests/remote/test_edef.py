@@ -17,6 +17,8 @@ import pelix.remote
 
 # Standard library
 import unittest
+import pytest
+pytest.skip("EDEF not implemented yet", allow_module_level=True)
 
 # ------------------------------------------------------------------------------
 
