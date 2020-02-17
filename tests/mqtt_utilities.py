@@ -20,7 +20,7 @@ Utility methods for MQTT tests
     limitations under the License.
 """
 
-import unittest
+import pytest
 
 # ------------------------------------------------------------------------------
 
@@ -43,7 +43,7 @@ def find_mqtt_server():
     try:
         from pelix.misc.mqtt_client import MqttClient
     except ImportError:
-        raise unittest.SkipTest("MQTT client library is missing")
+        pytest.skip("MQTT client library is missing", allow_module_level=True)
 
     from threading import Event
 

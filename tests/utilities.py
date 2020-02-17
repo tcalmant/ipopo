@@ -24,7 +24,7 @@
     limitations under the License.
 """
 
-import unittest
+import pytest
 
 try:
     # Try to import modules
@@ -33,7 +33,7 @@ try:
     Queue()
 except ImportError:
     # Some interpreters don't have support for multiprocessing
-    raise unittest.SkipTest("Interpreter doesn't support multiprocessing")
+    pytest.skip("Interpreter doesn't support multiprocessing", allow_module_level=True)
 
 try:
     # Trick to use coverage in sub-processes, from:

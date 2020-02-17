@@ -14,6 +14,12 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+# Standard library
+import random
+import threading
+import time
+import pytest
+
 # Tests
 from tests.interfaces import IEchoService
 
@@ -22,57 +28,51 @@ import pelix.constants
 import pelix.framework
 import pelix.utilities as utilities
 
-# Standard library
-import random
-import threading
-import time
-import unittest
 
 # ------------------------------------------------------------------------------
 
 
-class SynchronizationUtilitiesTest(unittest.TestCase):
+class TestSynchronizationUtilities:
     """
     Tests for utility module synchronization methods
     """
-    def setUp(self):
-        """
-        Sets up the test
-        """
-        self.lock = threading.Lock()
-
-    def testIsLock(self):
+    lock = threading.Lock()
+    def test_is_lock(self):
         """
         Tests the is_lock method
         """
+        self.lock = threading.Lock()
+
         valid = (threading.Lock(), threading.RLock(), threading.Semaphore(),
                  threading.Condition())
         invalid = (None, "", 1234, object())
 
         for test in valid:
-            self.assertTrue(utilities.is_lock(test),
-                            "Valid lock not detected: {0}"
-                            .format(type(test).__name__))
+            assert utilities.is_lock(test), \
+                            "Valid lock not detected: {0}" \
+                            .format(type(test).__name__)
 
         for test in invalid:
-            self.assertFalse(utilities.is_lock(test),
-                             "Invalid lock not detected: {0}"
-                             .format(type(test).__name__))
+            assert not utilities.is_lock(test), \
+                             "Invalid lock not detected: {0}" \
+                             .format(type(test).__name__)
 
     @utilities.SynchronizedClassMethod('lock')
-    def testSynchronizedClassMethod(self):
+    def test_synchronized_class_method(self):
         """
         Tests the @SynchronizedClassMethod decorator
         """
         # Just test if the lock is really locked
-        self.assertFalse(self.lock.acquire(False), "Method is not locked")
+        assert not self.lock.acquire(False), "Method is not locked"
 
-    def testSynchronizedMethod(self, no_lock=False):
+    def test_synchronized_method(self, no_lock=False):
         """
         Tests the @Synchronized decorator, with or without a given lock
 
         :param no_lock: If True, create the lock, else let the decorator do it
         """
+        self.lock = threading.Lock()
+
         # Thread results: ID -> starting time
         result = {}
 
@@ -88,7 +88,7 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
             Sleeps during *wait* seconds
             """
             if lock is not None:
-                self.assertFalse(lock.acquire(False), "Lock not locked")
+                assert not lock.acquire(False), "Lock not locked"
 
             result[sleep_id] = time.time()
             time.sleep(wait)
@@ -117,36 +117,38 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
 
         # Validate conditions :
         # .. Thread 1 started after start (obvious)
-        self.assertGreaterEqual(result[1], start, "Thread 1 started too soon")
+        assert result[1] >= start, "Thread 1 started too soon"
 
         # .. Thread 2 started at least 0.4 secs after thread 1
         # (due to the lock)
         # (0.4 instead of 0.5: some systems are not that precise)
-        self.assertGreaterEqual(result[2], result[1] + .4,
-                                "Thread 2 started too soon (after {0}s)"
-                                .format(result[2] - result[1]))
+        assert result[2] >= result[1] + .4, \
+                                "Thread 2 started too soon (after {0}s)" \
+                                .format(result[2] - result[1])
 
         # .. Thread 2 must not have blocked the main thread
-        self.assertGreater(result[2], interm,
-                           "Thread 2 blocked the main thread")
+        assert result[2] > interm, \
+                           "Thread 2 blocked the main thread"
 
-    def testSynchronizedMethod2(self):
+    def test_synchronized_method2(self):
         """
         Tests the @Synchronized decorator, without a given lock
         """
-        self.testSynchronizedMethod(True)
+        self.lock = threading.Lock()
+        self.test_synchronized_method(True)
 
-    def testNoLockException(self):
+    def test_nolock_exception(self):
         """
         Verifies that @SynchronizedClassMethod raises an error when no lock
         is given
         """
+        self.lock = threading.Lock()
         try:
             @utilities.SynchronizedClassMethod()
             def dummy():
                 pass
 
-            self.fail("@SynchronizedClassMethod() should raise a ValueError")
+            pytest.fail("@SynchronizedClassMethod() should raise a ValueError")
         except ValueError:
             # We must be there to succeed
             pass
@@ -156,28 +158,29 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
             def dummy():
                 pass
 
-            self.fail("@SynchronizedClassMethod(None) should raise a "
+            pytest.fail("@SynchronizedClassMethod(None) should raise a "
                       "ValueError")
         except ValueError:
             # We must be there to succeed
             pass
 
-    def testNoneLockException(self):
+    def test_none_lock_exception(self):
         """
         Verifies that @SynchronizedClassMethod raises an error when a None lock
         is used for locking
         """
         self.lock = None
-        self.assertRaises(AttributeError, self.testSynchronizedClassMethod)
+        with pytest.raises(AttributeError):
+            self.test_synchronized_class_method()
 
 # ------------------------------------------------------------------------------
 
 
-class UtilitiesTest(unittest.TestCase):
+class TestUtilities:
     """
     Tests for utility module methods
     """
-    def testReadOnlyProperty(self):
+    def test_read_only_property(self):
         """
         Tests the read only property generator
         """
@@ -194,15 +197,15 @@ class UtilitiesTest(unittest.TestCase):
         instance = Dummy()
 
         # Test read values
-        self.assertEqual(instance.inside, value_1,
-                         "Invalid initial value (in)")
-        self.assertEqual(instance.outside, value_2,
-                         "Invalid initial value (out)")
+        assert instance.inside == value_1, \
+                         "Invalid initial value (in)"
+        assert instance.outside == value_2, \
+                         "Invalid initial value (out)"
 
         # Test set values
         try:
             instance.inside = random.random()
-            self.fail("Instance value (in) must not be modified.")
+            pytest.fail("Instance value (in) must not be modified.")
 
         except AttributeError:
             # We must be there
@@ -210,19 +213,19 @@ class UtilitiesTest(unittest.TestCase):
 
         try:
             instance.outside = random.random()
-            self.fail("Instance value (out) must not be modified.")
+            pytest.fail("Instance value (out) must not be modified.")
 
         except AttributeError:
             # We must be there
             pass
 
         # Test final values (just in case)
-        self.assertEqual(instance.inside, value_1,
-                         "Invalid final value (in)")
-        self.assertEqual(instance.outside, value_2,
-                         "Invalid final value (out)")
+        assert instance.inside == value_1, \
+                         "Invalid final value (in)"
+        assert instance.outside == value_2, \
+                         "Invalid final value (out)"
 
-    def testRemoveAllOccurrences(self):
+    def test_remove_all_occurrences(self):
         """
         Tests the remove_all_occurrences() method
         """
@@ -231,7 +234,7 @@ class UtilitiesTest(unittest.TestCase):
             utilities.remove_all_occurrences(None, 12)
 
         except:
-            self.fail("remove_all_occurrences(None) must not raise an "
+            pytest.fail("remove_all_occurrences(None) must not raise an "
                       "exception")
 
         min_value = -1
@@ -249,8 +252,8 @@ class UtilitiesTest(unittest.TestCase):
         for i in range(min_value, max_value + 1):
             # Get the original count
             count_base = list_org.count(i)
-            self.assertEqual(list_copy.count(i), count_base,
-                             "Copies doesn't have the same count of values")
+            assert list_copy.count(i) == count_base, \
+                             "Copies doesn't have the same count of values"
 
             # Get the current length of the copy
             len_base = len(list_copy)
@@ -259,13 +262,13 @@ class UtilitiesTest(unittest.TestCase):
             utilities.remove_all_occurrences(list_copy, i)
 
             # The new count must be 0
-            self.assertEqual(list_copy.count(i), 0, "Some references remain")
+            assert list_copy.count(i) == 0, "Some references remain"
 
             # The new length must be len_base - count_base
-            self.assertEqual(len(list_copy), len_base - count_base,
-                             "Incorrect new list size")
+            assert len(list_copy) == len_base - count_base, \
+                             "Incorrect new list size"
 
-    def testIsString(self):
+    def test_is_string(self):
         """
         Tests the is_string() method
         """
@@ -275,14 +278,14 @@ class UtilitiesTest(unittest.TestCase):
 
 
         for value in valid:
-            self.assertTrue(isinstance(value, str),
-                            "'{0}' is a string".format(value))
+            assert isinstance(value, str), \
+                            "'{0}' is a string".format(value)
 
         for value in invalid:
-            self.assertFalse(isinstance(value, str),
-                             "'{0}' is not a string".format(value))
+            assert not isinstance(value, str), \
+                             "'{0}' is not a string".format(value)
 
-    def testAddRemoveListener(self):
+    def test_add_remove_listener(self):
         """
         Tests add/remove listener methods
         """
@@ -290,56 +293,58 @@ class UtilitiesTest(unittest.TestCase):
         values = (42, "test", (1, 2, 3))
 
         # None value
-        self.assertFalse(utilities.add_listener(registry, None),
-                         "None value must not be accepted")
+        assert not utilities.add_listener(registry, None), \
+                         "None value must not be accepted"
 
-        self.assertFalse(utilities.remove_listener(registry, None),
-                         "None value must not be accepted")
+        assert not utilities.remove_listener(registry, None), \
+                         "None value must not be accepted"
 
         for value in values:
             # Non-present value
-            self.assertFalse(utilities.remove_listener(registry, value),
-                             "Non-present value removed")
+            assert not utilities.remove_listener(registry, value), \
+                             "Non-present value removed"
 
             # Add value
-            self.assertTrue(utilities.add_listener(registry, value),
-                            "Value has been refused")
-            self.assertEqual(registry.count(value), 1,
-                             "Value not inserted in registry")
+            assert utilities.add_listener(registry, value), \
+                            "Value has been refused"
+            assert registry.count(value) == 1, \
+                             "Value not inserted in registry"
 
             # Second add
-            self.assertFalse(utilities.add_listener(registry, value),
-                             "Value has been added twice")
-            self.assertEqual(registry.count(value), 1,
-                             "Value has been added twice")
+            assert not utilities.add_listener(registry, value), \
+                             "Value has been added twice"
+            assert registry.count(value) == 1, \
+                             "Value has been added twice"
 
         for value in values:
             # Remove value
-            self.assertTrue(utilities.remove_listener(registry, value),
-                            "Value has not been removed")
+            assert utilities.remove_listener(registry, value), \
+                            "Value has not been removed"
             # Ensure the value has been remove
-            self.assertEqual(registry.count(value), 0,
-                             "Value has not been removed")
+            assert registry.count(value) == 0, \
+                             "Value has not been removed"
 
             # Second removal
-            self.assertFalse(utilities.remove_listener(registry, value),
-                             "Value has been removed twice")
+            assert not utilities.remove_listener(registry, value), \
+                             "Value has been removed twice"
 
-    def testUseService(self):
+    @pytest.mark.asyncio
+    async def test_use_service(self):
         """
         Tests utilities.use_service()
         """
-        framework = pelix.framework.create_framework([])
-        framework.start()
+        framework = await pelix.framework.create_framework([])
+        await framework.start()
         context = framework.get_bundle_context()
 
         # Try without the service reference: TypeError
-        self.assertRaises(TypeError,
-                          utilities.use_service(context, None).__enter__)
+        with pytest.raises(TypeError):
+            with utilities.use_service(context, None):
+                pass
 
         # Start the service bundle
-        bundle = context.install_bundle("tests.framework.service_bundle")
-        bundle.start()
+        bundle = await context.install_bundle("tests.framework.service_bundle")
+        await bundle.start()
 
         # Get the service reference
         svc_ref = context.get_service_reference(IEchoService)
@@ -347,159 +352,178 @@ class UtilitiesTest(unittest.TestCase):
         # Use it
         with utilities.use_service(context, svc_ref) as service:
             # Test the usage information
-            self.assertIn(context.get_bundle(),
-                          svc_ref.get_using_bundles(),
-                          "Bundles using the service not updated")
+            assert await context.get_bundle() in svc_ref.get_using_bundles(), "Bundles using the service not updated"
 
             # Get the service the Pelix way
             got_service = context.get_service(svc_ref)
 
             # Test the service object
-            self.assertIs(service, got_service, "Found a different service.")
+            assert service is got_service, "Found a different service."
 
             # Clean up the test usage
             context.unget_service(svc_ref)
             got_service = None
 
             # Re-test the usage information
-            self.assertIn(context.get_bundle(),
-                          svc_ref.get_using_bundles(),
-                          "Bundles using service not kept")
+            assert await context.get_bundle() in svc_ref.get_using_bundles(), "Bundles using service not kept"
 
         # Test the usage information
-        self.assertNotIn(context.get_bundle(),
-                         svc_ref.get_using_bundles(),
-                         "Bundles using service kept after block")
+        assert await context.get_bundle() not in svc_ref.get_using_bundles(), "Bundles using service kept after block"
 
         # Stop the iPOPO bundle
-        bundle.stop()
+        await bundle.stop()
 
         # Ensure the service is not accessible anymore
-        self.assertRaises(pelix.constants.BundleException,
-                          utilities.use_service(context, svc_ref).__enter__)
+        with pytest.raises(pelix.constants.BundleException):
+            with utilities.use_service(context, svc_ref):
+                pass
 
         # Uninstall the bundle
-        bundle.uninstall()
+        await bundle.uninstall()
 
         # Ensure the service is not accessible anymore
-        self.assertRaises(pelix.constants.BundleException,
-                          utilities.use_service(context, svc_ref).__enter__)
+        with pytest.raises(pelix.constants.BundleException):
+            with utilities.use_service(context, svc_ref):
+                pass
 
-    def testToIterable(self):
+        await framework.delete()
+
+    @pytest.mark.asyncio
+    async def test_rlock(self):
+        """
+        Test asynchronous Rlock
+        """
+        lock = utilities.RLock()
+
+        step_into_first = False
+        step_into_second = False
+        step_into_third = False
+        async with lock:
+            step_into_first = True
+            async with lock:
+                step_into_second = True
+                async with lock:
+                    step_into_third = True
+
+        assert all([step_into_first, step_into_second, step_into_third])
+        assert lock._depth == 0
+
+
+    def test_to_iterable(self):
         """
         Tests the to_iterable() method
         """
         # None value
-        self.assertIsNone(utilities.to_iterable(None, True),
-                          "None value refused")
-        self.assertListEqual(utilities.to_iterable(None, False), [],
-                             "None value accepted")
+        assert utilities.to_iterable(None, True) is None, \
+                          "None value refused"
+        assert utilities.to_iterable(None, False) == [], \
+                             "None value accepted"
 
         # Check iterable types
         for clazz in (list, tuple, set, frozenset):
             iterable = clazz()
-            self.assertIs(utilities.to_iterable(iterable), iterable,
-                          "to_iterable() didn't returned the original object")
+            assert utilities.to_iterable(iterable) is iterable, \
+                          "to_iterable() didn't returned the original object"
 
         # Check other types
         for value in ("hello", 123, {1: 2}, object()):
-            self.assertListEqual(utilities.to_iterable(value), [value],
-                                 "to_iterable() didn't returned a list")
+            assert utilities.to_iterable(value) == [value], \
+                                 "to_iterable() didn't returned a list"
 
 # ------------------------------------------------------------------------------
 
 
-class CountdownEventTest(unittest.TestCase):
+class TestCountdownEventTest:
     """
     Tests for the CountdownEvent class
     """
-    def testInitCheck(self):
+    def test_init_check(self):
         """
         Tests the value check when creating the event
         """
         for invalid in (-1, 0):
-            self.assertRaises(ValueError, utilities.CountdownEvent, invalid)
+            with pytest.raises(ValueError):
+                utilities.CountdownEvent(invalid)
 
-    def testSteps(self):
+    def test_steps(self):
         """
         Tests the count down event behavior
         """
         event = utilities.CountdownEvent(3)
         # Stepping...
-        self.assertFalse(event.step(), "Finished on first step...")
-        self.assertFalse(event.is_set(), "Set on first step...")
-        self.assertFalse(event.step(), "Finished on second step...")
-        self.assertFalse(event.is_set(), "Set on second step...")
+        assert not event.step(), "Finished on first step..."
+        assert not event.is_set(), "Set on first step..."
+        assert not event.step(), "Finished on second step..."
+        assert not event.is_set(), "Set on second step..."
 
         # Last one
-        self.assertTrue(event.step(), "Not done on last step...")
-        self.assertTrue(event.is_set(), "Not set on last step...")
+        assert event.step(), "Not done on last step..."
+        assert event.is_set(), "Not set on last step..."
 
         # No more
-        self.assertRaises(ValueError, event.step)
-        self.assertTrue(event.is_set(), "Not set after last step...")
+        with pytest.raises(ValueError):
+            event.step()
+        assert event.is_set(), "Not set after last step..."
 
-    def testWait(self):
+    def test_wait(self):
         """
         Tests the wait() method
         """
         event = utilities.CountdownEvent(1)
-        self.assertFalse(event.wait(.1), "Timed out wait must return False")
+        assert not event.wait(.1), "Timed out wait must return False"
 
         start = time.time()
         threading.Timer(1, event.step).start()
-        self.assertFalse(event.wait(.1), "Timed out wait must return False")
-        self.assertTrue(event.wait(), "Wait should return true on set")
-        self.assertLessEqual(time.time() - start, 2, "Too long to wait")
+        assert not event.wait(.1), "Timed out wait must return False"
+        assert event.wait(), "Wait should return true on set"
+        assert time.time() - start <= 2, "Too long to wait"
 
-        self.assertTrue(event.wait(.5),
-                        "Already set event shoudn't block wait()")
-        self.assertTrue(event.wait(),
-                        "Already set event shoudn't block wait()")
+        assert event.wait(.5), "Already set event shoudn't block wait()"
+        assert event.wait(), "Already set event shoudn't block wait()"
 
 # ------------------------------------------------------------------------------
 
 
-class EventDataTest(unittest.TestCase):
+class TestEventDataTest:
     """
     Tests for the EventData class
     """
-    def testSetClear(self):
+    def test_set_clear(self):
         """
         Tests set() and clear() operations
         """
         # Initial condition
         event = utilities.EventData()
-        self.assertFalse(event.is_set(), "Event initially set")
-        self.assertIsNone(event.data, "Non-None data")
-        self.assertIsNone(event.exception, "Non-None exception")
+        assert not event.is_set(), "Event initially set"
+        assert event.data is None, "Non-None data"
+        assert event.exception is None, "Non-None exception"
 
         # No-data set
         event.set()
-        self.assertTrue(event.is_set(), "Event not set")
-        self.assertIsNone(event.data, "Non-None data")
-        self.assertIsNone(event.exception, "Non-None exception")
+        assert event.is_set(), "Event not set"
+        assert event.data is None, "Non-None data"
+        assert event.exception is None, "Non-None exception"
 
         # Clear
         event.clear()
-        self.assertFalse(event.is_set(), "Event still set")
-        self.assertIsNone(event.data, "Non-None data")
-        self.assertIsNone(event.exception, "Non-None exception")
+        assert not event.is_set(), "Event still set"
+        assert event.data is None, "Non-None data"
+        assert event.exception is None, "Non-None exception"
 
         # Set data
         data = object()
         event.set(data)
-        self.assertTrue(event.is_set(), "Event not set")
-        self.assertIs(event.data, data, "Invalid event data")
-        self.assertIsNone(event.exception, "Non-None exception")
+        assert event.is_set(), "Event not set"
+        assert event.data is data, "Invalid event data"
+        assert event.exception is None, "Non-None exception"
 
         # Clear
         event.clear()
-        self.assertFalse(event.is_set(), "Event still set")
-        self.assertIsNone(event.data, "Non-None data")
-        self.assertIsNone(event.exception, "Non-None exception")
+        assert not event.is_set(), "Event still set"
+        assert event.data is None, "Non-None data"
+        assert event.exception is None, "Non-None exception"
 
-    def testException(self):
+    def test_exception(self):
         """
         Tests the exception storage
         """
@@ -510,44 +534,44 @@ class EventDataTest(unittest.TestCase):
         event.raise_exception(exception)
 
         # Check content
-        self.assertTrue(event.is_set(), "Event has not been set")
-        self.assertIsNone(event.data, "Non-None data")
-        self.assertIs(event.exception, exception, "Invalid exception")
+        assert event.is_set(), "Event has not been set"
+        assert event.data is None, "Non-None data"
+        assert event.exception is exception, "Invalid exception"
 
         # Check the behavior of "wait"
         try:
             event.wait()
         except Exception as ex:
-            self.assertIs(ex, exception, "Not the same exception")
-            self.assertTrue(event.is_set(), "Event has been cleared")
+            assert ex is exception, "Not the same exception"
+            assert event.is_set(), "Event has been cleared"
         else:
-            self.fail("Exception not raised")
+            pytest.fail("Exception not raised")
 
         # Clear
         event.clear()
-        self.assertFalse(event.is_set(), "Event has been set")
-        self.assertIsNone(event.data, "Non-None data")
-        self.assertIsNone(event.exception, "Non-None exception")
+        assert not event.is_set(), "Event has been set"
+        assert event.data is None, "Non-None data"
+        assert event.exception is None, "Non-None exception"
 
-    def testWait(self):
+    def test_wait(self):
         """
         Tests the wait() method
         """
         event = utilities.EventData()
-        self.assertFalse(event.wait(.1), "Timed out wait must return False")
+        assert not event.wait(.1), "Timed out wait must return False"
 
         start = time.time()
         threading.Timer(1, event.set).start()
-        self.assertFalse(event.wait(.1), "Timed out wait must return False")
-        self.assertTrue(event.wait(), "Wait should return true on set")
-        self.assertLessEqual(time.time() - start, 2, "Too long to wait")
+        assert not event.wait(.1), "Timed out wait must return False"
+        assert event.wait(), "Wait should return true on set"
+        assert time.time() - start <= 2, "Too long to wait"
 
-        self.assertTrue(event.wait(.5),
-                        "Already set event shoudn't block wait()")
-        self.assertTrue(event.wait(),
-                        "Already set event shoudn't block wait()")
+        assert event.wait(.5), \
+                        "Already set event shoudn't block wait()"
+        assert event.wait(), \
+                        "Already set event shoudn't block wait()"
 
-    def testWaitException(self):
+    def test_wait_exception(self):
         """
         Tests the exception effect on wait()
         """
@@ -561,16 +585,11 @@ class EventDataTest(unittest.TestCase):
         try:
             event.wait()
         except Exception as ex:
-            self.assertIs(ex, exception, "Not the same exception")
+            assert ex is exception, "Not the same exception"
         else:
-            self.fail("Exception not raised")
+            pytest.fail("Exception not raised")
 
         # Check content
-        self.assertTrue(event.is_set(), "Event has been cleared")
-        self.assertIsNone(event.data, "Non-None data")
-        self.assertIs(event.exception, exception, "Invalid exception")
-
-# ------------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    unittest.main()
+        assert event.is_set(), "Event has been cleared"
+        assert event.data is None, "Non-None data"
+        assert event.exception is exception, "Invalid exception"
