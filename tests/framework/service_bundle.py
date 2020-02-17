@@ -3,9 +3,9 @@
 """
 Simple bundle registering a service
 
-:author: Thomas Calmant
+:author: Thomas Calmant, Angelo Cutaia
 """
-
+import asyncio
 from pelix.constants import BundleActivator
 from pelix.framework import BundleContext
 from tests.interfaces import IEchoService
@@ -55,7 +55,7 @@ class ActivatorService:
         self.context = None
         self.svc = None
 
-    def start(self, context):
+    async def start(self, context):
         """
         Bundle started
         """
@@ -64,13 +64,17 @@ class ActivatorService:
 
         # Register the service
         self.svc = ServiceTest()
-        self.svc.registration = context.register_service(
-            IEchoService, self.svc, {"test": True, "answer": 0})
+        register_service = asyncio.create_task(
+            context.register_service(
+                IEchoService, self.svc, {"test": True, "answer": 0}
+                )
+            )
+        self.svc.registration = await register_service
 
         global service
         service = self.svc
 
-    def stop(self, context):
+    async def stop(self, context):
         """
         Bundle stopped
         """
@@ -78,4 +82,7 @@ class ActivatorService:
 
         if unregister:
             # To test auto-unregistration...
-            self.svc.registration.unregister()
+            unregister_service = asyncio.create_task(
+                self.svc.registration.unregister()
+            )
+            await unregister_service

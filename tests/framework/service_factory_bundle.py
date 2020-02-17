@@ -3,7 +3,7 @@
 """
 Simple bundle registering a service
 
-:author: Thomas Calmant
+:author: Thomas Calmant, Angelo Cutaia
 """
 
 import os
@@ -98,7 +98,7 @@ class ActivatorService:
         self.factory = None
         self.reg = None
 
-    def start(self, context):
+    async def start(self, context):
         """
         Bundle started
         """
@@ -106,7 +106,7 @@ class ActivatorService:
 
         # Register the service
         self.factory = ServiceFactoryTest()
-        self.reg = context.register_service(
+        self.reg = await context.register_service(
             SVC, self.factory, {"test": True, "answer": 0},
             factory=True)
 
@@ -115,14 +115,14 @@ class ActivatorService:
 
         # Factory without clean up
         svc2 = ServiceFactoryCleanupTest()
-        svc2.reg = context.register_service(
+        svc2.reg = await context.register_service(
             SVC_NO_CLEAN, svc2, {}, factory=True)
 
-    def stop(self, _):
+    async def stop(self, _):
         """
         Bundle stopped
         """
-        self.reg.unregister()
+        await self.reg.unregister()
         self.reg = None
 
         global FACTORY

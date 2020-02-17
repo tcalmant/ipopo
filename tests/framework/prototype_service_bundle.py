@@ -3,11 +3,10 @@
 """
 Simple bundle providing a prototype service factory
 
-:author: Thomas Calmant
+:author: Thomas Calmant, Angelo Cutaia
 """
 
 from pelix.constants import BundleActivator
-
 
 class Instance:
     """
@@ -106,27 +105,27 @@ class Activator:
         self._reg2 = None
         self._svc = None
 
-    def start(self, context):
+    async def start(self, context):
         """
         Bundle started
 
         :param context: Bundle context
         """
         self._svc = PrototypeServiceFactory(None)
-        self._reg = context.register_service(
+        self._reg = await context.register_service(
             "test.prototype", self._svc, {}, prototype=True)
         self._svc.svc_reg = self._reg
 
         # Register the factory as a singleton, to check its variables
-        self._reg2 = context.register_service(
+        self._reg2 = await context.register_service(
             "test.prototype.internal", self._svc, {})
 
-    def stop(self, context):
+    async def stop(self, context):
         """
         Bundle started
 
         :param context: Bundle context
         """
-        self._reg.unregister()
-        self._reg2.unregister()
+        await self._reg.unregister()
+        await self._reg2.unregister()
         self._svc = None

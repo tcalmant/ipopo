@@ -3,15 +3,16 @@
 """
 Tests the framework utility methods.
 
-:author: Thomas Calmant
+:author: Thomas Calmant, Angelo Cutaia
 """
+
+# Standard library
+import pytest
 
 # Pelix
 from pelix.framework import FrameworkFactory
 import pelix.framework as pelix
 
-# Standard library
-import unittest
 
 # ------------------------------------------------------------------------------
 
@@ -22,80 +23,76 @@ SERVICE_BUNDLE = "tests.framework.service_bundle"
 # ------------------------------------------------------------------------------
 
 
-class UtilityMethodsTest(unittest.TestCase):
+class TestUtilityMethods:
     """
     Pelix utility methods tests
     """
-    def setUp(self):
-        """
-        Called before each test. Initiates a framework.
-        """
-        self.framework = None
-        self.test_bundle_name = SERVICE_BUNDLE
-
-    def tearDown(self):
-        """
-        Called after each test
-        """
-        if self.framework is not None:
-            FrameworkFactory.delete_framework()
-            self.framework = None
-
-    def testCreateFrameworkBasic(self):
+    @pytest.mark.asyncio
+    async def test_create_framework_basic(self):
         """
         Tests create_framework(), without parameters
         -> creates an empty framework, and doesn't start it
         """
-        self.framework = pelix.create_framework([])
-        self.assertEqual(self.framework.get_state(), pelix.Bundle.RESOLVED,
-                         'Framework has been started')
-        self.assertEqual(self.framework.get_bundles(), [],
-                         'Framework is not empty')
+        #Setup
+        framework = await pelix.create_framework([])
+        assert framework.get_state() == pelix.Bundle.RESOLVED, 'Framework has been started'
+        assert await framework.get_bundles() == [], 'Framework is not empty'
 
         # Try to start two framework
-        self.assertRaises(ValueError, pelix.create_framework, [])
+        with pytest.raises(ValueError):
+            await pelix.create_framework([])
 
-    def testCreateFrameworkWithBundles(self):
+        #Teardown
+        await FrameworkFactory.delete_framework()
+
+    @pytest.mark.asyncio
+    async def test_create_framework_bundles(self):
         """
         Tests create_framework(), with specified bundles
         """
-        self.framework = pelix.create_framework([self.test_bundle_name])
-        self.assertEqual(self.framework.get_state(), pelix.Bundle.RESOLVED,
-                         'Framework has been started')
+        #Setup
+        test_bundle_name = SERVICE_BUNDLE
+        framework = await pelix.create_framework([test_bundle_name])
 
-        self.assertEqual(len(self.framework.get_bundles()), 1,
-                         'Framework should only have 1 bundle')
+        assert framework.get_state() == pelix.Bundle.RESOLVED, 'Framework has been started'
 
-        bundle = self.framework.get_bundle_by_id(1)
-        self.assertEqual(bundle.get_symbolic_name(), self.test_bundle_name,
-                         "The test bundle hasn't been installed correctly")
+        assert len(await framework.get_bundles()) == 1, 'Framework should only have 1 bundle'
 
-    def testCreateFrameworkAutoStart(self):
+        bundle = await framework.get_bundle_by_id(1)
+        assert bundle.get_symbolic_name() == test_bundle_name, "The test bundle hasn't been installed correctly"
+
+        #Teardown
+        await FrameworkFactory.delete_framework()
+
+    @pytest.mark.asyncio
+    async def test_create_framework_start(self):
         """
         Tests create_framework(), with specified bundles and auto-start
         """
+        #Setup
+        test_bundle_name = SERVICE_BUNDLE
+
         # Without bundles
-        self.framework = pelix.create_framework([], auto_start=True)
-        self.assertEqual(self.framework.get_state(), pelix.Bundle.ACTIVE,
-                         "Framework hasn't been started")
-        self.assertEqual(self.framework.get_bundles(), [],
-                         'Framework is not empty')
+        framework = await pelix.create_framework([], auto_start=True)
+        assert framework.get_state() == pelix.Bundle.ACTIVE, "Framework hasn't been started"
+
+        assert await framework.get_bundles() == [], 'Framework is not empty'
+
         # Clean up
-        FrameworkFactory.delete_framework()
+        await FrameworkFactory.delete_framework()
 
         # With bundles
-        self.framework = pelix.create_framework([self.test_bundle_name],
-                                                auto_start=True)
-        self.assertEqual(self.framework.get_state(), pelix.Bundle.ACTIVE,
-                         "Framework hasn't been started")
-        self.assertEqual(len(self.framework.get_bundles()), 1,
-                         'Framework should only have 1 bundle')
+        framework = await pelix.create_framework([test_bundle_name], auto_start=True)
+        assert framework.get_state() == pelix.Bundle.ACTIVE, "Framework hasn't been started"
 
-        bundle = self.framework.get_bundle_by_id(1)
-        self.assertEqual(bundle.get_symbolic_name(), self.test_bundle_name,
-                         "The test bundle hasn't been installed correctly")
-        self.assertEqual(bundle.get_state(), pelix.Bundle.ACTIVE,
-                         "Bundle hasn't been started")
+        assert len(await framework.get_bundles()) == 1, 'Framework should only have 1 bundle'
+
+        bundle = await framework.get_bundle_by_id(1)
+        assert bundle.get_symbolic_name() == test_bundle_name, "The test bundle hasn't been installed correctly"
+        assert bundle.get_state() == pelix.Bundle.ACTIVE, "Bundle hasn't been started"
+
+        #Teardown
+        await FrameworkFactory.delete_framework()
 
 # ------------------------------------------------------------------------------
 
@@ -104,5 +101,3 @@ if __name__ == "__main__":
     # Set logging level
     import logging
     logging.basicConfig(level=logging.DEBUG)
-
-    unittest.main()

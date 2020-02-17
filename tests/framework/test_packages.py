@@ -3,12 +3,12 @@
 """
 Tests the "install packages" handling.
 
-:author: Thomas Calmant
+:author: Thomas Calmant, Angelo Cutaia
 """
 
 # Standard library
 import os
-import unittest
+import pytest
 
 # Pelix
 from pelix.framework import FrameworkFactory, Bundle
@@ -50,188 +50,260 @@ def _list_modules(path, recursive=False):
     return results
 
 
-class PackagesTest(unittest.TestCase):
+class TestPackages:
     """
     Pelix bundle packages installation tests
     """
-    def setUp(self):
+    @pytest.mark.asyncio
+    async def test_invalid_args(self):
         """
-        Called before each test. Initiates a framework.
+        Check error handling when the given path is wrong
         """
-        self.framework = FrameworkFactory.get_framework()
-        self.framework.start()
-        self.context = self.framework.get_bundle_context()
+        #Setup
+        framework = FrameworkFactory.get_framework()
+        await framework.start()
+        context = framework.get_bundle_context()
 
-        # Get the path to the current test package
-        self.test_root = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)), "vault")
+        for path in (None, "", "__nonexistent__", 123):
+            with pytest.raises(ValueError):
+                await context.install_package(path)
 
-    def tearDown(self):
-        """
-        Called after each test
-        """
-        self.framework.stop()
-        FrameworkFactory.delete_framework()
+            # Check install visiting with a valid visitor
+            with pytest.raises(ValueError):
+                await context.install_visiting(path, lambda *x: True)
+
+        # Check with invalid visitor
+        with pytest.raises(ValueError):
+            await context.install_visiting(os.path.abspath(os.path.dirname(__file__)), None)
+
+        #Teardown
+        await framework.stop()
+        await FrameworkFactory.delete_framework()
 
         # Reset the environment variable
         os.environ['bundle.import.fail'] = "0"
 
-    def test_invalid_args(self):
-        """
-        Check error handling when the given path is wrong
-        """
-        for path in (None, "", "__nonexistent__", 123):
-            self.assertRaises(ValueError, self.context.install_package, path)
-
-            # Check install visiting with a valid visitor
-            self.assertRaises(
-                ValueError,
-                self.context.install_visiting, path, lambda *x: True)
-
-        # Check with invalid visitor
-        self.assertRaises(
-            ValueError,
-            self.context.install_visiting,
-            os.path.abspath(os.path.dirname(__file__)), None)
-
-    def test_install_path(self):
+    @pytest.mark.asyncio
+    async def test_install_path(self):
         """
         Tries to install the "OK" package
         """
+        #Setup
+        framework = FrameworkFactory.get_framework()
+        await framework.start()
+        context = framework.get_bundle_context()
+
+        # Get the path to the current test package
+        test_root = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)), "vault")
+
         # List files in the "ok" package, avoiding cache
-        ok_root = os.path.join(self.test_root, "pkg_ok")
+        ok_root = os.path.join(test_root, "pkg_ok")
         expected = _list_modules(ok_root, False)
 
         # Install the package
-        bundles, failed = self.context.install_package(ok_root)
+        bundles, failed = await context.install_package(ok_root)
         if failed:
-            self.fail("Failed to install some packages: {}".format(failed))
+            pytest.fail("Failed to install some packages: {}".format(failed))
 
         # Excepted bundles
         for bundle in bundles:
             # Check results
-            self.assertIsInstance(bundle, Bundle)
+            assert isinstance(bundle, Bundle)
             expected.remove(os.path.splitext(
                 os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. "
+            pytest.fail("All bundles should have been installed. "
                       "Remaining: {}".format(expected))
 
-    def test_install_recursive(self):
+        #Teardown
+        await framework.stop()
+        await FrameworkFactory.delete_framework()
+
+        # Reset the environment variable
+        os.environ['bundle.import.fail'] = "0"
+
+    @pytest.mark.asyncio
+    async def test_install_recursive(self):
         """
         Tries the recursive installation of a path
         """
+        #Setup
+        framework = FrameworkFactory.get_framework()
+        await framework.start()
+        context = framework.get_bundle_context()
+
+        # Get the path to the current test package
+        test_root = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)), "vault")
+
         # List files in the package and its children, avoiding cache
-        ok_root = os.path.join(self.test_root, "pkg_ok")
+        ok_root = os.path.join(test_root, "pkg_ok")
         expected = _list_modules(ok_root, True)
 
         # Install the package
-        bundles, failed = self.context.install_package(ok_root, True)
+        bundles, failed = await context.install_package(ok_root, True)
         if failed:
-            self.fail("Failed to install some packages: {}".format(failed))
+            pytest.fail("Failed to install some packages: {}".format(failed))
 
         # Excepted bundles
         for bundle in bundles:
             # Check results
-            self.assertIsInstance(bundle, Bundle)
+            assert isinstance(bundle, Bundle)
             expected.remove(os.path.splitext(
                 os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. "
+            pytest.fail("All bundles should have been installed. "
                       "Remaining: {}".format(expected))
 
-    def test_install_fail(self):
+        #Teardown
+        await framework.stop()
+        await FrameworkFactory.delete_framework()
+
+        # Reset the environment variable
+        os.environ['bundle.import.fail'] = "0"
+
+    @pytest.mark.asyncio
+    async def test_install_fail(self):
         """
         Tests the installation of a package with failures
         """
+        #Setup
+        framework = FrameworkFactory.get_framework()
+        await framework.start()
+        context = framework.get_bundle_context()
+
+        # Get the path to the current test package
+        test_root = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)), "vault")
+
         # List files in the package including failing modules, avoiding cache
-        bad_root = os.path.join(self.test_root, "pkg_fail")
+        bad_root = os.path.join(test_root, "pkg_fail")
         expected = _list_modules(bad_root, False)
 
         # Install the package
         log_off()
-        bundles, failed = self.context.install_package(bad_root)
+        bundles, failed = await context.install_package(bad_root)
         log_on()
 
         if not failed:
-            self.fail("No failure detection")
+            pytest.fail("No failure detection")
 
         for fail_module_name in failed:
             parts = fail_module_name.split('.')
-            self.assertEqual(parts[0], "pkg_fail", "No prefix set")
-            self.assertEqual(parts[-1], "invalid", "Wrong module failed")
+            assert parts[0] == "pkg_fail", "No prefix set"
+            assert parts[-1] == "invalid", "Wrong module failed"
 
         # Excepted bundles
         to_remove = [name for name in expected if "invalid" in name]
         expected.difference_update(to_remove)
         for bundle in bundles:
             # Check results
-            self.assertIsInstance(bundle, Bundle)
+            assert isinstance(bundle, Bundle)
             expected.remove(os.path.splitext(
                 os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. "
+            pytest.fail("All bundles should have been installed. "
                       "Remaining: {}".format(expected))
 
-    def test_install_fail_recursive(self):
+        #Teardown
+        await framework.stop()
+        await FrameworkFactory.delete_framework()
+
+        # Reset the environment variable
+        os.environ['bundle.import.fail'] = "0"
+
+    @pytest.mark.asyncio
+    async def test_install_fail_recursive(self):
         """
         Tries the recursive installation of a path
         """
+        #Setup
+        framework = FrameworkFactory.get_framework()
+        await framework.start()
+        context = framework.get_bundle_context()
+
+        # Get the path to the current test package
+        test_root = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)), "vault")
+
         # List files in the package which will fail at first sight
-        bad_root = os.path.join(self.test_root, "pkg_fail")
+        bad_root = os.path.join(test_root, "pkg_fail")
         expected = _list_modules(bad_root, False)
 
         # Install the package
         log_off()
-        bundles, failed = self.context.install_package(bad_root)
+        bundles, failed = await context.install_package(bad_root)
         log_on()
 
         if not failed:
-            self.fail("No failure detection")
+            pytest.fail("No failure detection")
 
         for fail_module_name in failed:
             parts = fail_module_name.split('.')
-            self.assertEqual(parts[0], "pkg_fail", "No prefix set")
-            self.assertEqual(parts[-1], "invalid", "Wrong module failed")
+            assert parts[0] == "pkg_fail", "No prefix set"
+            assert parts[-1] == "invalid", "Wrong module failed"
 
         # Excepted bundles
         to_remove = [name for name in expected if "invalid" in name]
         expected.difference_update(to_remove)
         for bundle in bundles:
             # Check results
-            self.assertIsInstance(bundle, Bundle)
+            assert isinstance(bundle, Bundle)
             expected.remove(os.path.splitext(
                 os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. "
+            pytest.fail("All bundles should have been installed. "
                       "Remaining: {}".format(expected))
 
-    def test_first_install_fail(self):
+        #Teardown
+        await framework.stop()
+        await FrameworkFactory.delete_framework()
+
+        # Reset the environment variable
+        os.environ['bundle.import.fail'] = "0"
+
+    @pytest.mark.asyncio
+    async def test_first_install_fail(self):
         """
         Tests the installation of a package with failures
         """
+        #Setup
+        framework = FrameworkFactory.get_framework()
+        await framework.start()
+        context = framework.get_bundle_context()
+
+        # Get the path to the current test package
+        test_root = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)), "vault")
+
         # List files in the "ok" package, avoiding cache
-        bad_root = os.path.join(self.test_root, "pkg_invalid")
+        bad_root = os.path.join(test_root, "pkg_invalid")
 
         # Install the package
         log_off()
-        bundles, failed = self.context.install_package(bad_root)
+        bundles, failed = await context.install_package(bad_root)
         log_on()
 
         if bundles:
-            self.fail("Some bundles were installed anyway")
+            pytest.fail("Some bundles were installed anyway")
 
-        self.assertEqual(len(failed), 1)
-        self.assertEqual(failed.pop(), "pkg_invalid")
+        assert len(failed) == 1
+        assert failed.pop() == "pkg_invalid"
+
+        #Teardown
+        await framework.stop()
+        await FrameworkFactory.delete_framework()
+
+        # Reset the environment variable
+        os.environ['bundle.import.fail'] = "0"
 
 
 if __name__ == "__main__":
     # Set logging level
     import logging
     logging.basicConfig(level=logging.DEBUG)
-
-    unittest.main()

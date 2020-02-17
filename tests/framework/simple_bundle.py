@@ -3,7 +3,7 @@
 """
 Simple bundle with an activator (no service registered).
 
-:author: Thomas Calmant
+:author: Thomas Calmant, Angelo Cutaia
 """
 
 from pelix.constants import BundleActivator, FrameworkException
@@ -29,7 +29,7 @@ class ActivatorTest:
         """
         self.context = None
 
-    def start(self, context):
+    async def start(self, context):
         """
         Bundle started
         """
@@ -45,7 +45,7 @@ class ActivatorTest:
         global started
         started = True
 
-    def stop(self, context):
+    async def stop(self, context):
         """
         Bundle stopped
         """

@@ -3,5 +3,5 @@
 """
 Test package for the Pelix framework
 
-:author: Thomas Calmant
+:author: Thomas Calmant, Angelo Cutaia
 """

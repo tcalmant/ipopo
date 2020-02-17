@@ -4,8 +4,15 @@
 Pelix framework test module. Tests the framework, bundles handling, service
 handling and events.
 
-:author: Thomas Calmant
+:author: Thomas Calmant, Angelo Cutaia
 """
+
+# Standard library
+import os
+import sys
+import asyncio
+import time
+import pytest
 
 # Tests
 from tests import log_on, log_off
@@ -14,12 +21,6 @@ from tests import log_on, log_off
 from pelix.framework import FrameworkFactory, Bundle, BundleException, \
     BundleContext
 
-# Standard library
-import os
-import sys
-import threading
-import time
-import unittest
 
 # ------------------------------------------------------------------------------
 
@@ -30,53 +31,41 @@ SIMPLE_BUNDLE = "tests.framework.simple_bundle"
 # ------------------------------------------------------------------------------
 
 
-def _framework_killer(framework, wait_time):
+async def _framework_killer(framework, wait_time):
     """
     Waits *time* seconds before calling framework.stop().
 
     :param framework: Framework to stop
     :param wait_time: Time to wait (seconds) before stopping the framework
     """
-    time.sleep(wait_time)
-    framework.stop()
+    await asyncio.sleep(wait_time)
+    await framework.stop()
 
 
-class FrameworkTest(unittest.TestCase):
+class TestFramework:
     """
     Tests the framework factory properties
     """
-    def setUp(self):
-        """
-        Sets up tests variables
-        """
-        self.stopping = False
+    stopping = False
 
-    def tearDown(self):
-        """
-        Cleans up the tests variables
-        """
-        if SIMPLE_BUNDLE in sys.modules:
-            del sys.modules[SIMPLE_BUNDLE]
-
-    def testBundleZero(self):
+    @pytest.mark.asyncio
+    async def test_bundle_zero(self):
         """
         Tests if bundle 0 is the framework
         """
         framework = FrameworkFactory.get_framework()
 
-        self.assertIsNone(framework.get_bundle_by_name(None),
-                          "None name is not bundle 0")
+        assert await framework.get_bundle_by_name(None) is None, "None name is not bundle 0"
 
-        self.assertIs(framework, framework.get_bundle_by_id(0),
-                      "Invalid bundle 0")
+        assert framework is await framework.get_bundle_by_id(0), "Invalid bundle 0"
 
         pelix_name = framework.get_symbolic_name()
-        self.assertIs(framework, framework.get_bundle_by_name(pelix_name),
-                      "Invalid system bundle name")
+        assert framework is await framework.get_bundle_by_name(pelix_name), "Invalid system bundle name"
 
-        FrameworkFactory.delete_framework()
+        await FrameworkFactory.delete_framework()
 
-    def testBundleStart(self):
+    @pytest.mark.asyncio
+    async def test_bundle_start(self):
         """
         Tests if a bundle can be started before the framework itself
         """
@@ -85,63 +74,68 @@ class FrameworkTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Install a bundle
-        bundle = context.install_bundle(SIMPLE_BUNDLE)
+        bundle = await context.install_bundle(SIMPLE_BUNDLE)
 
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be in RESOLVED state")
+        assert bundle.get_state() == Bundle.RESOLVED, "Bundle should be in RESOLVED state"
 
         # Starting the bundle now should fail
-        self.assertRaises(BundleException, bundle.start)
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be in RESOLVED state")
+        with pytest.raises(BundleException):
+            await bundle.start()
+        assert bundle.get_state() == Bundle.RESOLVED, "Bundle should be in RESOLVED state"
 
         # Start the framework
-        framework.start()
+        await framework.start()
 
         # Bundle should have been started now
-        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
-                         "Bundle should be in ACTIVE state")
+        assert bundle.get_state() == Bundle.ACTIVE, "Bundle should be in ACTIVE state"
 
         # Stop the framework
-        framework.stop()
+        await framework.stop()
 
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be in RESOLVED state")
+        assert bundle.get_state() == Bundle.RESOLVED, "Bundle should be in RESOLVED state"
 
         # Try to start the bundle again (must fail)
-        self.assertRaises(BundleException, bundle.start)
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be in RESOLVED state")
+        with pytest.raises(BundleException):
+            await bundle.start()
+        assert bundle.get_state() == Bundle.RESOLVED, "Bundle should be in RESOLVED state"
 
-        FrameworkFactory.delete_framework()
+        await FrameworkFactory.delete_framework()
 
-    def testFrameworkDoubleStart(self):
+        if SIMPLE_BUNDLE in sys.modules:
+            del sys.modules[SIMPLE_BUNDLE]
+
+    @pytest.mark.asyncio
+    async def test_framework_doublestart(self):
         """
         Tests double calls to start and stop
         """
+        self.stopping = False
+
         framework = FrameworkFactory.get_framework()
         context = framework.get_bundle_context()
 
         # Register the stop listener
         context.add_framework_stop_listener(self)
 
-        self.assertTrue(framework.start(), "Framework couldn't be started")
-        self.assertFalse(framework.start(), "Framework started twice")
+        assert await framework.start() is True, "Framework couldn't be started"
+        assert await framework.start() is False, "Framework started twice"
 
         # Stop the framework
-        self.assertTrue(framework.stop(), "Framework couldn't be stopped")
-        self.assertTrue(self.stopping, "Stop listener not called")
+        assert await framework.stop() is True, "Framework couldn't be stopped"
+        assert self.stopping is True, "Stop listener not called"
         self.stopping = False
 
-        self.assertFalse(framework.stop(), "Framework stopped twice")
-        self.assertFalse(self.stopping, "Stop listener called twice")
+        assert await framework.stop() is False, "Framework stopped twice"
+        assert self.stopping is False, "Stop listener called twice"
 
-        FrameworkFactory.delete_framework()
+        await FrameworkFactory.delete_framework()
 
-    def testFrameworkRestart(self):
+    @pytest.mark.asyncio
+    async def test_framework_restart(self):
         """
         Tests call to Framework.update(), that restarts the framework
         """
+        self.stopping = False
         framework = FrameworkFactory.get_framework()
         context = framework.get_bundle_context()
 
@@ -149,25 +143,28 @@ class FrameworkTest(unittest.TestCase):
         context.add_framework_stop_listener(self)
 
         # Calling update while the framework is stopped should do nothing
-        framework.update()
-        self.assertFalse(self.stopping, "Stop listener called")
+        await framework.update()
+        assert self.stopping is False, "Stop listener called"
 
         # Start and update the framework
-        self.assertTrue(framework.start(), "Framework couldn't be started")
-        framework.update()
+        assert await framework.start() is True, "Framework couldn't be started"
+
+        await framework.update()
 
         # The framework must have been stopped and must be active
-        self.assertTrue(self.stopping, "Stop listener not called")
-        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
-                         "Framework hasn't been restarted")
+        assert self.stopping is True, "Stop listener not called"
+        assert framework.get_state() == Bundle.ACTIVE, "Framework hasn't been restarted"
 
-        framework.stop()
-        FrameworkFactory.delete_framework()
+        await framework.stop()
+        await FrameworkFactory.delete_framework()
 
-    def testFrameworkStartRaiser(self):
+    @pytest.mark.asyncio
+    async def test_framework_start_raiser(self):
         """
         Tests framework start and stop with a bundle raising exception
         """
+        self.stopping = False
+
         framework = FrameworkFactory.get_framework()
         context = framework.get_bundle_context()
 
@@ -175,7 +172,7 @@ class FrameworkTest(unittest.TestCase):
         context.add_framework_stop_listener(self)
 
         # Install the bundle
-        bundle = context.install_bundle(SIMPLE_BUNDLE)
+        bundle = await context.install_bundle(SIMPLE_BUNDLE)
         module_ = bundle.get_module()
 
         # Set module in raiser mode
@@ -183,41 +180,41 @@ class FrameworkTest(unittest.TestCase):
 
         # Framework can start...
         log_off()
-        self.assertTrue(framework.start(), "Framework should be started")
+        assert await framework.start() is True, "Framework should be started"
         log_on()
 
-        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
-                         "Framework should be in ACTIVE state")
+        assert framework.get_state() == Bundle.ACTIVE, "Framework should be in ACTIVE state"
 
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be in RESOLVED state")
+        assert bundle.get_state() == Bundle.RESOLVED, "Bundle should be in RESOLVED state"
 
         # Stop the framework
-        self.assertTrue(framework.stop(), "Framework should be stopped")
+        assert await framework.stop() is True, "Framework should be stopped"
 
         # Remove raiser mode
         module_.raiser = False
 
         # Framework can start
-        self.assertTrue(framework.start(), "Framework couldn't be started")
-        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
-                         "Framework should be in ACTIVE state")
-        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
-                         "Bundle should be in ACTIVE state")
+        assert await framework.start() is True, "Framework couldn't be started"
+        assert framework.get_state() == Bundle.ACTIVE, "Framework should be in ACTIVE state"
+        assert bundle.get_state() == Bundle.ACTIVE, "Bundle should be in ACTIVE state"
 
         # Set module in raiser mode
         module_.raiser = True
 
         # Stop the framework
         log_off()
-        self.assertTrue(framework.stop(), "Framework couldn't be stopped")
+        assert await framework.stop() is True, "Framework couldn't be stopped"
         log_on()
 
-        self.assertTrue(self.stopping, "Stop listener not called")
+        assert self.stopping is True, "Stop listener not called"
 
-        FrameworkFactory.delete_framework()
+        await FrameworkFactory.delete_framework()
 
-    def testFrameworkStopRaiser(self):
+        if SIMPLE_BUNDLE in sys.modules:
+            del sys.modules[SIMPLE_BUNDLE]
+
+    @pytest.mark.asyncio
+    async def test_frameworkstop_raiser(self):
         """
         Tests framework start and stop with a bundle raising exception
         """
@@ -228,7 +225,7 @@ class FrameworkTest(unittest.TestCase):
         context.add_framework_stop_listener(self)
 
         # Install the bundle
-        bundle = context.install_bundle(SIMPLE_BUNDLE)
+        bundle = await context.install_bundle(SIMPLE_BUNDLE)
         module_ = bundle.get_module()
 
         # Set module in non-raiser mode
@@ -236,11 +233,9 @@ class FrameworkTest(unittest.TestCase):
 
         # Framework can start...
         log_off()
-        self.assertTrue(framework.start(), "Framework should be started")
-        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
-                         "Framework should be in ACTIVE state")
-        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
-                         "Bundle should be in ACTIVE state")
+        assert await framework.start() is True, "Framework should be started"
+        assert framework.get_state() == Bundle.ACTIVE, "Framework should be in ACTIVE state"
+        assert bundle.get_state() == Bundle.ACTIVE, "Bundle should be in ACTIVE state"
         log_on()
 
         # Set module in raiser mode
@@ -248,16 +243,20 @@ class FrameworkTest(unittest.TestCase):
 
         # Bundle must raise the exception and stay active
         log_off()
-        self.assertRaises(BundleException, bundle.stop)
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be in RESOLVED state")
+        with pytest.raises(BundleException):
+            await bundle.stop()
+        assert bundle.get_state() == Bundle.RESOLVED, "Bundle should be in RESOLVED state"
         log_on()
 
         # Stop framework
-        framework.stop()
-        FrameworkFactory.delete_framework()
+        await framework.stop()
+        await FrameworkFactory.delete_framework()
 
-    def testFrameworkStopper(self):
+        if SIMPLE_BUNDLE in sys.modules:
+            del sys.modules[SIMPLE_BUNDLE]
+
+    @pytest.mark.asyncio
+    async def test_framework_stopper(self):
         """
         Tests FrameworkException stop flag handling
         """
@@ -265,7 +264,7 @@ class FrameworkTest(unittest.TestCase):
         context = framework.get_bundle_context()
 
         # Install the bundle
-        bundle = context.install_bundle(SIMPLE_BUNDLE)
+        bundle = await context.install_bundle(SIMPLE_BUNDLE)
         module_ = bundle.get_module()
 
         # Set module in raiser stop mode
@@ -273,29 +272,24 @@ class FrameworkTest(unittest.TestCase):
         module_.fw_raiser_stop = True
 
         log_off()
-        self.assertFalse(framework.start(), "Framework should be stopped")
-        self.assertEqual(framework.get_state(), Bundle.RESOLVED,
-                         "Framework should be stopped")
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be stopped")
+        assert await framework.start() is False, "Framework should be stopped"
+        assert framework.get_state() == Bundle.RESOLVED, "Framework should be stopped"
+        assert bundle.get_state() == Bundle.RESOLVED, "Bundle should be stopped"
         log_on()
 
         # Set module in raiser non-stop mode
         module_.fw_raiser_stop = False
 
         log_off()
-        self.assertTrue(framework.start(), "Framework should be stopped")
-        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
-                         "Framework should be started")
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be stopped")
+        assert await framework.start() is True, "Framework should be stopped"
+        assert framework.get_state() == Bundle.ACTIVE, "Framework should be started"
+        assert bundle.get_state() == Bundle.RESOLVED, "Bundle should be stopped"
         log_on()
 
         # Start the module
         module_.fw_raiser = False
-        bundle.start()
-        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
-                         "Bundle should be active")
+        await bundle.start()
+        assert bundle.get_state() == Bundle.ACTIVE, "Bundle should be active"
 
         # Set module in raiser mode
         module_.fw_raiser = True
@@ -303,16 +297,18 @@ class FrameworkTest(unittest.TestCase):
 
         # Stop the framework
         log_off()
-        self.assertTrue(framework.stop(), "Framework couldn't be stopped")
-        self.assertEqual(framework.get_state(), Bundle.RESOLVED,
-                         "Framework should be stopped")
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be stopped")
+        assert await framework.stop() is True, "Framework couldn't be stopped"
+        assert framework.get_state() == Bundle.RESOLVED, "Framework should be stopped"
+        assert bundle.get_state() == Bundle.RESOLVED, "Bundle should be stopped"
         log_on()
 
-        FrameworkFactory.delete_framework()
+        await FrameworkFactory.delete_framework()
 
-    def testPropertiesWithPreset(self):
+        if SIMPLE_BUNDLE in sys.modules:
+            del sys.modules[SIMPLE_BUNDLE]
+
+    @pytest.mark.asyncio
+    async def test_properties_with_preset(self):
         """
         Test framework properties
         """
@@ -324,18 +320,17 @@ class FrameworkTest(unittest.TestCase):
         props = {pelix_test_name: pelix_test}
         framework = FrameworkFactory.get_framework(props)
 
-        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
-                         "Invalid property value (preset value not set)")
+        assert await framework.get_property(pelix_test_name) == pelix_test, "Invalid property value (preset value not set)"
 
         # Pre-set property has priority
         os.environ[pelix_test_name] = pelix_test_2
-        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
-                         "Invalid property value (preset has priority)")
+        assert await framework.get_property(pelix_test_name) == pelix_test, "Invalid property value (preset has priority)"
         del os.environ[pelix_test_name]
 
-        FrameworkFactory.delete_framework()
+        await FrameworkFactory.delete_framework()
 
-    def testPropertiesWithoutPreset(self):
+    @pytest.mark.asyncio
+    async def test_properties_without_preset(self):
         """
         Test framework properties
         """
@@ -345,17 +340,16 @@ class FrameworkTest(unittest.TestCase):
         # Test without pre-set properties
         framework = FrameworkFactory.get_framework()
 
-        self.assertIsNone(framework.get_property(pelix_test_name),
-                          "Magic property value")
+        assert await framework.get_property(pelix_test_name) is None, "Magic property value"
 
         os.environ[pelix_test_name] = pelix_test
-        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
-                         "Invalid property value")
+        assert await framework.get_property(pelix_test_name) == pelix_test, "Invalid property value"
         del os.environ[pelix_test_name]
 
-        FrameworkFactory.delete_framework()
+        await FrameworkFactory.delete_framework()
 
-    def testAddedProperty(self):
+    @pytest.mark.asyncio
+    async def test_added_property(self):
         """
         Tests the add_property method
         """
@@ -366,24 +360,19 @@ class FrameworkTest(unittest.TestCase):
         # Test without pre-set properties
         framework = FrameworkFactory.get_framework()
 
-        self.assertIsNone(framework.get_property(pelix_test_name),
-                          "Magic property value")
+        assert await framework.get_property(pelix_test_name) is None, "Magic property value"
 
         # Add the property
-        self.assertTrue(framework.add_property(pelix_test_name, pelix_test),
-                        "add_property shouldn't fail on first call")
+        assert await framework.add_property(pelix_test_name, pelix_test) is True, "add_property shouldn't fail on first call"
 
-        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
-                         "Invalid property value")
+        assert await framework.get_property(pelix_test_name) == pelix_test, "Invalid property value"
 
         # Update the property (must fail)
-        self.assertFalse(framework.add_property(pelix_test_name, pelix_test_2),
-                         "add_property must fail on second call")
+        assert await framework.add_property(pelix_test_name, pelix_test_2) is False, "add_property must fail on second call"
 
-        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
-                         "Invalid property value")
+        assert await framework.get_property(pelix_test_name) == pelix_test, "Invalid property value"
 
-        FrameworkFactory.delete_framework()
+        await FrameworkFactory.delete_framework()
 
     def framework_stopping(self):
         """
@@ -391,63 +380,65 @@ class FrameworkTest(unittest.TestCase):
         """
         self.stopping = True
 
-    def testStopListener(self):
+    @pytest.mark.asyncio
+    async def test_stop_listener(self):
         """
         Test the framework stop event
         """
+        self.stopping = False
         # Set up a framework
         framework = FrameworkFactory.get_framework()
-        framework.start()
+        await framework.start()
         context = framework.get_bundle_context()
 
         # Assert initial state
-        self.assertFalse(self.stopping, "Invalid initial state")
+        assert self.stopping is False, "Invalid initial state"
 
         # Register the stop listener
-        self.assertTrue(context.add_framework_stop_listener(self),
-                        "Can't register the stop listener")
+        assert context.add_framework_stop_listener(self) is True, "Can't register the stop listener"
 
         log_off()
-        self.assertFalse(context.add_framework_stop_listener(self),
-                         "Stop listener registered twice")
+        assert context.add_framework_stop_listener(self) is False, "Stop listener registered twice"
         log_on()
 
         # Assert running state
-        self.assertFalse(self.stopping, "Invalid running state")
+        assert self.stopping is False, "Invalid running state"
 
         # Stop the framework
-        framework.stop()
+        await framework.stop()
 
         # Assert the listener has been called
-        self.assertTrue(self.stopping, "Stop listener hasn't been called")
+        assert self.stopping is True, "Stop listener hasn't been called"
 
         # Unregister the listener
-        self.assertTrue(context.remove_framework_stop_listener(self),
-                        "Can't unregister the stop listener")
+        assert context.remove_framework_stop_listener(self) is True, "Can't unregister the stop listener"
 
         log_off()
-        self.assertFalse(context.remove_framework_stop_listener(self),
-                         "Stop listener unregistered twice")
+        assert context.remove_framework_stop_listener(self) is False, "Stop listener unregistered twice"
         log_on()
 
-        FrameworkFactory.delete_framework()
+        await FrameworkFactory.delete_framework()
 
-    def testUninstall(self):
+    @pytest.mark.asyncio
+    async def test_uninstall(self):
         """
         Tests if the framework raises an exception if uninstall() is called
         """
         # Set up a framework
         framework = FrameworkFactory.get_framework()
-        self.assertRaises(BundleException, framework.uninstall)
+        with pytest.raises(BundleException):
+            await framework.uninstall()
 
         # Even once started...
-        framework.start()
-        self.assertRaises(BundleException, framework.uninstall)
-        framework.stop()
+        await framework.start()
+        with pytest.raises(BundleException):
+            await framework.uninstall()
+        await framework.stop()
 
-        FrameworkFactory.delete_framework()
+        await FrameworkFactory.delete_framework()
 
-    def testWaitForStop(self):
+    @pytest.mark.asyncio
+    async def test_wait_for_stop(self):
         """
         Tests the wait_for_stop() method
         """
@@ -455,63 +446,56 @@ class FrameworkTest(unittest.TestCase):
         framework = FrameworkFactory.get_framework()
 
         # No need to wait for the framework...
-        self.assertTrue(framework.wait_for_stop(),
-                        "wait_for_stop() must return True "
-                        "on stopped framework")
+        assert await framework.wait_for_stop() is True, "wait_for_stop() must return True on stopped framework"
 
         # Start the framework
-        framework.start()
+        await framework.start()
 
         # Start the framework killer
-        threading.Thread(target=_framework_killer,
-                         args=(framework, 0.5)).start()
+        asyncio.create_task(_framework_killer(framework, 0.5))
 
         # Wait for stop
         start = time.time()
-        self.assertTrue(framework.wait_for_stop(),
-                        "wait_for_stop(None) should return True")
+        assert await framework.wait_for_stop() is True, "wait_for_stop(None) should return True"
         end = time.time()
-        self.assertLess(end - start, 1, "Wait should be less than 1 sec")
+        assert (end - start) < 1, "Wait should be less than 1 sec"
 
-        FrameworkFactory.delete_framework()
+        await FrameworkFactory.delete_framework()
 
-    def testWaitForStopTimeout(self):
+    @pytest.mark.asyncio
+    async def test_wait_for_stop_timeout(self):
         """
         Tests the wait_for_stop() method
         """
         # Set up a framework
         framework = FrameworkFactory.get_framework()
-        framework.start()
+        await framework.start()
 
-        # Start the framework killer
-        threading.Thread(target=_framework_killer,
-                         args=(framework, 0.5)).start()
+        # Schedule the framework killer
+        asyncio.create_task(_framework_killer(framework, 0.5))
 
         # Wait for stop (timeout not raised)
         start = time.time()
-        self.assertTrue(framework.wait_for_stop(1),
-                        "wait_for_stop() should return True")
+        assert await framework.wait_for_stop(1) is True, "wait_for_stop() should return True"
         end = time.time()
-        self.assertLess(end - start, 1, "Wait should be less than 1 sec")
+        assert (end - start) < 1, "Wait should be less than 1 sec"
 
         # Restart framework
-        framework.start()
+        await framework.start()
 
-        # Start the framework killer
-        threading.Thread(target=_framework_killer,
-                         args=(framework, 2)).start()
+        # Schedule the framework killer
+        asyncio.create_task(_framework_killer(framework, 2))
 
         # Wait for stop (timeout raised)
         start = time.time()
-        self.assertFalse(framework.wait_for_stop(1),
-                         "wait_for_stop() should return False")
+        assert await framework.wait_for_stop(1) is False, "wait_for_stop() should return False"
         end = time.time()
-        self.assertLess(end - start, 1.2, "Wait should be less than 1.2 sec")
+        assert (end - start) < 1.2, "Wait should be less than 1.2 sec"
 
         # Wait for framework to really stop
-        framework.wait_for_stop()
+        await framework.wait_for_stop()
 
-        FrameworkFactory.delete_framework()
+        await FrameworkFactory.delete_framework()
 
 # ------------------------------------------------------------------------------
 
@@ -520,5 +504,3 @@ if __name__ == "__main__":
     # Set logging level
     import logging
     logging.basicConfig(level=logging.DEBUG)
-
-    unittest.main()

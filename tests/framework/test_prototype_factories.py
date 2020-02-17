@@ -2,12 +2,11 @@
 # -- Content-Encoding: UTF-8 --
 """
 Tests the prototype service factory implementation
-
-:author: Thomas Calmant
+:author: Thomas Calmant, Angelo Cutaia
 """
 
 # Standard library
-import unittest
+import pytest
 
 # Pelix
 from pelix.framework import FrameworkFactory
@@ -19,179 +18,200 @@ __version__ = "1.0.0"
 # ------------------------------------------------------------------------------
 
 
-class PrototypeServiceFactoryTest(unittest.TestCase):
+class TestPrototypeServiceFactory:
     """
     Prototype Service Factory tests
     """
-    def setUp(self):
-        """
-        Called before each test. Initiates a framework.
-        """
-        self.framework = FrameworkFactory.get_framework()
-        self.framework.start()
-        self.context = self.framework.get_bundle_context()
-
-    def tearDown(self):
-        """
-        Called after each test
-        """
-        self.framework.stop()
-        FrameworkFactory.delete_framework()
-
-    def test_prototype(self):
+    @pytest.mark.asyncio
+    async def test_prototype(self):
         """
         Tests the basic behaviour of prototype service factory handling
         """
+        # Setup
+        framework = FrameworkFactory.get_framework()
+        await framework.start()
+        context = framework.get_bundle_context()
+
         # Start the provider
-        provider_bnd = self.context.install_bundle(
+        provider_bnd = await context.install_bundle(
             "tests.framework.prototype_service_bundle")
-        provider_bnd.start()
+        await provider_bnd.start()
 
         # Get the internal service
-        svc_ref = self.context.get_service_reference("test.prototype.internal")
-        factory = self.context.get_service(svc_ref)
+        svc_ref = context.get_service_reference("test.prototype.internal")
+        factory = context.get_service(svc_ref)
 
         # Start the consumers
-        consumer_bnd_1 = self.context.install_bundle("tests.dummy_1")
-        consumer_bnd_1.start()
+        consumer_bnd_1 = await context.install_bundle("tests.dummy_1")
+        await consumer_bnd_1.start()
         ctx_1 = consumer_bnd_1.get_bundle_context()
 
-        consumer_bnd_2 = self.context.install_bundle("tests.dummy_2")
-        consumer_bnd_2.start()
+        consumer_bnd_2 = await context.install_bundle("tests.dummy_2")
+        await consumer_bnd_2.start()
         ctx_2 = consumer_bnd_2.get_bundle_context()
 
         # Find the service
-        svc_ref = self.context.get_service_reference("test.prototype")
+        svc_ref = context.get_service_reference("test.prototype")
 
         # Get the service objects beans
         obj_1 = ctx_1.get_service_objects(svc_ref)
         obj_2 = ctx_2.get_service_objects(svc_ref)
 
         # Check the service reference
-        self.assertIs(obj_1.get_service_reference(), svc_ref)
+        assert obj_1.get_service_reference() is svc_ref
 
         # Get 2 service instances for the first bundle
         svc_1_a = obj_1.get_service()
         svc_1_b = obj_1.get_service()
-        self.assertIsNot(svc_1_a, svc_1_b, "Same service returned")
+        assert svc_1_a is not svc_1_b, "Same service returned"
 
         # Get 2 service instances for the second bundle
         svc_2_a = obj_2.get_service()
         svc_2_b = obj_2.get_service()
-        self.assertIsNot(svc_2_a, svc_2_b, "Same service returned")
-        self.assertIsNot(svc_1_a, svc_2_a, "Same service reused")
-        self.assertIsNot(svc_1_b, svc_2_a, "Same service reused")
-        self.assertIsNot(svc_2_a, svc_1_a, "Same service reused")
-        self.assertIsNot(svc_2_b, svc_1_a, "Same service reused")
+        assert svc_2_a is not svc_2_b, "Same service returned"
+        assert svc_1_a is not svc_2_a, "Same service reused"
+        assert svc_1_b is not svc_2_a, "Same service reused"
+        assert svc_2_a is not svc_1_a, "Same service reused"
+        assert svc_2_b is not svc_1_a, "Same service reused"
 
         # Unget the service properly for the first bundle
-        self.assertFalse(svc_1_a.released)
-        self.assertTrue(obj_1.unget_service(svc_1_a))
-        self.assertTrue(svc_1_a.released)
+        assert svc_1_a.released is False
+        assert obj_1.unget_service(svc_1_a) is True
+        assert svc_1_a.released is True
 
-        self.assertFalse(svc_1_b.released)
-        self.assertTrue(obj_1.unget_service(svc_1_b))
-        self.assertTrue(svc_1_b.released)
+        assert svc_1_b.released is False
+        assert obj_1.unget_service(svc_1_b) is True
+        assert svc_1_b.released is True
 
         # Try a second time (should do nothing)
-        self.assertFalse(obj_1.unget_service(svc_1_a))
+        assert obj_1.unget_service(svc_1_a) is False
 
         # Ensure that the list of instances are in a valid state
-        self.assertNotIn(consumer_bnd_1, factory.instances)
-        self.assertIn(consumer_bnd_2, factory.instances)
+        assert consumer_bnd_1 not in factory.instances
+        assert consumer_bnd_2 in factory.instances
 
-    def test_consumer_stops(self):
+        #Teardown
+        await framework.stop()
+        await FrameworkFactory.delete_framework()
+
+    @pytest.mark.asyncio
+    async def test_consumer_stops(self):
         """
         Tests Prototype Factory when the consumer bundle stops roughly
         """
+        # Setup
+        framework = FrameworkFactory.get_framework()
+        await framework.start()
+        context = framework.get_bundle_context()
+
         # Start the provider
-        provider_bnd = self.context.install_bundle(
+        provider_bnd = await context.install_bundle(
             "tests.framework.prototype_service_bundle")
-        provider_bnd.start()
+        await provider_bnd.start()
 
         # Get the internal service
-        svc_ref = self.context.get_service_reference("test.prototype.internal")
-        factory = self.context.get_service(svc_ref)
+        svc_ref = context.get_service_reference("test.prototype.internal")
+        factory = context.get_service(svc_ref)
 
         # Start the consumers
-        consumer_bnd = self.context.install_bundle("tests.dummy_1")
-        consumer_bnd.start()
+        consumer_bnd = await context.install_bundle("tests.dummy_1")
+        await consumer_bnd.start()
         ctx = consumer_bnd.get_bundle_context()
 
         # Find the service
-        svc_ref = self.context.get_service_reference("test.prototype")
+        svc_ref = context.get_service_reference("test.prototype")
 
         # Get the service objects beans
         obj_1 = ctx.get_service_objects(svc_ref)
 
         # Check the service reference
-        self.assertIs(obj_1.get_service_reference(), svc_ref)
+        assert obj_1.get_service_reference() is svc_ref
 
         # Get a service instance
         svc = obj_1.get_service()
-        self.assertIn(svc, factory.instances[consumer_bnd])
+        assert svc in factory.instances[consumer_bnd]
 
         # Stop the bundle
-        consumer_bnd.stop()
+        await consumer_bnd.stop()
 
         # Check the state of the factory
-        self.assertTrue(svc.released)
-        self.assertNotIn(consumer_bnd, factory.instances)
+        assert svc.released is True
+        assert consumer_bnd not in factory.instances
 
-    def test_provider_stops(self):
+        #Teardown
+        await framework.stop()
+        await FrameworkFactory.delete_framework()
+
+    @pytest.mark.asyncio
+    async def test_provider_stops(self):
         """
         Tests Prototype Factory when the provider bundle stops
         """
+        # Setup
+        framework = FrameworkFactory.get_framework()
+        await framework.start()
+        context = framework.get_bundle_context()
+
         # Start the provider
-        provider_bnd = self.context.install_bundle(
+        provider_bnd = await context.install_bundle(
             "tests.framework.prototype_service_bundle")
-        provider_bnd.start()
+        await provider_bnd.start()
 
         # Get the internal service
-        svc_ref = self.context.get_service_reference("test.prototype.internal")
-        factory = self.context.get_service(svc_ref)
+        svc_ref = context.get_service_reference("test.prototype.internal")
+        factory = context.get_service(svc_ref)
 
         # Start the consumers
-        consumer_bnd = self.context.install_bundle("tests.dummy_1")
-        consumer_bnd.start()
+        consumer_bnd = await context.install_bundle("tests.dummy_1")
+        await consumer_bnd.start()
         ctx = consumer_bnd.get_bundle_context()
 
         # Find the service
-        svc_ref = self.context.get_service_reference("test.prototype")
+        svc_ref = context.get_service_reference("test.prototype")
 
         # Get the service objects beans
         obj_1 = ctx.get_service_objects(svc_ref)
 
         # Check the service reference
-        self.assertIs(obj_1.get_service_reference(), svc_ref)
+        assert obj_1.get_service_reference() is svc_ref
 
         # Get a service instance
         svc = obj_1.get_service()
-        self.assertIn(svc, factory.instances[consumer_bnd])
+        assert svc in factory.instances[consumer_bnd]
 
         # Stop the bundle
-        provider_bnd.stop()
+        await provider_bnd.stop()
 
         # Check the state of the service and the factory
-        self.assertTrue(svc.released)
-        self.assertNotIn(consumer_bnd, factory.instances)
+        assert svc.released is True
+        assert consumer_bnd not in factory.instances
 
-    def test_service_objects_singleton(self):
+        #Teardown
+        await framework.stop()
+        await FrameworkFactory.delete_framework()
+
+    @pytest.mark.asyncio
+    async def test_service_objects_singleton(self):
         """
         Tests BundleContext.get_service_objects() with a singleton service
         """
+        # Setup
+        framework = FrameworkFactory.get_framework()
+        await framework.start()
+        context = framework.get_bundle_context()
+
         # Start two bundles for their context
-        bnd_1 = self.context.install_bundle("tests.dummy_1")
-        bnd_1.start()
+        bnd_1 = await context.install_bundle("tests.dummy_1")
+        await bnd_1.start()
         ctx_1 = bnd_1.get_bundle_context()
 
-        bnd_2 = self.context.install_bundle("tests.dummy_2")
-        bnd_2.start()
+        bnd_2 = await context.install_bundle("tests.dummy_2")
+        await bnd_2.start()
         ctx_2 = bnd_2.get_bundle_context()
 
         # Singleton service
         singleton_svc = object()
-        singleton_reg = self.context.register_service(
+        singleton_reg = await context.register_service(
             "test.singleton", singleton_svc, {})
         singleton_ref = singleton_reg.get_reference()
 
@@ -200,30 +220,40 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
         svc_1_a = obj_1.get_service()
         svc_1_b = obj_1.get_service()
         svc_1_c = ctx_1.get_service(singleton_ref)
-        self.assertIs(svc_1_a, svc_1_b)
-        self.assertIs(svc_1_a, svc_1_c)
+        assert svc_1_a is svc_1_b
+        assert svc_1_a is svc_1_c
 
         obj_2 = ctx_2.get_service_objects(singleton_ref)
         svc_2_a = obj_2.get_service()
         svc_2_b = obj_2.get_service()
         svc_2_c = ctx_2.get_service(singleton_ref)
-        self.assertIs(svc_2_a, svc_2_b)
-        self.assertIs(svc_2_a, svc_2_c)
+        assert svc_2_a is svc_2_b
+        assert svc_2_a is svc_2_c
 
         # Ensure that the same service has been retrieved
-        self.assertIs(svc_1_a, svc_2_a)
+        assert svc_1_a is svc_2_a
 
-    def test_service_objects_factory(self):
+        #Teardown
+        await framework.stop()
+        await FrameworkFactory.delete_framework()
+
+    @pytest.mark.asyncio
+    async def test_service_objects_factory(self):
         """
         Tests BundleContext.get_service_objects() with a factory service
         """
+        # Setup
+        framework = FrameworkFactory.get_framework()
+        await framework.start()
+        context = framework.get_bundle_context()
+
         # Start two bundles for their context
-        bnd_1 = self.context.install_bundle("tests.dummy_1")
-        bnd_1.start()
+        bnd_1 = await context.install_bundle("tests.dummy_1")
+        await bnd_1.start()
         ctx_1 = bnd_1.get_bundle_context()
 
-        bnd_2 = self.context.install_bundle("tests.dummy_2")
-        bnd_2.start()
+        bnd_2 = await context.install_bundle("tests.dummy_2")
+        await bnd_2.start()
         ctx_2 = bnd_2.get_bundle_context()
 
         # Service Factory
@@ -235,7 +265,7 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
                 pass
 
         factory_svc = Factory()
-        factory_reg = self.context.register_service(
+        factory_reg = await context.register_service(
             "test.factory", factory_svc, {}, factory=True)
         factory_ref = factory_reg.get_reference()
 
@@ -244,23 +274,25 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
         svc_1_a = obj_1.get_service()
         svc_1_b = obj_1.get_service()
         svc_1_c = ctx_1.get_service(factory_ref)
-        self.assertIs(svc_1_a, svc_1_b)
-        self.assertIs(svc_1_a, svc_1_c)
+        assert svc_1_a is svc_1_b
+        assert svc_1_a is svc_1_c
 
         obj_2 = ctx_2.get_service_objects(factory_ref)
         svc_2_a = obj_2.get_service()
         svc_2_b = obj_2.get_service()
         svc_2_c = ctx_2.get_service(factory_ref)
-        self.assertIs(svc_2_a, svc_2_b)
-        self.assertIs(svc_2_a, svc_2_c)
+        assert svc_2_a is svc_2_b
+        assert svc_2_a is svc_2_c
 
         # Ensure that a different service has been retrieved
-        self.assertIsNot(svc_1_a, svc_2_a)
+        assert svc_1_a is not svc_2_a
+
+        #Teardown
+        await framework.stop()
+        await FrameworkFactory.delete_framework()
 
 
 if __name__ == "__main__":
     # Set logging level
     import logging
     logging.basicConfig(level=logging.DEBUG)
-
-    unittest.main()
