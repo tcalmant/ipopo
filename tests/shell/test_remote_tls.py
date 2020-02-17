@@ -17,7 +17,8 @@ import time
 
 # Tests
 import unittest
-
+import pytest
+pytest.skip("Remote Shell tls not implemented yet", allow_module_level=True)
 
 # Pelix
 from pelix.framework import FrameworkFactory, create_framework

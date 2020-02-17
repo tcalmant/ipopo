@@ -13,7 +13,8 @@ import socket
 import threading
 from io import StringIO
 import unittest
-
+import pytest
+pytest.skip("XMPP not implemented yet", allow_module_level=True)
 try:
     import pelix.misc.xmpp as xmpp
 except ImportError:
