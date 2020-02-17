@@ -16,7 +16,8 @@ import pelix.services
 import json
 import threading
 import unittest
-
+import pytest
+pytest.skip ("EventAdmin MQTT service not implemented yet", allow_module_level=True)
 # Local utilities
 from tests.mqtt_utilities import find_mqtt_server
 
