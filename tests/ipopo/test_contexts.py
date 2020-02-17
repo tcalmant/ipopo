@@ -23,7 +23,8 @@ from pelix.utilities import use_service
 
 # Standard library
 import unittest
-
+import pytest
+pytest.skip("Not implemented yet", allow_module_level=True)
 # ------------------------------------------------------------------------------
 
 __version__ = "1.0.0"

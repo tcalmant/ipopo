@@ -17,7 +17,8 @@ import pelix.ipopo.decorators as decorators
 
 # Standard library
 import unittest
-
+import pytest
+pytest.skip("Not implemented yet", allow_module_level=True)
 # ------------------------------------------------------------------------------
 
 __version__ = "1.0.0"

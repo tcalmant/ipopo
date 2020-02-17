@@ -11,7 +11,8 @@ import code
 import os
 import sys
 import unittest
-
+import pytest
+pytest.skip("Not implemented yet", allow_module_level=True)
 # Pelix
 from pelix.framework import FrameworkFactory
 
