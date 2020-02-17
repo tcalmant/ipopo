@@ -16,6 +16,8 @@ import pelix.framework
 
 # Standard library
 import unittest
+import pytest
+pytest.skip("EDEF not implemented yet", allow_module_level=True)
 
 # ------------------------------------------------------------------------------
 

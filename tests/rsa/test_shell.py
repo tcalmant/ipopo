@@ -9,6 +9,8 @@ Tests the RSA shell commands
 # Standard library
 import os
 import unittest
+import pytest
+pytest.skip("Shell not implemented yet", allow_module_level=True)
 from io import StringIO
 
 # Pelix

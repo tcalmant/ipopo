@@ -9,7 +9,8 @@ Tests the RSA Py4J provider, using the tutorial
 
 # Test
 import unittest
-
+import pytest
+pytest.skip("PY4J not implemented yet", allow_module_level=True)
 
 # Standard library
 from contextlib import contextmanager
