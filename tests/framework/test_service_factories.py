@@ -51,21 +51,21 @@ class TestServices:
         id_a = (await context_a.get_bundle()).get_bundle_id()
 
         # Find the service
-        svc_ref = context_fw.get_service_reference(factory_module.SVC)
+        svc_ref = await context_fw.get_service_reference(factory_module.SVC)
 
         # Get the service from the Framework context
-        svc_fw = context_fw.get_service(svc_ref)
-        assert svc_fw.requester_id() == (await context_fw.get_bundle()).get_bundle_id()
+        svc_fw = await context_fw.get_service(svc_ref)
+        assert await svc_fw.requester_id() == (await context_fw.get_bundle()).get_bundle_id()
         assert factory_module.FACTORY.made_for == [id_fw]
 
         # Get the service from the bundle context
-        svc_a = context_a.get_service(svc_ref)
-        assert svc_a.requester_id() == id_a, "Bad request bundle ID"
+        svc_a = await context_a.get_service(svc_ref)
+        assert await svc_a.requester_id() == id_a, "Bad request bundle ID"
         assert factory_module.FACTORY.made_for == [id_fw, id_a]
 
         # Get the service twice
-        svc_b = context_a.get_service(svc_ref)
-        assert svc_b.requester_id() == id_a, "Bad request bundle ID"
+        svc_b = await context_a.get_service(svc_ref)
+        assert await svc_b.requester_id() == id_a, "Bad request bundle ID"
 
         # Ensure per-bundle variety
         assert factory_module.FACTORY.made_for == [id_fw, id_a]
@@ -74,15 +74,15 @@ class TestServices:
 
         # Release the service:
         # the framework reference must be clean immediately
-        context_fw.unget_service(svc_ref)
+        await context_fw.unget_service(svc_ref)
         assert factory_module.FACTORY.made_for == [id_a]
 
         # First release of second bundle: no change
-        context_a.unget_service(svc_ref)
+        await context_a.unget_service(svc_ref)
         assert factory_module.FACTORY.made_for == [id_a]
 
         # All references of second bundle gone: factory must have been notified
-        context_a.unget_service(svc_ref)
+        await context_a.unget_service(svc_ref)
         assert factory_module.FACTORY.made_for == []
 
         # Teardown
@@ -110,17 +110,17 @@ class TestServices:
         assert os.environ.get("factory.unget") is None
 
         # Find the service
-        svc_ref = ctx.get_service_reference(factory_module.SVC_NO_CLEAN)
+        svc_ref = await ctx.get_service_reference(factory_module.SVC_NO_CLEAN)
 
         # Get the service from the Framework context
-        svc = ctx.get_service(svc_ref)
+        svc = await ctx.get_service(svc_ref)
 
         assert os.environ.get("factory.get") == "OK"
         assert os.environ.get("factory.unget") is None
 
         # Check if we got the registration correctly
         assert svc.real is svc.given
-        assert svc_ref.get_using_bundles() == [framework]
+        assert await svc_ref.get_using_bundles() == [framework]
         assert svc.real.get_reference() == svc_ref, "Wrong reference"
 
         # Clean up environment
@@ -138,7 +138,7 @@ class TestServices:
 
         # Check clean up
         assert svc.real is svc.given
-        assert svc_ref.get_using_bundles() == []
+        assert await svc_ref.get_using_bundles() == []
 
         # Teardown
         await framework.stop()
@@ -163,7 +163,7 @@ class TestServices:
         await factory_bundle.start()
 
         # Find the service
-        svc_ref = context_fw.get_service_reference(factory_module.SVC)
+        svc_ref = await context_fw.get_service_reference(factory_module.SVC)
 
         # Start a dummy bundle for its context
         bnd = await context_fw.install_bundle("tests.dummy_1")
@@ -171,15 +171,15 @@ class TestServices:
         ctx = bnd.get_bundle_context()
 
         # Consume the service
-        svc = ctx.get_service(svc_ref)
+        svc = await ctx.get_service(svc_ref)
         assert svc is not None
-        assert bnd in svc_ref.get_using_bundles()
+        assert bnd in await svc_ref.get_using_bundles()
 
         # Stop the bundle
         await bnd.stop()
 
         # Ensure the release of the service
-        assert bnd not in svc_ref.get_using_bundles()
+        assert bnd not in await svc_ref.get_using_bundles()
 
         # Teardown
         await framework.stop()

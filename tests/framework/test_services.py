@@ -52,38 +52,38 @@ class TestServices:
         module_ = bundle.get_module()
 
         # Assert we can't access the service
-        ref1 = context.get_service_reference(IEchoService)
+        ref1 = await context.get_service_reference(IEchoService)
         assert ref1 is None, "get_service_reference found: {0}".format(ref1)
 
-        ref2 = context.get_service_reference(IEchoService, svc_filter)
+        ref2 = await context.get_service_reference(IEchoService, svc_filter)
         assert ref2 is None, "get_service_reference, filtered found: {0}".format(ref2)
 
-        refs = context.get_all_service_references(IEchoService, None)
+        refs = await context.get_all_service_references(IEchoService, None)
         assert refs is None, "get_all_service_reference found: {0}".format(refs)
 
-        refs = context.get_all_service_references(IEchoService, svc_filter)
+        refs = await context.get_all_service_references(IEchoService, svc_filter)
         assert refs is None, "get_all_service_reference, filtered found: {0}".format(refs)
 
         # --- Start it (registers a service) ---
         await bundle.start()
 
         # Get the reference
-        ref1 = context.get_service_reference(IEchoService)
+        ref1 = await context.get_service_reference(IEchoService)
         assert ref1 is not None, "get_service_reference found nothing"
 
-        ref2 = context.get_service_reference(IEchoService, svc_filter)
+        ref2 = await context.get_service_reference(IEchoService, svc_filter)
         assert ref2 is not None, "get_service_reference, filtered found nothing"
 
         # Assert we found the same references
         assert ref1 is ref2, "References are not the same"
 
         # Get all IEchoServices
-        refs = context.get_all_service_references(IEchoService, None)
+        refs = await context.get_all_service_references(IEchoService, None)
 
         # Assert we found only one reference
         assert refs is not None, "get_all_service_reference found nothing"
 
-        refs = context.get_all_service_references(IEchoService, svc_filter)
+        refs = await context.get_all_service_references(IEchoService, svc_filter)
 
         # Assert we found only one reference
         assert refs is not None, "get_all_service_reference filtered found nothing"
@@ -93,40 +93,40 @@ class TestServices:
         assert ref1 is refs[0], "Not the same references through get and get_all"
 
         # Assert that the bundle can find its own services
-        assert refs == bundle_context.get_service_references(IEchoService, None), "The bundle can't find its own services"
+        assert refs == await bundle_context.get_service_references(IEchoService, None), "The bundle can't find its own services"
 
-        assert refs == bundle_context.get_service_references(IEchoService, svc_filter), "The bundle can't find its own filtered services"
+        assert refs == await bundle_context.get_service_references(IEchoService, svc_filter), "The bundle can't find its own filtered services"
 
         # Assert that the framework bundle context can't find the bundle
         # services
-        assert [] == context.get_service_references(IEchoService, None), "Framework bundle shouldn't get the echo service"
+        assert [] == await context.get_service_references(IEchoService, None), "Framework bundle shouldn't get the echo service"
 
-        assert [] == context.get_service_references(IEchoService, svc_filter), "Framework bundle shouldn't get the filtered echo service"
+        assert [] == await context.get_service_references(IEchoService, svc_filter), "Framework bundle shouldn't get the filtered echo service"
 
         # Get the service
-        svc = context.get_service(ref1)
+        svc = await context.get_service(ref1)
         assert isinstance(svc, IEchoService)
 
         # Validate the reference
         assert svc is module_.service, "Not the same service instance..."
 
         # Unget the service
-        context.unget_service(ref1)
+        await context.unget_service(ref1)
 
         # --- Stop it (unregisters a service) ---
         await bundle.stop()
 
         # Assert we can't access the service
-        ref1 = context.get_service_reference(IEchoService)
+        ref1 = await context.get_service_reference(IEchoService)
         assert ref1 is None, "get_service_reference found: {0}".format(ref1)
 
-        ref2 = context.get_service_reference(IEchoService, svc_filter)
+        ref2 = await context.get_service_reference(IEchoService, svc_filter)
         assert ref2 is None, "get_service_reference, filtered found: {0}".format(ref2)
 
-        refs = context.get_all_service_references(IEchoService, None)
+        refs = await context.get_all_service_references(IEchoService, None)
         assert refs is None, "get_all_service_reference found: {0}".format(refs)
 
-        refs = context.get_all_service_references(IEchoService, svc_filter)
+        refs = await context.get_all_service_references(IEchoService, svc_filter)
         assert refs is None, "get_all_service_reference, filtered found: {0}".format(refs)
 
         # --- Uninstall it ---
@@ -162,31 +162,31 @@ class TestServices:
         assert module_.service is not None, "The service instance is missing"
 
         # Get the reference
-        ref = context.get_service_reference(IEchoService)
+        ref = await context.get_service_reference(IEchoService)
         assert ref is not None, "get_service_reference found nothing"
-        assert ref in bundle.get_registered_services(), "Reference not in registered services"
+        assert ref in await bundle.get_registered_services(), "Reference not in registered services"
 
         # Get the service
-        svc = context.get_service(ref)
+        svc = await context.get_service(ref)
         assert svc is not None, "Service not found"
-        assert ref in framework.get_services_in_use(), "Reference usage not indicated"
+        assert ref in await framework.get_services_in_use(), "Reference usage not indicated"
 
         # Release the service
-        context.unget_service(ref)
-        assert ref not in framework.get_services_in_use(), "Reference usage not removed"
+        await context.unget_service(ref)
+        assert ref not in await framework.get_services_in_use(), "Reference usage not removed"
 
         # --- Uninstall the bundle without stopping it first ---
         await bundle.uninstall()
 
         # The service should be deleted
-        ref = context.get_service_reference(IEchoService)
+        ref = await context.get_service_reference(IEchoService)
         assert ref is None, "get_service_reference found: {0}".format(ref)
 
         # We shouldn't have access to the bundle services anymore
         with pytest.raises(BundleException):
-            bundle.get_registered_services()
+            await bundle.get_registered_services()
         with pytest.raises(BundleException):
-            bundle.get_services_in_use()
+            await bundle.get_services_in_use()
 
         # Teardown
         await framework.stop()
@@ -282,29 +282,29 @@ class TestServices:
         ref = reg.get_reference()
 
         # Ensure that reserved properties have been overridden
-        object_class = ref.get_property(pelix.constants.OBJECTCLASS)
+        object_class = await ref.get_property(pelix.constants.OBJECTCLASS)
         assert object_class == ["class"], "Invalid objectClass property '{0}'".format(object_class)
 
-        svc_id = ref.get_property(pelix.constants.SERVICE_ID)
+        svc_id = await ref.get_property(pelix.constants.SERVICE_ID)
         assert svc_id > 0, "Invalid service ID"
 
         # Ensure the reference uses a copy of the properties
         base_props["test"] = 21
-        assert ref.get_property("test") == 42, "Property updated by the dictionary reference"
+        assert await ref.get_property("test") == 42, "Property updated by the dictionary reference"
 
         # Update the properties
         update_props = {pelix.constants.OBJECTCLASS: "ref2",
                         pelix.constants.SERVICE_ID: 20,
                         "test": 21}
 
-        reg.set_properties(update_props)
+        await reg.set_properties(update_props)
 
         # Ensure that reserved properties have been kept
-        assert ref.get_property(pelix.constants.OBJECTCLASS) == object_class, "Modified objectClass property"
+        assert await ref.get_property(pelix.constants.OBJECTCLASS) == object_class, "Modified objectClass property"
 
-        assert ref.get_property(pelix.constants.SERVICE_ID) == svc_id, "Modified service ID"
+        assert await ref.get_property(pelix.constants.SERVICE_ID) == svc_id, "Modified service ID"
 
-        assert ref.get_property("test") == 21, "Extra property not updated"
+        assert await ref.get_property("test") == 21, "Extra property not updated"
 
         # Teardown
         await framework.stop()
@@ -324,7 +324,7 @@ class TestServices:
         assert isinstance(context, BundleContext)
 
         # Get all references count
-        all_refs = context.get_all_service_references(None, None)
+        all_refs = await context.get_all_service_references(None, None)
         assert all_refs is not None, "All references result must not be None"
         assert len(all_refs) == 0, "Services list should be empty"
 
@@ -332,23 +332,23 @@ class TestServices:
         bundle = await context.install_bundle(test_bundle_name)
 
         # No services yet
-        all_refs = context.get_all_service_references(None, None)
+        all_refs = await context.get_all_service_references(None, None)
         assert all_refs is not None, "All references result must not be None"
         assert len(all_refs) == 0, "Services list should be empty"
 
         # Start the bundle
         await bundle.start()
 
-        all_refs = context.get_all_service_references(None, None)
+        all_refs = await context.get_all_service_references(None, None)
         assert all_refs is not None, "All references result must not be None"
         assert len(all_refs) > 0, "Services list shouldn't be empty"
 
         # Try with an empty filter (lists should be equal)
-        all_refs_2 = context.get_all_service_references(None, "")
+        all_refs_2 = await context.get_all_service_references(None, "")
         assert all_refs == all_refs_2, "References lists should be equal"
 
         # Assert that the registered service is in the list
-        ref = context.get_service_reference(IEchoService)
+        ref = await context.get_service_reference(IEchoService)
         assert ref is not None, "get_service_reference found nothing"
         assert ref in all_refs, "Echo service should be the complete list"
 
@@ -357,7 +357,7 @@ class TestServices:
 
         # Test an invalid filter
         with pytest.raises(BundleException):
-            context.get_all_service_references(None, "/// Invalid Filter ///")
+            await context.get_all_service_references(None, "/// Invalid Filter ///")
 
         # Teardown
         await framework.stop()
@@ -410,7 +410,7 @@ class TestServices:
 
         # Try to get it
         with pytest.raises(BundleException):
-            context.get_service(reference)
+            await context.get_service(reference)
 
         # Teardown
         await framework.stop()
@@ -436,15 +436,15 @@ class TestServices:
         ctx = bnd.get_bundle_context()
 
         # Consume the service
-        svc = ctx.get_service(svc_ref)
+        svc = await ctx.get_service(svc_ref)
         assert svc is not None
-        assert bnd in svc_ref.get_using_bundles()
+        assert bnd in await svc_ref.get_using_bundles()
 
         # Stop the bundle
         await bnd.stop()
 
         # Ensure the release of the service
-        assert bnd not in svc_ref.get_using_bundles()
+        assert bnd not in await svc_ref.get_using_bundles()
 
         # Teardown
         await framework.stop()

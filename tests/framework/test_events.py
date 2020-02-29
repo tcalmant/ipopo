@@ -7,6 +7,7 @@ Tests the framework events.
 """
 
 # Standard library
+import asyncio
 import pytest
 
 # Tests
@@ -40,7 +41,7 @@ class TestBundleEvent:
         """
         del self.received[:]
 
-    def bundle_changed(self, event):
+    async def bundle_changed(self, event):
         """
         Called by the framework when a bundle event is triggered
 
@@ -75,7 +76,7 @@ class TestBundleEvent:
         assert isinstance(context, BundleContext)
 
         # Register to events
-        assert context.add_bundle_listener(self), "Can't register the bundle listener"
+        assert await context.add_bundle_listener(self), "Can't register the bundle listener"
 
         # Install the bundle
         self.bundle = bundle = await context.install_bundle(test_bundle_name)
@@ -107,7 +108,7 @@ class TestBundleEvent:
         self.reset_state()
 
         # Unregister from events
-        context.remove_bundle_listener(self)
+        await context.remove_bundle_listener(self)
 
         # Teardown
         await framework.stop()
@@ -128,7 +129,7 @@ class TestServiceEvent:
         """
         del self.received[:]
 
-    def service_changed(self, event):
+    async def service_changed(self, event):
         """
         Called by the framework when a service event is triggered
 
@@ -143,7 +144,7 @@ class TestServiceEvent:
 
         if kind == ServiceEvent.MODIFIED or kind == ServiceEvent.MODIFIED_ENDMATCH:
             # Properties have been modified
-            assert ref.get_properties() != event.get_previous_properties(), "Modified event for unchanged properties"
+            assert await ref.get_properties() != event.get_previous_properties(), "Modified event for unchanged properties"
 
         assert kind not in self.received, "Event received twice"
         self.received.append(kind)
@@ -164,17 +165,17 @@ class TestServiceEvent:
         assert isinstance(context, BundleContext)
 
         # Double registration
-        assert context.add_service_listener(self), "Can't register the service listener"
+        assert await context.add_service_listener(self), "Can't register the service listener"
 
         log_off()
-        assert not context.add_service_listener(self), "Service listener registered twice"
+        assert not await context.add_service_listener(self), "Service listener registered twice"
         log_on()
 
         # Double unregistration
-        assert context.remove_service_listener(self), "Can't unregister the service listener"
+        assert await context.remove_service_listener(self), "Can't unregister the service listener"
 
         log_off()
-        assert not context.remove_service_listener(self), "Service listener unregistered twice"
+        assert not await context.remove_service_listener(self), "Service listener unregistered twice"
         log_on()
 
         # Teardown
@@ -198,10 +199,10 @@ class TestServiceEvent:
 
         log_off()
         with pytest.raises(BundleException):
-            context.add_service_listener(self, "Invalid")
+            await context.add_service_listener(self, "Invalid")
         log_on()
 
-        assert not context.remove_service_listener(self), "Invalid filter was registered anyway"
+        assert not await context.remove_service_listener(self), "Invalid filter was registered anyway"
 
         # Teardown
         await framework.stop()
@@ -225,7 +226,7 @@ class TestServiceEvent:
         assert isinstance(context, BundleContext)
 
         # Register to events
-        assert context.add_service_listener(self), "Can't register the service listener"
+        assert await context.add_service_listener(self), "Can't register the service listener"
 
         # Install the bundle
         self.bundle = bundle = await context.install_bundle(test_bundle_name)
@@ -253,7 +254,7 @@ class TestServiceEvent:
         self.reset_state()
 
         # Unregister from events
-        context.remove_service_listener(self)
+        await context.remove_service_listener(self)
 
         # Teardown
         await framework.stop()
@@ -278,7 +279,7 @@ class TestServiceEvent:
         assert isinstance(context, BundleContext)
 
         # Register to events
-        assert context.add_service_listener(self), "Can't register the service listener"
+        assert await context.add_service_listener(self), "Can't register the service listener"
 
         # Install the bundle
         self.bundle = bundle = await context.install_bundle(test_bundle_name)
@@ -303,7 +304,7 @@ class TestServiceEvent:
         self.reset_state()
 
         # Unregister from events
-        context.remove_service_listener(self)
+        await context.remove_service_listener(self)
 
         # Teardown
         await framework.stop()
@@ -327,7 +328,7 @@ class TestServiceEvent:
         assert isinstance(context, BundleContext)
 
         # Register to events
-        assert context.add_service_listener(self, "(test=True)"), "Can't register the service listener"
+        assert await context.add_service_listener(self, "(test=True)"), "Can't register the service listener"
 
         # Install the bundle
         self.bundle = bundle = await context.install_bundle(test_bundle_name)
@@ -340,30 +341,30 @@ class TestServiceEvent:
         self.reset_state()
 
         # Get the service
-        ref = context.get_service_reference(IEchoService)
+        ref = await context.get_service_reference(IEchoService)
         assert ref is not None, "ServiceReference not found"
 
-        svc = context.get_service(ref)
+        svc = await context.get_service(ref)
         assert ref is not None, "Invalid service instance"
 
         # Modify the service => Simple modification
-        svc.modify({"answer": 42})
+        await svc.modify({"answer": 42})
         assert [ServiceEvent.MODIFIED] == self.received, "Received {0}".format(self.received)
         self.reset_state()
 
         # Set the same value => No event should be sent
-        svc.modify({"answer": 42})
+        await svc.modify({"answer": 42})
         assert [] == self.received, "Received {0}".format(self.received)
         self.reset_state()
 
         # Modify the service => Ends the filter match
-        svc.modify({"test": False})
+        await svc.modify({"test": False})
         # Assert the events have been received
         assert [ServiceEvent.MODIFIED_ENDMATCH] == self.received, "Received {0}".format(self.received)
         self.reset_state()
 
         # Modify the service => the filter matches again
-        svc.modify({"test": True})
+        await svc.modify({"test": True})
         # Assert the events have been received
         assert [ServiceEvent.MODIFIED] == self.received, "Received {0}".format(self.received)
         self.reset_state()
@@ -378,7 +379,7 @@ class TestServiceEvent:
         await bundle.uninstall()
 
         # Unregister from events
-        context.remove_service_listener(self)
+        await context.remove_service_listener(self)
 
         # Teardown
         await framework.stop()
@@ -410,7 +411,7 @@ class TestEventListenerHook:
 
         class Hook(object):
             @staticmethod
-            def event(svc_event, listeners_dict):
+            async def event(svc_event, listeners_dict):
                 events.append((svc_event, listeners_dict))
 
         # Register the hook
@@ -435,7 +436,7 @@ class TestEventListenerHook:
         assert not listeners
 
         # Update the service
-        dummy_reg.set_properties({"hello": "world"})
+        await dummy_reg.set_properties({"hello": "world"})
 
         # Pop information
         event, listeners = events.pop(0)
@@ -490,8 +491,8 @@ class TestEventListenerHook:
         # Setup a hook
         class Hook(object):
             @staticmethod
-            def event(svc_event, listeners_dict):
-                to_remove = svc_event.get_service_reference().get_property("to.remove")
+            async def event(svc_event, listeners_dict):
+                to_remove = await svc_event.get_service_reference().get_property("to.remove")
                 info_to_remove = []
 
                 for listener_bc, listeners_info in listeners_dict.items():
@@ -515,9 +516,9 @@ class TestEventListenerHook:
             def __init__(self, bc):
                 self.context = bc
                 self.storage = []
-                bc.add_service_listener(self)
+                asyncio.create_task(bc.add_service_listener(self))
 
-            def service_changed(self, event):
+            async def service_changed(self, event):
                 self.storage.append(event)
 
         listener_referee = Listener(fw_ctx)
@@ -535,7 +536,7 @@ class TestEventListenerHook:
         assert not listener_2.storage
 
         # Modify it so that listener_1 gets it
-        reg.set_properties({"to.remove": [listener_2]})
+        await reg.set_properties({"to.remove": [listener_2]})
         assert not listener_2.storage
 
         evt = listener_referee.storage.pop(0)
@@ -546,7 +547,7 @@ class TestEventListenerHook:
         assert evt1 is evt
 
         # Modify it so that listener_2, but not listener_1 gets it
-        reg.set_properties({"to.remove": [listener_1]})
+        await reg.set_properties({"to.remove": [listener_1]})
         assert not listener_1.storage
 
         evt = listener_referee.storage.pop(0)

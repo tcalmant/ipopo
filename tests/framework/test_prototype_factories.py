@@ -38,8 +38,8 @@ class TestPrototypeServiceFactory:
         await provider_bnd.start()
 
         # Get the internal service
-        svc_ref = context.get_service_reference("test.prototype.internal")
-        factory = context.get_service(svc_ref)
+        svc_ref = await context.get_service_reference("test.prototype.internal")
+        factory = await context.get_service(svc_ref)
 
         # Start the consumers
         consumer_bnd_1 = await context.install_bundle("tests.dummy_1")
@@ -51,7 +51,7 @@ class TestPrototypeServiceFactory:
         ctx_2 = consumer_bnd_2.get_bundle_context()
 
         # Find the service
-        svc_ref = context.get_service_reference("test.prototype")
+        svc_ref = await context.get_service_reference("test.prototype")
 
         # Get the service objects beans
         obj_1 = ctx_1.get_service_objects(svc_ref)
@@ -61,13 +61,13 @@ class TestPrototypeServiceFactory:
         assert obj_1.get_service_reference() is svc_ref
 
         # Get 2 service instances for the first bundle
-        svc_1_a = obj_1.get_service()
-        svc_1_b = obj_1.get_service()
+        svc_1_a = await obj_1.get_service()
+        svc_1_b = await obj_1.get_service()
         assert svc_1_a is not svc_1_b, "Same service returned"
 
         # Get 2 service instances for the second bundle
-        svc_2_a = obj_2.get_service()
-        svc_2_b = obj_2.get_service()
+        svc_2_a = await obj_2.get_service()
+        svc_2_b = await obj_2.get_service()
         assert svc_2_a is not svc_2_b, "Same service returned"
         assert svc_1_a is not svc_2_a, "Same service reused"
         assert svc_1_b is not svc_2_a, "Same service reused"
@@ -76,15 +76,15 @@ class TestPrototypeServiceFactory:
 
         # Unget the service properly for the first bundle
         assert svc_1_a.released is False
-        assert obj_1.unget_service(svc_1_a) is True
+        assert await obj_1.unget_service(svc_1_a) is True
         assert svc_1_a.released is True
 
         assert svc_1_b.released is False
-        assert obj_1.unget_service(svc_1_b) is True
+        assert await obj_1.unget_service(svc_1_b) is True
         assert svc_1_b.released is True
 
         # Try a second time (should do nothing)
-        assert obj_1.unget_service(svc_1_a) is False
+        assert await obj_1.unget_service(svc_1_a) is False
 
         # Ensure that the list of instances are in a valid state
         assert consumer_bnd_1 not in factory.instances
@@ -110,8 +110,8 @@ class TestPrototypeServiceFactory:
         await provider_bnd.start()
 
         # Get the internal service
-        svc_ref = context.get_service_reference("test.prototype.internal")
-        factory = context.get_service(svc_ref)
+        svc_ref = await context.get_service_reference("test.prototype.internal")
+        factory = await context.get_service(svc_ref)
 
         # Start the consumers
         consumer_bnd = await context.install_bundle("tests.dummy_1")
@@ -119,7 +119,7 @@ class TestPrototypeServiceFactory:
         ctx = consumer_bnd.get_bundle_context()
 
         # Find the service
-        svc_ref = context.get_service_reference("test.prototype")
+        svc_ref = await context.get_service_reference("test.prototype")
 
         # Get the service objects beans
         obj_1 = ctx.get_service_objects(svc_ref)
@@ -128,7 +128,7 @@ class TestPrototypeServiceFactory:
         assert obj_1.get_service_reference() is svc_ref
 
         # Get a service instance
-        svc = obj_1.get_service()
+        svc = await obj_1.get_service()
         assert svc in factory.instances[consumer_bnd]
 
         # Stop the bundle
@@ -158,8 +158,8 @@ class TestPrototypeServiceFactory:
         await provider_bnd.start()
 
         # Get the internal service
-        svc_ref = context.get_service_reference("test.prototype.internal")
-        factory = context.get_service(svc_ref)
+        svc_ref = await context.get_service_reference("test.prototype.internal")
+        factory = await context.get_service(svc_ref)
 
         # Start the consumers
         consumer_bnd = await context.install_bundle("tests.dummy_1")
@@ -167,7 +167,7 @@ class TestPrototypeServiceFactory:
         ctx = consumer_bnd.get_bundle_context()
 
         # Find the service
-        svc_ref = context.get_service_reference("test.prototype")
+        svc_ref = await context.get_service_reference("test.prototype")
 
         # Get the service objects beans
         obj_1 = ctx.get_service_objects(svc_ref)
@@ -176,7 +176,7 @@ class TestPrototypeServiceFactory:
         assert obj_1.get_service_reference() is svc_ref
 
         # Get a service instance
-        svc = obj_1.get_service()
+        svc = await obj_1.get_service()
         assert svc in factory.instances[consumer_bnd]
 
         # Stop the bundle
@@ -217,16 +217,16 @@ class TestPrototypeServiceFactory:
 
         # Get the singleton object
         obj_1 = ctx_1.get_service_objects(singleton_ref)
-        svc_1_a = obj_1.get_service()
-        svc_1_b = obj_1.get_service()
-        svc_1_c = ctx_1.get_service(singleton_ref)
+        svc_1_a = await obj_1.get_service()
+        svc_1_b = await obj_1.get_service()
+        svc_1_c = await ctx_1.get_service(singleton_ref)
         assert svc_1_a is svc_1_b
         assert svc_1_a is svc_1_c
 
         obj_2 = ctx_2.get_service_objects(singleton_ref)
-        svc_2_a = obj_2.get_service()
-        svc_2_b = obj_2.get_service()
-        svc_2_c = ctx_2.get_service(singleton_ref)
+        svc_2_a = await obj_2.get_service()
+        svc_2_b = await obj_2.get_service()
+        svc_2_c = await ctx_2.get_service(singleton_ref)
         assert svc_2_a is svc_2_b
         assert svc_2_a is svc_2_c
 
@@ -258,10 +258,10 @@ class TestPrototypeServiceFactory:
 
         # Service Factory
         class Factory:
-            def get_service(self, bundle, svc_reg):
+            async def get_service(self, bundle, svc_reg):
                 return object()
 
-            def unget_service(self, bundle, svc_reg):
+            async def unget_service(self, bundle, svc_reg):
                 pass
 
         factory_svc = Factory()
@@ -271,16 +271,16 @@ class TestPrototypeServiceFactory:
 
         # Get the factory object
         obj_1 = ctx_1.get_service_objects(factory_ref)
-        svc_1_a = obj_1.get_service()
-        svc_1_b = obj_1.get_service()
-        svc_1_c = ctx_1.get_service(factory_ref)
+        svc_1_a = await obj_1.get_service()
+        svc_1_b = await obj_1.get_service()
+        svc_1_c = await ctx_1.get_service(factory_ref)
         assert svc_1_a is svc_1_b
         assert svc_1_a is svc_1_c
 
         obj_2 = ctx_2.get_service_objects(factory_ref)
-        svc_2_a = obj_2.get_service()
-        svc_2_b = obj_2.get_service()
-        svc_2_c = ctx_2.get_service(factory_ref)
+        svc_2_a = await obj_2.get_service()
+        svc_2_b = await obj_2.get_service()
+        svc_2_c = await ctx_2.get_service(factory_ref)
         assert svc_2_a is svc_2_b
         assert svc_2_a is svc_2_c
 

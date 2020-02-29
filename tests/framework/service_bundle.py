@@ -30,17 +30,17 @@ class ServiceTest(IEchoService):
         self.toto = 0
         self.registration = None
 
-    def echo(self, value):
+    async def echo(self, value):
         """
         Returns the given value
         """
         return value
 
-    def modify(self, new_props):
+    async def modify(self, new_props):
         """
         Changes the service properties
         """
-        self.registration.set_properties(new_props)
+        await self.registration.set_properties(new_props)
 
 
 @BundleActivator
@@ -64,12 +64,9 @@ class ActivatorService:
 
         # Register the service
         self.svc = ServiceTest()
-        register_service = asyncio.create_task(
-            context.register_service(
-                IEchoService, self.svc, {"test": True, "answer": 0}
-                )
-            )
-        self.svc.registration = await register_service
+        self.svc.registration = await context.register_service(
+            IEchoService, self.svc, {"test": True, "answer": 0}
+        )
 
         global service
         service = self.svc
@@ -82,7 +79,4 @@ class ActivatorService:
 
         if unregister:
             # To test auto-unregistration...
-            unregister_service = asyncio.create_task(
-                self.svc.registration.unregister()
-            )
-            await unregister_service
+            await self.svc.registration.unregister()

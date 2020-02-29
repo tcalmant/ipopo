@@ -339,7 +339,7 @@ class TestUtilities:
 
         # Try without the service reference: TypeError
         with pytest.raises(TypeError):
-            with utilities.use_service(context, None):
+            async with utilities.use_service(context, None):
                 pass
 
         # Start the service bundle
@@ -347,35 +347,35 @@ class TestUtilities:
         await bundle.start()
 
         # Get the service reference
-        svc_ref = context.get_service_reference(IEchoService)
+        svc_ref = await context.get_service_reference(IEchoService)
 
         # Use it
-        with utilities.use_service(context, svc_ref) as service:
+        async with utilities.use_service(context, svc_ref) as service:
             # Test the usage information
-            assert await context.get_bundle() in svc_ref.get_using_bundles(), "Bundles using the service not updated"
+            assert await context.get_bundle() in await svc_ref.get_using_bundles(), "Bundles using the service not updated"
 
             # Get the service the Pelix way
-            got_service = context.get_service(svc_ref)
+            got_service = await context.get_service(svc_ref)
 
             # Test the service object
             assert service is got_service, "Found a different service."
 
             # Clean up the test usage
-            context.unget_service(svc_ref)
+            await context.unget_service(svc_ref)
             got_service = None
 
             # Re-test the usage information
-            assert await context.get_bundle() in svc_ref.get_using_bundles(), "Bundles using service not kept"
+            assert await context.get_bundle() in await svc_ref.get_using_bundles(), "Bundles using service not kept"
 
         # Test the usage information
-        assert await context.get_bundle() not in svc_ref.get_using_bundles(), "Bundles using service kept after block"
+        assert await context.get_bundle() not in await svc_ref.get_using_bundles(), "Bundles using service kept after block"
 
         # Stop the iPOPO bundle
         await bundle.stop()
 
         # Ensure the service is not accessible anymore
         with pytest.raises(pelix.constants.BundleException):
-            with utilities.use_service(context, svc_ref):
+            async with utilities.use_service(context, svc_ref):
                 pass
 
         # Uninstall the bundle
@@ -383,7 +383,7 @@ class TestUtilities:
 
         # Ensure the service is not accessible anymore
         with pytest.raises(pelix.constants.BundleException):
-            with utilities.use_service(context, svc_ref):
+            async with utilities.use_service(context, svc_ref):
                 pass
 
         await framework.delete()

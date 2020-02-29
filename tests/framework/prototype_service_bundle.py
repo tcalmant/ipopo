@@ -42,7 +42,7 @@ class PrototypeServiceFactory:
         self.instances = {}
         self.cleanup = 0
 
-    def get_service(self, bundle, svc_reg):
+    async def get_service(self, bundle, svc_reg):
         """
         Get a new service instance
 
@@ -57,7 +57,7 @@ class PrototypeServiceFactory:
         self.instances.setdefault(bundle, []).append(svc)
         return svc
 
-    def unget_service_instance(self, bundle, svc_reg, svc_instance):
+    async def unget_service_instance(self, bundle, svc_reg, svc_instance):
         """
         Release of a single instance
 
@@ -77,7 +77,7 @@ class PrototypeServiceFactory:
         svc_instance.released = True
         self.instances[bundle].remove(svc_instance)
 
-    def unget_service(self, bundle, svc_reg):
+    async def unget_service(self, bundle, svc_reg):
         """
         Release of a usage by a bundle
 

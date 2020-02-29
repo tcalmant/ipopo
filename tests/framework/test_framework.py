@@ -115,7 +115,7 @@ class TestFramework:
         context = framework.get_bundle_context()
 
         # Register the stop listener
-        context.add_framework_stop_listener(self)
+        await context.add_framework_stop_listener(self)
 
         assert await framework.start() is True, "Framework couldn't be started"
         assert await framework.start() is False, "Framework started twice"
@@ -140,7 +140,7 @@ class TestFramework:
         context = framework.get_bundle_context()
 
         # Register the stop listener
-        context.add_framework_stop_listener(self)
+        await context.add_framework_stop_listener(self)
 
         # Calling update while the framework is stopped should do nothing
         await framework.update()
@@ -169,7 +169,7 @@ class TestFramework:
         context = framework.get_bundle_context()
 
         # Register the stop listener
-        context.add_framework_stop_listener(self)
+        await context.add_framework_stop_listener(self)
 
         # Install the bundle
         bundle = await context.install_bundle(SIMPLE_BUNDLE)
@@ -222,7 +222,7 @@ class TestFramework:
         context = framework.get_bundle_context()
 
         # Register the stop listener
-        context.add_framework_stop_listener(self)
+        await context.add_framework_stop_listener(self)
 
         # Install the bundle
         bundle = await context.install_bundle(SIMPLE_BUNDLE)
@@ -374,7 +374,7 @@ class TestFramework:
 
         await FrameworkFactory.delete_framework()
 
-    def framework_stopping(self):
+    async def framework_stopping(self):
         """
         Called when framework is stopping
         """
@@ -395,10 +395,10 @@ class TestFramework:
         assert self.stopping is False, "Invalid initial state"
 
         # Register the stop listener
-        assert context.add_framework_stop_listener(self) is True, "Can't register the stop listener"
+        assert await context.add_framework_stop_listener(self) is True, "Can't register the stop listener"
 
         log_off()
-        assert context.add_framework_stop_listener(self) is False, "Stop listener registered twice"
+        assert await context.add_framework_stop_listener(self) is False, "Stop listener registered twice"
         log_on()
 
         # Assert running state
@@ -411,10 +411,10 @@ class TestFramework:
         assert self.stopping is True, "Stop listener hasn't been called"
 
         # Unregister the listener
-        assert context.remove_framework_stop_listener(self) is True, "Can't unregister the stop listener"
+        assert await context.remove_framework_stop_listener(self) is True, "Can't unregister the stop listener"
 
         log_off()
-        assert context.remove_framework_stop_listener(self) is False, "Stop listener unregistered twice"
+        assert await context.remove_framework_stop_listener(self) is False, "Stop listener unregistered twice"
         log_on()
 
         await FrameworkFactory.delete_framework()

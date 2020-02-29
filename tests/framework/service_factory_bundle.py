@@ -24,7 +24,7 @@ class Service:
     def __init__(self, bundle_id):
         self.__id = bundle_id
 
-    def requester_id(self):
+    async def requester_id(self):
         return self.__id
 
 
@@ -38,7 +38,7 @@ class ServiceFactoryTest:
         """
         self.made_for = []
 
-    def get_service(self, bundle, registration):
+    async def get_service(self, bundle, registration):
         """
         Provides a new service
         """
@@ -46,7 +46,7 @@ class ServiceFactoryTest:
         self.made_for.append(client_id)
         return Service(client_id)
 
-    def unget_service(self, bundle, registration):
+    async def unget_service(self, bundle, registration):
         """
         Releases a service
         """
@@ -74,14 +74,14 @@ class ServiceFactoryCleanupTest:
     def __init__(self):
         self.reg = None
 
-    def get_service(self, bundle, registration):
+    async def get_service(self, bundle, registration):
         """
         Provides a new service
         """
         os.environ['factory.get'] = "OK"
         return RegistrationKeeper(self.reg, registration)
 
-    def unget_service(self, bundle, registration):
+    async def unget_service(self, bundle, registration):
         os.environ['factory.unget'] = "OK"
 
 

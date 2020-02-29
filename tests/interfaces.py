@@ -19,7 +19,7 @@ class IEchoService:
         """
         pass
 
-    def echo(self, value):
+    async def echo(self, value):
         """
         Returns the given value
         """
