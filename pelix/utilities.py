@@ -27,7 +27,6 @@ Utility methods and decorators
 
 # Standard library
 import collections
-import contextlib
 import functools
 import inspect
 import asyncio
@@ -36,7 +35,7 @@ import threading
 import traceback
 # pylint: disable=W0611
 from typing import Any, Optional
-
+from contextlib import asynccontextmanager
 
 # Pelix constants
 import pelix.constants
@@ -55,10 +54,10 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-@contextlib.contextmanager
-def use_service(bundle_context, svc_reference):
+@asynccontextmanager
+async def use_service(bundle_context, svc_reference):
     """
-    Utility context to safely use a service in a "with" block.
+    Async Utility context to safely use a service in a "async with" block.
     It looks after the the given service and releases its reference when
     exiting the context.
 
@@ -71,13 +70,15 @@ def use_service(bundle_context, svc_reference):
     if svc_reference is None:
         raise TypeError("Invalid ServiceReference")
 
+    # Obtain the service
+    service = await bundle_context.get_service(svc_reference)
     try:
         # Give the service
-        yield bundle_context.get_service(svc_reference)
+        yield service
     finally:
         try:
             # Release it
-            bundle_context.unget_service(svc_reference)
+            await bundle_context.unget_service(svc_reference)
         except pelix.constants.BundleException:
             # Service might have already been unregistered
             pass
@@ -347,11 +348,7 @@ def remove_duplicates(items):
     if items is None:
         return items
 
-    new_list = []
-    for item in items:
-        if item not in new_list:
-            new_list.append(item)
-    return new_list
+    return list(set(items))
 
 
 # ------------------------------------------------------------------------------
