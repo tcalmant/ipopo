@@ -283,10 +283,10 @@ class LDAPCriteria:
         :param properties: A dictionary of properties
         :return: True if the properties matches this criterion, else False
         """
-        try:
+        if self.name in properties:
             # Use the comparator
             return self.comparator(self.value, properties[self.name])
-        except KeyError:
+        else:
             # Criterion key is not in the properties
             return False
 
