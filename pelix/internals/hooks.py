@@ -93,7 +93,7 @@ class ShrinkableMap(MutableMapping):
         return len(self._delegate)
 
 
-class ListenerInfo(object):
+class ListenerInfo:
     """
     Keeps information about a listener
     """
@@ -172,9 +172,9 @@ class EventListenerHook:
     pattern
     """
 
-    def event(self, service_event, listener_dict):
+    async def event(self, service_event, listener_dict):
         """
-        Method called when a service event is triggered.
+        Async Method called when a service event is triggered.
 
         :param service_event: The ServiceEvent being triggered
         :param listener_dict: A dictionary associating a bundle context to a

@@ -29,10 +29,10 @@ Service registry and event dispatcher for Pelix.
 import bisect
 import logging
 import asyncio
-import threading
 # pylint: disable=W0611
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, Type
-
+from aioitertools import iter, next, list
+from pelix.utilities import RLock
 # Pelix beans
 from pelix.constants import (
     OBJECTCLASS,
@@ -46,7 +46,8 @@ from pelix.constants import (
     BundleException,
 )
 from pelix.services import SERVICE_EVENT_LISTENER_HOOK
-from pelix.internals.events import ServiceEvent
+# Import BundleEvent only for typing purpose
+from pelix.internals.events import ServiceEvent, BundleEvent
 
 # Pelix utility modules
 import pelix.ldapfilter as ldapfilter
@@ -110,7 +111,7 @@ class _FactoryCounter:
 
     __slots__ = ("__bundle", "__factored")
 
-    def __init__(self, bundle):
+    def __init__(self, bundle) -> None:
         """
         Sets up members
 
@@ -119,7 +120,7 @@ class _FactoryCounter:
         self.__bundle = bundle
 
         # Service Factory Reference -> (Service instance, Usage counter)
-        self.__factored = {}
+        self.__factored: Dict[ServiceReference, Tuple[ServiceRegistration, _UsageCounter]] = {}
 
     def is_used(self) -> bool:
         """
@@ -129,22 +130,22 @@ class _FactoryCounter:
         """
         return bool(self.__factored)
 
-    def _get_from_factory(self, factory: Any, svc_registration: Type[object]) -> Any:
+    async def _get_from_factory(self, factory: Any, svc_registration: Type[object]) -> Any:
         """
-        Returns a service instance from a Prototype Service Factory
+        Async Returns a service instance from a Prototype Service Factory
 
         :param factory: The prototype service factory
         :param svc_registration: The ServiceRegistration object
         :return: The requested service instance returned by the factory
         """
-        svc_ref = svc_registration.get_reference()
-        try:
+        svc_ref: ServiceReference = svc_registration.get_reference()
+        if svc_ref in self.__factored:
             # Use the existing service
             service, counter = self.__factored[svc_ref]
             counter.inc()
-        except KeyError:
+        else:
             # Create the service
-            service = factory.get_service(self.__bundle, svc_registration)
+            service = await factory.get_service(self.__bundle, svc_registration)
             counter = _UsageCounter()
             counter.inc()
 
@@ -153,23 +154,23 @@ class _FactoryCounter:
 
         return service
 
-    def _get_from_prototype(self, factory: Any, svc_registration: Type[object]) -> Any:
+    async def _get_from_prototype(self, factory: Any, svc_registration: Type[object]) -> Any:
         """
-        Returns a service instance from a Prototype Service Factory
+        Async Returns a service instance from a Prototype Service Factory
 
         :param factory: The service factory
         :param svc_registration: The ServiceRegistration object
         :return: The requested service instance returned by the factory
         """
-        svc_ref = svc_registration.get_reference()
-        service = factory.get_service(self.__bundle, svc_registration)
+        svc_ref: ServiceReference = svc_registration.get_reference()
+        service = await factory.get_service(self.__bundle, svc_registration)
 
-        try:
+        if svc_ref in self.__factored:
             # Check if the service already exists
             services, counter = self.__factored[svc_ref]
             services.append(service)
             counter.inc()
-        except KeyError:
+        else:
             counter = _UsageCounter()
             counter.inc()
 
@@ -178,13 +179,13 @@ class _FactoryCounter:
 
         return service
 
-    def get_service(
+    async def get_service(
         self,
         factory: Any,
         svc_registration: Type[object]
         ) -> Any:
         """
-        Returns the service required by the bundle. The Service Factory is
+        Async Returns the service required by the bundle. The Service Factory is
         called only when necessary while the Prototype Service Factory is
         called each time
 
@@ -192,20 +193,20 @@ class _FactoryCounter:
         :param svc_registration: The ServiceRegistration object
         :return: The requested service instance (created if necessary)
         """
-        svc_ref = svc_registration.get_reference()
+        svc_ref: ServiceReference = svc_registration.get_reference()
         if svc_ref.is_prototype():
-            return self._get_from_prototype(factory, svc_registration)
+            return await self._get_from_prototype(factory, svc_registration)
 
-        return self._get_from_factory(factory, svc_registration)
+        return await self._get_from_factory(factory, svc_registration)
 
-    def unget_service(
+    async def unget_service(
         self,
         factory: Any,
         svc_registration: Type[object],
         service: Optional[Any] = None
         ) -> bool:
         """
-        Releases references to the given service reference
+        Async Releases references to the given service reference
 
         :param factory: The service factory
         :param svc_registration: The ServiceRegistration object
@@ -213,17 +214,13 @@ class _FactoryCounter:
         :return: True if all service references to this service factory
                  have been released
         """
-        svc_ref = svc_registration.get_reference()
-        try:
+        svc_ref: ServiceReference = svc_registration.get_reference()
+        if svc_ref in self.__factored:
             _, counter = self.__factored[svc_ref]
-        except KeyError:
-            logging.warning(
-                "Trying to release an unknown service factory: %s", svc_ref
-            )
-        else:
+
             if svc_ref.is_prototype():
                 # Notify the factory to clean up this instance
-                factory.unget_service_instance(
+                await factory.unget_service_instance(
                     self.__bundle, svc_registration, service
                 )
 
@@ -232,51 +229,64 @@ class _FactoryCounter:
                 del self.__factored[svc_ref]
 
                 # Call the factory
-                factory.unget_service(self.__bundle, svc_registration)
+                await factory.unget_service(self.__bundle, svc_registration)
 
                 # No more reference to this service
                 return True
+        else:
+            logging.warning(
+                "Trying to release an unknown service factory: %s", svc_ref
+            )
 
         # Some references are still there
         return False
 
-    def cleanup_service(
+    async def cleanup_service(
         self,
         factory: Any,
         svc_registration: Type[object]
         ) -> bool:
         """
-        If this bundle used that factory, releases the reference; else does
+        Async If this bundle used that factory, releases the reference; else does
         nothing
 
         :param factory: The service factory
         :param svc_registration: The ServiceRegistration object
         :return: True if the bundle was using the factory, else False
         """
-        svc_ref = svc_registration.get_reference()
-        try:
+        svc_ref: ServiceReference = svc_registration.get_reference()
+        if svc_ref in self.__factored:
             # "service" for factories, "services" for prototypes
             services, _ = self.__factored.pop(svc_ref)
-        except KeyError:
-            return False
-        else:
+
             if svc_ref.is_prototype() and services:
-                for service in services:
-                    try:
+                #Get EventLoop
+                loop = asyncio.get_running_loop()
+                unget_service = [
+                    loop.create_task(
                         factory.unget_service_instance(
-                            self.__bundle, svc_registration, service
+                            self.__bundle,
+                            svc_registration,
+                            service
                         )
-                    except Exception:
-                        # Ignore instance-level exceptions, potential errors
-                        # will reappear in unget_service()
+                    )
+                        for service in services
+                ]
+                for instance in unget_service:
+                    try:
+                        await instance
+                    except:
                         pass
+                # Ignore instance-level exceptions, potential errors
+                # will reappear in unget_service()
 
             # Call the factory
-            factory.unget_service(self.__bundle, svc_registration)
+            await factory.unget_service(self.__bundle, svc_registration)
 
             # No more association
-            svc_ref.unused_by(self.__bundle)
+            await svc_ref.unused_by(self.__bundle)
             return True
+        return False
 
 
 # ------------------------------------------------------------------------------
@@ -314,10 +324,10 @@ class ServiceReference:
                 )
 
         # Properties lock (used by ServiceRegistration too)
-        self._props_lock = threading.RLock()
+        self._props_lock = RLock()
 
         # Usage lock
-        self.__usage_lock = threading.Lock()
+        self.__usage_lock = asyncio.Lock()
 
         # Service details
         self.__bundle = bundle
@@ -399,39 +409,39 @@ class ServiceReference:
         """
         return self.__bundle
 
-    def get_using_bundles(self):
+    async def get_using_bundles(self):
         """
-        Returns the list of bundles that use this service
+        Async Returns the list of bundles that use this service
 
         :return: A list of Bundle objects
         """
-        return list(self.__using_bundles.keys())
+        return await list(self.__using_bundles.keys())
 
-    def get_properties(self):
+    async def get_properties(self):
         """
-        Returns a copy of the service properties
+        Async Returns a copy of the service properties
 
         :return: A copy of the service properties
         """
-        with self._props_lock:
+        async with self._props_lock:
             return self.__properties.copy()
 
-    def get_property(self, name):
+    async def get_property(self, name):
         """
-        Retrieves the property value for the given name
+        Async Retrieves the property value for the given name
 
         :return: The property value, None if not found
         """
-        with self._props_lock:
+        async with self._props_lock:
             return self.__properties.get(name)
 
-    def get_property_keys(self):
+    async def get_property_keys(self):
         """
-        Returns an array of the keys in the properties of the service
+        Async Returns an array of the keys in the properties of the service
 
         :return: An array of property keys.
         """
-        with self._props_lock:
+        async with self._props_lock:
             return tuple(self.__properties.keys())
 
     def is_factory(self):
@@ -453,9 +463,9 @@ class ServiceReference:
         """
         return self.__properties[SERVICE_SCOPE] == SCOPE_PROTOTYPE
 
-    def unused_by(self, bundle):
+    async def unused_by(self, bundle):
         """
-        Indicates that this reference is not being used anymore by the given
+        Async Indicates that this reference is not being used anymore by the given
         bundle.
         This method should only be used by the framework.
 
@@ -465,19 +475,15 @@ class ServiceReference:
             # Ignore
             return
 
-        with self.__usage_lock:
-            try:
+        async with self.__usage_lock:
+            if bundle in self.__using_bundles:
                 if not self.__using_bundles[bundle].dec():
-                    # This bundle has cleaner all of its usages of this
-                    # reference
+                    # This bundle has cleaner all of its usages of this reference
                     del self.__using_bundles[bundle]
-            except KeyError:
-                # Ignore error
-                pass
 
-    def used_by(self, bundle):
+    async def used_by(self, bundle):
         """
-        Indicates that this reference is being used by the given bundle.
+        Async Indicates that this reference is being used by the given bundle.
         This method should only be used by the framework.
 
         :param bundle: A bundle using this reference
@@ -486,7 +492,7 @@ class ServiceReference:
             # Ignore
             return
 
-        with self.__usage_lock:
+        async with self.__usage_lock:
             self.__using_bundles.setdefault(bundle, _UsageCounter()).inc()
 
     def __compute_key(self):
@@ -533,7 +539,7 @@ class ServiceRegistration:
         "__update_callback",
     )
 
-    def __init__(self, framework, reference, properties, update_callback):
+    def __init__(self, framework, reference: ServiceReference, properties, update_callback):
         """
         :param framework: The host framework
         :param reference: A service reference
@@ -560,9 +566,9 @@ class ServiceRegistration:
         """
         return self.__reference
 
-    def set_properties(self, properties):
+    async def set_properties(self, properties):
         """
-        Updates the service properties
+        Async Updates the service properties
 
         :param properties: The new properties
         :raise TypeError: The argument is not a dictionary
@@ -570,42 +576,37 @@ class ServiceRegistration:
         if not isinstance(properties, dict):
             raise TypeError("Waiting for dictionary")
 
-        # Keys that must not be updated
-        for forbidden_key in OBJECTCLASS, SERVICE_ID:
-            try:
-                del properties[forbidden_key]
-            except KeyError:
-                pass
+        if not isinstance(properties, dict):
+            raise TypeError("Waiting for dictionary")
 
-        to_delete = []
-        for key, value in properties.items():
-            if self.__properties.get(key) == value:
-                # No update
-                to_delete.append(key)
+        # Properties that will be updated
+        update = {
+            key: properties[key]
+            for key, value in properties.items()
+                # Keys that must be updated
+                if
+                    key not in {OBJECTCLASS, SERVICE_ID}
+                and
+                    value != self.__properties.get(key)
+        }
 
-        for key in to_delete:
-            # Remove unchanged properties
-            del properties[key]
-
-        if not properties:
+        if not update:
             # Nothing to do
             return
 
         # Ensure that the service has a valid service ranking
-        try:
-            properties[SERVICE_RANKING] = int(properties[SERVICE_RANKING])
-        except (ValueError, TypeError):
-            # Bad value: ignore update
-            del properties[SERVICE_RANKING]
-        except KeyError:
-            # Service ranking not updated: ignore
-            pass
+        if SERVICE_RANKING in update:
+            try:
+                update[SERVICE_RANKING] = int(update[SERVICE_RANKING])
+            except (ValueError, TypeError):
+                # Bad value: ignore update
+                del update[SERVICE_RANKING]
 
         # pylint: disable=W0212
-        with self.__reference._props_lock:
+        async with self.__reference._props_lock:
             # Update the properties
             previous = self.__properties.copy()
-            self.__properties.update(properties)
+            self.__properties.update(update)
 
             if self.__reference.needs_sort_update():
                 # The sort key and the registry must be updated
@@ -616,11 +617,11 @@ class ServiceRegistration:
                 ServiceEvent.MODIFIED, self.__reference, previous
             )
 
-            self.__framework._dispatcher.fire_service_event(event)
+            await self.__framework._dispatcher.fire_service_event(event)
 
     async def unregister(self):
         """
-        Unregisters the service
+        Async Unregisters the service
         """
         return await self.__framework.unregister_service(self)
 
@@ -640,41 +641,41 @@ class EventDispatcher:
         :param registry:  The service registry
         :param logger: The logger to be used
         """
-        self._registry = registry
+        self._registry: ServiceRegistry = registry
 
         # Logger
         self._logger = logger or logging.getLogger("EventDispatcher")
 
         # Bundle listeners
         self.__bnd_listeners = []
-        self.__bnd_lock = threading.Lock()
+        self.__bnd_lock = asyncio.Lock()
 
         # Service listeners (specification -> listener bean)
         self.__svc_listeners = {}
         # listener instance -> listener bean
         self.__listeners_data = {}
-        self.__svc_lock = threading.Lock()
+        self.__svc_lock = asyncio.Lock()
 
         # Framework stop listeners
         self.__fw_listeners = []
-        self.__fw_lock = threading.Lock()
+        self.__fw_lock = asyncio.Lock()
 
-    def clear(self):
+    async def clear(self):
         """
-        Clears the event dispatcher
+        Async Clears the event dispatcher
         """
-        with self.__bnd_lock:
+        async with self.__bnd_lock:
             self.__bnd_listeners = []
 
-        with self.__svc_lock:
+        async with self.__svc_lock:
             self.__svc_listeners.clear()
 
-        with self.__fw_lock:
+        async with self.__fw_lock:
             self.__fw_listeners = []
 
-    def add_bundle_listener(self, listener):
+    async def add_bundle_listener(self, listener):
         """
-        Adds a bundle listener
+        Async Adds a bundle listener
 
         :param listener: The bundle listener to register
         :return: True if the listener has been registered, False if it was
@@ -684,7 +685,7 @@ class EventDispatcher:
         if listener is None or not hasattr(listener, "bundle_changed"):
             raise BundleException("Invalid bundle listener given")
 
-        with self.__bnd_lock:
+        async with self.__bnd_lock:
             if listener in self.__bnd_listeners:
                 self._logger.warning(
                     "Already known bundle listener '%s'", listener
@@ -694,9 +695,9 @@ class EventDispatcher:
             self.__bnd_listeners.append(listener)
             return True
 
-    def add_framework_listener(self, listener):
+    async def add_framework_listener(self, listener):
         """
-        Registers a listener that will be called back right before the
+        Async Registers a listener that will be called back right before the
         framework stops.
 
         :param listener: The framework stop listener
@@ -707,7 +708,7 @@ class EventDispatcher:
         if listener is None or not hasattr(listener, "framework_stopping"):
             raise BundleException("Invalid framework listener given")
 
-        with self.__fw_lock:
+        async with self.__fw_lock:
             if listener in self.__fw_listeners:
                 self._logger.warning(
                     "Already known framework listener '%s'", listener
@@ -717,11 +718,11 @@ class EventDispatcher:
             self.__fw_listeners.append(listener)
             return True
 
-    def add_service_listener(
+    async def add_service_listener(
         self, bundle_context, listener, specification=None, ldap_filter=None
     ):
         """
-        Registers a service listener
+        Async Registers a service listener
 
         :param bundle_context: The bundle_context of the service listener
         :param listener: The service listener
@@ -736,7 +737,7 @@ class EventDispatcher:
         if listener is None or not hasattr(listener, "service_changed"):
             raise BundleException("Invalid service listener given")
 
-        with self.__svc_lock:
+        async with self.__svc_lock:
             if listener in self.__listeners_data:
                 self._logger.warning(
                     "Already known service listener '%s'", listener
@@ -755,95 +756,107 @@ class EventDispatcher:
             self.__svc_listeners.setdefault(specification, []).append(stored)
             return True
 
-    def remove_bundle_listener(self, listener):
+    async def remove_bundle_listener(self, listener):
         """
-        Unregisters a bundle listener
+        Async Unregisters a bundle listener
 
         :param listener: The bundle listener to unregister
         :return: True if the listener has been unregistered, else False
         """
-        with self.__bnd_lock:
+        async with self.__bnd_lock:
             if listener not in self.__bnd_listeners:
                 return False
 
             self.__bnd_listeners.remove(listener)
             return True
 
-    def remove_framework_listener(self, listener):
+    async def remove_framework_listener(self, listener):
         """
-        Unregisters a framework stop listener
+        Async Unregisters a framework stop listener
 
         :param listener: The framework listener to unregister
         :return: True if the listener has been unregistered, else False
         """
-        with self.__fw_lock:
+        async with self.__fw_lock:
             try:
                 self.__fw_listeners.remove(listener)
                 return True
             except ValueError:
                 return False
 
-    def remove_service_listener(self, listener):
+    async def remove_service_listener(self, listener):
         """
-        Unregisters a service listener
+        Async Unregisters a service listener
 
         :param listener: The service listener
         :return: True if the listener has been unregistered
         """
-        with self.__svc_lock:
-            try:
+        async with self.__svc_lock:
+            if listener in self.__listeners_data:
                 data = self.__listeners_data.pop(listener)
-                spec_listeners = self.__svc_listeners[data.specification]
-                spec_listeners.remove(data)
-                if not spec_listeners:
-                    del self.__svc_listeners[data.specification]
-                return True
-            except KeyError:
+                if data.specification in self.__svc_listeners:
+                    spec_listeners = self.__svc_listeners[data.specification]
+                    spec_listeners.remove(data)
+                    if not spec_listeners:
+                        del self.__svc_listeners[data.specification]
+                    return True
                 return False
+            return False
 
-    def fire_bundle_event(self, event):
+    async def fire_bundle_event(self, event):
         """
-        Notifies bundle events listeners of a new event in the calling thread.
+        Async Notifies bundle events listeners of a new event in the calling thread.
 
         :param event: The bundle event
         """
-        with self.__bnd_lock:
+        # Get EventLoop
+        loop = asyncio.get_running_loop()
+
+        async with self.__bnd_lock:
             # Copy the list of listeners
             listeners = self.__bnd_listeners[:]
 
+        # Schedule all
+        listener_list = [loop.create_task(listener.bundle_changed(event)) for listener in listeners]
         # Call'em all
-        for listener in listeners:
+        for listener in listener_list:
             try:
-                listener.bundle_changed(event)
+                await listener
             except:
                 self._logger.exception("Error calling a bundle listener")
 
-    def fire_framework_stopping(self):
+    async def fire_framework_stopping(self):
         """
-        Calls all framework listeners, telling them that the framework is
+        Async Calls all framework listeners, telling them that the framework is
         stopping
         """
-        with self.__fw_lock:
+        # Get EventLoop
+        loop = asyncio.get_running_loop()
+
+        async with self.__fw_lock:
             # Copy the list of listeners
             listeners = self.__fw_listeners[:]
-
-        for listener in listeners:
+        
+        # Schedule all
+        listener_list = [loop.create_task(listener.framework_stopping()) for listener in listeners]
+        # Call'em all
+        for listener in listener_list:
             try:
-                listener.framework_stopping()
+                await listener
             except:
                 self._logger.exception(
                     "An error occurred calling one of the "
                     "framework stop listeners"
                 )
 
-    def fire_service_event(self, event):
+    async def fire_service_event(self, event: ServiceEvent):
         """
-        Notifies service events listeners of a new event in the calling thread.
+        Async Notifies service events listeners of a new event in the calling thread.
 
         :param event: The service event
         """
         # Get the service properties
-        properties = event.get_service_reference().get_properties()
+        properties = await event.get_service_reference().get_properties()
         svc_specs = properties[OBJECTCLASS]
         previous = None
         endmatch_event = None
@@ -858,23 +871,19 @@ class EventDispatcher:
                 previous,
             )
 
-        with self.__svc_lock:
+        async with self.__svc_lock:
             # Get the listeners for this specification
             listeners = set()
             for spec in svc_specs:
-                try:
+                if spec in self.__svc_listeners:
                     listeners.update(self.__svc_listeners[spec])
-                except KeyError:
-                    pass
 
             # Add those which listen to any specification
-            try:
+            if None in self.__svc_listeners:
                 listeners.update(self.__svc_listeners[None])
-            except KeyError:
-                pass
 
         # Filter listeners with EventListenerHooks
-        listeners = self._filter_with_hooks(event, listeners)
+        listeners = await self._filter_with_hooks(event, listeners)
 
         # Get the listeners for this specification
         for data in listeners:
@@ -898,21 +907,21 @@ class EventDispatcher:
 
             # Call'em
             try:
-                data.listener.service_changed(sent_event)
+                await data.listener.service_changed(sent_event)
             except:
                 self._logger.exception("Error calling a service listener")
 
-    def _filter_with_hooks(self, svc_event, listeners):
+    async def _filter_with_hooks(self, svc_event: ServiceEvent, listeners):
         """
-        Filters listeners with EventListenerHooks
+        Async Filters listeners with EventListenerHooks
 
         :param svc_event: ServiceEvent being triggered
         :param listeners: Listeners to filter
         :return: A list of listeners with hook references
         """
-        svc_ref = svc_event.get_service_reference()
+        svc_ref: ServiceReference = svc_event.get_service_reference()
         # Get EventListenerHooks service refs from registry
-        hook_refs = self._registry.find_service_references(
+        hook_refs = await self._registry.find_service_references(
             SERVICE_EVENT_LISTENER_HOOK
         )
         # only do something if there are some hook_refs
@@ -937,20 +946,20 @@ class EventDispatcher:
                     # Get the bundle of the hook service
                     hook_bundle = hook_ref.get_bundle()
                     # lookup service from registry
-                    hook_svc = self._registry.get_service(hook_bundle, hook_ref)
+                    hook_svc = await self._registry.get_service(hook_bundle, hook_ref)
                     if hook_svc is not None:
                         # call event method of the hook service,
                         # pass in svc_event and shrinkable_ctx_listeners
                         # (which can be modified by hook)
                         try:
-                            hook_svc.event(svc_event, shrinkable_ctx_listeners)
+                            await hook_svc.event(svc_event, shrinkable_ctx_listeners)
                         except:
                             self._logger.exception(
                                 "Error calling EventListenerHook"
                             )
                         finally:
                             # Clean up the service
-                            self._registry.unget_service(hook_bundle, hook_ref)
+                            await self._registry.unget_service(hook_bundle, hook_ref)
 
             # Convert the shrinkable_ctx_listeners back to a list of listeners
             # before returning
@@ -999,26 +1008,26 @@ class ServiceRegistry:
         # Specification -> Service references[] (always sorted)
         self.__svc_specs = {}
 
-        # Services published: Bundle -> set(Service references)
+        # Services published -> set(Service references)
         self.__bundle_svc: Dict[Any, Set[ServiceReference]] = {}
 
-        # Services consumed: Bundle -> {Service reference -> UsageCounter}
+        # Services consumed -> {Service reference -> UsageCounter}
         self.__bundle_imports: Dict[Any, Dict[ServiceReference, _UsageCounter]] = {}
 
-        # Service factories consumption: Bundle -> _FactoryCounter
+        # Service factories consumption -> _FactoryCounter
         self.__factory_usage: Dict[Any, _FactoryCounter] = {}
 
         # Locks
-        self.__svc_lock = threading.RLock()
+        self.__svc_lock = RLock()
 
         # Pending unregistration: Service reference -> Service instance
         self.__pending_services: Dict[ServiceReference, Any] = {}
 
-    def clear(self):
+    async def clear(self):
         """
-        Clears the registry
+        Async Clears the registry
         """
-        with self.__svc_lock:
+        async with self.__svc_lock:
             self.__svc_registry.clear()
             self.__svc_factories.clear()
             self.__svc_specs.clear()
@@ -1027,11 +1036,11 @@ class ServiceRegistry:
             self.__factory_usage.clear()
             self.__pending_services.clear()
 
-    def register(
+    async def register(
         self, bundle, classes, properties, svc_instance, factory, prototype
     ):
         """
-        Registers a service.
+        Async Registers a service.
 
         :param bundle: The bundle that registers the service
         :param classes: The classes implemented by the service
@@ -1042,7 +1051,7 @@ class ServiceRegistry:
                           factory (the factory argument is considered True)
         :return: The ServiceRegistration object
         """
-        with self.__svc_lock:
+        async with self.__svc_lock:
             # Prepare properties
             service_id = self.__next_service_id
             self.__next_service_id += 1
@@ -1059,9 +1068,12 @@ class ServiceRegistry:
                 properties[SERVICE_SCOPE] = SCOPE_SINGLETON
 
             # Force to have a valid service ranking
-            try:
-                properties[SERVICE_RANKING] = int(properties[SERVICE_RANKING])
-            except (KeyError, ValueError, TypeError):
+            if SERVICE_RANKING in properties:
+                try:
+                    properties[SERVICE_RANKING] = int(properties[SERVICE_RANKING])
+                except (ValueError, TypeError):
+                    properties[SERVICE_RANKING] = 0
+            else:
                 properties[SERVICE_RANKING] = 0
 
             # Make the service reference
@@ -1088,19 +1100,20 @@ class ServiceRegistry:
             bundle_services.add(svc_ref)
             return svc_registration
 
-    def __sort_registry(self, svc_ref: ServiceReference) -> None:
+    async def __sort_registry(self, svc_ref: ServiceReference) -> None:
         """
-        Sorts the registry, after the update of the sort key of given service
+        Async Sorts the registry, after the update of the sort key of given service
         reference
 
         :param svc_ref: A service reference with a modified sort key
         """
-        with self.__svc_lock:
+        async with self.__svc_lock:
             if svc_ref not in self.__svc_registry:
                 raise BundleException("Unknown service: {0}".format(svc_ref))
 
+            get_property = await svc_ref.get_property(OBJECTCLASS)
             # Remove current references
-            for spec in svc_ref.get_property(OBJECTCLASS):
+            for spec in get_property:
                 # Use bisect to remove the reference (faster)
                 spec_refs = self.__svc_specs[spec]
                 idx = bisect.bisect_left(spec_refs, svc_ref)
@@ -1109,26 +1122,25 @@ class ServiceRegistry:
             # ... use the new sort key
             svc_ref.update_sort_key()
 
-            for spec in svc_ref.get_property(OBJECTCLASS):
+            for spec in get_property:
                 # ... and insert it again
                 spec_refs = self.__svc_specs[spec]
                 bisect.insort_left(spec_refs, svc_ref)
 
-    def unregister(self, svc_ref: ServiceReference) -> Any:
+    async def unregister(self, svc_ref: ServiceReference) -> Any:
         """
-        Unregisters a service
+        Async Unregisters a service
 
         :param svc_ref: A service reference
         :return: The unregistered service instance
         :raise BundleException: Unknown service reference
         """
-        with self.__svc_lock:
-            try:
+        async with self.__svc_lock:
+            if svc_ref in self.__pending_services:
                 # Try in pending services
                 return self.__pending_services.pop(svc_ref)
-            except KeyError:
-                # Not pending: continue
-                pass
+
+            # else Not pending: continue
 
             if svc_ref not in self.__svc_registry:
                 raise BundleException("Unknown service: {0}".format(svc_ref))
@@ -1139,7 +1151,8 @@ class ServiceRegistry:
             # Get the service instance
             service = self.__svc_registry.pop(svc_ref)
 
-            for spec in svc_ref.get_property(OBJECTCLASS):
+            get_property = await svc_ref.get_property(OBJECTCLASS)
+            for spec in get_property:
                 spec_services = self.__svc_specs[spec]
                 # Use bisect to remove the reference (faster)
                 idx = bisect.bisect_left(spec_services, svc_ref)
@@ -1152,7 +1165,7 @@ class ServiceRegistry:
                 # Call unget_service for all client bundle
                 factory, svc_reg = self.__svc_factories.pop(svc_ref)
                 for counter in self.__factory_usage.values():
-                    counter.cleanup_service(factory, svc_reg)
+                    await counter.cleanup_service(factory, svc_reg)
             else:
                 # Delete bundle association
                 bundle_services = self.__bundle_svc[bundle]
@@ -1163,21 +1176,22 @@ class ServiceRegistry:
 
             return service
 
-    def hide_bundle_services(self, bundle):
+    async def hide_bundle_services(self, bundle):
         """
-        Hides the services of the given bundle (removes them from lists, but
+        Async Hides the services of the given bundle (removes them from lists, but
         lets them be unregistered)
 
         :param bundle: The bundle providing services
         :return: The references of the hidden services
         """
-        with self.__svc_lock:
-            try:
-                svc_refs = self.__bundle_svc.pop(bundle)
-            except KeyError:
+        async with self.__svc_lock:
+            if bundle not in self.__bundle_svc:
                 # Nothing to do
                 return set()
+
             else:
+                svc_refs = self.__bundle_svc.pop(bundle)
+
                 # Clean the registry
                 specs = set()
                 for svc_ref in svc_refs:
@@ -1188,27 +1202,27 @@ class ServiceRegistry:
                     self.__pending_services[svc_ref] = self.__svc_registry.pop(
                         svc_ref
                     )
-                    specs.update(svc_ref.get_property(OBJECTCLASS))
+                    get_property = await svc_ref.get_property(OBJECTCLASS)
+                    specs.update(get_property)
 
                     # Clean the specifications cache
-                    for spec in svc_ref.get_property(OBJECTCLASS):
+                    for spec in  get_property:
                         spec_services = self.__svc_specs[spec]
                         # Use bisect to remove the reference (faster)
                         idx = bisect.bisect_left(spec_services, svc_ref)
                         del spec_services[idx]
                         if not spec_services:
                             del self.__svc_specs[spec]
-
             return svc_refs
 
-    def find_service_references(
+    async def find_service_references(
         self,
         clazz: Optional[Type[object]] = None,
         ldap_filter: Optional[ldapfilter.LDAPFilter] = None,
         only_one: bool = False
     ) -> Union[list, None]:
         """
-        Finds all services references matching the given filter.
+        Async Finds all services references matching the given filter.
 
         :param clazz: Class implemented by the service
         :param ldap_filter: Service filter
@@ -1217,7 +1231,7 @@ class ServiceRegistry:
         :raise BundleException: An error occurred looking for service
                                 references
         """
-        with self.__svc_lock:
+        async with self.__svc_lock:
             if clazz is None and ldap_filter is None:
                 # Return a sorted copy of the keys list
                 # Do not return None, as the whole content was required
@@ -1234,10 +1248,10 @@ class ServiceRegistry:
                 # Directly use the given filter
                 refs_set = sorted(self.__svc_registry.keys())
             else:
-                try:
+                if clazz in self.__svc_specs:
                     # Only for references with the given specification
                     refs_set = iter(self.__svc_specs[clazz])
-                except KeyError:
+                else:
                     # No matching specification
                     return None
 
@@ -1252,24 +1266,23 @@ class ServiceRegistry:
                 # walk-through
                 refs_set = (
                     ref
-                    for ref in refs_set
-                    if new_filter.matches(ref.get_properties())
+                    async for ref in refs_set
+                    if new_filter.matches(await ref.get_properties())
                 )
-
             if only_one:
                 # Return the first element in the list/generator
                 try:
-                    return [next(refs_set)]
+                    return [await next(refs_set)]
                 except StopIteration:
                     # No match
                     return None
 
             # Get all the matching references
-            return list(refs_set) or None
+            return await list(refs_set) or None
 
-    def get_bundle_imported_services(self, bundle):
+    async def get_bundle_imported_services(self, bundle):
         """
-        Returns this bundle's ServiceReference list for all services it is
+        Async Returns this bundle's ServiceReference list for all services it is
         using or returns None if this bundle is not using any services.
         A bundle is considered to be using a service if its use count for that
         service is greater than zero.
@@ -1281,49 +1294,49 @@ class ServiceRegistry:
         :param bundle: The bundle to look into
         :return: The references of the services used by this bundle
         """
-        with self.__svc_lock:
+        async with self.__svc_lock:
             return sorted(self.__bundle_imports.get(bundle, []))
 
-    def get_bundle_registered_services(self, bundle: Any) -> List[ServiceReference]:
+    async def get_bundle_registered_services(self, bundle) -> List[ServiceReference]:
         """
-        Retrieves the services registered by the given bundle. Returns None
+        Async Retrieves the services registered by the given bundle. Returns None
         if the bundle didn't register any service.
 
         :param bundle: The bundle to look into
         :return: The references to the services registered by the bundle
         """
-        with self.__svc_lock:
+        async with self.__svc_lock:
             return sorted(self.__bundle_svc.get(bundle, []))
 
-    def get_service(self, bundle: Any, reference: ServiceReference) -> Any:
+    async def get_service(self, bundle, reference: ServiceReference) -> Any:
         """
-        Retrieves the service corresponding to the given reference
+        Async Retrieves the service corresponding to the given reference
 
         :param bundle: The bundle requiring the service
         :param reference: A service reference
         :return: The requested service
         :raise BundleException: The service could not be found
         """
-        with self.__svc_lock:
+        async with self.__svc_lock:
             if reference.is_factory():
-                return self.__get_service_from_factory(bundle, reference)
+                return  await self.__get_service_from_factory(bundle, reference)
 
             # Be sure to have the instance
-            try:
+            if reference in self.__svc_registry:
                 service = self.__svc_registry[reference]
 
                 # Indicate the dependency
                 imports = self.__bundle_imports.setdefault(bundle, {})
                 imports.setdefault(reference, _UsageCounter()).inc()
-                reference.used_by(bundle)
+                await reference.used_by(bundle)
                 return service
-            except KeyError:
+            else:
                 # Not found
                 raise BundleException(
                     "Service not found (reference: {0})".format(reference)
                 )
 
-    def __get_service_from_factory(self, bundle: Any, reference: ServiceReference) -> Any:
+    async def __get_service_from_factory(self, bundle, reference: ServiceReference) -> Any:
         """
         Returns a service instance from a service factory or a prototype
         service factory
@@ -1333,7 +1346,7 @@ class ServiceRegistry:
         :return: The requested service
         :raise BundleException: The service could not be found
         """
-        try:
+        if reference in self.__svc_factories:
             factory, svc_reg = self.__svc_factories[reference]
 
             # Indicate the dependency
@@ -1344,105 +1357,99 @@ class ServiceRegistry:
                 usage_counter = _UsageCounter()
                 usage_counter.inc()
                 imports[reference] = usage_counter
-                reference.used_by(bundle)
+                await reference.used_by(bundle)
 
             # Check the per-bundle usage counter
             factory_counter = self.__factory_usage.setdefault(
                 bundle, _FactoryCounter(bundle)
             )
-            return factory_counter.get_service(factory, svc_reg)
-        except KeyError:
+            return await factory_counter.get_service(factory, svc_reg)
+        else:
             # Not found
             raise BundleException(
                 "Service not found (reference: {0})".format(reference)
             )
 
-    def unget_used_services(self, bundle):
+    async def unget_used_services(self, bundle):
         """
-        Cleans up all service usages of the given bundle.
+        Async Cleans up all service usages of the given bundle.
 
-        :param bundle: Bundle to be cleaned up
+        :param bundle to be cleaned up
         """
         # Pop used references
-        try:
-            imported_refs = list(self.__bundle_imports.pop(bundle))
-        except KeyError:
+        if bundle in self.__bundle_imports:
+            imported_refs = await list(self.__bundle_imports.pop(bundle))
+        else:
             # Nothing to do
             return
 
         for svc_ref in imported_refs:
             # Remove usage marker
-            svc_ref.unused_by(bundle)
+            await svc_ref.unused_by(bundle)
 
             if svc_ref.is_prototype():
                 # Get factory information and clean up the service from the
                 # factory counter
                 factory_counter = self.__factory_usage.pop(bundle)
                 factory, svc_reg = self.__svc_factories[svc_ref]
-                factory_counter.cleanup_service(factory, svc_reg)
+                await factory_counter.cleanup_service(factory, svc_reg)
             elif svc_ref.is_factory():
                 # Factory service, release it the standard way
-                self.__unget_service_from_factory(bundle, svc_ref)
+                await self.__unget_service_from_factory(bundle, svc_ref)
 
         # Clean up local structures
-        try:
+        if bundle in self.__factory_usage:
             del self.__factory_usage[bundle]
-        except KeyError:
-            pass
 
-        try:
+        if bundle in self.__bundle_imports:
             self.__bundle_imports.pop(bundle).clear()
-        except KeyError:
-            pass
 
-    def unget_service(
+    async def unget_service(
         self,
         bundle: Any,
         reference: ServiceReference,
         service: Optional[Any] = None
         ) -> bool:
         """
-        Removes the usage of a service by a bundle
+        Async Removes the usage of a service by a bundle
 
         :param bundle: The bundle that used the service
         :param reference: A service reference
         :param service: Service instance (for Prototype Service Factories)
         :return: True if the bundle usage has been removed
         """
-        with self.__svc_lock:
+        async with self.__svc_lock:
             if reference.is_prototype():
-                return self.__unget_service_from_factory(
+                return await self.__unget_service_from_factory(
                     bundle, reference, service
                 )
             elif reference.is_factory():
-                return self.__unget_service_from_factory(bundle, reference)
+                return await self.__unget_service_from_factory(bundle, reference)
 
-            try:
+            if bundle in self.__bundle_imports:
                 # Remove the service reference from the bundle
                 imports = self.__bundle_imports[bundle]
                 if not imports[reference].dec():
                     # No more reference to it
                     del imports[reference]
-            except KeyError:
-                # Unknown reference
-                return False
-            else:
                 # Clean up
                 if not imports:
                     del self.__bundle_imports[bundle]
 
                 # Update the service reference
-                reference.unused_by(bundle)
+                await reference.unused_by(bundle)
                 return True
+            else:
+                return False
 
-    def __unget_service_from_factory(
+    async def __unget_service_from_factory(
         self,
         bundle: Any,
         reference: ServiceReference,
         service: Optional[Any] = None
         ) -> bool:
         """
-        Removes the usage of a a service factory or a prototype
+        Async Removes the usage of a a service factory or a prototype
         service factory by a bundle
 
         :param bundle: The bundle that used the service
@@ -1450,37 +1457,32 @@ class ServiceRegistry:
         :param service: Service instance (for prototype factories)
         :return: True if the bundle usage has been removed
         """
-        try:
+        if reference in self.__svc_factories:
             factory, svc_reg = self.__svc_factories[reference]
-        except KeyError:
+        else:
             # Unknown service reference
             return False
 
         # Check the per-bundle usage counter
-        try:
+        if bundle in self.__factory_usage:
             counter = self.__factory_usage[bundle]
-        except KeyError:
+        else:
             # Unknown reference to a factory
             return False
-        else:
-            if counter.unget_service(factory, svc_reg, service):
-                try:
-                    # No more dependency
-                    reference.unused_by(bundle)
-
-                    # All references have been taken away: clean up
-                    if not self.__factory_usage[bundle].is_used():
-                        del self.__factory_usage[bundle]
-
-                    # Remove the service reference from the bundle
-                    imports = self.__bundle_imports[bundle]
-                    del imports[reference]
-                except KeyError:
-                    # Unknown reference
-                    return False
-                else:
-                    # Clean up
-                    if not imports:
-                        del self.__bundle_imports[bundle]
-
+        if await counter.unget_service(factory, svc_reg, service):
+            # No more dependency
+            await reference.unused_by(bundle)
+            # All references have been taken away: clean up
+            if not self.__factory_usage[bundle].is_used():
+                del self.__factory_usage[bundle]
+            if bundle in self.__bundle_imports:
+                # Remove the service reference from the bundle
+                imports = self.__bundle_imports[bundle]
+                del imports[reference]
+                # Clean up
+                if not imports:
+                    del self.__bundle_imports[bundle]
+            else:
+                # Unknown reference
+                return False
         return True
