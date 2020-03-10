@@ -37,7 +37,7 @@ install:
   - sudo prosodyctl register user1 localhost foobar
   - sudo prosodyctl register user2 localhost foobar
   - sudo prosodyctl restart
-  - curl -qL http://apache.mediamirrors.org/karaf/4.2.7/apache-karaf-4.2.7.tar.gz | tar xz -C /tmp
+  - curl -qL http://apache.mediamirrors.org/karaf/4.2.8/apache-karaf-4.2.8.tar.gz | tar xz -C /tmp
   - curl -qL https://github.com/etcd-io/etcd/releases/download/v3.3.10/etcd-v3.3.10-linux-amd64.tar.gz | tar xz -C /tmp && /tmp/etcd-v3.3.10-linux-amd64/etcd &
   - pip install nose coverage coverage_enable_subprocess coveralls
   - pip install https://github.com/tcalmant/jsonrpclib/archive/master.zip
