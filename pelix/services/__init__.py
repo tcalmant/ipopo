@@ -82,6 +82,14 @@ SERVICE_CONFIGADMIN_MANAGED_FACTORY = "pelix.configadmin.managed.factory"
 SERVICE_CONFIGADMIN_PERSISTENCE = "pelix.configadmin.persistence"
 """ Specification of a ConfigurationAdmin storage service """
 
+FRAMEWORK_PROP_CONFIGADMIN_DISABLE_DEFAULT_PERSISTENCE = (
+    "pelix.configadmin.persistence.default.disable"
+)
+"""
+If this framework property has a value, the default persistence service of
+ConfigurationAdmin won't be started
+"""
+
 FACTORY_CONFIGADMIN_JSON = "pelix-configadmin-persistence-json-factory"
 """ Name of the JSON ConfigurationAdmin storage component factory """
 

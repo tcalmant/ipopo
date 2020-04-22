@@ -993,7 +993,6 @@ class ConfigurationAdmin(object):
 @Requires("_directory", SERVICE_CONFIGADMIN_DIRECTORY)
 @Property("_conf_folder", "configuration.folder")
 @Property("_watched_folder", services.PROP_FILEINSTALL_FOLDER)
-@Instantiate("pelix-services-configuration-json-default")
 class JsonPersistence(object):
     """
     JSON configuration persistence
@@ -1201,3 +1200,33 @@ class JsonPersistence(object):
                 except (KeyError, ValueError, IOError) as ex:
                     # Log other errors
                     _logger.error("Error updating %s: %s", pid, ex)
+
+
+@pelix.constants.BundleActivator
+class Activator(object):
+    """
+    Instantiates the default JSON configuration provider
+    """
+
+    @staticmethod
+    def start(context):
+        """
+        Bundle started
+        """
+        if context.get_property(
+            services.FRAMEWORK_PROP_CONFIGADMIN_DISABLE_DEFAULT_PERSISTENCE
+        ):
+            # No need to run the default provider
+            return
+
+        # Small trick to add a late Instantiate decoration
+        # to the component factory
+        Instantiate("pelix-services-configuration-json-default")(
+            JsonPersistence
+        )
+
+    @staticmethod
+    def stop(_):
+        """
+        Bundle stopped
+        """
