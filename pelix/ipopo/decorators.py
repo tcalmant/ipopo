@@ -1393,6 +1393,97 @@ class RequiresMap(Requires):
 # ------------------------------------------------------------------------------
 
 
+class RequiresBroadcast(Requires):
+    # pylint: disable=R0903
+    """
+    The ``@RequiresBroadcast`` decorator defines a requirement that will be
+    injected as a single object, hiding the underlying missing dependency or
+    group of services matching the requirement.
+
+    Unlike :class:Requires, the parameter `optional` is set to `True` by
+    default. Also, the `aggregate` argument is not available, the behaviour is
+    to broadcast to all matching services.
+
+    In addition to the arguments of :class:Requires, this decorator also accepts
+    or redefines the following ones:
+
+    :param muffle_exceptions: If True, exceptions raised by underlying services
+                              are not propagated (True by default)
+    :param trace_exceptions: If True, trace the exceptions that are muffled
+                             (True by default)
+    :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_REQUIRES_BRODCAST`
+
+    .. code-block:: python
+
+        @ComponentFactory()
+        @RequiresBroadcast('_notifier', 'some.notifier')
+        class Bar(object):
+            # we can use it even if there are 0 or N services matching our
+            # requirement:
+            # self._notifier.notify("Hello, world")
+            pass
+    """
+    HANDLER_ID = constants.HANDLER_REQUIRES_BRODCAST
+    """ ID of the handler configured by this decorator """
+
+    def __init__(
+        self,
+        field,
+        specification,
+        optional=True,
+        spec_filter=None,
+        muffle_exceptions=True,
+        trace_exceptions=True,
+    ):
+        """
+        :param field: The injected field
+        :param specification: The injected service specification
+        :param optional: If true, this injection is optional
+        :param spec_filter: An LDAP query to filter injected services upon
+                            their properties
+        :param muffle_exceptions: If True, exceptions raised by underlying
+                                  services are not propagated (True by default)
+        :param trace_exceptions: If True, trace the exceptions that are muffled
+                                 (True by default)
+        :raise TypeError: A parameter has an invalid type
+        :raise ValueError: An error occurred while parsing the filter or an
+                           argument is incorrect
+        """
+        # Forced flags: aggregate and immediate rebind
+        super(RequiresBroadcast, self).__init__(
+            field, specification, True, optional, spec_filter, True
+        )
+
+        # Store the flags
+        self._muffle_ex = muffle_exceptions
+        self._trace_ex = trace_exceptions
+
+    def __call__(self, clazz):
+        """
+        Adds the requirement to the class iPOPO field
+
+        :param clazz: The class to decorate
+        :return: The decorated class
+        :raise TypeError: If *clazz* is not a type
+        """
+        clazz = super(RequiresBroadcast, self).__call__(clazz)
+
+        # Set up the property in the class
+        context = get_factory_context(clazz)
+        if not context.completed:
+            # Store the requirement information
+            config = context.set_handler_default(self.HANDLER_ID, {})
+            config[self._field] = (
+                self._requirement,
+                self._muffle_ex,
+                self._trace_ex,
+            )
+        return clazz
+
+
+# ------------------------------------------------------------------------------
+
+
 class Temporal(Requires):
     # pylint: disable=R0903
     """

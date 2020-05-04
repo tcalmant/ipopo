@@ -68,6 +68,9 @@ HANDLER_REQUIRES = "ipopo.requires"
 HANDLER_REQUIRES_BEST = "ipopo.requires.best"
 """ The @RequiresBest handler ID """
 
+HANDLER_REQUIRES_BRODCAST = "ipopo.requires.broadcast"
+""" The @RequiresBroadcast handler ID """
+
 HANDLER_REQUIRES_MAP = "ipopo.requires.map"
 """ The @RequiresMap handler ID """
 

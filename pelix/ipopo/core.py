@@ -74,6 +74,7 @@ BUILTIN_HANDLERS = (
     "pelix.ipopo.handlers.provides",
     "pelix.ipopo.handlers.requires",
     "pelix.ipopo.handlers.requiresbest",
+    "pelix.ipopo.handlers.requiresbroadcast",
     "pelix.ipopo.handlers.requiresmap",
     "pelix.ipopo.handlers.requiresvarfilter",
     "pelix.ipopo.handlers.temporal",
