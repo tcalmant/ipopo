@@ -14,7 +14,7 @@ from pelix.framework import BundleContext
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
     Requires, Validate, Invalidate, Unbind, Bind, Instantiate, RequiresMap, \
     RequiresBest, Temporal, PostRegistration, PostUnregistration, \
-    HiddenProperty, RequiresVarFilter
+    HiddenProperty, RequiresVarFilter, RequiresBroadcast
 from pelix.ipopo.constants import IPOPO_INSTANCE_NAME, IPopoEvent
 
 # Tests
@@ -38,6 +38,8 @@ FACTORY_IMMEDIATE = "ipopo.tests.immediate"
 FACTORY_PROVIDES_SVC_FACTORY = "ipopo.tests.provides.factory"
 FACTORY_PROVIDES_SVC_PROTOTYPE = "ipopo.tests.provides.prototype"
 FACTORY_REQUIRES_BEST = "ipopo.tests.best"
+FACTORY_REQUIRES_BROADCAST = "ipopo.tests.broadcast"
+FACTORY_REQUIRES_BROADCAST_REQUIRED = "ipopo.tests.broadcast.required"
 FACTORY_REQUIRES_VAR_FILTER = "ipopo.tests.var_filter"
 FACTORY_REQUIRES_VAR_FILTER_AGGREGATE = "ipopo.tests.var_filter.multiple"
 FACTORY_TEMPORAL = "ipopo.tests.temporal"
@@ -329,6 +331,24 @@ class RequiresBestComponentFactory(TestComponentFactory):
         Unbound
         """
         self.states.append(IPopoEvent.UNBOUND)
+
+# ------------------------------------------------------------------------------
+
+
+@ComponentFactory(FACTORY_REQUIRES_BROADCAST)
+@RequiresBroadcast('service', IEchoService)
+class RequiresBroadcastComponentFactory(TestComponentFactory):
+    """
+    Component factory with a RequiresBroadcast requirement
+    """
+
+
+@ComponentFactory(FACTORY_REQUIRES_BROADCAST_REQUIRED)
+@RequiresBroadcast('service', IEchoService, optional=False)
+class RequiresBroadcastRequiredComponentFactory(TestComponentFactory):
+    """
+    Component factory with a RequiresBroadcast requirement
+    """
 
 # ------------------------------------------------------------------------------
 

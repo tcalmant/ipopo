@@ -287,8 +287,14 @@ class BroadcastDependency(constants.DependencyHandler):
 
         :return: The value to inject
         """
-        # Return the proxy
-        return self._proxy
+        if self._future_len > 0 or (
+            self.requirement is not None and self.requirement.optional
+        ):
+            # We got something to work on
+            return self._proxy
+
+        # Invalid state
+        return None
 
     def is_valid(self):
         """
@@ -310,11 +316,11 @@ class BroadcastDependency(constants.DependencyHandler):
                 return False
 
             # Keep track of the service
-            self._services[svc_ref] = self._context.get_service(svc_ref)
+            svc = self._services[svc_ref] = self._context.get_service(svc_ref)
             self._future_len += 1
 
             # Bind it
-            self._ipopo_instance.bind(self, self._proxy, svc_ref)
+            self._ipopo_instance.bind(self, svc, svc_ref)
             return True
 
     def on_service_departure(self, svc_ref):
@@ -324,14 +330,17 @@ class BroadcastDependency(constants.DependencyHandler):
         :param svc_ref: A service reference
         """
         with self._lock:
-            if svc_ref not in self._services:
+            try:
+                svc = self._services[svc_ref]
+            except KeyError:
+                # Unknown reference
                 return None
 
             # Future length decreases
             self._future_len -= 1
 
             # Unbind the service first (to keep access during invalidate)
-            self._ipopo_instance.unbind(self, self._proxy, svc_ref)
+            self._ipopo_instance.unbind(self, svc, svc_ref)
 
             try:
                 # Clean up
