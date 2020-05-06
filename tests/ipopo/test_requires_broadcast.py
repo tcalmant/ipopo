@@ -98,6 +98,9 @@ class RequiresBestTest(unittest.TestCase):
         )
         consumer.reset()
 
+        # The proxy should indicate it's false
+        self.assertFalse(consumer.service, "Proxy says it's valid")
+
         # We should be able to use the service
         self.assertFalse(
             consumer.service.echo("Hello"), "Service returned something"
@@ -120,9 +123,15 @@ class RequiresBestTest(unittest.TestCase):
             )
             consumer.reset()
 
+            # Check proxy state
+            self.assertTrue(consumer.service, "Proxy doesn't say True")
+
             # Try a call
             value = random.randint(1, 100)
-            self.assertTrue(consumer.service.echo(value))
+            self.assertTrue(
+                consumer.service.echo(value),
+                "Proxy doesn't return True on call",
+            )
 
             for _, svc_x in live_svc:
                 self.assertTrue(svc_x.called, "Service not called")
@@ -147,7 +156,17 @@ class RequiresBestTest(unittest.TestCase):
 
             # Test the call
             value = random.randint(1, 42)
-            consumer.service.echo(value)
+
+            if live_svc:
+                self.assertTrue(consumer.service, "Proxy should be True")
+                self.assertTrue(
+                    consumer.service.echo(value), "Proxy should return True"
+                )
+            else:
+                self.assertFalse(consumer.service, "Proxy should be False")
+                self.assertFalse(
+                    consumer.service.echo(value), "Proxy should return False"
+                )
 
             for _, svc_x in live_svc:
                 self.assertTrue(svc_x.called, "Service not called")
@@ -155,7 +174,10 @@ class RequiresBestTest(unittest.TestCase):
                 svc_x.reset()
 
         # Last local check
-        self.assertFalse(consumer.service.echo(random.random()))
+        self.assertFalse(consumer.service, "Proxy should be False")
+        self.assertFalse(
+            consumer.service.echo(random.random()), "Call shouldn't return True"
+        )
 
     def test_required_service(self):
         """
@@ -185,9 +207,7 @@ class RequiresBestTest(unittest.TestCase):
         consumer.reset()
 
         # We shouldn't be able to use the service
-        self.assertIsNone(
-            consumer.service, "Proxy was injected"
-        )
+        self.assertIsNone(consumer.service, "Proxy was injected")
 
         live_svc = []
 
@@ -217,7 +237,10 @@ class RequiresBestTest(unittest.TestCase):
 
             # Try a call
             value = random.randint(1, 100)
-            self.assertTrue(consumer.service.echo(value))
+            self.assertTrue(consumer.service, "Proxy should be True")
+            self.assertTrue(
+                consumer.service.echo(value), "Proxy should return True"
+            )
 
             for _, svc_x in live_svc:
                 self.assertTrue(svc_x.called, "Service not called")
@@ -243,7 +266,10 @@ class RequiresBestTest(unittest.TestCase):
 
                 # Test the call
                 value = random.randint(1, 42)
-                consumer.service.echo(value)
+                self.assertTrue(consumer.service, "Proxy should be True")
+                self.assertTrue(
+                    consumer.service.echo(value), "Proxy should return True"
+                )
 
                 for _, svc_x in live_svc:
                     self.assertTrue(svc_x.called, "Service not called")
@@ -261,7 +287,6 @@ class RequiresBestTest(unittest.TestCase):
 
         # Proxy should be removed
         self.assertIsNone(consumer.service, "Proxy is still injected")
-
 
 # ------------------------------------------------------------------------------
 

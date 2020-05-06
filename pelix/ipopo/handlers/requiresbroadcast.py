@@ -146,9 +146,9 @@ class _ProxyDummy(object):
 
     def __bool__(self):
         """
-        Object is always False
+        Returns True if at least one service is bound
         """
-        return False
+        return self.__handler.has_services()
 
     def __call__(self, *args, **kwargs):
         """
@@ -303,6 +303,12 @@ class BroadcastDependency(constants.DependencyHandler):
         return (
             self.requirement is not None and self.requirement.optional
         ) or self._future_len > 0
+
+    def has_services(self):
+        """
+        Indicates if at least one service is bound (used by the proxy)
+        """
+        return self._future_len > 0
 
     def on_service_arrival(self, svc_ref):
         """
