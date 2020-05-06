@@ -150,6 +150,9 @@ class _ProxyDummy(object):
         """
         return self.__handler.has_services()
 
+    # Python 2 compatibility
+    __nonzero__ = __bool__
+
     def __call__(self, *args, **kwargs):
         """
         We have to handle a call
