@@ -433,18 +433,13 @@ class Instantiate(object):
     This decorator tells iPOPO to instantiate a component instance from this
     factory as soon as its bundle is in **ACTIVE** state.
 
-    It accepts the following arguments:
+    The ``properties`` argument allows to override the default value given in
+    the ``@Property`` and ``@HiddenProperty`` decorators.
 
-    :param name: The name of the component instance (**mandatory**)
-    :param properties: The initial properties of the instance
-
-    If no properties are given, the default value declared in ``@Property``
-    decorators will be used.
-
-    The properties are associated to the component instance but not added to it.
-    This means that new (meta-) properties can be added to add information to
-    the component (like the Remote Services export properties), but those won't
-    be accessible directly by the component.
+    The properties are associated to the component instance but not added to
+    it. This means that new (meta-) properties can be added to add information
+    to the component (like the Remote Services export properties), but those
+    won't be accessible directly by the component.
     Those extra properties will be visible in component's services properties
     and in the instance properties returned by the iPOPO
     ``get_instance_details()`` method, but no new field will be injected in the
@@ -457,13 +452,27 @@ class Instantiate(object):
         @Instantiate('component-1')
         @Instantiate('component-2', {'name': 'bar'})
         class Foo(object):
-            pass
+            def call(self):
+                # component-1 will print "foo" (default value)
+                # component-2 will print "bar"
+                print("My name property is:", self._name)
+
+        @ComponentFactory()
+        @Provides("thermometer")
+        @Property('_value', 'value', 1)
+        @Instantiate('component-3', {'unit': 'K'})
+        class Bar(object):
+            def call(self):
+                # We don't have access to the "unit" property value, but it
+                # will be visible in the service properties
+                print("My value is:", self._value)
     """
 
     def __init__(self, name, properties=None):
         """
-        :param name: Instance name
-        :param properties: Instance properties
+        :param name: The name of the component instance (**mandatory**)
+        :param properties: The initial properties of the instance as a
+                           dictionary
         """
         if not is_string(name):
             raise TypeError("Instance name must be a string")
@@ -518,17 +527,16 @@ class ComponentFactory(object):
     This **must** be the last executed decorator, *i.e.* the one on top of
     others in the source code.
 
-    It accepts the following arguments:
-
-    :param name: the name of the component factory
-    :param excluded: the list of the IDs of the handlers which configuration
-                     must **not** be inherited from a parent component class
-
     If no factory name is given, it will be generated as ``ClassNameFactory``,
     *e.g.* a ``Foo`` class will have the factory name ``FooFactory``.
 
-    The ``__init__()`` method of a component factory must not require any
-    parameter.
+    Note that the name of the component factory is the only way to identify it
+    in iPOPO. Therefore, it must be unique in a framework instance.
+
+    .. warning:: The ``__init__()`` method of a component factory class must
+                 not require any parameter.
+
+    :Example:
 
     .. code-block:: python
 
@@ -540,13 +548,22 @@ class ComponentFactory(object):
         @ComponentFactory('my-factory')
         class Bar(object):
            pass
+
+        @ComponentFactory()
+        class FooBar(object):
+            def __init__(self, managed=True):
+                # The argument has a default value: it can be instantiated by
+                # iPOPO
+                pass
     """
 
     def __init__(self, name=None, excluded=None):
         """
-        :param name: Name of the component factory
-        :param excluded: List of IDs of handlers which configuration must not
-                         be inherited from the parent class
+        :param name: Name of the component factory, used to identify it when
+                     instantiating a component. This name must be unique in a
+                     Pelix framework instance.
+        :param excluded: List of IDs of handlers which configuration must
+                         **not** be inherited from the parent class
         """
         self.__factory_name = name
         self.__excluded_inheritance = to_iterable(excluded)
@@ -660,42 +677,46 @@ class SingletonFactory(ComponentFactory):
 class Property(object):
     # pylint: disable=R0903
     """
-    The ``@Property`` decorator defines a component property. A property can
-    be used to configure the component at validation time and to expose the
-    state of a component.
+    The ``@Property`` decorator defines a component instance property.
+    A property can be used to configure the component at instantiation time and
+    to expose the state of a component.
     Note that component properties are exposed in the properties of the
-    services it provides.
+    services it publishes with the :class:`Provides` decorator.
 
-    This decorator accepts the following parameters:
-
-    :param field: The property field in the class (can't be None nor empty)
-    :param name: The property name (if None, this will be the field name)
-    :param value: The property value (None by default)
-    :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_PROPERTY`
-
-    If no initial value is given, the value stored in the field in the
-    ``__init__()`` method will be used.
+    If no initial value is given in the decorator, the value stored in the
+    injected field in the ``__init__()`` method will be used.
 
     .. warning:: In Python 2, it is required that the component class inherits
                  ``object`` for properties to work.
+
+    :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_PROPERTY`
+
+    :Example:
 
     .. code-block:: python
 
         @ComponentFactory()
         @Property('_answer', 'some.answer', 42)
         class Foo(object):
-            pass
+            def call(self):
+                print(self._answer)  # Prints 42
+
+                # The properties of the services provided by this component
+                # instance would be updated during this assignation
+                self._answer = 100
     """
     HANDLER_ID = constants.HANDLER_PROPERTY
     """ ID of the handler configured by this decorator """
 
     def __init__(self, field, name=None, value=None):
         """
-        :param field: The property field in the class (can't be None nor empty)
-        :param name: The property name (if None, this will be the field name)
-        :param value: The property value (None by default)
+        :param field: The property field in the class (can't be ``None`` nor
+                      empty)
+        :param name: The property name (if ``None``, this will be the field
+                     name)
+        :param value: The property value (``None`` by default)
         :raise TypeError: Invalid argument type
-        :raise ValueError: If the name or the name is None or empty
+        :raise ValueError: If the name or the name is ``None`` or empty
         """
         # Field validity test
         if not is_string(field):
@@ -775,17 +796,26 @@ class HiddenProperty(Property):
     """
     The ``@HiddenProperty`` decorator defines a component property which won't
     be visible in the properties of the services it provides.
-    This kind of property is also not accessible using iPOPO reflection methods.
+    This kind of property is also not accessible using iPOPO reflection
+    methods.
 
-    This decorator accepts the same parameters and follows the same rules as
-    :class:`Property`.
+    This decorator has the same handler, accepts the same parameters and
+    follows the same rules as the :class:`Property` decorator.
+
+    :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_PROPERTY`
+
+    :Example:
 
     .. code-block:: python
 
         @ComponentFactory()
         @HiddenProperty('_password', 'some.password', "secret")
         class Foo(object):
-            pass
+            def call(self):
+                print(self._password)  # I think we're missing the point
+
+                # Service properties won't be affected by this change
+                self._password = "UpdatedSecret"
     """
 
     def __call__(self, clazz):
@@ -891,43 +921,52 @@ class Provides(object):
     The ``@Provides`` decorator defines a service to be exposed by component
     instances.
     This service will be registered (visible) in the Pelix service registry
-    while the component is valid and the service controller is set to ``True``.
-
-    This decorator accepts the following parameters:
-
-    :param specifications: A list of provided specification(s), or the single
-                           provided specification (can't be empty)
-    :param controller: The name of the service controller class field
-                       (optional)
-    :param factory: If True, this service is a service factory
-                    (optional)
-    :param prototype: If True, this service is prototype service factory
-                      (optional)
-    :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_PROVIDES`
+    while the component is valid and its service controller is set to ``True``.
 
     All the properties of the component defined with the :class:`Property`
     decorator will be visible in the service properties.
 
-    The controller is a Python *property* that must contain a boolean.
+    The controller is an injected field (a Python *property*) that must contain
+    a boolean.
     By default, the controller is set to ``True``, *i.e.* the service will be
     provided by the component when it is validated.
+
+    :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_PROVIDES`
+
+    :Example:
 
     .. code-block:: python
 
         @ComponentFactory()
-        # 'answer.value' will be a property of the service
-        @Property('_answer', 'answer.value')
-        @Provides('hello.world')
+        # "answer.prefix" will be a property of the service
+        @Property("_answer", "answer.prefix", "Hello")
+        @Provides("hello.world")
         class Foo(object):
-            pass
+            # The component instance will publish a "hello.world" service as
+            # long as it is valid
+            def greet(self, name):
+                print(self._answer, name, "!")
 
         @ComponentFactory()
         # This service will provide multiple specifications
-        @Provides(['hello.world', 'hello.world.extended'], '_svc_flag')
+        @Provides(["hello.world", "hello.world.extended"], "_svc_flag")
+        @Provides("reset")
         class Bar(object):
-            # self._svc_flag = False ; to forbid the service to be provided
-            # self._svc_flag = True  ; to provide the service
-            pass
+            def greet(self, name):
+                # Implementation of hello.world
+                print("Hello,", name, "!")
+
+            def adieu(self, name):
+                print("So long,", name, "!")
+
+                # Sets the controller to False: the service won't be published
+                # anymore until the controller is set back to True
+                self._svc_flag = False
+
+            def reset(self):
+                # Implementation of the "reset" service: publish the service
+                # again
+                self._svc_flag = True
     """
     HANDLER_ID = constants.HANDLER_PROVIDES
     """ ID of the handler configured by this decorator """
@@ -943,15 +982,14 @@ class Provides(object):
         self, specifications, controller=None, factory=False, prototype=False
     ):
         """
-        Sets up a provided service.
-        A service controller can be defined to enable or disable the service.
-
-        :param specifications: A list of provided interface(s) name(s)
-                               (can't be empty)
-        :param controller: Name of the service controller class field
+        :param specifications: A list of provided specification(s), or the
+                               single provided specification (can't be empty)
+        :param controller: The name of the service controller class field
                            (optional)
         :param factory: If True, this service is a service factory
+                        (False by default)
         :param prototype: If True, this service is prototype service factory
+                          (False by default)
         :raise ValueError: If the specifications are invalid
         """
         if controller is not None:
@@ -1085,28 +1123,10 @@ class Requires(object):
     # pylint: disable=R0903
     """
     The ``@Requires`` decorator defines the requirement of a service.
-    It accepts the following parameters:
 
-    :param field: The field where to inject the requirement
-    :param specification: The specification of the service to inject
-    :param aggregate: If True, injects a list of services, else the first
-                      matching service
-    :param optional: If True, this injection is optional: the component can be
-                     valid without it
-    :param spec_filter: An LDAP query to filter injected services according to
-                        their properties
-    :param immediate_rebind:
-            If True, the component won't be invalidated then re-validated if a
-            matching service is available when the injected dependency is
-            unbound
     :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_REQUIRES`
 
-
-    The ``field`` and ``specification`` attributes are mandatory.
-    By default, a requirement is neither aggregated nor optional (both are set
-    to ``False`` and no specification filter is used.
-
-    .. note:: Since iPOPO 0.5.4, only one specification can be given.
+    :Example:
 
     .. code-block:: python
 
@@ -1134,19 +1154,24 @@ class Requires(object):
         immediate_rebind=False,
     ):
         """
-        :param field: The injected field
-        :param specification: The injected service specification
-        :param aggregate: If True, injects a list
-        :param optional: If True, this injection is optional
-        :param spec_filter: An LDAP query to filter injected services upon
-                            their properties
+        :param field: The field where to inject the requirement
+        :param specification: The specification of the service to inject
+        :param aggregate: If True, injects a list of services, else the first
+                          matching service
+        :param optional: If True, this injection is optional: the component can
+                         be valid without it
+        :param spec_filter: An LDAP query to filter injected services according
+                            to their properties
         :param immediate_rebind:
             If True, the component won't be invalidated then re-validated if a
             matching service is available when the injected dependency is
             unbound
-        :raise TypeError: A parameter has an invalid type
-        :raise ValueError: An error occurred while parsing the filter or an
-                           argument is incorrect
+
+        The ``field`` and ``specification`` parameters are mandatory.
+        By default, a requirement is neither aggregated nor optional
+        (both are set to ``False``) and no specification filter is used.
+
+        .. note:: Since iPOPO 0.5.4, only one specification can be given.
         """
         if not field:
             raise ValueError("Empty field name.")
@@ -1228,17 +1253,37 @@ class RequiresVarFilter(Requires):
     The ``@RequiresVarFilter`` decorator acts like :class:`Requires`, but its
     LDAP filter dynamically adapts to the properties of this component.
 
+    The decorator accepts a component property key using the ``{key}`` format
+    in the LDAP filter string. This placeholder will be replaced by the
+    property value, and will the filter will be updated each time the property
+    value changes.
+
     :Handler ID:
             :py:const:`pelix.ipopo.constants.HANDLER_REQUIRES_VARIABLE_FILTER`
+
+    :Example:
 
     .. code-block:: python
 
         @ComponentFactory()
-        @Property('_lang', 'lang', 'fr')
-        @RequiresVarFilter('_hello', 'hello.world', optional=True,
-                           spec_filter='(language={lang})')
+        @Property("_lang", "lang", "fr")
+        @RequiresVarFilter("_hello", "hello.world", optional=True,
+                           spec_filter="(language={lang})")
         class Bar(object):
-            pass
+            def call(self):
+                # The dependency is optional
+                if self._hello is not None:
+                    # Default "lang" instance property is set to "fr"
+                    self._hello.greet("le Monde")  # Bonjour le Monde
+
+                # Change the property to have another service
+                self._lang = "en"
+
+                # We can call the new service immediately as the dependency is
+                # optional (no risk of invalidation), but we have to check if
+                # such a service exists
+                if self._hello is not None:
+                    self._hello.greet("World")  # Hello World
     """
     HANDLER_ID = constants.HANDLER_REQUIRES_VARIABLE_FILTER
     """ ID of the handler configured by this decorator """
@@ -1255,23 +1300,39 @@ class RequiresBest(Requires):
     property).
 
     Unlike most of the other requirement decorators, ``@RequiresBest`` doesn't
-    support the injection of a list of services: only the best service can be
-    injected.
+    support the injection of a list of services (``aggregate``) as only the
+    best service is injected.
 
     :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_REQUIRES_BEST`
+
+    :Example:
 
     .. code-block:: python
 
         @ComponentFactory()
-        @RequiresBest('_hello', 'hello.world')
+        @RequiresBest('_hello', 'hello.world', immediate_rebind=True)
         class Foo(object):
-            pass
+            def call(self):
+                # First call, with the current best service
+                self._hello.greet("World")  # prints "Hello, World!"
 
+                # Something happens, the rank of "hello.world" services changes
+                # For example, locale changed and French now has a higher rank
+                time.sleep(1)
+
+                # Second call without waiting for re-validation as we have set
+                # immediate_rebind=True for this example
+                self._hello.greet("World")  # prints "Bonjour, World !"
+
+        # We can also use a specification filter or make the service optional
         @ComponentFactory()
         @RequiresBest('_hello', 'hello.world', optional=True,
                       spec_filter='(language=fr)')
         class Bar(object):
-            pass
+            def call(self):
+                if self._hello is not None:
+                    # First call, with the current best service
+                    self._hello.greet("World")  # prints "Hello, World!"
     """
     HANDLER_ID = constants.HANDLER_REQUIRES_BEST
     """ ID of the handler configured by this decorator """
@@ -1287,7 +1348,7 @@ class RequiresBest(Requires):
         """
         :param field: The injected field
         :param specification: The injected service specification
-        :param optional: If true, this injection is optional
+        :param optional: If True, this injection is optional
         :param spec_filter: An LDAP query to filter injected services upon
                             their properties
         :param immediate_rebind: If True, the component won't be invalidated
@@ -1310,25 +1371,20 @@ class RequiresMap(Requires):
     # pylint: disable=R0903
     """
     The ``@RequiresMap`` decorator defines a requirement that must be injected
-    in a dictionary.
+    in a dictionary, based on a service property.
 
-    In addition to the arguments of :class:Requires, this decorator also accepts
-    or redefines the following ones:
-
-    :param key: The name of the service property to use as a dictionary key
-    :param allow_none: If True, also injects services with the property value
-                       set to None or missing
-    :param aggregate: If true, injects a list of services with the same
-                      property value, else injects only one service per value
     :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_REQUIRES_MAP`
+
+    :Example:
 
     .. code-block:: python
 
         @ComponentFactory()
-        @RequiresMap('_hello', 'hello.world', 'language')
+        @RequiresMap("_hello", "hello.world", "language")
         class Bar(object):
-            # self._hello['fr'].hello('le monde')
-            pass
+            def call(self):
+                self._hello["en"].hello("World")
+                self._hello["fr"].hello("le Monde")
     """
     HANDLER_ID = constants.HANDLER_REQUIRES_MAP
     """ ID of the handler configured by this decorator """
@@ -1346,10 +1402,13 @@ class RequiresMap(Requires):
         """
         :param field: The injected field
         :param specification: The injected service specification
-        :param key: Name of the service property to use as a dictionary key
-        :param allow_none: If True, inject services with a None property value
-        :param aggregate: If true, injects a list
-        :param optional: If true, this injection is optional
+        :param key: The name of the service property to use as a dictionary key
+        :param allow_none: If True, also injects services with the property
+                           value set to ``None`` or missing
+        :param aggregate: If True, injects a list of services with the same
+                          property value, else injects only one service
+                          (first found) per property value
+        :param optional: If True, this injection is optional
         :param spec_filter: An LDAP query to filter injected services upon
                             their properties
         :raise TypeError: A parameter has an invalid type
@@ -1400,28 +1459,23 @@ class RequiresBroadcast(Requires):
     injected as a single object, hiding the underlying missing dependency or
     group of services matching the requirement.
 
-    Unlike :class:Requires, the parameter `optional` is set to `True` by
-    default. Also, the `aggregate` argument is not available, the behaviour is
-    to broadcast to all matching services.
+    Unlike :class:`Requires`, the parameter ``optional`` is set to ``True`` by
+    default. Also, the ``aggregate`` argument is not available, the behaviour
+    of this handler is to broadcast to all matching services.
 
-    In addition to the arguments of :class:Requires, this decorator also accepts
-    or redefines the following ones:
-
-    :param muffle_exceptions: If True, exceptions raised by underlying services
-                              are not propagated (True by default)
-    :param trace_exceptions: If True, trace the exceptions that are muffled
-                             (True by default)
     :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_REQUIRES_BRODCAST`
+
+    :Example:
 
     .. code-block:: python
 
         @ComponentFactory()
-        @RequiresBroadcast('_notifier', 'some.notifier')
+        @RequiresBroadcast("_notifier", "some.notifier")
         class Bar(object):
-            # we can use it even if there are 0 or N services matching our
-            # requirement:
-            # self._notifier.notify("Hello, world")
-            pass
+            def trace(self, message):
+                # We can use the service as a single object, without taking
+                # care of the number of services matching our requirement:
+                self._notifier.notify("Hello, world")
     """
     HANDLER_ID = constants.HANDLER_REQUIRES_BRODCAST
     """ ID of the handler configured by this decorator """
@@ -1438,7 +1492,7 @@ class RequiresBroadcast(Requires):
         """
         :param field: The injected field
         :param specification: The injected service specification
-        :param optional: If true, this injection is optional
+        :param optional: If True, this injection is optional
         :param spec_filter: An LDAP query to filter injected services upon
                             their properties
         :param muffle_exceptions: If True, exceptions raised by underlying
@@ -1490,12 +1544,8 @@ class Temporal(Requires):
     The ``@Temporal`` decorator defines a single immediate rebind requirement
     with a grace time when the injected service disappears.
 
-    This decorator acts like :class:Requires except it doesn't support
-    ``immediate_rebind`` (set to ``True``) nor ``aggregate``.
-    It also adds the following argument:
-
-    :param timeout: Temporal timeout, in seconds (must be greater than 0)
-    :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_TEMPORAL`
+    This decorator acts like :class:`Requires` except it doesn't support the
+    ``immediate_rebind`` (forced to ``True``) nor ``aggregate`` arguments.
 
     When the injected service disappears, the component won't be invalidated
     before the given timeout.
@@ -1505,12 +1555,26 @@ class Temporal(Requires):
     hold and blocks until a new service is injected or until the timeout is
     reached. In the latter case, a ``TemporalException`` is raised.
 
+    :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_TEMPORAL`
+
+    :Example:
+
     .. code-block:: python
 
         @ComponentFactory()
         @Temporal('_hello', 'hello.world', timeout=5)
         class Bar(object):
-            pass
+            def call(self):
+                # If the service is injected: this call is immediate
+                # If the service has gone away, this call will hold for
+                # 5 seconds (timeout parameter)
+                # - if a service is injected during the grace period, the call
+                #   will be done
+                try:
+                    self._hello.greet("World")
+                except pelix.ipopo.handlers.temporal.TemporalException:
+                    # - else, a TemporalException is raised
+                    print("Service disappeared")
     """
     HANDLER_ID = constants.HANDLER_TEMPORAL
     """ ID of the handler configured by this decorator """
@@ -1521,7 +1585,7 @@ class Temporal(Requires):
         """
         :param field: The injected field
         :param specification: The injected service specification
-        :param optional: If true, this injection is optional
+        :param optional: If True, this injection is optional
         :param spec_filter: An LDAP query to filter injected services upon
                             their properties
         :param timeout: Temporal timeout, in seconds (must be greater than 0)
@@ -1568,24 +1632,9 @@ class BindField(object):
     The ``@BindField`` callback decorator is called when a component is bound
     to a dependency, injected in the given field.
 
-    This decorator accepts the following arguments:
-
-    :param field: The field associated to the binding
-    :param if_valid: If True, call the decorated method only when the component
-                     is valid
-
     The decorated method must accept the field where the service has been
     injected, the service object and its
-    :class:`~pelix.framework.ServiceReference` as arguments::
-
-       @BindField('_hello')
-       def bind_method(self, field, service, service_reference):
-           '''
-           field: Field wherein the dependency is injected
-           service: The injected service instance.
-           service_reference: The injected service ServiceReference
-           '''
-           # ...
+    :class:`~pelix.framework.ServiceReference` as arguments.
 
     If the service is a required one, the bind callback is called **before**
     the component is validated.
@@ -1594,12 +1643,29 @@ class BindField(object):
     The service reference can be stored *if it is released on unbind*.
 
     Exceptions raised by a bind callback are ignored.
+
+    :Example:
+
+    .. code-block:: python
+
+       @ComponentFactory()
+       @Requires("_hello", "hello.svc")
+       class Foo:
+          @BindField("_hello")
+          def bind_method(self, field, service, service_reference):
+              '''
+              field: Field wherein the dependency is injected ("_hello")
+              service: The injected service instance
+              service_reference: The injected service ServiceReference
+              '''
+              # ...
     """
 
     def __init__(self, field, if_valid=False):
         """
-        :param field: Field associated to the binding
-        :param if_valid: Call the method only if the component is valid
+        :param field: The field associated to the binding
+        :param if_valid: If True, call the decorated method only when the
+                         component is valid
         """
         self._field = field
         self._if_valid = if_valid
@@ -1632,34 +1698,36 @@ class UpdateField(object):
     The ``@UpdateField`` callback decorator is called when the properties of
     a service injected in the given field have been updated.
 
-    This decorator accepts the following arguments:
-
-    :param field: The field associated to the binding
-    :param if_valid: If True, call the decorated method only when the component
-                     is valid
-
     The decorated method must accept the field where the service has been
     injected, the service object, its
     :class:`~pelix.framework.ServiceReference` and its previous properties as
-    arguments::
-
-       @UpdateField('_hello')
-       def update_method(self, service, service_reference, old_properties):
-           '''
-           field: Field wherein the dependency is injected
-           service: The injected service instance.
-           service_reference: The injected service ServiceReference
-           old_properties: The previous service properties
-           '''
-           # ...
+    arguments.
 
     Exceptions raised by an update callback are ignored.
+
+    :Example:
+
+    .. code-block:: python
+
+       @ComponentFactory()
+       @Requires("_hello", "hello.svc")
+       class Foo:
+          @UpdateField("_hello")
+          def update_method(self, service, service_reference, old_properties):
+              '''
+              field: Field wherein the dependency was injected ("_hello")
+              service: The injected service instance
+              service_reference: The injected service ServiceReference
+              old_properties: The previous service properties
+              '''
+              # ...
     """
 
     def __init__(self, field, if_valid=False):
         """
-        :param field: Field associated to the binding
-        :param if_valid: Call the method only if the component is valid
+        :param field: The field associated to the binding
+        :param if_valid: If True, call the decorated method only when the
+                         component is valid
         """
         self._field = field
         self._if_valid = if_valid
@@ -1698,37 +1766,39 @@ class UnbindField(object):
     The ``@UnbindField`` callback decorator is called when an injected
     dependency is unbound.
 
-    This decorator accepts the following arguments:
-
-    :param field: The field associated to the binding
-    :param if_valid: If True, call the decorated method only when the component
-                     is valid
-
     The decorated method must accept the field where the service has been
     injected, the service object, its
     :class:`~pelix.framework.ServiceReference` and its previous properties as
-    arguments::
-
-       @UnbindField('_hello')
-       def unbind_method(self, field, service, service_reference):
-           '''
-           field: Field wherein the dependency was injected
-           service: The injected service instance.
-           service_reference: The injected service ServiceReference
-           '''
-           # ...
+    arguments.
 
     If the service is a required one, the unbind callback is called **after**
     the component has been invalidated.
     The unbind field callback is called **before** the global unbind method.
 
     Exceptions raised by an unbind callback are ignored.
+
+    :Example:
+
+    .. code-block:: python
+
+       @ComponentFactory()
+       @Requires("_hello", "hello.svc")
+       class Foo:
+          @UnbindField("_hello")
+          def unbind_method(self, field, service, service_reference):
+              '''
+              field: Field wherein the dependency was injected ("_hello")
+              service: The injected service instance
+              service_reference: The injected service ServiceReference
+              '''
+              # ...
     """
 
     def __init__(self, field, if_valid=False):
         """
-        :param field: Field associated to the binding
-        :param if_valid: Call the method only if the component is valid
+        :param field: The field associated to the binding
+        :param if_valid: If True, call the decorated method only when the
+                         component is valid
         """
         self._field = field
         self._if_valid = if_valid
@@ -1769,15 +1839,7 @@ def Bind(method):
     dependency.
 
     The decorated method must accept the injected service object and its
-    :class:`~pelix.framework.ServiceReference` as arguments::
-
-       @Bind
-       def bind_method(self, service, service_reference):
-           '''
-           service: The injected service instance.
-           service_reference: The injected service ServiceReference
-           '''
-           # ...
+    :class:`~pelix.framework.ServiceReference` as arguments.
 
     If the service is a required one, the bind callback is called **before**
     the component is validated.
@@ -1785,6 +1847,21 @@ def Bind(method):
     The service reference can be stored *if it is released on unbind*.
 
     Exceptions raised by a bind callback are ignored.
+
+    :Example:
+
+    .. code-block:: python
+
+       @ComponentFactory()
+       @Requires("_hello", "hello.svc")
+       class Foo:
+           @Bind
+           def bind_method(self, service, service_reference):
+               '''
+               service: The injected service instance.
+               service_reference: The injected service ServiceReference
+               '''
+               # ...
 
     :param method: The decorated method
     :raise TypeError: The decorated element is not a valid function
@@ -1809,18 +1886,25 @@ def Update(method):
 
     The decorated method must accept the injected service object and its
     :class:`~pelix.framework.ServiceReference` and the previous properties
-    as arguments::
-
-       @Update
-       def update_method(self, service, service_reference, old_properties):
-           '''
-           service: The injected service instance.
-           service_reference: The injected service ServiceReference
-           old_properties: The previous service properties
-           '''
-           # ...
+    as arguments.
 
     Exceptions raised by an update callback are ignored.
+
+    :Example:
+
+    .. code-block:: python
+
+       @ComponentFactory()
+       @Requires("_hello", "hello.svc")
+       class Foo:
+           @Update
+           def update_method(self, service, service_reference, old_properties):
+               '''
+               service: The injected service instance.
+               service_reference: The injected service ServiceReference
+               old_properties: The previous service properties
+               '''
+               # ...
 
     :param method: The decorated method
     :raise TypeError: The decorated element is not a valid function
@@ -1848,20 +1932,27 @@ def Unbind(method):
     unbound.
 
     The decorated method must accept the injected service object and its
-    :class:`~pelix.framework.ServiceReference` as arguments::
-
-       @Unbind
-       def unbind_method(self, service, service_reference):
-           '''
-           service: The previously injected service instance.
-           service_reference: Its ServiceReference
-           '''
-           # ...
+    :class:`~pelix.framework.ServiceReference` as arguments.
 
     If the service is a required one, the unbind callback is called **after**
     the component has been invalidated.
 
     Exceptions raised by an unbind callback are ignored.
+
+    :Example:
+
+    .. code-block:: python
+
+       @ComponentFactory()
+       @Requires("_hello", "hello.svc")
+       class Foo:
+           @Unbind
+           def unbind_method(self, service, service_reference):
+               '''
+               service: The previously injected service instance.
+               service_reference: Its ServiceReference
+               '''
+               # ...
 
     :param method: The decorated method
     :raise TypeError: The decorated element is not a valid function
@@ -1891,42 +1982,49 @@ class ValidateComponent(object):
 
     Currently, the arguments given to the callback are read-only, to avoid
     messing with the validation life-cycle.
-    In the future, it will be possible to modify the properties and to use
+    In the future, it might be possible to modify the properties and to use
     the component context in order to customize the component early.
 
-    The decorator accepts an ordered list of arguments. They define the
-    signature of the decorated method.
-
-    The arguments can be the following ones, declared in the
-    ``pelix.ipopo.constants`` module:
-
-    * ``ARG_BUNDLE_CONTEXT``: Gives access to the bundle context
-    * ``ARG_COMPONENT_CONTEXT``: Gives access to the component context
-    * ``ARG_PROPERTIES``: Gives access to component properties (``dict``)
+    :Example:
 
     Here are some sample uses of the decorator. Note that the number and order
-    of arguments only has to match the list given to the decorator::
+    of arguments only has to match the list given to the decorator:
 
-        from pelix.constants import ARG_COMPONENT_CONTEXT, ARG_BUNDLE_CONTEXT, \
-            ARG_PROPERTIES
+    .. code-block:: python
 
-        @ValidateComponent(ARG_COMPONENT_CONTEXT)
-        def validate_component(self, component_ctx):
-            # ...
+       from pelix.constants import ARG_COMPONENT_CONTEXT, \\
+           ARG_BUNDLE_CONTEXT, ARG_PROPERTIES
 
-        @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_COMPONENT_CONTEXT)
-        def validate_component(self, bundle_ctx, component_ctx):
-            # ...
+       @ValidateComponent(ARG_COMPONENT_CONTEXT)
+       def validate_component(self, component_ctx):
+           # ...
 
-        @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_COMPONENT_CONTEXT,
-                           ARG_PROPERTIES)
-        def validate_component(self, bundle_ctx, component_ctx, props):
-            # ...
+       @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_COMPONENT_CONTEXT)
+       def validate_component(self, bundle_ctx, component_ctx):
+           # ...
+
+       @ValidateComponent(
+           ARG_BUNDLE_CONTEXT, ARG_COMPONENT_CONTEXT, ARG_PROPERTIES
+        )
+       def validate_component(self, bundle_ctx, component_ctx, props):
+           # ...
     """
 
     def __init__(self, *args):
         """
-        :param args: An ordered list of argument descriptors.
+        :param args: The decorator accepts an ordered list of arguments.
+                     They define the signature of the decorated method.
+
+                     The arguments can be the following ones, declared in the
+                     ``pelix.ipopo.constants`` module:
+
+                     * ``ARG_BUNDLE_CONTEXT``: Gives access to the bundle
+                       context
+                     * ``ARG_COMPONENT_CONTEXT``: Gives access to the
+                       component context
+                     * ``ARG_PROPERTIES``: Gives access to the initial
+                       properties of the component (``dict``)
+
         :raise TypeError: A parameter has an invalid type or the decorated
                           object is not a method
         """
@@ -2022,22 +2120,14 @@ class InvalidateComponent(ValidateComponent):
 def Validate(method):
     # pylint: disable=C0103
     """
+    This decorator is an alias to :class:`ValidateComponent` to decorate a
+    callback method than only accepts the
+    :class:`~pelix.framework.BundleContext` argument.
+    It is not possible to have both ``@Validate`` and ``@ValidateComponent``
+    decorators used in the same class.
+
     The validation callback decorator is called when a component becomes valid,
     *i.e.* if all of its required dependencies has been injected.
-
-    This is an alias to :class:`ValidateComponent`. It is not possible to have
-    both ``@Validate`` and ``@ValidateComponent`` decorators used in the same
-    class.
-
-    The decorated method must accept the bundle's
-    :class:`~pelix.framework.BundleContext` as argument::
-
-       @Validate
-       def validation_method(self, bundle_context):
-           '''
-           bundle_context: The component's bundle context
-           '''
-           # ...
 
     If the validation callback raises an exception, the component goes into
     **ERRONEOUS** state.
@@ -2045,7 +2135,20 @@ def Validate(method):
     If the component provides a service, the validation method is called before
     the provided service is registered to the framework.
 
-    :param method: The validation method
+    :Example:
+
+    .. code-block:: python
+
+       @ComponentFactory()
+       class Foo:
+           @Validate
+           def validation_method(self, bundle_context):
+               '''
+               bundle_context: The component's bundle context
+               '''
+               # ...
+
+    :param method: The validation callback method
     :raise TypeError: The decorated element is not a valid function
     """
     return ValidateComponent(constants.ARG_BUNDLE_CONTEXT)(method)
@@ -2054,27 +2157,32 @@ def Validate(method):
 def Invalidate(method):
     # pylint: disable=C0103
     """
+    This decorator is an alias to :class:`InvalidateComponent` to decorate a
+    callback method than only accepts the
+    :class:`~pelix.framework.BundleContext` argument.
+    It is not possible to have both ``@Invalidate`` and
+    ``@InvalidateComponent`` decorators used in the same class.
+
     The invalidation callback decorator is called when a component becomes
     invalid, *i.e.* if one of its required dependencies disappeared.
-
-    This is an alias to :class:`InvalidateComponent`. It is not possible to
-    have both ``@Invalidate`` and ``@InvalidateComponent`` decorators used in
-    the same class.
-
-    The decorated method must accept the bundle's
-    :class:`~pelix.framework.BundleContext` as argument::
-
-       @Invalidate
-       def invalidation_method(self, bundle_context):
-           '''
-           bundle_context: The component's bundle context
-           '''
-           # ...
 
     Exceptions raised by an invalidation callback are ignored.
 
     If the component provides a service, the invalidation method is called
     after the provided service has been unregistered to the framework.
+
+    :Example:
+
+    .. code-block:: python
+
+       @ComponentFactory()
+       class Foo:
+           @Invalidate
+           def invalidation_method(self, bundle_context):
+               '''
+               bundle_context: The component's bundle context
+               '''
+               # ...
 
     :param method: The decorated method
     :raise TypeError: The decorated element is not a function
@@ -2090,14 +2198,24 @@ def PostRegistration(method):
 
     The decorated method must accept the
     :class:`~pelix.framework.ServiceReference` of the registered
-    service as argument::
+    service as argument.
 
-       @PostRegistration
-       def callback_method(self, service_reference):
-           '''
-           service_reference: The ServiceReference of the provided service
-           '''
-           # ...
+    Note that when this method is called, the consumers have already been bound
+    and might already use the service.
+
+    :Example:
+
+    .. code-block:: python
+
+       @ComponentFactory()
+       @Provides("hello.svc")
+       class Foo:
+           @PostRegistration
+           def callback_method(self, service_reference):
+               '''
+               service_reference: The ServiceReference of the provided service
+               '''
+               # Custom notification, ...
 
     :param method: The decorated method
     :raise TypeError: The decorated element is not a valid function
@@ -2118,19 +2236,33 @@ def PostRegistration(method):
 def PostUnregistration(method):
     # pylint: disable=C0103
     """
-    The service post-unregistration callback decorator is called after a service
-    of the component has been unregistered from the framework.
+    The service post-unregistration callback decorator is called after a
+    service of the component has been unregistered from the framework.
 
     The decorated method must accept the
     :class:`~pelix.framework.ServiceReference` of the registered
-    service as argument::
+    service as argument.
 
-       @PostUnregistration
-       def callback_method(self, service_reference):
-           '''
-           service_reference: The ServiceReference of the provided service
-           '''
-           # ...
+    This method being called after the unregistration, the consumers of the
+    service should have already released it and should not be using it while
+    this callback is notified.
+    This is True by design for consumers managed by the :class:`Requires`
+    decorator in iPOPO, but some others (badly written or very specific design)
+    might keep a reference on the service even after its unregistration.
+
+    :Example:
+
+    .. code-block:: python
+
+       @ComponentFactory()
+       @Provides("hello.svc")
+       class Foo:
+           @PostUnregistration
+           def callback_method(self, service_reference):
+               '''
+               service_reference: The ServiceReference of the provided service
+               '''
+               # Clean up, ...
 
     :param method: The decorated method
     :raise TypeError: The decorated element is not a valid function

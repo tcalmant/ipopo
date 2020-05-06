@@ -35,8 +35,8 @@ Note that some properties have a special meaning for iPOPO and Pelix.
 =================== ======= ===================================================
 Name                Type    Description
 =================== ======= ===================================================
-``instance.name``   ``str`` The name of the iPOPO component instance
-``service.id``      ``int`` The registration number of a service
+``instance.name``   ``str`` The name of the iPOPO component instance (read only)
+``service.id``      ``int`` The registration number of a service (read only)
 ``service.ranking`` ``int`` The rank (priority) of the services provided by this component
 =================== ======= ===================================================
 
@@ -65,6 +65,7 @@ Requirements
 .. autoclass:: Requires
 .. autoclass:: Temporal
 .. autoclass:: RequiresBest
+.. autoclass:: RequiresBroadcast
 .. autoclass:: RequiresMap
 .. autoclass:: RequiresVarFilter
 
