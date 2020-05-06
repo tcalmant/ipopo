@@ -27,6 +27,7 @@ __version_info__ = (1, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 NAME_A = "componentA"
+NAME_B = "componentB"
 
 # ------------------------------------------------------------------------------
 
@@ -40,15 +41,26 @@ class SampleEchoService(IEchoService):
         IEchoService.__init__(self)
         self.called = False
         self.value = None
+        self.raised = False
+        self.sub_service = None
 
     def echo(self, value):
         self.called = True
         self.value = value
         return value
 
+    def __call__(self, value):
+        return self.echo(value)
+
     def reset(self):
         self.called = False
         self.value = None
+        self.raised = False
+        self.sub_service = None
+
+    def raise_ex(self):
+        self.raised = True
+        raise KeyError("Oops")
 
 
 class RequiresBestTest(unittest.TestCase):
@@ -287,6 +299,180 @@ class RequiresBestTest(unittest.TestCase):
 
         # Proxy should be removed
         self.assertIsNone(consumer.service, "Proxy is still injected")
+
+    def test_early_binding(self):
+        """
+        Checks @RequiresBroadcast when the service is already there
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+        assert isinstance(context, BundleContext)
+
+        # Assert that the service is not yet available
+        self.assertIsNone(
+            context.get_service_reference(IEchoService),
+            "Service is already registered",
+        )
+
+        # Register the service
+        svc_1 = SampleEchoService()
+        context.register_service(IEchoService, svc_1, {})
+
+        svc_2 = SampleEchoService()
+        context.register_service(IEchoService, svc_2, {})
+
+        live_svc = [svc_1, svc_2]
+
+        for factory in (
+            module.FACTORY_REQUIRES_BROADCAST,
+            module.FACTORY_REQUIRES_BROADCAST_REQUIRED,
+        ):
+            for svc_x in live_svc:
+                svc_x.reset()
+
+            # Instantiate the component
+            consumer = self.ipopo.instantiate(factory, NAME_A)
+
+            # Component must be valid
+            self.assertListEqual(
+                [IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
+                consumer.states,
+                "Invalid component states: {0}".format(consumer.states),
+            )
+            consumer.reset()
+
+            # The proxy should indicate it's True
+            self.assertTrue(consumer.service, "Proxy says it's not valid")
+
+            # We should be able to use the service
+            value = random.randint(1, 100)
+            self.assertTrue(consumer.service.echo(value), "Call failed")
+
+            for svc_x in live_svc:
+                self.assertTrue(svc_x.called, "Service not called")
+                self.assertEqual(svc_x.value, value, "Wrong argument given")
+                svc_x.reset()
+
+            # Clean up
+            self.ipopo.kill(NAME_A)
+
+    def test_exception(self):
+        """
+        Tests muffling exceptions or not
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+        assert isinstance(context, BundleContext)
+
+        # Assert that the service is not yet available
+        self.assertIsNone(
+            context.get_service_reference(IEchoService),
+            "Service is already registered",
+        )
+
+        # Instantiate the component
+        consumer_muffled = self.ipopo.instantiate(
+            module.FACTORY_REQUIRES_BROADCAST, NAME_A
+        )
+        consumer_raise = self.ipopo.instantiate(
+            module.FACTORY_REQUIRES_BROADCAST_UNMUFFLED, NAME_B
+        )
+
+        # Everything should be fine
+        self.assertFalse(
+            consumer_muffled.service.raise_ex(), "Call should return False"
+        )
+        self.assertFalse(
+            consumer_raise.service.raise_ex(), "Call should return False"
+        )
+
+        # Register the service
+        svc = SampleEchoService()
+        context.register_service(IEchoService, svc, {})
+
+        # Muffled should be fine
+        self.assertTrue(
+            consumer_muffled.service.raise_ex(), "Call should return True"
+        )
+        self.assertTrue(svc.raised, "Service not called")
+        svc.reset()
+
+        # The other should raise the exception
+        self.assertRaises(
+            KeyError, consumer_raise.service.raise_ex,
+        )
+        self.assertTrue(svc.raised, "Service not called")
+
+    def test_paths(self):
+        """
+        Checks direct calls to proxy and to deeper members
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+        assert isinstance(context, BundleContext)
+
+        # Assert that the service is not yet available
+        self.assertIsNone(
+            context.get_service_reference(IEchoService),
+            "Service is already registered",
+        )
+
+        # Instantiate the component
+        consumer = self.ipopo.instantiate(
+            module.FACTORY_REQUIRES_BROADCAST, NAME_A
+        )
+        consumer.reset()
+
+        # Register the service
+        svc = SampleEchoService()
+        svc_ref = context.register_service(IEchoService, svc, {})
+
+        # Check proxy state
+        self.assertTrue(consumer.service, "Proxy is False")
+        self.assertTrue(consumer.service.sub_service, "Deeper member is False")
+
+        # Direct call
+        value = random.randint(1, 100)
+        self.assertTrue(consumer.service(value), "Direct call returned False")
+        self.assertEqual(svc.value, value, "Wrong value given")
+        self.assertTrue(svc.called, "Service not called")
+        svc.reset()
+
+        # Member call
+        svc.sub_service = SampleEchoService()
+        value = random.randint(1, 100)
+        self.assertTrue(
+            consumer.service.sub_service.echo(value),
+            "Member call returned False",
+        )
+
+        self.assertFalse(svc.called, "First member was called")
+        self.assertIsNone(svc.value, "First member was given the value")
+        self.assertTrue(svc.sub_service.called, "Deeper service not called")
+        self.assertEqual(svc.sub_service.value, value, "Wrong value given")
+        svc.sub_service.reset()
+        svc.reset()
+        svc.sub_service = SampleEchoService()
+
+        # Unregister the service
+        svc_ref.unregister()
+        self.assertFalse(consumer.service, "Proxy is True")
+        self.assertFalse(consumer.service.sub_service, "Deeper member is True")
+
+        # Both calls must return False
+        value = random.randint(1, 100)
+        self.assertFalse(consumer.service(value), "Direct call returned True")
+        self.assertFalse(
+            consumer.service.sub_service.echo(value),
+            "Member call returned True",
+        )
+
+        # Service must not have been called
+        self.assertFalse(svc.called, "First member was called")
+        self.assertIsNone(svc.value, "First member valued")
+        self.assertFalse(svc.sub_service.called, "Deeper service was called")
+        self.assertIsNone(svc.sub_service.value, "Deeper service valued")
+
 
 # ------------------------------------------------------------------------------
 

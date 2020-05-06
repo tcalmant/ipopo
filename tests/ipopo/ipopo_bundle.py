@@ -40,6 +40,7 @@ FACTORY_PROVIDES_SVC_PROTOTYPE = "ipopo.tests.provides.prototype"
 FACTORY_REQUIRES_BEST = "ipopo.tests.best"
 FACTORY_REQUIRES_BROADCAST = "ipopo.tests.broadcast"
 FACTORY_REQUIRES_BROADCAST_REQUIRED = "ipopo.tests.broadcast.required"
+FACTORY_REQUIRES_BROADCAST_UNMUFFLED = "ipopo.tests.broadcast.unmuffled"
 FACTORY_REQUIRES_VAR_FILTER = "ipopo.tests.var_filter"
 FACTORY_REQUIRES_VAR_FILTER_AGGREGATE = "ipopo.tests.var_filter.multiple"
 FACTORY_TEMPORAL = "ipopo.tests.temporal"
@@ -339,7 +340,8 @@ class RequiresBestComponentFactory(TestComponentFactory):
 @RequiresBroadcast('service', IEchoService)
 class RequiresBroadcastComponentFactory(TestComponentFactory):
     """
-    Component factory with a RequiresBroadcast requirement
+    Component factory with a RequiresBroadcast requirement with the default
+    flags
     """
 
 
@@ -347,7 +349,17 @@ class RequiresBroadcastComponentFactory(TestComponentFactory):
 @RequiresBroadcast('service', IEchoService, optional=False)
 class RequiresBroadcastRequiredComponentFactory(TestComponentFactory):
     """
-    Component factory with a RequiresBroadcast requirement
+    Component factory with a RequiresBroadcast requirement, without the
+    optional flag
+    """
+
+
+@ComponentFactory(FACTORY_REQUIRES_BROADCAST_UNMUFFLED)
+@RequiresBroadcast('service', IEchoService, muffle_exceptions=False)
+class RequiresBroadcastUnMuffleComponentFactory(TestComponentFactory):
+    """
+    Component factory with a RequiresBroadcast requirement, without the muffle
+    exceptions flag
     """
 
 # ------------------------------------------------------------------------------
