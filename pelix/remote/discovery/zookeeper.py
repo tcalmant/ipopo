@@ -37,6 +37,7 @@ import uuid
 
 # ZooKeeper library
 from kazoo.client import KazooClient, KazooState, EventType
+from kazoo.client import WatchedEvent  # pylint:disable=unused-import
 from kazoo.exceptions import KazooException, NodeExistsError
 
 # iPOPO decorators
@@ -180,14 +181,12 @@ class ZooKeeperClient:
         """
         Called when the client is connected for the first time
         """
-        pass
 
     @staticmethod
     def on_client_reconnection():
         """
         Called when the client is reconnected to the server
         """
-        pass
 
     def __path(self, path):
         """
