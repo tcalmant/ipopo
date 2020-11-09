@@ -1,6 +1,30 @@
 Release notes
 #############
 
+iPOPO 1.0.1
+***********
+
+iPOPO
+=====
+
+* Added a ``RequiresBroadcast`` decorator, which injects a proxy that broadcasts
+  calls to all services matched by the requirement. It also transparently
+  ignores calls when no service matches the requirement.
+
+Misc
+====
+
+* ``ConfigurationAdmin`` default persistence can now be disabled by setting the
+  ``pelix.configadmin.persistence.default.disable`` framework property to any
+  non-empty value.
+  See `#113 <https://github.com/tcalmant/ipopo/issues/113>`_ for more details.
+* Added a ``to_record()`` method in ``LogEntry`` objects. This converts the
+  Pelix entry to a ``logging.LogRecord`` object, which can then be formatted
+  using standard formatters.
+  Note that some information is missing, like the place the log record is from
+  (file path and line).
+
+
 iPOPO 1.0.0
 ***********
 
