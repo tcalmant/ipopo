@@ -14,7 +14,7 @@ import time
 try:
     import unittest2 as unittest
 except ImportError:
-    import unittest
+    import unittest  # type: ignore
 
 # Pelix
 import pelix.framework
@@ -46,6 +46,9 @@ class LogServiceTest(unittest.TestCase):
         # Get the service
         self.logger = self._get_logger()
         self.reader = self._get_reader()
+
+        # Setup logging level
+        logging.getLogger().setLevel(logging.INFO)
 
     def tearDown(self):
         """
@@ -170,6 +173,9 @@ class LogServiceTest(unittest.TestCase):
                 # Restart the framework
                 self.tearDown()
                 self.setUp()
+
+                # Ensure logging emits all records
+                logging.getLogger().setLevel(logging.DEBUG)
 
                 # Change the framework property and reload the log service
                 if int_level:
