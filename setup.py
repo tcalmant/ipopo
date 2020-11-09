@@ -6,7 +6,7 @@ iPOPO installation script
 :author: Thomas Calmant
 :copyright: Copyright 2020, Thomas Calmant
 :license: Apache License 2.0
-:version: 1.0.0
+:version: 1.0.1
 
 ..
 
@@ -35,7 +35,7 @@ except ImportError:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (1, 0, 0)
+__version_info__ = (1, 0, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -93,6 +93,8 @@ setup(
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Topic :: Software Development :: Libraries :: Application Frameworks",
     ],
     install_requires=["jsonrpclib-pelix>=0.3.1"],

@@ -38,7 +38,7 @@ from tests.http.test_basic import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (1, 0, 0)
+__version_info__ = (1, 0, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 DEFAULT_HOST = "localhost"

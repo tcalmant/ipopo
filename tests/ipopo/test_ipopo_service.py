@@ -26,7 +26,7 @@ from tests.ipopo.ipopo_bundle import BASIC_INSTANCE
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (1, 0, 0)
+__version_info__ = (1, 0, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------

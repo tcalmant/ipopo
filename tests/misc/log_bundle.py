@@ -14,7 +14,7 @@ from pelix.misc import LOG_SERVICE
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (1, 0, 0)
+__version_info__ = (1, 0, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 SIMPLE_FACTORY = "log.test.simple"
