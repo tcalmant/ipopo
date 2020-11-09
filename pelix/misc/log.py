@@ -93,6 +93,7 @@ class LogEntry(object):
         "__message",
         "__reference",
         "__time",
+        "__record",
     )
 
     def __init__(self, level, message, exception, bundle, reference):
@@ -109,6 +110,7 @@ class LogEntry(object):
         self.__message = message
         self.__reference = reference
         self.__time = time.time()
+        self.__record = None
 
     def __str__(self):
         """
@@ -186,6 +188,50 @@ class LogEntry(object):
         The timestamp of this entry
         """
         return self.__time
+
+    def to_record(self):
+        # type: () -> logging.LogRecord
+        """
+        Returns this object as a ``logging.LogRecord``
+        """
+        if self.__record is None:
+            # Construct the record on demand
+            self.__record = self.__make_record()
+
+        return self.__record
+
+    def __make_record(self):
+        """
+        Converts this object into a ``logging.LogRecord`` object
+        """
+        # Extract local details
+        bundle = self.bundle
+        name = bundle.get_symbolic_name()
+        pathname = bundle.get_location()
+        lineno = 0
+
+        args = []
+        func = "n/a"
+        sinfo = None
+
+        level = self.level
+        msg = self.message
+        exc_info = self.exception
+
+        # Construct the record
+        record = logging.LogRecord(
+            name, level, pathname, lineno, msg, args, exc_info, func, sinfo
+        )
+
+        # Fix the time related entries
+        log_start_time = record.created - (record.relativeCreated / 1000)
+        creation_time = self.__time
+
+        record.created = creation_time
+        record.msecs = (creation_time - int(creation_time)) * 1000
+        record.relativeCreated = (creation_time - log_start_time) * 1000
+
+        return record
 
 
 class LogReaderService:
