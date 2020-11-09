@@ -721,7 +721,7 @@ class _ExportEndpoint(object):
                 self.__active_registrations.remove(export_reg)
             except ValueError:
                 pass
-            if len(self.__active_registrations) is 0:
+            if len(self.__active_registrations) == 0:
                 try:
                     self.__export_container.unexport_service(self.__ed)
                 except:
@@ -1081,7 +1081,7 @@ class _ImportEndpoint(object):
     def match_ed(self, ed):
         # type: (EndpointDescription) -> bool
         with self.__lock:
-            if len(self.__active_registrations) is 0:
+            if len(self.__active_registrations) == 0:
                 return False
             return self.__ed.is_same_service(ed)
 

@@ -352,7 +352,7 @@ class EndpointDescription(object):
         if self._ecfid is None:
             raise ValueError("ecf.endpoint.id must not be null")
         self._timestamp = self._verify_long_prop(ECF_ENDPOINT_TIMESTAMP)
-        if self._timestamp is 0:
+        if self._timestamp == 0:
             self._timestamp = self.get_service_id()
         self._id_namespace = self._verify_str_prop(
             ECF_ENDPOINT_CONTAINERID_NAMESPACE
