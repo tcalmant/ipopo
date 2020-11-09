@@ -33,7 +33,7 @@ from pelix.framework import create_framework
 # ------------------------------------------------------------------------------
 
 KARAF_URL = (
-    "http://apache.mediamirrors.org/karaf/4.2.7/apache-karaf-4.2.7.tar.gz"
+    "http://apache.mediamirrors.org/karaf/4.2.10/apache-karaf-4.2.10.tar.gz"
 )
 
 __version_info__ = (1, 0, 1)
