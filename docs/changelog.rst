@@ -6,7 +6,7 @@ Release Notes
 iPOPO 1.0.1
 ===========
 
-:Release Date: 2020-11-09
+:Release Date: 2020-11-10
 
 iPOPO
 -----
