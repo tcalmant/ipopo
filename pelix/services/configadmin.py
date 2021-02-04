@@ -570,7 +570,7 @@ class ConfigurationAdmin(object):
             pids.update(persistence.get_pids())
 
         # Notify services
-        self.__notify_pids(pids)
+        self.__notify_pids(pids, True)
 
     @Validate
     def _validate(self, _):
@@ -686,7 +686,7 @@ class ConfigurationAdmin(object):
             # Forget the reference
             del self._factories_refs[svc_ref]
 
-    def __notify_pids(self, pids):
+    def __notify_pids(self, pids, in_current_thread=True):
         """
         Updates the managed services for the given PIDs.
 
@@ -700,7 +700,7 @@ class ConfigurationAdmin(object):
                 config = self.get_configuration(pid)
                 if config.is_valid():
                     # Notify corresponding service
-                    self._update(config)
+                    self._update(config, in_current_thread)
             except (IOError, ValueError) as ex:
                 _logger.error("Error loading configuration %s: %s", pid, ex)
 
@@ -810,7 +810,7 @@ class ConfigurationAdmin(object):
             except Exception as ex:
                 _logger.exception("Error updating service: %s", ex)
 
-    def _update(self, configuration):
+    def _update(self, configuration, in_current_thread=False):
         """
         A configuration has been updated.
 
@@ -830,20 +830,26 @@ class ConfigurationAdmin(object):
                 # Get the associated factories
                 factories = self.__get_matching_factories(factory_pid)
                 if factories:
-                    # Call them from the pool
-                    future = self._pool.enqueue(
-                        self.__notify_factories, factories, pid, properties
-                    )
+                    if in_current_thread:
+                        self.__notify_factories(factories, pid, properties)
+                    else:
+                        # Call them from the pool
+                        future = self._pool.enqueue(
+                            self.__notify_factories, factories, pid, properties
+                        )
             else:
                 # Called corresponding managed services
                 managed = self.__get_matching_services(configuration.get_pid())
                 if managed:
-                    # Call them from the pool
-                    future = self._pool.enqueue(
-                        self.__notify_services, managed, properties
-                    )
+                    if in_current_thread:
+                        self.__notify_services(managed, properties)
+                    else:
+                        # Call them from the pool
+                        future = self._pool.enqueue(
+                            self.__notify_services, managed, properties
+                        )
 
-        if future is not None:
+        if not in_current_thread and future is not None:
             # Wait for the end of the notification, outside the lock
             future.result()
 
