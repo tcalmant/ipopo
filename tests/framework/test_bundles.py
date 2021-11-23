@@ -318,8 +318,13 @@ def test_fct():
 
         # Compute the bundle full path
         simple_name = "generated_bundle"
-        bundle_name = '{0}.{1}'.format(
-            __name__.rsplit('.', 1)[0], simple_name)
+
+        if "." in __name__:
+            bundle_name = '{0}.{1}'.format(
+                __name__.rsplit('.', 1)[0], simple_name)
+        else:
+            bundle_name = simple_name
+
         bundle_fullname = os.path.join(
             os.path.dirname(__file__), "{0}.py".format(simple_name))
 
