@@ -38,7 +38,7 @@ import traceback
 # Standard typing module should be optional
 try:
     # pylint: disable=W0611
-    from typing import Any, Optional, Union
+    from typing import Any, Iterable, Optional
 except ImportError:
     pass
 
@@ -549,6 +549,7 @@ else:
 
 
 def to_iterable(value, allow_none=True):
+    # type: (Any, bool) -> Optional[Iterable[Any]]
     """
     Tries to convert the given value to an iterable, if necessary.
     If the given value is a list, a list is returned; if it is a string, a list

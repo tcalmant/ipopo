@@ -28,6 +28,12 @@ TODO: Stabilize implementation of managed service factories
 FIXME: Add tests for the configuration of managed service factories
 """
 
+# Use typing if avaible
+try:
+    from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+except ImportError:
+    pass
+
 # Standard library
 import json
 import logging
@@ -48,6 +54,7 @@ from pelix.ipopo.decorators import (
     UnbindField,
 )
 import pelix.constants
+import pelix.framework
 import pelix.ldapfilter as ldapfilter
 import pelix.services as services
 import pelix.threadpool
@@ -84,6 +91,7 @@ class Configuration(object):
     def __init__(
         self, pid, properties, config_admin, persistence, factory_pid=None
     ):
+        # type: (str, Optional[Dict[str, Any]], ConfigurationAdmin, Any, Optional[str]) -> None
         """
         :param pid: The configuration PID
         :param properties: The initial properties of the configuration
@@ -98,17 +106,17 @@ class Configuration(object):
         self.__factory_pid = factory_pid
 
         # Properties
-        self.__properties = None
+        self.__properties = None  # type: Optional[Dict[str, Any]]
         self.__lock = threading.RLock()
 
         # Associated services
-        self.__config_admin = config_admin
-        self.__persistence = persistence
+        self.__config_admin = config_admin  # type: ConfigurationAdmin
+        self.__persistence = persistence  # type: JsonPersistence
 
         # Configuration state
         self.__updated = False
         self.__deleted = False
-        self.__location = None
+        self.__location = None  # type: Optional[str]
 
         # Update using given properties, if any
         self.__properties_update(properties)
@@ -127,6 +135,7 @@ class Configuration(object):
         )
 
     def get_bundle_location(self):
+        # type: () -> Optional[str]
         """
         Get the bundle location.
         Returns the bundle location to which this configuration is bound,
@@ -151,6 +160,7 @@ class Configuration(object):
         self.__location = location
 
     def get_factory_pid(self):
+        # type: () -> Optional[str]
         """
         For a factory configuration returns the PID of the corresponding
         Managed Service Factory, else returns None.
@@ -160,6 +170,7 @@ class Configuration(object):
         return self.__factory_pid
 
     def get_pid(self):
+        # type: () -> str
         """
         Returns the PID of this configuration
 
@@ -168,6 +179,7 @@ class Configuration(object):
         return self.__pid
 
     def get_properties(self):
+        # type: () -> Optional[Dict[str, Any]]
         """
         Return the properties of this Configuration object.
         The Dictionary object returned is a private copy for the caller and may
@@ -190,7 +202,10 @@ class Configuration(object):
                 return None
 
             # Filter a copy of the properties
-            props = self.__properties.copy()
+            if self.__properties is None:
+                props = {}  # type: Dict[str, Any]
+            else:
+                props = self.__properties.copy()
 
             try:
                 del props[services.CONFIG_PROP_BUNDLE_LOCATION]
@@ -201,6 +216,7 @@ class Configuration(object):
             return props
 
     def is_valid(self):
+        # type: () -> bool
         """
         Checks if this configuration has been updated at least once and has not
         been deleted.
@@ -211,6 +227,7 @@ class Configuration(object):
         return self.__updated and not self.__deleted
 
     def __properties_update(self, properties):
+        # type: (Optional[Dict[str, Any]]) -> bool
         """
         Internal update of configuration properties. Does not notifies the
         ConfigurationAdmin of this modification.
@@ -255,6 +272,7 @@ class Configuration(object):
             return True
 
     def reload(self):
+        # type: () -> None
         """
         Reloads the configuration file using the persistence service
 
@@ -264,6 +282,7 @@ class Configuration(object):
         self.update(self.__persistence.load(self.__pid))
 
     def update(self, properties=None):
+        # type: (Optional[Dict[str, Any]]) -> None
         # pylint: disable=W0212
         """
         If called without properties, only notifies listeners
@@ -296,6 +315,7 @@ class Configuration(object):
                 self.__config_admin._update(self)
 
     def delete(self, directory_updated=False):
+        # type: (bool) -> None
         # pylint: disable=W0212
         """
         Delete this configuration
@@ -314,19 +334,24 @@ class Configuration(object):
 
             # Notify ConfigurationAdmin, notify services only if the
             # configuration had been updated before
-            self.__config_admin._delete(self, self.__updated, directory_updated)
+            if self.__config_admin is not None:
+                self.__config_admin._delete(
+                    self, self.__updated, directory_updated
+                )
 
             # Remove the file
-            self.__persistence.delete(self.__pid)
+            if self.__persistence is not None:
+                self.__persistence.delete(self.__pid)
 
             # Clean up
             if self.__properties:
                 self.__properties.clear()
 
-            self.__persistence = None
-            self.__pid = None
+            self.__persistence = None  # type: ignore
+            self.__pid = ""
 
     def matches(self, ldap_filter):
+        # type: (Union[ldapfilter.LDAPFilter,ldapfilter.LDAPCriteria]) -> bool
         """
         Tests if this configuration matches the given filter.
 
@@ -348,7 +373,7 @@ class Configuration(object):
 @Provides(SERVICE_CONFIGADMIN_DIRECTORY)
 @Requires("_admin", SERVICE_CONFIGURATION_ADMIN_PRIVATE)
 @Instantiate("pelix-services-configuration-directory")
-class _ConfigurationDirectory(object):
+class ConfigurationDirectory(object):
     """
     A configuration directory
     """
@@ -358,18 +383,19 @@ class _ConfigurationDirectory(object):
         Sets up members
         """
         # ConfigurationAdmin
-        self._admin = None
+        self._admin = None  # type: Optional[ConfigurationAdmin]
 
         # PID -> Configuration
-        self.__configurations = {}
+        self.__configurations = {}  # type: Dict[str, Configuration]
 
         # Factory PIDs -> set(Configuration)
-        self.__factories = {}
+        self.__factories = {}  # type: Dict[str, Set[Configuration]]
 
         # Lock
         self.__lock = threading.Lock()
 
     def exists(self, pid):
+        # type: (str) -> bool
         """
         Checks if the given PID exists in the directory
 
@@ -379,6 +405,7 @@ class _ConfigurationDirectory(object):
         return pid in self.__configurations or pid in self.__factories
 
     def get_configuration(self, pid):
+        # type: (str) -> Configuration
         """
         Retrieves the configuration with the given PID
 
@@ -389,6 +416,7 @@ class _ConfigurationDirectory(object):
         return self.__configurations[pid]
 
     def get_factory_configurations(self, factory_pid):
+        # type: (str) -> Set[Configuration]
         """
         Retrieves the configurations with the given factory PID
 
@@ -398,6 +426,7 @@ class _ConfigurationDirectory(object):
         return set(self.__factories.get(factory_pid, tuple()))
 
     def list_configurations(self, ldap_filter=None):
+        # type: (Union[str,ldapfilter.LDAPFilter,ldapfilter.LDAPCriteria]) -> Set[Configuration]
         """
         Returns the list of stored configurations
 
@@ -409,14 +438,18 @@ class _ConfigurationDirectory(object):
             return set(self.__configurations.values())
 
         # Using an LDAP filter
-        ldap_filter = ldapfilter.get_ldap_filter(ldap_filter)
+        parsed_filter = ldapfilter.get_ldap_filter(ldap_filter)
+        if parsed_filter is None:
+            return set(self.__configurations.values())
+
         return {
             config
             for config in self.__configurations.values()
-            if config.matches(ldap_filter)
+            if config.matches(parsed_filter)
         }
 
     def add(self, pid, properties, loader, factory_pid=None):
+        # type: (str, Optional[Dict[str, Any]], Any, Optional[str]) -> Configuration
         """
         Creates a new configuration bean
 
@@ -428,6 +461,9 @@ class _ConfigurationDirectory(object):
         :raise KeyError: PID already used
         :raise ValueError: Invalid PID or loader
         """
+        if self._admin is None:
+            raise ValueError("ConfigurationAdmin not available")
+
         with self.__lock:
             if pid in self.__configurations:
                 raise KeyError("Already known configuration: {0}".format(pid))
@@ -459,6 +495,7 @@ class _ConfigurationDirectory(object):
             return configuration
 
     def update(self, pid, properties):
+        # type: (str, Optional[Dict[str, Any]]) -> None
         """
         Updates the properties of an existing configuration
 
@@ -472,6 +509,7 @@ class _ConfigurationDirectory(object):
             self.__configurations[pid].update(properties)
 
     def delete(self, pid):
+        # type: (str) -> None
         """
         Deletes the configuration with the given PID
 
@@ -486,10 +524,11 @@ class _ConfigurationDirectory(object):
             try:
                 # Remove from the factory PIDs set
                 factory_pid = config.get_factory_pid()
-                factory_confs = self.__factories[factory_pid]
-                factory_confs.remove(config)
-                if not factory_confs:
-                    del self.__factories[factory_pid]
+                if factory_pid:
+                    factory_confs = self.__factories[factory_pid]
+                    factory_confs.remove(config)
+                    if not factory_confs:
+                        del self.__factories[factory_pid]
             except KeyError:
                 # Wasn't a factory configuration
                 pass
@@ -531,32 +570,36 @@ class ConfigurationAdmin(object):
 
     def __init__(self):
         # Service controller
-        self._controller = False
+        self._controller = False  # type: bool
 
         # Persistence services
-        self._persistences = []
+        self._persistences = []  # type: List[Any]
 
         # Managed services
-        self._managed = []
+        self._managed = []  # type: List[Any]
 
         # Managed services factories
-        self._managed_factories = []
+        self._managed_factories = []  # type: List[Any]
 
         # Configurations directory
-        self._directory = None
+        self._directory = None  # type: Optional[ConfigurationDirectory]
 
         # Service reference -> Managed Service
-        self._managed_refs = {}
-        self._factories_refs = {}
+        self._managed_refs = (
+            {}
+        )  # type: Dict[pelix.framework.ServiceReference, Any]
+        self._factories_refs = (
+            {}
+        )  # type: Dict[pelix.framework.ServiceReference, Any]
 
         # Some safety
         self.__lock = threading.RLock()
 
         # Update thread pool
-        self._pool = None
+        self._pool = None  # type: Optional[pelix.threadpool.ThreadPool]
 
         # Validation flag
-        self.__validated = False
+        self.__validated = False  # type: bool
 
     def __set_up(self):
         """
@@ -574,6 +617,7 @@ class ConfigurationAdmin(object):
 
     @Validate
     def _validate(self, _):
+        # type: (pelix.framework.BundleContext) -> None
         """
         Component validated
         """
@@ -591,6 +635,7 @@ class ConfigurationAdmin(object):
 
     @Invalidate
     def _invalidate(self, _):
+        # type: (pelix.framework.BundleContext) -> None
         """
         Component invalidated
         """
@@ -598,12 +643,14 @@ class ConfigurationAdmin(object):
             # Validation flag
             self.__validated = False
 
-            # Stop the pool
-            self._pool.stop()
-            self._pool = None
+            if self._pool is not None:
+                # Stop the pool
+                self._pool.stop()
+                self._pool = None
 
     @BindField("_directory")
     def _bind_directory(self, _, svc, svc_ref):
+        # type: (str, Any, pelix.framework.ServiceReference) -> None
         # pylint: disable=W0613
         """
         The configurations directory has been bound
@@ -616,6 +663,7 @@ class ConfigurationAdmin(object):
 
     @BindField("_persistences")
     def _bind_persistence(self, _, svc, svc_ref):
+        # type: (str, Any, pelix.framework.ServiceReference) -> None
         # pylint: disable=W0613
         """
         A persistence came in
@@ -628,6 +676,7 @@ class ConfigurationAdmin(object):
     @UnbindField("_persistences")
     @UnbindField("_directory")
     def _unbind_directory(self, _, svc, svc_ref):
+        # type: (str, Any, pelix.framework.ServiceReference) -> None
         # pylint: disable=W0613
         """
         The configurations directory has gone
@@ -637,6 +686,7 @@ class ConfigurationAdmin(object):
 
     @BindField("_managed")
     def _bind_managed(self, _, svc, svc_ref):
+        # type: (str, Any, pelix.framework.ServiceReference) -> None
         """
         A managed service has been bound
         """
@@ -654,6 +704,7 @@ class ConfigurationAdmin(object):
 
     @UnbindField("_managed")
     def _unbind_managed(self, _, svc, svc_ref):
+        # type: (str, Any, pelix.framework.ServiceReference) -> None
         # pylint: disable=W0613
         """
         A managed service has gone
@@ -664,6 +715,7 @@ class ConfigurationAdmin(object):
 
     @BindField("_managed_factories")
     def _bind_managed_factory(self, _, svc, svc_ref):
+        # type: (str, Any, pelix.framework.ServiceReference) -> None
         """
         A managed service factory has been bound
         """
@@ -678,6 +730,7 @@ class ConfigurationAdmin(object):
 
     @UnbindField("_managed_factories")
     def _unbind_managed_factories(self, _, svc, svc_ref):
+        # type: (str, Any, pelix.framework.ServiceReference) -> None
         # pylint: disable=W0613
         """
         A managed service has gone
@@ -687,6 +740,7 @@ class ConfigurationAdmin(object):
             del self._factories_refs[svc_ref]
 
     def __notify_pids(self, pids, in_current_thread=True):
+        # type: (Iterable[str], bool) -> None
         """
         Updates the managed services for the given PIDs.
 
@@ -705,6 +759,7 @@ class ConfigurationAdmin(object):
                 _logger.error("Error loading configuration %s: %s", pid, ex)
 
     def __get_matching_factories(self, factory_pid):
+        # type: (str) -> List[Any]
         """
         Returns the list of managed service factories that matches the given
         factory PID
@@ -719,6 +774,7 @@ class ConfigurationAdmin(object):
         ]
 
     def __get_matching_services(self, pid):
+        # type: (str) -> List[Any]
         """
         Returns the list of managed services that matches the given PID
 
@@ -733,19 +789,25 @@ class ConfigurationAdmin(object):
         ]
 
     def __notify_single(self, pid, svc):
+        # type: (str, Any) -> None
         """
         Adds a call to the updated() method of the given managed service in the
         pool, if a valid configuration has been found for it.
 
         :param pid: Service Persistent ID
         :param svc: Managed service
+        :raise ValueError: Thread pool not available
         """
+        if self._pool is None:
+            raise ValueError("Thread pool not available")
+
         configuration = self.get_configuration(pid)
         if configuration.is_valid():
             # Valid configuration found, update the service
             self._pool.enqueue(svc.updated, configuration.get_properties())
 
     def __notify_factory(self, factory_pid, svc):
+        # type: (str, Any) -> None
         """
         Adds a call to the updated() method of the given managed service
         factory in the pool, if valid configurations have been found for it.
@@ -753,6 +815,12 @@ class ConfigurationAdmin(object):
         :param factory_pid: Factory Persistent ID
         :param svc: Managed service factory
         """
+        if self._directory is None:
+            raise ValueError("No configuration directory available")
+
+        if self._pool is None:
+            raise ValueError("ThreadPool not available")
+
         configurations = self._directory.get_factory_configurations(factory_pid)
         if configurations:
             for configuration in configurations:
@@ -766,6 +834,7 @@ class ConfigurationAdmin(object):
 
     @staticmethod
     def __notify_factories(factories, pid, properties):
+        # type: (List[Any], str, Optional[Dict[str, Any]]) -> None
         """
         Calls the updated(pid, properties) method of managed service factories.
 
@@ -782,6 +851,7 @@ class ConfigurationAdmin(object):
 
     @staticmethod
     def __notify_factories_delete(factories, pid):
+        # type: (List[Any], str) -> None
         """
         Calls the deleted(pid) method of the given managed service factories.
 
@@ -796,6 +866,7 @@ class ConfigurationAdmin(object):
 
     @staticmethod
     def __notify_services(managed_services, properties):
+        # type: (List[Any], Optional[Dict[str, Any]]) -> None
         """
         Calls the updated(properties) method of managed services.
         Logs errors if necessary.
@@ -811,6 +882,7 @@ class ConfigurationAdmin(object):
                 _logger.exception("Error updating service: %s", ex)
 
     def _update(self, configuration, in_current_thread=False):
+        # type: (Configuration, bool) -> None
         """
         A configuration has been updated.
 
@@ -818,6 +890,9 @@ class ConfigurationAdmin(object):
 
         :param configuration: The updated configuration
         """
+        if self._pool is None:
+            raise ValueError("ThreadPool not available")
+
         with self.__lock:
             future = None
 
@@ -854,6 +929,7 @@ class ConfigurationAdmin(object):
             future.result()
 
     def _delete(self, configuration, notify_services, directory_updated):
+        # type: (Configuration, bool, bool) -> None
         """
         A configuration is about to be deleted.
 
@@ -863,6 +939,9 @@ class ConfigurationAdmin(object):
         :param notify_services: If True, notify services of the deletion
         :param directory_updated: If True, do not update the directory
         """
+        if self._pool is None:
+            raise ValueError("ThreadPool not available")
+
         with self.__lock:
             future = None
 
@@ -870,7 +949,7 @@ class ConfigurationAdmin(object):
             pid = configuration.get_pid()
 
             # Remove the configuration from the directory
-            if not directory_updated:
+            if not directory_updated and self._directory is not None:
                 self._directory.delete(pid)
 
             if notify_services:
@@ -896,6 +975,7 @@ class ConfigurationAdmin(object):
             future.result()
 
     def create_factory_configuration(self, factory_pid):
+        # type: (str) -> Configuration
         """
         Create a new factory Configuration object with a new PID.
         The properties of the new Configuration object are null until the
@@ -904,6 +984,9 @@ class ConfigurationAdmin(object):
         :param factory_pid: PID of the factory
         :raise ValueError: Invalid PID
         """
+        if self._directory is None:
+            raise ValueError("No configuration directory available")
+
         with self.__lock:
             if factory_pid is None:
                 raise ValueError("No factory PID given")
@@ -930,6 +1013,7 @@ class ConfigurationAdmin(object):
             )
 
     def get_configuration(self, pid):
+        # type: (str) -> Configuration
         """
         Get an existing Configuration object from the persistent store, or
         create a new Configuration object.
@@ -937,6 +1021,9 @@ class ConfigurationAdmin(object):
         :param pid: PID of the factory
         :raise IOError: File not found/readable
         """
+        if self._directory is None:
+            raise ValueError("No configuration directory available")
+
         with self.__lock:
             try:
                 return self._directory.get_configuration(pid)
@@ -963,6 +1050,7 @@ class ConfigurationAdmin(object):
             )
 
     def list_configurations(self, ldap_filter=None):
+        # type: (Optional[Union[str,ldapfilter.LDAPFilter,ldapfilter.LDAPCriteria]]) -> Iterable[Configuration]
         """
         List the current Configuration objects which match the filter.
 
@@ -982,6 +1070,9 @@ class ConfigurationAdmin(object):
         The filter can also be null, meaning that all Configuration objects
         should be returned.
         """
+        if self._directory is None:
+            raise ValueError("No configuration directory available")
+
         with self.__lock:
             return self._directory.list_configurations(ldap_filter)
 
@@ -1009,13 +1100,14 @@ class JsonPersistence(object):
         Sets up members
         """
         # Configurations directory
-        self._directory = None
+        self._directory = None  # type: Optional[ConfigurationDirectory]
 
         # Configuration folder
-        self._conf_folder = None
-        self._watched_folder = None
+        self._conf_folder = ""  # type: str
+        self._watched_folder = ""  # type: str
 
     def _get_file(self, pid):
+        # type: (str) -> str
         """
         Returns the path to the configuration file for the given PID
 
@@ -1026,6 +1118,7 @@ class JsonPersistence(object):
 
     @staticmethod
     def _get_pid(filename):
+        # type: (str) -> Optional[str]
         """
         Extract the PID from the given file name
 
@@ -1044,6 +1137,7 @@ class JsonPersistence(object):
 
     @Validate
     def validate(self, _):
+        # type: (pelix.framework.BundleContext) -> None
         """
         Component validated
         """
@@ -1060,14 +1154,16 @@ class JsonPersistence(object):
 
     @Invalidate
     def invalidate(self, _):
+        # type: (pelix.framework.BundleContext) -> None
         """
         Component invalidated
         """
         # Clear the cache
-        self._watched_folder = None
-        self._conf_folder = None
+        self._watched_folder = ""
+        self._conf_folder = ""
 
     def __load_file(self, filename):
+        # type: (str) -> Optional[Tuple[str, Dict[str, Any]]]
         """
         Loads the configuration file with the given name
 
@@ -1094,6 +1190,7 @@ class JsonPersistence(object):
         return pid, properties
 
     def exists(self, pid):
+        # type: (str) -> bool
         """
         Returns True if a configuration with the given PID exists
 
@@ -1103,6 +1200,7 @@ class JsonPersistence(object):
         return os.path.isfile(self._get_file(pid))
 
     def load(self, pid):
+        # type: (str) -> Dict[str, Any]
         """
         Loads the configuration file for the given PID
 
@@ -1118,6 +1216,7 @@ class JsonPersistence(object):
         return json.loads(data)
 
     def store(self, pid, properties):
+        # type: (str, Optional[Dict[str, Any]]) -> None
         """
         Stores the configuration with the given PID. Overwrites existing
         configuration.
@@ -1138,6 +1237,7 @@ class JsonPersistence(object):
             filep.write("\n")
 
     def delete(self, pid):
+        # type: (str) -> bool
         """
         Removes the configuration for the given PID. Does nothing if the
         configuration does not exist.
@@ -1152,6 +1252,7 @@ class JsonPersistence(object):
             return False
 
     def get_pids(self):
+        # type: () -> Set[str]
         """
         Returns the list of PIDs this storage could read
         """
@@ -1165,6 +1266,7 @@ class JsonPersistence(object):
         return pids
 
     def folder_change(self, folder, added, updated, deleted):
+        # type: (str, List[str], List[str], List[str]) -> None
         """
         The configuration folder has been modified
 
@@ -1177,15 +1279,20 @@ class JsonPersistence(object):
         if folder != self._conf_folder:
             return
 
+        if self._directory is None:
+            # Silent ignore when the directory is not available
+            return
+
         # Handle deleted configurations first
         for filename in deleted:
             pid = self._get_pid(filename)
-            try:
-                # Delete the configuration
-                self._directory.delete(pid)
-            except KeyError:
-                # Ignore unknown configuration
-                pass
+            if pid:
+                try:
+                    # Delete the configuration
+                    self._directory.delete(pid)
+                except KeyError:
+                    # Ignore unknown configuration
+                    pass
 
         # Handle updated configurations
         for filenames in added, updated:
@@ -1216,6 +1323,7 @@ class Activator(object):
 
     @staticmethod
     def start(context):
+        # type: (pelix.framework.BundleContext) -> None
         """
         Bundle started
         """
@@ -1233,6 +1341,7 @@ class Activator(object):
 
     @staticmethod
     def stop(_):
+        # type: (pelix.framework.BundleContext) -> None
         """
         Bundle stopped
         """

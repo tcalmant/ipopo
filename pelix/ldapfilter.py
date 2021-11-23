@@ -340,7 +340,7 @@ def escape_LDAP(ldap_string):
 
 
 def unescape_LDAP(ldap_string):
-    # type: (str) -> str
+    # type: (str) -> Optional[str]
     # pylint: disable=C0103
     """
     Unespaces an LDAP string
@@ -821,9 +821,9 @@ def _parse_ldap_criteria(ldap_filter, startidx=0, endidx=-1):
         comparator = _comparator_presence
     elif "*" in value:
         # Joker
-        if comparator == _comparator_eq:
+        if comparator is _comparator_eq:
             comparator = _comparator_star
-        elif comparator == _comparator_approximate:
+        elif comparator is _comparator_approximate:
             comparator = _comparator_approximate_star
 
     return LDAPCriteria(

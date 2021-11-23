@@ -133,7 +133,7 @@ class StoredInstance(object):
         self.state = StoredInstance.INVALID
 
         # Stack track of validation error
-        self.error_trace = None  # type: str
+        self.error_trace = None  # type: Optional[str]
 
         # Store the bundle context
         self.bundle_context = self.context.get_bundle_context()
@@ -467,9 +467,9 @@ class StoredInstance(object):
             # Clean up members
             self._handlers.clear()
             self.__all_handlers.clear()
-            self._handlers = None
-            self.__all_handlers = None
-            self.context = None
+            self._handlers = None  # type: ignore
+            self.__all_handlers = None  # type: ignore
+            self.context = None  # type: ignore
             self.instance = None
             self._ipopo_service = None
             return True
@@ -533,7 +533,7 @@ class StoredInstance(object):
         return True
 
     def __callback(self, event, *args, **kwargs):
-        # type: (str, *Any, **Any) -> Any
+        # type: (str, Any, Any) -> Any
         """
         Calls the registered method in the component for the given event
 
@@ -595,7 +595,7 @@ class StoredInstance(object):
         return result
 
     def __field_callback(self, field, event, *args, **kwargs):
-        # type: (str, str, *Any, **Any) -> Any
+        # type: (str, str, Any, Any) -> Any
         """
         Calls the registered method in the component for the given field event
 
@@ -626,7 +626,7 @@ class StoredInstance(object):
         return result
 
     def safe_callback(self, event, *args, **kwargs):
-        # type: (str, *Any, **Any) -> Any
+        # type: (str, Any, Any) -> Any
         """
         Calls the registered method in the component for the given event,
         ignoring raised exceptions
@@ -710,7 +710,7 @@ class StoredInstance(object):
             return False
 
     def __safe_field_callback(self, field, event, *args, **kwargs):
-        # type: (str, str, *Any, **Any) -> Any
+        # type: (str, str, Any, Any) -> Any
         """
         Calls the registered method in the component for the given event,
         ignoring raised exceptions
@@ -751,7 +751,7 @@ class StoredInstance(object):
             return False
 
     def __safe_handler_callback(self, handler, method_name, *args, **kwargs):
-        # type: (Any, str, *Any, **Any) -> Any
+        # type: (Any, str, Any, Any) -> Any
         """
         Calls the given method with the given arguments in the given handler.
         Logs exceptions, but doesn't propagate them.
@@ -810,7 +810,7 @@ class StoredInstance(object):
         return result
 
     def __safe_handlers_callback(self, method_name, *args, **kwargs):
-        # type: (str, *Any, **Any) -> bool
+        # type: (str, Any, Any) -> bool
         """
         Calls the given method with the given arguments in all handlers.
         Logs exceptions, but doesn't propagate them.

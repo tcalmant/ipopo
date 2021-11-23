@@ -1631,10 +1631,10 @@ class BundleContext(object):
         result = self.__framework.find_service_references(
             clazz, ldap_filter, True
         )
-        try:
+        if result is not None:
             return result[0]
-        except TypeError:
-            return None
+
+        return None
 
     def get_service_references(self, clazz, ldap_filter=None):
         # type: (Optional[str], Optional[str]) -> Optional[List[ServiceReference]]
@@ -1802,7 +1802,7 @@ class FrameworkFactory(object):
     A framework factory
     """
 
-    __singleton = None  # type: Framework
+    __singleton = None  # type: Optional[Framework]
     """ The framework singleton """
 
     @classmethod
@@ -1849,7 +1849,7 @@ class FrameworkFactory(object):
         if framework is None:
             framework = cls.__singleton
 
-        if framework is cls.__singleton:
+        if framework is not None and framework is cls.__singleton:
             # Stop the framework
             try:
                 framework.stop()
@@ -1906,7 +1906,7 @@ def create_framework(
     :param wait_for_stop: If True, the method will return only when the
                           framework will have stopped
     :param auto_delete: If True, deletes the framework once it stopped.
-    :return: The framework instance
+    :return: The framework instance. None if auto_delete is set.
     :raise ValueError: Only one framework can run at a time
     """
     # Test if a framework already exists
@@ -1937,7 +1937,7 @@ def create_framework(
             if auto_delete:
                 # Delete the framework
                 FrameworkFactory.delete_framework(framework)
-                framework = None
+                return None  # type: ignore
 
     return framework
 

@@ -28,7 +28,16 @@ Definition of Factory and Component context classes
 # Standard typing module should be optional
 try:
     # pylint: disable=W0611
-    from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+    from typing import (
+        Any,
+        Callable,
+        Dict,
+        Iterable,
+        List,
+        Optional,
+        Tuple,
+        Union,
+    )
     from pelix.framework import BundleContext
 except ImportError:
     pass
@@ -102,13 +111,17 @@ class Requirement(object):
         self.immediate_rebind = immediate_rebind
 
         # Original filter keeper
-        self.__original_filter = None  # type: str
+        self.__original_filter = None  # type: Optional[str]
 
         # Full filter (with the specification test)
-        self.__full_filter = None  # type: ldapfilter.LDAPFilter
+        self.__full_filter = (
+            None
+        )  # type: Optional[Union[ldapfilter.LDAPFilter, ldapfilter.LDAPCriteria]]
 
         # Set up the requirement filter (after setting up self.specification)
-        self.filter = None  # type: ldapfilter.LDAPFilter
+        self.filter = (
+            None
+        )  # type: Optional[Union[ldapfilter.LDAPFilter, ldapfilter.LDAPCriteria]]
         self.set_filter(spec_filter)
 
     def __eq__(self, other):
@@ -170,12 +183,16 @@ class Requirement(object):
             # No properties : invalid service
             return False
 
+        if self.__full_filter is None:
+            # No filter: all are matching
+            return True
+
         # Properties filter test
         return self.__full_filter.matches(properties)
 
     @property
     def full_filter(self):
-        # type: () -> ldapfilter.LDAPFilter
+        # type: () -> Optional[Union[ldapfilter.LDAPFilter,ldapfilter.LDAPCriteria]]
         """
         The filter that tests both specification and properties
         """
@@ -256,7 +273,7 @@ class FactoryContext(object):
         Sets up the factory context
         """
         # Factory bundle context
-        self.bundle_context = None  # type: BundleContext
+        self.bundle_context = None  # type: Optional[BundleContext]
 
         # Callbacks : Kind -> callback method
         self.callbacks = {}
@@ -265,16 +282,16 @@ class FactoryContext(object):
         self.field_callbacks = {}
 
         # The factory name
-        self.name = None  # type: str
+        self.name = ""  # type: str
 
         # Properties : Name -> Value
         self.properties = {}
 
         # Properties fields : Field name -> Property name
-        self.properties_fields = {}
+        self.properties_fields = {}  # type: Dict[str, str]
 
         # Hidden Properties: Name -> Value
-        self.hidden_properties = {}
+        self.hidden_properties = {}  # type: Dict[str, Any]
 
         # Singleton factory
         self.is_singleton = False
@@ -286,13 +303,13 @@ class FactoryContext(object):
         self.completed = False
 
         # Handler ID -> configuration
-        self.__handlers = {}
+        self.__handlers = {}  # type: Dict[str, Any]
 
         # Inherited configuration
         self.__inherited_configuration = {}
 
         # Instance name -> Instance properties
-        self.__instances = {}
+        self.__instances = {}  # type: Dict[str, Optional[Dict[str, Any]]]
 
     def __eq__(self, other):
         """
@@ -363,7 +380,7 @@ class FactoryContext(object):
         return new_context
 
     def inherit_handlers(self, excluded_handlers):
-        # type: (Iterable[str]) -> None
+        # type: (Optional[Iterable[str]]) -> None
         """
         Merges the inherited configuration with the current ones
 
@@ -397,7 +414,7 @@ class FactoryContext(object):
         self.__inherited_configuration.clear()
 
     def add_instance(self, name, properties):
-        # type: (str, dict) -> None
+        # type: (str, Optional[Dict[str, Any]]) -> None
         """
         Stores the description of a component instance. The given properties
         are stored as is.
@@ -527,7 +544,7 @@ class ComponentContext(object):
 
         :return: The component bundle context
         """
-        return self.factory_context.bundle_context
+        return self.factory_context.bundle_context  # type: ignore
 
     def get_callback(self, event):
         # type: (str) -> Optional[Callable]
@@ -567,7 +584,7 @@ class ComponentContext(object):
 
         :return: The component factory name
         """
-        return self.factory_context.name
+        return self.factory_context.name  # type: ignore
 
     def get_handler(self, handler_id):
         # type: (str) -> Any

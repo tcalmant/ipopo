@@ -35,7 +35,7 @@ import types
 # Standard typing module should be optional
 try:
     # pylint: disable=W0611
-    from typing import Any, Callable
+    from typing import Any, Callable, Optional
 except ImportError:
     pass
 
@@ -565,7 +565,7 @@ class ComponentFactory(object):
         :param excluded: List of IDs of handlers which configuration must
                          **not** be inherited from the parent class
         """
-        self.__factory_name = name
+        self.__factory_name = name  # type: Optional[str]
         self.__excluded_inheritance = to_iterable(excluded)
 
     def __call__(self, factory_class):
@@ -588,13 +588,12 @@ class ComponentFactory(object):
         # Test if a manipulation has already been applied
         if not context.completed:
             # Set up the factory name
-            if not self.__factory_name:
-                self.__factory_name = factory_class.__name__ + "Factory"
+            factory_name = (self.__factory_name if self.__factory_name else factory_class.__name__ + "Factory")
 
             # Manipulate the class...
 
             # Update the factory context
-            context.name = self.__factory_name
+            context.name = factory_name
             context.inherit_handlers(self.__excluded_inheritance)
             context.is_singleton = False
             context.completed = True
