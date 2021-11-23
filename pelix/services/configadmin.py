@@ -674,6 +674,17 @@ class ConfigurationAdmin(object):
             self.__set_up()
 
     @UnbindField("_persistences")
+    def _unbind_persistence(self, _, svc, svc_ref):
+        # type: (str, Any, pelix.framework.ServiceReference) -> None
+        # pylint: disable=W0613
+        """
+        The configurations directory has gone
+        """
+        # Remove the ConfigurationAdmin service if it was the last persistence
+        self._controller = (
+            bool(self._persistences) and self._directory is not None
+        )
+
     @UnbindField("_directory")
     def _unbind_directory(self, _, svc, svc_ref):
         # type: (str, Any, pelix.framework.ServiceReference) -> None
