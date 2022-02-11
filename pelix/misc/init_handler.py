@@ -32,10 +32,9 @@ be used by shells to load a default configuration.
 import json
 import os
 import sys
-
-# Pelix
 import yaml
 
+# Pelix
 from pelix.ipopo.constants import use_ipopo
 from pelix.utilities import remove_duplicates
 
