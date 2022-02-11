@@ -34,6 +34,8 @@ import os
 import sys
 
 # Pelix
+import yaml
+
 from pelix.ipopo.constants import use_ipopo
 from pelix.utilities import remove_duplicates
 
@@ -319,8 +321,12 @@ class InitFileHandler(object):
             for name in self.find_default(".pelix.conf"):
                 self.load(name)
         else:
+            _, file_extension = os.path.splitext(filename)
             with open(filename, "r") as filep:
-                self.__parse(json.load(filep))
+                if file_extension == ".yaml" or file_extension == ".yml":
+                    self.__parse(yaml.safe_load(filep))
+                else:
+                    self.__parse(json.load(filep))
 
     def __parse(self, configuration):
         """
