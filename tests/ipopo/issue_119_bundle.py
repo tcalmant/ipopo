@@ -8,7 +8,6 @@ from pelix.ipopo.decorators import (
     ComponentFactory,
     Provides,
     Property,
-    Requires,
     RequiresVarFilter,
 )
 
