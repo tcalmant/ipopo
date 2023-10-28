@@ -3,6 +3,18 @@
 Release Notes
 #############
 
+iPOPO 1.0.2
+===========
+
+:Release Date: 2023-10-28
+
+iPOPO
+-----
+
+* Fixed component not being validated correctly on filter update in the
+  `@RequiresVarFilter` handler.
+  See `#119 <https://github.com/tcalmant/ipopo/issues/113>`_  for more details.
+
 iPOPO 1.0.1
 ===========
 
