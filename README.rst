@@ -41,11 +41,13 @@ See https://ipopo.readthedocs.io/ for documentation and more information.
 Note on this version
 ====================
 
-This is the 1.x branch of iPOPO, which is intended to work with both Python 2.7
-and 3.x.
+This is the 3.x branch of iPOPO, which is intended to work with Python 3.12+.
 
-If you are working with Python 3.7+ and ``asyncio``, you should look at the 2.x
-branch.
+If you are working with Python between 2.7 and 3.7, you must instead use the 1.x
+branch of iPOPO.
+
+Version 2.x was a trial to implement iPOPO with ``asyncio`` for Python 3.7, but
+has been stalled due to various issues and lack of contributions.
 
 Usage survey
 ============
