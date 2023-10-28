@@ -12,7 +12,7 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 
 ..
 
-    Copyright 2020 Thomas Calmant
+    Copyright 2023 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
