@@ -1,6 +1,17 @@
 Release notes
 #############
 
+iPOPO 1.0.2
+***********
+
+iPOPO
+=====
+
+* Fixed component not being validated correctly on filter update in the
+  `@RequiresVarFilter` handler.
+  See `#119 <https://github.com/tcalmant/ipopo/issues/113>`_  for more details.
+
+
 iPOPO 1.0.1
 ***********
 
