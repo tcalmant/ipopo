@@ -27,7 +27,7 @@ from tests.http.test_basic import install_ipopo, instantiate_server, \
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (1, 0, 1)
+__version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 DEFAULT_HOST = "127.0.0.1"

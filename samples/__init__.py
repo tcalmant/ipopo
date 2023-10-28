@@ -4,7 +4,7 @@
 Package containing samples for the iPOPO documentation
 
 :author: Thomas Calmant
-:copyright: Copyright 2020, Thomas Calmant
+:copyright: Copyright 2023, Thomas Calmant
 :license: Apache License 2.0
 
 ..

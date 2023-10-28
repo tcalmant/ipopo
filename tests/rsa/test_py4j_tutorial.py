@@ -36,7 +36,7 @@ KARAF_URL = (
     "http://apache.mediamirrors.org/karaf/4.2.10/apache-karaf-4.2.10.tar.gz"
 )
 
-__version_info__ = (1, 0, 1)
+__version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -67,24 +67,24 @@ def install_karaf(folder=None):
             fd.seek(0)
             with tarfile.open(fileobj=fd, mode="r:gz") as tar:
                 def is_within_directory(directory, target):
-                    
+
                     abs_directory = os.path.abspath(directory)
                     abs_target = os.path.abspath(target)
-                
+
                     prefix = os.path.commonprefix([abs_directory, abs_target])
-                    
+
                     return prefix == abs_directory
-                
+
                 def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
-                
+
                     for member in tar.getmembers():
                         member_path = os.path.join(path, member.name)
                         if not is_within_directory(path, member_path):
                             raise Exception("Attempted Path Traversal in Tar File")
-                
-                    tar.extractall(path, members, numeric_owner=numeric_owner) 
-                    
-                
+
+                    tar.extractall(path, members, numeric_owner=numeric_owner)
+
+
                 safe_extract(tar)
     else:
         print("Karaf found.")

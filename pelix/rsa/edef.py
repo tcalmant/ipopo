@@ -5,9 +5,9 @@ Endpoint Description Extender Format (EDEF) is specified in OSGi Compendium
 specifications, section 122.8.
 
 :author: Thomas Calmant and Scott Lewis
-:copyright: Copyright 2020, Thomas Calmant
+:copyright: Copyright 2023, Thomas Calmant
 :license: Apache License 2.0
-:version: 1.0.1
+:version: 1.0.2
 
 ..
 
@@ -53,7 +53,7 @@ import pelix.constants
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (1, 0, 1)
+__version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

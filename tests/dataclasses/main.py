@@ -4,7 +4,7 @@
 Runs a framework and iPOPO to check behaviour with data classes (PEP-557)
 
 :author: Thomas Calmant
-:copyright: Copyright 2020, Thomas Calmant
+:copyright: Copyright 2023, Thomas Calmant
 :license: Apache License 2.0
 
 ..

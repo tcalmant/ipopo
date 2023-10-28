@@ -5,9 +5,9 @@ A bridge to publish and subscribe to EventAdmin events over the network using
 MQTT
 
 :author: Thomas Calmant
-:copyright: Copyright 2020, Thomas Calmant
+:copyright: Copyright 2023, Thomas Calmant
 :license: Apache License 2.0
-:version: 1.0.1
+:version: 1.0.2
 
 ..
 
@@ -47,7 +47,7 @@ import pelix.services as services
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (1, 0, 1)
+__version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
