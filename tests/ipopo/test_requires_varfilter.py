@@ -10,6 +10,8 @@ Tests the iPOPO @RequiresVarFilter decorator.
 import random
 import string
 
+from pelix.ipopo.instance import StoredInstance
+
 try:
     import unittest2 as unittest
 except ImportError:
@@ -554,6 +556,47 @@ class RequiresVarFilterTest(unittest.TestCase):
                 "Invalid component states: {0}".format(consumer.states),
             )
             self.assertIs(consumer.service, None, "Service injected")
+
+    def test_late_binding(self):
+        """
+        Tests late binding, see issue #119:
+        https://github.com/tcalmant/ipopo/issues/119
+        """
+        install_bundle(self.framework, "tests.ipopo.issue_119_bundle")
+        context = self.framework.get_bundle_context()
+        assert isinstance(context, BundleContext)
+
+        self.ipopo.instantiate("varservice-factory", "varservice-instance")
+        self.ipopo.instantiate("provider-factory", "provider-instance-1", {"prop": "svc1"})
+        self.ipopo.instantiate("provider-factory", "provider-instance-2", {"prop": "svc2"})
+
+        svc1 =  self.ipopo.get_instance("provider-instance-1")
+        svc2 =  self.ipopo.get_instance("provider-instance-2")
+        consumer =  self.ipopo.get_instance("varservice-instance")
+
+        self.assertEqual(self.ipopo.get_instance_details("provider-instance-1")["state"], StoredInstance.VALID)
+        self.assertEqual(self.ipopo.get_instance_details("provider-instance-2")["state"], StoredInstance.VALID)
+        self.assertEqual(self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.INVALID)
+
+        consumer.search = "svc1"
+        self.assertEqual(self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.VALID)
+        self.assertEqual(consumer.depends, svc1)
+
+        consumer.search = "svc2"
+        self.assertEqual(self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.VALID)
+        self.assertEqual(consumer.depends, svc2)
+
+        consumer.search = "non-existent"
+        self.assertEqual(self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.INVALID)
+        self.assertIsNone(consumer.depends)
+
+        consumer.search = "svc1"
+        self.assertEqual(self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.VALID)
+        self.assertEqual(consumer.depends, svc1)
+
+        consumer.search = None
+        self.assertEqual(self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.INVALID)
+        self.assertIsNone(consumer.depends)
 
 
 # ------------------------------------------------------------------------------

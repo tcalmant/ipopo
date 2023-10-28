@@ -239,6 +239,9 @@ class _VariableFilterMixIn:
             self.stop()
             self.start()
 
+            # Force bindings update
+            self._ipopo_instance.update_bindings()
+
             for svc_ref in self.get_bindings():
                 # Check if the current reference matches the filter
                 if not self.requirement.filter.matches(
