@@ -9,6 +9,7 @@ Tests the iPOPO @RequiresVarFilter decorator.
 # Standard library
 import random
 import string
+
 try:
     import unittest2 as unittest
 except ImportError:
@@ -38,6 +39,7 @@ class RequiresVarFilterTest(unittest.TestCase):
     """
     Tests the "requires variable filter" handler behavior
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -61,22 +63,30 @@ class RequiresVarFilterTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Prepare random string values
-        random_static_1 = ''.join(random.choice(string.ascii_letters)
-                                  for _ in range(50))
-        random_static_2 = ''.join(random.choice(string.ascii_letters)
-                                  for _ in range(50))
+        random_static_1 = "".join(
+            random.choice(string.ascii_letters) for _ in range(50)
+        )
+        random_static_2 = "".join(
+            random.choice(string.ascii_letters) for _ in range(50)
+        )
 
         # Assert that the service is not yet available
-        self.assertIsNone(context.get_service_reference(IEchoService),
-                          "Service is already registered")
+        self.assertIsNone(
+            context.get_service_reference(IEchoService),
+            "Service is already registered",
+        )
 
         # Instantiate the components
         consumer_single = self.ipopo.instantiate(
-            module.FACTORY_REQUIRES_VAR_FILTER, NAME_A,
-            {"static": random_static_1})
+            module.FACTORY_REQUIRES_VAR_FILTER,
+            NAME_A,
+            {"static": random_static_1},
+        )
         consumer_multi = self.ipopo.instantiate(
-            module.FACTORY_REQUIRES_VAR_FILTER_AGGREGATE, NAME_B,
-            {"static": random_static_1})
+            module.FACTORY_REQUIRES_VAR_FILTER_AGGREGATE,
+            NAME_B,
+            {"static": random_static_1},
+        )
         consumers = (consumer_single, consumer_multi)
 
         # Force the "answer" property to an int
@@ -85,46 +95,60 @@ class RequiresVarFilterTest(unittest.TestCase):
 
         # Component must be invalid
         for consumer in consumers:
-            self.assertListEqual([IPopoEvent.INSTANTIATED], consumer.states,
-                                 "Invalid component states: {0}"
-                                 .format(consumer.states))
+            self.assertListEqual(
+                [IPopoEvent.INSTANTIATED],
+                consumer.states,
+                "Invalid component states: {0}".format(consumer.states),
+            )
             consumer.reset()
 
         # Instantiate a service, matching the filter
         svc1 = object()
         context.register_service(
-            IEchoService, svc1,
-            {"s": random_static_1, "a": consumer_single.answer})
+            IEchoService,
+            svc1,
+            {"s": random_static_1, "a": consumer_single.answer},
+        )
 
         # The consumer must have been validated
         for consumer in consumers:
             self.assertListEqual(
-                [IPopoEvent.BOUND, IPopoEvent.VALIDATED], consumer.states,
-                "Invalid component states: {0}".format(consumer.states))
+                [IPopoEvent.BOUND, IPopoEvent.VALIDATED],
+                consumer.states,
+                "Invalid component states: {0}".format(consumer.states),
+            )
             consumer.reset()
 
         self.assertIs(consumer_single.service, svc1, "Wrong service injected")
-        self.assertListEqual(consumer_multi.service, [svc1],
-                             "Wrong service injected")
+        self.assertListEqual(
+            consumer_multi.service, [svc1], "Wrong service injected"
+        )
 
         # New service, still matching
         svc2 = object()
         reg2 = context.register_service(
-            IEchoService, svc2,
-            {"s": random_static_1, "a": consumer_single.answer})
+            IEchoService,
+            svc2,
+            {"s": random_static_1, "a": consumer_single.answer},
+        )
 
         # The single consumer must not have been modified
-        self.assertListEqual([], consumer_single.states,
-                             "Invalid component states: {0}"
-                             .format(consumer_single.states))
+        self.assertListEqual(
+            [],
+            consumer_single.states,
+            "Invalid component states: {0}".format(consumer_single.states),
+        )
         self.assertIs(consumer_single.service, svc1, "Wrong service injected")
 
         # The aggregate consumer must have been modified
-        self.assertListEqual([IPopoEvent.BOUND], consumer_multi.states,
-                             "Invalid component states: {0}"
-                             .format(consumer_multi.states))
-        self.assertListEqual(consumer_multi.service, [svc1, svc2],
-                             "Second service not injected")
+        self.assertListEqual(
+            [IPopoEvent.BOUND],
+            consumer_multi.states,
+            "Invalid component states: {0}".format(consumer_multi.states),
+        )
+        self.assertListEqual(
+            consumer_multi.service, [svc1, svc2], "Second service not injected"
+        )
 
         # Reset states
         for consumer in consumers:
@@ -134,17 +158,22 @@ class RequiresVarFilterTest(unittest.TestCase):
         reg2.unregister()
 
         # The single consumer must not have been modified
-        self.assertListEqual([], consumer_single.states,
-                             "Invalid component states: {0}"
-                             .format(consumer_single.states))
+        self.assertListEqual(
+            [],
+            consumer_single.states,
+            "Invalid component states: {0}".format(consumer_single.states),
+        )
         self.assertIs(consumer_single.service, svc1, "Wrong service injected")
 
         # The aggregate consumer must have been modified
-        self.assertListEqual([IPopoEvent.UNBOUND], consumer_multi.states,
-                             "Invalid component states: {0}"
-                             .format(consumer_multi.states))
-        self.assertListEqual(consumer_multi.service, [svc1],
-                             "Second service not removed")
+        self.assertListEqual(
+            [IPopoEvent.UNBOUND],
+            consumer_multi.states,
+            "Invalid component states: {0}".format(consumer_multi.states),
+        )
+        self.assertListEqual(
+            consumer_multi.service, [svc1], "Second service not removed"
+        )
 
         # Change the filter property to the exact same value
         for consumer in consumers:
@@ -152,14 +181,17 @@ class RequiresVarFilterTest(unittest.TestCase):
             consumer.change(42)
 
             # The consumer must not have been modified
-            self.assertListEqual([], consumer.states,
-                                 "Invalid component states: {0}"
-                                 .format(consumer.states))
+            self.assertListEqual(
+                [],
+                consumer.states,
+                "Invalid component states: {0}".format(consumer.states),
+            )
             consumer.reset()
 
         self.assertIs(consumer_single.service, svc1, "Wrong service injected")
-        self.assertListEqual(consumer_multi.service, [svc1],
-                             "Wrong service injected")
+        self.assertListEqual(
+            consumer_multi.service, [svc1], "Wrong service injected"
+        )
 
         # Change the filter property to a new value
         for consumer in consumers:
@@ -170,60 +202,76 @@ class RequiresVarFilterTest(unittest.TestCase):
             self.assertListEqual(
                 [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states))
+                "Invalid component states: {0}".format(consumer.states),
+            )
             self.assertIs(consumer.service, None, "A service is injected")
             consumer.reset()
 
         # New service, matching part of the filter
         svc3 = object()
         context.register_service(
-            IEchoService, svc3,
-            {"s": random_static_2, "a": consumer_single.answer})
+            IEchoService,
+            svc3,
+            {"s": random_static_2, "a": consumer_single.answer},
+        )
 
         # The consumer must not have been modified
         for consumer in consumers:
-            self.assertListEqual([], consumer.states,
-                                 "Invalid component states: {0}"
-                                 .format(consumer.states))
+            self.assertListEqual(
+                [],
+                consumer.states,
+                "Invalid component states: {0}".format(consumer.states),
+            )
             self.assertIs(consumer.service, None, "A service is injected")
             consumer.reset()
 
         # New service, matching the new filer
         svc4 = object()
         reg4 = context.register_service(
-            IEchoService, svc4,
-            {"s": random_static_1, "a": consumer_single.answer})
+            IEchoService,
+            svc4,
+            {"s": random_static_1, "a": consumer_single.answer},
+        )
 
         # The consumer must not have been modified
         for consumer in consumers:
             self.assertListEqual(
                 [IPopoEvent.BOUND, IPopoEvent.VALIDATED],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states))
+                "Invalid component states: {0}".format(consumer.states),
+            )
             consumer.reset()
 
         self.assertIs(consumer_single.service, svc4, "Wrong service injected")
-        self.assertListEqual(consumer_multi.service, [svc4],
-                             "Wrong service injected")
+        self.assertListEqual(
+            consumer_multi.service, [svc4], "Wrong service injected"
+        )
 
         # New service, matching the new filer
         svc5 = object()
         reg5 = context.register_service(
-            IEchoService, svc5,
-            {"s": random_static_1, "a": consumer_single.answer})
+            IEchoService,
+            svc5,
+            {"s": random_static_1, "a": consumer_single.answer},
+        )
 
         # The single consumer must not have been modified
-        self.assertListEqual([], consumer_single.states,
-                             "Invalid component states: {0}"
-                             .format(consumer_single.states))
+        self.assertListEqual(
+            [],
+            consumer_single.states,
+            "Invalid component states: {0}".format(consumer_single.states),
+        )
         self.assertIs(consumer_single.service, svc4, "Wrong service injected")
 
         # The aggregate consumer must have been modified
-        self.assertListEqual([IPopoEvent.BOUND], consumer_multi.states,
-                             "Invalid component states: {0}"
-                             .format(consumer_multi.states))
-        self.assertListEqual(consumer_multi.service, [svc4, svc5],
-                             "Second service not injected")
+        self.assertListEqual(
+            [IPopoEvent.BOUND],
+            consumer_multi.states,
+            "Invalid component states: {0}".format(consumer_multi.states),
+        )
+        self.assertListEqual(
+            consumer_multi.service, [svc4, svc5], "Second service not injected"
+        )
 
         # Reset states
         for consumer in consumers:
@@ -236,15 +284,19 @@ class RequiresVarFilterTest(unittest.TestCase):
         self.assertListEqual(
             rebind_states,
             consumer_single.states,
-            "Invalid component states: {0}".format(consumer_single.states))
+            "Invalid component states: {0}".format(consumer_single.states),
+        )
         self.assertIs(consumer_single.service, svc5, "Wrong service injected")
 
         # The aggregate consumer must have been modified
-        self.assertListEqual([IPopoEvent.UNBOUND], consumer_multi.states,
-                             "Invalid component states: {0}"
-                             .format(consumer_multi.states))
-        self.assertListEqual(consumer_multi.service, [svc5],
-                             "First service not removed")
+        self.assertListEqual(
+            [IPopoEvent.UNBOUND],
+            consumer_multi.states,
+            "Invalid component states: {0}".format(consumer_multi.states),
+        )
+        self.assertListEqual(
+            consumer_multi.service, [svc5], "First service not removed"
+        )
 
         # Reset states
         for consumer in consumers:
@@ -255,8 +307,10 @@ class RequiresVarFilterTest(unittest.TestCase):
 
         for consumer in consumers:
             self.assertListEqual(
-                [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND], consumer.states,
-                "Invalid component states: {0}".format(consumer.states))
+                [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
+                consumer.states,
+                "Invalid component states: {0}".format(consumer.states),
+            )
             self.assertIs(consumer.service, None, "A service is still injected")
             consumer.reset()
 
@@ -265,9 +319,15 @@ class RequiresVarFilterTest(unittest.TestCase):
         Tests the @RequiresVarFilter handler without immediate_rebind (default)
         """
         module = install_bundle(self.framework)
-        self.__internal_test(module,
-                             [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND,
-                              IPopoEvent.BOUND, IPopoEvent.VALIDATED])
+        self.__internal_test(
+            module,
+            [
+                IPopoEvent.INVALIDATED,
+                IPopoEvent.UNBOUND,
+                IPopoEvent.BOUND,
+                IPopoEvent.VALIDATED,
+            ],
+        )
 
     def test_immediate_rebind(self):
         """
@@ -276,8 +336,10 @@ class RequiresVarFilterTest(unittest.TestCase):
         # Modify component factories
         module = install_bundle(self.framework)
 
-        for clazz in (module.RequiresVarFilterComponentFactory,
-                      module.RequiresVarFilterAggregateComponentFactory):
+        for clazz in (
+            module.RequiresVarFilterComponentFactory,
+            module.RequiresVarFilterAggregateComponentFactory,
+        ):
             context = get_factory_context(clazz)
             configs = context.get_handler(RequiresVarFilter.HANDLER_ID)
             configs["service"].immediate_rebind = True
@@ -292,20 +354,27 @@ class RequiresVarFilterTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
         assert isinstance(context, BundleContext)
 
-        random_static = ''.join(random.choice(string.ascii_letters)
-                                for _ in range(50))
+        random_static = "".join(
+            random.choice(string.ascii_letters) for _ in range(50)
+        )
 
         # Assert that the service is not yet available
-        self.assertIsNone(context.get_service_reference(IEchoService),
-                          "Service is already registered")
+        self.assertIsNone(
+            context.get_service_reference(IEchoService),
+            "Service is already registered",
+        )
 
         # Instantiate the components
         consumer_single = self.ipopo.instantiate(
-            module.FACTORY_REQUIRES_VAR_FILTER, NAME_A,
-            {"static": random_static})
+            module.FACTORY_REQUIRES_VAR_FILTER,
+            NAME_A,
+            {"static": random_static},
+        )
         consumer_multi = self.ipopo.instantiate(
-            module.FACTORY_REQUIRES_VAR_FILTER_AGGREGATE, NAME_B,
-            {"static": random_static})
+            module.FACTORY_REQUIRES_VAR_FILTER_AGGREGATE,
+            NAME_B,
+            {"static": random_static},
+        )
         consumers = (consumer_single, consumer_multi)
 
         # Force the "answer" property to an int
@@ -315,15 +384,22 @@ class RequiresVarFilterTest(unittest.TestCase):
         # Instantiate a service, matching the filter
         svc1 = object()
         context.register_service(
-            IEchoService, svc1,
-            {"s": random_static, "a": consumer_single.answer})
+            IEchoService,
+            svc1,
+            {"s": random_static, "a": consumer_single.answer},
+        )
 
         # Component must be valid
         for consumer in consumers:
             self.assertListEqual(
-                [IPopoEvent.INSTANTIATED, IPopoEvent.BOUND,
-                 IPopoEvent.VALIDATED], consumer.states,
-                "Invalid component states: {0}".format(consumer.states))
+                [
+                    IPopoEvent.INSTANTIATED,
+                    IPopoEvent.BOUND,
+                    IPopoEvent.VALIDATED,
+                ],
+                consumer.states,
+                "Invalid component states: {0}".format(consumer.states),
+            )
             consumer.reset()
 
         # Set an invalid filter
@@ -332,8 +408,10 @@ class RequiresVarFilterTest(unittest.TestCase):
 
             # The consumer must have been validated
             self.assertListEqual(
-                [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND], consumer.states,
-                "Invalid component states: {0}".format(consumer.states))
+                [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
+                consumer.states,
+                "Invalid component states: {0}".format(consumer.states),
+            )
             consumer.reset()
             self.assertIs(consumer.service, None, "A service is injected")
 
@@ -346,12 +424,15 @@ class RequiresVarFilterTest(unittest.TestCase):
                 # Instantiate a service, matching the filter
                 svc = object()
                 reg = context.register_service(
-                    IEchoService, svc, {"s": random_static, "a": invalid})
+                    IEchoService, svc, {"s": random_static, "a": invalid}
+                )
 
                 # Nothing should happen
                 self.assertListEqual(
-                    [], consumer.states,
-                    "Invalid component states: {0}".format(consumer.states))
+                    [],
+                    consumer.states,
+                    "Invalid component states: {0}".format(consumer.states),
+                )
                 consumer.reset()
 
                 reg.unregister()
@@ -365,20 +446,27 @@ class RequiresVarFilterTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
         assert isinstance(context, BundleContext)
 
-        random_static = ''.join(random.choice(string.ascii_letters)
-                                for _ in range(50))
+        random_static = "".join(
+            random.choice(string.ascii_letters) for _ in range(50)
+        )
 
         # Assert that the service is not yet available
-        self.assertIsNone(context.get_service_reference(IEchoService),
-                          "Service is already registered")
+        self.assertIsNone(
+            context.get_service_reference(IEchoService),
+            "Service is already registered",
+        )
 
         # Instantiate the components
         consumer_single = self.ipopo.instantiate(
-            module.FACTORY_REQUIRES_VAR_FILTER, NAME_A,
-            {"static": random_static})
+            module.FACTORY_REQUIRES_VAR_FILTER,
+            NAME_A,
+            {"static": random_static},
+        )
         consumer_multi = self.ipopo.instantiate(
-            module.FACTORY_REQUIRES_VAR_FILTER_AGGREGATE, NAME_B,
-            {"static": random_static})
+            module.FACTORY_REQUIRES_VAR_FILTER_AGGREGATE,
+            NAME_B,
+            {"static": random_static},
+        )
         consumers = (consumer_single, consumer_multi)
 
         # Force the "answer" property to an int
@@ -388,15 +476,22 @@ class RequiresVarFilterTest(unittest.TestCase):
         # Instantiate a service, matching the filter
         svc1 = object()
         context.register_service(
-            IEchoService, svc1,
-            {"s": random_static, "a": consumer_single.answer})
+            IEchoService,
+            svc1,
+            {"s": random_static, "a": consumer_single.answer},
+        )
 
         # Component must be valid
         for consumer in consumers:
             self.assertListEqual(
-                [IPopoEvent.INSTANTIATED, IPopoEvent.BOUND,
-                 IPopoEvent.VALIDATED], consumer.states,
-                "Invalid component states: {0}".format(consumer.states))
+                [
+                    IPopoEvent.INSTANTIATED,
+                    IPopoEvent.BOUND,
+                    IPopoEvent.VALIDATED,
+                ],
+                consumer.states,
+                "Invalid component states: {0}".format(consumer.states),
+            )
             consumer.reset()
 
         # Set the filter with a similar value (same once formatted)
@@ -406,13 +501,16 @@ class RequiresVarFilterTest(unittest.TestCase):
         # The consumer should not be notified
         for consumer in consumers:
             self.assertListEqual(
-                [], consumer.states,
-                "Invalid component states: {0}".format(consumer.states))
+                [],
+                consumer.states,
+                "Invalid component states: {0}".format(consumer.states),
+            )
             consumer.reset()
 
         self.assertIs(consumer_single.service, svc1, "Wrong service injected")
-        self.assertListEqual(consumer_multi.service, [svc1],
-                             "Wrong service injected")
+        self.assertListEqual(
+            consumer_multi.service, [svc1], "Wrong service injected"
+        )
 
     def test_incomplete_properties(self):
         """
@@ -423,21 +521,26 @@ class RequiresVarFilterTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         answer = 42
-        random_static = ''.join(random.choice(string.ascii_letters)
-                                for _ in range(50))
+        random_static = "".join(
+            random.choice(string.ascii_letters) for _ in range(50)
+        )
 
         # Assert that the service is not yet available
-        self.assertIsNone(context.get_service_reference(IEchoService),
-                          "Service is already registered")
+        self.assertIsNone(
+            context.get_service_reference(IEchoService),
+            "Service is already registered",
+        )
 
         # Instantiate a service, matching the filter
         svc1 = object()
         context.register_service(
-            IEchoService, svc1, {"s": random_static, "a": answer})
+            IEchoService, svc1, {"s": random_static, "a": answer}
+        )
 
         for name, factory in (
-                (NAME_A, module.FACTORY_REQUIRES_VAR_FILTER),
-                (NAME_B, module.FACTORY_REQUIRES_VAR_FILTER_AGGREGATE)):
+            (NAME_A, module.FACTORY_REQUIRES_VAR_FILTER),
+            (NAME_B, module.FACTORY_REQUIRES_VAR_FILTER_AGGREGATE),
+        ):
             # Instantiate the component, without the static property
             consumer = self.ipopo.instantiate(factory, name, {})
 
@@ -446,14 +549,18 @@ class RequiresVarFilterTest(unittest.TestCase):
 
             # Component must be instantiated, but not valid
             self.assertListEqual(
-                [IPopoEvent.INSTANTIATED], consumer.states,
-                "Invalid component states: {0}".format(consumer.states))
+                [IPopoEvent.INSTANTIATED],
+                consumer.states,
+                "Invalid component states: {0}".format(consumer.states),
+            )
             self.assertIs(consumer.service, None, "Service injected")
+
 
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
     unittest.main()
