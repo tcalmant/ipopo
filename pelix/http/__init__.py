@@ -27,14 +27,9 @@ Defines the interfaces that must respect HTTP service implementations.
     limitations under the License.
 """
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, ByteString, Dict, Iterable, IO, Tuple
-except ImportError:
-    pass
+from abc import ABC, abstractmethod
+from typing import IO, Any, Dict, Iterable, List, Optional, Protocol, Tuple
 
-# Pelix utility methods
 from pelix.utilities import to_bytes
 
 # ------------------------------------------------------------------------------
@@ -129,8 +124,7 @@ Contains a boolean: if True, the connection to the server is encrypted (HTTPS)
 # ------------------------------------------------------------------------------
 
 
-def make_html_list(items, tag="ul"):
-    # type: (Iterable[Any], str) -> str
+def make_html_list(items: Iterable[Any], tag: str = "ul") -> str:
     """
     Makes a HTML list from the given iterable
 
@@ -138,42 +132,36 @@ def make_html_list(items, tag="ul"):
     :param tag: The tag to use (ul or ol)
     :return: The HTML list code
     """
-    html_list = "\n".join(
-        '<li><a href="{0}">{0}</a></li>'.format(item) for item in items
-    )
-    return "<{0}>\n{1}\n</{0}>".format(tag, html_list)
+    html_list = "\n".join(f'<li><a href="{item}">{item}</a></li>' for item in items)
+    return f"<{tag}>\n{html_list}\n</{tag}>"
 
 
 # ------------------------------------------------------------------------------
 
 
-class AbstractHTTPServletRequest(object):
+class AbstractHTTPServletRequest(ABC):
     """
     Abstract HTTP Servlet request helper
     """
 
-    def get_command(self):
-        # type: () -> str
+    @abstractmethod
+    def get_command(self) -> str:
         """
         Returns the HTTP verb (GET, POST, ...) used for the request
         """
-        raise NotImplementedError(
-            "This method must be implemented by a child class"
-        )
+        ...
 
-    def get_client_address(self):
-        # type: () -> Tuple[str, int]
+    @abstractmethod
+    def get_client_address(self) -> Tuple[str, int]:
         """
         Returns the address of the client
 
         :return: A (host, port) tuple
         """
-        raise NotImplementedError(
-            "This method must be implemented by a child class"
-        )
+        ...
 
-    def get_header(self, name, default=None):
-        # type: (str, Any) -> Any
+    @abstractmethod
+    def get_header(self, name: str, default: Any = None) -> Any:
         """
         Returns the value of a header
 
@@ -181,67 +169,56 @@ class AbstractHTTPServletRequest(object):
         :param default: Default value if the header doesn't exist
         :return: The header value or the default one
         """
-        raise NotImplementedError(
-            "This method must be implemented by a child class"
-        )
+        ...
 
-    def get_headers(self):
+    @abstractmethod
+    def get_headers(self) -> Dict[str, Any]:
         # type: () -> Dict[str, Any]
         """
         Returns a copy all headers, with a dictionary interface
 
         :return: A dictionary-like object
         """
-        raise NotImplementedError(
-            "This method must be implemented by a child class"
-        )
+        ...
 
-    def get_path(self):
+    @abstractmethod
+    def get_path(self) -> str:
         # type: () -> str
         """
         Returns the request full path
 
         :return: A request full path (string)
         """
-        raise NotImplementedError(
-            "This method must be implemented by a child class"
-        )
+        ...
 
-    def get_prefix_path(self):
-        # type: () -> str
+    @abstractmethod
+    def get_prefix_path(self) -> str:
         """
         Returns the path to the servlet root
 
         :return: A request path (string)
         """
-        raise NotImplementedError(
-            "This method must be implemented by a child class"
-        )
+        ...
 
-    def get_sub_path(self):
-        # type: () -> str
+    @abstractmethod
+    def get_sub_path(self) -> str:
         """
         Returns the servlet-relative path, i.e. after the prefix
 
         :return: A request path (string)
         """
-        raise NotImplementedError(
-            "This method must be implemented by a child class"
-        )
+        ...
 
-    def get_rfile(self):
-        # type: () -> IO
+    @abstractmethod
+    def get_rfile(self) -> IO[bytes]:
         """
         Returns the request input as a file stream
 
         :return: A file-like input stream
         """
-        raise NotImplementedError(
-            "This method must be implemented by a child class"
-        )
+        ...
 
-    def read_data(self):
-        # type: () -> ByteString
+    def read_data(self) -> bytes:
         """
         Reads all the data in the input stream
 
@@ -255,13 +232,13 @@ class AbstractHTTPServletRequest(object):
         return self.get_rfile().read(size)
 
 
-class AbstractHTTPServletResponse(object):
+class AbstractHTTPServletResponse(ABC):
     """
     HTTP Servlet response helper
     """
 
-    def set_response(self, code, message=None):
-        # type: (int, str) -> None
+    @abstractmethod
+    def set_response(self, code: int, message: Optional[str] = None) -> None:
         """
         Sets the response line.
         This method should be the first called when sending an answer.
@@ -269,12 +246,10 @@ class AbstractHTTPServletResponse(object):
         :param code: HTTP result code
         :param message: Associated message
         """
-        raise NotImplementedError(
-            "This method must be implemented by a child class"
-        )
+        ...
 
-    def set_header(self, name, value):
-        # type: (str, Any) -> None
+    @abstractmethod
+    def set_header(self, name: str, value: Any) -> None:
         """
         Sets the value of a header.
         This method should not be called after ``end_headers()``.
@@ -282,11 +257,10 @@ class AbstractHTTPServletResponse(object):
         :param name: Header name
         :param value: Header value
         """
-        raise NotImplementedError(
-            "This method must be implemented by a child class"
-        )
+        ...
 
-    def is_header_set(self, name):
+    @abstractmethod
+    def is_header_set(self, name: str) -> bool:
         # type: (str) -> bool
         """
         Checks if the given header has already been set
@@ -294,20 +268,17 @@ class AbstractHTTPServletResponse(object):
         :param name: Header name
         :return: True if it has already been set
         """
-        raise NotImplementedError(
-            "This method must be implemented by a child class"
-        )
+        ...
 
-    def end_headers(self):
+    @abstractmethod
+    def end_headers(self) -> None:
         """
         Ends the headers part
         """
-        raise NotImplementedError(
-            "This method must be implemented by a child class"
-        )
+        ...
 
-    def get_wfile(self):
-        # type: () -> IO
+    @abstractmethod
+    def get_wfile(self) -> IO[bytes]:
         """
         Retrieves the output as a file stream.
         ``end_headers()`` should have been called before, except if you want
@@ -315,12 +286,10 @@ class AbstractHTTPServletResponse(object):
 
         :return: A file-like output stream
         """
-        raise NotImplementedError(
-            "This method must be implemented by a child class"
-        )
+        ...
 
-    def write(self, data):
-        # type: (ByteString) -> None
+    @abstractmethod
+    def write(self, data: bytes) -> None:
         """
         Writes the given data.
         ``end_headers()`` should have been called before, except if you want
@@ -328,19 +297,16 @@ class AbstractHTTPServletResponse(object):
 
         :param data: Data to be written
         """
-        raise NotImplementedError(
-            "This method must be implemented by a child class"
-        )
+        ...
 
     def send_content(
         self,
-        http_code,
-        content,
-        mime_type="text/html",
-        http_message=None,
-        content_length=-1,
-    ):
-        # type: (int, str, str, str, int) -> None
+        http_code: int,
+        content: str,
+        mime_type: Optional[str] = "text/html",
+        http_message: Optional[str] = None,
+        content_length: int = -1,
+    ) -> None:
         """
         Utility method to send the given content as an answer.
         You can still use get_wfile or write afterwards, if you forced the
@@ -364,9 +330,7 @@ class AbstractHTTPServletResponse(object):
         # Convert the content
         raw_content = to_bytes(content)
 
-        if content_length is not None and not self.is_header_set(
-            "content-length"
-        ):
+        if content_length is not None and not self.is_header_set("content-length"):
             if content_length < 0:
                 # Compute the length
                 content_length = len(raw_content)
@@ -378,3 +342,142 @@ class AbstractHTTPServletResponse(object):
 
         # Send the content
         self.write(raw_content)
+
+
+class ErrorHandler(Protocol):
+    """
+    Custom HTTP error page generator
+    """
+
+    def make_not_found_page(self, path: str) -> str:
+        """
+        Prepares a "page not found" page for a 404 error
+
+        :param path: Request path
+        :return: A HTML page
+        """
+        ...
+
+    def make_exception_page(self, path: str, stack) -> str:
+        """
+        Prepares a page printing an exception stack trace in a 500 error
+
+        :param path: Request path
+        :param stack: Exception stack trace
+        :return: A HTML page
+        """
+        ...
+
+
+class Servlet(Protocol):
+    """
+    Interface of an HTTP servlet
+    """
+
+    __SPECIFICATION__ = HTTP_SERVLET
+
+
+class HTTPService(Protocol):
+    """
+    HTTP service interface
+    """
+
+    def get_access(self) -> Tuple[str, int]:
+        """
+        Retrieves the (address, port) tuple to access the server
+        """
+        ...
+
+    def get_hostname(self) -> str:
+        """
+        Retrieves the server host name
+
+        :return: The server host name
+        """
+        ...
+
+    def is_https(self) -> bool:
+        """
+        Returns True if this is an HTTPS server
+
+        :return: True if this server uses SSL
+        """
+        ...
+
+    def get_registered_paths(self) -> List[str]:
+        """
+        Returns the paths registered by servlets
+
+        :return: The paths registered by servlets (sorted list)
+        """
+        ...
+
+    def get_servlet(self, path: Optional[str]) -> Tuple[Servlet, Dict[str, Any], str]:
+        """
+        Retrieves the servlet matching the given path and its parameters.
+        Returns None if no servlet matches the given path.
+
+        :param path: A request URI
+        :return: A tuple (servlet, parameters, prefix) or None
+        """
+        ...
+
+    def make_not_found_page(self, path: str) -> str:
+        """
+        Prepares a "page not found" page for a 404 error
+
+        :param path: Request path
+        :return: A HTML page
+        """
+        ...
+
+    def make_exception_page(self, path: str, stack) -> str:
+        """
+        Prepares a page printing an exception stack trace in a 500 error
+
+        :param path: Request path
+        :param stack: Exception stack trace
+        :return: A HTML page
+        """
+        ...
+
+    def register_servlet(
+        self, path: str, servlet: Servlet, parameters: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Registers a servlet
+
+        :param path: Path handled by this servlet
+        :param servlet: The servlet instance
+        :param parameters: The parameters associated to this path
+        :return: True if the servlet has been registered, False if it refused the binding.
+        :raise ValueError: Invalid path or handler
+        """
+        ...
+
+    def unregister(self, path: Optional[str], servlet: Optional[Servlet] = None) -> bool:
+        """
+        Unregisters the servlet for the given path
+
+        :param path: The path to a servlet
+        :param servlet: If given, unregisters all the paths handled by this servlet
+        :return: True if at least one path as been unregistered, else False
+        """
+        ...
+
+    def log(self, level: int, message: str, *args: Any, **kwargs: Any) -> None:
+        """
+        Logs the given message
+
+        :param level: Log entry level
+        :param message: Log message (Python logging format)
+        """
+        ...
+
+    def log_exception(self, message: str, *args: Any, **kwargs: Any) -> None:
+        """
+        Logs an exception
+
+        :param message: Log message (Python logging format)
+        """
+        ...

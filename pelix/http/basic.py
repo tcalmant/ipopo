@@ -28,47 +28,34 @@ Python library.
     limitations under the License.
 """
 
-# Standard library
 import logging
 import socket
 import threading
 import traceback
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import TCPServer, ThreadingMixIn
+from typing import IO, Any, Dict, List, Optional, Tuple, Type, Union, cast
 
-# Basic HTTP server
-try:
-    # Python 3
-    # pylint: disable=F0401,E0611
-    from http.server import HTTPServer
-    from http.server import BaseHTTPRequestHandler
-    from socketserver import ThreadingMixIn, TCPServer
-except ImportError:
-    # Python 2 or IronPython
-    # pylint: disable=F0401
-    from BaseHTTPServer import HTTPServer
-    from BaseHTTPServer import BaseHTTPRequestHandler
-    from SocketServer import ThreadingMixIn, TCPServer
-
-# iPOPO
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Provides,
-    Requires,
-    Validate,
-    Invalidate,
-    Property,
-    HiddenProperty,
-    BindField,
-    UpdateField,
-    UnbindField,
-)
+import pelix.http as http
 import pelix.ipopo.constants as constants
 import pelix.ipv6utils
-import pelix.utilities as utilities
 import pelix.misc.ssl_wrap as ssl_wrap
 import pelix.remote
-
-# HTTP service constants
-import pelix.http as http
+import pelix.utilities as utilities
+from pelix.http import Servlet
+from pelix.internals.registry import ServiceReference
+from pelix.ipopo.decorators import (
+    BindField,
+    ComponentFactory,
+    HiddenProperty,
+    Invalidate,
+    Property,
+    Provides,
+    Requires,
+    UnbindField,
+    UpdateField,
+    Validate,
+)
 
 # ------------------------------------------------------------------------------
 
@@ -100,7 +87,7 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
     HTTP Servlet request helper
     """
 
-    def __init__(self, request_handler, prefix):
+    def __init__(self, request_handler: BaseHTTPRequestHandler, prefix: str) -> None:
         """
         Sets up the request helper
 
@@ -118,13 +105,13 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         while "//" in self._sub_path:
             self._sub_path = self._sub_path.replace("//", "/")
 
-    def get_command(self):
+    def get_command(self) -> str:
         """
         Returns the HTTP verb (GET, POST, ...) used for the request
         """
         return self._handler.command
 
-    def get_client_address(self):
+    def get_client_address(self) -> Tuple[str, int]:
         """
         Retrieves the address of the client
 
@@ -132,25 +119,25 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         """
         return self._handler.client_address
 
-    def get_header(self, name, default=None):
+    def get_header(self, name: str, default: Optional[Any] = None) -> Any:
         """
         Retrieves the value of a header
         """
         return self._handler.headers.get(name, default)
 
-    def get_headers(self):
+    def get_headers(self) -> Dict[str, Any]:
         """
         Retrieves all headers
         """
-        return self._handler.headers
+        return cast(Dict[str, Any], self._handler.headers)
 
-    def get_path(self):
+    def get_path(self) -> str:
         """
         Retrieves the request full path
         """
         return self._handler.path
 
-    def get_prefix_path(self):
+    def get_prefix_path(self) -> str:
         """
         Returns the path to the servlet root
 
@@ -158,7 +145,7 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         """
         return self._prefix
 
-    def get_sub_path(self):
+    def get_sub_path(self) -> str:
         """
         Returns the servlet-relative path, i.e. after the prefix
 
@@ -166,7 +153,7 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         """
         return self._sub_path
 
-    def get_rfile(self):
+    def get_rfile(self) -> IO[bytes]:
         """
         Retrieves the input as a file stream
         """
@@ -178,7 +165,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
     HTTP Servlet response helper
     """
 
-    def __init__(self, request_handler):
+    def __init__(self, request_handler: BaseHTTPRequestHandler) -> None:
         """
         Sets up the response helper
 
@@ -187,7 +174,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         self._handler = request_handler
         self._headers = {}
 
-    def set_response(self, code, message=None):
+    def set_response(self, code: int, message: Optional[str] = None) -> None:
         """
         Sets the response line.
         This method should be the first called when sending an answer.
@@ -197,7 +184,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         """
         self._handler.send_response(code, message)
 
-    def set_header(self, name, value):
+    def set_header(self, name: str, value: Any) -> None:
         """
         Sets the value of a header.
         This method should not be called after ``end_headers()``.
@@ -207,7 +194,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         """
         self._headers[name.lower()] = value
 
-    def is_header_set(self, name):
+    def is_header_set(self, name: str) -> bool:
         """
         Checks if the given header has already been set
 
@@ -216,7 +203,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         """
         return name.lower() in self._headers
 
-    def end_headers(self):
+    def end_headers(self) -> None:
         """
         Ends the headers part
         """
@@ -226,7 +213,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
 
         self._handler.end_headers()
 
-    def get_wfile(self):
+    def get_wfile(self) -> IO[bytes]:
         """
         Retrieves the output as a file stream.
         ``end_headers()`` should have been called before, except if you want
@@ -236,7 +223,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         """
         return self._handler.wfile
 
-    def write(self, data):
+    def write(self, data) -> None:
         """
         Writes the given data.
         ``end_headers()`` should have been called before, except if you want
@@ -250,7 +237,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
 # ------------------------------------------------------------------------------
 
 
-class _RequestHandler(BaseHTTPRequestHandler, object):
+class _RequestHandler(BaseHTTPRequestHandler):
     """
     Basic HTTP server request handler
     """
@@ -258,7 +245,7 @@ class _RequestHandler(BaseHTTPRequestHandler, object):
     # Override the default HTTP version
     default_request_version = "HTTP/1.0"
 
-    def __init__(self, http_svc, *args, **kwargs):
+    def __init__(self, http_svc: http.HTTPService, *args: Any, **kwargs: Any) -> None:
         """
         Sets up the request handler (called for each request)
 
@@ -269,7 +256,7 @@ class _RequestHandler(BaseHTTPRequestHandler, object):
         # This calls the do_* methods
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """
         Retrieves the do_* in the servlet corresponding to the request path.
         If the name is not a "do_*", returns the normal result of __getattr__.
@@ -312,20 +299,20 @@ class _RequestHandler(BaseHTTPRequestHandler, object):
         # Return the super implementation if needed
         return self.send_no_servlet_response
 
-    def log_error(self, message, *args, **kwargs):
+    def log_error(self, message: str, *args: Any, **kwargs: Any) -> None:
         # pylint: disable=W0221
         """
         Log server error
         """
         self._service.log(logging.ERROR, message, *args, **kwargs)
 
-    def log_request(self, code="-", size="-"):
+    def log_request(self, code: Union[str, int] = "-", size: Union[str, int] = "-") -> None:
         """
         Logs a request to the server
         """
         self._service.log(logging.DEBUG, '"%s" %s', self.requestline, code)
 
-    def send_no_servlet_response(self):
+    def send_no_servlet_response(self) -> None:
         """
         Default response sent when no servlet is found for the requested path
         """
@@ -333,7 +320,7 @@ class _RequestHandler(BaseHTTPRequestHandler, object):
         response = _HTTPServletResponse(self)
         response.send_content(404, self._service.make_not_found_page(self.path))
 
-    def send_exception(self, response):
+    def send_exception(self, response: http.AbstractHTTPServletResponse) -> None:
         """
         Sends an exception page with a 500 error code.
         Must be called from inside the exception handling block.
@@ -344,14 +331,10 @@ class _RequestHandler(BaseHTTPRequestHandler, object):
         stack = traceback.format_exc()
 
         # Log the error
-        self.log_error(
-            "Error handling request upon: %s\n%s\n", self.path, stack
-        )
+        self.log_error("Error handling request upon: %s\n%s\n", self.path, stack)
 
         # Send the page
-        response.send_content(
-            500, self._service.make_exception_page(self.path, stack)
-        )
+        response.send_content(500, self._service.make_exception_page(self.path, stack))
 
 
 # ------------------------------------------------------------------------------
@@ -368,24 +351,21 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 
     def __init__(
         self,
-        server_address,
-        request_handler_class,
-        request_queue_size=5,
-        logger=None,
+        server_address: Tuple[str, int],
+        request_handler_class: Type[BaseHTTPRequestHandler],
+        request_queue_size: int = 5,
+        logger: Optional[logging.Logger] = None,
     ):
         """
         Proxy constructor
 
         :param server_address: The server address
         :param request_handler_class: The request handler class
-        :param request_queue_size: The size of the request queue
-                                   (clients waiting for treatment)
+        :param request_queue_size: The size of the request queue (clients waiting for treatment)
         :param logger: An optional logger, in case of ignored error
         """
         # Determine the address family
-        addr_info = socket.getaddrinfo(
-            server_address[0], server_address[1], 0, 0, socket.SOL_TCP
-        )
+        addr_info = socket.getaddrinfo(server_address[0], server_address[1], 0, 0, socket.SOL_TCP)
 
         # Change the address family before the socket is created
         # Get the family of the first possibility
@@ -408,15 +388,13 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
                     logger.exception("System misses IPv6 constant: %s", ex)
             except socket.error as ex:
                 if logger is not None:
-                    logger.exception(
-                        "Error setting up IPv6 double stack: %s", ex
-                    )
+                    logger.exception("Error setting up IPv6 double stack: %s", ex)
 
         # Bind & accept
         self.server_bind()
         self.server_activate()
 
-    def server_bind(self):
+    def server_bind(self) -> None:
         """
         Override server_bind to store the server name, even in IronPython.
 
@@ -431,15 +409,13 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
             # Use the local host name in case of error, like CPython does
             self.server_name = socket.gethostname()
 
-    def process_request(self, request, client_address):
+    def process_request(self, request: http.AbstractHTTPServletRequest, client_address: Any) -> None:
         """
         Starts a new thread to process the request, adding the client address
         in its name.
         """
         thread = threading.Thread(
-            name="HttpService-{0}-Client-{1}".format(
-                self.server_port, client_address
-            ),
+            name=f"HttpService-{self.server_port}-Client-{client_address}",
             target=self.process_request_thread,
             args=(request, client_address),
         )
@@ -465,7 +441,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 @Property("_logger_name", "pelix.http.logger.name", "")
 @Property("_logger_level", "pelix.http.logger.level", None)
 @Property("_request_queue_size", "pelix.http.request_queue_size", 100)
-class HttpService(object):
+class HttpServiceImpl(http.HTTPService):
     """
     Basic HTTP service component
     """
@@ -475,48 +451,48 @@ class HttpService(object):
         self._address = "0.0.0.0"
         self._port = 8080
         self._uses_ssl = False
-        self._extra = None
-        self._instance_name = None
-        self._logger_name = None
-        self._logger_level = None
+        self._extra: Optional[Dict[str, Any]] = None
+        self._instance_name: Optional[str] = None
+        self._logger_name: Optional[str] = None
+        self._logger_level: Optional[int] = None
         self._request_queue_size = 5
 
         # SSL Parameters
-        self._cert_file = None
-        self._key_file = None
-        self._key_password = None
+        self._cert_file: Optional[str] = None
+        self._key_file: Optional[str] = None
+        self._key_password: Optional[str] = None
 
         # Validation flag
         self._validated = False
 
         # The logger
-        self._logger = None
+        self._logger: Optional[logging.Logger] = None
 
         # Servlets registry lock
         self._lock = threading.Lock()
 
         # Path -> (servlet, parameters)
-        self._servlets = {}
+        self._servlets: Dict[str, Tuple[Servlet, Dict[str, Any]]] = {}
 
         # Fields injected by iPOPO
-        self._servlets_services = None
-        self._error_handler = None
+        self._servlets_services: List[Servlet] = []
+        self._error_handler: Optional[http.ErrorHandler] = None
 
         # Servlet -> ServiceReference
-        self._servlets_refs = {}
+        self._servlets_refs: Dict[Servlet, ServiceReference[Servlet]] = {}
         self._binding_lock = threading.Lock()
 
         # Server control
-        self._server = None
-        self._thread = None
+        self._server: Optional[HTTPServer] = None
+        self._thread: Optional[threading.Thread] = None
 
     def __str__(self):
         """
         String representation of the instance
         """
-        return "BasicHttpService({0}, {1:d})".format(self._address, self._port)
+        return f"BasicHttpService({self._address}, {self._port})"
 
-    def __safe_callback(self, instance, method, *args, **kwargs):
+    def __safe_callback(self, instance: Servlet, method: str, *args: Any, **kwargs: Any) -> Any:
         """
         Safely calls the given method in the given instance.
         Returns True on method absence.
@@ -551,7 +527,9 @@ class HttpService(object):
 
         return False
 
-    def __register_servlet_service(self, service, service_reference):
+    def __register_servlet_service(
+        self, service: Servlet, service_reference: ServiceReference[Servlet]
+    ) -> None:
         """
         Registers a servlet according to its service properties
 
@@ -569,7 +547,7 @@ class HttpService(object):
                 self.register_servlet(path, service)
 
     @BindField("_servlets_services")
-    def _bind(self, _, service, service_reference):
+    def _bind(self, _, service: Servlet, service_reference: ServiceReference[Servlet]) -> None:
         """
         Called by iPOPO when a service is bound
         """
@@ -584,7 +562,13 @@ class HttpService(object):
                 self.__register_servlet_service(service, service_reference)
 
     @UpdateField("_servlets_services")
-    def _update(self, _, service, service_reference, old_properties):
+    def _update(
+        self,
+        _,
+        service: Servlet,
+        service_reference: ServiceReference[Servlet],
+        old_properties: Dict[str, Any],
+    ) -> None:
         """
         Called by iPOPO when the properties of a service have been updated
         """
@@ -607,7 +591,7 @@ class HttpService(object):
                 self.__register_servlet_service(service, service_reference)
 
     @UnbindField("_servlets_services")
-    def _unbind(self, _, service, service_reference):
+    def _unbind(self, _, service: Servlet, service_reference: ServiceReference[Servlet]) -> None:
         """
         Called by iPOPO when a service is gone
         """
@@ -625,6 +609,7 @@ class HttpService(object):
         """
         Retrieves the (address, port) tuple to access the server
         """
+        assert self._server is not None
         sock_info = self._server.socket.getsockname()
 
         # Only keep the address and the port information
@@ -683,10 +668,7 @@ class HttpService(object):
                     # Add a trailing slash
                     tested_path += "/"
 
-                if (
-                    path.startswith(tested_path)
-                    and len(servlet_path) > longest_match_len
-                ):
+                if path.startswith(tested_path) and len(servlet_path) > longest_match_len:
                     # Found a corresponding servlet
                     # which is deeper than the previous one
                     longest_match = servlet_path
@@ -712,21 +694,18 @@ class HttpService(object):
             page = self._error_handler.make_not_found_page(path)
 
         if not page:
-            page = """<html>
+            page = f"""<html>
 <head>
 <title>404 - Page not found</title>
 </head>
 <body>
 <h1>Page not found</h1>
 <p>No servlet is associated to this path:</p>
-<pre>{0}</pre>
+<pre>{path}</pre>
 <h2>Registered paths:</h2>
-{1}
+{http.make_html_list(self.get_registered_paths())}
 </body>
-</html>""".format(
-                path, http.make_html_list(self.get_registered_paths())
-            )
-
+</html>"""
         return page
 
     def make_exception_page(self, path, stack):
@@ -742,21 +721,18 @@ class HttpService(object):
             page = self._error_handler.make_exception_page(path, stack)
 
         if not page:
-            page = """<html>
+            page = f"""<html>
 <head>
 <title>500 - Internal Server Error</title>
 </head>
 <body>
 <h1>Internal Server Error</h1>
-<p>Error handling request upon: {0}</p>
+<p>Error handling request upon: {path}</p>
 <pre>
-{1}
+{stack}
 </pre>
 </body>
-</html>""".format(
-                path, stack
-            )
-
+</html>"""
         return page
 
     def register_servlet(self, path, servlet, parameters=None):
@@ -766,17 +742,14 @@ class HttpService(object):
         :param path: Path handled by this servlet
         :param servlet: The servlet instance
         :param parameters: The parameters associated to this path
-        :return: True if the servlet has been registered, False if it refused
-                 the binding.
+        :return: True if the servlet has been registered, False if it refused the binding.
         :raise ValueError: Invalid path or handler
         """
         if servlet is None:
             raise ValueError("Invalid servlet instance")
 
         if not path or path[0] != "/":
-            raise ValueError(
-                "Invalid path given to register the servlet: {0}".format(path)
-            )
+            raise ValueError("Invalid path given to register the servlet: {0}".format(path))
 
         # Use lower-case paths
         path = path.lower()
@@ -803,21 +776,17 @@ class HttpService(object):
             parameters[http.PARAM_PORT] = self._port
             parameters[http.PARAM_HTTPS] = self._uses_ssl
             parameters[http.PARAM_NAME] = self._instance_name
-            parameters[http.PARAM_EXTRA] = self._extra.copy()
+            parameters[http.PARAM_EXTRA] = self._extra.copy() if self._extra else None
 
             # The servlet might refuse to be bound to this server
-            if not self.__safe_callback(
-                servlet, "accept_binding", path, parameters
-            ):
+            if not self.__safe_callback(servlet, "accept_binding", path, parameters):
                 # Server refused: stop right there
                 # => No need to raise the "already taken path" exception
                 return False
 
             if already_taken:
                 # The path is already taken by another servlet
-                raise ValueError(
-                    "A servlet is already registered on {0}".format(path)
-                )
+                raise ValueError("A servlet is already registered on {0}".format(path))
 
             # Tell the servlet it can be bound to the path
             if self.__safe_callback(servlet, "bound_to", path, parameters):
@@ -833,9 +802,7 @@ class HttpService(object):
         Unregisters the servlet for the given path
 
         :param path: The path to a servlet
-        :param servlet: If given, unregisters all the paths handled by this
-                        servlet
-
+        :param servlet: If given, unregisters all the paths handled by this servlet
         :return: True if at least one path as been unregistered, else False
         """
         if servlet is not None:
@@ -867,9 +834,7 @@ class HttpService(object):
                     # Unknown path
                     return False
 
-                self.__safe_callback(
-                    servlet_info[0], "unbound_from", path, servlet_info[1]
-                )
+                self.__safe_callback(servlet_info[0], "unbound_from", path, servlet_info[1])
 
                 # Remove the servlet
                 del self._servlets[path]
@@ -952,10 +917,16 @@ class HttpService(object):
             self._port,
         )
 
+        parent = self
+
+        class LocalRequestHandler(_RequestHandler):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                super().__init__(parent, *args, **kwargs)
+
         # Create the server
         self._server = _HttpServerFamily(
             (self._address, self._port),
-            lambda *x: _RequestHandler(self, *x),
+            LocalRequestHandler,
             self._request_queue_size,
             self._logger,
         )
@@ -975,7 +946,7 @@ class HttpService(object):
         # Run it in a separate thread
         self._thread = threading.Thread(
             target=self._server.serve_forever,
-            name="HttpService-{0}-Server".format(self._port),
+            name=f"HttpService-{self._port}-Server",
         )
         self._thread.daemon = True
         self._thread.start()
@@ -1027,7 +998,9 @@ class HttpService(object):
                 self._address,
                 self._port,
             )
-            self._thread.join(2)
+
+            if self._thread is not None:
+                self._thread.join(2)
 
             # Close the server
             self._server.server_close()
@@ -1046,7 +1019,7 @@ class HttpService(object):
         self._logger = None
 
     @staticmethod
-    def __is_imported(service_reference):
+    def __is_imported(service_reference: ServiceReference[Any]) -> bool:
         """
         Tests if the given service has been imported by Remote Services
 

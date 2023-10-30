@@ -26,23 +26,12 @@ of HTTP requests.
     limitations under the License.
 """
 
-# Standard library
 import inspect
 import re
 import uuid
+from typing import Any, Callable, Dict, List, Optional, Pattern, Tuple
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Callable, Dict, Pattern, Tuple
-    from pelix.http import (
-        AbstractHTTPServletRequest,
-        AbstractHTTPServletResponse,
-    )
-except ImportError:
-    pass
-
-# Pelix utility methods
+from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse, Servlet
 from pelix.utilities import get_method_arguments
 
 # ------------------------------------------------------------------------------
@@ -72,13 +61,12 @@ Name of the attribute injected in methods to indicate their configuration
 # any 	    matches one of the items provided
 
 # Type name -> regex pattern
-TYPE_PATTERNS = {
+TYPE_PATTERNS: Dict[Optional[str], str] = {
     "string": r"(?:[^/]+)",
     "int": r"(?:[+\-]?\d+)",
     "float": r"(?:[+\-]?\d+\.?\d*)",
     "path": r"(?:[\w\s/]+)",
-    "uuid": r"(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}"
-    r"-[0-9a-fA-F]{12})",
+    "uuid": r"(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}" r"-[0-9a-fA-F]{12})",
 }
 TYPE_PATTERNS[None] = TYPE_PATTERNS["string"]
 
@@ -88,8 +76,7 @@ _MARKER_PATTERN = re.compile(r"<[^<>]*>")
 _TYPED_MARKER_PATTERN = re.compile(r"<(\w+):?(\w+)?>")
 
 
-def path_filter(path):
-    # type: (str) -> str
+def path_filter(path: str) -> str:
     """
     Removes the trailing '/' of a path, if any
 
@@ -100,22 +87,22 @@ def path_filter(path):
 
 
 # Type name -> conversion method (for types other than str)
-TYPE_CONVERTERS = {
+TYPE_CONVERTERS: Dict[str, Callable[[str], Any]] = {
     "int": int,
     "float": float,
     "path": path_filter,
     "uuid": uuid.UUID,
-}  # type: Dict[str, Callable[[str], Any]]
+}
 
 # ------------------------------------------------------------------------------
 
 
-class Http(object):
+class Http:
     """
     Decorator indicating which route a method handles
     """
 
-    def __init__(self, route, methods=None):
+    def __init__(self, route: str, methods: Optional[List[str]] = None) -> None:
         """
         :param route: Path handled by the method (beginning with a '/')
         :param methods: List of HTTP methods allowed (GET, POST, ...)
@@ -132,9 +119,9 @@ class Http(object):
             raise TypeError("methods should be a list")
 
         self._route = route
-        self._methods = methods or ["GET"]
+        self._methods: List[str] = methods or ["GET"]
 
-    def __call__(self, decorated_method):
+    def __call__(self, decorated_method: Callable[..., Any]) -> Callable[..., Any]:
         """
         Injects the HTTP_ROUTE_ATTRIBUTE to the decorated method to store the
         description of the route
@@ -142,14 +129,10 @@ class Http(object):
         :param decorated_method: The decorated method
         """
         if not inspect.isroutine(decorated_method):
-            raise TypeError(
-                "@Http can decorate only methods, not {0}".format(
-                    type(decorated_method).__name__
-                )
-            )
+            raise TypeError(f"@Http can decorate only methods, not {type(decorated_method).__name__}")
 
         try:
-            config = getattr(decorated_method, HTTP_ROUTE_ATTRIBUTE)
+            config: Dict[str, Any] = getattr(decorated_method, HTTP_ROUTE_ATTRIBUTE)
         except AttributeError:
             config = {}
             setattr(decorated_method, HTTP_ROUTE_ATTRIBUTE, config)
@@ -165,7 +148,7 @@ class HttpGet(Http):
     Decorates a method handling GET requests
     """
 
-    def __init__(self, route):
+    def __init__(self, route: str) -> None:
         """
         :param route: Path handled by the method (beginning with a '/')
         """
@@ -177,7 +160,7 @@ class HttpHead(Http):
     Decorates a method handling HEAD requests
     """
 
-    def __init__(self, route):
+    def __init__(self, route: str) -> None:
         """
         :param route: Path handled by the method (beginning with a '/')
         """
@@ -189,7 +172,7 @@ class HttpPost(Http):
     Decorates a method handling POST requests
     """
 
-    def __init__(self, route):
+    def __init__(self, route: str) -> None:
         """
         :param route: Path handled by the method (beginning with a '/')
         """
@@ -201,7 +184,7 @@ class HttpPut(Http):
     Decorates a method handling PUT requests
     """
 
-    def __init__(self, route):
+    def __init__(self, route: str) -> None:
         """
         :param route: Path handled by the method (beginning with a '/')
         """
@@ -213,7 +196,7 @@ class HttpDelete(Http):
     Decorates a method handling DELETE requests
     """
 
-    def __init__(self, route):
+    def __init__(self, route: str) -> None:
         """
         :param route: Path handled by the method (beginning with a '/')
         """
@@ -223,62 +206,63 @@ class HttpDelete(Http):
 # ------------------------------------------------------------------------------
 
 
-class RestDispatcher(object):
+class RestDispatcher(Servlet):
     """
     Parent class for servlets: dispatches requests according to the @Http
     decorator
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Looks for the methods where to dispatch requests
         """
         # HTTP verb -> route pattern -> function
-        self.__routes = {}
+        self.__routes: Dict[str, Dict[Pattern[str], Callable]] = {}
 
         # function -> arg name -> arg converter
-        self.__methods_args = {}
+        self.__methods_args: Dict[Callable, Dict[str, Optional[Callable[[str], Any]]]] = {}
 
         # Find all REST methods
         self._setup_rest_dispatcher()
 
-    def do_GET(self, request, response):
+    def do_GET(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
         # pylint: disable=C0103
         """
         Handles a GET request
         """
         self._rest_dispatch(request, response)
 
-    def do_HEAD(self, request, response):
+    def do_HEAD(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
         # pylint: disable=C0103
         """
         Handles a HEAD request
         """
         self._rest_dispatch(request, response)
 
-    def do_POST(self, request, response):
+    def do_POST(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
         # pylint: disable=C0103
         """
         Handles a POST request
         """
         self._rest_dispatch(request, response)
 
-    def do_PUT(self, request, response):
+    def do_PUT(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
         # pylint: disable=C0103
         """
         Handles a PUT request
         """
         self._rest_dispatch(request, response)
 
-    def do_DELETE(self, request, response):
+    def do_DELETE(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
         # pylint: disable=C0103
         """
         Handles a DELETE request
         """
         self._rest_dispatch(request, response)
 
-    def _rest_dispatch(self, request, response):
-        # type: (AbstractHTTPServletRequest, AbstractHTTPServletResponse) -> None
+    def _rest_dispatch(
+        self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse
+    ) -> None:
         """
         Dispatches the request
 
@@ -292,7 +276,7 @@ class RestDispatcher(object):
         # Find the best matching method, according to the number of
         # readable arguments
         max_valid_args = -1
-        best_method = None
+        best_method: Optional[Callable] = None
         best_args = None
         best_match = None
 
@@ -324,14 +308,14 @@ class RestDispatcher(object):
             # No match: return a 404 plain text error
             response.send_content(
                 404,
-                "No method to handle path {0}".format(sub_path),
+                f"No method to handle path {sub_path}",
                 "text/plain",
             )
         else:
             # Found a method
             # ... convert arguments
             kwargs = {}
-            if best_args:
+            if best_args and best_match is not None:
                 for name, converter in best_args.items():
                     try:
                         str_value = best_match.group(name)
@@ -363,7 +347,7 @@ class RestDispatcher(object):
             # ... call the method (exceptions will be handled by the server)
             best_method(request, response, *extra_pos_args, **kwargs)
 
-    def _setup_rest_dispatcher(self):
+    def _setup_rest_dispatcher(self) -> None:
         """
         Finds all methods to call when handling a route
         """
@@ -381,8 +365,7 @@ class RestDispatcher(object):
                     self.__routes.setdefault(http_verb, {})[pattern] = method
 
     @staticmethod
-    def __convert_route(route):
-        # type: (str) -> Tuple[Pattern[str], Dict[str, Callable[[str], Any]]]
+    def __convert_route(route: str) -> Tuple[Pattern[str], Dict[str, Optional[Callable[[str], Any]]]]:
         """
         Converts a route pattern into a regex.
         The result is a tuple containing the regex pattern to match and a
@@ -393,9 +376,9 @@ class RestDispatcher(object):
         :param route: A route string, i.e. a path with type markers
         :return: A tuple (pattern, {argument name: converter})
         """
-        arguments = {}  # type: Dict[str, Callable[[str], Any]]
+        arguments: Dict[str, Optional[Callable[[str], Any]]] = {}
         last_idx = 0
-        final_pattern = []
+        final_pattern: List[str] = []
         match_iter = _MARKER_PATTERN.finditer(route)
         for match_pattern in match_iter:
             # Copy intermediate string
@@ -405,11 +388,7 @@ class RestDispatcher(object):
             # Extract type declaration
             match_type = _TYPED_MARKER_PATTERN.match(match_pattern.group())
             if not match_type:
-                raise ValueError(
-                    "Invalid argument declaration: {0}".format(
-                        match_pattern.group()
-                    )
-                )
+                raise ValueError(f"Invalid argument declaration: {match_pattern.group()}")
 
             name, kind = match_type.groups()
             if kind:
