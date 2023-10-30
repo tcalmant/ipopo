@@ -9,12 +9,28 @@ Bundle defining multiple component factories for iPOPO tests
 # Pelix
 from pelix.constants import BundleActivator, FrameworkException
 from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceReference
 
 # iPOPO
-from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
-    Requires, Validate, Invalidate, Unbind, Bind, Instantiate, RequiresMap, \
-    RequiresBest, Temporal, PostRegistration, PostUnregistration, \
-    HiddenProperty, RequiresVarFilter, RequiresBroadcast
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Property,
+    Provides,
+    Requires,
+    Validate,
+    Invalidate,
+    Unbind,
+    Bind,
+    Instantiate,
+    RequiresMap,
+    RequiresBest,
+    Temporal,
+    PostRegistration,
+    PostUnregistration,
+    HiddenProperty,
+    RequiresVarFilter,
+    RequiresBroadcast,
+)
 from pelix.ipopo.constants import IPOPO_INSTANCE_NAME, IPopoEvent
 
 # Tests
@@ -59,6 +75,7 @@ class BasicComponent(object):
     """
     Dummy instantiated component
     """
+
     def __init__(self):
         """
         Constructor
@@ -80,6 +97,7 @@ class BasicComponent(object):
         """
         self.states.append(IPopoEvent.INVALIDATED)
 
+
 # ------------------------------------------------------------------------------
 # Inherited property
 
@@ -89,6 +107,7 @@ class TestComponentFactory(object):
     """
     Parent class of components
     """
+
     def __init__(self):
         """
         Constructor
@@ -118,6 +137,7 @@ class TestComponentFactory(object):
         """
         del self.states[:]
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -131,8 +151,9 @@ class ComponentFactoryA(TestComponentFactory, IEchoService):
     """
     Sample Component A
     """
+
     def __init__(self):
-        """"
+        """ "
         Constructor
         """
         TestComponentFactory.__init__(self)
@@ -181,12 +202,13 @@ class ComponentFactoryB(TestComponentFactory):
     """
     Sample Component B
     """
+
     def __init__(self):
-        """"
+        """ "
         Constructor
         """
         super(ComponentFactoryB, self).__init__()
-        self.service = None
+        self.service: IEchoService = None  # type: ignore
         self.raiser = False
         self.fw_raiser = False
         self.fw_raiser_stop = False
@@ -228,14 +250,14 @@ class ComponentFactoryB(TestComponentFactory):
 
 
 @ComponentFactory(name=FACTORY_C)
-@Requires(field="services", specification=IEchoService, aggregate=True,
-          optional=True)
+@Requires(field="services", specification=IEchoService, aggregate=True, optional=True)
 class ComponentFactoryC(TestComponentFactory):
     """
     Sample component C
     """
+
     def __init__(self):
-        """"
+        """ "
         Constructor
         """
         super(ComponentFactoryC, self).__init__()
@@ -261,20 +283,20 @@ class ComponentFactoryC(TestComponentFactory):
         # Assert that the service has been removed
         assert svc in self.services
 
+
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory(FACTORY_MAP)
-@RequiresMap('single', MAP_SPEC_TEST, 'single.key', False)
-@RequiresMap('multiple', MAP_SPEC_TEST, 'other.key', False,
-             aggregate=True, optional=True)
-@RequiresMap('single_none', MAP_SPEC_TEST, 'single.key', True)
-@RequiresMap('multiple_none', MAP_SPEC_TEST, 'other.key', True,
-             aggregate=True, optional=True)
+@RequiresMap("single", MAP_SPEC_TEST, "single.key", False)
+@RequiresMap("multiple", MAP_SPEC_TEST, "other.key", False, aggregate=True, optional=True)
+@RequiresMap("single_none", MAP_SPEC_TEST, "single.key", True)
+@RequiresMap("multiple_none", MAP_SPEC_TEST, "other.key", True, aggregate=True, optional=True)
 class MapComponentFactory(TestComponentFactory):
     """
     Sample RequiresMap component
     """
+
     def __init__(self):
         """
         Sets up members
@@ -287,15 +309,17 @@ class MapComponentFactory(TestComponentFactory):
         self.single_none = None
         self.multiple_none = None
 
+
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory(FACTORY_IMMEDIATE)
-@Requires('service', IEchoService, immediate_rebind=True)
+@Requires("service", IEchoService, immediate_rebind=True)
 class ImmediateComponentFactory(TestComponentFactory):
     """
     Component factory with a immediate_rebind flag
     """
+
     @Bind
     def bind(self, svc, svc_ref):
         """
@@ -309,16 +333,18 @@ class ImmediateComponentFactory(TestComponentFactory):
         Unbound
         """
         self.states.append(IPopoEvent.UNBOUND)
+
 
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory(FACTORY_REQUIRES_BEST)
-@RequiresBest('service', IEchoService)
+@RequiresBest("service", IEchoService)
 class RequiresBestComponentFactory(TestComponentFactory):
     """
     Component factory with a RequiresBest requirement
     """
+
     @Bind
     def bind(self, svc, svc_ref):
         """
@@ -333,11 +359,12 @@ class RequiresBestComponentFactory(TestComponentFactory):
         """
         self.states.append(IPopoEvent.UNBOUND)
 
+
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory(FACTORY_REQUIRES_BROADCAST)
-@RequiresBroadcast('service', IEchoService)
+@RequiresBroadcast("service", IEchoService)
 class RequiresBroadcastComponentFactory(TestComponentFactory):
     """
     Component factory with a RequiresBroadcast requirement with the default
@@ -346,7 +373,7 @@ class RequiresBroadcastComponentFactory(TestComponentFactory):
 
 
 @ComponentFactory(FACTORY_REQUIRES_BROADCAST_REQUIRED)
-@RequiresBroadcast('service', IEchoService, optional=False)
+@RequiresBroadcast("service", IEchoService, optional=False)
 class RequiresBroadcastRequiredComponentFactory(TestComponentFactory):
     """
     Component factory with a RequiresBroadcast requirement, without the
@@ -355,24 +382,25 @@ class RequiresBroadcastRequiredComponentFactory(TestComponentFactory):
 
 
 @ComponentFactory(FACTORY_REQUIRES_BROADCAST_UNMUFFLED)
-@RequiresBroadcast('service', IEchoService, muffle_exceptions=False)
+@RequiresBroadcast("service", IEchoService, muffle_exceptions=False)
 class RequiresBroadcastUnMuffleComponentFactory(TestComponentFactory):
     """
     Component factory with a RequiresBroadcast requirement, without the muffle
     exceptions flag
     """
 
+
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory(FACTORY_REQUIRES_VAR_FILTER)
-@RequiresVarFilter('service', IEchoService,
-                   spec_filter="(&(s={static})(a={answer}))")
-@Property('answer', 'answer', 42)
+@RequiresVarFilter("service", IEchoService, spec_filter="(&(s={static})(a={answer}))")
+@Property("answer", "answer", 42)
 class RequiresVarFilterComponentFactory(TestComponentFactory):
     """
     Component factory with a RequiresVarFilter requirement
     """
+
     @Bind
     def bind(self, svc, svc_ref):
         """
@@ -395,13 +423,13 @@ class RequiresVarFilterComponentFactory(TestComponentFactory):
 
 
 @ComponentFactory(FACTORY_REQUIRES_VAR_FILTER_AGGREGATE)
-@RequiresVarFilter('service', IEchoService, aggregate=True,
-                   spec_filter="(&(s={static})(a={answer}))")
-@Property('answer', 'answer', 42)
+@RequiresVarFilter("service", IEchoService, aggregate=True, spec_filter="(&(s={static})(a={answer}))")
+@Property("answer", "answer", 42)
 class RequiresVarFilterAggregateComponentFactory(TestComponentFactory):
     """
     Component factory with a RequiresVarFilter requirement
     """
+
     @Bind
     def bind(self, svc, svc_ref):
         """
@@ -422,24 +450,28 @@ class RequiresVarFilterAggregateComponentFactory(TestComponentFactory):
         """
         self.states.append(IPopoEvent.UNBOUND)
 
+
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory(FACTORY_TEMPORAL)
-@Temporal('service', IEchoService, timeout=2)
+@Temporal("service", IEchoService, timeout=2)
 class TemporalComponentFactory(TestComponentFactory):
     """
     Component factory with a temporal requirement
     """
+
+    service: IEchoService
+
     @Bind
-    def bind(self, svc, svc_ref):
+    def bind(self, svc: IEchoService, svc_ref: ServiceReference[IEchoService]):
         """
         Bound
         """
         self.states.append(IPopoEvent.BOUND)
 
     @Unbind
-    def unbind(self, svc, svc_ref):
+    def unbind(self, svc: IEchoService, svc_ref: ServiceReference[IEchoService]):
         """
         Unbound
         """
@@ -451,6 +483,7 @@ class TemporalComponentFactory(TestComponentFactory):
         """
         return self.service.method()
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -460,6 +493,7 @@ class ErroneousComponentFactory(TestComponentFactory):
     """
     Component factory with a immediate_rebind flag
     """
+
     def __init__(self):
         """
         Sets up members
@@ -468,7 +502,7 @@ class ErroneousComponentFactory(TestComponentFactory):
         self.raise_exception = True
 
     @Validate
-    def validate(self, context):
+    def validate(self, context: BundleContext):
         """
         Validation
         """
@@ -476,6 +510,7 @@ class ErroneousComponentFactory(TestComponentFactory):
             raise OSError("Error raised")
         else:
             super(ErroneousComponentFactory, self).validate(context)
+
 
 # ------------------------------------------------------------------------------
 
@@ -487,12 +522,14 @@ class HiddenPropTest(object):
     """
     Test for hidden properties
     """
+
     def __init__(self):
         """
         Sets up members
         """
         self.hidden = None
         self.public = None
+
 
 # ------------------------------------------------------------------------------
 
@@ -503,6 +540,7 @@ class SvcFactoryProvider(object):
     """
     Test for providing a service factory
     """
+
     def __init__(self):
         """
         Sets up members
@@ -522,6 +560,7 @@ class SvcFactoryProvider(object):
         self.registration = svc_registration
         self.service = None
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -531,6 +570,7 @@ class SvcPrototypeFactoryProvider(object):
     """
     Test for providing a prototype service factory
     """
+
     def __init__(self):
         """
         Sets up members
@@ -563,6 +603,7 @@ class SvcPrototypeFactoryProvider(object):
         self.registration = svc_registration
         del self.services[:]
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -571,6 +612,7 @@ class ActivatorTest:
     """
     Test activator
     """
+
     def __init__(self):
         """
         Constructor
@@ -597,6 +639,7 @@ class ActivatorTest:
         global stopped
         stopped = True
 
+
 # ------------------------------------------------------------------------------
 # Inheritance tests
 
@@ -605,6 +648,7 @@ class GrandMother(object):
     """
     Parent class of Mother class: must not appear in specifications
     """
+
     pass
 
 
@@ -612,6 +656,7 @@ class Mother(GrandMother):
     """
     Direct parent class: must appear in specifications
     """
+
     pass
 
 
@@ -619,6 +664,7 @@ class Father(object):
     """
     Direct parent class: must appear in specifications
     """
+
     pass
 
 
@@ -626,4 +672,5 @@ class Child(Father, Mother):
     """
     Implementation class: must not appear in specifications
     """
+
     pass

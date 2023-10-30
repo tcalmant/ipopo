@@ -28,14 +28,14 @@ this sample.
     limitations under the License.
 """
 
-# iPOPO decorators
+import logging
+from pelix.framework import BundleContext
 from pelix.ipopo.decorators import (
     ComponentFactory,
     Validate,
     Invalidate,
     Instantiate,
 )
-# Logger decorator
 from samples.handler.decorator import Logger
 
 # ------------------------------------------------------------------------------
@@ -53,26 +53,23 @@ __docformat__ = "restructuredtext en"
 @ComponentFactory()
 @Logger("_logger")
 @Instantiate("sample-logger-component")
-class SampleLoggerComponent(object):
+class SampleLoggerComponent:
     """
     Sample component that uses the logger handler
     """
 
-    def __init__(self):
-        """
-        Sets up members
-        """
-        self._logger = None
+    # Define the injected field
+    _logger: logging.Logger
 
     @Validate
-    def validate(self, context):
+    def validate(self, context: BundleContext) -> None:
         """
         Component validated
         """
         self._logger.debug("Validated ! (Logged from the component)")
 
     @Invalidate
-    def invalidate(self, context):
+    def invalidate(self, context: BundleContext) -> None:
         """
         Component invalidated
         """

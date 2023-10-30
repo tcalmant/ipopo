@@ -25,14 +25,11 @@ The logger handler implementation
     limitations under the License.
 """
 
-# Standard library
 import logging
 
 import pelix.ipopo.handlers.constants as ipopo_constants
-# Logger handler constants
 import samples.handler.constants as constants
-# Pelix & iPOPO constants
-from pelix.constants import BundleActivator
+from pelix.constants import ActivatorProto, BundleActivator
 
 # ------------------------------------------------------------------------------
 
@@ -54,12 +51,12 @@ _logger = logging.getLogger(__name__)
 # We need to register the handler factory as a service,
 # using a bundle activator
 @BundleActivator
-class _Activator(object):
+class Activator(ActivatorProto):
     """
     The bundle activator
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up members
         """
@@ -83,9 +80,10 @@ class _Activator(object):
         """
         Bundle stopped
         """
-        # Unregister the service
-        self._registration.unregister()
-        self._registration = None
+        if self._registration is not None:
+            # Unregister the service
+            self._registration.unregister()
+            self._registration = None
 
 
 # ------------------------------------------------------------------------------
@@ -103,8 +101,7 @@ class _LoggerHandlerFactory(ipopo_constants.HandlerFactory):
 
         :param component_context: The ComponentContext bean
         :param instance: The component instance
-        :return: The list of handlers associated to the given component
-                 (never None)
+        :return: The list of handlers associated to the given component (never None)
         """
         # Extract information from the context
         logger_field = component_context.get_handler(constants.HANDLER_LOGGER)

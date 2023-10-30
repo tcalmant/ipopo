@@ -10,18 +10,18 @@ __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 
-class IEchoService:
+from typing import Protocol, TypeVar
+
+T = TypeVar("T")
+
+
+class IEchoService(Protocol):
     """
     Interface of an echo service
     """
-    def __init__(self):
-        """
-        Empty constructor
-        """
-        pass
 
-    def echo(self, value):
+    def echo(self, value: T) -> T:
         """
         Returns the given value
         """
-        pass
+        ...

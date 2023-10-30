@@ -25,14 +25,12 @@ The logger handler implementation
     limitations under the License.
 """
 
-# Standard library
 import logging
+from typing import Optional
 
 import pelix.ipopo.handlers.constants as ipopo_constants
-# Logger handler constants
 import samples.handler.constants as constants
-# Pelix & iPOPO constants
-from pelix.constants import BundleActivator
+from pelix.constants import ActivatorProto, BundleActivator
 
 # ------------------------------------------------------------------------------
 
@@ -54,7 +52,7 @@ _logger = logging.getLogger(__name__)
 # We need to register the handler factory as a service, using a bundle
 # activator
 @BundleActivator
-class _Activator(object):
+class Activator(ActivatorProto):
     """
     The bundle activator
     """
@@ -83,9 +81,10 @@ class _Activator(object):
         """
         Bundle stopped
         """
-        # Unregister the service
-        self._registration.unregister()
-        self._registration = None
+        if self._registration is not None:
+            # Unregister the service
+            self._registration.unregister()
+            self._registration = None
 
 
 # ------------------------------------------------------------------------------
@@ -103,8 +102,7 @@ class _LoggerHandlerFactory(ipopo_constants.HandlerFactory):
 
         :param component_context: The ComponentContext bean
         :param instance: The component instance
-        :return: The list of handlers associated to the given component
-                 (never None)
+        :return: The list of handlers associated to the given component (never None)
         """
         # Extract information from the context
         logger_field = component_context.get_handler(constants.HANDLER_LOGGER)
@@ -121,12 +119,12 @@ class _LoggerHandlerFactory(ipopo_constants.HandlerFactory):
             return [_LoggerHandler(logger_field, component_context.name)]
 
 
-class _LoggerHandler(object):
+class _LoggerHandler(ipopo_constants.Handler):
     """
     The logger handler, associated to a unique component instance
     """
 
-    def __init__(self, field, name):
+    def __init__(self, field: str, name: str) -> None:
         """
         Sets up the handler. Arguments depends on the HandlerFactory.
 
@@ -135,7 +133,7 @@ class _LoggerHandler(object):
         """
         self._field = field
         self._name = name
-        self._logger = None
+        self._logger: Optional[logging.Logger] = None
 
     def manipulate(self, stored_instance, component_instance):
         """
@@ -171,13 +169,15 @@ class _LoggerHandler(object):
         """
         Optional: The handler has been started
         """
-        self._logger.debug("Component handlers are starting")
+        if self._logger is not None:
+            self._logger.debug("Component handlers are starting")
 
     def stop(self):
         """
         Optional: The handler has been stopped
         """
-        self._logger.debug("Component handlers are stopping")
+        if self._logger is not None:
+            self._logger.debug("Component handlers are stopping")
 
     def is_valid(self):
         """
@@ -191,33 +191,33 @@ class _LoggerHandler(object):
         Cleans up the handler. The handler can't be used after this method has
         been called
         """
-        self._logger.debug("Component handlers are cleared")
-
-        # Clean up everything to avoid stale references, ...
-        self._field = None
-        self._name = None
-        self._logger = None
+        if self._logger is not None:
+            self._logger.debug("Component handlers are cleared")
 
     def pre_validate(self):
         """
         Optional: called when the component is being validated
         """
-        self._logger.debug("Component will be validated")
+        if self._logger is not None:
+            self._logger.debug("Component will be validated")
 
     def post_validate(self):
         """
         Optional: called when the component has been validated
         """
-        self._logger.debug("Component has been validated")
+        if self._logger is not None:
+            self._logger.debug("Component has been validated")
 
     def pre_invalidate(self):
         """
         Optional: called when the component is being invalidated
         """
-        self._logger.debug("Component will be invalidated")
+        if self._logger is not None:
+            self._logger.debug("Component will be invalidated")
 
     def post_invalidate(self):
         """
         Optional: called when the component has been invalidated
         """
-        self._logger.debug("Component has been invalidated")
+        if self._logger is not None:
+            self._logger.debug("Component has been invalidated")

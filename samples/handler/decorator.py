@@ -25,13 +25,11 @@ Defines the decorator for the logger iPOPO handler
     limitations under the License.
 """
 
-# Standard library
 import inspect
 import logging
+from typing import Type
 
-# iPOPO Decorators utility methods
 import pelix.ipopo.decorators as decorators
-# Logger handler constants
 import samples.handler.constants as constants
 
 # ------------------------------------------------------------------------------
@@ -51,12 +49,12 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class Logger(object):
+class Logger:
     """
     The decorator to activate and configure the logger handler
     """
 
-    def __init__(self, field):
+    def __init__(self, field: str) -> None:
         """
         Sets up the logger configuration
 
@@ -64,7 +62,7 @@ class Logger(object):
         """
         self._field = field
 
-    def __call__(self, clazz):
+    def __call__(self, clazz: Type) -> Type:
         """
         Stores the configuration of the handler in the component factory
         context
@@ -76,11 +74,7 @@ class Logger(object):
         """
         # Ensure that the decorator is applied on a class
         if not inspect.isclass(clazz):
-            raise TypeError(
-                "@Logger can decorate only classes, not '{0}'".format(
-                    type(clazz).__name__
-                )
-            )
+            raise TypeError(f"@Logger can decorate only classes, not '{type(clazz).__name__}'")
 
         # Retrieve the Factory context
         context = decorators.get_factory_context(clazz)

@@ -1831,24 +1831,21 @@ def create_framework(
     auto_start: bool = False,
     wait_for_stop: bool = False,
     auto_delete: bool = False,
-) -> Optional[Framework]:
+) -> Framework:
     """
-    Creates a Pelix framework, installs the given bundles and returns its
-    instance reference.
-    If *auto_start* is True, the framework will be started once all bundles
-    will have been installed
-    If *wait_for_stop* is True, the method will return only when the framework
-    will have stopped. This requires *auto_start* to be True.
-    If *auto_delete* is True, the framework will be deleted once it has
-    stopped, and the method will return None.
+    Creates a Pelix framework, installs the given bundles and returns its instance reference.
+
+    If *auto_start* is True, the framework will be started once all bundles will have been installed
+    If *wait_for_stop* is True, the method will return only when the framework will have stopped.
+    This requires *auto_start* to be True.
+    If *auto_delete* is True, the framework will be deleted once it has stopped
+    and should not be used afterwards
     This requires *wait_for_stop* and *auto_start* to be True.
 
-    :param bundles: Bundles to initially install (shouldn't be empty if
-                    *wait_for_stop* is True)
+    :param bundles: Bundles to initially install (shouldn't be empty if *wait_for_stop* is True)
     :param properties: Optional framework properties
     :param auto_start: If True, the framework will be started immediately
-    :param wait_for_stop: If True, the method will return only when the
-                          framework will have stopped
+    :param wait_for_stop: If True, the method will return only when the framework will have stopped
     :param auto_delete: If True, deletes the framework once it stopped.
     :return: The framework instance
     :raise ValueError: Only one framework can run at a time
@@ -1881,7 +1878,6 @@ def create_framework(
             if auto_delete:
                 # Delete the framework
                 FrameworkFactory.delete_framework(framework)
-                return None
 
     return framework
 
