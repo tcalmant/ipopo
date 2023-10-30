@@ -25,18 +25,22 @@ RequiresMap handler implementation
     limitations under the License.
 """
 
-# Standard library
 import copy
 import logging
 import threading
+from typing import Any, Dict, Optional, Tuple, TypeVar
 
-# Pelix beans
-from pelix.constants import BundleActivator, BundleException
-from pelix.internals.events import ServiceEvent
-
-# iPOPO constants
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
+from pelix.constants import ActivatorProto, BundleActivator, BundleException
+from pelix.framework import BundleContext
+from pelix.internals.events import ServiceEvent
+from pelix.internals.registry import ServiceListener, ServiceReference
+from pelix.ipopo.contexts import Requirement
+from pelix.ipopo.instance import StoredInstance
+
+CONFIG = Tuple[Requirement, str, bool]
+T = TypeVar("T")
 
 # ------------------------------------------------------------------------------
 
@@ -57,13 +61,14 @@ class _HandlerFactory(constants.HandlerFactory):
     """
 
     @staticmethod
-    def _prepare_requirements(configs, requires_filters):
+    def _prepare_requirements(
+        configs: Dict[str, CONFIG], requires_filters: Optional[Dict[str, str]]
+    ) -> Dict[str, CONFIG]:
         """
         Overrides the filters specified in the decorator with the given ones
 
         :param configs: Field → (Requirement, key, allow_none) dictionary
-        :param requires_filters: Content of the 'requires.filter' component
-                                 property (field → string)
+        :param requires_filters: Content of the 'requires.filter' component property (field → string)
         :return: The new configuration dictionary
         """
         if not requires_filters or not isinstance(requires_filters, dict):
@@ -71,7 +76,7 @@ class _HandlerFactory(constants.HandlerFactory):
             return configs
 
         # We need to change a part of the requirements
-        new_requirements = {}
+        new_requirements: Dict[str, CONFIG] = {}
         for field, config in configs.items():
             # Extract values from tuple
             requirement, key, allow_none = config
@@ -100,12 +105,8 @@ class _HandlerFactory(constants.HandlerFactory):
         :return: The list of handlers associated to the given component
         """
         # Extract information from the context
-        configs = component_context.get_handler(
-            ipopo_constants.HANDLER_REQUIRES_MAP
-        )
-        requires_filters = component_context.properties.get(
-            ipopo_constants.IPOPO_REQUIRES_FILTERS, None
-        )
+        configs = component_context.get_handler(ipopo_constants.HANDLER_REQUIRES_MAP)
+        requires_filters = component_context.properties.get(ipopo_constants.IPOPO_REQUIRES_FILTERS, None)
 
         # Prepare requirements
         configs = self._prepare_requirements(configs, requires_filters)
@@ -118,19 +119,15 @@ class _HandlerFactory(constants.HandlerFactory):
 
             # Construct the handler
             if requirement.aggregate:
-                handlers.append(
-                    AggregateDependency(field, requirement, key, allow_none)
-                )
+                handlers.append(AggregateDependency(field, requirement, key, allow_none))
             else:
-                handlers.append(
-                    SimpleDependency(field, requirement, key, allow_none)
-                )
+                handlers.append(SimpleDependency(field, requirement, key, allow_none))
 
         return handlers
 
 
 @BundleActivator
-class _Activator(object):
+class Activator(ActivatorProto):
     """
     The bundle activator
     """
@@ -146,9 +143,7 @@ class _Activator(object):
         Bundle started
         """
         # Set up properties
-        properties = {
-            constants.PROP_HANDLER_ID: ipopo_constants.HANDLER_REQUIRES_MAP
-        }
+        properties = {constants.PROP_HANDLER_ID: ipopo_constants.HANDLER_REQUIRES_MAP}
 
         # Register the handler factory service
         self._registration = context.register_service(
@@ -161,20 +156,21 @@ class _Activator(object):
         """
         Bundle stopped
         """
-        # Unregister the service
-        self._registration.unregister()
-        self._registration = None
+        if self._registration is not None:
+            # Unregister the service
+            self._registration.unregister()
+            self._registration = None
 
 
 # ------------------------------------------------------------------------------
 
 
-class _RuntimeDependency(constants.DependencyHandler):
+class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
     """
     Manages a required dependency field when a component is running
     """
 
-    def __init__(self, field, requirement, key, allow_none):
+    def __init__(self, field: str, requirement: Requirement, key: str, allow_none: bool) -> None:
         """
         Sets up the dependency
 
@@ -184,31 +180,31 @@ class _RuntimeDependency(constants.DependencyHandler):
         :param allow_none: Allow None property as key
         """
         # The internal state lock
-        self._lock = threading.RLock()
+        self._lock: threading.RLock = threading.RLock()
 
         # The iPOPO StoredInstance object (given during manipulation)
-        self._ipopo_instance = None
+        self._ipopo_instance: Optional[StoredInstance] = None
 
         # The bundle context
-        self._context = None
+        self._context: Optional[BundleContext] = None
 
         # The associated field
-        self._field = field
+        self._field: str = field
 
         # The underlying requirement
-        self.requirement = requirement
+        self.requirement: Requirement = requirement
 
         # The property name
-        self._key = key
+        self._key: str = key
 
         # Accept None values
-        self._allow_none = allow_none
+        self._allow_none: bool = allow_none
 
         # Reference -> Service
-        self.services = {}
+        self.services: Dict[ServiceReference, Any] = {}
 
         # Future injected dictionary
-        self._future_value = {}
+        self._future_value: Dict[Optional[str], Any] = {}
 
     def manipulate(self, stored_instance, component_instance):
         """
@@ -233,16 +229,8 @@ class _RuntimeDependency(constants.DependencyHandler):
         """
         self.services.clear()
         self._future_value.clear()
-
-        self.services = None
-        self._lock = None
         self._ipopo_instance = None
         self._context = None
-        self.requirement = None
-        self._key = None
-        self._allow_none = None
-        self._future_value = None
-        self._field = None
 
     def get_bindings(self):
         """
@@ -282,9 +270,7 @@ class _RuntimeDependency(constants.DependencyHandler):
         """
         Tests if the dependency is in a valid state
         """
-        return (
-            self.requirement is not None and self.requirement.optional
-        ) or bool(self._future_value)
+        return (self.requirement is not None and self.requirement.optional) or bool(self._future_value)
 
     def on_service_arrival(self, svc_ref):
         """
@@ -294,7 +280,7 @@ class _RuntimeDependency(constants.DependencyHandler):
         """
         raise NotImplementedError
 
-    def on_service_departure(self, svc_ref):
+    def on_service_departure(self, svc_ref: ServiceReference) -> None:
         """
         Called when a service has been registered in the framework
 
@@ -302,12 +288,15 @@ class _RuntimeDependency(constants.DependencyHandler):
         """
         raise NotImplementedError
 
-    def on_service_modify(self, svc_ref, old_properties):
+    def on_service_modify(
+        self, svc_ref: ServiceReference, old_properties: Dict[str, Any]
+    ) -> Tuple[bool, Tuple[T, ServiceReference[T]]]:
         """
         Called when a service has been registered in the framework
 
         :param svc_ref: A service reference
         :param old_properties: Previous properties values
+        :return: A tuple (added, (service, reference)) if the dependency has been changed, else None
         """
         raise NotImplementedError
 
@@ -315,10 +304,7 @@ class _RuntimeDependency(constants.DependencyHandler):
         """
         Called by the framework when a service event occurs
         """
-        if (
-            self._ipopo_instance is None
-            or not self._ipopo_instance.check_event(event)
-        ):
+        if self._ipopo_instance is None or not self._ipopo_instance.check_event(event):
             # stop() and clean() may have been called after we have been put
             # inside a listener list copy...
             # or we've been told to ignore this event
@@ -341,15 +327,16 @@ class _RuntimeDependency(constants.DependencyHandler):
 
         elif kind == ServiceEvent.MODIFIED:
             # Modified properties (can be a new injection)
-            self.on_service_modify(svc_ref, event.get_previous_properties())
+            self.on_service_modify(svc_ref, event.get_previous_properties() or {})
 
     def start(self):
         """
         Starts the dependency manager
         """
-        self._context.add_service_listener(
-            self, self.requirement.filter, self.requirement.specification
-        )
+        if self._context is None:
+            raise ValueError("Requirement not set up")
+
+        self._context.add_service_listener(self, self.requirement.filter, self.requirement.specification)
 
     def stop(self):
         """
@@ -357,12 +344,12 @@ class _RuntimeDependency(constants.DependencyHandler):
 
         :return: The removed bindings (list) or None
         """
+        if self._context is None:
+            raise ValueError("Requirement not set up")
+
         self._context.remove_service_listener(self)
         if self.services:
-            return [
-                (service, reference)
-                for reference, service in self.services.items()
-            ]
+            return [(service, reference) for reference, service in self.services.items()]
 
         return None
 
@@ -377,6 +364,9 @@ class _RuntimeDependency(constants.DependencyHandler):
                 # We already are alive (not our first call)
                 # => we are updated through service events
                 return
+
+            if self._context is None or self._ipopo_instance is None:
+                raise ValueError("Requirement not set up")
 
             # Get all matching services
             refs = self._context.get_all_service_references(
@@ -395,16 +385,13 @@ class _RuntimeDependency(constants.DependencyHandler):
                         results.append(reference)
             except BundleException as ex:
                 # Get the logger for this instance
-                logger = logging.getLogger(
-                    "-".join((self._ipopo_instance.name, "RequiresMap-Runtime"))
-                )
+                logger = logging.getLogger("-".join((self._ipopo_instance.name, "RequiresMap-Runtime")))
                 logger.debug("Error binding multiple references: %s", ex)
 
                 # Undo what has just been done, ignoring errors
                 for reference in results:
                     try:
                         self.on_service_departure(reference)
-
                     except BundleException as ex2:
                         logger.debug("Error cleaning up: %s", ex2)
 
@@ -424,14 +411,13 @@ class SimpleDependency(_RuntimeDependency):
         :param svc_ref: A service reference
         """
         with self._lock:
+            if self._context is None or self._ipopo_instance is None:
+                raise ValueError("Requirement not set up")
+
             if svc_ref not in self.services:
                 # Get the key property
                 prop_value = svc_ref.get_property(self._key)
-                if (
-                    prop_value not in self._future_value
-                    and prop_value is not None
-                    or self._allow_none
-                ):
+                if prop_value not in self._future_value and prop_value is not None or self._allow_none:
                     # Matching new property value
                     service = self._context.get_service(svc_ref)
 
@@ -452,6 +438,9 @@ class SimpleDependency(_RuntimeDependency):
         :param svc_ref: A service reference
         """
         with self._lock:
+            if self._context is None or self._ipopo_instance is None:
+                raise ValueError("Requirement not set up")
+
             if svc_ref in self.services:
                 # Get the service instance
                 service = self.services.pop(svc_ref)
@@ -479,25 +468,22 @@ class SimpleDependency(_RuntimeDependency):
                 # A previously registered service now matches our filter
                 return self.on_service_arrival(svc_ref)
             else:
+                if self._context is None or self._ipopo_instance is None:
+                    raise ValueError("Requirement not set up")
+
                 # Get the property values
                 old_value = old_properties.get(self._key)
                 prop_value = svc_ref.get_property(self._key)
                 service = self.services[svc_ref]
 
                 if old_value != prop_value:
-                    if (
-                        prop_value is not None
-                        or self._allow_none
-                        and prop_value not in self._future_value
-                    ):
+                    if prop_value is not None or self._allow_none and prop_value not in self._future_value:
                         # New property accepted and not yet in use
                         del self._future_value[old_value]
                         self._future_value[prop_value] = service
 
                         # Notify the property modification, with a value change
-                        self._ipopo_instance.update(
-                            self, service, svc_ref, old_properties, True
-                        )
+                        self._ipopo_instance.update(self, service, svc_ref, old_properties, True)
                     else:
                         # Consider the service as gone
                         del self._future_value[old_value]
@@ -505,9 +491,7 @@ class SimpleDependency(_RuntimeDependency):
                         self._ipopo_instance.unbind(self, service, svc_ref)
                 else:
                     # Notify the property modification
-                    self._ipopo_instance.update(
-                        self, service, svc_ref, old_properties, False
-                    )
+                    self._ipopo_instance.update(self, service, svc_ref, old_properties, False)
 
             return None
 
@@ -557,9 +541,7 @@ class AggregateDependency(_RuntimeDependency):
         with self._lock:
             # The value field must be a deep copy of our dictionary
             if self._future_value is not None:
-                return {
-                    key: value[:] for key, value in self._future_value.items()
-                }
+                return {key: value[:] for key, value in self._future_value.items()}
 
             return None
 
@@ -571,6 +553,9 @@ class AggregateDependency(_RuntimeDependency):
         :return: True if the service is consumed
         """
         with self._lock:
+            if self._context is None or self._ipopo_instance is None:
+                raise ValueError("Requirement not set up")
+
             if svc_ref not in self.services:
                 # Get the key property
                 prop_value = svc_ref.get_property(self._key)
@@ -592,10 +577,12 @@ class AggregateDependency(_RuntimeDependency):
         Called when a service has been unregistered from the framework
 
         :param svc_ref: A service reference
-        :return: A tuple (service, reference) if the service has been lost,
-                 else None
+        :return: A tuple (service, reference) if the service has been lost, else None
         """
         with self._lock:
+            if self._context is None or self._ipopo_instance is None:
+                raise ValueError("Requirement not set up")
+
             if svc_ref in self.services:
                 # Get the service instance
                 service = self.services.pop(svc_ref)
@@ -617,14 +604,16 @@ class AggregateDependency(_RuntimeDependency):
 
         :param svc_ref: A service reference
         :param old_properties: Previous properties values
-        :return: A tuple (added, (service, reference)) if the dependency has
-                 been changed, else None
+        :return: A tuple (added, (service, reference)) if the dependency has been changed, else None
         """
         with self._lock:
             if svc_ref not in self.services:
                 # A previously registered service now matches our filter
                 return self.on_service_arrival(svc_ref)
             else:
+                if self._context is None or self._ipopo_instance is None:
+                    raise ValueError("Requirement not set up")
+
                 # Get the property values
                 service = self.services[svc_ref]
                 old_value = old_properties.get(self._key)
@@ -640,9 +629,7 @@ class AggregateDependency(_RuntimeDependency):
                         self.__store_service(prop_value, service)
 
                         # Notify the property modification, with a value change
-                        self._ipopo_instance.update(
-                            self, service, svc_ref, old_properties, True
-                        )
+                        self._ipopo_instance.update(self, service, svc_ref, old_properties, True)
                     else:
                         # Consider the service as gone
                         self.__remove_service(old_value, service)
@@ -650,8 +637,6 @@ class AggregateDependency(_RuntimeDependency):
                         self._ipopo_instance.unbind(self, service, svc_ref)
                 else:
                     # Simple property update
-                    self._ipopo_instance.update(
-                        self, service, svc_ref, old_properties, False
-                    )
+                    self._ipopo_instance.update(self, service, svc_ref, old_properties, False)
 
             return None

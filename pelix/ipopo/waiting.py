@@ -31,24 +31,15 @@ components.
 # Standard library
 import logging
 import threading
-
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Dict
-    from pelix.framework import BundleContext
-except ImportError:
-    pass
+from typing import Any, Dict, Optional
 
 # Pelix
-from pelix.constants import BundleException, BundleActivator
+from pelix.constants import ActivatorProto, BundleActivator, BundleException
+from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
-from pelix.ipopo.constants import (
-    IPopoEvent,
-    use_ipopo,
-    SERVICE_IPOPO,
-    SERVICE_IPOPO_WAITING_LIST,
-)
+from pelix.internals.registry import ServiceRegistration
+from pelix.ipopo.constants import SERVICE_IPOPO, SERVICE_IPOPO_WAITING_LIST, IPopoEvent, use_ipopo
+from pelix.ipopo.protocols import IPopoService
 
 # ------------------------------------------------------------------------------
 
@@ -66,32 +57,30 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class IPopoWaitingList(object):
+class IPopoWaitingList:
     """
     iPOPO instantiation waiting list
     """
 
-    def __init__(self, bundle_context):
-        # type: (BundleContext) -> None
+    def __init__(self, bundle_context: BundleContext) -> None:
         """
         Sets up members
 
         :param bundle_context: The bundle context
         """
         # Bundle context
-        self.__context = bundle_context
+        self.__context: Optional[BundleContext] = bundle_context
 
         # The "queue": factory name -> {component name -> properties}
-        self.__queue = {}  # type: Dict[str, Dict[str, dict]]
+        self.__queue: Dict[str, Dict[str, dict]] = {}
 
         # Component Name -> Factory Name
-        self.__names = {}  # type: Dict[str, str]
+        self.__names: Dict[str, str] = {}
 
         # Some locking
         self.__lock = threading.RLock()
 
-    def _try_instantiate(self, ipopo, factory, component):
-        # type: (Any, str, str) -> None
+    def _try_instantiate(self, ipopo: IPopoService, factory: str, component: str) -> None:
         """
         Tries to instantiate a component from the queue. Hides all exceptions.
 
@@ -120,10 +109,13 @@ class IPopoWaitingList(object):
                 # Other error
                 _logger.exception("Error instantiating component: %s", ex)
 
-    def _start(self):
+    def _start(self) -> None:
         """
         Starts the instantiation queue (called by its bundle activator)
         """
+        if self.__context is None:
+            raise ValueError("Missing context for iPOPO waiting list")
+
         try:
             # Try to register to factory events
             with use_ipopo(self.__context) as ipopo:
@@ -135,10 +127,13 @@ class IPopoWaitingList(object):
         # Register the iPOPO service listener
         self.__context.add_service_listener(self, specification=SERVICE_IPOPO)
 
-    def _stop(self):
+    def _stop(self) -> None:
         """
         Stops the instantiation queue (called by its bundle activator)
         """
+        if self.__context is None:
+            raise ValueError("Missing context for iPOPO waiting list")
+
         # Unregisters the iPOPO service listener
         self.__context.remove_service_listener(self)
 
@@ -150,7 +145,7 @@ class IPopoWaitingList(object):
             # Service not present anymore
             pass
 
-    def _clear(self):
+    def _clear(self) -> None:
         """
         Clear all references (called by its bundle activator)
         """
@@ -158,24 +153,28 @@ class IPopoWaitingList(object):
         self.__queue.clear()
         self.__context = None
 
-    def service_changed(self, event):
-        # type: (ServiceEvent) -> None
+    def service_changed(self, event: ServiceEvent) -> None:
         """
         Handles an event about the iPOPO service
         """
+        if self.__context is None:
+            raise ValueError("Missing context for iPOPO waiting list")
+
         kind = event.get_kind()
         if kind == ServiceEvent.REGISTERED:
             # iPOPO service registered: register to factory events
             with use_ipopo(self.__context) as ipopo:
                 ipopo.add_listener(self)
 
-    def handle_ipopo_event(self, event):
-        # type: (IPopoEvent) -> None
+    def handle_ipopo_event(self, event: IPopoEvent) -> None:
         """
         Handles an iPOPO event
 
         :param event: iPOPO event bean
         """
+        if self.__context is None:
+            raise ValueError("Missing context for iPOPO waiting list")
+
         kind = event.get_kind()
         if kind == IPopoEvent.REGISTERED:
             # A factory has been registered
@@ -196,8 +195,7 @@ class IPopoWaitingList(object):
                 # No components for this new factory
                 pass
 
-    def add(self, factory, component, properties=None):
-        # type: (str, str, dict) -> None
+    def add(self, factory: str, component: str, properties: Optional[Dict[str, Any]] = None) -> None:
         """
         Enqueues the instantiation of the given component
 
@@ -207,11 +205,12 @@ class IPopoWaitingList(object):
         :raise ValueError: Component name already reserved in the queue
         :raise Exception: Error instantiating the component
         """
+        if self.__context is None:
+            raise ValueError("Missing context for iPOPO waiting list")
+
         with self.__lock:
             if component in self.__names:
-                raise ValueError(
-                    "Component name already queued: {0}".format(component)
-                )
+                raise ValueError(f"Component name already queued: {component}")
 
             # Normalize properties
             if properties is None:
@@ -229,14 +228,16 @@ class IPopoWaitingList(object):
                 # iPOPO not yet started
                 pass
 
-    def remove(self, component):
-        # type: (str) -> None
+    def remove(self, component: str) -> None:
         """
         Kills/Removes the component with the given name
 
         :param component: A component name
         :raise KeyError: Unknown component
         """
+        if self.__context is None:
+            raise ValueError("Missing context for iPOPO waiting list")
+
         with self.__lock:
             # Find its factory
             factory = self.__names.pop(component)
@@ -262,21 +263,19 @@ class IPopoWaitingList(object):
 
 
 @BundleActivator
-class Activator(object):
+class Activator(ActivatorProto):
     """
     The bundle activator
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Constructor
         """
-        self.__registration = None
-        self.__service = None
+        self.__registration: Optional[ServiceRegistration[IPopoWaitingList]] = None
+        self.__service: Optional[IPopoWaitingList] = None
 
-    def start(self, context):
-        # type: (BundleContext) -> None
-        # pylint: disable=W0212
+    def start(self, context: BundleContext) -> None:
         """
         Bundle started
         """
@@ -285,23 +284,21 @@ class Activator(object):
         self.__service._start()
 
         # Register it
-        self.__registration = context.register_service(
-            SERVICE_IPOPO_WAITING_LIST, self.__service, {}
-        )
+        self.__registration = context.register_service(SERVICE_IPOPO_WAITING_LIST, self.__service, {})
 
-    def stop(self, _):
-        # type: (BundleContext) -> None
-        # pylint: disable=W0212
+    def stop(self, _) -> None:
         """
         Bundle stopped
         """
-        # Stop the service
-        self.__service._stop()
+        if self.__registration is not None:
+            # Unregister the service
+            self.__registration.unregister()
+            self.__registration = None
 
-        # Unregister the service
-        self.__registration.unregister()
-        self.__registration = None
+        if self.__service is not None:
+            # Stop the service
+            self.__service._stop()
 
-        # Clear it
-        self.__service._clear()
-        self.__service = None
+            # Clear it
+            self.__service._clear()
+            self.__service = None

@@ -25,12 +25,12 @@ Properties handler
     limitations under the License.
 """
 
-# Pelix beans
-from pelix.constants import BundleActivator
+from typing import Any, Dict, Optional, Tuple
 
-# iPOPO constants
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
+from pelix.constants import ActivatorProto, BundleActivator
+from pelix.ipopo.instance import StoredInstance
 
 # ------------------------------------------------------------------------------
 
@@ -63,7 +63,7 @@ class _HandlerFactory(constants.HandlerFactory):
 
 
 @BundleActivator
-class _Activator(object):
+class Activator(ActivatorProto):
     """
     The bundle activator
     """
@@ -79,9 +79,7 @@ class _Activator(object):
         Bundle started
         """
         # Set up properties
-        properties = {
-            constants.PROP_HANDLER_ID: ipopo_constants.HANDLER_PROPERTY
-        }
+        properties = {constants.PROP_HANDLER_ID: ipopo_constants.HANDLER_PROPERTY}
 
         # Register the handler factory service
         self._registration = context.register_service(
@@ -94,9 +92,10 @@ class _Activator(object):
         """
         Bundle stopped
         """
-        # Unregister the service
-        self._registration.unregister()
-        self._registration = None
+        if self._registration is not None:
+            # Unregister the service
+            self._registration.unregister()
+            self._registration = None
 
 
 # ------------------------------------------------------------------------------
@@ -107,22 +106,23 @@ class PropertiesHandler(constants.Handler):
     Handles the properties
     """
 
-    def __init__(self):
-        """
-        Sets up the handler
-        """
-        self._ipopo_instance = None
+    def __init__(self) -> None:
+        super().__init__()
+        self._ipopo_instance: Optional[StoredInstance] = None
 
-    def _field_property_generator(self, public_properties):
+    def _field_property_generator(self, public_properties: Dict[str, Any]):
         """
         Generates the methods called by the injected class properties
 
         :param public_properties: If True, create a public property accessor,
-                                  else an hidden property accessor
+        else an hidden property accessor
         :return: getter and setter methods
         """
         # Local variable, to avoid messing with "self"
         stored_instance = self._ipopo_instance
+
+        if stored_instance is None or stored_instance.context is None:
+            raise ValueError("Stored instance not configured")
 
         # Choose public or hidden properties
         # and select the method to call to notify about the property update
@@ -134,7 +134,7 @@ class PropertiesHandler(constants.Handler):
             properties = stored_instance.context.grab_hidden_properties()
             update_notifier = stored_instance.update_hidden_property
 
-        def get_value(_, name):
+        def get_value(_, name: str) -> Any:
             """
             Retrieves the property value, from the iPOPO dictionaries
 
@@ -143,14 +143,14 @@ class PropertiesHandler(constants.Handler):
             """
             return properties.get(name)
 
-        def set_value(_, name, new_value):
+        def set_value(_, name: str, new_value: Any) -> Any:
             """
             Sets the property value and trigger an update event
 
             :param name: The property name
             :param new_value: The new property value
             """
-            assert stored_instance.context is not None
+            assert stored_instance is not None and stored_instance.context is not None
 
             # Get the previous value
             old_value = properties.get(name)
@@ -166,13 +166,13 @@ class PropertiesHandler(constants.Handler):
         return get_value, set_value
 
     @staticmethod
-    def get_methods_names(public_properties):
+    def get_methods_names(public_properties: Dict[str, Any]) -> Tuple[str, str]:
         """
         Generates the names of the fields where to inject the getter and setter
         methods
 
         :param public_properties: If True, returns the names of public property
-                                  accessors, else of hidden property ones
+        accessors, else of hidden property ones
         :return: getter and a setter field names
         """
         if public_properties:
@@ -181,9 +181,12 @@ class PropertiesHandler(constants.Handler):
             prefix = ipopo_constants.IPOPO_HIDDEN_PROPERTY_PREFIX
 
         return (
-            "{0}{1}".format(prefix, ipopo_constants.IPOPO_GETTER_SUFFIX),
-            "{0}{1}".format(prefix, ipopo_constants.IPOPO_SETTER_SUFFIX),
+            f"{prefix}{ipopo_constants.IPOPO_GETTER_SUFFIX}",
+            f"{prefix}{ipopo_constants.IPOPO_SETTER_SUFFIX}",
         )
+
+    def get_kinds(self) -> Tuple[str]:
+        return (constants.KIND_PROPERTIES,)
 
     def manipulate(self, stored_instance, component_instance):
         """
@@ -194,6 +197,9 @@ class PropertiesHandler(constants.Handler):
         """
         # Store the stored instance
         self._ipopo_instance = stored_instance
+
+        if stored_instance.context is None:
+            raise ValueError("Stored instance not configured")
 
         # Public flags to generate (True for public accessors)
         flags_to_generate = set()

@@ -25,21 +25,15 @@ Definition of Factory and Component context classes
     limitations under the License.
 """
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
-    from pelix.framework import BundleContext
-except ImportError:
-    pass
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar, Union
 
-# Pelix utilities
-from pelix.constants import OBJECTCLASS
-from pelix.utilities import is_string
-import pelix.ldapfilter as ldapfilter
-
-# iPOPO constants
 import pelix.ipopo.constants as constants
+import pelix.ldapfilter as ldapfilter
+from pelix.constants import OBJECTCLASS
+from pelix.framework import BundleContext
+from pelix.utilities import is_string
+
+T = TypeVar("T")
 
 # ------------------------------------------------------------------------------
 
@@ -53,7 +47,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-class Requirement(object):
+class Requirement:
     """
     Represents a component requirement
     """
@@ -68,25 +62,22 @@ class Requirement(object):
 
     def __init__(
         self,
-        specification,
-        aggregate=False,
-        optional=False,
-        spec_filter=None,
-        immediate_rebind=False,
+        specification: str,
+        aggregate: bool = False,
+        optional: bool = False,
+        spec_filter: Union[None, str, ldapfilter.LDAPCriteria, ldapfilter.LDAPFilter] = None,
+        immediate_rebind: bool = False,
     ):
-        # type: (str, bool, bool, Any, bool) -> None
         """
         Sets up the requirement
 
-        :param specification: The requirement specification, which must be
-                              unique and can't be None
+        :param specification: The requirement specification, which must be unique and can't be None
         :param aggregate: If true, this requirement represents a list
         :param optional: If true, this requirement is optional
         :param spec_filter: A filter to select dependencies
         :param immediate_rebind: If True, the component won't be invalidated
                                  then re-validated if a matching service is
-                                 available when the injected dependency is
-                                 unbound
+                                 available when the injected dependency is unbound
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter
         """
@@ -102,16 +93,16 @@ class Requirement(object):
         self.immediate_rebind = immediate_rebind
 
         # Original filter keeper
-        self.__original_filter = None  # type: str
+        self.__original_filter: Optional[str] = None
 
         # Full filter (with the specification test)
-        self.__full_filter = None  # type: ldapfilter.LDAPFilter
+        self.__full_filter: Union[None, ldapfilter.LDAPCriteria, ldapfilter.LDAPFilter] = None
 
         # Set up the requirement filter (after setting up self.specification)
-        self.filter = None  # type: ldapfilter.LDAPFilter
+        self.filter: Union[None, ldapfilter.LDAPCriteria, ldapfilter.LDAPFilter] = None
         self.set_filter(spec_filter)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         """
         Equality test
         """
@@ -137,14 +128,13 @@ class Requirement(object):
 
         return True
 
-    def __ne__(self, other):
+    def __ne__(self, other: Any) -> bool:
         """
         Inequality test
         """
         return not self.__eq__(other)
 
-    def copy(self):
-        # type: () -> Requirement
+    def copy(self) -> "Requirement":
         """
         Returns a copy of this instance
 
@@ -158,8 +148,7 @@ class Requirement(object):
             self.immediate_rebind,
         )
 
-    def matches(self, properties):
-        # type: (Optional[dict]) -> bool
+    def matches(self, properties: Optional[Dict[str, Any]]) -> bool:
         """
         Tests if the given _StoredInstance matches this requirement
 
@@ -170,20 +159,22 @@ class Requirement(object):
             # No properties : invalid service
             return False
 
+        if self.__full_filter is None:
+            # No filter, every matches
+            return True
+
         # Properties filter test
         return self.__full_filter.matches(properties)
 
     @property
-    def full_filter(self):
-        # type: () -> ldapfilter.LDAPFilter
+    def full_filter(self) -> Union[None, ldapfilter.LDAPFilter, ldapfilter.LDAPCriteria]:
         """
         The filter that tests both specification and properties
         """
         return self.__full_filter
 
     @property
-    def original_filter(self):
-        # type: () -> str
+    def original_filter(self) -> str:
         """
         The original requirement filter string, not the computed one
         """
@@ -192,7 +183,9 @@ class Requirement(object):
 
         return str(self.__original_filter)
 
-    def set_filter(self, props_filter):
+    def set_filter(
+        self, props_filter: Union[None, str, ldapfilter.LDAPCriteria, ldapfilter.LDAPFilter]
+    ) -> None:
         """
         Changes the current filter for the given one
 
@@ -201,14 +194,10 @@ class Requirement(object):
         """
         if props_filter is not None and not (
             is_string(props_filter)
-            or isinstance(
-                props_filter, (ldapfilter.LDAPFilter, ldapfilter.LDAPCriteria)
-            )
+            or isinstance(props_filter, (ldapfilter.LDAPFilter, ldapfilter.LDAPCriteria))
         ):
             # Unknown type
-            raise TypeError(
-                "Invalid filter type {0}".format(type(props_filter).__name__)
-            )
+            raise TypeError(f"Invalid filter type {type(props_filter).__name__}")
 
         if props_filter is not None:
             # Filter given, keep its string form
@@ -221,16 +210,14 @@ class Requirement(object):
         self.filter = ldapfilter.get_ldap_filter(props_filter)
 
         # Prepare the full filter
-        spec_filter = "({0}={1})".format(OBJECTCLASS, self.specification)
-        self.__full_filter = ldapfilter.combine_filters(
-            (spec_filter, self.filter)
-        )
+        spec_filter = f"({OBJECTCLASS}={self.specification})"
+        self.__full_filter = ldapfilter.combine_filters((spec_filter, self.filter))
 
 
 # ------------------------------------------------------------------------------
 
 
-class FactoryContext(object):
+class FactoryContext:
     """
     Represents the data stored in a component factory (class)
     """
@@ -251,30 +238,30 @@ class FactoryContext(object):
         "__instances",
     )
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up the factory context
         """
         # Factory bundle context
-        self.bundle_context = None  # type: BundleContext
+        self.bundle_context: Optional[BundleContext] = None
 
         # Callbacks : Kind -> callback method
-        self.callbacks = {}
+        self.callbacks = {}  # FIXME
 
         # Field callbacks: Field -> {Kind -> Callback}
-        self.field_callbacks = {}
+        self.field_callbacks = {}  # FIXME
 
         # The factory name
-        self.name = None  # type: str
+        self.name: Optional[str] = None
 
         # Properties : Name -> Value
-        self.properties = {}
+        self.properties: Dict[str, Any] = {}
 
         # Properties fields : Field name -> Property name
-        self.properties_fields = {}
+        self.properties_fields: Dict[str, str] = {}
 
         # Hidden Properties: Name -> Value
-        self.hidden_properties = {}
+        self.hidden_properties: Dict[str, Any] = {}
 
         # Singleton factory
         self.is_singleton = False
@@ -286,15 +273,15 @@ class FactoryContext(object):
         self.completed = False
 
         # Handler ID -> configuration
-        self.__handlers = {}
+        self.__handlers: Dict[str, Any] = {}
 
         # Inherited configuration
-        self.__inherited_configuration = {}
+        self.__inherited_configuration: Dict[str, Any] = {}
 
         # Instance name -> Instance properties
-        self.__instances = {}
+        self.__instances: Dict[str, Dict[str, Any]] = {}
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         """
         Equality test
         """
@@ -309,13 +296,13 @@ class FactoryContext(object):
         # Name-based equality
         return self.name == other.name
 
-    def __ne__(self, other):
+    def __ne__(self, other: Any) -> bool:
         """
         Inequality test
         """
         return not self.__eq__(other)
 
-    def _deepcopy(self, data):
+    def _deepcopy(self, data: Any) -> Any:
         """
         Deep copies the given object
 
@@ -336,8 +323,7 @@ class FactoryContext(object):
             # Can't copy the data, return it as is
             return data
 
-    def copy(self, inheritance=False):
-        # type: (bool) -> FactoryContext
+    def copy(self, inheritance: bool = False) -> "FactoryContext":
         """
         Returns a deep copy of the current FactoryContext instance
 
@@ -348,9 +334,7 @@ class FactoryContext(object):
         new_context = FactoryContext()
         for field in self.__slots__:
             if not field.startswith("_"):
-                setattr(
-                    new_context, field, self._deepcopy(getattr(self, field))
-                )
+                setattr(new_context, field, self._deepcopy(getattr(self, field)))
 
         if inheritance:
             # Store configuration as inherited one
@@ -362,8 +346,7 @@ class FactoryContext(object):
         new_context.is_singleton_active = False
         return new_context
 
-    def inherit_handlers(self, excluded_handlers):
-        # type: (Iterable[str]) -> None
+    def inherit_handlers(self, excluded_handlers: Optional[Iterable[str]]) -> None:
         """
         Merges the inherited configuration with the current ones
 
@@ -396,8 +379,7 @@ class FactoryContext(object):
         # Clear the inherited configuration dictionary
         self.__inherited_configuration.clear()
 
-    def add_instance(self, name, properties):
-        # type: (str, dict) -> None
+    def add_instance(self, name: str, properties: Dict[str, Any]) -> None:
         """
         Stores the description of a component instance. The given properties
         are stored as is.
@@ -412,8 +394,7 @@ class FactoryContext(object):
         # Store properties "as-is"
         self.__instances[name] = properties
 
-    def get_instances(self):
-        # type: () -> Dict[str, dict]
+    def get_instances(self) -> Dict[str, Dict[str, Any]]:
         """
         Returns the dictionary of instances to start: name → properties
 
@@ -421,15 +402,13 @@ class FactoryContext(object):
         """
         return self._deepcopy(self.__instances)
 
-    def get_handlers_ids(self):
-        # type: () -> List[str]
+    def get_handlers_ids(self) -> List[str]:
         """
         Retrieves the IDs of the handlers to instantiate for this component
         """
         return list(self.__handlers.keys())
 
-    def get_handler(self, handler_id, default=None):
-        # type: (str, Any) -> Any
+    def get_handler(self, handler_id: str, default: Any = None) -> Any:
         """
         Retrieves the configuration associated to the given handler
 
@@ -439,8 +418,7 @@ class FactoryContext(object):
         """
         return self.__handlers.get(handler_id, default)
 
-    def set_handler_default(self, handler_id, default=None):
-        # type: (str, Any) -> Any
+    def set_handler_default(self, handler_id: str, default: Any = None) -> Any:
         """
         Retrieves the configuration associated to the given handler, creates
         it the entry with the given value if necessary
@@ -451,8 +429,7 @@ class FactoryContext(object):
         """
         return self.__handlers.setdefault(handler_id, default)
 
-    def set_handler(self, handler_id, configuration):
-        # type: (str, Any) -> None
+    def set_handler(self, handler_id: str, configuration: Any) -> None:
         """
         Stores the configuration of the given handler
 
@@ -461,8 +438,7 @@ class FactoryContext(object):
         """
         self.__handlers[handler_id] = configuration
 
-    def set_bundle_context(self, bundle_context):
-        # type: (BundleContext) -> None
+    def set_bundle_context(self, bundle_context: Optional[BundleContext]) -> None:
         """
         Sets up the bundle context associated to this factory context
 
@@ -474,7 +450,7 @@ class FactoryContext(object):
 # ------------------------------------------------------------------------------
 
 
-class ComponentContext(object):
+class ComponentContext:
     """
     Represents the data stored in a component instance
     """
@@ -482,8 +458,7 @@ class ComponentContext(object):
     # Try to reduce memory footprint (many instances)
     __slots__ = ("factory_context", "name", "properties", "__hidden_properties")
 
-    def __init__(self, factory_context, name, properties):
-        # type: (FactoryContext, str, dict) -> None
+    def __init__(self, factory_context: FactoryContext, name: str, properties: Dict[str, Any]) -> None:
         """
         Sets up the context
 
@@ -497,40 +472,30 @@ class ComponentContext(object):
         properties[constants.IPOPO_INSTANCE_NAME] = name
 
         # Hidden properties
-        hidden_props_keys = set(properties).intersection(
-            factory_context.hidden_properties
-        )
+        hidden_props_keys = set(properties).intersection(factory_context.hidden_properties)
 
         self.__hidden_properties = factory_context.hidden_properties.copy()
         self.__hidden_properties.update(
-            {
-                key: value
-                for key, value in properties.items()
-                if key in hidden_props_keys
-            }
+            {key: value for key, value in properties.items() if key in hidden_props_keys}
         )
 
         # Public properties
         self.properties = factory_context.properties.copy()
         self.properties.update(
-            {
-                key: value
-                for key, value in properties.items()
-                if key not in hidden_props_keys
-            }
+            {key: value for key, value in properties.items() if key not in hidden_props_keys}
         )
 
-    def get_bundle_context(self):
-        # type: () -> BundleContext
+    def get_bundle_context(self) -> BundleContext:
         """
         Retrieves the bundle context
 
         :return: The component bundle context
         """
+        if self.factory_context.bundle_context is None:
+            raise ValueError(f"Bundle context not set for factory {self.name}")
         return self.factory_context.bundle_context
 
-    def get_callback(self, event):
-        # type: (str) -> Optional[Callable]
+    def get_callback(self, event: str) -> Optional[Callable]:
         """
         Retrieves the registered method for the given event. Returns None if
         not found
@@ -543,8 +508,7 @@ class ComponentContext(object):
         except KeyError:
             return None
 
-    def get_field_callback(self, field, event):
-        # type: (str, str) -> Optional[Tuple[Callable, bool]]
+    def get_field_callback(self, field: str, event: str) -> Optional[Tuple[Callable, bool]]:
         """
         Retrieves the registered method for the given event. Returns None if
         not found
@@ -560,17 +524,18 @@ class ComponentContext(object):
         except KeyError:
             return None
 
-    def get_factory_name(self):
-        # type: () -> str
+    def get_factory_name(self) -> str:
         """
         Retrieves the component factory name
 
         :return: The component factory name
         """
+        if not self.factory_context.name:
+            raise ValueError(f"Factory of {self.name} doesn't have a name")
+
         return self.factory_context.name
 
-    def get_handler(self, handler_id):
-        # type: (str) -> Any
+    def get_handler(self, handler_id: str) -> Any:
         """
         Retrieves the configuration for the given handler from the factory
         context
@@ -580,15 +545,13 @@ class ComponentContext(object):
         """
         return self.factory_context.get_handler(handler_id, None)
 
-    def has_hidden_properties(self):
-        # type: () -> bool
+    def has_hidden_properties(self) -> bool:
         """
         Returns True if the component must support hidden properties
         """
         return bool(self.__hidden_properties)
 
-    def grab_hidden_properties(self):
-        # type: () -> dict
+    def grab_hidden_properties(self) -> Dict[str, Any]:
         """
         A one-shot access to hidden properties (the field is then destroyed)
 

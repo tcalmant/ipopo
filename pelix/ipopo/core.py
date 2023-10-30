@@ -25,34 +25,23 @@ Core iPOPO implementation
     limitations under the License.
 """
 
-# Standard library
 import copy
 import inspect
 import logging
 import sys
 import threading
+from typing import Any, Dict, List, Optional, Set, Tuple, Type, cast
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Dict, List, Optional, Set, Tuple
-    from pelix.framework import BundleContext, ServiceReference
-except ImportError:
-    pass
-
-# Pelix
-from pelix.constants import SERVICE_ID, BundleActivator
-from pelix.framework import Bundle, BundleException
-from pelix.internals.events import BundleEvent, ServiceEvent
-from pelix.utilities import add_listener, remove_listener, is_string
-
-# iPOPO constants
 import pelix.ipopo.constants as constants
 import pelix.ipopo.handlers.constants as handlers_const
-
-# iPOPO beans
-from pelix.ipopo.contexts import FactoryContext, ComponentContext
+from pelix.constants import SERVICE_ID, ActivatorProto, BundleActivator
+from pelix.framework import Bundle, BundleContext, BundleException, ServiceReference
+from pelix.internals.events import BundleEvent, ServiceEvent
+from pelix.internals.registry import ServiceRegistration
+from pelix.ipopo.contexts import ComponentContext, FactoryContext
 from pelix.ipopo.instance import StoredInstance
+from pelix.ipopo.protocols import IPopoEventListener, IPopoService
+from pelix.utilities import add_listener, is_string, remove_listener
 
 # ------------------------------------------------------------------------------
 
@@ -83,8 +72,9 @@ BUILTIN_HANDLERS = (
 # ------------------------------------------------------------------------------
 
 
-def _set_factory_context(factory_class, bundle_context):
-    # type: (type, Optional[BundleContext]) -> Optional[FactoryContext]
+def _set_factory_context(
+    factory_class: Type, bundle_context: Optional[BundleContext]
+) -> Optional[FactoryContext]:
     """
     Transforms the context data dictionary into its FactoryContext object form.
 
@@ -94,7 +84,7 @@ def _set_factory_context(factory_class, bundle_context):
     """
     try:
         # Try to get the factory context (built using decorators)
-        context = getattr(factory_class, constants.IPOPO_FACTORY_CONTEXT)
+        context = cast(FactoryContext, getattr(factory_class, constants.IPOPO_FACTORY_CONTEXT))
     except AttributeError:
         # The class has not been manipulated, or too badly
         return None
@@ -108,8 +98,7 @@ def _set_factory_context(factory_class, bundle_context):
     return context
 
 
-def _load_bundle_factories(bundle):
-    # type: (Bundle) -> List[Tuple[FactoryContext, type]]
+def _load_bundle_factories(bundle: Bundle) -> List[Tuple[FactoryContext, type]]:
     """
     Retrieves a list of pairs (FactoryContext, factory class) with all
     readable manipulated classes found in the bundle.
@@ -117,7 +106,7 @@ def _load_bundle_factories(bundle):
     :param bundle: A Bundle object
     :return: The list of factories loaded from the bundle
     """
-    result = []
+    result: List[Tuple[FactoryContext, type]] = []
 
     # Get the Python module
     module_ = bundle.get_module()
@@ -154,7 +143,7 @@ def _load_bundle_factories(bundle):
 # ------------------------------------------------------------------------------
 
 
-class _IPopoService(object):
+class _IPopoService(IPopoService):
     """
     The iPOPO registry and service.
 
@@ -162,8 +151,7 @@ class _IPopoService(object):
     manually.
     """
 
-    def __init__(self, bundle_context):
-        # type: (BundleContext) -> None
+    def __init__(self, bundle_context: BundleContext) -> None:
         """
         :param bundle_context: The iPOPO bundle context
         """
@@ -171,16 +159,16 @@ class _IPopoService(object):
         self.__context = bundle_context
 
         # Factories registry : name -> factory class
-        self.__factories = {}  # type: Dict[str, type]
+        self.__factories: Dict[str, Type] = {}
 
         # Instances registry : name -> StoredInstance object
-        self.__instances = {}  # type: Dict[str, StoredInstance]
+        self.__instances: Dict[str, StoredInstance] = {}
 
         # Event listeners
-        self.__listeners = []  # type: List[Any]
+        self.__listeners: List[IPopoEventListener] = []
 
         # Auto-restarted components (Bundle -> [(factory, name, properties)]
-        self.__auto_restart = {}  # type: Dict[Bundle, List[Tuple[str, str, Dict]]]
+        self.__auto_restart: Dict[Bundle, List[Tuple[str, str, Dict[str, Any]]]] = {}
 
         # Service state
         self.running = False
@@ -192,33 +180,28 @@ class _IPopoService(object):
         self.__handlers_lock = threading.RLock()
 
         # Handlers factories
-        self._handlers_refs = set()  # type: Set[ServiceReference]
-        self._handlers = {}  # type: Dict[str, Any]
+        self._handlers_refs: Set[ServiceReference[handlers_const.HandlerFactory]] = set()
+        self._handlers: Dict[str, handlers_const.HandlerFactory] = {}
 
         # Instances waiting for a handler: Name -> (ComponentContext, instance)
-        self.__waiting_handlers = {}  # type: Dict[str, Tuple[ComponentContext, Any]]
+        self.__waiting_handlers: Dict[str, Tuple[ComponentContext, Any]] = {}
 
         # Register the service listener
-        bundle_context.add_service_listener(
-            self, None, handlers_const.SERVICE_IPOPO_HANDLER_FACTORY
-        )
+        bundle_context.add_service_listener(self, None, handlers_const.SERVICE_IPOPO_HANDLER_FACTORY)
         self.__find_handler_factories()
 
-    def __find_handler_factories(self):
+    def __find_handler_factories(self) -> None:
         """
         Finds all registered handler factories and stores them
         """
         # Get the references
-        svc_refs = self.__context.get_all_service_references(
-            handlers_const.SERVICE_IPOPO_HANDLER_FACTORY
-        )
+        svc_refs = self.__context.get_all_service_references(handlers_const.SERVICE_IPOPO_HANDLER_FACTORY)
         if svc_refs:
             for svc_ref in svc_refs:
                 # Store each handler factory
                 self.__add_handler_factory(svc_ref)
 
-    def __add_handler_factory(self, svc_ref):
-        # type: (ServiceReference) -> None
+    def __add_handler_factory(self, svc_ref: ServiceReference[handlers_const.HandlerFactory]) -> None:
         """
         Stores a new handler factory
 
@@ -236,7 +219,7 @@ class _IPopoService(object):
                 self._handlers[handler_id] = self.__context.get_service(svc_ref)
 
                 # Try to instantiate waiting components
-                succeeded = set()
+                succeeded: Set[str] = set()
                 for (
                     name,
                     (context, instance),
@@ -248,8 +231,7 @@ class _IPopoService(object):
                 for name in succeeded:
                     del self.__waiting_handlers[name]
 
-    def __remove_handler_factory(self, svc_ref):
-        # type: (ServiceReference) -> None
+    def __remove_handler_factory(self, svc_ref: ServiceReference[handlers_const.HandlerFactory]) -> None:
         """
         Removes an handler factory
 
@@ -271,9 +253,7 @@ class _IPopoService(object):
             # List the components using this handler
             to_stop = set()  # type: Set[StoredInstance]
             for factory_name in self.__factories:
-                _, factory_context = self.__get_factory_with_context(
-                    factory_name
-                )
+                _, factory_context = self.__get_factory_with_context(factory_name)
                 if handler_id in factory_context.get_handlers_ids():
                     to_stop.update(self.__get_stored_instances(factory_name))
 
@@ -281,8 +261,11 @@ class _IPopoService(object):
                 for stored_instance in to_stop:
                     # Extract information
                     context = stored_instance.context
+                    if context is None:
+                        raise ValueError("Component instance has no context")
+
                     name = context.name
-                    instance = stored_instance.instance
+                    instance: Any = stored_instance.instance
 
                     # Clean up the stored instance (iPOPO side)
                     del self.__instances[name]
@@ -294,13 +277,12 @@ class _IPopoService(object):
             # Try to find a new handler factory
             new_ref = self.__context.get_service_reference(
                 handlers_const.SERVICE_IPOPO_HANDLER_FACTORY,
-                "({0}={1})".format(handlers_const.PROP_HANDLER_ID, handler_id),
+                f"({handlers_const.PROP_HANDLER_ID}={handler_id})",
             )
             if new_ref is not None:
                 self.__add_handler_factory(new_ref)
 
-    def __get_factory_with_context(self, factory_name):
-        # type: (str) -> Tuple[type, FactoryContext]
+    def __get_factory_with_context(self, factory_name: str) -> Tuple[Type, FactoryContext]:
         """
         Retrieves the factory registered with the given and its factory context
 
@@ -310,21 +292,16 @@ class _IPopoService(object):
         """
         factory = self.__factories.get(factory_name)
         if factory is None:
-            raise TypeError("Unknown factory '{0}'".format(factory_name))
+            raise TypeError(f"Unknown factory '{factory_name}'")
 
         # Get the factory context
-        factory_context = getattr(
-            factory, constants.IPOPO_FACTORY_CONTEXT, None
-        )
+        factory_context = getattr(factory, constants.IPOPO_FACTORY_CONTEXT, None)
         if factory_context is None:
-            raise TypeError(
-                "Factory context missing in '{0}'".format(factory_name)
-            )
+            raise TypeError(f"Factory context missing in '{factory_name}'")
 
         return factory, factory_context
 
-    def __get_handler_factories(self, handlers_ids):
-        # type: (list) -> set
+    def __get_handler_factories(self, handlers_ids: List[str]) -> Set[handlers_const.HandlerFactory]:
         """
         Returns the list of Handler Factories for the given Handlers IDs.
         Raises a KeyError exception is a handler factory is missing.
@@ -335,8 +312,7 @@ class _IPopoService(object):
         # Look for the required handlers
         return {self._handlers[handler_id] for handler_id in handlers_ids}
 
-    def __get_stored_instances(self, factory_name):
-        # type: (str) -> List[StoredInstance]
+    def __get_stored_instances(self, factory_name: str) -> List[StoredInstance]:
         """
         Retrieves the list of all stored instances objects corresponding to
         the given factory name
@@ -351,16 +327,14 @@ class _IPopoService(object):
                 if stored_instance.factory_name == factory_name
             ]
 
-    def __try_instantiate(self, component_context, instance):
-        # type: (ComponentContext, object) -> bool
+    def __try_instantiate(self, component_context: ComponentContext, instance: Any) -> bool:
         """
         Instantiates a component, if all of its handlers are there. Returns
         False if a handler is missing.
 
         :param component_context: A ComponentContext bean
         :param instance: The component instance
-        :return: True if the component has started,
-                 False if a handler is missing
+        :return: True if the component has started, False if a handler is missing
         """
         with self.__instances_lock:
             # Extract information about the component
@@ -368,6 +342,8 @@ class _IPopoService(object):
             handlers_ids = factory_context.get_handlers_ids()
             name = component_context.name
             factory_name = factory_context.name
+            if not factory_name:
+                raise ValueError("Factory name not set")
 
             try:
                 # Get handlers
@@ -377,18 +353,14 @@ class _IPopoService(object):
                 return False
 
             # Instantiate the handlers
-            all_handlers = set()  # type: Set[Any]
+            all_handlers: Set[handlers_const.Handler] = set()
             for handler_factory in handler_factories:
-                handlers = handler_factory.get_handlers(
-                    component_context, instance
-                )
+                handlers = handler_factory.get_handlers(component_context, instance)
                 if handlers:
                     all_handlers.update(handlers)
 
             # Prepare the stored instance
-            stored_instance = StoredInstance(
-                self, component_context, instance, all_handlers
-            )
+            stored_instance = StoredInstance(self, component_context, instance, all_handlers)
 
             # Manipulate the properties
             for handler in all_handlers:
@@ -401,17 +373,14 @@ class _IPopoService(object):
         stored_instance.start()
 
         # Notify listeners now that every thing is ready to run
-        self._fire_ipopo_event(
-            constants.IPopoEvent.INSTANTIATED, factory_name, name
-        )
+        self._fire_ipopo_event(constants.IPopoEvent.INSTANTIATED, factory_name, name)
 
         # Try to validate it
         stored_instance.update_bindings()
         stored_instance.check_lifecycle()
         return True
 
-    def _autorestart_store_components(self, bundle):
-        # type: (Bundle) -> None
+    def _autorestart_store_components(self, bundle: Bundle) -> None:
         """
         Stores the components of the given bundle with the auto-restart
         property
@@ -424,18 +393,19 @@ class _IPopoService(object):
             for stored_instance in self.__instances.values():
                 # Get the factory name
                 factory = stored_instance.factory_name
+                if stored_instance.context is None:
+                    _logger.warning("Found a factory with no context in %s: %s", bundle, factory)
+                    continue
+
                 if self.get_factory_bundle(factory) is bundle:
                     # Factory from this bundle
                     # Test component properties
                     properties = stored_instance.context.properties
                     if properties.get(constants.IPOPO_AUTO_RESTART):
                         # Auto-restart property found
-                        store.append(
-                            (factory, stored_instance.name, properties)
-                        )
+                        store.append((factory, stored_instance.name, properties))
 
-    def _autorestart_components(self, bundle):
-        # type: (Bundle) -> None
+    def _autorestart_components(self, bundle: Bundle) -> None:
         """
         Restart the components of the given bundle
 
@@ -454,8 +424,7 @@ class _IPopoService(object):
                 except Exception as ex:
                     # Log error, but continue to work
                     _logger.exception(
-                        "Error restarting component '%s' ('%s') "
-                        "from bundle %s (%d): %s",
+                        "Error restarting component '%s' ('%s') " "from bundle %s (%d): %s",
                         name,
                         factory,
                         bundle.get_symbolic_name(),
@@ -463,8 +432,7 @@ class _IPopoService(object):
                         ex,
                     )
 
-    def _autorestart_clear_components(self, bundle):
-        # type: (Bundle) -> None
+    def _autorestart_clear_components(self, bundle: Bundle) -> None:
         """
         Clear the list of auto-restart components of the given bundle
 
@@ -477,15 +445,13 @@ class _IPopoService(object):
             except KeyError:
                 pass
 
-    def _fire_ipopo_event(self, kind, factory_name, instance_name=None):
-        # type: (int, str, Optional[str]) -> None
+    def _fire_ipopo_event(self, kind: int, factory_name: str, instance_name: Optional[str] = None) -> None:
         """
         Triggers an iPOPO event
 
         :param kind: Kind of event
         :param factory_name: Name of the factory associated to the event
-        :param instance_name: Name of the component instance associated to the
-                              event
+        :param instance_name: Name of the component instance associated to the event
         """
         with self.__listeners_lock:
             # Use a copy of the list of listeners
@@ -493,14 +459,13 @@ class _IPopoService(object):
 
         for listener in listeners:
             try:
-                listener.handle_ipopo_event(
-                    constants.IPopoEvent(kind, factory_name, instance_name)
-                )
+                listener.handle_ipopo_event(constants.IPopoEvent(kind, factory_name, instance_name))
             except:
                 _logger.exception("Error calling an iPOPO event handler")
 
-    def _prepare_instance_properties(self, properties, factory_properties):
-        # type: (dict, dict) -> dict
+    def _prepare_instance_properties(
+        self, properties: Optional[Dict[str, Any]], factory_properties: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Prepares the properties of a component instance, based on its
         configuration, factory and framework properties
@@ -525,8 +490,7 @@ class _IPopoService(object):
 
         return properties
 
-    def _register_bundle_factories(self, bundle):
-        # type: (Bundle) -> None
+    def _register_bundle_factories(self, bundle: Bundle) -> None:
         """
         Registers all factories found in the given bundle
 
@@ -537,7 +501,10 @@ class _IPopoService(object):
 
         for context, factory_class in factories:
             try:
-                # Register each found factory
+                # Register each found valid factory
+                if not context.name:
+                    raise ValueError("Found a factory with no name")
+
                 self._register_factory(context.name, factory_class, False)
             except ValueError as ex:
                 # Already known factory
@@ -558,8 +525,7 @@ class _IPopoService(object):
                 for name, properties in context.get_instances().items():
                     self.instantiate(context.name, name, properties)
 
-    def _register_factory(self, factory_name, factory, override):
-        # type: (str, type, bool) -> None
+    def _register_factory(self, factory_name: str, factory: Type, override: bool) -> None:
         """
         Registers a component factory
 
@@ -575,27 +541,21 @@ class _IPopoService(object):
             raise ValueError("A factory name must be a non-empty string")
 
         if not inspect.isclass(factory):
-            raise TypeError(
-                "Invalid factory class '{0}'".format(type(factory).__name__)
-            )
+            raise TypeError(f"Invalid factory class '{type(factory).__name__}'")
 
         with self.__factories_lock:
             if factory_name in self.__factories:
                 if override:
                     _logger.info("Overriding factory '%s'", factory_name)
                 else:
-                    raise ValueError(
-                        "'{0}' factory already exist".format(factory_name)
-                    )
+                    raise ValueError(f"'{factory_name}' factory already exist")
 
             self.__factories[factory_name] = factory
 
             # Trigger an event
-            self._fire_ipopo_event(
-                constants.IPopoEvent.REGISTERED, factory_name
-            )
+            self._fire_ipopo_event(constants.IPopoEvent.REGISTERED, factory_name)
 
-    def _unregister_all_factories(self):
+    def _unregister_all_factories(self) -> None:
         """
         Unregisters all factories. This method should be called only after the
         iPOPO service has been unregistered (that's why it's not locked)
@@ -604,8 +564,7 @@ class _IPopoService(object):
         for factory_name in factories:
             self.unregister_factory(factory_name)
 
-    def _unregister_bundle_factories(self, bundle):
-        # type: (Bundle) -> None
+    def _unregister_bundle_factories(self, bundle: Bundle) -> None:
         """
         Unregisters all factories of the given bundle
 
@@ -624,11 +583,9 @@ class _IPopoService(object):
                 try:
                     self.unregister_factory(factory_name)
                 except ValueError as ex:
-                    _logger.warning(
-                        "Error unregistering factory '%s': %s", factory_name, ex
-                    )
+                    _logger.warning("Error unregistering factory '%s': %s", factory_name, ex)
 
-    def _stop(self):
+    def _stop(self) -> None:
         """
         iPOPO is stopping: clean everything up
         """
@@ -646,14 +603,13 @@ class _IPopoService(object):
             self._handlers.clear()
             self._handlers_refs.clear()
 
-    def framework_stopping(self):
+    def framework_stopping(self) -> None:
         """
         Called by the framework when it is about to stop
         """
         self._stop()
 
-    def bundle_changed(self, event):
-        # type: (BundleEvent) -> None
+    def bundle_changed(self, event: BundleEvent) -> None:
         """
         A bundle event has been triggered
 
@@ -687,8 +643,7 @@ class _IPopoService(object):
             # Update failed, clean the stored components
             self._autorestart_clear_components(bundle)
 
-    def service_changed(self, event):
-        # type: (ServiceEvent) -> None
+    def service_changed(self, event: ServiceEvent) -> None:
         """
         Called when a handler factory service is un/registered
         """
@@ -706,8 +661,7 @@ class _IPopoService(object):
             with self.__instances_lock:
                 self.__remove_handler_factory(svc_ref)
 
-    def instantiate(self, factory_name, name, properties=None):
-        # type: (str, str, dict) -> Any
+    def instantiate(self, factory_name: str, name: str, properties: Optional[Dict[str, Any]] = None) -> Any:
         """
         Instantiates a component from the given factory, with the given name
 
@@ -733,26 +687,16 @@ class _IPopoService(object):
 
         with self.__instances_lock:
             if name in self.__instances or name in self.__waiting_handlers:
-                raise ValueError(
-                    "'{0}' is an already running instance name".format(name)
-                )
+                raise ValueError(f"'{name}' is an already running instance name")
 
             with self.__factories_lock:
                 # Can raise a TypeError exception
-                factory, factory_context = self.__get_factory_with_context(
-                    factory_name
-                )
+                factory, factory_context = self.__get_factory_with_context(factory_name)
 
                 # Check if the factory is singleton and if a component is
                 # already started
-                if (
-                    factory_context.is_singleton
-                    and factory_context.is_singleton_active
-                ):
-                    raise ValueError(
-                        "{0} is a singleton: {1} can't be "
-                        "instantiated.".format(factory_name, name)
-                    )
+                if factory_context.is_singleton and factory_context.is_singleton_active:
+                    raise ValueError(f"{factory_name} is a singleton: {name} can't be instantiated.")
 
                 # Create component instance
                 try:
@@ -763,25 +707,17 @@ class _IPopoService(object):
                         name,
                         factory_name,
                     )
-                    raise TypeError(
-                        "Factory '{0}' failed to create '{1}'".format(
-                            factory_name, name
-                        )
-                    )
+                    raise TypeError(f"Factory '{factory_name}' failed to create '{name}'")
 
                 # Instantiation succeeded: update singleton status
                 if factory_context.is_singleton:
                     factory_context.is_singleton_active = True
 
             # Normalize the given properties
-            properties = self._prepare_instance_properties(
-                properties, factory_context.properties
-            )
+            properties = self._prepare_instance_properties(properties, factory_context.properties)
 
             # Set up the component instance context
-            component_context = ComponentContext(
-                factory_context, name, properties
-            )
+            component_context = ComponentContext(factory_context, name, properties)
 
             # Try to instantiate the component immediately
             if not self.__try_instantiate(component_context, instance):
@@ -790,15 +726,12 @@ class _IPopoService(object):
 
         return instance
 
-    def retry_erroneous(self, name, properties_update=None):
-        # type: (str, dict) -> int
+    def retry_erroneous(self, name: str, properties_update: Optional[Dict[str, Any]] = None) -> int:
         """
-        Removes the ERRONEOUS state of the given component, and retries a
-        validation
+        Removes the ERRONEOUS state of the given component, and retries a validation
 
         :param name: Name of the component to retry
-        :param properties_update: A dictionary to update the initial properties
-                                  of the component
+        :param properties_update: A dictionary to update the initial properties of the component
         :return: The new state of the component
         :raise ValueError: Invalid component name
         """
@@ -806,14 +739,11 @@ class _IPopoService(object):
             try:
                 stored_instance = self.__instances[name]
             except KeyError:
-                raise ValueError(
-                    "Unknown component instance '{0}'".format(name)
-                )
+                raise ValueError("Unknown component instance '{0}'".format(name))
             else:
                 return stored_instance.retry_erroneous(properties_update)
 
-    def invalidate(self, name):
-        # type: (str) -> None
+    def invalidate(self, name: str) -> None:
         """
         Invalidates the given component
 
@@ -824,15 +754,12 @@ class _IPopoService(object):
             try:
                 stored_instance = self.__instances[name]
             except KeyError:
-                raise ValueError(
-                    "Unknown component instance '{0}'".format(name)
-                )
+                raise ValueError(f"Unknown component instance '{name}'")
             else:
                 # Call back the component during the invalidation
                 stored_instance.invalidate(True)
 
-    def is_registered_factory(self, name):
-        # type: (str) -> bool
+    def is_registered_factory(self, name: str) -> bool:
         """
         Tests if the given name is in the factory registry
 
@@ -841,8 +768,7 @@ class _IPopoService(object):
         with self.__factories_lock:
             return name in self.__factories
 
-    def is_registered_instance(self, name):
-        # type: (str) -> bool
+    def is_registered_instance(self, name: str) -> bool:
         """
         Tests if the given name is in the instance registry or in the waiting
         queue
@@ -852,8 +778,7 @@ class _IPopoService(object):
         with self.__instances_lock:
             return name in self.__instances
 
-    def kill(self, name):
-        # type: (str) -> None
+    def kill(self, name: str) -> None:
         """
         Kills the given component
 
@@ -867,6 +792,8 @@ class _IPopoService(object):
             try:
                 # Running instance
                 stored_instance = self.__instances.pop(name)
+                if stored_instance.context is None:
+                    raise ValueError(f"Component {name} has no context")
 
                 # Store the reference to the factory context
                 factory_context = stored_instance.context.factory_context
@@ -885,12 +812,9 @@ class _IPopoService(object):
                     # Update the singleton state flag
                     context.factory_context.is_singleton_active = False
                 except KeyError:
-                    raise ValueError(
-                        "Unknown component instance '{0}'".format(name)
-                    )
+                    raise ValueError(f"Unknown component instance '{name}'")
 
-    def register_factory(self, bundle_context, factory):
-        # type: (BundleContext, type) -> bool
+    def register_factory(self, bundle_context: BundleContext, factory: Type) -> bool:
         """
         Registers a manually created factory, using decorators programmatically
 
@@ -905,20 +829,18 @@ class _IPopoService(object):
             raise ValueError("Invalid parameter")
 
         context = _set_factory_context(factory, bundle_context)
-        if not context:
+        if not context or not context.name:
             raise TypeError("Not a manipulated class (no context found)")
 
         self._register_factory(context.name, factory, False)
         return True
 
-    def unregister_factory(self, factory_name):
-        # type: (str) -> bool
+    def unregister_factory(self, factory_name: str) -> bool:
         """
         Unregisters the given component factory
 
         :param factory_name: Name of the factory to unregister
-        :return: True the factory has been removed, False if the factory is
-                 unknown
+        :return: True the factory has been removed, False if the factory is unknown
         """
         if not factory_name or not is_string(factory_name):
             # Invalid name
@@ -933,9 +855,7 @@ class _IPopoService(object):
                 return False
 
             # Trigger an event
-            self._fire_ipopo_event(
-                constants.IPopoEvent.UNREGISTERED, factory_name
-            )
+            self._fire_ipopo_event(constants.IPopoEvent.UNREGISTERED, factory_name)
 
             # Invalidate and delete all components of this factory
             with self.__instances_lock:
@@ -968,7 +888,7 @@ class _IPopoService(object):
 
         return True
 
-    def add_listener(self, listener):
+    def add_listener(self, listener: IPopoEventListener) -> bool:
         """
         Register an iPOPO event listener.
 
@@ -986,7 +906,7 @@ class _IPopoService(object):
         with self.__listeners_lock:
             return add_listener(self.__listeners, listener)
 
-    def remove_listener(self, listener):
+    def remove_listener(self, listener: IPopoEventListener) -> bool:
         """
         Unregister an iPOPO event listener.
 
@@ -996,8 +916,7 @@ class _IPopoService(object):
         with self.__listeners_lock:
             return remove_listener(self.__listeners, listener)
 
-    def get_instances(self):
-        # type: () -> List[Tuple[str, str, int]]
+    def get_instances(self) -> List[Tuple[str, str, int]]:
         """
         Retrieves the list of the currently registered component instances
 
@@ -1009,8 +928,7 @@ class _IPopoService(object):
                 for name, stored_instance in self.__instances.items()
             )
 
-    def get_instance(self, name):
-        # type: (str) -> Any
+    def get_instance(self, name: str) -> Any:
         """
         Returns the instance of the component with the given name
 
@@ -1020,8 +938,7 @@ class _IPopoService(object):
         """
         return self.__instances[name].instance
 
-    def get_waiting_components(self):
-        # type: () -> List[Tuple[str, str, Set[str]]]
+    def get_waiting_components(self) -> List[Tuple[str, str, Set[str]]]:
         """
         Returns the list of the instances waiting for their handlers
 
@@ -1034,13 +951,15 @@ class _IPopoService(object):
                 missing = set(context.factory_context.get_handlers_ids())
                 missing.difference_update(self._handlers.keys())
 
-                result.append((name, context.factory_context.name, missing))
+                if context.factory_context.name is None:
+                    _logger.warning("Found a component without factory name in waiting list (%s)", name)
+                else:
+                    result.append((name, context.factory_context.name, missing))
 
             result.sort()
             return result
 
-    def get_instance_details(self, name):
-        # type: (str) -> Dict[str, Any]
+    def get_instance_details(self, name: str) -> Dict[str, Any]:
         """
         Retrieves a snapshot of the given component instance.
         The result dictionary has the following keys:
@@ -1076,21 +995,18 @@ class _IPopoService(object):
 
         with self.__instances_lock:
             if name not in self.__instances:
-                raise ValueError("Unknown component: {0}".format(name))
+                raise ValueError(f"Unknown component: {name}")
 
             stored_instance = self.__instances[name]
-            assert isinstance(stored_instance, StoredInstance)
             with stored_instance._lock:
-                result = {}  # type: Dict[str, Any]
+                result: Dict[str, Any] = {}
                 result["name"] = stored_instance.name
 
                 # Factory name
                 result["factory"] = stored_instance.factory_name
 
                 # Factory bundle
-                result[
-                    "bundle_id"
-                ] = stored_instance.bundle_context.get_bundle().get_bundle_id()
+                result["bundle_id"] = stored_instance.bundle_context.get_bundle().get_bundle_id()
 
                 # Component state
                 result["state"] = stored_instance.state
@@ -1100,8 +1016,9 @@ class _IPopoService(object):
 
                 # Provided service
                 result["services"] = {}
-                for handler in stored_instance.get_handlers(
-                    handlers_const.KIND_SERVICE_PROVIDER
+                for handler in cast(
+                    List[handlers_const.ServiceProviderHandler],
+                    stored_instance.get_handlers(handlers_const.KIND_SERVICE_PROVIDER),
                 ):
                     svc_ref = handler.get_service_reference()
                     if svc_ref is not None:
@@ -1110,34 +1027,36 @@ class _IPopoService(object):
 
                 # Dependencies
                 result["dependencies"] = {}
-                for dependency in stored_instance.get_handlers(
-                    handlers_const.KIND_DEPENDENCY
+                for dependency in cast(
+                    List[handlers_const.DependencyHandler],
+                    stored_instance.get_handlers(handlers_const.KIND_DEPENDENCY),
                 ):
                     # Dependency
-                    info = result["dependencies"][dependency.get_field()] = {}
+                    info = result["dependencies"][dependency.get_field()] = cast(Dict[str, Any], {})
                     info["handler"] = type(dependency).__name__
 
                     # Requirement
                     req = dependency.requirement
-                    info["specification"] = req.specification
-                    info["filter"] = str(req.filter) if req.filter else None
-                    info["optional"] = req.optional
-                    info["aggregate"] = req.aggregate
+                    if req is not None:
+                        info["specification"] = req.specification
+                        info["filter"] = str(req.filter) if req.filter else None
+                        info["optional"] = req.optional
+                        info["aggregate"] = req.aggregate
 
                     # Bindings
                     info["bindings"] = dependency.get_bindings()
 
                 # Properties
-                properties = stored_instance.context.properties.items()
-                result["properties"] = {
-                    str(key): str(value) for key, value in properties
-                }
+                if stored_instance.context is not None:
+                    properties = stored_instance.context.properties.items()
+                    result["properties"] = {str(key): str(value) for key, value in properties}
+                else:
+                    result["properties"] = {"ERROR": "No component context found"}
 
                 # All done
                 return result
 
-    def get_factories(self):
-        # type: () -> List[str]
+    def get_factories(self) -> List[str]:
         """
         Retrieves the names of the registered factories
 
@@ -1146,8 +1065,7 @@ class _IPopoService(object):
         with self.__factories_lock:
             return sorted(self.__factories.keys())
 
-    def get_factory_bundle(self, name):
-        # type: (str) -> Bundle
+    def get_factory_bundle(self, name: str) -> Bundle:
         """
         Retrieves the Pelix Bundle object that registered the given factory
 
@@ -1159,23 +1077,19 @@ class _IPopoService(object):
             try:
                 factory = self.__factories[name]
             except KeyError:
-                raise ValueError("Unknown factory '{0}'".format(name))
+                raise ValueError(f"Unknown factory '{name}'")
             else:
                 # Bundle Context is stored in the Factory Context
-                factory_context = getattr(
-                    factory, constants.IPOPO_FACTORY_CONTEXT
-                )
+                factory_context = getattr(factory, constants.IPOPO_FACTORY_CONTEXT)
                 return factory_context.bundle_context.get_bundle()
 
-    def get_factory_details(self, name):
-        # type: (str) -> Dict[str, Any]
+    def get_factory_details(self, name: str) -> Dict[str, Any]:
         """
         Retrieves a dictionary with details about the given factory
 
         * ``name``: The factory name
         * ``bundle``: The Bundle object of the bundle providing the factory
-        * ``properties``: Copy of the components properties defined by the
-          factory
+        * ``properties``: Copy of the components properties defined by the factory
         * ``requirements``: List of the requirements defined by the factory
 
           * ``id``: Requirement ID (field where it is injected)
@@ -1183,10 +1097,8 @@ class _IPopoService(object):
           * ``aggregate``: If True, multiple services will be injected
           * ``optional``: If True, the requirement is optional
 
-        * ``services``: List of the specifications of the services provided by
-          components of this factory
-        * ``handlers``: Dictionary of the non-built-in handlers required by
-          this factory.
+        * ``services``: List of the specifications of the services provided by components of this factory
+        * ``handlers``: Dictionary of the non-built-in handlers required by this factory.
           The dictionary keys are handler IDs, and it contains a tuple with:
 
           * A copy of the configuration of the handler (0)
@@ -1200,15 +1112,17 @@ class _IPopoService(object):
             try:
                 factory = self.__factories[name]
             except KeyError:
-                raise ValueError("Unknown factory '{0}'".format(name))
+                raise ValueError(f"Unknown factory '{name}'")
 
             context = getattr(factory, constants.IPOPO_FACTORY_CONTEXT)
             assert isinstance(context, FactoryContext)
 
-            result = {}  # type: Dict[Any, Any]
+            result: Dict[str, Any] = {}
             # Factory name & bundle
             result["name"] = context.name
-            result["bundle"] = context.bundle_context.get_bundle()
+            result["bundle"] = (
+                context.bundle_context.get_bundle() if context.bundle_context is not None else None
+            )
 
             # Configurable properties
             # Name -> Default value
@@ -1218,7 +1132,7 @@ class _IPopoService(object):
             }
 
             # Requirements (list of dictionaries)
-            reqs = result["requirements"] = []
+            reqs = result["requirements"] = []  # FIXME
             handler_requires = context.get_handler(constants.HANDLER_REQUIRES)
             if handler_requires is not None:
                 for field, requirement in handler_requires.items():
@@ -1235,9 +1149,7 @@ class _IPopoService(object):
             # Provided services (list of list of specifications)
             handler_provides = context.get_handler(constants.HANDLER_PROVIDES)
             if handler_provides is not None:
-                result["services"] = [
-                    specs_controller[0] for specs_controller in handler_provides
-                ]
+                result["services"] = [specs_controller[0] for specs_controller in handler_provides]
             else:
                 result["services"] = []
 
@@ -1251,8 +1163,7 @@ class _IPopoService(object):
                 )
             )
             result["handlers"] = {
-                handler: copy.deepcopy(context.get_handler(handler))
-                for handler in handlers
+                handler: copy.deepcopy(context.get_handler(handler)) for handler in handlers
             }
 
             return result
@@ -1262,22 +1173,20 @@ class _IPopoService(object):
 
 
 @BundleActivator
-class _IPopoActivator(object):
+class IPopoActivator(ActivatorProto):
     """
     The iPOPO bundle activator for Pelix
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up the activator
         """
-        self._registration = None
-        self._service = None
-        self._bundles = []
+        self._registration: Optional[ServiceRegistration[_IPopoService]] = None
+        self._service: Optional[_IPopoService] = None
+        self._bundles: List[Bundle] = []
 
-    def start(self, context):
-        # type: (BundleContext) -> None
-        # pylint: disable=W0212
+    def start(self, context: BundleContext) -> None:
         """
         The bundle has started
 
@@ -1294,9 +1203,7 @@ class _IPopoActivator(object):
 
         # Register the iPOPO service
         self._service = _IPopoService(context)
-        self._registration = context.register_service(
-            constants.SERVICE_IPOPO, self._service, {}
-        )
+        self._registration = context.register_service(constants.SERVICE_IPOPO, self._service, {})
 
         # Register as a bundle listener
         context.add_bundle_listener(self._service)
@@ -1313,28 +1220,29 @@ class _IPopoActivator(object):
                 # Bundle is active, register its factories
                 self._service._register_bundle_factories(bundle)
 
-    def stop(self, context):
-        # type: (BundleContext) -> None
-        # pylint: disable=W0212
+    def stop(self, context: BundleContext) -> None:
         """
         The bundle has stopped
 
         :param context: The bundle context
         """
-        # The service is not in the "run" mode anymore
-        self._service._stop()
+        if self._service is not None:
+            # The service is not in the "run" mode anymore
+            self._service._stop()
 
-        # Unregister the listener
-        context.remove_bundle_listener(self._service)
+            # Unregister the listener
+            context.remove_bundle_listener(self._service)
 
-        # Unregister the framework stop listener
-        context.remove_framework_stop_listener(self._service)
+            # Unregister the framework stop listener
+            context.remove_framework_stop_listener(self._service)
 
-        # Unregister the iPOPO service
-        self._registration.unregister()
+        if self._registration is not None:
+            # Unregister the iPOPO service
+            self._registration.unregister()
 
-        # Clean up the service
-        self._service._unregister_all_factories()
+        if self._service is not None:
+            # Clean up the service
+            self._service._unregister_all_factories()
 
         # Remove handler bundles
         for bundle in self._bundles:

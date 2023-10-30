@@ -25,18 +25,19 @@ RequiresBroadcast handler implementation
     limitations under the License.
 """
 
-# Standard library
 import logging
 import threading
+from typing import Any, Dict, Optional, Tuple
 
-# Pelix beans
-from pelix.constants import BundleActivator, BundleException
-from pelix.internals.events import ServiceEvent
-
-# iPOPO constants
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
 import pelix.ipopo.handlers.requires as requires
+from pelix.constants import ActivatorProto, BundleActivator, BundleException
+from pelix.framework import BundleContext
+from pelix.internals.events import ServiceEvent
+from pelix.internals.registry import ServiceListener, ServiceReference
+from pelix.ipopo.contexts import Requirement
+from pelix.ipopo.instance import StoredInstance
 
 # ------------------------------------------------------------------------------
 
@@ -65,17 +66,11 @@ class _HandlerFactory(requires._HandlerFactory):
         :return: The list of handlers associated to the given component
         """
         # Extract information from the context
-        requirements = component_context.get_handler(
-            ipopo_constants.HANDLER_REQUIRES_BRODCAST
-        )
-        requires_filters = component_context.properties.get(
-            ipopo_constants.IPOPO_REQUIRES_FILTERS, None
-        )
+        requirements = component_context.get_handler(ipopo_constants.HANDLER_REQUIRES_BROADCAST)
+        requires_filters = component_context.properties.get(ipopo_constants.IPOPO_REQUIRES_FILTERS, None)
 
         # Prepare requirements
-        requirements = self._prepare_requirements(
-            requirements, requires_filters
-        )
+        requirements = self._prepare_requirements(requirements, requires_filters)
 
         # Set up the runtime dependency handlers
         handlers = []
@@ -84,15 +79,13 @@ class _HandlerFactory(requires._HandlerFactory):
             requirement, muffle_ex, trace_ex = config
 
             # Construct the handler
-            handlers.append(
-                BroadcastDependency(field, requirement, muffle_ex, trace_ex)
-            )
+            handlers.append(BroadcastDependency(field, requirement, muffle_ex, trace_ex))
 
         return handlers
 
 
 @BundleActivator
-class _Activator(object):
+class Activator(ActivatorProto):
     """
     The bundle activator
     """
@@ -108,9 +101,7 @@ class _Activator(object):
         Bundle started
         """
         # Set up properties
-        properties = {
-            constants.PROP_HANDLER_ID: ipopo_constants.HANDLER_REQUIRES_BRODCAST
-        }
+        properties = {constants.PROP_HANDLER_ID: ipopo_constants.HANDLER_REQUIRES_BROADCAST}
 
         # Register the handler factory service
         self._registration = context.register_service(
@@ -123,20 +114,21 @@ class _Activator(object):
         """
         Bundle stopped
         """
-        # Unregister the service
-        self._registration.unregister()
-        self._registration = None
+        if self._registration is not None:
+            # Unregister the service
+            self._registration.unregister()
+            self._registration = None
 
 
 # ------------------------------------------------------------------------------
 
 
-class _ProxyDummy(object):
+class _ProxyDummy:
     """
     Dummy "Yes Man" object
     """
 
-    def __init__(self, handler, name):
+    def __init__(self, handler: "BroadcastDependency", name: str):
         """
         :param handler: The parent BroadcastHandler
         :param name: Name of this field
@@ -150,10 +142,7 @@ class _ProxyDummy(object):
         """
         return self.__handler.has_services()
 
-    # Python 2 compatibility
-    __nonzero__ = __bool__
-
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """
         We have to handle a call
         """
@@ -164,7 +153,7 @@ class _ProxyDummy(object):
         Recursive proxy
         """
         if self.__name is not None:
-            member = "{0}.{1}".format(self.__name, member)
+            member = f"{self.__name}.{member}"
 
         return _ProxyDummy(self.__handler, member)
 
@@ -172,12 +161,14 @@ class _ProxyDummy(object):
 # ------------------------------------------------------------------------------
 
 
-class BroadcastDependency(constants.DependencyHandler):
+class BroadcastDependency(constants.DependencyHandler, ServiceListener):
     """
     Manages a required dependency field when a component is running
     """
 
-    def __init__(self, field, requirement, muffle_exceptions, trace_exceptions):
+    def __init__(
+        self, field: str, requirement: Requirement, muffle_exceptions: bool, trace_exceptions: bool
+    ) -> None:
         """
         Sets up the dependency
 
@@ -187,34 +178,32 @@ class BroadcastDependency(constants.DependencyHandler):
         :param proxy_class: Class to use to emulate the missing requirement
         """
         # The internal state lock
-        self._lock = threading.RLock()
+        self._lock: threading.RLock = threading.RLock()
 
         # The iPOPO StoredInstance object (given during manipulation)
-        self._ipopo_instance = None
+        self._ipopo_instance: Optional[StoredInstance] = None
 
         # The bundle context
-        self._context = None
+        self._context: Optional[BundleContext] = None
 
         # The associated field
-        self._field = field
+        self._field: str = field
 
         # The underlying requirement
-        self.requirement = requirement
+        self.requirement: Requirement = requirement
 
         # Exception handling flags
         self._muffle_ex = muffle_exceptions
         self._trace_ex = trace_exceptions
 
         # Injected proxy
-        self._proxy = _ProxyDummy(self, None)
+        self._proxy = _ProxyDummy(self, field)
 
         # The logger
-        self._logger = logging.getLogger(
-            "-".join(("<n/a>", "RequiresBroadcast", field))
-        )
+        self._logger = logging.getLogger("-".join(("<n/a>", "RequiresBroadcast", field)))
 
         # Reference -> Service
-        self._services = {}
+        self._services: Dict[ServiceReference, Any] = {}
 
         # Length of the future injected list
         self._future_len = 0
@@ -233,11 +222,7 @@ class BroadcastDependency(constants.DependencyHandler):
         self._context = stored_instance.bundle_context
 
         # Reset the logger
-        self._logger = logging.getLogger(
-            "-".join(
-                (self._ipopo_instance.name, "RequiresBroadcast", self._field)
-            )
-        )
+        self._logger = logging.getLogger("-".join((stored_instance.name, "RequiresBroadcast", self._field)))
 
         # Set the default value for the field if it is optional: the proxy
         if self.requirement.optional:
@@ -249,12 +234,7 @@ class BroadcastDependency(constants.DependencyHandler):
         been called
         """
         self._services.clear()
-
-        self.requirement = None
-        self._services = None
         self._future_len = 0
-        self._lock = None
-        self._field = None
         self._ipopo_instance = None
         self._context = None
         self._muffle_ex = False
@@ -290,9 +270,7 @@ class BroadcastDependency(constants.DependencyHandler):
 
         :return: The value to inject
         """
-        if self._future_len > 0 or (
-            self.requirement is not None and self.requirement.optional
-        ):
+        if self._future_len > 0 or (self.requirement is not None and self.requirement.optional):
             # We got something to work on
             return self._proxy
 
@@ -303,9 +281,7 @@ class BroadcastDependency(constants.DependencyHandler):
         """
         Tests if the dependency is in a valid state
         """
-        return (
-            self.requirement is not None and self.requirement.optional
-        ) or self._future_len > 0
+        return (self.requirement is not None and self.requirement.optional) or self._future_len > 0
 
     def has_services(self):
         """
@@ -313,7 +289,7 @@ class BroadcastDependency(constants.DependencyHandler):
         """
         return self._future_len > 0
 
-    def on_service_arrival(self, svc_ref):
+    def on_service_arrival(self, svc_ref: ServiceReference) -> bool:
         """
         Called when a service has been registered in the framework
 
@@ -324,6 +300,9 @@ class BroadcastDependency(constants.DependencyHandler):
                 # We already know this service
                 return False
 
+            if self._context is None or self._ipopo_instance is None:
+                raise ValueError("Requirement not set up")
+
             # Keep track of the service
             svc = self._services[svc_ref] = self._context.get_service(svc_ref)
             self._future_len += 1
@@ -332,7 +311,7 @@ class BroadcastDependency(constants.DependencyHandler):
             self._ipopo_instance.bind(self, svc, svc_ref)
             return True
 
-    def on_service_departure(self, svc_ref):
+    def on_service_departure(self, svc_ref: ServiceReference) -> bool:
         """
         Called when a service has been unregistered from the framework
 
@@ -343,10 +322,13 @@ class BroadcastDependency(constants.DependencyHandler):
                 svc = self._services[svc_ref]
             except KeyError:
                 # Unknown reference
-                return None
+                return False
 
             # Future length decreases
             self._future_len -= 1
+
+            if self._ipopo_instance is None:
+                raise ValueError("Requirement not set up")
 
             # Unbind the service first (to keep access during invalidate)
             self._ipopo_instance.unbind(self, svc, svc_ref)
@@ -364,10 +346,7 @@ class BroadcastDependency(constants.DependencyHandler):
         """
         Called by the framework when a service event occurs
         """
-        if (
-            self._ipopo_instance is None
-            or not self._ipopo_instance.check_event(event)
-        ):
+        if self._ipopo_instance is None or not self._ipopo_instance.check_event(event):
             # stop() and clean() may have been called after we have been put
             # inside a listener list copy...
             # or we've been told to ignore this event
@@ -392,9 +371,10 @@ class BroadcastDependency(constants.DependencyHandler):
         """
         Starts the dependency manager
         """
-        self._context.add_service_listener(
-            self, self.requirement.filter, self.requirement.specification
-        )
+        if self._context is None:
+            raise ValueError("Requirement not set up")
+
+        self._context.add_service_listener(self, self.requirement.filter, self.requirement.specification)
 
     def stop(self):
         """
@@ -402,12 +382,12 @@ class BroadcastDependency(constants.DependencyHandler):
 
         :return: The removed bindings (list) or None
         """
+        if self._context is None:
+            raise ValueError("Requirement not set up")
+
         self._context.remove_service_listener(self)
         if self._services:
-            return [
-                (service, reference)
-                for reference, service in self._services.items()
-            ]
+            return [(service, reference) for reference, service in self._services.items()]
 
         return None
 
@@ -422,6 +402,9 @@ class BroadcastDependency(constants.DependencyHandler):
                 # We already are alive (not our first call)
                 # => we are updated through service events
                 return
+
+            if self._context is None:
+                raise ValueError("Requirement not set up")
 
             # Get all matching services
             refs = self._context.get_all_service_references(
@@ -451,7 +434,7 @@ class BroadcastDependency(constants.DependencyHandler):
                 del results[:]
                 raise
 
-    def handle_call(self, members_str, args, kwargs):
+    def handle_call(self, members_str: str, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> bool:
         """
         Handles a call to the proxy
         """

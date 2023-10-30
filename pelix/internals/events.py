@@ -25,6 +25,11 @@ Event beans for Pelix.
     limitations under the License.
 """
 
+from typing import Any, Dict, Generic, Optional, TypeVar
+
+from pelix.framework import Bundle
+from pelix.internals.registry import ServiceReference
+
 # Module version
 __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -32,10 +37,13 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+
+T = TypeVar("T")
+
 # ------------------------------------------------------------------------------
 
 
-class BundleEvent(object):
+class BundleEvent:
     """
     Represents a bundle event
     """
@@ -76,26 +84,26 @@ class BundleEvent(object):
     UPDATE_FAILED = 64
     """ The bundle update has failed. The bundle might be in RESOLVED state """
 
-    def __init__(self, kind, bundle):
+    def __init__(self, kind: int, bundle: Bundle) -> None:
         """
         Sets up the event
         """
         self.__kind = kind
         self.__bundle = bundle
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         String representation
         """
-        return "BundleEvent({0}, {1})".format(self.__kind, self.__bundle)
+        return f"BundleEvent({self.__kind}, {self.__bundle})"
 
-    def get_bundle(self):
+    def get_bundle(self) -> Bundle:
         """
         Retrieves the modified bundle
         """
         return self.__bundle
 
-    def get_kind(self):
+    def get_kind(self) -> int:
         """
         Retrieves the kind of event
         """
@@ -105,7 +113,7 @@ class BundleEvent(object):
 # ------------------------------------------------------------------------------
 
 
-class ServiceEvent(object):
+class ServiceEvent(Generic[T]):
     """
     Represents a service event
     """
@@ -127,33 +135,32 @@ class ServiceEvent(object):
     properties no longer match the listener's filter
     """
 
-    def __init__(self, kind, reference, previous_properties=None):
+    def __init__(
+        self, kind: int, reference: ServiceReference[T], previous_properties: Optional[Dict[str, Any]] = None
+    ) -> None:
         """
         Sets up the event
 
         :param kind: Kind of event
         :param reference: Reference to the modified service
-        :param previous_properties: Previous service properties (for MODIFIED
-                                    and MODIFIED_ENDMATCH events)
+        :param previous_properties: Previous service properties (for MODIFIED and MODIFIED_ENDMATCH events)
         """
         self.__kind = kind
         self.__reference = reference
 
-        if previous_properties is not None and not isinstance(
-            previous_properties, dict
-        ):
+        if previous_properties is not None and not isinstance(previous_properties, dict):
             # Accept None or dict() only
             previous_properties = {}
 
         self.__previous_properties = previous_properties
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         String representation
         """
-        return "ServiceEvent({0}, {1})".format(self.__kind, self.__reference)
+        return f"ServiceEvent({self.__kind}, {self.__reference})"
 
-    def get_previous_properties(self):
+    def get_previous_properties(self) -> Optional[Dict[str, Any]]:
         """
         Returns the previous values of the service properties, meaningless if
         the the event is not MODIFIED nor MODIFIED_ENDMATCH.
@@ -162,7 +169,7 @@ class ServiceEvent(object):
         """
         return self.__previous_properties
 
-    def get_service_reference(self):
+    def get_service_reference(self) -> ServiceReference[T]:
         """
         Returns the reference to the service associated to this event
 
@@ -170,7 +177,7 @@ class ServiceEvent(object):
         """
         return self.__reference
 
-    def get_kind(self):
+    def get_kind(self) -> int:
         """
         Returns the kind of service event (see the constants)
 

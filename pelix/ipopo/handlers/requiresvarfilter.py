@@ -25,18 +25,16 @@
     limitations under the License.
 """
 
-# Standard library
 import logging
 import string
+from typing import Any, List
 
-# Pelix
-import pelix.ldapfilter as ldapfilter
-from pelix.constants import BundleActivator
-
-# iPOPO constants
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
 import pelix.ipopo.handlers.requires as requires
+import pelix.ldapfilter as ldapfilter
+from pelix.constants import ActivatorProto, BundleActivator
+from pelix.ipopo.contexts import ComponentContext, Requirement
 
 # ------------------------------------------------------------------------------
 
@@ -65,36 +63,26 @@ class _HandlerFactory(requires._HandlerFactory):
         :return: The list of handlers associated to the given component
         """
         # Extract information from the context
-        requirements = component_context.get_handler(
-            ipopo_constants.HANDLER_REQUIRES_VARIABLE_FILTER
-        )
-        requires_filters = component_context.properties.get(
-            ipopo_constants.IPOPO_REQUIRES_FILTERS, None
-        )
+        requirements = component_context.get_handler(ipopo_constants.HANDLER_REQUIRES_VARIABLE_FILTER)
+        requires_filters = component_context.properties.get(ipopo_constants.IPOPO_REQUIRES_FILTERS, None)
 
         # Prepare requirements
-        requirements = self._prepare_requirements(
-            requirements, requires_filters
-        )
+        requirements = self._prepare_requirements(requirements, requires_filters)
 
         # Set up the runtime dependency handlers
         handlers = []
         for field, requirement in requirements.items():
             # Construct the handler
             if requirement.aggregate:
-                handlers.append(
-                    AggregateDependency(component_context, field, requirement)
-                )
+                handlers.append(AggregateDependency(component_context, field, requirement))
             else:
-                handlers.append(
-                    SimpleDependency(component_context, field, requirement)
-                )
+                handlers.append(SimpleDependency(component_context, field, requirement))
 
         return handlers
 
 
 @BundleActivator
-class _Activator(object):
+class Activator(ActivatorProto):
     """
     The bundle activator
     """
@@ -110,9 +98,7 @@ class _Activator(object):
         Bundle started
         """
         # Set up properties
-        properties = {
-            constants.PROP_HANDLER_ID: ipopo_constants.HANDLER_REQUIRES_VARIABLE_FILTER
-        }
+        properties = {constants.PROP_HANDLER_ID: ipopo_constants.HANDLER_REQUIRES_VARIABLE_FILTER}
 
         # Register the handler factory service
         self._registration = context.register_service(
@@ -125,20 +111,23 @@ class _Activator(object):
         """
         Bundle stopped
         """
-        # Unregister the service
-        self._registration.unregister()
-        self._registration = None
+        if self._registration is not None:
+            # Unregister the service
+            self._registration.unregister()
+            self._registration = None
 
 
 # ------------------------------------------------------------------------------
 
 
-class _VariableFilterMixIn:
+class _VariableFilterMixIn(requires._RuntimeDependency):
     """
     Dependency handler MixIn to support variable filters
     """
 
-    def __init__(self, component_context, requirement):
+    requirement: Requirement
+
+    def __init__(self, component_context: ComponentContext, requirement: Requirement) -> None:
         """
         Set up the MixIn
         """
@@ -159,18 +148,16 @@ class _VariableFilterMixIn:
             # The filter couldn't be initialized (reason already logged)
             self.valid_filter = False
 
-    def _find_keys(self):
+    def _find_keys(self) -> List[str]:
         """
         Looks for the property keys in the filter string
 
         :return: A list of property keys
         """
         formatter = string.Formatter()
-        return [
-            val[1] for val in formatter.parse(self._original_filter) if val[1]
-        ]
+        return [val[1] for val in formatter.parse(self._original_filter) if val[1]]
 
-    def update_filter(self):
+    def update_filter(self) -> bool:
         """
         Update the filter according to the new properties
 
@@ -182,9 +169,7 @@ class _VariableFilterMixIn:
 
         try:
             # Format the new filter
-            filter_str = self._original_filter.format(
-                **self._component_context.properties
-            )
+            filter_str = self._original_filter.format(**self._component_context.properties)
         except KeyError as ex:
             # An entry is missing: abandon
             logging.warning("Missing filter value: %s", ex)
@@ -209,7 +194,7 @@ class _VariableFilterMixIn:
         # Same filter
         return False
 
-    def on_property_change(self, name, old_value, new_value):
+    def on_property_change(self, name: str, old_value: Any, new_value: Any) -> None:
         # pylint: disable=W0613
         """
         A component property has been updated
@@ -230,7 +215,7 @@ class _VariableFilterMixIn:
                 for svc_ref in self.get_bindings():
                     self.on_service_departure(svc_ref)
 
-    def _reset(self):
+    def _reset(self) -> None:
         """
         Called when the filter has been changed
         """
@@ -240,11 +225,12 @@ class _VariableFilterMixIn:
             self.start()
 
             # Force bindings update
+            assert self._ipopo_instance is not None
             self._ipopo_instance.update_bindings()
 
             for svc_ref in self.get_bindings():
                 # Check if the current reference matches the filter
-                if not self.requirement.filter.matches(
+                if self.requirement.filter is not None and not self.requirement.filter.matches(
                     svc_ref.get_properties()
                 ):
                     # Not the case: emulate a service departure
@@ -257,20 +243,20 @@ class SimpleDependency(_VariableFilterMixIn, requires.SimpleDependency):
     Manages a single dependency field
     """
 
-    def __init__(self, component_context, field, requirement):
+    def __init__(self, component_context: ComponentContext, field: str, requirement: Requirement) -> None:
         """
         Sets up members
         """
         requires.SimpleDependency.__init__(self, field, requirement)
         _VariableFilterMixIn.__init__(self, component_context, requirement)
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """
         Tests if the dependency is in a valid state
         """
         return self.valid_filter and requires.SimpleDependency.is_valid(self)
 
-    def try_binding(self):
+    def try_binding(self) -> None:
         """
         Searches for the required service if needed
 
@@ -286,20 +272,20 @@ class AggregateDependency(_VariableFilterMixIn, requires.AggregateDependency):
     Manages a single dependency field
     """
 
-    def __init__(self, component_context, field, requirement):
+    def __init__(self, component_context: ComponentContext, field: str, requirement: Requirement) -> None:
         """
         Sets up members
         """
         requires.AggregateDependency.__init__(self, field, requirement)
         _VariableFilterMixIn.__init__(self, component_context, requirement)
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """
         Tests if the dependency is in a valid state
         """
         return self.valid_filter and requires.AggregateDependency.is_valid(self)
 
-    def try_binding(self):
+    def try_binding(self) -> None:
         """
         Searches for the required service if needed
 

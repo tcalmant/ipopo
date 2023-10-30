@@ -25,25 +25,21 @@ Utility methods and decorators
     limitations under the License.
 """
 
-# Standard library
 import collections
 import contextlib
 import functools
 import inspect
 import logging
-import sys
 import threading
 import traceback
+from typing import Any, Callable, Generator, Generic, Iterable, List, Optional, TypeVar, Union, cast
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Optional, Union
-except ImportError:
-    pass
-
-# Pelix constants
 import pelix.constants
+from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceReference
+
+T = TypeVar("T")
+M = TypeVar("M", bound=Callable[..., Any])
 
 # ------------------------------------------------------------------------------
 
@@ -54,14 +50,13 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-# Using Python 3
-PYTHON_3 = sys.version_info[0] == 3
-
 # ------------------------------------------------------------------------------
 
 
 @contextlib.contextmanager
-def use_service(bundle_context, svc_reference):
+def use_service(
+    bundle_context: BundleContext, svc_reference: ServiceReference[T]
+) -> Generator[T, None, None]:
     """
     Utility context to safely use a service in a "with" block.
     It looks after the the given service and releases its reference when
@@ -94,73 +89,46 @@ def use_service(bundle_context, svc_reference):
 # Mimic ArgSpec from getargspec()
 ArgSpec = collections.namedtuple("ArgSpec", "args varargs keywords defaults")
 
-if hasattr(inspect, "signature"):
-    # Python 3.3+
-    def get_method_arguments(method):
-        """
-        inspect.signature()-based way to get the arguments of a method.
 
-        :param method: The method to extract the signature from
-        :return: The arguments specification, without self
-        """
-        # Use the recommended signature method
-        signature = inspect.signature(method)
+def get_method_arguments(method):
+    """
+    inspect.signature()-based way to get the arguments of a method.
 
-        args = []
-        varargs = None
-        keywords = None
-        defaults = []
+    :param method: The method to extract the signature from
+    :return: The arguments specification, without self
+    """
+    # Use the recommended signature method
+    signature = inspect.signature(method)
 
-        for param in signature.parameters.values():
-            kind = param.kind
-            if kind == inspect.Parameter.VAR_POSITIONAL:
-                varargs = param.name
-            elif kind == inspect.Parameter.VAR_KEYWORD:
-                keywords = param.name
-            else:
-                args.append(param.name)
+    args = []
+    varargs = None
+    keywords = None
+    defaults = []
 
-            if param.default is not param.empty:
-                defaults.append(param.default)
-
-        return ArgSpec(args, varargs, keywords, defaults or None)
-
-
-else:
-    import types
-
-    def get_method_arguments(method):
-        """
-        inspect.getargspec()-based way to get the position of arguments.
-
-        The self argument is removed from the result.
-
-        :param method: The method to extract the signature from
-        :return: The arguments specification, without self
-        """
-        # pylint: disable=W1505
-        arg_spec = inspect.getargspec(method)
-
-        if not isinstance(method, types.FunctionType):
-            # Filter out the "self" argument
-            args = arg_spec.args[1:]
+    for param in signature.parameters.values():
+        kind = param.kind
+        if kind == inspect.Parameter.VAR_POSITIONAL:
+            varargs = param.name
+        elif kind == inspect.Parameter.VAR_KEYWORD:
+            keywords = param.name
         else:
-            args = arg_spec.args
+            args.append(param.name)
 
-        return ArgSpec(
-            args, arg_spec.varargs, arg_spec.keywords, arg_spec.defaults
-        )
+        if param.default is not param.empty:
+            defaults.append(param.default)
+
+    return ArgSpec(args, varargs, keywords, defaults or None)
 
 
 # ------------------------------------------------------------------------------
 
 
-class Deprecated(object):
+class Deprecated:
     """
     Prints a warning when using the decorated method
     """
 
-    def __init__(self, message=None, logger=None):
+    def __init__(self, message: Optional[str] = None, logger: Optional[str] = None) -> None:
         """
         Sets the deprecation message, e.g. to indicate which method to call
         instead.
@@ -174,7 +142,7 @@ class Deprecated(object):
         self.__logger = logger or None
         self.__already_logged = False
 
-    def __log(self, method_name):
+    def __log(self, method_name: str) -> None:
         """
         Logs the deprecation message on first call, does nothing after
 
@@ -184,18 +152,17 @@ class Deprecated(object):
             # Print only if not already done
             stack = "\n\t".join(traceback.format_stack())
 
-            logging.getLogger(self.__logger).warning(
-                "%s: %s\n%s", method_name, self.__message, stack
-            )
+            logging.getLogger(self.__logger).warning("%s: %s\n%s", method_name, self.__message, stack)
             self.__already_logged = True
 
-    def __call__(self, method):
+    def __call__(self, method: M) -> M:
         """
         Applies the modifications
 
         :param method: The decorated method
         :return: The wrapped method
         """
+
         # Prepare the wrapped call
         @functools.wraps(method)
         def wrapped(*args, **kwargs):
@@ -205,30 +172,30 @@ class Deprecated(object):
             self.__log(method.__name__)
             return method(*args, **kwargs)
 
-        return wrapped
+        return cast(M, wrapped)
 
 
 # ------------------------------------------------------------------------------
 
 
-class Synchronized(object):
+class Synchronized:
     """
     A synchronizer for global methods
     """
 
-    def __init__(self, lock=None):
+    def __init__(self, lock: Optional[threading.Lock] = None) -> None:
         """
         Sets up the decorator. If 'lock' is None, an RLock() is created for
         this decorator.
 
         :param lock: The lock to be used for synchronization (can be None)
         """
-        if not is_lock(lock):
-            self.__lock = threading.RLock()
+        if lock is None or not is_lock(lock):
+            self.__lock: Union[threading.Lock, threading.RLock] = threading.RLock()
         else:
             self.__lock = lock
 
-    def __call__(self, method):
+    def __call__(self, method: M) -> M:
         """
         Sets up the decorated method
 
@@ -244,10 +211,10 @@ class Synchronized(object):
             with self.__lock:
                 return method(*args, **kwargs)
 
-        return wrapped
+        return cast(M, wrapped)
 
 
-def SynchronizedClassMethod(*locks_attr_names, **kwargs):
+def SynchronizedClassMethod(*locks_attr_names: str, **kwargs: Any):
     # pylint: disable=C1801
     """
     A synchronizer decorator for class methods. An AttributeError can be raised
@@ -256,25 +223,22 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
     If a parameter ``sorted`` is found in ``kwargs`` and its value is True,
     then the list of locks names will be sorted before locking.
 
-    :param locks_attr_names: A list of the lock(s) attribute(s) name(s) to be
-                             used for synchronization
+    :param locks_attr_names: A list of the lock(s) attribute(s) name(s) to be used for synchronization
     :return: The decorator method, surrounded with the lock
     """
     # Filter the names (remove empty ones)
-    locks_attr_names = [
-        lock_name for lock_name in locks_attr_names if lock_name
-    ]
+    locks_names = [lock_name for lock_name in locks_attr_names if lock_name]
 
-    if not locks_attr_names:
+    if not locks_names:
         raise ValueError("The lock names list can't be empty")
 
     if "sorted" not in kwargs or kwargs["sorted"]:
         # Sort the lock names if requested
         # (locking always in the same order reduces the risk of dead lock)
-        locks_attr_names = list(locks_attr_names)
-        locks_attr_names.sort()
+        locks_names = list(locks_names)
+        locks_names.sort()
 
-    def wrapped(method):
+    def wrapped(method: M) -> M:
         """
         The wrapping method
 
@@ -289,7 +253,7 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
             Calls the wrapped method with a lock
             """
             # Raises an AttributeError if needed
-            locks = [getattr(self, attr_name) for attr_name in locks_attr_names]
+            locks = [getattr(self, attr_name) for attr_name in locks_names]
             locked = collections.deque()
             i = 0
 
@@ -299,9 +263,7 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
                     if lock is None:
                         # No lock...
                         raise AttributeError(
-                            "Lock '{0}' can't be None in class {1}".format(
-                                locks_attr_names[i], type(self).__name__
-                            )
+                            f"Lock '{locks_names[i]}' can't be None in class {type(self).__name__}"
                         )
 
                     # Get the lock
@@ -320,13 +282,13 @@ def SynchronizedClassMethod(*locks_attr_names, **kwargs):
                 locked.clear()
                 del locks[:]
 
-        return synchronized
+        return cast(M, synchronized)
 
     # Return the wrapped method
     return wrapped
 
 
-def is_lock(lock):
+def is_lock(lock: Any) -> bool:
     """
     Tests if the given lock is an instance of a lock class
     """
@@ -346,7 +308,7 @@ def is_lock(lock):
 # ------------------------------------------------------------------------------
 
 
-def read_only_property(value):
+def read_only_property(value: Any) -> property:
     """
     Makes a read-only property that always returns the given value
     """
@@ -356,7 +318,7 @@ def read_only_property(value):
 # ------------------------------------------------------------------------------
 
 
-def remove_all_occurrences(sequence, item):
+def remove_all_occurrences(sequence: List[Any], item: Any) -> None:
     """
     Removes all occurrences of item in the given sequence
 
@@ -370,7 +332,7 @@ def remove_all_occurrences(sequence, item):
         sequence.remove(item)
 
 
-def remove_duplicates(items):
+def remove_duplicates(items: List[Any]) -> List[Any]:
     """
     Returns a list without duplicates, keeping elements order
 
@@ -390,7 +352,7 @@ def remove_duplicates(items):
 # ------------------------------------------------------------------------------
 
 
-def add_listener(registry, listener):
+def add_listener(registry: List[T], listener: T) -> bool:
     """
     Adds a listener in the registry, if it is not yet in
 
@@ -405,7 +367,7 @@ def add_listener(registry, listener):
     return True
 
 
-def remove_listener(registry, listener):
+def remove_listener(registry: List[T], listener: T) -> bool:
     """
     Removes a listener from the registry
 
@@ -423,132 +385,67 @@ def remove_listener(registry, listener):
 # ------------------------------------------------------------------------------
 
 
-if PYTHON_3:
-    # Python 3 interpreter : bytes & str
-    def is_bytes(string):
-        """
-        Utility method to test if the given parameter is a string
-        (Python 2.x) or a bytes (Python 3.x) object
+def is_bytes(string: Any) -> bool:
+    """
+    Utility method to test if the given parameter is a string
+    (Python 2.x) or a bytes (Python 3.x) object
 
-        :param string: A potential string object
-        :return: True if the given object is a bytes string
-        """
-        # str in Python 2 is bytes in Python 3
-        return isinstance(string, bytes)
+    :param string: A potential string object
+    :return: True if the given object is a bytes string
+    """
+    # str in Python 2 is bytes in Python 3
+    return isinstance(string, bytes)
 
-    def is_string(string):
-        """
-        Utility method to test if the given parameter is a string
-        (Python 2.x, 3.x) or a unicode (Python 2.x) object
 
-        :param string: A potential string object
-        :return: True if the given object is a string object or a Python 2.x
-                 unicode object
-        """
-        # Python 3 only have the str string type
-        return isinstance(string, str)
+def is_string(string: Any) -> bool:
+    """
+    Utility method to test if the given parameter is a string
+    (Python 2.x, 3.x) or a unicode (Python 2.x) object
 
-    def to_bytes(data, encoding="UTF-8"):
-        """
-        Converts the given string to an array of bytes.
-        Returns the first parameter if it is already an array of bytes.
+    :param string: A potential string object
+    :return: True if the given object is a string object or a Python 2.x
+                unicode object
+    """
+    # Python 3 only have the str string type
+    return isinstance(string, str)
 
-        :param data: A unicode string
-        :param encoding: The encoding of data
-        :return: The corresponding array of bytes
-        """
-        if isinstance(data, bytes):
-            # Nothing to do
-            return data
 
-        return data.encode(encoding)
+def to_bytes(data: str, encoding: str = "UTF-8") -> bytes:
+    """
+    Converts the given string to an array of bytes.
+    Returns the first parameter if it is already an array of bytes.
 
-    def to_str(data, encoding="UTF-8"):
-        """
-        Converts the given parameter to a string.
-        Returns the first parameter if it is already an instance of ``str``.
+    :param data: A unicode string
+    :param encoding: The encoding of data
+    :return: The corresponding array of bytes
+    """
+    if isinstance(data, bytes):
+        # Nothing to do
+        return data
 
-        :param data: A string
-        :param encoding: The encoding of data
-        :return: The corresponding string
-        """
-        if isinstance(data, str):
-            # Nothing to do
-            return data
+    return data.encode(encoding)
 
-        return str(data, encoding)
 
-    # Same operation
-    # pylint: disable=C0103
-    to_unicode = to_str
+def to_str(data: Union[bytes, str], encoding: str = "UTF-8") -> str:
+    """
+    Converts the given parameter to a string.
+    Returns the first parameter if it is already an instance of ``str``.
 
-else:
-    # Python 2 interpreter : str & unicode
-    def is_bytes(string):
-        """
-        Utility method to test if the given parameter is a string
-        (Python 2.x) or a bytes (Python 3.x) object
+    :param data: A string
+    :param encoding: The encoding of data
+    :return: The corresponding string
+    """
+    if isinstance(data, str):
+        # Nothing to do
+        return data
 
-        :param string: A potential string object
-        :return: True if the given object is a bytes string
-        """
-        # str in Python 2 is bytes in Python 3
-        return isinstance(string, str)
-
-    def is_string(string):
-        """
-        Utility method to test if the given parameter is a string
-        (Python 2.x, 3.x) or a unicode (Python 2.x) object
-
-        :param string: A potential string object
-        :return: True if the given object is a string object or a Python 2.x
-                 unicode object
-        """
-        # Python 2 also have unicode
-        # pylint: disable=E0602
-        return isinstance(string, (str, unicode))
-
-    def to_str(data, encoding="UTF-8"):
-        """
-        Converts the given parameter to a string.
-        Returns the first parameter if it is already an instance of ``str``.
-
-        :param data: A string
-        :param encoding: The encoding of data
-        :return: The corresponding string
-        """
-        if type(data) is str:
-            # Nothing to do
-            return data
-
-        return data.encode(encoding)
-
-    # Same operation
-    # pylint: disable=C0103
-    to_bytes = to_str
-
-    def to_unicode(data, encoding="UTF-8"):
-        """
-        Converts the given string to an unicode string using ``str.decode()``.
-        Returns the first parameter if it is already an instance of
-        ``unicode``.
-
-        :param data: A string
-        :param encoding: The encoding of data
-        :return: The corresponding ``unicode`` string
-        """
-        # pylint: disable=E0602
-        if type(data) is unicode:
-            # Nothing to do
-            return data
-
-        return data.decode(encoding)
+    return str(data, encoding)
 
 
 # ------------------------------------------------------------------------------
 
 
-def to_iterable(value, allow_none=True):
+def to_iterable(value: Any, allow_none: bool = True) -> Optional[Iterable]:
     """
     Tries to convert the given value to an iterable, if necessary.
     If the given value is a list, a list is returned; if it is a string, a list
@@ -577,38 +474,36 @@ def to_iterable(value, allow_none=True):
 # ------------------------------------------------------------------------------
 
 
-class EventData(object):
+class EventData(Generic[T]):
     """
     A threading event with some associated data
     """
 
     __slots__ = ("__event", "__data", "__exception")
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up the event
         """
         self.__event = threading.Event()
-        self.__data = None
-        self.__exception = None
+        self.__data: Optional[T] = None
+        self.__exception: Optional[BaseException] = None
 
     @property
-    def data(self):
-        # type: () -> Any
+    def data(self) -> Optional[T]:
         """
         Returns the associated value
         """
         return self.__data
 
     @property
-    def exception(self):
-        # type: () -> BaseException
+    def exception(self) -> Optional[BaseException]:
         """
         Returns the exception used to stop the wait() method
         """
         return self.__exception
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Clears the event
         """
@@ -616,15 +511,13 @@ class EventData(object):
         self.__data = None
         self.__exception = None
 
-    def is_set(self):
-        # type: () -> bool
+    def is_set(self) -> bool:
         """
         Checks if the event is set
         """
         return self.__event.is_set()
 
-    def set(self, data=None):
-        # type: (Any) -> None
+    def set(self, data: Optional[T] = None) -> None:
         """
         Sets the event
         """
@@ -632,8 +525,7 @@ class EventData(object):
         self.__exception = None
         self.__event.set()
 
-    def raise_exception(self, exception):
-        # type: (BaseException) -> None
+    def raise_exception(self, exception: BaseException) -> None:
         """
         Raises an exception in wait()
 
@@ -643,8 +535,7 @@ class EventData(object):
         self.__exception = exception
         self.__event.set()
 
-    def wait(self, timeout=None):
-        # type: (Optional[int]) -> object
+    def wait(self, timeout: Optional[float] = None) -> bool:
         """
         Waits for the event or for the timeout
 
@@ -660,19 +551,17 @@ class EventData(object):
             raise self.__exception
 
 
-class CountdownEvent(object):
+class CountdownEvent:
     """
     Sets up an Event once the internal integer reaches 0
     (kind of the opposite of a semaphore)
     """
 
-    def __init__(self, value):
-        # type: (int) -> None
+    def __init__(self, value: int) -> None:
         """
         Sets up the counter
 
-        :param value: The initial value of the counter, which must be greater
-                      than 0.
+        :param value: The initial value of the counter, which must be greater than 0.
         :raise ValueError: The value is not greater than 0
         """
         if value <= 0:
@@ -682,15 +571,13 @@ class CountdownEvent(object):
         self.__value = value
         self.__event = threading.Event()
 
-    def is_set(self):
-        # type: () -> bool
+    def is_set(self) -> bool:
         """
         Checks if the event is set
         """
         return self.__event.is_set()
 
-    def step(self):
-        # type: () -> bool
+    def step(self) -> bool:
         """
         Decreases the internal counter. Raises an error if the counter goes
         below 0
@@ -710,8 +597,7 @@ class CountdownEvent(object):
 
         return False
 
-    def wait(self, timeout=None):
-        # type: (Optional[int]) -> bool
+    def wait(self, timeout: Optional[float] = None) -> bool:
         """
         Waits for the event or for the timeout
 

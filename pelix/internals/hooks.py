@@ -25,10 +25,17 @@ EventListenerHook for Pelix.
     limitations under the License.
 """
 
-try:
-    from collections.abc import MutableMapping, MutableSequence
-except ImportError:
-    from collections import MutableMapping, MutableSequence
+from collections.abc import MutableMapping, MutableSequence
+from typing import Dict, Generic, Iterator, List, Optional, Protocol, TypeVar, Union
+
+from pelix.framework import BundleContext
+from pelix.internals.events import ServiceEvent
+from pelix.internals.registry import ServiceListener
+from pelix.ldapfilter import LDAPCriteria, LDAPFilter
+
+T = TypeVar("T")
+K = TypeVar("K")
+V = TypeVar("V")
 
 # ------------------------------------------------------------------------------
 
@@ -42,61 +49,60 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-class ShrinkableList(MutableSequence):
-    # pylint: disable=R0901
+class ShrinkableList(MutableSequence[T]):
     """
     List where items can be removed, but nothing can be added.
     For use in ShrinkableMap
     """
 
-    def __init__(self, delegate):
+    def __init__(self, delegate: MutableSequence[T]) -> None:
         self._delegate = delegate
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._delegate)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> T:
         return self._delegate[index]
 
-    def __delitem__(self, index):
+    def __delitem__(self, index: int) -> None:
         del self._delegate[index]
 
-    def __setitem__(self, index, value):
+    def __setitem__(self, index: int, value: T) -> None:
         raise IndexError
 
-    def insert(self, index, value):
+    def insert(self, index: int, value: T) -> None:
         raise IndexError
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self._delegate)
 
 
-class ShrinkableMap(MutableMapping):
+class ShrinkableMap(MutableMapping[K, V]):
     """
     Map where item->value mappings can be removed, but nothing can be added.
     For use in EventListenerHook
     """
 
-    def __init__(self, delegate):
+    def __init__(self, delegate: MutableMapping[K, V]) -> None:
         self._delegate = delegate
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: K) -> V:
         return self._delegate[key]
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: K, value: V) -> None:
         raise IndexError
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: K) -> None:
         del self._delegate[key]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[K]:
         return self._delegate.__iter__()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._delegate)
 
 
-class ListenerInfo(object):
+class ListenerInfo(Generic[T]):
     """
     Keeps information about a listener
     """
@@ -109,7 +115,13 @@ class ListenerInfo(object):
         "__ldap_filter",
     )
 
-    def __init__(self, bundle_context, listener, specification, ldap_filter):
+    def __init__(
+        self,
+        bundle_context: BundleContext,
+        listener: T,
+        specification: Optional[str],
+        ldap_filter: Union[None, LDAPCriteria, LDAPFilter],
+    ) -> None:
         """
         :param bundle_context: Bundle context
         :param listener: Listener instance
@@ -122,34 +134,34 @@ class ListenerInfo(object):
         self.__ldap_filter = ldap_filter
 
     @property
-    def bundle_context(self):
+    def bundle_context(self) -> BundleContext:
         """
         The context of the bundle which added the listener.
         """
         return self.__bundle_context
 
     @property
-    def listener(self):
+    def listener(self) -> T:
         """
         The listener instance
         """
         return self.__listener
 
     @property
-    def specification(self):
+    def specification(self) -> Optional[str]:
         """
         The specification to listen to
         """
         return self.__specification
 
     @property
-    def ldap_filter(self):
+    def ldap_filter(self) -> Union[None, LDAPCriteria, LDAPFilter]:
         """
         The LDAP filter on service properties
         """
         return self.__ldap_filter
 
-    def get_bundle_context(self):
+    def get_bundle_context(self) -> BundleContext:
         """
         Return the context of the bundle which added the listener.
 
@@ -157,7 +169,7 @@ class ListenerInfo(object):
         """
         return self.__bundle_context
 
-    def get_filter(self):
+    def get_filter(self) -> Optional[str]:
         """
         Returns the LDAP filter string with which the filter was added
 
@@ -168,19 +180,18 @@ class ListenerInfo(object):
         return None
 
 
-class EventListenerHook(object):
+class EventListenerHook(Protocol):
     """
     Event listener hook interface prototype.  The method in this class must be
     overridden for a service event listener hook to be called via whiteboard
     pattern
     """
 
-    def event(self, service_event, listener_dict):
+    def event(self, service_event: ServiceEvent, listener_dict: Dict[BundleContext, List[ServiceListener]]) -> None:
         """
         Method called when a service event is triggered.
 
         :param service_event: The ServiceEvent being triggered
-        :param listener_dict: A dictionary associating a bundle context to a
-                              list of listeners
+        :param listener_dict: A dictionary associating a bundle context to a list of listeners
         """
-        pass
+        ...

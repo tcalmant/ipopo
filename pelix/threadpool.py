@@ -26,17 +26,11 @@ Pelix Utilities: Cached thread pool
 """
 
 # Standard library
+from dataclasses import dataclass
 import logging
+import queue
 import threading
-
-try:
-    # Python 3
-    # pylint: disable=F0401
-    import queue
-except ImportError:
-    # Python 2
-    # pylint: disable=F0401
-    import Queue as queue
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 # Pelix
 import pelix.utilities
@@ -53,34 +47,34 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # ------------------------------------------------------------------------------
 
 
-class EventData(object):
+class EventData:
     """
     A threading event with some associated data
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up the event
         """
         self.__event = threading.Event()
-        self.__data = None
-        self.__exception = None
+        self.__data: Any = None
+        self.__exception: Optional[BaseException] = None
 
     @property
-    def data(self):
+    def data(self) -> Any:
         """
         Returns the associated value
         """
         return self.__data
 
     @property
-    def exception(self):
+    def exception(self) -> Optional[BaseException]:
         """
         Returns the exception used to stop the wait() method
         """
         return self.__exception
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Clears the event
         """
@@ -88,13 +82,13 @@ class EventData(object):
         self.__data = None
         self.__exception = None
 
-    def is_set(self):
+    def is_set(self) -> bool:
         """
         Checks if the event is set
         """
         return self.__event.is_set()
 
-    def set(self, data=None):
+    def set(self, data: Any = None) -> None:
         """
         Sets the event
         """
@@ -102,7 +96,7 @@ class EventData(object):
         self.__exception = None
         self.__event.set()
 
-    def raise_exception(self, exception):
+    def raise_exception(self, exception: BaseException) -> None:
         """
         Raises an exception in wait()
 
@@ -112,7 +106,7 @@ class EventData(object):
         self.__exception = exception
         self.__event.set()
 
-    def wait(self, timeout=None):
+    def wait(self, timeout: Optional[float] = None) -> Any:
         """
         Waits for the event or for the timeout
 
@@ -132,14 +126,14 @@ class EventData(object):
 # ------------------------------------------------------------------------------
 
 
-class FutureResult(object):
+class FutureResult:
     """
     An object to wait for the result of a threaded execution
     """
 
     __slots__ = ("_logger", "_done_event", "__callback", "__extra")
 
-    def __init__(self, logger=None):
+    def __init__(self, logger: Optional[logging.Logger] = None) -> None:
         """
         Sets up the FutureResult object
 
@@ -147,10 +141,10 @@ class FutureResult(object):
         """
         self._logger = logger or logging.getLogger(__name__)
         self._done_event = pelix.utilities.EventData()
-        self.__callback = None
-        self.__extra = None
+        self.__callback: Optional[Callable[[Any, Optional[BaseException], Any], None]] = None
+        self.__extra: Any = None
 
-    def __notify(self):
+    def __notify(self) -> None:
         """
         Notify the given callback about the result of the execution
         """
@@ -164,7 +158,9 @@ class FutureResult(object):
             except Exception as ex:
                 self._logger.exception("Error calling back method: %s", ex)
 
-    def set_callback(self, method, extra=None):
+    def set_callback(
+        self, method: Optional[Callable[[Any, Optional[BaseException], Any], None]], extra: Any = None
+    ) -> None:
         """
         Sets a callback method, called once the result has been computed or in
         case of exception.
@@ -181,7 +177,7 @@ class FutureResult(object):
             # The execution has already finished
             self.__notify()
 
-    def execute(self, method, args, kwargs):
+    def execute(self, method: Callable[..., Any], args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
         """
         Execute the given method and stores its result.
         The result is considered "done" even if the method raises an exception
@@ -191,13 +187,6 @@ class FutureResult(object):
         :param kwargs: Method keyword arguments
         :raise Exception: The exception raised by the method
         """
-        # Normalize arguments
-        if args is None:
-            args = []
-
-        if kwargs is None:
-            kwargs = {}
-
         try:
             # Call the method
             result = method(*args, **kwargs)
@@ -212,13 +201,13 @@ class FutureResult(object):
             # In any case: notify the call back (if any)
             self.__notify()
 
-    def done(self):
+    def done(self) -> bool:
         """
         Returns True if the job has finished, else False
         """
         return self._done_event.is_set()
 
-    def result(self, timeout=None):
+    def result(self, timeout: Optional[float] = None) -> Any:
         """
         Waits up to timeout for the result the threaded job.
         Returns immediately the result if the job has already been done.
@@ -236,14 +225,34 @@ class FutureResult(object):
 # ------------------------------------------------------------------------------
 
 
-class ThreadPool(object):
+@dataclass
+class _QueuedTask:
+    """
+    Keep track of a queued task
+    """
+
+    method: Callable[..., Any]
+    args: Tuple[Any, ...]
+    kwargs: Dict[str, Any]
+    future: FutureResult
+
+
+_STOP = _QueuedTask(lambda: ..., tuple(), {}, FutureResult())
+
+
+class ThreadPool:
     """
     Executes the tasks stored in a FIFO in a thread pool
     """
 
     def __init__(
-        self, max_threads, min_threads=1, queue_size=0, timeout=60, logname=None
-    ):
+        self,
+        max_threads: int,
+        min_threads: int = 1,
+        queue_size: int = 0,
+        timeout: float = 60,
+        logname: Optional[str] = None,
+    ) -> None:
         """
         Sets up the thread pool.
 
@@ -262,7 +271,7 @@ class ThreadPool(object):
             if max_threads < 1:
                 raise ValueError("Pool size must be greater than 0")
         except (TypeError, ValueError) as ex:
-            raise ValueError("Invalid pool size: {0}".format(ex))
+            raise ValueError(f"Invalid pool size: {ex}")
 
         try:
             min_threads = int(min_threads)
@@ -271,7 +280,7 @@ class ThreadPool(object):
             elif min_threads > max_threads:
                 min_threads = max_threads
         except (TypeError, ValueError) as ex:
-            raise ValueError("Invalid pool size: {0}".format(ex))
+            raise ValueError(f"Invalid pool size: {ex}")
 
         # The logger
         self._logger = logging.getLogger(logname or __name__)
@@ -287,14 +296,14 @@ class ThreadPool(object):
             # Not a valid integer
             queue_size = 0
 
-        self._queue = queue.Queue(queue_size)
+        self._queue = queue.Queue[_QueuedTask](queue_size)
         self._timeout = timeout
         self.__lock = threading.RLock()
 
         # The thread pool
         self._min_threads = min_threads
         self._max_threads = max_threads
-        self._threads = []
+        self._threads: List[threading.Thread] = []
 
         # Thread count
         self._thread_id = 0
@@ -305,7 +314,7 @@ class ThreadPool(object):
         self.__nb_active_threads = 0
         self.__nb_pending_task = 0
 
-    def start(self):
+    def start(self) -> None:
         """
         Starts the thread pool. Does nothing if the pool is already started.
         """
@@ -333,7 +342,7 @@ class ThreadPool(object):
         for _ in range(nb_threads - nb_pending_tasks):
             self.__start_thread()
 
-    def __start_thread(self):
+    def __start_thread(self) -> bool:
         """
         Starts a new thread, if possible
         """
@@ -347,7 +356,7 @@ class ThreadPool(object):
                 return False
 
             # Prepare thread and start it
-            name = "{0}-{1}".format(self._logger.name, self._thread_id)
+            name = f"{self._logger.name}-{self._thread_id}"
             self._thread_id += 1
 
             thread = threading.Thread(target=self.__run, name=name)
@@ -361,7 +370,7 @@ class ThreadPool(object):
                 self.__nb_threads -= 1
                 return False
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Stops the thread pool. Does nothing if the pool is already stopped.
         """
@@ -376,7 +385,7 @@ class ThreadPool(object):
             # Add something in the queue (to unlock the join())
             try:
                 for _ in self._threads:
-                    self._queue.put(self._done_event, True, self._timeout)
+                    self._queue.put(_STOP, True, self._timeout)
             except queue.Full:
                 # There is already something in the queue
                 pass
@@ -391,15 +400,13 @@ class ThreadPool(object):
                 thread.join(3)
                 if thread.is_alive():
                     # Thread is still alive: something might be wrong
-                    self._logger.warning(
-                        "Thread %s is still alive...", thread.name
-                    )
+                    self._logger.warning("Thread %s is still alive...", thread.name)
 
         # Clear storage
         del self._threads[:]
         self.clear()
 
-    def enqueue(self, method, *args, **kwargs):
+    def enqueue(self, method: Callable, *args: Any, **kwargs: Any) -> FutureResult:
         """
         Queues a task in the pool
 
@@ -409,9 +416,7 @@ class ThreadPool(object):
         :raise Full: The task queue is full
         """
         if not hasattr(method, "__call__"):
-            raise ValueError(
-                "{0} has no __call__ member.".format(method.__name__)
-            )
+            raise ValueError(f"{method.__name__} has no __call__ member.")
 
         # Prepare the future result object
         future = FutureResult(self._logger)
@@ -419,7 +424,7 @@ class ThreadPool(object):
         # Use a lock, as we might be "resetting" the queue
         with self.__lock:
             # Add the task to the queue
-            self._queue.put((method, args, kwargs, future), True, self._timeout)
+            self._queue.put(_QueuedTask(method, args, kwargs, future), True, self._timeout)
             self.__nb_pending_task += 1
 
             if self.__nb_pending_task > self.__nb_threads:
@@ -428,7 +433,7 @@ class ThreadPool(object):
 
         return future
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Empties the current queue content.
         Returns once the queue have been emptied.
@@ -446,7 +451,7 @@ class ThreadPool(object):
             # Wait for the tasks currently executed
             self.join()
 
-    def join(self, timeout=None):
+    def join(self, timeout: Optional[float] = None) -> bool:
         """
         Waits for all the tasks to be executed
 
@@ -466,7 +471,7 @@ class ThreadPool(object):
                 self._queue.all_tasks_done.wait(timeout)
                 return not bool(self._queue.unfinished_tasks)
 
-    def __run(self):
+    def __run(self) -> None:
         """
         The main loop
         """
@@ -476,7 +481,7 @@ class ThreadPool(object):
                 try:
                     # Wait for an action (blocking)
                     task = self._queue.get(True, self._timeout)
-                    if task is self._done_event:
+                    if task is _STOP:
                         # Stop event in the queue: get out
                         self._queue.task_done()
                         return
@@ -486,15 +491,11 @@ class ThreadPool(object):
                 else:
                     with self.__lock:
                         self.__nb_active_threads += 1
-                    # Extract elements
-                    method, args, kwargs, future = task
                     try:
                         # Call the method
-                        future.execute(method, args, kwargs)
+                        task.future.execute(task.method, task.args, task.kwargs)
                     except Exception as ex:
-                        self._logger.exception(
-                            "Error executing %s: %s", method.__name__, ex
-                        )
+                        self._logger.exception("Error executing %s: %s", task.method.__name__, ex)
                     finally:
                         # Mark the action as executed
                         self._queue.task_done()
@@ -507,10 +508,7 @@ class ThreadPool(object):
                 # Clean up thread if necessary
                 with self.__lock:
                     extra_threads = self.__nb_threads - self.__nb_active_threads
-                    if (
-                        self.__nb_threads > self._min_threads
-                        and extra_threads > self._queue.qsize()
-                    ):
+                    if self.__nb_threads > self._min_threads and extra_threads > self._queue.qsize():
                         # No more work for this thread
                         # if there are more non active_thread than task
                         # and we're above the  minimum number of threads:

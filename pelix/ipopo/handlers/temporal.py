@@ -25,17 +25,16 @@ Temporal dependency handler
     limitations under the License.
 """
 
-# Standard library
 import threading
+from typing import Any, Callable, Dict, Generic, Optional, Tuple, TypeVar, cast
 
-# Pelix beans
-from pelix.constants import BundleActivator
-import pelix.utilities as utilities
-
-# iPOPO constants
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
 import pelix.ipopo.handlers.requires as requires
+import pelix.utilities as utilities
+from pelix.constants import ActivatorProto, BundleActivator
+from pelix.internals.registry import ServiceReference
+from pelix.ipopo.contexts import Requirement
 
 # ------------------------------------------------------------------------------
 
@@ -45,6 +44,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
+
+T = TypeVar("T")
 
 # ------------------------------------------------------------------------------
 
@@ -56,15 +57,15 @@ class _HandlerFactory(constants.HandlerFactory):
     """
 
     @staticmethod
-    def _prepare_configs(configs, requires_filters, temporal_timeouts):
+    def _prepare_configs(
+        configs: Dict[str, Any], requires_filters: Dict[str, str], temporal_timeouts: Dict[str, float]
+    ) -> Dict[str, Any]:
         """
         Overrides the filters specified in the decorator with the given ones
 
         :param configs: Field → (Requirement, key, allow_none) dictionary
-        :param requires_filters: Content of the 'requires.filter' component
-                                 property (field → string)
-        :param temporal_timeouts: Content of the 'temporal.timeouts' component
-                                  property (field → float)
+        :param requires_filters: Content of the 'requires.filter' component property (field → string)
+        :param temporal_timeouts: Content of the 'temporal.timeouts' component property (field → float)
         :return: The new configuration dictionary
         """
         if not isinstance(requires_filters, dict):
@@ -78,12 +79,12 @@ class _HandlerFactory(constants.HandlerFactory):
             return configs
 
         # We need to change a part of the requirements
-        new_configs = {}
+        new_configs: Dict[str, Any] = {}
         for field, config in configs.items():
             # Extract values from tuple
             requirement, timeout = config
             explicit_filter = requires_filters.get(field)
-            explicit_timeout = temporal_timeouts.get(field)
+            explicit_timeout = temporal_timeouts.get(field, timeout)
 
             # Convert the timeout value
             try:
@@ -119,20 +120,12 @@ class _HandlerFactory(constants.HandlerFactory):
         :return: The list of handlers associated to the given component
         """
         # Extract information from the context
-        configs = component_context.get_handler(
-            ipopo_constants.HANDLER_TEMPORAL
-        )
-        requires_filters = component_context.properties.get(
-            ipopo_constants.IPOPO_REQUIRES_FILTERS, None
-        )
-        temporal_timeouts = component_context.properties.get(
-            ipopo_constants.IPOPO_TEMPORAL_TIMEOUTS, None
-        )
+        configs = component_context.get_handler(ipopo_constants.HANDLER_TEMPORAL)
+        requires_filters = component_context.properties.get(ipopo_constants.IPOPO_REQUIRES_FILTERS, None)
+        temporal_timeouts = component_context.properties.get(ipopo_constants.IPOPO_TEMPORAL_TIMEOUTS, None)
 
         # Prepare requirements
-        new_configs = self._prepare_configs(
-            configs, requires_filters, temporal_timeouts
-        )
+        new_configs = self._prepare_configs(configs, requires_filters, temporal_timeouts)
 
         # Return handlers
         return [
@@ -142,7 +135,7 @@ class _HandlerFactory(constants.HandlerFactory):
 
 
 @BundleActivator
-class _Activator(object):
+class Activator(ActivatorProto):
     """
     The bundle activator
     """
@@ -158,9 +151,7 @@ class _Activator(object):
         Bundle started
         """
         # Set up properties
-        properties = {
-            constants.PROP_HANDLER_ID: ipopo_constants.HANDLER_TEMPORAL
-        }
+        properties = {constants.PROP_HANDLER_ID: ipopo_constants.HANDLER_TEMPORAL}
 
         # Register the handler factory service
         self._registration = context.register_service(
@@ -173,9 +164,10 @@ class _Activator(object):
         """
         Bundle stopped
         """
-        # Unregister the service
-        self._registration.unregister()
-        self._registration = None
+        if self._registration is not None:
+            # Unregister the service
+            self._registration.unregister()
+            self._registration = None
 
 
 # ------------------------------------------------------------------------------
@@ -186,22 +178,22 @@ class TemporalException(constants.HandlerException):
     Temporal exception
     """
 
-    pass
+    ...
 
 
-class _TemporalProxy(object):
+class _TemporalProxy(Generic[T]):
     """
     The injected proxy
     """
 
-    def __init__(self, timeout):
+    def __init__(self, timeout: float) -> None:
         """
         The temporal proxy
         """
-        self.__event = utilities.EventData()
+        self.__event = utilities.EventData[T]()
         self.__timeout = timeout
 
-    def set_service(self, service):
+    def set_service(self, service: T) -> None:
         """
         Sets the injected service
 
@@ -209,13 +201,13 @@ class _TemporalProxy(object):
         """
         self.__event.set(service)
 
-    def unset_service(self):
+    def unset_service(self) -> None:
         """
         The injected service has gone away
         """
         self.__event.clear()
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str) -> Any:
         """
         Returns the attribute from the "real" service
 
@@ -226,24 +218,21 @@ class _TemporalProxy(object):
         else:
             raise TemporalException("No service found before timeout")
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """
         Call the underlying object. Lets exception propagate
         """
         if self.__event.wait(self.__timeout):
             # We have a service: call it
-            return self.__event.data.__call__(*args, **kwargs)
+            return cast(Callable[..., Any], self.__event.data)(*args, **kwargs)
         else:
             raise TemporalException("No service found before timeout")
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         """
         Boolean value of the proxy
         """
         return self.__event.is_set() and bool(self.__event.data)
-
-    # Python 2 compatibility
-    __nonzero__ = __bool__
 
 
 class TemporalDependency(requires.SimpleDependency):
@@ -251,7 +240,7 @@ class TemporalDependency(requires.SimpleDependency):
     Manages a temporal dependency field
     """
 
-    def __init__(self, field, requirement, timeout):
+    def __init__(self, field: str, requirement: Requirement, timeout: float) -> None:
         """
         Sets up the dependency
 
@@ -265,8 +254,8 @@ class TemporalDependency(requires.SimpleDependency):
         self.__timeout = timeout
 
         # The delayed unbind timer
-        self.__timer = None
-        self.__timer_args = None
+        self.__timer: Optional[threading.Timer] = None
+        self.__timer_args: Optional[Tuple[Any, ...]] = None
         self.__still_valid = False
 
         # The injected value is the proxy
@@ -286,7 +275,7 @@ class TemporalDependency(requires.SimpleDependency):
         self._value = None
         super(TemporalDependency, self).clear()
 
-    def on_service_arrival(self, svc_ref):
+    def on_service_arrival(self, svc_ref: ServiceReference[Any]) -> None:
         """
         Called when a service has been registered in the framework
 
@@ -294,6 +283,8 @@ class TemporalDependency(requires.SimpleDependency):
         """
         with self._lock:
             if self.reference is None:
+                assert self._context is not None and self._ipopo_instance is not None
+
                 # Inject the service
                 service = self._context.get_service(svc_ref)
                 self.reference = svc_ref
@@ -305,11 +296,8 @@ class TemporalDependency(requires.SimpleDependency):
 
                 # Bind the service
                 self._ipopo_instance.bind(self, self._value, self.reference)
-                return True
 
-            return None
-
-    def on_service_departure(self, svc_ref):
+    def on_service_departure(self, svc_ref: ServiceReference[Any]) -> None:
         """
         Called when a service has been unregistered from the framework
 
@@ -324,6 +312,8 @@ class TemporalDependency(requires.SimpleDependency):
                 self.reference = None
 
                 # Look for a replacement
+                assert self._context is not None and self._ipopo_instance is not None
+
                 self._pending_ref = self._context.get_service_reference(
                     self.requirement.specification, self.requirement.filter
                 )
@@ -332,19 +322,13 @@ class TemporalDependency(requires.SimpleDependency):
                     # No replacement found yet, wait a little
                     self.__still_valid = True
                     self.__timer_args = (self._value, svc_ref)
-                    self.__timer = threading.Timer(
-                        self.__timeout, self.__unbind_call, (False,)
-                    )
+                    self.__timer = threading.Timer(self.__timeout, self.__unbind_call, (False,))
                     self.__timer.start()
-
                 else:
                     # Notify iPOPO immediately
                     self._ipopo_instance.unbind(self, self._value, svc_ref)
-                return True
 
-            return None
-
-    def __cancel_timer(self):
+    def __cancel_timer(self) -> None:
         """
         Cancels the timer, and calls its target method immediately
         """
@@ -355,27 +339,22 @@ class TemporalDependency(requires.SimpleDependency):
         self.__timer_args = None
         self.__timer = None
 
-    def __unbind_call(self, still_valid):
+    def __unbind_call(self, still_valid: bool) -> None:
         """
         Calls the iPOPO unbind method
         """
         with self._lock:
-            if self.__timer is not None:
+            if self.__timer is not None and self.__timer_args is not None:
                 # Timeout expired, we're not valid anymore
                 self.__timer = None
                 self.__still_valid = still_valid
-                self._ipopo_instance.unbind(
-                    self, self.__timer_args[0], self.__timer_args[1]
-                )
+                assert self._ipopo_instance is not None
+                self._ipopo_instance.unbind(self, self.__timer_args[0], self.__timer_args[1])
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """
         Tests if the dependency is in a valid state
         """
         # Don't use the parent method: it will return true as the "_value"
         # member is not None
-        return (
-            self.__still_valid
-            or self._pending_ref is not None
-            or self.requirement.optional
-        )
+        return self.__still_valid or self._pending_ref is not None or self.requirement.optional

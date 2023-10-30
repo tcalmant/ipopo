@@ -34,6 +34,14 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+from abc import ABC, abstractmethod
+from typing import Any, List, Optional, Protocol, Tuple
+
+from pelix.internals.events import ServiceEvent
+from pelix.internals.registry import ServiceReference
+from pelix.ipopo.contexts import ComponentContext, Requirement
+from pelix.ipopo.instance import StoredInstance
+
 SERVICE_IPOPO_HANDLER_FACTORY = "ipopo.handler.factory"
 """
 iPOPO handler factory service specification. Those services should implement
@@ -80,48 +88,28 @@ It should also implement the following ones:
 # ------------------------------------------------------------------------------
 
 
-class HandlerFactory(object):
-    # pylint: disable=R0903
-    """
-    Handler factory abstract class
-    """
-
-    def get_handlers(self, component_context, instance):
-        """
-        Prepares handlers for the given component
-
-        :param component_context: The ComponentContext bean
-        :param instance: The component instance
-        :return: The list of handlers associated to the given component
-        """
-        pass
-
-
-# ------------------------------------------------------------------------------
-
-
-class Handler(object):
+class Handler(ABC):
     """
     Basic handler abstract class
     """
 
-    def get_kinds(self):
-        # pylint: disable=R0201
+    @abstractmethod
+    def get_kinds(self) -> Tuple[str]:
         """
         Returns the kinds of this handler
 
         :return: A tuple of the kinds of this handler, or None
         """
-        pass
+        ...
 
-    def manipulate(self, stored_instance, component_instance):
+    @abstractmethod
+    def manipulate(self, stored_instance: StoredInstance, component_instance: Any) -> None:
         """
         Manipulates the associated component instance
         """
-        pass
+        ...
 
-    def check_event(self, event):
-        # pylint: disable=R0201, W0613
+    def check_event(self, event: ServiceEvent) -> bool:
         """
         Tests if the given service event must be handled or ignored, based
         on the state of the iPOPO service and on the content of the event.
@@ -131,8 +119,7 @@ class Handler(object):
         """
         return True
 
-    def is_valid(self):
-        # pylint: disable=R0201
+    def is_valid(self) -> bool:
         """
         Checks this handler is valid. All handlers must be valid for a
         component to be validated
@@ -141,16 +128,16 @@ class Handler(object):
         """
         return True
 
-    def on_controller_change(self, name, value):
+    def on_controller_change(self, name: str, value: bool) -> None:
         """
         Notifies the change of state of the controller with the given name
 
         :param name: The name of the controller
         :param value: The new value of the controller
         """
-        pass
+        ...
 
-    def on_property_change(self, name, old_value, new_value):
+    def on_property_change(self, name: str, old_value: Any, new_value: Any) -> None:
         """
         Handles a property changed event
 
@@ -158,52 +145,54 @@ class Handler(object):
         :param old_value: The previous property value
         :param new_value: The new property value
         """
-        pass
+        ...
 
-    def start(self):
+    def start(self) -> None:
         """
         Starts the handler (listeners, ...). Called once, after the component
         has been manipulated by all handlers.
         """
-        pass
+        ...
 
-    def stop(self):
+    def stop(self) -> Optional[List[Tuple[Any, ServiceReference]]]:
         """
         Stops the handler. Called once, just after the component has been
         killed
-        """
-        pass
 
-    def clear(self):
+        :return: The removed bindings (list) or None
+        """
+        ...
+
+    def clear(self) -> None:
         """
         Called just after a component has been killed and all handlers have
         been stopped. The handler should release all its resources here.
         """
-        pass
+        ...
 
-    def pre_validate(self):
+    def pre_validate(self) -> None:
         """
         Called just before a component is validated
         """
-        pass
+        ...
 
-    def post_validate(self):
+    def post_validate(self) -> None:
         """
         Called just after a component has been validated
         """
-        pass
+        ...
 
-    def pre_invalidate(self):
+    def pre_invalidate(self) -> None:
         """
         Called just before a component is invalidated
         """
-        pass
+        ...
 
-    def post_invalidate(self):
+    def post_invalidate(self) -> None:
         """
         Called just after a component has been invalidated
         """
-        pass
+        ...
 
 
 class HandlerException(Exception):
@@ -211,7 +200,7 @@ class HandlerException(Exception):
     Kind of exception used by handlers
     """
 
-    pass
+    ...
 
 
 # ------------------------------------------------------------------------------
@@ -223,7 +212,6 @@ class ServiceProviderHandler(Handler):
     """
 
     def get_service_reference(self):
-        # pylint: disable=R0201
         """
         Returns the reference to the service provided by this handler
         """
@@ -233,37 +221,55 @@ class ServiceProviderHandler(Handler):
 # ------------------------------------------------------------------------------
 
 
-class DependencyHandler(Handler):
+class DependencyHandler(Handler, ABC):
     """
     Dependency handler abstract class
     """
 
-    def get_field(self):
-        # pylint: disable=R0201
+    requirement: Requirement
+
+    def get_field(self) -> Optional[str]:
         """
         Returns the name of the field where to inject the dependency
         """
         return None
 
-    def try_binding(self):
-        # pylint: disable=R0201
+    def try_binding(self) -> None:
         """
         Forces the handler to try to bind to existing services
         """
-        pass
+        ...
 
-    def get_bindings(self):
-        # pylint: disable=R0201
+    def get_bindings(self) -> List[ServiceReference]:
         """
         Retrieves the list of the references to the bound services
 
         :return: A list of ServiceReferences objects
         """
-        return None
+        return []
 
-    def get_value(self):
+    def get_value(self) -> Any:
         # pylint: disable=R0201
         """
         Returns the value to inject
         """
         return None
+
+
+# ------------------------------------------------------------------------------
+
+
+class HandlerFactory(Protocol):
+    """
+    Handler factory abstract class
+    """
+
+    def get_handlers(self, component_context: ComponentContext, instance: Any) -> List[Handler]:
+        """
+        Prepares handlers for the given component
+
+        :param component_context: The ComponentContext bean
+        :param instance: The component instance
+        :return: The list of handlers associated to the given component
+        """
+        ...

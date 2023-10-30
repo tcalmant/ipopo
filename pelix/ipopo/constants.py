@@ -25,20 +25,12 @@ Defines some iPOPO constants
     limitations under the License.
 """
 
-# Standard library
 import contextlib
+from typing import Generator, Optional, Tuple
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
-
-    # Pelix
-    from pelix.framework import BundleContext, ServiceReference
-except ImportError:
-    pass
-
-from pelix.framework import BundleException
+from pelix.framework import BundleContext, BundleException, ServiceReference
+from pelix.ipopo.core import _IPopoService
+from pelix.ipopo.waiting import IPopoWaitingList
 
 # ------------------------------------------------------------------------------
 
@@ -68,7 +60,7 @@ HANDLER_REQUIRES = "ipopo.requires"
 HANDLER_REQUIRES_BEST = "ipopo.requires.best"
 """ The @RequiresBest handler ID """
 
-HANDLER_REQUIRES_BRODCAST = "ipopo.requires.broadcast"
+HANDLER_REQUIRES_BROADCAST = "ipopo.requires.broadcast"
 """ The @RequiresBroadcast handler ID """
 
 HANDLER_REQUIRES_MAP = "ipopo.requires.map"
@@ -189,15 +181,15 @@ updated
 # ------------------------------------------------------------------------------
 
 
-def get_ipopo_svc_ref(bundle_context):
-    # type: (BundleContext) -> Optional[Tuple[ServiceReference, Any]]
+def get_ipopo_svc_ref(
+    bundle_context: BundleContext,
+) -> Optional[Tuple[ServiceReference[_IPopoService], _IPopoService]]:
     """
     Retrieves a tuple containing the service reference to iPOPO and the service
     itself
 
     :param bundle_context: The calling bundle context
-    :return: The reference to the iPOPO service and the service itself,
-             None if not available
+    :return: The reference to the iPOPO service and the service itself, None if not available
     """
     # Look after the service
     ref = bundle_context.get_service_reference(SERVICE_IPOPO)
@@ -216,8 +208,7 @@ def get_ipopo_svc_ref(bundle_context):
 
 
 @contextlib.contextmanager
-def use_ipopo(bundle_context):
-    # type: (BundleContext) -> Any
+def use_ipopo(bundle_context: BundleContext) -> Generator[_IPopoService, None, None]:
     """
     Utility context to use the iPOPO service safely in a "with" block.
     It looks after the the iPOPO service and releases its reference when
@@ -245,8 +236,7 @@ def use_ipopo(bundle_context):
 
 
 @contextlib.contextmanager
-def use_waiting_list(bundle_context):
-    # type: (BundleContext) -> Any
+def use_waiting_list(bundle_context: BundleContext) -> Generator[IPopoWaitingList, None, None]:
     """
     Utility context to use the iPOPO waiting list safely in a "with" block.
     It looks after the the iPOPO waiting list service and releases its
@@ -276,7 +266,7 @@ def use_waiting_list(bundle_context):
 # ------------------------------------------------------------------------------
 
 
-class IPopoEvent(object):
+class IPopoEvent:
     """
     An iPOPO event descriptor.
     """
@@ -305,22 +295,19 @@ class IPopoEvent(object):
     UNREGISTERED = 10
     """ A component factory has been unregistered """
 
-    def __init__(self, kind, factory_name, component_name):
-        # type: (int, str, Optional[str]) -> None
+    def __init__(self, kind: int, factory_name: str, component_name: Optional[str]) -> None:
         """
         Sets up the iPOPO event
 
         :param kind: Kind of event
         :param factory_name: Name of the factory associated to the event
-        :param component_name: Name of the component instance associated to the
-                               event
+        :param component_name: Name of the component instance associated to the event
         """
         self.__kind = kind
         self.__factory_name = factory_name
         self.__component_name = component_name
 
-    def get_component_name(self):
-        # type: () -> Optional[str]
+    def get_component_name(self) -> Optional[str]:
         """
         Retrieves the name of the component associated to the event
 
@@ -328,8 +315,7 @@ class IPopoEvent(object):
         """
         return self.__component_name
 
-    def get_factory_name(self):
-        # type: () -> str
+    def get_factory_name(self) -> str:
         """
         Retrieves the name of the factory associated to the event
 
@@ -337,8 +323,7 @@ class IPopoEvent(object):
         """
         return self.__factory_name
 
-    def get_kind(self):
-        # type: () -> int
+    def get_kind(self) -> int:
         """
         Retrieves the kind of event
 

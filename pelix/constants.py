@@ -27,6 +27,11 @@ Constants and exceptions for Pelix.
 
 # Standard library
 import inspect
+from typing import Any, Protocol, Type, TypeVar
+
+from pelix.framework import BundleContext
+
+T = TypeVar("T")
 
 # ------------------------------------------------------------------------------
 
@@ -138,8 +143,32 @@ This allows all bundles to have multiples objects for the same service.
 # ------------------------------------------------------------------------------
 
 
-def BundleActivator(clazz):
-    # pylint: disable=C0103
+class ActivatorProto(Protocol):
+    """
+    Interface of an activator
+    """
+
+    def __init__(self) -> None:
+        ...
+
+    def start(self, context: BundleContext) -> None:
+        """
+        Bundle activated. This method should return quickly.
+
+        :param context: Fresh bundle context
+        """
+        ...
+
+    def stop(self, context: BundleContext) -> None:
+        """
+        Bundle stopped. Resources should be cleared before this method returns
+
+        :param context: Still valid bundle context
+        """
+        ...
+
+
+def BundleActivator(clazz: Type[ActivatorProto]) -> Type[ActivatorProto]:
     """
     Decorator to declare the bundle activator
 
@@ -163,13 +192,12 @@ class BundleException(Exception):
     The base of all framework exceptions
     """
 
-    def __init__(self, content):
+    def __init__(self, content: Any) -> None:
         """
         Sets up the exception
         """
         if isinstance(content, Exception):
             Exception.__init__(self, str(content))
-
         else:
             Exception.__init__(self, content)
 
@@ -180,7 +208,7 @@ class FrameworkException(Exception):
     stop.
     """
 
-    def __init__(self, message, needs_stop=False):
+    def __init__(self, message: str, needs_stop: bool = False) -> None:
         """
         Sets up the exception
 
