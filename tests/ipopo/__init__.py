@@ -6,13 +6,16 @@ Test package for iPOPO
 :author: Thomas Calmant
 """
 
-# iPOPO
+from types import ModuleType
+
+from pelix.framework import Framework
 from pelix.ipopo.constants import get_ipopo_svc_ref
+from pelix.ipopo.protocols import IPopoService
 
 # ------------------------------------------------------------------------------
 
 
-def install_bundle(framework, bundle_name="tests.ipopo.ipopo_bundle"):
+def install_bundle(framework: Framework, bundle_name: str="tests.ipopo.ipopo_bundle") -> ModuleType:
     """
     Installs and starts the test bundle and returns its module
 
@@ -28,7 +31,7 @@ def install_bundle(framework, bundle_name="tests.ipopo.ipopo_bundle"):
     return bundle.get_module()
 
 
-def install_ipopo(framework):
+def install_ipopo(framework: Framework) -> IPopoService:
     """
     Installs and starts the iPOPO bundle. Returns the iPOPO service
 

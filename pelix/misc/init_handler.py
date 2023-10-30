@@ -28,13 +28,12 @@ be used by shells to load a default configuration.
     limitations under the License.
 """
 
-# Standard library
 import json
 import os
 import sys
-import yaml
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
-# Pelix
+from pelix.framework import BundleContext
 from pelix.ipopo.constants import use_ipopo
 from pelix.utilities import remove_duplicates
 
@@ -51,24 +50,24 @@ __docformat__ = "restructuredtext en"
 # -----------------------------------------------------------------------------
 
 
-class _Configuration(object):
+class _Configuration:
     """
     Represents a configuration loaded from an initialization file
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up members
         """
-        self._properties = {}
-        self._environment = {}
-        self._paths = []
+        self._properties: Dict[str, Any] = {}
+        self._environment: Dict[str, str] = {}
+        self._paths: List[str] = []
 
-        self._bundles = []
-        self._components = {}
+        self._bundles: List[str] = []
+        self._components: Dict[str, Tuple[str, Dict[str, Any]]] = {}
 
     @property
-    def properties(self):
+    def properties(self) -> Dict[str, Any]:
         """
         Returns the configured framework properties
 
@@ -77,7 +76,7 @@ class _Configuration(object):
         return self._properties
 
     @property
-    def paths(self):
+    def paths(self) -> List[str]:
         """
         Returns the paths to add to sys.path
 
@@ -86,7 +85,7 @@ class _Configuration(object):
         return self._paths
 
     @property
-    def bundles(self):
+    def bundles(self) -> List[str]:
         """
         Returns the list of bundles to install and start
 
@@ -95,7 +94,7 @@ class _Configuration(object):
         return self._bundles
 
     @property
-    def components(self):
+    def components(self) -> Dict[str, Tuple[str, Dict[str, Any]]]:
         """
         Returns the definitions of components as a dictionary of tuples.
 
@@ -106,7 +105,7 @@ class _Configuration(object):
         """
         return self._components
 
-    def add_properties(self, properties):
+    def add_properties(self, properties: Optional[Dict[str, Any]]) -> None:
         """
         Updates the framework properties dictionary
 
@@ -115,7 +114,7 @@ class _Configuration(object):
         if isinstance(properties, dict):
             self._properties.update(properties)
 
-    def set_properties(self, properties):
+    def set_properties(self, properties: Optional[Dict[str, Any]]) -> None:
         """
         Sets the framework properties dictionary
 
@@ -124,7 +123,7 @@ class _Configuration(object):
         self._properties = {}
         self.add_properties(properties)
 
-    def add_environment(self, environ):
+    def add_environment(self, environ: Optional[Dict[str, str]]) -> None:
         """
         Updates the environment dictionary with the given one.
 
@@ -135,7 +134,7 @@ class _Configuration(object):
         if isinstance(environ, dict):
             self._environment.update(environ)
 
-    def set_environment(self, environ):
+    def set_environment(self, environ: Optional[Dict[str, str]]) -> None:
         """
         Updates the environment dictionary with the given one.
         Cancels the variables previously set.
@@ -145,7 +144,7 @@ class _Configuration(object):
         self._environment = {}
         self.add_environment(environ)
 
-    def add_paths(self, paths):
+    def add_paths(self, paths: Optional[List[str]]) -> None:
         """
         Adds entries to the Python path.
 
@@ -158,7 +157,7 @@ class _Configuration(object):
             # Use new paths in priority
             self._paths = list(paths) + self._paths
 
-    def set_paths(self, paths):
+    def set_paths(self, paths: Optional[List[str]]) -> None:
         """
         Adds entries to the Python path.
 
@@ -171,7 +170,7 @@ class _Configuration(object):
         del self._paths[:]
         self.add_paths(paths)
 
-    def add_bundles(self, bundles):
+    def add_bundles(self, bundles: Optional[List[str]]) -> None:
         """
         Adds a list of bundles to install.
 
@@ -183,7 +182,7 @@ class _Configuration(object):
         if bundles:
             self._bundles.extend(bundles)
 
-    def set_bundles(self, bundles):
+    def set_bundles(self, bundles: Optional[List[str]]) -> None:
         """
         Adds a list of bundles to install.
         Previous names from configuration files are cleared.
@@ -196,7 +195,7 @@ class _Configuration(object):
         del self._bundles[:]
         self.add_bundles(bundles)
 
-    def add_components(self, components):
+    def add_components(self, components: Optional[List[Dict[str, Any]]]) -> None:
         """
         Adds a list of components to instantiate
 
@@ -210,7 +209,7 @@ class _Configuration(object):
                     component.get("properties", {}),
                 )
 
-    def set_components(self, components):
+    def set_components(self, components: Optional[List[Dict[str, Any]]]) -> None:
         """
         Adds a list of components to instantiate.
         Removes the previously configured components descriptions.
@@ -221,7 +220,7 @@ class _Configuration(object):
         self._components.clear()
         self.add_components(components)
 
-    def normalize(self):
+    def normalize(self) -> None:
         """
         Normalizes environment variables, paths and filters the lists of
         bundles to install and start.
@@ -243,12 +242,12 @@ class _Configuration(object):
         self._bundles = remove_duplicates(self._bundles)
 
 
-class InitFileHandler(object):
+class InitFileHandler:
     """
     Parses and handles the instructions of initial configuration files
     """
 
-    DEFAULT_PATH = (
+    DEFAULT_PATH: Tuple[str, ...] = (
         "/etc/default",
         "/etc",
         "/usr/local/etc",
@@ -262,32 +261,32 @@ class InitFileHandler(object):
     Order is from system wide to user specific configuration.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # The internal state
         self.__state = _Configuration()
 
     @property
-    def bundles(self):
+    def bundles(self) -> List[str]:
         """
         :return: The list of names of bundles to install and start
         """
         return self.__state.bundles
 
     @property
-    def properties(self):
+    def properties(self) -> Dict[str, Any]:
         """
         :return: The initial framework properties
         """
         return self.__state.properties
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Clears the current internal state (cleans up all loaded content)
         """
         # Reset the internal state
         self.__state = _Configuration()
 
-    def find_default(self, filename):
+    def find_default(self, filename: str) -> Generator[str, None, None]:
         """
         A generate which looks in common folders for the default configuration
         file. The paths goes from system defaults to user specific files.
@@ -303,7 +302,7 @@ class InitFileHandler(object):
             if os.path.exists(fullname) and os.path.isfile(fullname):
                 yield fullname
 
-    def load(self, filename=None):
+    def load(self, filename: Optional[str] = None) -> bool:
         """
         Loads the given file and adds its content to the current state.
         This method can be called multiple times to merge different files.
@@ -317,17 +316,25 @@ class InitFileHandler(object):
         :raise IOError: Error loading file
         """
         if not filename:
+            at_least_one = False
             for name in self.find_default(".pelix.conf"):
-                self.load(name)
+                at_least_one |= self.load(name)
+            return at_least_one
         else:
             _, file_extension = os.path.splitext(filename)
             with open(filename, "r") as filep:
                 if file_extension == ".yaml" or file_extension == ".yml":
-                    self.__parse(yaml.safe_load(filep))
+                    try:
+                        import yaml
+
+                        self.__parse(yaml.safe_load(filep))
+                    except ImportError:
+                        raise IOError("Couldn't parse YAML configuration: YAML parser not available")
                 else:
                     self.__parse(json.load(filep))
+            return True
 
-    def __parse(self, configuration):
+    def __parse(self, configuration: Dict[str, Any]) -> None:
         """
         Parses the given configuration dictionary
 
@@ -341,16 +348,16 @@ class InitFileHandler(object):
             "components",
         ):
             # Check if current values must be reset
-            reset_key = "reset_{0}".format(entry)
+            reset_key = f"reset_{entry}"
 
             # Compute the name of the method
             call_name = "add" if not configuration.get(reset_key) else "set"
-            method = getattr(self.__state, "{0}_{1}".format(call_name, entry))
+            method = getattr(self.__state, f"{call_name}_{entry}")
 
             # Update configuration
             method(configuration.get(entry))
 
-    def normalize(self):
+    def normalize(self) -> None:
         """
         Normalizes environment variables and the Python path.
 
@@ -371,7 +378,7 @@ class InitFileHandler(object):
             if path not in sys.path:
                 sys.path.append(path)
 
-    def instantiate_components(self, context):
+    def instantiate_components(self, context: BundleContext) -> None:
         """
         Instantiate the defined components
 

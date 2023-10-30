@@ -25,19 +25,14 @@ An EventAdmin handler which prints to the standard output the events it receives
     limitations under the License.
 """
 
-# Standard library
-from pprint import pformat
 import logging
+from pprint import pformat
+from typing import Any, Dict, List, Union
 
-# Pelix
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Provides,
-    Property,
-    Validate,
-)
 import pelix.misc
 import pelix.services as services
+from pelix.framework import BundleContext
+from pelix.ipopo.decorators import ComponentFactory, Property, Provides, Validate
 
 # ------------------------------------------------------------------------------
 
@@ -55,7 +50,7 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-def _parse_boolean(value):
+def _parse_boolean(value: Any) -> bool:
     """
     Returns a boolean value corresponding to the given value.
 
@@ -78,26 +73,26 @@ def _parse_boolean(value):
 
 
 @ComponentFactory(pelix.misc.FACTORY_EVENT_ADMIN_PRINTER)
-@Provides(services.SERVICE_EVENT_HANDLER)
+@Provides(services.ServiceEventHandler)
 @Property("_event_topics", services.PROP_EVENT_TOPICS, "*")
 @Property("_print", "evt.print", True)
 @Property("_log", "evt.log", False)
-class EventAdminPrinter(object):
+class EventAdminPrinter(services.ServiceEventHandler):
     # pylint: disable=R0903
     """
     Utility component which can print and log EventAdmin events
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up members
         """
-        self._event_topics = None
-        self._print = False
-        self._log = False
+        self._event_topics: Union[None, str, List[str]] = None
+        self._print: bool = False
+        self._log: bool = False
 
     @Validate
-    def _validate(self, _):
+    def _validate(self, _: BundleContext) -> None:
         """
         Component validated
         """
@@ -105,17 +100,13 @@ class EventAdminPrinter(object):
         self._print = _parse_boolean(self._print)
         self._log = _parse_boolean(self._log)
 
-    def handle_event(self, topic, properties):
+    def handle_event(self, topic: str, properties: Dict[str, Any]) -> None:
         """
         An EventAdmin event has been received
         """
         if self._print:
             # Print the event on standard output
-            print(
-                "Event: {0}\nProperties:\n{1}".format(
-                    topic, pformat(properties)
-                )
-            )
+            print(f"Event: {topic}\nProperties:\n{pformat(properties)}")
 
         if self._log:
             # Log the event

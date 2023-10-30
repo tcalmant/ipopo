@@ -34,6 +34,9 @@ __docformat__ = "restructuredtext en"
 
 # Service Registry Hooks
 
+from typing import Any, Dict, Protocol
+
+
 SERVICE_EVENT_LISTENER_HOOK = "pelix.internal.hooks.EventListenerHook"
 # ------------------------------------------------------------------------------
 
@@ -50,6 +53,21 @@ SERVICE_EVENT_ADMIN = "pelix.services.eventadmin"
 
 SERVICE_EVENT_HANDLER = "pelix.services.eventadmin.handler"
 """ Specification of an EventAdmin event handler """
+
+
+class ServiceEventHandler(Protocol):
+    """
+    Definition of a Service Event handler
+    """
+
+    __SPECIFICATION__: str = SERVICE_EVENT_ADMIN
+
+    def handle_event(self, topic: str, properties: Dict[str, Any]) -> None:
+        """
+        An EventAdmin event has been received
+        """
+        ...
+
 
 PROP_EVENT_TOPICS = "event.topics"
 """ **List** of the topics handled by an event handler """
@@ -82,9 +100,7 @@ SERVICE_CONFIGADMIN_MANAGED_FACTORY = "pelix.configadmin.managed.factory"
 SERVICE_CONFIGADMIN_PERSISTENCE = "pelix.configadmin.persistence"
 """ Specification of a ConfigurationAdmin storage service """
 
-FRAMEWORK_PROP_CONFIGADMIN_DISABLE_DEFAULT_PERSISTENCE = (
-    "pelix.configadmin.persistence.default.disable"
-)
+FRAMEWORK_PROP_CONFIGADMIN_DISABLE_DEFAULT_PERSISTENCE = "pelix.configadmin.persistence.default.disable"
 """
 If this framework property has a value, the default persistence service of
 ConfigurationAdmin won't be started

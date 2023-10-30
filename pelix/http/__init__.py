@@ -371,7 +371,7 @@ class Servlet(Protocol):
     Interface of an HTTP servlet
     """
 
-    __SPECIFICATION__ = HTTP_SERVLET
+    __SPECIFICATION__: str = HTTP_SERVLET
 
 
 class HTTPService(Protocol):

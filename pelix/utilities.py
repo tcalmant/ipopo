@@ -332,7 +332,7 @@ def remove_all_occurrences(sequence: List[Any], item: Any) -> None:
         sequence.remove(item)
 
 
-def remove_duplicates(items: List[Any]) -> List[Any]:
+def remove_duplicates(items: Iterable[T]) -> List[T]:
     """
     Returns a list without duplicates, keeping elements order
 
@@ -342,7 +342,7 @@ def remove_duplicates(items: List[Any]) -> List[Any]:
     if items is None:
         return items
 
-    new_list = []
+    new_list: List[T] = []
     for item in items:
         if item not in new_list:
             new_list.append(item)
