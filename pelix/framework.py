@@ -27,7 +27,6 @@ Pelix is a Python framework that aims to act as OSGi as much as possible
     limitations under the License.
 """
 
-# Standard library
 import collections
 import importlib
 import inspect
@@ -38,8 +37,6 @@ import sys
 import threading
 import types
 import uuid
-
-# Standard typing module should be optional
 from typing import (
     Any,
     Callable,
@@ -57,18 +54,16 @@ from typing import (
     cast,
 )
 
-# Pelix beans and constants
 from pelix.constants import (
     ACTIVATOR,
     ACTIVATOR_LEGACY,
     FRAMEWORK_UID,
     OSGI_FRAMEWORK_UUID,
+    ActivatorProto,
     BundleException,
     FrameworkException,
 )
 from pelix.internals.events import BundleEvent, ServiceEvent
-
-# pylint: disable=W0611
 from pelix.internals.registry import (
     BundleListener,
     EventDispatcher,
@@ -79,8 +74,6 @@ from pelix.internals.registry import (
     ServiceRegistry,
 )
 from pelix.ldapfilter import LDAPCriteria, LDAPFilter
-
-# Pelix utility modules
 from pelix.utilities import is_string
 
 # Generic type var
@@ -229,7 +222,7 @@ class Bundle:
         self._state = Bundle.RESOLVED
 
         # Registered services
-        self.__registered_services: Set[ServiceRegistration] = set()
+        self.__registered_services: Set[ServiceRegistration[Any]] = set()
         self.__registration_lock = threading.Lock()
 
     def __str__(self) -> str:
@@ -238,7 +231,7 @@ class Bundle:
         """
         return f"Bundle(ID={self.__id}, Name={self.__name})"
 
-    def __get_activator_method(self, method_name: str) -> Optional[Callable]:
+    def __get_activator_method(self, method_name: str) -> Optional[Callable[["BundleContext"], None]]:
         """
         Retrieves the requested method of the activator, or returns None
 
@@ -246,10 +239,10 @@ class Bundle:
         :return: A method, or None
         """
         # Get the activator
-        activator = cast(Optional[Type], getattr(self.__module, ACTIVATOR, None))
+        activator = cast(Optional[Type[ActivatorProto]], getattr(self.__module, ACTIVATOR, None))
         if activator is None:
             # Get the old activator
-            activator = cast(Optional[Type], getattr(self.__module, ACTIVATOR_LEGACY, None))
+            activator = cast(Optional[Type[ActivatorProto]], getattr(self.__module, ACTIVATOR_LEGACY, None))
             if activator is not None:
                 # Old activator found: print a deprecation warning
                 _logger.warning(
@@ -268,7 +261,7 @@ class Bundle:
         """
         self.__framework._dispatcher.fire_bundle_event(BundleEvent(kind, self))
 
-    def _registered_service(self, registration: ServiceRegistration) -> None:
+    def _registered_service(self, registration: ServiceRegistration[Any]) -> None:
         """
         Bundle is notified by the framework that a service has been registered
         in the name of this bundle.
@@ -278,7 +271,7 @@ class Bundle:
         with self.__registration_lock:
             self.__registered_services.add(registration)
 
-    def _unregistered_service(self, registration: ServiceRegistration) -> None:
+    def _unregistered_service(self, registration: ServiceRegistration[Any]) -> None:
         """
         Bundle is notified by the framework that a service has been
         unregistered in the name of this bundle.
@@ -320,7 +313,7 @@ class Bundle:
         """
         return self.__module
 
-    def get_registered_services(self) -> List[ServiceReference]:
+    def get_registered_services(self) -> List[ServiceReference[Any]]:
         """
         Returns this bundle's ServiceReference list for all services it has
         registered or an empty list
@@ -336,7 +329,7 @@ class Bundle:
             raise BundleException("Can't call 'get_registered_services' on an " "uninstalled bundle")
         return self.__framework._registry.get_bundle_registered_services(self)
 
-    def get_services_in_use(self) -> List[ServiceReference]:
+    def get_services_in_use(self) -> List[ServiceReference[Any]]:
         """
         Returns this bundle's ServiceReference list for all services it is
         using or an empty list.
@@ -378,12 +371,12 @@ class Bundle:
         :return: The bundle version, "0.0.0" by default
         """
         # Get the version value
-        version = getattr(self.__module, "__version__", None)
+        version = cast(Optional[str], getattr(self.__module, "__version__", None))
         if version:
             return version
 
         # Convert the __version_info__ entry
-        info = getattr(self.__module, "__version_info__", None)
+        info = cast(Optional[Tuple[str, ...]], getattr(self.__module, "__version_info__", None))
         if info:
             return ".".join(str(part) for part in __version_info__)
 
@@ -671,7 +664,7 @@ class Framework(Bundle):
 
         # Service registry
         self._registry = ServiceRegistry(self)
-        self.__unregistering_services: Dict[ServiceReference, Any] = {}
+        self.__unregistering_services: Dict[ServiceReference[Any], Any] = {}
 
         # Event dispatcher
         self._dispatcher = EventDispatcher(self._registry)
@@ -701,10 +694,10 @@ class Framework(Bundle):
 
     def find_service_references(
         self,
-        clazz: Union[None, str, Type] = None,
+        clazz: Union[None, str, Type[T]] = None,
         ldap_filter: Union[None, str, LDAPFilter, LDAPCriteria] = None,
         only_one: bool = False,
-    ) -> Optional[List[ServiceReference]]:
+    ) -> Optional[List[ServiceReference[T]]]:
         """
         Finds all services references matching the given filter.
 
@@ -794,7 +787,7 @@ class Framework(Bundle):
         with self.__properties_lock:
             return tuple(self.__properties.keys())
 
-    def get_service(self, bundle: Bundle, reference: ServiceReference) -> Any:
+    def get_service(self, bundle: Bundle, reference: ServiceReference[T]) -> T:
         """
         Retrieves the service corresponding to the given reference
 
@@ -811,11 +804,11 @@ class Framework(Bundle):
 
         try:
             # Unregistering service, just give it
-            return self.__unregistering_services[reference]
+            return cast(T, self.__unregistering_services[reference])
         except KeyError:
             return self._registry.get_service(bundle, reference)
 
-    def _get_service_objects(self, bundle: Bundle, reference: ServiceReference) -> "ServiceObjects":
+    def _get_service_objects(self, bundle: Bundle, reference: ServiceReference[T]) -> "ServiceObjects[T]":
         """
         Returns the ServiceObjects object for the service referenced by the
         specified ServiceReference object.
@@ -1044,10 +1037,10 @@ class Framework(Bundle):
         bundle: Bundle,
         clazz: Union[
             str,
-            Type,
-            List[Union[str, Type]],
-            Set[Union[str, Type]],
-            Tuple[Union[str, Type], ...],
+            Type[T],
+            List[Union[str, Type[T]]],
+            Set[Union[str, Type[T]]],
+            Tuple[Union[str, Type[T]], ...],
         ],
         service: T,
         properties: Optional[Dict[str, Any]],
@@ -1270,7 +1263,7 @@ class Framework(Bundle):
                 # Ignore errors
                 pass
 
-    def unregister_service(self, registration: ServiceRegistration) -> bool:
+    def unregister_service(self, registration: ServiceRegistration[Any]) -> bool:
         """
         Unregisters the given service
 
@@ -1298,7 +1291,7 @@ class Framework(Bundle):
         del self.__unregistering_services[reference]
         return True
 
-    def _hide_bundle_services(self, bundle: Bundle) -> List[ServiceReference]:
+    def _hide_bundle_services(self, bundle: Bundle) -> List[ServiceReference[Any]]:
         """
         Hides the services of the given bundle in the service registry
 
@@ -1481,9 +1474,9 @@ class BundleContext:
 
     def get_all_service_references(
         self,
-        clazz: Union[None, str, Type] = None,
+        clazz: Union[None, str, Type[T]] = None,
         ldap_filter: Union[None, str, LDAPFilter, LDAPCriteria] = None,
-    ) -> Optional[List[ServiceReference]]:
+    ) -> Optional[List[ServiceReference[T]]]:
         """
         Returns an array of ServiceReference objects.
         The returned array of ServiceReference objects contains services that
@@ -1562,9 +1555,9 @@ class BundleContext:
 
     def get_service_reference(
         self,
-        clazz: Union[None, str, Type],
+        clazz: Union[None, str, Type[T]],
         ldap_filter: Union[None, str, LDAPFilter, LDAPCriteria] = None,
-    ) -> Optional[ServiceReference]:
+    ) -> Optional[ServiceReference[T]]:
         """
         Returns a ServiceReference object for a service that implements and
         was registered under the specified class
@@ -1578,9 +1571,9 @@ class BundleContext:
 
     def get_service_references(
         self,
-        clazz: Union[None, str, Type],
+        clazz: Union[None, str, Type[T]],
         ldap_filter: Union[None, str, LDAPFilter, LDAPCriteria] = None,
-    ) -> Optional[List[ServiceReference]]:
+    ) -> Optional[List[ServiceReference[T]]]:
         """
         Returns the service references for services that were registered under
         the specified class by this bundle and matching the given filter
@@ -1670,10 +1663,10 @@ class BundleContext:
         self,
         clazz: Union[
             str,
-            Type,
-            List[Union[str, Type]],
-            Set[Union[str, Type]],
-            Tuple[Union[str, Type], ...],
+            Type[T],
+            List[Union[str, Type[T]]],
+            Set[Union[str, Type[T]]],
+            Tuple[Union[str, Type[T]], ...],
         ],
         service: T,
         properties: Optional[Dict[str, Any]],
@@ -1709,12 +1702,11 @@ class BundleContext:
         Unregisters the given bundle listener
 
         :param listener: The bundle listener to remove
-        :return: True if the listener has been unregistered,
-                 False if it wasn't registered
+        :return: True if the listener has been unregistered, False if it wasn't registered
         """
         return self.__framework._dispatcher.remove_bundle_listener(listener)
 
-    def remove_framework_stop_listener(self, listener: FrameworkStoppingListener):
+    def remove_framework_stop_listener(self, listener: FrameworkStoppingListener) -> bool:
         """
         Unregisters a framework stop listener
 
@@ -1732,7 +1724,7 @@ class BundleContext:
         """
         return self.__framework._dispatcher.remove_service_listener(listener)
 
-    def unget_service(self, reference: ServiceReference) -> bool:
+    def unget_service(self, reference: ServiceReference[Any]) -> bool:
         """
         Disables a reference to the service
 

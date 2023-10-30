@@ -428,8 +428,8 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 
 @ComponentFactory(http.FACTORY_HTTP_BASIC)
 @Provides(http.HTTP_SERVICE)
-@Requires("_servlets_services", http.HTTP_SERVLET, True, True)
-@Requires("_error_handler", http.HTTP_ERROR_PAGES, optional=True)
+@Requires("_servlets_services", http.Servlet, True, True)
+@Requires("_error_handler", http.ErrorHandler, optional=True)
 @Property("_address", http.HTTP_SERVICE_ADDRESS, DEFAULT_BIND_ADDRESS)
 @Property("_port", http.HTTP_SERVICE_PORT, 8080)
 @Property("_uses_ssl", http.HTTP_USES_SSL, False)

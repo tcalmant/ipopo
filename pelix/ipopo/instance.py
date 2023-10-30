@@ -145,13 +145,13 @@ class StoredInstance:
                 for kind in kinds:
                     self._handlers.setdefault(kind, []).append(handler)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         String representation
         """
         return self.__str__()
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         String representation
         """
@@ -173,8 +173,9 @@ class StoredInstance:
 
             return self.__safe_handlers_callback("check_event", event)
 
-    def bind(self, dependency, svc: T, svc_ref: ServiceReference[T]) -> None:
-        # FIXME check type of dependency
+    def bind(
+        self, dependency: handlers_const.DependencyHandler, svc: T, svc_ref: ServiceReference[T]
+    ) -> None:
         """
         Called by a dependency manager to inject a new service and update the
         component life cycle.
@@ -185,13 +186,12 @@ class StoredInstance:
 
     def update(
         self,
-        dependency,
+        dependency: handlers_const.DependencyHandler,
         svc: T,
         svc_ref: ServiceReference[T],
         old_properties: Dict[str, Any],
         new_value: bool = False,
     ) -> None:
-        # FIXME check type of dependency
         """
         Called by a dependency manager when the properties of an injected
         dependency have been updated.
@@ -206,8 +206,9 @@ class StoredInstance:
             self.__update_binding(dependency, svc, svc_ref, old_properties, new_value)
             self.check_lifecycle()
 
-    def unbind(self, dependency, svc: T, svc_ref: ServiceReference[T]) -> None:
-        # FIXME check type of dependency
+    def unbind(
+        self, dependency: handlers_const.DependencyHandler, svc: T, svc_ref: ServiceReference[T]
+    ) -> None:
         """
         Called by a dependency manager to remove an injected service and to
         update the component life cycle.
@@ -429,7 +430,7 @@ class StoredInstance:
             # Stop all handlers (can tell to unset a binding)
             for handler in self.get_handlers():
                 results = self.__safe_handler_callback(handler, "stop")
-                if results:
+                if results and isinstance(handler, handlers_const.DependencyHandler):
                     try:
                         for binding in results:
                             self.__unset_binding(handler, binding[0], binding[1])
@@ -699,8 +700,7 @@ class StoredInstance:
             # Invalid state
             return None
 
-        if self._ipopo_service is None:
-            raise ValueError("iPOPO service is missing")
+        assert self._ipopo_service is not None
 
         try:
             return self.__field_callback(field, event, *args, **kwargs)
@@ -724,7 +724,9 @@ class StoredInstance:
             )
             return False
 
-    def __safe_handler_callback(self, handler, method_name: str, *args: Any, **kwargs: Any) -> Any:
+    def __safe_handler_callback(
+        self, handler: handlers_const.Handler, method_name: str, *args: Any, **kwargs: Any
+    ) -> Any:
         """
         Calls the given method with the given arguments in the given handler.
         Logs exceptions, but doesn't propagate them.
@@ -835,7 +837,9 @@ class StoredInstance:
 
         return result
 
-    def __set_binding(self, dependency, service: T, reference: ServiceReference[T]) -> None:
+    def __set_binding(
+        self, dependency: handlers_const.DependencyHandler, service: T, reference: ServiceReference[T]
+    ) -> None:
         """
         Injects a service in the component
 
@@ -843,14 +847,18 @@ class StoredInstance:
         :param service: The injected service
         :param reference: The reference of the injected service
         """
+        field = dependency.get_field()
+        if not field:
+            raise ValueError("Trying to bind a field with no name")
+
         # Set the value
-        setattr(self.instance, dependency.get_field(), dependency.get_value())
+        setattr(self.instance, field, dependency.get_value())
 
         # Call the component back
         self.safe_callback(constants.IPOPO_CALLBACK_BIND, service, reference)
 
         self.__safe_field_callback(
-            dependency.get_field(),
+            field,
             constants.IPOPO_CALLBACK_BIND_FIELD,
             service,
             reference,
@@ -858,7 +866,7 @@ class StoredInstance:
 
     def __update_binding(
         self,
-        dependency,
+        dependency: handlers_const.DependencyHandler,
         service: T,
         reference: ServiceReference[T],
         old_properties: Dict[str, Any],
@@ -874,13 +882,17 @@ class StoredInstance:
         :param old_properties: Previous properties of the dependency
         :param new_value: If True, inject the new value of the handler
         """
+        field = dependency.get_field()
+        if not field:
+            raise ValueError("Trying to update a field with no name")
+
         if new_value:
             # Set the value
-            setattr(self.instance, dependency.get_field(), dependency.get_value())
+            setattr(self.instance, field, dependency.get_value())
 
         # Call the component back
         self.__safe_field_callback(
-            dependency.get_field(),
+            field,
             constants.IPOPO_CALLBACK_UPDATE_FIELD,
             service,
             reference,
@@ -889,7 +901,9 @@ class StoredInstance:
 
         self.safe_callback(constants.IPOPO_CALLBACK_UPDATE, service, reference, old_properties)
 
-    def __unset_binding(self, dependency, service: T, reference: ServiceReference[T]) -> None:
+    def __unset_binding(
+        self, dependency: handlers_const.DependencyHandler, service: T, reference: ServiceReference[T]
+    ) -> None:
         """
         Removes a service from the component
 
@@ -897,9 +911,13 @@ class StoredInstance:
         :param service: The injected service
         :param reference: The reference of the injected service
         """
+        field = dependency.get_field()
+        if not field:
+            raise ValueError("Trying to unbind a field with not name")
+
         # Call the component back
         self.__safe_field_callback(
-            dependency.get_field(),
+            field,
             constants.IPOPO_CALLBACK_UNBIND_FIELD,
             service,
             reference,
@@ -908,7 +926,7 @@ class StoredInstance:
         self.safe_callback(constants.IPOPO_CALLBACK_UNBIND, service, reference)
 
         # Update the injected field
-        setattr(self.instance, dependency.get_field(), dependency.get_value())
+        setattr(self.instance, field, dependency.get_value())
 
         # Unget the service
         self.bundle_context.unget_service(reference)

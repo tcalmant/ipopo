@@ -28,8 +28,10 @@ Defines some iPOPO constants
 import contextlib
 from typing import Generator, Optional, Tuple
 
-from pelix.framework import BundleContext, BundleException, ServiceReference
-from pelix.ipopo.core import _IPopoService
+from pelix.constants import BundleException
+from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceReference
+from pelix.ipopo.protocols import IPopoService
 from pelix.ipopo.waiting import IPopoWaitingList
 
 # ------------------------------------------------------------------------------
@@ -43,10 +45,10 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-SERVICE_IPOPO = "pelix.ipopo.core"
+SERVICE_IPOPO: str = "pelix.ipopo.core"
 """ iPOPO service specification """
 
-IPOPO_SERVICE_SPECIFICATION = SERVICE_IPOPO
+IPOPO_SERVICE_SPECIFICATION: str = SERVICE_IPOPO
 """ Compatibility constant """
 
 SERVICE_IPOPO_WAITING_LIST = "pelix.ipopo.waiting_list"
@@ -183,7 +185,7 @@ updated
 
 def get_ipopo_svc_ref(
     bundle_context: BundleContext,
-) -> Optional[Tuple[ServiceReference[_IPopoService], _IPopoService]]:
+) -> Optional[Tuple[ServiceReference[IPopoService], IPopoService]]:
     """
     Retrieves a tuple containing the service reference to iPOPO and the service
     itself
@@ -208,7 +210,7 @@ def get_ipopo_svc_ref(
 
 
 @contextlib.contextmanager
-def use_ipopo(bundle_context: BundleContext) -> Generator[_IPopoService, None, None]:
+def use_ipopo(bundle_context: BundleContext) -> Generator[IPopoService, None, None]:
     """
     Utility context to use the iPOPO service safely in a "with" block.
     It looks after the the iPOPO service and releases its reference when

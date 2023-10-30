@@ -51,7 +51,7 @@ class IPopoService(Protocol):
     Interface of the iPOPO core service
     """
 
-    __SPECIFICATION__ = constants.IPOPO_SERVICE_SPECIFICATION
+    __SPECIFICATION__: str = constants.SERVICE_IPOPO
 
     def instantiate(self, factory_name: str, name: str, properties: Optional[Dict[str, Any]] = None) -> Any:
         """

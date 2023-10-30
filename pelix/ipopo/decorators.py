@@ -97,7 +97,7 @@ def get_factory_context(cls: Type) -> FactoryContext:
     :param cls: The factory class
     :return: The factory class context
     """
-    context = getattr(cls, constants.IPOPO_FACTORY_CONTEXT, None)
+    context = cast(Optional[FactoryContext], getattr(cls, constants.IPOPO_FACTORY_CONTEXT, None))
 
     if context is None:
         # Class not yet manipulated
@@ -370,7 +370,7 @@ def _ipopo_class_field_property(name: str, value: Any, methods_prefix: str) -> p
 
     local_holder = Holder(value)
 
-    def get_value(self):
+    def get_value(self: Any) -> Any:
         """
         Retrieves the property value, from the iPOPO dictionaries
         """
@@ -383,7 +383,7 @@ def _ipopo_class_field_property(name: str, value: Any, methods_prefix: str) -> p
             # Use the local holder
             return local_holder.value
 
-    def set_value(self, new_value):
+    def set_value(self: Any, new_value: Any) -> None:
         """
         Sets the property value and trigger an update event
 
@@ -1566,7 +1566,7 @@ class BindField:
         self._field = field
         self._if_valid = if_valid
 
-    def __call__(self, method: M) -> M:
+    def __call__(self, method: Callable[..., Any]) -> Callable[..., Any]:
         """
         Updates the "field callback" list for this method
 
@@ -1585,7 +1585,7 @@ class BindField:
             constants.IPOPO_METHOD_FIELD_CALLBACKS,
             (constants.IPOPO_CALLBACK_BIND_FIELD, self._field, self._if_valid),
         )
-        return method
+        return cast(Callable[..., Any], method)
 
 
 class UpdateField:
@@ -1627,7 +1627,7 @@ class UpdateField:
         self._field = field
         self._if_valid = if_valid
 
-    def __call__(self, method: M) -> M:
+    def __call__(self, method: Callable[..., Any]) -> Callable[..., Any]:
         """
         Updates the "field callback" list for this method
 
@@ -1650,7 +1650,7 @@ class UpdateField:
                 self._if_valid,
             ),
         )
-        return method
+        return cast(Callable[..., Any], method)
 
 
 class UnbindField:
@@ -1695,7 +1695,7 @@ class UnbindField:
         self._field = field
         self._if_valid = if_valid
 
-    def __call__(self, method: M) -> M:
+    def __call__(self, method: Callable[..., Any]) -> Callable[..., Any]:
         """
         Updates the "field callback" list for this method
 
@@ -1718,7 +1718,7 @@ class UnbindField:
                 self._if_valid,
             ),
         )
-        return method
+        return cast(Callable[..., Any], method)
 
 
 # ------------------------------------------------------------------------------
@@ -1767,7 +1767,7 @@ def Bind(
     validate_method_arity(method, "service", "service_reference")
 
     _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS, constants.IPOPO_CALLBACK_BIND)
-    return method
+    return cast(Callable[[Any, T, ServiceReference[T]], None], method)
 
 
 def Update(
@@ -1814,7 +1814,7 @@ def Update(
         constants.IPOPO_METHOD_CALLBACKS,
         constants.IPOPO_CALLBACK_UPDATE,
     )
-    return cast(M, method)
+    return cast(Callable[[Any, T, ServiceReference[T], Dict[str, Any]], None], method)
 
 
 def Unbind(
@@ -1862,7 +1862,7 @@ def Unbind(
         constants.IPOPO_METHOD_CALLBACKS,
         constants.IPOPO_CALLBACK_UNBIND,
     )
-    return cast(M, method)
+    return cast(Callable[[Any, T, ServiceReference[T]], None], method)
 
 
 # ------------------------------------------------------------------------------
@@ -1936,7 +1936,7 @@ class ValidateComponent:
         # Keep track of the arguments
         self._args = tuple(args)
 
-    def __call__(self, method: M) -> M:
+    def __call__(self, method: Callable[..., None]) -> Callable[..., None]:
         """
         Registers the decorated method as a callback for component validation
 
@@ -1959,7 +1959,7 @@ class ValidateComponent:
         # Append arguments list to the method
         _set_object_entry(method, constants.IPOPO_VALIDATE_ARGS, self._args)
 
-        return cast(M, method)
+        return cast(Callable[..., None], method)
 
 
 class InvalidateComponent(ValidateComponent):
@@ -1978,7 +1978,7 @@ class InvalidateComponent(ValidateComponent):
     after the provided service has been unregistered to the framework.
     """
 
-    def __call__(self, method: M) -> M:
+    def __call__(self, method: Callable[..., None]) -> Callable[..., Any]:
         """
         Registers the decorated method as a callback for component invalidation
 
@@ -2001,7 +2001,7 @@ class InvalidateComponent(ValidateComponent):
         # Append arguments list to the method
         _set_object_entry(method, constants.IPOPO_VALIDATE_ARGS, self._args)
 
-        return cast(M, method)
+        return cast(Callable[..., None], method)
 
 
 # ------------------------------------------------------------------------------
@@ -2122,7 +2122,7 @@ def PostRegistration(
         constants.IPOPO_METHOD_CALLBACKS,
         constants.IPOPO_CALLBACK_POST_REGISTRATION,
     )
-    return cast(M, method)
+    return cast(Callable[[Any, ServiceReference], None], method)
 
 
 def PostUnregistration(
@@ -2171,4 +2171,4 @@ def PostUnregistration(
         constants.IPOPO_METHOD_CALLBACKS,
         constants.IPOPO_CALLBACK_POST_UNREGISTRATION,
     )
-    return cast(M, method)
+    return cast(Callable[[Any, ServiceReference], None], method)

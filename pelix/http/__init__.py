@@ -173,7 +173,6 @@ class AbstractHTTPServletRequest(ABC):
 
     @abstractmethod
     def get_headers(self) -> Dict[str, Any]:
-        # type: () -> Dict[str, Any]
         """
         Returns a copy all headers, with a dictionary interface
 
@@ -183,7 +182,6 @@ class AbstractHTTPServletRequest(ABC):
 
     @abstractmethod
     def get_path(self) -> str:
-        # type: () -> str
         """
         Returns the request full path
 
@@ -261,7 +259,6 @@ class AbstractHTTPServletResponse(ABC):
 
     @abstractmethod
     def is_header_set(self, name: str) -> bool:
-        # type: (str) -> bool
         """
         Checks if the given header has already been set
 

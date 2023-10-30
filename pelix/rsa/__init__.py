@@ -1087,11 +1087,10 @@ def create_uuid_uri():
     return "uuid:" + create_uuid()
 
 
-def time_since_epoch():
+def time_since_epoch() -> int:
     """
     Gives a timestamp floored to last second
     """
-    # type: () -> int
     return int(time.time() - 1000)
 
 

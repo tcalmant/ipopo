@@ -72,7 +72,7 @@ class IPopoWaitingList:
         self.__context: Optional[BundleContext] = bundle_context
 
         # The "queue": factory name -> {component name -> properties}
-        self.__queue: Dict[str, Dict[str, dict]] = {}
+        self.__queue: Dict[str, Dict[str, Dict[str, Any]]] = {}
 
         # Component Name -> Factory Name
         self.__names: Dict[str, str] = {}
@@ -286,7 +286,7 @@ class Activator(ActivatorProto):
         # Register it
         self.__registration = context.register_service(SERVICE_IPOPO_WAITING_LIST, self.__service, {})
 
-    def stop(self, _) -> None:
+    def stop(self, _: BundleContext) -> None:
         """
         Bundle stopped
         """

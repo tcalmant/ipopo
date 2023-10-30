@@ -90,7 +90,7 @@ def use_service(
 ArgSpec = collections.namedtuple("ArgSpec", "args varargs keywords defaults")
 
 
-def get_method_arguments(method):
+def get_method_arguments(method: Callable) -> ArgSpec:
     """
     inspect.signature()-based way to get the arguments of a method.
 
@@ -254,7 +254,7 @@ def SynchronizedClassMethod(*locks_attr_names: str, **kwargs: Any):
             """
             # Raises an AttributeError if needed
             locks = [getattr(self, attr_name) for attr_name in locks_names]
-            locked = collections.deque()
+            locked = collections.deque[threading.Lock]()
             i = 0
 
             try:

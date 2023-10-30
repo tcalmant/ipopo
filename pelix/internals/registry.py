@@ -151,7 +151,7 @@ class _FactoryCounter:
         self.__bundle = bundle
 
         # Service Factory Reference -> (Service instance, Usage counter)
-        self.__factored: Dict[ServiceReference, Tuple[Any, _UsageCounter]] = {}
+        self.__factored: Dict[ServiceReference[Any], Tuple[Any, _UsageCounter]] = {}
 
     def is_used(self) -> bool:
         """
@@ -341,7 +341,7 @@ class ServiceReference(Generic[T]):
         # Compute the sort key
         self.__sort_key = self.__compute_key()
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         String representation
         """

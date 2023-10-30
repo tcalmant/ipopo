@@ -34,8 +34,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Type, cast
 
 import pelix.ipopo.constants as constants
 import pelix.ipopo.handlers.constants as handlers_const
-from pelix.constants import SERVICE_ID, ActivatorProto, BundleActivator
-from pelix.framework import Bundle, BundleContext, BundleException, ServiceReference
+from pelix.constants import SERVICE_ID, ActivatorProto, BundleActivator, BundleException
+from pelix.framework import Bundle, BundleContext, ServiceReference
 from pelix.internals.events import BundleEvent, ServiceEvent
 from pelix.internals.registry import ServiceRegistration
 from pelix.ipopo.contexts import ComponentContext, FactoryContext
@@ -1080,7 +1080,8 @@ class _IPopoService(IPopoService):
                 raise ValueError(f"Unknown factory '{name}'")
             else:
                 # Bundle Context is stored in the Factory Context
-                factory_context = getattr(factory, constants.IPOPO_FACTORY_CONTEXT)
+                factory_context = cast(FactoryContext, getattr(factory, constants.IPOPO_FACTORY_CONTEXT))
+                assert factory_context.bundle_context is not None
                 return factory_context.bundle_context.get_bundle()
 
     def get_factory_details(self, name: str) -> Dict[str, Any]:

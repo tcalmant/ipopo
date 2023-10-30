@@ -31,6 +31,8 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 # Pelix
 from pelix.utilities import is_string
+from tests.http import test_basic
+from tests.ipopo import test_validate_component
 
 # ------------------------------------------------------------------------------
 
@@ -234,7 +236,7 @@ class LDAPCriteria:
 
         if isinstance(other.value, type(self.value)):
             # Same type: direct comparison
-            return self.value == other.value
+            return bool(self.value == other.value)
 
         # Convert to strings for comparison
         return str(self.value) == str(other.value)
@@ -347,7 +349,7 @@ ITERABLES = (list, tuple, set, frozenset)
 """ The types that are considered iterable in comparators """
 
 
-def _comparator_presence(_, tested_value: Any) -> bool:
+def _comparator_presence(_: Any, tested_value: Any) -> bool:
     """
     Tests a filter which simply a joker, i.e. a value presence test
     """
@@ -430,12 +432,12 @@ def _comparator_eq(filter_value: Any, tested_value: Any) -> bool:
                 # Match !
                 return True
     # Standard comparison
-    elif not is_string(tested_value):
-        # String vs string representation
-        return filter_value == repr(tested_value)
-    else:
+    elif isinstance(tested_value, str):
         # String vs string
         return filter_value == tested_value
+    else:
+        # String vs string representation
+        return bool(filter_value == repr(tested_value))
 
     return False
 

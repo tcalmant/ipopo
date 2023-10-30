@@ -211,11 +211,12 @@ class ServiceProviderHandler(Handler):
     Service provider handler abstract class
     """
 
-    def get_service_reference(self):
+    @abstractmethod
+    def get_service_reference(self) -> ServiceReference[Any]:
         """
         Returns the reference to the service provided by this handler
         """
-        return None
+        ...
 
 
 # ------------------------------------------------------------------------------
