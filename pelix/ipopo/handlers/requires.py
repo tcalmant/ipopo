@@ -181,7 +181,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
         self._field = field
 
         # The underlying requirement
-        self.requirement: Requirement = requirement
+        self.requirement: Requirement = requirement.copy()
 
         # Current field value
         self._value: Any = None
@@ -300,7 +300,7 @@ class SimpleDependency(_RuntimeDependency):
         """
         Sets up the dependency
         """
-        super().__init__(field, requirement)
+        super(SimpleDependency, self).__init__(field, requirement)
 
         # We have only one reference to keep
         self.reference = None

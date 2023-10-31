@@ -25,7 +25,7 @@ class Provider:
 @RequiresVarFilter(
     "depends", "required-service", spec_filter="(prop={search})"
 )
-class VarcConsumer:
+class VarConsumer:
     def __init__(self):
         self.depends = None
         self.search = None
