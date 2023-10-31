@@ -128,7 +128,7 @@ class ValidateComponentTest(unittest.TestCase):
 
         # Check state
         details = self.ipopo.get_instance_details(instance_name)
-        self.assertEquals(details["state"], StoredInstance.ERRONEOUS)
+        self.assertEqual(details["state"], StoredInstance.ERRONEOUS)
 
         # Retry
         del instance.calls[:]
@@ -139,7 +139,7 @@ class ValidateComponentTest(unittest.TestCase):
 
         # Check state
         details = self.ipopo.get_instance_details(instance_name)
-        self.assertEquals(details["state"], StoredInstance.VALID)
+        self.assertEqual(details["state"], StoredInstance.VALID)
 
         # Kill it
         del instance.calls[:]
@@ -246,14 +246,14 @@ class InvalidateComponentTest(unittest.TestCase):
 
         # Check state
         details = self.ipopo.get_instance_details(instance_name)
-        self.assertEquals(details["state"], StoredInstance.VALID)
+        self.assertEqual(details["state"], StoredInstance.VALID)
 
         # Remove the service to invalidate the component
         svc_reg.unregister()
 
         # Check state
         details = self.ipopo.get_instance_details(instance_name)
-        self.assertEquals(details["state"], StoredInstance.INVALID)
+        self.assertEqual(details["state"], StoredInstance.INVALID)
 
         # Kill it
         self.ipopo.kill(instance_name)
