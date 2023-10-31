@@ -128,7 +128,7 @@ class _ProxyDummy:
     Dummy "Yes Man" object
     """
 
-    def __init__(self, handler: "BroadcastDependency", name: str):
+    def __init__(self, handler: "BroadcastDependency", name: Optional[str]):
         """
         :param handler: The parent BroadcastHandler
         :param name: Name of this field
@@ -197,7 +197,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
         self._trace_ex = trace_exceptions
 
         # Injected proxy
-        self._proxy = _ProxyDummy(self, field)
+        self._proxy = _ProxyDummy(self, None)
 
         # The logger
         self._logger = logging.getLogger("-".join(("<n/a>", "RequiresBroadcast", field)))
@@ -434,7 +434,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
                 del results[:]
                 raise
 
-    def handle_call(self, members_str: str, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> bool:
+    def handle_call(self, members_str: Optional[str], args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> bool:
         """
         Handles a call to the proxy
         """

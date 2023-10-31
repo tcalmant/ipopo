@@ -31,7 +31,6 @@ class SampleEchoService(IEchoService):
     """
 
     def __init__(self):
-        IEchoService.__init__(self)
         self.called = False
         self.value = None
         self.raised = False
