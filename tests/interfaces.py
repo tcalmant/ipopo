@@ -10,11 +10,12 @@ __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 
-from typing import Protocol, TypeVar
+from typing import Protocol, TypeVar, runtime_checkable
 
 T = TypeVar("T")
 
 
+@runtime_checkable
 class IEchoService(Protocol):
     """
     Interface of an echo service

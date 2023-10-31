@@ -6,13 +6,8 @@ Tests the prototype service factory implementation
 :author: Thomas Calmant
 """
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
-# Pelix
 from pelix.framework import FrameworkFactory
 
 # ------------------------------------------------------------------------------
@@ -27,6 +22,7 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
     """
     Prototype Service Factory tests
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -47,8 +43,7 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
         Tests the basic behaviour of prototype service factory handling
         """
         # Start the provider
-        provider_bnd = self.context.install_bundle(
-            "tests.framework.prototype_service_bundle")
+        provider_bnd = self.context.install_bundle("tests.framework.prototype_service_bundle")
         provider_bnd.start()
 
         # Get the internal service
@@ -109,8 +104,7 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
         Tests Prototype Factory when the consumer bundle stops roughly
         """
         # Start the provider
-        provider_bnd = self.context.install_bundle(
-            "tests.framework.prototype_service_bundle")
+        provider_bnd = self.context.install_bundle("tests.framework.prototype_service_bundle")
         provider_bnd.start()
 
         # Get the internal service
@@ -147,8 +141,7 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
         Tests Prototype Factory when the provider bundle stops
         """
         # Start the provider
-        provider_bnd = self.context.install_bundle(
-            "tests.framework.prototype_service_bundle")
+        provider_bnd = self.context.install_bundle("tests.framework.prototype_service_bundle")
         provider_bnd.start()
 
         # Get the internal service
@@ -195,8 +188,7 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
 
         # Singleton service
         singleton_svc = object()
-        singleton_reg = self.context.register_service(
-            "test.singleton", singleton_svc, {})
+        singleton_reg = self.context.register_service("test.singleton", singleton_svc, {})
         singleton_ref = singleton_reg.get_reference()
 
         # Get the singleton object
@@ -239,8 +231,7 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
                 pass
 
         factory_svc = Factory()
-        factory_reg = self.context.register_service(
-            "test.factory", factory_svc, {}, factory=True)
+        factory_reg = self.context.register_service("test.factory", factory_svc, {}, factory=True)
         factory_ref = factory_reg.get_reference()
 
         # Get the factory object
@@ -265,6 +256,7 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

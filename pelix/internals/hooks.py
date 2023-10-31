@@ -26,12 +26,13 @@ EventListenerHook for Pelix.
 """
 
 from collections.abc import MutableMapping, MutableSequence
-from typing import Dict, Generic, Iterator, List, Optional, Protocol, TypeVar, Union
+from typing import TYPE_CHECKING, Dict, Generic, Iterator, List, Optional, Protocol, TypeVar, Union
 
-from pelix.framework import BundleContext
-from pelix.internals.events import ServiceEvent
-from pelix.internals.registry import ServiceListener
-from pelix.ldapfilter import LDAPCriteria, LDAPFilter
+if TYPE_CHECKING:
+    from pelix.framework import BundleContext
+    from pelix.internals.events import ServiceEvent
+    from pelix.internals.registry import ServiceListener
+    from pelix.ldapfilter import LDAPCriteria, LDAPFilter
 
 T = TypeVar("T")
 K = TypeVar("K")
@@ -117,10 +118,10 @@ class ListenerInfo(Generic[T]):
 
     def __init__(
         self,
-        bundle_context: BundleContext,
+        bundle_context: "BundleContext",
         listener: T,
         specification: Optional[str],
-        ldap_filter: Union[None, LDAPCriteria, LDAPFilter],
+        ldap_filter: Union[None, "LDAPCriteria", "LDAPFilter"],
     ) -> None:
         """
         :param bundle_context: Bundle context
@@ -134,7 +135,7 @@ class ListenerInfo(Generic[T]):
         self.__ldap_filter = ldap_filter
 
     @property
-    def bundle_context(self) -> BundleContext:
+    def bundle_context(self) -> "BundleContext":
         """
         The context of the bundle which added the listener.
         """
@@ -155,13 +156,13 @@ class ListenerInfo(Generic[T]):
         return self.__specification
 
     @property
-    def ldap_filter(self) -> Union[None, LDAPCriteria, LDAPFilter]:
+    def ldap_filter(self) -> Union[None, "LDAPCriteria", "LDAPFilter"]:
         """
         The LDAP filter on service properties
         """
         return self.__ldap_filter
 
-    def get_bundle_context(self) -> BundleContext:
+    def get_bundle_context(self) -> "BundleContext":
         """
         Return the context of the bundle which added the listener.
 
@@ -187,7 +188,9 @@ class EventListenerHook(Protocol):
     pattern
     """
 
-    def event(self, service_event: ServiceEvent, listener_dict: Dict[BundleContext, List[ServiceListener]]) -> None:
+    def event(
+        self, service_event: "ServiceEvent", listener_dict: Dict["BundleContext", List["ServiceListener"]]
+    ) -> None:
         """
         Method called when a service event is triggered.
 

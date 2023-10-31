@@ -25,14 +25,10 @@ Dependency-less LDAP filter parser for Python
     limitations under the License.
 """
 
-# Standard library
 import inspect
 from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
-# Pelix
 from pelix.utilities import is_string
-from tests.http import test_basic
-from tests.ipopo import test_validate_component
 
 # ------------------------------------------------------------------------------
 
@@ -121,7 +117,7 @@ class LDAPFilter:
         """
         String description
         """
-        return f"{__name__}.get_ldap_filter({self.__str__():r})"
+        return f"{__name__}.get_ldap_filter({repr(self.__str__())})"
 
     def __str__(self) -> str:
         """
@@ -251,7 +247,7 @@ class LDAPCriteria:
         """
         String representation
         """
-        return f"{__name__}.get_ldap_filter({self.__str__():r})"
+        return f"{__name__}.get_ldap_filter({repr(self.__str__())})"
 
     def __str__(self) -> str:
         """

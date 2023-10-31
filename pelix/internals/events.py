@@ -25,10 +25,11 @@ Event beans for Pelix.
     limitations under the License.
 """
 
-from typing import Any, Dict, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Dict, Generic, Optional, TypeVar
 
-from pelix.framework import Bundle
-from pelix.internals.registry import ServiceReference
+if TYPE_CHECKING:
+    from pelix.framework import Bundle
+    from pelix.internals.registry import ServiceReference
 
 # Module version
 __version_info__ = (1, 0, 2)
@@ -84,7 +85,7 @@ class BundleEvent:
     UPDATE_FAILED = 64
     """ The bundle update has failed. The bundle might be in RESOLVED state """
 
-    def __init__(self, kind: int, bundle: Bundle) -> None:
+    def __init__(self, kind: int, bundle: "Bundle") -> None:
         """
         Sets up the event
         """
@@ -97,7 +98,7 @@ class BundleEvent:
         """
         return f"BundleEvent({self.__kind}, {self.__bundle})"
 
-    def get_bundle(self) -> Bundle:
+    def get_bundle(self) -> "Bundle":
         """
         Retrieves the modified bundle
         """
@@ -136,7 +137,7 @@ class ServiceEvent(Generic[T]):
     """
 
     def __init__(
-        self, kind: int, reference: ServiceReference[T], previous_properties: Optional[Dict[str, Any]] = None
+        self, kind: int, reference: "ServiceReference[T]", previous_properties: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Sets up the event
@@ -169,7 +170,7 @@ class ServiceEvent(Generic[T]):
         """
         return self.__previous_properties
 
-    def get_service_reference(self) -> ServiceReference[T]:
+    def get_service_reference(self) -> "ServiceReference[T]":
         """
         Returns the reference to the service associated to this event
 

@@ -177,7 +177,7 @@ class FutureResult:
             # The execution has already finished
             self.__notify()
 
-    def execute(self, method: Callable[..., Any], args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
+    def execute(self, method: Callable[..., Any], args: Optional[Tuple[Any, ...]], kwargs: Optional[Dict[str, Any]]) -> None:
         """
         Execute the given method and stores its result.
         The result is considered "done" even if the method raises an exception
@@ -187,6 +187,12 @@ class FutureResult:
         :param kwargs: Method keyword arguments
         :raise Exception: The exception raised by the method
         """
+        if args is None:
+            args = tuple()
+
+        if kwargs is None:
+            kwargs = {}
+
         try:
             # Call the method
             result = method(*args, **kwargs)

@@ -7,23 +7,16 @@ handling and events.
 :author: Thomas Calmant
 """
 
-# Standard library
 import os
 import sys
 import threading
 import time
+import unittest
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-# Pelix
-from pelix.framework import FrameworkFactory, Bundle, BundleException, \
-    BundleContext
+from pelix.framework import Bundle, BundleContext, BundleException, FrameworkFactory
 
 # Tests
-from tests import log_on, log_off
+from tests import log_off, log_on
 
 # ------------------------------------------------------------------------------
 
@@ -50,6 +43,7 @@ class FrameworkTest(unittest.TestCase):
     """
     Tests the framework factory properties
     """
+
     def setUp(self):
         """
         Sets up tests variables
@@ -69,15 +63,12 @@ class FrameworkTest(unittest.TestCase):
         """
         framework = FrameworkFactory.get_framework()
 
-        self.assertIsNone(framework.get_bundle_by_name(None),
-                          "None name is not bundle 0")
+        self.assertIsNone(framework.get_bundle_by_name(None), "None name is not bundle 0")
 
-        self.assertIs(framework, framework.get_bundle_by_id(0),
-                      "Invalid bundle 0")
+        self.assertIs(framework, framework.get_bundle_by_id(0), "Invalid bundle 0")
 
         pelix_name = framework.get_symbolic_name()
-        self.assertIs(framework, framework.get_bundle_by_name(pelix_name),
-                      "Invalid system bundle name")
+        self.assertIs(framework, framework.get_bundle_by_name(pelix_name), "Invalid system bundle name")
 
         FrameworkFactory.delete_framework()
 
@@ -92,31 +83,26 @@ class FrameworkTest(unittest.TestCase):
         # Install a bundle
         bundle = context.install_bundle(SIMPLE_BUNDLE)
 
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be in RESOLVED state")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED, "Bundle should be in RESOLVED state")
 
         # Starting the bundle now should fail
         self.assertRaises(BundleException, bundle.start)
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be in RESOLVED state")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED, "Bundle should be in RESOLVED state")
 
         # Start the framework
         framework.start()
 
         # Bundle should have been started now
-        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
-                         "Bundle should be in ACTIVE state")
+        self.assertEqual(bundle.get_state(), Bundle.ACTIVE, "Bundle should be in ACTIVE state")
 
         # Stop the framework
         framework.stop()
 
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be in RESOLVED state")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED, "Bundle should be in RESOLVED state")
 
         # Try to start the bundle again (must fail)
         self.assertRaises(BundleException, bundle.start)
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be in RESOLVED state")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED, "Bundle should be in RESOLVED state")
 
         FrameworkFactory.delete_framework()
 
@@ -163,8 +149,7 @@ class FrameworkTest(unittest.TestCase):
 
         # The framework must have been stopped and must be active
         self.assertTrue(self.stopping, "Stop listener not called")
-        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
-                         "Framework hasn't been restarted")
+        self.assertEqual(framework.get_state(), Bundle.ACTIVE, "Framework hasn't been restarted")
 
         framework.stop()
         FrameworkFactory.delete_framework()
@@ -191,11 +176,9 @@ class FrameworkTest(unittest.TestCase):
         self.assertTrue(framework.start(), "Framework should be started")
         log_on()
 
-        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
-                         "Framework should be in ACTIVE state")
+        self.assertEqual(framework.get_state(), Bundle.ACTIVE, "Framework should be in ACTIVE state")
 
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be in RESOLVED state")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED, "Bundle should be in RESOLVED state")
 
         # Stop the framework
         self.assertTrue(framework.stop(), "Framework should be stopped")
@@ -205,10 +188,8 @@ class FrameworkTest(unittest.TestCase):
 
         # Framework can start
         self.assertTrue(framework.start(), "Framework couldn't be started")
-        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
-                         "Framework should be in ACTIVE state")
-        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
-                         "Bundle should be in ACTIVE state")
+        self.assertEqual(framework.get_state(), Bundle.ACTIVE, "Framework should be in ACTIVE state")
+        self.assertEqual(bundle.get_state(), Bundle.ACTIVE, "Bundle should be in ACTIVE state")
 
         # Set module in raiser mode
         module_.raiser = True
@@ -242,10 +223,8 @@ class FrameworkTest(unittest.TestCase):
         # Framework can start...
         log_off()
         self.assertTrue(framework.start(), "Framework should be started")
-        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
-                         "Framework should be in ACTIVE state")
-        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
-                         "Bundle should be in ACTIVE state")
+        self.assertEqual(framework.get_state(), Bundle.ACTIVE, "Framework should be in ACTIVE state")
+        self.assertEqual(bundle.get_state(), Bundle.ACTIVE, "Bundle should be in ACTIVE state")
         log_on()
 
         # Set module in raiser mode
@@ -254,8 +233,7 @@ class FrameworkTest(unittest.TestCase):
         # Bundle must raise the exception and stay active
         log_off()
         self.assertRaises(BundleException, bundle.stop)
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be in RESOLVED state")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED, "Bundle should be in RESOLVED state")
         log_on()
 
         # Stop framework
@@ -279,10 +257,8 @@ class FrameworkTest(unittest.TestCase):
 
         log_off()
         self.assertFalse(framework.start(), "Framework should be stopped")
-        self.assertEqual(framework.get_state(), Bundle.RESOLVED,
-                         "Framework should be stopped")
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be stopped")
+        self.assertEqual(framework.get_state(), Bundle.RESOLVED, "Framework should be stopped")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED, "Bundle should be stopped")
         log_on()
 
         # Set module in raiser non-stop mode
@@ -290,17 +266,14 @@ class FrameworkTest(unittest.TestCase):
 
         log_off()
         self.assertTrue(framework.start(), "Framework should be stopped")
-        self.assertEqual(framework.get_state(), Bundle.ACTIVE,
-                         "Framework should be started")
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be stopped")
+        self.assertEqual(framework.get_state(), Bundle.ACTIVE, "Framework should be started")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED, "Bundle should be stopped")
         log_on()
 
         # Start the module
         module_.fw_raiser = False
         bundle.start()
-        self.assertEqual(bundle.get_state(), Bundle.ACTIVE,
-                         "Bundle should be active")
+        self.assertEqual(bundle.get_state(), Bundle.ACTIVE, "Bundle should be active")
 
         # Set module in raiser mode
         module_.fw_raiser = True
@@ -309,10 +282,8 @@ class FrameworkTest(unittest.TestCase):
         # Stop the framework
         log_off()
         self.assertTrue(framework.stop(), "Framework couldn't be stopped")
-        self.assertEqual(framework.get_state(), Bundle.RESOLVED,
-                         "Framework should be stopped")
-        self.assertEqual(bundle.get_state(), Bundle.RESOLVED,
-                         "Bundle should be stopped")
+        self.assertEqual(framework.get_state(), Bundle.RESOLVED, "Framework should be stopped")
+        self.assertEqual(bundle.get_state(), Bundle.RESOLVED, "Bundle should be stopped")
         log_on()
 
         FrameworkFactory.delete_framework()
@@ -329,13 +300,19 @@ class FrameworkTest(unittest.TestCase):
         props = {pelix_test_name: pelix_test}
         framework = FrameworkFactory.get_framework(props)
 
-        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
-                         "Invalid property value (preset value not set)")
+        self.assertEqual(
+            framework.get_property(pelix_test_name),
+            pelix_test,
+            "Invalid property value (preset value not set)",
+        )
 
         # Pre-set property has priority
         os.environ[pelix_test_name] = pelix_test_2
-        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
-                         "Invalid property value (preset has priority)")
+        self.assertEqual(
+            framework.get_property(pelix_test_name),
+            pelix_test,
+            "Invalid property value (preset has priority)",
+        )
         del os.environ[pelix_test_name]
 
         FrameworkFactory.delete_framework()
@@ -350,12 +327,10 @@ class FrameworkTest(unittest.TestCase):
         # Test without pre-set properties
         framework = FrameworkFactory.get_framework()
 
-        self.assertIsNone(framework.get_property(pelix_test_name),
-                          "Magic property value")
+        self.assertIsNone(framework.get_property(pelix_test_name), "Magic property value")
 
         os.environ[pelix_test_name] = pelix_test
-        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
-                         "Invalid property value")
+        self.assertEqual(framework.get_property(pelix_test_name), pelix_test, "Invalid property value")
         del os.environ[pelix_test_name]
 
         FrameworkFactory.delete_framework()
@@ -371,22 +346,21 @@ class FrameworkTest(unittest.TestCase):
         # Test without pre-set properties
         framework = FrameworkFactory.get_framework()
 
-        self.assertIsNone(framework.get_property(pelix_test_name),
-                          "Magic property value")
+        self.assertIsNone(framework.get_property(pelix_test_name), "Magic property value")
 
         # Add the property
-        self.assertTrue(framework.add_property(pelix_test_name, pelix_test),
-                        "add_property shouldn't fail on first call")
+        self.assertTrue(
+            framework.add_property(pelix_test_name, pelix_test), "add_property shouldn't fail on first call"
+        )
 
-        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
-                         "Invalid property value")
+        self.assertEqual(framework.get_property(pelix_test_name), pelix_test, "Invalid property value")
 
         # Update the property (must fail)
-        self.assertFalse(framework.add_property(pelix_test_name, pelix_test_2),
-                         "add_property must fail on second call")
+        self.assertFalse(
+            framework.add_property(pelix_test_name, pelix_test_2), "add_property must fail on second call"
+        )
 
-        self.assertEqual(framework.get_property(pelix_test_name), pelix_test,
-                         "Invalid property value")
+        self.assertEqual(framework.get_property(pelix_test_name), pelix_test, "Invalid property value")
 
         FrameworkFactory.delete_framework()
 
@@ -409,12 +383,10 @@ class FrameworkTest(unittest.TestCase):
         self.assertFalse(self.stopping, "Invalid initial state")
 
         # Register the stop listener
-        self.assertTrue(context.add_framework_stop_listener(self),
-                        "Can't register the stop listener")
+        self.assertTrue(context.add_framework_stop_listener(self), "Can't register the stop listener")
 
         log_off()
-        self.assertFalse(context.add_framework_stop_listener(self),
-                         "Stop listener registered twice")
+        self.assertFalse(context.add_framework_stop_listener(self), "Stop listener registered twice")
         log_on()
 
         # Assert running state
@@ -427,12 +399,10 @@ class FrameworkTest(unittest.TestCase):
         self.assertTrue(self.stopping, "Stop listener hasn't been called")
 
         # Unregister the listener
-        self.assertTrue(context.remove_framework_stop_listener(self),
-                        "Can't unregister the stop listener")
+        self.assertTrue(context.remove_framework_stop_listener(self), "Can't unregister the stop listener")
 
         log_off()
-        self.assertFalse(context.remove_framework_stop_listener(self),
-                         "Stop listener unregistered twice")
+        self.assertFalse(context.remove_framework_stop_listener(self), "Stop listener unregistered twice")
         log_on()
 
         FrameworkFactory.delete_framework()
@@ -460,21 +430,17 @@ class FrameworkTest(unittest.TestCase):
         framework = FrameworkFactory.get_framework()
 
         # No need to wait for the framework...
-        self.assertTrue(framework.wait_for_stop(),
-                        "wait_for_stop() must return True "
-                        "on stopped framework")
+        self.assertTrue(framework.wait_for_stop(), "wait_for_stop() must return True " "on stopped framework")
 
         # Start the framework
         framework.start()
 
         # Start the framework killer
-        threading.Thread(target=_framework_killer,
-                         args=(framework, 0.5)).start()
+        threading.Thread(target=_framework_killer, args=(framework, 0.5)).start()
 
         # Wait for stop
         start = time.time()
-        self.assertTrue(framework.wait_for_stop(),
-                        "wait_for_stop(None) should return True")
+        self.assertTrue(framework.wait_for_stop(), "wait_for_stop(None) should return True")
         end = time.time()
         self.assertLess(end - start, 1, "Wait should be less than 1 sec")
 
@@ -489,13 +455,11 @@ class FrameworkTest(unittest.TestCase):
         framework.start()
 
         # Start the framework killer
-        threading.Thread(target=_framework_killer,
-                         args=(framework, 0.5)).start()
+        threading.Thread(target=_framework_killer, args=(framework, 0.5)).start()
 
         # Wait for stop (timeout not raised)
         start = time.time()
-        self.assertTrue(framework.wait_for_stop(1),
-                        "wait_for_stop() should return True")
+        self.assertTrue(framework.wait_for_stop(1), "wait_for_stop() should return True")
         end = time.time()
         self.assertLess(end - start, 1, "Wait should be less than 1 sec")
 
@@ -503,13 +467,11 @@ class FrameworkTest(unittest.TestCase):
         framework.start()
 
         # Start the framework killer
-        threading.Thread(target=_framework_killer,
-                         args=(framework, 2)).start()
+        threading.Thread(target=_framework_killer, args=(framework, 2)).start()
 
         # Wait for stop (timeout raised)
         start = time.time()
-        self.assertFalse(framework.wait_for_stop(1),
-                         "wait_for_stop() should return False")
+        self.assertFalse(framework.wait_for_stop(1), "wait_for_stop() should return False")
         end = time.time()
         self.assertLess(end - start, 1.2, "Wait should be less than 1.2 sec")
 
@@ -518,12 +480,14 @@ class FrameworkTest(unittest.TestCase):
 
         FrameworkFactory.delete_framework()
 
+
 # ------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

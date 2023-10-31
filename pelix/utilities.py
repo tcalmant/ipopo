@@ -32,11 +32,13 @@ import inspect
 import logging
 import threading
 import traceback
-from typing import Any, Callable, Generator, Generic, Iterable, List, Optional, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Generator, Generic, Iterable, List, Optional, TypeVar, Union, cast
 
 import pelix.constants
-from pelix.framework import BundleContext
-from pelix.internals.registry import ServiceReference
+
+if TYPE_CHECKING:
+    from pelix.framework import BundleContext
+    from pelix.internals.registry import ServiceReference
 
 T = TypeVar("T")
 M = TypeVar("M", bound=Callable[..., Any])
@@ -55,7 +57,7 @@ __docformat__ = "restructuredtext en"
 
 @contextlib.contextmanager
 def use_service(
-    bundle_context: BundleContext, svc_reference: ServiceReference[T]
+    bundle_context: "BundleContext", svc_reference: "ServiceReference[T]"
 ) -> Generator[T, None, None]:
     """
     Utility context to safely use a service in a "with" block.

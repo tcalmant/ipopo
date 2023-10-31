@@ -6,16 +6,10 @@ Tests the "install packages" handling.
 :author: Thomas Calmant
 """
 
-# Standard library
 import os
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
-# Pelix
-from pelix.framework import FrameworkFactory, Bundle
-
+from pelix.framework import Bundle, FrameworkFactory
 from tests import log_off, log_on
 
 # ------------------------------------------------------------------------------
@@ -39,7 +33,7 @@ def _list_modules(path, recursive=False):
     """
     results = set()
     for filename in os.listdir(path):
-        if '__pycache__' in filename or '__main__' in filename:
+        if "__pycache__" in filename or "__main__" in filename:
             # Ignore cache and executable modules
             continue
 
@@ -58,6 +52,7 @@ class PackagesTest(unittest.TestCase):
     """
     Pelix bundle packages installation tests
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -67,8 +62,7 @@ class PackagesTest(unittest.TestCase):
         self.context = self.framework.get_bundle_context()
 
         # Get the path to the current test package
-        self.test_root = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)), "vault")
+        self.test_root = os.path.join(os.path.abspath(os.path.dirname(__file__)), "vault")
 
     def tearDown(self):
         """
@@ -78,7 +72,7 @@ class PackagesTest(unittest.TestCase):
         FrameworkFactory.delete_framework()
 
         # Reset the environment variable
-        os.environ['bundle.import.fail'] = "0"
+        os.environ["bundle.import.fail"] = "0"
 
     def test_invalid_args(self):
         """
@@ -88,15 +82,12 @@ class PackagesTest(unittest.TestCase):
             self.assertRaises(ValueError, self.context.install_package, path)
 
             # Check install visiting with a valid visitor
-            self.assertRaises(
-                ValueError,
-                self.context.install_visiting, path, lambda *x: True)
+            self.assertRaises(ValueError, self.context.install_visiting, path, lambda *x: True)
 
         # Check with invalid visitor
         self.assertRaises(
-            ValueError,
-            self.context.install_visiting,
-            os.path.abspath(os.path.dirname(__file__)), None)
+            ValueError, self.context.install_visiting, os.path.abspath(os.path.dirname(__file__)), None
+        )
 
     def test_install_path(self):
         """
@@ -115,12 +106,10 @@ class PackagesTest(unittest.TestCase):
         for bundle in bundles:
             # Check results
             self.assertIsInstance(bundle, Bundle)
-            expected.remove(os.path.splitext(
-                os.path.abspath(bundle.get_location()))[0])
+            expected.remove(os.path.splitext(os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. "
-                      "Remaining: {}".format(expected))
+            self.fail("All bundles should have been installed. " "Remaining: {}".format(expected))
 
     def test_install_recursive(self):
         """
@@ -139,12 +128,10 @@ class PackagesTest(unittest.TestCase):
         for bundle in bundles:
             # Check results
             self.assertIsInstance(bundle, Bundle)
-            expected.remove(os.path.splitext(
-                os.path.abspath(bundle.get_location()))[0])
+            expected.remove(os.path.splitext(os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. "
-                      "Remaining: {}".format(expected))
+            self.fail("All bundles should have been installed. " "Remaining: {}".format(expected))
 
     def test_install_fail(self):
         """
@@ -163,7 +150,7 @@ class PackagesTest(unittest.TestCase):
             self.fail("No failure detection")
 
         for fail_module_name in failed:
-            parts = fail_module_name.split('.')
+            parts = fail_module_name.split(".")
             self.assertEqual(parts[0], "pkg_fail", "No prefix set")
             self.assertEqual(parts[-1], "invalid", "Wrong module failed")
 
@@ -173,12 +160,10 @@ class PackagesTest(unittest.TestCase):
         for bundle in bundles:
             # Check results
             self.assertIsInstance(bundle, Bundle)
-            expected.remove(os.path.splitext(
-                os.path.abspath(bundle.get_location()))[0])
+            expected.remove(os.path.splitext(os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. "
-                      "Remaining: {}".format(expected))
+            self.fail("All bundles should have been installed. " "Remaining: {}".format(expected))
 
     def test_install_fail_recursive(self):
         """
@@ -197,7 +182,7 @@ class PackagesTest(unittest.TestCase):
             self.fail("No failure detection")
 
         for fail_module_name in failed:
-            parts = fail_module_name.split('.')
+            parts = fail_module_name.split(".")
             self.assertEqual(parts[0], "pkg_fail", "No prefix set")
             self.assertEqual(parts[-1], "invalid", "Wrong module failed")
 
@@ -207,12 +192,10 @@ class PackagesTest(unittest.TestCase):
         for bundle in bundles:
             # Check results
             self.assertIsInstance(bundle, Bundle)
-            expected.remove(os.path.splitext(
-                os.path.abspath(bundle.get_location()))[0])
+            expected.remove(os.path.splitext(os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. "
-                      "Remaining: {}".format(expected))
+            self.fail("All bundles should have been installed. " "Remaining: {}".format(expected))
 
     def test_first_install_fail(self):
         """
@@ -236,6 +219,7 @@ class PackagesTest(unittest.TestCase):
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

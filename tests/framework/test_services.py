@@ -7,16 +7,10 @@ handling and events.
 :author: Thomas Calmant
 """
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
-# Pelix
-from pelix.framework import FrameworkFactory, Bundle, BundleException, \
-    BundleContext, ServiceReference
 import pelix.constants
+from pelix.framework import Bundle, BundleContext, BundleException, FrameworkFactory, ServiceReference
 
 # Tests
 from tests.interfaces import IEchoService
@@ -33,6 +27,7 @@ class ServicesTest(unittest.TestCase):
     """
     Pelix services registry tests
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework and loads the current
@@ -67,21 +62,16 @@ class ServicesTest(unittest.TestCase):
 
         # Assert we can't access the service
         ref1 = context.get_service_reference(IEchoService)
-        self.assertIsNone(ref1,
-                          "get_service_reference found: {0}".format(ref1))
+        self.assertIsNone(ref1, "get_service_reference found: {0}".format(ref1))
 
         ref2 = context.get_service_reference(IEchoService, svc_filter)
-        self.assertIsNone(ref2, "get_service_reference, filtered found: {0}"
-                          .format(ref2))
+        self.assertIsNone(ref2, "get_service_reference, filtered found: {0}".format(ref2))
 
         refs = context.get_all_service_references(IEchoService, None)
-        self.assertIsNone(refs, "get_all_service_reference found: {0}"
-                          .format(refs))
+        self.assertIsNone(refs, "get_all_service_reference found: {0}".format(refs))
 
         refs = context.get_all_service_references(IEchoService, svc_filter)
-        self.assertIsNone(refs,
-                          "get_all_service_reference, filtered found: {0}"
-                          .format(refs))
+        self.assertIsNone(refs, "get_all_service_reference, filtered found: {0}".format(refs))
 
         # --- Start it (registers a service) ---
         bundle.start()
@@ -91,8 +81,7 @@ class ServicesTest(unittest.TestCase):
         self.assertIsNotNone(ref1, "get_service_reference found nothing")
 
         ref2 = context.get_service_reference(IEchoService, svc_filter)
-        self.assertIsNotNone(ref2,
-                             "get_service_reference, filtered found nothing")
+        self.assertIsNotNone(ref2, "get_service_reference, filtered found nothing")
 
         # Assert we found the same references
         self.assertIs(ref1, ref2, "References are not the same")
@@ -106,36 +95,38 @@ class ServicesTest(unittest.TestCase):
         refs = context.get_all_service_references(IEchoService, svc_filter)
 
         # Assert we found only one reference
-        self.assertIsNotNone(refs,
-                             "get_all_service_reference filtered "
-                             "found nothing")
+        self.assertIsNotNone(refs, "get_all_service_reference filtered " "found nothing")
 
         # Assert that the first found reference is the first of "all"
         # references
-        self.assertIs(ref1, refs[0],
-                      "Not the same references through get and get_all")
+        self.assertIs(ref1, refs[0], "Not the same references through get and get_all")
 
         # Assert that the bundle can find its own services
         self.assertListEqual(
             refs,
             bundle_context.get_service_references(IEchoService, None),
-            "The bundle can't find its own services")
+            "The bundle can't find its own services",
+        )
 
         self.assertListEqual(
             refs,
             bundle_context.get_service_references(IEchoService, svc_filter),
-            "The bundle can't find its own filtered services")
+            "The bundle can't find its own filtered services",
+        )
 
         # Assert that the framework bundle context can't find the bundle
         # services
         self.assertListEqual(
-            [], context.get_service_references(IEchoService, None),
-            "Framework bundle shouldn't get the echo service")
+            [],
+            context.get_service_references(IEchoService, None),
+            "Framework bundle shouldn't get the echo service",
+        )
 
         self.assertListEqual(
             [],
             context.get_service_references(IEchoService, svc_filter),
-            "Framework bundle shouldn't get the filtered echo service")
+            "Framework bundle shouldn't get the filtered echo service",
+        )
 
         # Get the service
         svc = context.get_service(ref1)
@@ -152,21 +143,16 @@ class ServicesTest(unittest.TestCase):
 
         # Assert we can't access the service
         ref1 = context.get_service_reference(IEchoService)
-        self.assertIsNone(ref1, "get_service_reference found: {0}"
-                          .format(ref1))
+        self.assertIsNone(ref1, "get_service_reference found: {0}".format(ref1))
 
         ref2 = context.get_service_reference(IEchoService, svc_filter)
-        self.assertIsNone(ref2, "get_service_reference, filtered found: {0}"
-                          .format(ref2))
+        self.assertIsNone(ref2, "get_service_reference, filtered found: {0}".format(ref2))
 
         refs = context.get_all_service_references(IEchoService, None)
-        self.assertIsNone(refs, "get_all_service_reference found: {0}"
-                          .format(refs))
+        self.assertIsNone(refs, "get_all_service_reference found: {0}".format(refs))
 
         refs = context.get_all_service_references(IEchoService, svc_filter)
-        self.assertIsNone(refs,
-                          "get_all_service_reference, filtered found: {0}"
-                          .format(refs))
+        self.assertIsNone(refs, "get_all_service_reference, filtered found: {0}".format(refs))
 
         # --- Uninstall it ---
         bundle.uninstall()
@@ -193,19 +179,16 @@ class ServicesTest(unittest.TestCase):
         # Get the reference
         ref = context.get_service_reference(IEchoService)
         self.assertIsNotNone(ref, "get_service_reference found nothing")
-        self.assertIn(ref, bundle.get_registered_services(),
-                      "Reference not in registered services")
+        self.assertIn(ref, bundle.get_registered_services(), "Reference not in registered services")
 
         # Get the service
         svc = context.get_service(ref)
         self.assertIsNotNone(svc, "Service not found")
-        self.assertIn(ref, self.framework.get_services_in_use(),
-                      "Reference usage not indicated")
+        self.assertIn(ref, self.framework.get_services_in_use(), "Reference usage not indicated")
 
         # Release the service
         context.unget_service(ref)
-        self.assertNotIn(ref, self.framework.get_services_in_use(),
-                         "Reference usage not removed")
+        self.assertNotIn(ref, self.framework.get_services_in_use(), "Reference usage not removed")
 
         # --- Uninstall the bundle without stopping it first ---
         bundle.uninstall()
@@ -225,37 +208,50 @@ class ServicesTest(unittest.TestCase):
 
         # Invalid references...
         # ... empty properties
-        self.assertRaises(BundleException, ServiceReference,
-                          self.framework, {})
+        self.assertRaises(BundleException, ServiceReference, self.framework, {})
         # ... no service ID
-        self.assertRaises(BundleException, ServiceReference, self.framework,
-                          {pelix.constants.OBJECTCLASS: "a"})
+        self.assertRaises(
+            BundleException, ServiceReference, self.framework, {pelix.constants.OBJECTCLASS: "a"}
+        )
         # ... no object class
-        self.assertRaises(BundleException, ServiceReference, self.framework,
-                          {pelix.constants.SERVICE_ID: "b"})
+        self.assertRaises(
+            BundleException, ServiceReference, self.framework, {pelix.constants.SERVICE_ID: "b"}
+        )
 
-        ref1b = ServiceReference(self.framework,
-                                 {pelix.constants.OBJECTCLASS: "ref1_b",
-                                  pelix.constants.SERVICE_ID: 1,
-                                  pelix.constants.SERVICE_RANKING: 0})
+        ref1b = ServiceReference(
+            self.framework,
+            {
+                pelix.constants.OBJECTCLASS: "ref1_b",
+                pelix.constants.SERVICE_ID: 1,
+                pelix.constants.SERVICE_RANKING: 0,
+            },
+        )
 
-        ref1 = ServiceReference(self.framework,
-                                {pelix.constants.OBJECTCLASS: "ref1",
-                                 pelix.constants.SERVICE_ID: 1})
+        ref1 = ServiceReference(
+            self.framework, {pelix.constants.OBJECTCLASS: "ref1", pelix.constants.SERVICE_ID: 1}
+        )
 
-        ref2 = ServiceReference(self.framework,
-                                {pelix.constants.OBJECTCLASS: "ref2",
-                                 pelix.constants.SERVICE_ID: 2})
+        ref2 = ServiceReference(
+            self.framework, {pelix.constants.OBJECTCLASS: "ref2", pelix.constants.SERVICE_ID: 2}
+        )
 
-        ref3 = ServiceReference(self.framework,
-                                {pelix.constants.OBJECTCLASS: "ref3",
-                                 pelix.constants.SERVICE_ID: 3,
-                                 pelix.constants.SERVICE_RANKING: -20})
+        ref3 = ServiceReference(
+            self.framework,
+            {
+                pelix.constants.OBJECTCLASS: "ref3",
+                pelix.constants.SERVICE_ID: 3,
+                pelix.constants.SERVICE_RANKING: -20,
+            },
+        )
 
-        ref4 = ServiceReference(self.framework,
-                                {pelix.constants.OBJECTCLASS: "ref4",
-                                 pelix.constants.SERVICE_ID: 4,
-                                 pelix.constants.SERVICE_RANKING: 128})
+        ref4 = ServiceReference(
+            self.framework,
+            {
+                pelix.constants.OBJECTCLASS: "ref4",
+                pelix.constants.SERVICE_ID: 4,
+                pelix.constants.SERVICE_RANKING: 128,
+            },
+        )
 
         # Tests
         self.assertEqual(ref1, ref1, "ID1 == ID1")
@@ -287,43 +283,37 @@ class ServicesTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
 
         # Register service
-        base_props = {pelix.constants.OBJECTCLASS: "titi",
-                      pelix.constants.SERVICE_ID: -1,
-                      "test": 42}
+        base_props = {pelix.constants.OBJECTCLASS: "titi", pelix.constants.SERVICE_ID: -1, "test": 42}
 
         reg = context.register_service("class", self, base_props)
         ref = reg.get_reference()
 
         # Ensure that reserved properties have been overridden
         object_class = ref.get_property(pelix.constants.OBJECTCLASS)
-        self.assertListEqual(object_class, ["class"],
-                             "Invalid objectClass property '{0}'"
-                             .format(object_class))
+        self.assertListEqual(
+            object_class, ["class"], "Invalid objectClass property '{0}'".format(object_class)
+        )
 
         svc_id = ref.get_property(pelix.constants.SERVICE_ID)
         self.assertGreater(svc_id, 0, "Invalid service ID")
 
         # Ensure the reference uses a copy of the properties
         base_props["test"] = 21
-        self.assertEqual(ref.get_property("test"), 42,
-                         "Property updated by the dictionary reference")
+        self.assertEqual(ref.get_property("test"), 42, "Property updated by the dictionary reference")
 
         # Update the properties
-        update_props = {pelix.constants.OBJECTCLASS: "ref2",
-                        pelix.constants.SERVICE_ID: 20,
-                        "test": 21}
+        update_props = {pelix.constants.OBJECTCLASS: "ref2", pelix.constants.SERVICE_ID: 20, "test": 21}
 
         reg.set_properties(update_props)
 
         # Ensure that reserved properties have been kept
-        self.assertListEqual(ref.get_property(pelix.constants.OBJECTCLASS),
-                             object_class, "Modified objectClass property")
+        self.assertListEqual(
+            ref.get_property(pelix.constants.OBJECTCLASS), object_class, "Modified objectClass property"
+        )
 
-        self.assertEqual(ref.get_property(pelix.constants.SERVICE_ID), svc_id,
-                         "Modified service ID")
+        self.assertEqual(ref.get_property(pelix.constants.SERVICE_ID), svc_id, "Modified service ID")
 
-        self.assertEqual(ref.get_property("test"), 21,
-                         "Extra property not updated")
+        self.assertEqual(ref.get_property("test"), 21, "Extra property not updated")
 
     def testGetAllReferences(self):
         """
@@ -334,8 +324,7 @@ class ServicesTest(unittest.TestCase):
 
         # Get all references count
         all_refs = context.get_all_service_references(None, None)
-        self.assertIsNotNone(all_refs,
-                             "All references result must not be None")
+        self.assertIsNotNone(all_refs, "All references result must not be None")
         self.assertEqual(len(all_refs), 0, "Services list should be empty")
 
         # Install the service bundle
@@ -343,36 +332,30 @@ class ServicesTest(unittest.TestCase):
 
         # No services yet
         all_refs = context.get_all_service_references(None, None)
-        self.assertIsNotNone(all_refs,
-                             "All references result must not be None")
+        self.assertIsNotNone(all_refs, "All references result must not be None")
         self.assertEqual(len(all_refs), 0, "Services list should be empty")
 
         # Start the bundle
         bundle.start()
 
         all_refs = context.get_all_service_references(None, None)
-        self.assertIsNotNone(all_refs,
-                             "All references result must not be None")
-        self.assertGreater(len(all_refs), 0,
-                           "Services list shouldn't be empty")
+        self.assertIsNotNone(all_refs, "All references result must not be None")
+        self.assertGreater(len(all_refs), 0, "Services list shouldn't be empty")
 
         # Try with an empty filter (lists should be equal)
         all_refs_2 = context.get_all_service_references(None, "")
-        self.assertListEqual(all_refs, all_refs_2,
-                             "References lists should be equal")
+        self.assertListEqual(all_refs, all_refs_2, "References lists should be equal")
 
         # Assert that the registered service is in the list
         ref = context.get_service_reference(IEchoService)
         self.assertIsNotNone(ref, "get_service_reference found nothing")
-        self.assertIn(ref, all_refs,
-                      "Echo service should be the complete list")
+        self.assertIn(ref, all_refs, "Echo service should be the complete list")
 
         # Remove the bundle
         bundle.uninstall()
 
         # Test an invalid filter
-        self.assertRaises(BundleException, context.get_all_service_references,
-                          None, "/// Invalid Filter ///")
+        self.assertRaises(BundleException, context.get_all_service_references, None, "/// Invalid Filter ///")
 
     def testMultipleUnregistrations(self):
         """
@@ -432,12 +415,14 @@ class ServicesTest(unittest.TestCase):
         # Ensure the release of the service
         self.assertNotIn(bnd, svc_ref.get_using_bundles())
 
+
 # ------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

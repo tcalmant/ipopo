@@ -59,7 +59,6 @@ from pelix.constants import (
     ACTIVATOR_LEGACY,
     FRAMEWORK_UID,
     OSGI_FRAMEWORK_UUID,
-    ActivatorProto,
     BundleException,
     FrameworkException,
 )
@@ -239,10 +238,10 @@ class Bundle:
         :return: A method, or None
         """
         # Get the activator
-        activator = cast(Optional[Type[ActivatorProto]], getattr(self.__module, ACTIVATOR, None))
+        activator = getattr(self.__module, ACTIVATOR, None)
         if activator is None:
             # Get the old activator
-            activator = cast(Optional[Type[ActivatorProto]], getattr(self.__module, ACTIVATOR_LEGACY, None))
+            activator = getattr(self.__module, ACTIVATOR_LEGACY, None)
             if activator is not None:
                 # Old activator found: print a deprecation warning
                 _logger.warning(
@@ -910,10 +909,11 @@ class Framework(Bundle):
                  of failed modules names
         :raise ValueError: Invalid path
         """
-        if not path:
-            raise ValueError("Empty path")
-        elif isinstance(path, str):
+        if path and isinstance(path, str):
             path = pathlib.Path(path)
+
+        if not isinstance(path, pathlib.Path):
+            raise ValueError(f"Expected path to be string or pathlib.Path, got {type(path).__name__}")
 
         # Use an absolute path
         path = path.absolute()
@@ -973,15 +973,15 @@ class Framework(Bundle):
         :param path: Root search path
         :param visitor: The visiting callable
         :param prefix: (**internal**) Prefix for all found modules
-        :return: A 2-tuple, with the list of installed bundles and the list
-                 of failed modules names
+        :return: A 2-tuple, with the list of installed bundles and the list of failed modules names
         :raise ValueError: Invalid path or visitor
         """
         # Validate the path
-        if not path:
-            raise ValueError("Empty path")
-        elif isinstance(path, str):
+        if path and isinstance(path, str):
             path = pathlib.Path(path)
+
+        if not isinstance(path, pathlib.Path):
+            raise ValueError(f"Expected path to be string or pathlib.Path, got {type(path).__name__}")
 
         # Validate the visitor
         if visitor is None:

@@ -7,7 +7,8 @@ Simple bundle registering a service
 """
 
 import os
-from pelix.constants import BundleActivator
+
+from pelix.constants import ActivatorProto, BundleActivator
 
 __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -22,6 +23,7 @@ class Service:
     """
     Service per bundle
     """
+
     def __init__(self, bundle_id):
         self.__id = bundle_id
 
@@ -33,6 +35,7 @@ class ServiceFactoryTest:
     """
     Simple test service
     """
+
     def __init__(self):
         """
         Sets up members
@@ -59,6 +62,7 @@ class RegistrationKeeper:
     """
     Keeps track of factory registration
     """
+
     def __init__(self, real_reg, given_reg):
         """
         :param real_reg: Registration returned by register_factory
@@ -72,6 +76,7 @@ class ServiceFactoryCleanupTest:
     """
     Service not to be cleaned up by the
     """
+
     def __init__(self):
         self.reg = None
 
@@ -79,18 +84,19 @@ class ServiceFactoryCleanupTest:
         """
         Provides a new service
         """
-        os.environ['factory.get'] = "OK"
+        os.environ["factory.get"] = "OK"
         return RegistrationKeeper(self.reg, registration)
 
     def unget_service(self, bundle, registration):
-        os.environ['factory.unget'] = "OK"
+        os.environ["factory.unget"] = "OK"
 
 
 @BundleActivator
-class ActivatorService:
+class ActivatorService(ActivatorProto):
     """
     Test activator
     """
+
     def __init__(self):
         """
         Constructor
@@ -107,17 +113,14 @@ class ActivatorService:
 
         # Register the service
         self.factory = ServiceFactoryTest()
-        self.reg = context.register_service(
-            SVC, self.factory, {"test": True, "answer": 0},
-            factory=True)
+        self.reg = context.register_service(SVC, self.factory, {"test": True, "answer": 0}, factory=True)
 
         global FACTORY
         FACTORY = self.factory
 
         # Factory without clean up
         svc2 = ServiceFactoryCleanupTest()
-        svc2.reg = context.register_service(
-            SVC_NO_CLEAN, svc2, {}, factory=True)
+        svc2.reg = context.register_service(SVC_NO_CLEAN, svc2, {}, factory=True)
 
     def stop(self, _):
         """

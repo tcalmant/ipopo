@@ -6,7 +6,7 @@ Simple bundle registering a service
 :author: Thomas Calmant
 """
 
-from pelix.constants import BundleActivator
+from pelix.constants import ActivatorProto, BundleActivator
 from pelix.framework import BundleContext
 from tests.interfaces import IEchoService
 
@@ -23,6 +23,7 @@ class ServiceTest(IEchoService):
     """
     Simple test service
     """
+
     def __init__(self):
         """
         Constructor
@@ -45,10 +46,11 @@ class ServiceTest(IEchoService):
 
 
 @BundleActivator
-class ActivatorService:
+class ActivatorService(ActivatorProto):
     """
     Test activator
     """
+
     def __init__(self):
         """
         Constructor
@@ -65,8 +67,7 @@ class ActivatorService:
 
         # Register the service
         self.svc = ServiceTest()
-        self.svc.registration = context.register_service(
-            IEchoService, self.svc, {"test": True, "answer": 0})
+        self.svc.registration = context.register_service(IEchoService, self.svc, {"test": True, "answer": 0})
 
         global service
         service = self.svc

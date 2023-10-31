@@ -30,6 +30,7 @@ import bisect
 import logging
 import threading
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -57,10 +58,13 @@ from pelix.constants import (
     SERVICE_SCOPE,
     BundleException,
 )
-from pelix.framework import Bundle, BundleContext, Framework
-from pelix.internals.events import BundleEvent, ServiceEvent
+from pelix.internals.events import ServiceEvent
 from pelix.internals.hooks import ListenerInfo, ShrinkableList, ShrinkableMap
 from pelix.services import SERVICE_EVENT_LISTENER_HOOK
+
+if TYPE_CHECKING:
+    from pelix.framework import Bundle, BundleContext, Framework
+    from pelix.internals.events import BundleEvent
 
 T = TypeVar("T")
 
@@ -77,10 +81,10 @@ __docformat__ = "restructuredtext en"
 
 
 class ServiceFactory(Protocol):
-    def get_service(self, bundle: Bundle, service_registration: "ServiceRegistration[T]") -> T:
+    def get_service(self, bundle: "Bundle", service_registration: "ServiceRegistration[T]") -> T:
         ...
 
-    def unget_service(self, bundle: Bundle, service_registration: "ServiceRegistration[T]") -> T:
+    def unget_service(self, bundle: "Bundle", service_registration: "ServiceRegistration[T]") -> T:
         ...
 
 
@@ -90,7 +94,7 @@ class PrototypeServiceFactory(ServiceFactory, Protocol):
     """
 
     def unget_service_instance(
-        self, bundle: Bundle, service_registration: "ServiceRegistration[T]", service: T
+        self, bundle: "Bundle", service_registration: "ServiceRegistration[T]", service: T
     ) -> None:
         ...
 
@@ -142,7 +146,7 @@ class _FactoryCounter:
 
     __slots__ = ("__bundle", "__factored")
 
-    def __init__(self, bundle: Bundle) -> None:
+    def __init__(self, bundle: "Bundle") -> None:
         """
         Sets up members
 
@@ -312,7 +316,7 @@ class ServiceReference(Generic[T]):
         "__usage_lock",
     )
 
-    def __init__(self, bundle: Bundle, properties: Dict[str, Any]) -> None:
+    def __init__(self, bundle: "Bundle", properties: Dict[str, Any]) -> None:
         """
         :param bundle: The bundle registering the service
         :param properties: The service properties
@@ -401,7 +405,7 @@ class ServiceReference(Generic[T]):
         else:
             return False
 
-    def get_bundle(self) -> Bundle:
+    def get_bundle(self) -> "Bundle":
         """
         Returns the bundle that registered this service
 
@@ -409,7 +413,7 @@ class ServiceReference(Generic[T]):
         """
         return self.__bundle
 
-    def get_using_bundles(self) -> List[Bundle]:
+    def get_using_bundles(self) -> List["Bundle"]:
         """
         Returns the list of bundles that use this service
 
@@ -463,7 +467,7 @@ class ServiceReference(Generic[T]):
         """
         return self.__properties[SERVICE_SCOPE] == SCOPE_PROTOTYPE
 
-    def unused_by(self, bundle: Bundle) -> None:
+    def unused_by(self, bundle: "Bundle") -> None:
         """
         Indicates that this reference is not being used anymore by the given
         bundle.
@@ -485,7 +489,7 @@ class ServiceReference(Generic[T]):
                 # Ignore error
                 pass
 
-    def used_by(self, bundle: Bundle) -> None:
+    def used_by(self, bundle: "Bundle") -> None:
         """
         Indicates that this reference is being used by the given bundle.
         This method should only be used by the framework.
@@ -545,7 +549,7 @@ class ServiceRegistration(Generic[T]):
 
     def __init__(
         self,
-        framework: Framework,
+        framework: "Framework",
         reference: ServiceReference[T],
         properties: Dict[str, Any],
         update_callback: Callable[[ServiceReference[T]], None],
@@ -646,7 +650,7 @@ class BundleListener(Protocol):
     Protocol that must be implemented by a bundle listener
     """
 
-    def bundle_changed(self, event: BundleEvent) -> None:
+    def bundle_changed(self, event: "BundleEvent") -> None:
         ...
 
 
@@ -655,7 +659,7 @@ class ServiceListener(Protocol):
     Protocol that must be implemented by a service listener
     """
 
-    def service_changed(self, event: ServiceEvent) -> None:
+    def service_changed(self, event: "ServiceEvent") -> None:
         ...
 
 
@@ -712,7 +716,7 @@ class EventDispatcher:
         with self.__fw_lock:
             self.__fw_listeners = []
 
-    def add_bundle_listener(self, listener: BundleListener) -> bool:
+    def add_bundle_listener(self, listener: "BundleListener") -> bool:
         """
         Adds a bundle listener
 
@@ -753,7 +757,7 @@ class EventDispatcher:
 
     def add_service_listener(
         self,
-        bundle_context: BundleContext,
+        bundle_context: "BundleContext",
         listener: ServiceListener,
         specification: Optional[str] = None,
         ldap_filter: Union[None, str, ldapfilter.LDAPCriteria, ldapfilter.LDAPFilter] = None,
@@ -788,7 +792,7 @@ class EventDispatcher:
             self.__svc_listeners.setdefault(specification, []).append(stored)
             return True
 
-    def remove_bundle_listener(self, listener: BundleListener) -> bool:
+    def remove_bundle_listener(self, listener: "BundleListener") -> bool:
         """
         Unregisters a bundle listener
 
@@ -834,7 +838,7 @@ class EventDispatcher:
             except KeyError:
                 return False
 
-    def fire_bundle_event(self, event: BundleEvent) -> None:
+    def fire_bundle_event(self, event: "BundleEvent") -> None:
         """
         Notifies bundle events listeners of a new event in the calling thread.
 
@@ -996,7 +1000,7 @@ class ServiceRegistry:
     Associates service references to instances and bundles.
     """
 
-    def __init__(self, framework: Framework, logger: Optional[logging.Logger] = None) -> None:
+    def __init__(self, framework: "Framework", logger: Optional[logging.Logger] = None) -> None:
         """
         Sets up the registry
 
@@ -1021,13 +1025,13 @@ class ServiceRegistry:
         # Specification -> Service references[] (always sorted)
         self.__svc_specs: Dict[str, List[ServiceReference]] = {}
 
-        # Services published: Bundle -> set(Service references)
+        # Services published: "Bundle" -> set(Service references)
         self.__bundle_svc: Dict[Bundle, Set[ServiceReference]] = {}
 
-        # Services consumed: Bundle -> {Service reference -> UsageCounter}
+        # Services consumed: "Bundle" -> {Service reference -> UsageCounter}
         self.__bundle_imports: Dict[Bundle, Dict[ServiceReference, _UsageCounter]] = {}
 
-        # Service factories consumption: Bundle -> _FactoryCounter
+        # Service factories consumption: "Bundle" -> _FactoryCounter
         self.__factory_usage: Dict[Bundle, _FactoryCounter] = {}
 
         # Locks
@@ -1051,7 +1055,7 @@ class ServiceRegistry:
 
     def register(
         self,
-        bundle: Bundle,
+        bundle: "Bundle",
         classes: List[str],
         properties: Dict[str, Any],
         svc_instance: T,
@@ -1191,7 +1195,7 @@ class ServiceRegistry:
 
             return service
 
-    def hide_bundle_services(self, bundle: Bundle) -> Set[ServiceReference]:
+    def hide_bundle_services(self, bundle: "Bundle") -> Set[ServiceReference]:
         """
         Hides the services of the given bundle (removes them from lists, but
         lets them be unregistered)
@@ -1288,7 +1292,7 @@ class ServiceRegistry:
             # Get all the matching references
             return list(refs_set) or None
 
-    def get_bundle_imported_services(self, bundle: Bundle) -> List[ServiceReference]:
+    def get_bundle_imported_services(self, bundle: "Bundle") -> List[ServiceReference]:
         """
         Returns this bundle's ServiceReference list for all services it is
         using or returns None if this bundle is not using any services.
@@ -1305,7 +1309,7 @@ class ServiceRegistry:
         with self.__svc_lock:
             return sorted(self.__bundle_imports.get(bundle, []))
 
-    def get_bundle_registered_services(self, bundle: Bundle) -> List[ServiceReference]:
+    def get_bundle_registered_services(self, bundle: "Bundle") -> List[ServiceReference]:
         """
         Retrieves the services registered by the given bundle. Returns None
         if the bundle didn't register any service.
@@ -1316,7 +1320,7 @@ class ServiceRegistry:
         with self.__svc_lock:
             return sorted(self.__bundle_svc.get(bundle, []))
 
-    def get_service(self, bundle: Bundle, reference: ServiceReference[T]) -> T:
+    def get_service(self, bundle: "Bundle", reference: ServiceReference[T]) -> T:
         """
         Retrieves the service corresponding to the given reference
 
@@ -1342,7 +1346,7 @@ class ServiceRegistry:
                 # Not found
                 raise BundleException(f"Service not found (reference: {reference})")
 
-    def __get_service_from_factory(self, bundle: Bundle, reference: ServiceReference[T]) -> T:
+    def __get_service_from_factory(self, bundle: "Bundle", reference: ServiceReference[T]) -> T:
         """
         Returns a service instance from a service factory or a prototype
         service factory
@@ -1372,11 +1376,11 @@ class ServiceRegistry:
             # Not found
             raise BundleException(f"Service not found (reference: {reference})")
 
-    def unget_used_services(self, bundle: Bundle) -> None:
+    def unget_used_services(self, bundle: "Bundle") -> None:
         """
         Cleans up all service usages of the given bundle.
 
-        :param bundle: Bundle to be cleaned up
+        :param bundle: "Bundle" to be cleaned up
         """
         # Pop used references
         try:
@@ -1411,7 +1415,7 @@ class ServiceRegistry:
             pass
 
     def unget_service(
-        self, bundle: Bundle, reference: ServiceReference[T], service: Optional[T] = None
+        self, bundle: "Bundle", reference: ServiceReference[T], service: Optional[T] = None
     ) -> bool:
         """
         Removes the usage of a service by a bundle
@@ -1446,7 +1450,7 @@ class ServiceRegistry:
                 return True
 
     def __unget_service_from_factory(
-        self, bundle: Bundle, reference: ServiceReference[T], service: Optional[T] = None
+        self, bundle: "Bundle", reference: ServiceReference[T], service: Optional[T] = None
     ) -> bool:
         """
         Removes the usage of a a service factory or a prototype

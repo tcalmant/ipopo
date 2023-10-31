@@ -25,11 +25,11 @@ Constants and exceptions for Pelix.
     limitations under the License.
 """
 
-# Standard library
 import inspect
-from typing import Any, Protocol, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Protocol, Type, TypeVar
 
-from pelix.framework import BundleContext
+if TYPE_CHECKING:
+    from pelix.framework import BundleContext
 
 T = TypeVar("T")
 
@@ -142,7 +142,6 @@ This allows all bundles to have multiples objects for the same service.
 
 # ------------------------------------------------------------------------------
 
-
 class ActivatorProto(Protocol):
     """
     Interface of an activator
@@ -151,7 +150,7 @@ class ActivatorProto(Protocol):
     def __init__(self) -> None:
         ...
 
-    def start(self, context: BundleContext) -> None:
+    def start(self, context: "BundleContext") -> None:
         """
         Bundle activated. This method should return quickly.
 
@@ -159,7 +158,7 @@ class ActivatorProto(Protocol):
         """
         ...
 
-    def stop(self, context: BundleContext) -> None:
+    def stop(self, context: "BundleContext") -> None:
         """
         Bundle stopped. Resources should be cleared before this method returns
 

@@ -6,13 +6,14 @@ Simple bundle providing a prototype service factory
 :author: Thomas Calmant
 """
 
-from pelix.constants import BundleActivator
+from pelix.constants import ActivatorProto, BundleActivator
 
 
-class Instance(object):
+class Instance:
     """
     Instance returned by the service factory
     """
+
     _id = 1
 
     def __init__(self, bundle):
@@ -25,14 +26,14 @@ class Instance(object):
         Instance._id += 1
 
     def __repr__(self):
-        return "Instance(id={}, for={}, released={})".format(
-            self.id, self.bundle, self.released)
+        return "Instance(id={}, for={}, released={})".format(self.id, self.bundle, self.released)
 
 
-class PrototypeServiceFactory(object):
+class PrototypeServiceFactory:
     """
     Implementation of a prototype service factory
     """
+
     def __init__(self, svc_reg):
         """
         :param svc_reg: Service Registration associated to the factory
@@ -90,17 +91,17 @@ class PrototypeServiceFactory(object):
 
         bundle_instances = self.instances[bundle]
         if bundle_instances:
-            raise ValueError(
-                "Some instances are still active: {}".format(bundle_instances))
+            raise ValueError("Some instances are still active: {}".format(bundle_instances))
 
         del self.instances[bundle]
 
 
 @BundleActivator
-class Activator(object):
+class Activator(ActivatorProto):
     """
     Simple activator
     """
+
     def __init__(self):
         self._reg = None
         self._reg2 = None
@@ -113,13 +114,11 @@ class Activator(object):
         :param context: Bundle context
         """
         self._svc = PrototypeServiceFactory(None)
-        self._reg = context.register_service(
-            "test.prototype", self._svc, {}, prototype=True)
+        self._reg = context.register_service("test.prototype", self._svc, {}, prototype=True)
         self._svc.svc_reg = self._reg
 
         # Register the factory as a singleton, to check its variables
-        self._reg2 = context.register_service(
-            "test.prototype.internal", self._svc, {})
+        self._reg2 = context.register_service("test.prototype.internal", self._svc, {})
 
     def stop(self, context):
         """

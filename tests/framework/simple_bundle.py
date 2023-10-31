@@ -6,7 +6,7 @@ Simple bundle with an activator (no service registered).
 :author: Thomas Calmant
 """
 
-from pelix.constants import BundleActivator, FrameworkException
+from pelix.constants import ActivatorProto, BundleActivator, FrameworkException
 from pelix.framework import BundleContext
 
 __version_info__ = (1, 0, 2)
@@ -20,7 +20,7 @@ fw_raiser_stop = False
 
 
 @BundleActivator
-class ActivatorTest:
+class ActivatorTest(ActivatorProto):
     """
     Test activator
     """

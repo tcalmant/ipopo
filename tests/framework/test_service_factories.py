@@ -7,14 +7,9 @@ handling and events.
 :author: Thomas Calmant
 """
 
-# Standard library
 import os
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
-# Pelix
 from pelix.framework import FrameworkFactory
 
 # ------------------------------------------------------------------------------
@@ -29,6 +24,7 @@ class ServicesTest(unittest.TestCase):
     """
     Pelix services registry tests
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework and loads the current
@@ -59,8 +55,7 @@ class ServicesTest(unittest.TestCase):
         factory_bundle.start()
 
         # Install another harmless bundle, to have two different contexts
-        bundle_a = context_fw.install_bundle(
-            "tests.framework.simple_bundle")
+        bundle_a = context_fw.install_bundle("tests.framework.simple_bundle")
         bundle_a.start()
         context_a = bundle_a.get_bundle_context()
         id_a = context_a.get_bundle().get_bundle_id()
@@ -70,8 +65,7 @@ class ServicesTest(unittest.TestCase):
 
         # Get the service from the Framework context
         svc_fw = context_fw.get_service(svc_ref)
-        self.assertEqual(svc_fw.requester_id(),
-                         context_fw.get_bundle().get_bundle_id())
+        self.assertEqual(svc_fw.requester_id(), context_fw.get_bundle().get_bundle_id())
         self.assertListEqual(factory_module.FACTORY.made_for, [id_fw])
 
         # Get the service from the bundle context
@@ -86,8 +80,7 @@ class ServicesTest(unittest.TestCase):
         # Ensure per-bundle variety
         self.assertListEqual(factory_module.FACTORY.made_for, [id_fw, id_a])
         self.assertIs(svc_a, svc_b, "Got different instances for a bundle")
-        self.assertIsNot(
-            svc_a, svc_fw, "Got the same instance for two bundles")
+        self.assertIsNot(svc_a, svc_fw, "Got the same instance for two bundles")
 
         # Release the service:
         # the framework reference must be clean immediately
@@ -131,7 +124,7 @@ class ServicesTest(unittest.TestCase):
         self.assertEqual(svc.real.get_reference(), svc_ref, "Wrong reference")
 
         # Clean up environment
-        del os.environ['factory.get']
+        del os.environ["factory.get"]
 
         # Uninstall the bundle
         factory_bundle.uninstall()
@@ -140,8 +133,8 @@ class ServicesTest(unittest.TestCase):
         self.assertEqual(os.environ.get("factory.unget"), "OK")
 
         # Clean up environment
-        os.environ.pop('factory.get', None)
-        del os.environ['factory.unget']
+        os.environ.pop("factory.get", None)
+        del os.environ["factory.unget"]
 
         # Check clean up
         self.assertIs(svc.real, svc.given)
@@ -182,6 +175,7 @@ class ServicesTest(unittest.TestCase):
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

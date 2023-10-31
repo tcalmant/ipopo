@@ -15,23 +15,15 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-# Standard library
 import random
 import sys
 import threading
 import time
+import unittest
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-# Pelix
 import pelix.constants
 import pelix.framework
 import pelix.utilities as utilities
-
-# Tests
 from tests.interfaces import IEchoService
 
 # ------------------------------------------------------------------------------
@@ -41,6 +33,9 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
     """
     Tests for utility module synchronization methods
     """
+
+    lock: threading.Lock
+
     def setUp(self):
         """
         Sets up the test
@@ -51,21 +46,20 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         """
         Tests the is_lock method
         """
-        valid = (threading.Lock(), threading.RLock(), threading.Semaphore(),
-                 threading.Condition())
+        valid = (threading.Lock(), threading.RLock(), threading.Semaphore(), threading.Condition())
         invalid = (None, "", 1234, object())
 
         for test in valid:
-            self.assertTrue(utilities.is_lock(test),
-                            "Valid lock not detected: {0}"
-                            .format(type(test).__name__))
+            self.assertTrue(
+                utilities.is_lock(test), "Valid lock not detected: {0}".format(type(test).__name__)
+            )
 
         for test in invalid:
-            self.assertFalse(utilities.is_lock(test),
-                             "Invalid lock not detected: {0}"
-                             .format(type(test).__name__))
+            self.assertFalse(
+                utilities.is_lock(test), "Invalid lock not detected: {0}".format(type(test).__name__)
+            )
 
-    @utilities.SynchronizedClassMethod('lock')
+    @utilities.SynchronizedClassMethod("lock")
     def testSynchronizedClassMethod(self):
         """
         Tests the @SynchronizedClassMethod decorator
@@ -103,12 +97,12 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         start = time.time()
 
         # Launch first waiter
-        thread1 = threading.Thread(target=sleeper, args=(.5, 1))
+        thread1 = threading.Thread(target=sleeper, args=(0.5, 1))
         thread1.start()
 
         # Wait a little before starting 2nd thread: on Windows, thread 2
         # can start before thread 1
-        time.sleep(.1)
+        time.sleep(0.1)
 
         # Launch second waiter
         thread2 = threading.Thread(target=sleeper, args=(0, 2))
@@ -128,13 +122,12 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         # .. Thread 2 started at least 0.4 secs after thread 1
         # (due to the lock)
         # (0.4 instead of 0.5: some systems are not that precise)
-        self.assertGreaterEqual(result[2], result[1] + .4,
-                                "Thread 2 started too soon (after {0}s)"
-                                .format(result[2] - result[1]))
+        self.assertGreaterEqual(
+            result[2], result[1] + 0.4, "Thread 2 started too soon (after {0}s)".format(result[2] - result[1])
+        )
 
         # .. Thread 2 must not have blocked the main thread
-        self.assertGreater(result[2], interm,
-                           "Thread 2 blocked the main thread")
+        self.assertGreater(result[2], interm, "Thread 2 blocked the main thread")
 
     def testSynchronizedMethod2(self):
         """
@@ -148,6 +141,7 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         is given
         """
         try:
+
             @utilities.SynchronizedClassMethod()
             def dummy():
                 pass
@@ -158,12 +152,12 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
             pass
 
         try:
+
             @utilities.SynchronizedClassMethod(None)
             def dummy():
                 pass
 
-            self.fail("@SynchronizedClassMethod(None) should raise a "
-                      "ValueError")
+            self.fail("@SynchronizedClassMethod(None) should raise a " "ValueError")
         except ValueError:
             # We must be there to succeed
             pass
@@ -176,6 +170,7 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         self.lock = None
         self.assertRaises(AttributeError, self.testSynchronizedClassMethod)
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -183,6 +178,7 @@ class UtilitiesTest(unittest.TestCase):
     """
     Tests for utility module methods
     """
+
     def testReadOnlyProperty(self):
         """
         Tests the read only property generator
@@ -200,10 +196,8 @@ class UtilitiesTest(unittest.TestCase):
         instance = Dummy()
 
         # Test read values
-        self.assertEqual(instance.inside, value_1,
-                         "Invalid initial value (in)")
-        self.assertEqual(instance.outside, value_2,
-                         "Invalid initial value (out)")
+        self.assertEqual(instance.inside, value_1, "Invalid initial value (in)")
+        self.assertEqual(instance.outside, value_2, "Invalid initial value (out)")
 
         # Test set values
         try:
@@ -223,10 +217,8 @@ class UtilitiesTest(unittest.TestCase):
             pass
 
         # Test final values (just in case)
-        self.assertEqual(instance.inside, value_1,
-                         "Invalid final value (in)")
-        self.assertEqual(instance.outside, value_2,
-                         "Invalid final value (out)")
+        self.assertEqual(instance.inside, value_1, "Invalid final value (in)")
+        self.assertEqual(instance.outside, value_2, "Invalid final value (out)")
 
     def testRemoveAllOccurrences(self):
         """
@@ -236,8 +228,7 @@ class UtilitiesTest(unittest.TestCase):
             # Must not raise an exception
             utilities.remove_all_occurrences(None, 12)
         except:
-            self.fail("remove_all_occurrences(None) must not raise an "
-                      "exception")
+            self.fail("remove_all_occurrences(None) must not raise an " "exception")
 
         min_value = -1
         max_value = 4
@@ -254,8 +245,7 @@ class UtilitiesTest(unittest.TestCase):
         for i in range(min_value, max_value + 1):
             # Get the original count
             count_base = list_org.count(i)
-            self.assertEqual(list_copy.count(i), count_base,
-                             "Copies doesn't have the same count of values")
+            self.assertEqual(list_copy.count(i), count_base, "Copies doesn't have the same count of values")
 
             # Get the current length of the copy
             len_base = len(list_copy)
@@ -267,8 +257,7 @@ class UtilitiesTest(unittest.TestCase):
             self.assertEqual(list_copy.count(i), 0, "Some references remain")
 
             # The new length must be len_base - count_base
-            self.assertEqual(len(list_copy), len_base - count_base,
-                             "Incorrect new list size")
+            self.assertEqual(len(list_copy), len_base - count_base, "Incorrect new list size")
 
     def testIsString(self):
         """
@@ -285,12 +274,10 @@ class UtilitiesTest(unittest.TestCase):
             valid.extend((unicode(""), unicode("aaa"), unicode(42)))
 
         for value in valid:
-            self.assertTrue(utilities.is_string(value),
-                            "'{0}' is a string".format(value))
+            self.assertTrue(utilities.is_string(value), "'{0}' is a string".format(value))
 
         for value in invalid:
-            self.assertFalse(utilities.is_string(value),
-                             "'{0}' is not a string".format(value))
+            self.assertFalse(utilities.is_string(value), "'{0}' is not a string".format(value))
 
     def testAddRemoveListener(self):
         """
@@ -300,40 +287,30 @@ class UtilitiesTest(unittest.TestCase):
         values = (42, "test", (1, 2, 3))
 
         # None value
-        self.assertFalse(utilities.add_listener(registry, None),
-                         "None value must not be accepted")
+        self.assertFalse(utilities.add_listener(registry, None), "None value must not be accepted")
 
-        self.assertFalse(utilities.remove_listener(registry, None),
-                         "None value must not be accepted")
+        self.assertFalse(utilities.remove_listener(registry, None), "None value must not be accepted")
 
         for value in values:
             # Non-present value
-            self.assertFalse(utilities.remove_listener(registry, value),
-                             "Non-present value removed")
+            self.assertFalse(utilities.remove_listener(registry, value), "Non-present value removed")
 
             # Add value
-            self.assertTrue(utilities.add_listener(registry, value),
-                            "Value has been refused")
-            self.assertEqual(registry.count(value), 1,
-                             "Value not inserted in registry")
+            self.assertTrue(utilities.add_listener(registry, value), "Value has been refused")
+            self.assertEqual(registry.count(value), 1, "Value not inserted in registry")
 
             # Second add
-            self.assertFalse(utilities.add_listener(registry, value),
-                             "Value has been added twice")
-            self.assertEqual(registry.count(value), 1,
-                             "Value has been added twice")
+            self.assertFalse(utilities.add_listener(registry, value), "Value has been added twice")
+            self.assertEqual(registry.count(value), 1, "Value has been added twice")
 
         for value in values:
             # Remove value
-            self.assertTrue(utilities.remove_listener(registry, value),
-                            "Value has not been removed")
+            self.assertTrue(utilities.remove_listener(registry, value), "Value has not been removed")
             # Ensure the value has been remove
-            self.assertEqual(registry.count(value), 0,
-                             "Value has not been removed")
+            self.assertEqual(registry.count(value), 0, "Value has not been removed")
 
             # Second removal
-            self.assertFalse(utilities.remove_listener(registry, value),
-                             "Value has been removed twice")
+            self.assertFalse(utilities.remove_listener(registry, value), "Value has been removed twice")
 
     def testUseService(self):
         """
@@ -344,8 +321,7 @@ class UtilitiesTest(unittest.TestCase):
         context = framework.get_bundle_context()
 
         # Try without the service reference: TypeError
-        self.assertRaises(TypeError,
-                          utilities.use_service(context, None).__enter__)
+        self.assertRaises(TypeError, utilities.use_service(context, None).__enter__)
 
         # Start the service bundle
         bundle = context.install_bundle("tests.framework.service_bundle")
@@ -357,9 +333,9 @@ class UtilitiesTest(unittest.TestCase):
         # Use it
         with utilities.use_service(context, svc_ref) as service:
             # Test the usage information
-            self.assertIn(context.get_bundle(),
-                          svc_ref.get_using_bundles(),
-                          "Bundles using the service not updated")
+            self.assertIn(
+                context.get_bundle(), svc_ref.get_using_bundles(), "Bundles using the service not updated"
+            )
 
             # Get the service the Pelix way
             got_service = context.get_service(svc_ref)
@@ -372,49 +348,46 @@ class UtilitiesTest(unittest.TestCase):
             got_service = None
 
             # Re-test the usage information
-            self.assertIn(context.get_bundle(),
-                          svc_ref.get_using_bundles(),
-                          "Bundles using service not kept")
+            self.assertIn(context.get_bundle(), svc_ref.get_using_bundles(), "Bundles using service not kept")
 
         # Test the usage information
-        self.assertNotIn(context.get_bundle(),
-                         svc_ref.get_using_bundles(),
-                         "Bundles using service kept after block")
+        self.assertNotIn(
+            context.get_bundle(), svc_ref.get_using_bundles(), "Bundles using service kept after block"
+        )
 
         # Stop the iPOPO bundle
         bundle.stop()
 
         # Ensure the service is not accessible anymore
-        self.assertRaises(pelix.constants.BundleException,
-                          utilities.use_service(context, svc_ref).__enter__)
+        self.assertRaises(pelix.constants.BundleException, utilities.use_service(context, svc_ref).__enter__)
 
         # Uninstall the bundle
         bundle.uninstall()
 
         # Ensure the service is not accessible anymore
-        self.assertRaises(pelix.constants.BundleException,
-                          utilities.use_service(context, svc_ref).__enter__)
+        self.assertRaises(pelix.constants.BundleException, utilities.use_service(context, svc_ref).__enter__)
 
     def testToIterable(self):
         """
         Tests the to_iterable() method
         """
         # None value
-        self.assertIsNone(utilities.to_iterable(None, True),
-                          "None value refused")
-        self.assertListEqual(utilities.to_iterable(None, False), [],
-                             "None value accepted")
+        self.assertIsNone(utilities.to_iterable(None, True), "None value refused")
+        self.assertListEqual(utilities.to_iterable(None, False), [], "None value accepted")
 
         # Check iterable types
         for clazz in (list, tuple, set, frozenset):
             iterable = clazz()
-            self.assertIs(utilities.to_iterable(iterable), iterable,
-                          "to_iterable() didn't returned the original object")
+            self.assertIs(
+                utilities.to_iterable(iterable), iterable, "to_iterable() didn't returned the original object"
+            )
 
         # Check other types
         for value in ("hello", 123, {1: 2}, object()):
-            self.assertListEqual(utilities.to_iterable(value), [value],
-                                 "to_iterable() didn't returned a list")
+            self.assertListEqual(
+                utilities.to_iterable(value), [value], "to_iterable() didn't returned a list"
+            )
+
 
 # ------------------------------------------------------------------------------
 
@@ -423,6 +396,7 @@ class CountdownEventTest(unittest.TestCase):
     """
     Tests for the CountdownEvent class
     """
+
     def testInitCheck(self):
         """
         Tests the value check when creating the event
@@ -454,18 +428,17 @@ class CountdownEventTest(unittest.TestCase):
         Tests the wait() method
         """
         event = utilities.CountdownEvent(1)
-        self.assertFalse(event.wait(.1), "Timed out wait must return False")
+        self.assertFalse(event.wait(0.1), "Timed out wait must return False")
 
         start = time.time()
         threading.Timer(1, event.step).start()
-        self.assertFalse(event.wait(.1), "Timed out wait must return False")
+        self.assertFalse(event.wait(0.1), "Timed out wait must return False")
         self.assertTrue(event.wait(), "Wait should return true on set")
         self.assertLessEqual(time.time() - start, 2, "Too long to wait")
 
-        self.assertTrue(event.wait(.5),
-                        "Already set event shoudn't block wait()")
-        self.assertTrue(event.wait(),
-                        "Already set event shoudn't block wait()")
+        self.assertTrue(event.wait(0.5), "Already set event shoudn't block wait()")
+        self.assertTrue(event.wait(), "Already set event shoudn't block wait()")
+
 
 # ------------------------------------------------------------------------------
 
@@ -474,6 +447,7 @@ class EventDataTest(unittest.TestCase):
     """
     Tests for the EventData class
     """
+
     def testSetClear(self):
         """
         Tests set() and clear() operations
@@ -544,18 +518,16 @@ class EventDataTest(unittest.TestCase):
         Tests the wait() method
         """
         event = utilities.EventData()
-        self.assertFalse(event.wait(.1), "Timed out wait must return False")
+        self.assertFalse(event.wait(0.1), "Timed out wait must return False")
 
         start = time.time()
         threading.Timer(1, event.set).start()
-        self.assertFalse(event.wait(.1), "Timed out wait must return False")
+        self.assertFalse(event.wait(0.1), "Timed out wait must return False")
         self.assertTrue(event.wait(), "Wait should return true on set")
         self.assertLessEqual(time.time() - start, 2, "Too long to wait")
 
-        self.assertTrue(event.wait(.5),
-                        "Already set event shoudn't block wait()")
-        self.assertTrue(event.wait(),
-                        "Already set event shoudn't block wait()")
+        self.assertTrue(event.wait(0.5), "Already set event shoudn't block wait()")
+        self.assertTrue(event.wait(), "Already set event shoudn't block wait()")
 
     def testWaitException(self):
         """
@@ -565,7 +537,7 @@ class EventDataTest(unittest.TestCase):
         exception = Exception("Some dummy exception")
 
         # "Raise" an exception
-        threading.Timer(.5, event.raise_exception, [exception]).start()
+        threading.Timer(0.5, event.raise_exception, [exception]).start()
 
         # Check the behavior of "wait"
         try:
@@ -579,6 +551,7 @@ class EventDataTest(unittest.TestCase):
         self.assertTrue(event.is_set(), "Event has been cleared")
         self.assertIsNone(event.data, "Non-None data")
         self.assertIs(event.exception, exception, "Invalid exception")
+
 
 # ------------------------------------------------------------------------------
 
