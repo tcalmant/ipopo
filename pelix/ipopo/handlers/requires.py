@@ -185,7 +185,7 @@ class _RuntimeDependency(constants.DependencyHandler):
         self._field = field
 
         # The underlying requirement
-        self.requirement = requirement
+        self.requirement = requirement.copy()
 
         # Current field value
         self._value = None

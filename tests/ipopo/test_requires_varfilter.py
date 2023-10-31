@@ -598,6 +598,28 @@ class RequiresVarFilterTest(unittest.TestCase):
         self.assertEqual(self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.INVALID)
         self.assertIsNone(consumer.depends)
 
+    def test_late_binding_2(self):
+        """
+        Instantiate the 3 services (2 instances from the same service) with a var require.
+        The variable is set before the required service is instantiated
+        """
+        install_bundle(self.framework, "tests.ipopo.issue_119_bundle")
+        context = self.framework.get_bundle_context()
+        assert isinstance(context, BundleContext)
+
+        self.ipopo.instantiate("varservice-factory", "varservice-instance-1")
+        self.ipopo.instantiate("varservice-factory", "varservice-instance-2")
+        service1 =  self.ipopo.get_instance("varservice-instance-1")
+        service1.search = "my-service-0"
+        service2 =  self.ipopo.get_instance("varservice-instance-2")
+        service2.search = "my-service-0"
+        self.assertEqual(self.ipopo.get_instance_details("varservice-instance-1")["state"], StoredInstance.INVALID)
+        self.assertEqual(self.ipopo.get_instance_details("varservice-instance-2")["state"], StoredInstance.INVALID)
+
+        self.ipopo.instantiate("provider-factory", "provider-instance", {"prop": "my-service-0"})
+        self.assertEqual(self.ipopo.get_instance_details("provider-instance")["state"], StoredInstance.VALID)
+        self.assertEqual(self.ipopo.get_instance_details("varservice-instance-1")["state"], StoredInstance.VALID)
+        self.assertEqual(self.ipopo.get_instance_details("varservice-instance-2")["state"], StoredInstance.VALID)
 
 # ------------------------------------------------------------------------------
 
