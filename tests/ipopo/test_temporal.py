@@ -6,22 +6,15 @@ Tests the iPOPO @Provides decorator.
 :author: Thomas Calmant
 """
 
-# Tests
-from tests.interfaces import IEchoService
-from tests.ipopo import install_bundle, install_ipopo
-
-# Pelix
-from pelix.framework import FrameworkFactory, BundleContext
-from pelix.ipopo.decorators import get_factory_context, Temporal
-from pelix.ipopo.constants import IPopoEvent
-
-# Standard library
 import random
 import time
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
+
+from pelix.framework import BundleContext, FrameworkFactory
+from pelix.ipopo.constants import IPopoEvent
+from pelix.ipopo.decorators import Temporal, get_factory_context
+from tests.interfaces import IEchoService
+from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
@@ -37,6 +30,7 @@ class Dummy(object):
     """
     Dummy object for tests
     """
+
     def __init__(self):
         """
         Sets up members
@@ -55,6 +49,7 @@ class TemporalTest(unittest.TestCase):
     """
     Tests the component "provides" behavior
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -79,10 +74,9 @@ class TemporalTest(unittest.TestCase):
         # Same for _TemporalProxy. Also, it would reference modules garbage
         # collected by Python when the framework is deleted, therefore the
         # types it uses from other modules would be None.
-        from pelix.ipopo.handlers.temporal import TemporalException, \
-            _TemporalProxy
+        from pelix.ipopo.handlers.temporal import TemporalException, _TemporalProxy
 
-        proxy = _TemporalProxy(.1)
+        proxy = _TemporalProxy(0.1)
 
         # Try to call the object itself
         try:
@@ -98,7 +92,7 @@ class TemporalTest(unittest.TestCase):
             # Exception getting the field
             proxy.method
         except TemporalException:
-             # OK
+            # OK
             pass
         else:
             self.fail("TemporalException not raised on field access")
@@ -144,7 +138,7 @@ class TemporalTest(unittest.TestCase):
             # Exception getting the field
             proxy.method
         except TemporalException:
-             # OK
+            # OK
             pass
         else:
             self.fail("TemporalException not raised on field access")
@@ -158,8 +152,7 @@ class TemporalTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Assert that the service is not yet available
-        self.assertIsNone(context.get_service_reference(IEchoService),
-                          "Service is already registered")
+        self.assertIsNone(context.get_service_reference(IEchoService), "Service is already registered")
 
         # Import TemporalException here, or the type will be different from the
         # one loaded by the framework.
@@ -182,8 +175,7 @@ class TemporalTest(unittest.TestCase):
         reg1 = context.register_service(IEchoService, svc1, {})
 
         # The consumer must have been validated
-        self.assertListEqual([IPopoEvent.BOUND, IPopoEvent.VALIDATED],
-                             consumer.states)
+        self.assertListEqual([IPopoEvent.BOUND, IPopoEvent.VALIDATED], consumer.states)
         consumer.reset()
 
         # Make a call
@@ -199,8 +191,7 @@ class TemporalTest(unittest.TestCase):
 
         # Unregister service 1
         reg1.unregister()
-        self.assertListEqual([IPopoEvent.UNBOUND, IPopoEvent.BOUND],
-                             consumer.states)
+        self.assertListEqual([IPopoEvent.UNBOUND, IPopoEvent.BOUND], consumer.states)
         self.assertEqual(consumer.call(), svc2.method())
         consumer.reset()
 
@@ -216,8 +207,7 @@ class TemporalTest(unittest.TestCase):
         reg3 = context.register_service(IEchoService, svc3, {})
 
         # Service must have been injected before invalidation
-        self.assertListEqual([IPopoEvent.UNBOUND, IPopoEvent.BOUND],
-                             consumer.states)
+        self.assertListEqual([IPopoEvent.UNBOUND, IPopoEvent.BOUND], consumer.states)
         self.assertEqual(consumer.call(), svc3.method())
         consumer.reset()
 
@@ -240,21 +230,22 @@ class TemporalTest(unittest.TestCase):
         end = time.time()
 
         # Check timeout
-        self.assertLess(end-start, timeout * 2.)
-        self.assertGreater(end-start, timeout / 2.)
+        self.assertLess(end - start, timeout * 2.0)
+        self.assertGreater(end - start, timeout / 2.0)
 
         # Wait a little
-        time.sleep(.2)
+        time.sleep(0.2)
 
         # Check state
-        self.assertListEqual([IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
-                             consumer.states)
+        self.assertListEqual([IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND], consumer.states)
         consumer.reset()
+
 
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
     unittest.main()

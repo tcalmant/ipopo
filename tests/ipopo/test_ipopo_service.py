@@ -6,21 +6,12 @@ Tests the iPOPO core service.
 :author: Thomas Calmant
 """
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
-# Pelix
-from pelix.framework import FrameworkFactory
-
-# iPOPO
-from pelix.ipopo.constants import IPopoEvent
 import pelix.ipopo.decorators as decorators
-
-# Tests
-from tests import log_on, log_off
+from pelix.framework import FrameworkFactory
+from pelix.ipopo.constants import IPopoEvent
+from tests import log_off, log_on
 from tests.ipopo import install_bundle, install_ipopo
 from tests.ipopo.ipopo_bundle import BASIC_INSTANCE
 
@@ -36,6 +27,7 @@ class IPopoServiceTest(unittest.TestCase):
     """
     Tests the utility methods of the iPOPO service
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -67,58 +59,44 @@ class IPopoServiceTest(unittest.TestCase):
 
         # Test if the framework is clean
         factories_1 = self.ipopo.get_factories()
-        self.assertEqual(len(factories_1), 0,
-                         "Some factories are already registered.")
+        self.assertEqual(len(factories_1), 0, "Some factories are already registered.")
 
-        self.assertFalse(self.ipopo.is_registered_factory(FACTORY),
-                         "Test factory already registered")
+        self.assertFalse(self.ipopo.is_registered_factory(FACTORY), "Test factory already registered")
 
         # Test type checking
         self.assertRaises(ValueError, self.ipopo.register_factory, None, None)
-        self.assertRaises(ValueError, self.ipopo.register_factory, context,
-                          None)
-        self.assertRaises(ValueError, self.ipopo.register_factory, None,
-                          TestComponent)
-        self.assertRaises(TypeError, self.ipopo.register_factory, context,
-                          UnManipulatedClass)
-        self.assertRaises(TypeError, self.ipopo.register_factory, context,
-                          TestComponent())
+        self.assertRaises(ValueError, self.ipopo.register_factory, context, None)
+        self.assertRaises(ValueError, self.ipopo.register_factory, None, TestComponent)
+        self.assertRaises(TypeError, self.ipopo.register_factory, context, UnManipulatedClass)
+        self.assertRaises(TypeError, self.ipopo.register_factory, context, TestComponent())
 
-        self.assertEqual(len(factories_1), 0,
-                         "Some factories have already bean registered.")
-        self.assertFalse(self.ipopo.is_registered_factory(FACTORY),
-                         "Test factory already registered")
+        self.assertEqual(len(factories_1), 0, "Some factories have already bean registered.")
+        self.assertFalse(self.ipopo.is_registered_factory(FACTORY), "Test factory already registered")
 
         # Register the factory
         self.assertTrue(self.ipopo.register_factory(context, TestComponent))
 
-        self.assertTrue(self.ipopo.is_registered_factory(FACTORY),
-                        "Test factory not registered")
+        self.assertTrue(self.ipopo.is_registered_factory(FACTORY), "Test factory not registered")
 
         # Can't do it twice
-        self.assertRaises(ValueError, self.ipopo.register_factory, context,
-                          TestComponent)
+        self.assertRaises(ValueError, self.ipopo.register_factory, context, TestComponent)
 
         # Test the get_factories method
         factories_2 = self.ipopo.get_factories()
-        self.assertIn(FACTORY, factories_2,
-                      "Test factory not in get_factories()")
+        self.assertIn(FACTORY, factories_2, "Test factory not in get_factories()")
 
-        self.assertIsNot(factories_1, factories_2,
-                         "get_factories() must not return the same object")
+        self.assertIsNot(factories_1, factories_2, "get_factories() must not return the same object")
 
         # Unregister the factory
         for invalid in (None, "", "Dummy", [FACTORY]):
-            self.assertFalse((self.ipopo.unregister_factory(invalid)),
-                             "Invalid factory unregistered: {0}"
-                             .format(invalid))
+            self.assertFalse(
+                (self.ipopo.unregister_factory(invalid)), "Invalid factory unregistered: {0}".format(invalid)
+            )
 
         self.assertTrue(self.ipopo.unregister_factory(FACTORY))
-        self.assertNotIn(FACTORY, self.ipopo.get_factories(),
-                         "Test factory still in get_factories()")
+        self.assertNotIn(FACTORY, self.ipopo.get_factories(), "Test factory still in get_factories()")
 
-        self.assertFalse(self.ipopo.is_registered_factory(FACTORY),
-                         "Test factory still registered")
+        self.assertFalse(self.ipopo.is_registered_factory(FACTORY), "Test factory still registered")
 
         # We can do it only once
         self.assertFalse(self.ipopo.unregister_factory(FACTORY))
@@ -135,22 +113,19 @@ class IPopoServiceTest(unittest.TestCase):
             pass
 
         # We must have a ValueError
-        self.assertRaises(ValueError,
-                          self.ipopo.get_factory_bundle, factory_name)
+        self.assertRaises(ValueError, self.ipopo.get_factory_bundle, factory_name)
 
         # Register the factory
         self.ipopo.register_factory(context, TestComponent)
 
         # Test the factory bundle
-        self.assertIs(self.ipopo.get_factory_bundle(factory_name),
-                      self.framework, "Invalid factory bundle")
+        self.assertIs(self.ipopo.get_factory_bundle(factory_name), self.framework, "Invalid factory bundle")
 
         # Unregister it
         self.ipopo.unregister_factory(factory_name)
 
         # We must have a ValueError
-        self.assertRaises(ValueError,
-                          self.ipopo.get_factory_bundle, factory_name)
+        self.assertRaises(ValueError, self.ipopo.get_factory_bundle, factory_name)
 
     def test_get_instance_details(self):
         """
@@ -160,27 +135,20 @@ class IPopoServiceTest(unittest.TestCase):
 
         # Invalid component names
         for invalid in (None, "", [1], ["a", "b"]):
-            self.assertRaises(ValueError, self.ipopo.get_instance_details,
-                              invalid)
+            self.assertRaises(ValueError, self.ipopo.get_instance_details, invalid)
 
         # Get its details
         details = self.ipopo.get_instance_details(module.BASIC_INSTANCE)
 
         # Test if instance details are really in the output
-        self.assertIs(type(details), dict,
-                      "Details result must be a dictionary")
+        self.assertIs(type(details), dict, "Details result must be a dictionary")
 
-        self.assertEqual(details['factory'], module.BASIC_FACTORY,
-                         "Invalid factory name")
-        self.assertEqual(details['name'], module.BASIC_INSTANCE,
-                         "Invalid component name")
+        self.assertEqual(details["factory"], module.BASIC_FACTORY, "Invalid factory name")
+        self.assertEqual(details["name"], module.BASIC_INSTANCE, "Invalid component name")
 
-        self.assertIs(type(details['state']), int,
-                      "Component state must be an integer")
-        self.assertIs(type(details['services']), dict,
-                      "Services details must be in a dictionary")
-        self.assertIs(type(details['dependencies']), dict,
-                      "Dependencies details must be in a dictionary")
+        self.assertIs(type(details["state"]), int, "Component state must be an integer")
+        self.assertIs(type(details["services"]), dict, "Services details must be in a dictionary")
+        self.assertIs(type(details["dependencies"]), dict, "Dependencies details must be in a dictionary")
 
     def test_ipopo_start_installed(self):
         """
@@ -198,12 +166,9 @@ class IPopoServiceTest(unittest.TestCase):
         self.ipopo = install_ipopo(self.framework)
 
         # Test if the automatic instance is there
-        self.assertTrue(self.ipopo.is_registered_factory(module.BASIC_FACTORY),
-                        "Factory not registered")
+        self.assertTrue(self.ipopo.is_registered_factory(module.BASIC_FACTORY), "Factory not registered")
 
-        self.assertTrue(
-            self.ipopo.is_registered_instance(module.BASIC_INSTANCE),
-            "Component not created")
+        self.assertTrue(self.ipopo.is_registered_instance(module.BASIC_INSTANCE), "Component not created")
 
     def test_instantiate(self):
         """
@@ -220,11 +185,9 @@ class IPopoServiceTest(unittest.TestCase):
 
         # Invalid name
         for invalid in (None, "", [1]):
-            self.assertRaises(ValueError, self.ipopo.instantiate,
-                              invalid, INSTANCE)
+            self.assertRaises(ValueError, self.ipopo.instantiate, invalid, INSTANCE)
 
-            self.assertRaises(ValueError, self.ipopo.instantiate,
-                              FACTORY, invalid)
+            self.assertRaises(ValueError, self.ipopo.instantiate, FACTORY, invalid)
 
         # Unknown factory -> Type Error
         self.assertRaises(TypeError, self.ipopo.instantiate, FACTORY, INSTANCE)
@@ -234,22 +197,19 @@ class IPopoServiceTest(unittest.TestCase):
         self.ipopo.instantiate(FACTORY, INSTANCE)
 
         # Already running -> Value Error
-        self.assertRaises(
-            ValueError, self.ipopo.instantiate, FACTORY, INSTANCE)
+        self.assertRaises(ValueError, self.ipopo.instantiate, FACTORY, INSTANCE)
         self.ipopo.kill(INSTANCE)
 
         # Exception on instantiate -> Type Error
         @decorators.ComponentFactory(FACTORY_2)
         class TestComponent2(object):
-
             def __init__(self):
                 raise NotImplementedError
 
         self.ipopo.register_factory(context, TestComponent2)
 
         log_off()
-        self.assertRaises(TypeError, self.ipopo.instantiate, FACTORY_2,
-                          INSTANCE)
+        self.assertRaises(TypeError, self.ipopo.instantiate, FACTORY_2, INSTANCE)
         log_on()
 
     def test_ipopo_events(self):
@@ -286,77 +246,70 @@ class IPopoServiceTest(unittest.TestCase):
             """
             Tests the validity of an event
             """
-            self.assertEqual(event.get_kind(), kind,
-                             "Excepted kind: {0} / got: {1}"
-                             .format(kind, event.get_kind()))
+            self.assertEqual(
+                event.get_kind(), kind, "Excepted kind: {0} / got: {1}".format(kind, event.get_kind())
+            )
 
-            self.assertEqual(event.get_factory_name(), factory,
-                             "Excepted factory: {0} / got: {1}"
-                             .format(factory, event.get_factory_name()))
+            self.assertEqual(
+                event.get_factory_name(),
+                factory,
+                "Excepted factory: {0} / got: {1}".format(factory, event.get_factory_name()),
+            )
 
-            self.assertEqual(event.get_component_name(), instance,
-                             "Excepted instance: {0} / got: {1}"
-                             .format(instance, event.get_component_name()))
+            self.assertEqual(
+                event.get_component_name(),
+                instance,
+                "Excepted instance: {0} / got: {1}".format(instance, event.get_component_name()),
+            )
 
         # Register the listener
         listener = Listener()
-        self.assertTrue(self.ipopo.add_listener(listener),
-                        "Listener not registered")
+        self.assertTrue(self.ipopo.add_listener(listener), "Listener not registered")
 
-        self.assertFalse(self.ipopo.add_listener(listener),
-                         "Listener registered twice")
+        self.assertFalse(self.ipopo.add_listener(listener), "Listener registered twice")
 
         # Test events
         self.assertEqual(listener.count(), 0, "Non empty events list")
 
         # .. register factory
         self.ipopo.register_factory(context, TestComponent)
-        self.assertEqual(
-            listener.count(), 1, "Registration event not received")
+        self.assertEqual(listener.count(), 1, "Registration event not received")
         check_event(listener.events[0], IPopoEvent.REGISTERED, FACTORY, None)
 
         # .. instantiate
         listener.reset()
         self.ipopo.instantiate(FACTORY, INSTANCE)
 
-        self.assertEqual(listener.count(), 2,
-                         "Validation event not received")
-        check_event(listener.events[0], IPopoEvent.INSTANTIATED, FACTORY,
-                    INSTANCE)
-        check_event(
-            listener.events[1], IPopoEvent.VALIDATED, FACTORY, INSTANCE)
+        self.assertEqual(listener.count(), 2, "Validation event not received")
+        check_event(listener.events[0], IPopoEvent.INSTANTIATED, FACTORY, INSTANCE)
+        check_event(listener.events[1], IPopoEvent.VALIDATED, FACTORY, INSTANCE)
 
         # .. kill
         listener.reset()
         self.ipopo.kill(INSTANCE)
 
         self.assertEqual(listener.count(), 2, "Kill events not received")
-        check_event(listener.events[0], IPopoEvent.INVALIDATED, FACTORY,
-                    INSTANCE)
+        check_event(listener.events[0], IPopoEvent.INVALIDATED, FACTORY, INSTANCE)
         check_event(listener.events[1], IPopoEvent.KILLED, FACTORY, INSTANCE)
 
         # .. unregister factory
         listener.reset()
         self.ipopo.unregister_factory(FACTORY)
 
-        self.assertEqual(listener.count(), 1,
-                         "Unregistration event not received")
+        self.assertEqual(listener.count(), 1, "Unregistration event not received")
         check_event(listener.events[0], IPopoEvent.UNREGISTERED, FACTORY, None)
 
         # Unregister the listener
-        self.assertTrue(self.ipopo.remove_listener(listener),
-                        "Listener not unregistered")
+        self.assertTrue(self.ipopo.remove_listener(listener), "Listener not unregistered")
 
-        self.assertFalse(self.ipopo.remove_listener(listener),
-                         "Listener unregistered twice")
+        self.assertFalse(self.ipopo.remove_listener(listener), "Listener unregistered twice")
 
     def test_get_instance(self):
         """
         Tests the get_instance(name) method
         """
         # Test if the framework is clean
-        self.assertEqual(len(self.ipopo.get_factories()), 0,
-                         "Some factories are already registered.")
+        self.assertEqual(len(self.ipopo.get_factories()), 0, "Some factories are already registered.")
 
         # Test the KeyError behaviour
         for name in (None, "", "unknown", 42):
@@ -371,8 +324,7 @@ class IPopoServiceTest(unittest.TestCase):
             self.assertRaises(KeyError, self.ipopo.get_instance, name)
 
         # Check if we got the object
-        self.assertIsInstance(self.ipopo.get_instance(BASIC_INSTANCE),
-                              module.BasicComponent)
+        self.assertIsInstance(self.ipopo.get_instance(BASIC_INSTANCE), module.BasicComponent)
 
         # Check we got the good object
         factory_name = "dummy-factory"
@@ -396,11 +348,13 @@ class IPopoServiceTest(unittest.TestCase):
         self.ipopo.kill(instance_name)
         self.ipopo.unregister_factory(factory_name)
 
+
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

@@ -6,19 +6,10 @@ Tests the iPOPO @Instantiate decorator.
 :author: Thomas Calmant
 """
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
-# Pelix
-from pelix.framework import FrameworkFactory, BundleEvent
-
-# iPOPO
+from pelix.framework import BundleEvent, FrameworkFactory
 from pelix.ipopo.constants import IPopoEvent
-
-# Tests
 from tests.ipopo import install_ipopo
 
 # ------------------------------------------------------------------------------
@@ -35,6 +26,7 @@ class InstantiateTest(unittest.TestCase):
     """
     Specific test case to test @Instantiate, as it needs a pure framework
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -63,64 +55,68 @@ class InstantiateTest(unittest.TestCase):
         svc_spec = "basic-component-svc"
 
         # Assert the framework is clean
-        self.assertFalse(self.ipopo.is_registered_factory(factory),
-                         "Factory already registered")
+        self.assertFalse(self.ipopo.is_registered_factory(factory), "Factory already registered")
 
-        self.assertFalse(self.ipopo.is_registered_instance(name),
-                         "Instance already registered")
+        self.assertFalse(self.ipopo.is_registered_instance(name), "Instance already registered")
 
         # Install the bundle
         context = self.framework.get_bundle_context()
         bundle = context.install_bundle("tests.ipopo.ipopo_bundle")
 
         # Bundle is installed, assert that the framework is still clean
-        self.assertFalse(self.ipopo.is_registered_factory(factory),
-                         "Factory registered while the bundle is stopped")
+        self.assertFalse(
+            self.ipopo.is_registered_factory(factory), "Factory registered while the bundle is stopped"
+        )
 
-        self.assertFalse(self.ipopo.is_registered_instance(name),
-                         "Instance registered while the bundle is stopped")
+        self.assertFalse(
+            self.ipopo.is_registered_instance(name), "Instance registered while the bundle is stopped"
+        )
 
         # Start the bundle
         bundle.start()
 
         # Assert the component has been registered
-        self.assertTrue(self.ipopo.is_registered_factory(factory),
-                        "Factory not registered while the bundle is started")
+        self.assertTrue(
+            self.ipopo.is_registered_factory(factory), "Factory not registered while the bundle is started"
+        )
 
-        self.assertTrue(self.ipopo.is_registered_instance(name),
-                        "Instance not registered while the bundle is started")
+        self.assertTrue(
+            self.ipopo.is_registered_instance(name), "Instance not registered while the bundle is started"
+        )
 
         # Assert it has been validated
         ref = context.get_service_reference(svc_spec)
-        self.assertIsNotNone(ref,
-                             "No reference found (component not validated)")
+        self.assertIsNotNone(ref, "No reference found (component not validated)")
 
         compo = context.get_service(ref)
 
-        self.assertEqual(compo.states, [IPopoEvent.INSTANTIATED,
-                                        IPopoEvent.VALIDATED],
-                         "@Instantiate component should have been validated")
+        self.assertEqual(
+            compo.states,
+            [IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
+            "@Instantiate component should have been validated",
+        )
         del compo.states[:]
 
         # Stop the bundle
         bundle.stop()
 
         # Assert the component has been invalidated
-        self.assertEqual(compo.states, [IPopoEvent.INVALIDATED],
-                         "@Instantiate component should have been invalidated")
+        self.assertEqual(
+            compo.states, [IPopoEvent.INVALIDATED], "@Instantiate component should have been invalidated"
+        )
 
         # Assert the framework has been cleaned up
         self.assertFalse(
-            self.ipopo.is_registered_factory(factory),
-            "Factory registered while the bundle has been stopped")
+            self.ipopo.is_registered_factory(factory), "Factory registered while the bundle has been stopped"
+        )
 
-        self.assertFalse(self.ipopo.is_registered_instance(name),
-                         "Instance registered while the bundle has been "
-                         "stopped")
+        self.assertFalse(
+            self.ipopo.is_registered_instance(name),
+            "Instance registered while the bundle has been " "stopped",
+        )
 
         # Ensure the service has been unregistered properly
-        self.assertIsNone(context.get_service_reference(svc_spec),
-                          "@Instantiate service is still there")
+        self.assertIsNone(context.get_service_reference(svc_spec), "@Instantiate service is still there")
 
     def testNotRunning(self):
         """
@@ -130,8 +126,7 @@ class InstantiateTest(unittest.TestCase):
         self.framework.stop()
 
         # iPOPO shouldn't be accessible, it must raise an exception
-        self.assertRaises(ValueError, self.ipopo.instantiate,
-                          'dummy', 'dummy', {})
+        self.assertRaises(ValueError, self.ipopo.instantiate, "dummy", "dummy", {})
 
     def test_boot_order(self):
         """
@@ -150,9 +145,8 @@ class InstantiateTest(unittest.TestCase):
 
         # Check states
         self.assertListEqual(
-            [BundleEvent.STARTED,
-             IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
-            module.STATES)
+            [BundleEvent.STARTED, IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED], module.STATES
+        )
 
         # Clean up
         del module.STATES[:]
@@ -161,14 +155,15 @@ class InstantiateTest(unittest.TestCase):
         bundle.stop()
 
         # Check states
-        self.assertListEqual(
-            [IPopoEvent.INVALIDATED, BundleEvent.STOPPED], module.STATES)
+        self.assertListEqual([IPopoEvent.INVALIDATED, BundleEvent.STOPPED], module.STATES)
+
 
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

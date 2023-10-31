@@ -6,20 +6,11 @@ Tests the iPOPO waiting list service
 :author: Thomas Calmant
 """
 
-# Tests
-from tests.ipopo import install_bundle, install_ipopo
+import unittest
 
-# Pelix
-from pelix.framework import FrameworkFactory
-
-# iPOPO
 import pelix.ipopo.constants as constants
-
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+from pelix.framework import FrameworkFactory
+from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
@@ -36,6 +27,7 @@ class WaitingListTest(unittest.TestCase):
     """
     Tests the iPOPO waiting list service
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -49,8 +41,7 @@ class WaitingListTest(unittest.TestCase):
         install_bundle(self.framework, "pelix.ipopo.waiting")
 
         # Get the service
-        svc_ref = context.get_service_reference(
-            constants.SERVICE_IPOPO_WAITING_LIST)
+        svc_ref = context.get_service_reference(constants.SERVICE_IPOPO_WAITING_LIST)
         self.waiting = context.get_service(svc_ref)
 
     def tearDown(self):
@@ -71,12 +62,10 @@ class WaitingListTest(unittest.TestCase):
         self.waiting.add("some.factory", "some.instance", {})
 
         # Same name & factory
-        self.assertRaises(ValueError, self.waiting.add,
-                          "some.factory", "some.instance", {})
+        self.assertRaises(ValueError, self.waiting.add, "some.factory", "some.instance", {})
 
         # Same name, different factory
-        self.assertRaises(ValueError, self.waiting.add,
-                          "some.other.factory", "some.instance", {})
+        self.assertRaises(ValueError, self.waiting.add, "some.other.factory", "some.instance", {})
 
         # Remove it
         self.waiting.remove("some.instance")
@@ -99,22 +88,19 @@ class WaitingListTest(unittest.TestCase):
         ipopo = install_ipopo(self.framework)
 
         # The component must be absent
-        self.assertFalse(ipopo.is_registered_instance(NAME_A),
-                         "Instance already there")
+        self.assertFalse(ipopo.is_registered_instance(NAME_A), "Instance already there")
 
         # Install the component bundle
         install_bundle(self.framework)
 
         # The instance must have been started
-        self.assertTrue(ipopo.is_registered_instance(NAME_A),
-                        "Instance not there")
+        self.assertTrue(ipopo.is_registered_instance(NAME_A), "Instance not there")
 
         # Remove the component from the waiting list
         self.waiting.remove(NAME_A)
 
         # The instance must have been kill
-        self.assertFalse(ipopo.is_registered_instance(NAME_A),
-                         "Instance still there")
+        self.assertFalse(ipopo.is_registered_instance(NAME_A), "Instance still there")
 
     def testInstantiateKillAfterIPopoBeforeBundle(self):
         """
@@ -128,22 +114,19 @@ class WaitingListTest(unittest.TestCase):
         self.waiting.add(FACTORY_A, NAME_A)
 
         # The component must be absent
-        self.assertFalse(ipopo.is_registered_instance(NAME_A),
-                         "Instance already there")
+        self.assertFalse(ipopo.is_registered_instance(NAME_A), "Instance already there")
 
         # Install the component bundle
         install_bundle(self.framework)
 
         # The instance must have been started
-        self.assertTrue(ipopo.is_registered_instance(NAME_A),
-                        "Instance not there")
+        self.assertTrue(ipopo.is_registered_instance(NAME_A), "Instance not there")
 
         # Remove the component from the waiting list
         self.waiting.remove(NAME_A)
 
         # The instance must have been kill
-        self.assertFalse(ipopo.is_registered_instance(NAME_A),
-                         "Instance still there")
+        self.assertFalse(ipopo.is_registered_instance(NAME_A), "Instance still there")
 
     def testInstantiateKillAfterIPopoAfterBundle(self):
         """
@@ -157,22 +140,19 @@ class WaitingListTest(unittest.TestCase):
         install_bundle(self.framework)
 
         # The component must be absent
-        self.assertFalse(ipopo.is_registered_instance(NAME_A),
-                         "Instance already there")
+        self.assertFalse(ipopo.is_registered_instance(NAME_A), "Instance already there")
 
         # Add the component to the waiting list
         self.waiting.add(FACTORY_A, NAME_A)
 
         # The instance must have been started
-        self.assertTrue(ipopo.is_registered_instance(NAME_A),
-                        "Instance not there")
+        self.assertTrue(ipopo.is_registered_instance(NAME_A), "Instance not there")
 
         # Remove the component from the waiting list
         self.waiting.remove(NAME_A)
 
         # The instance must have been kill
-        self.assertFalse(ipopo.is_registered_instance(NAME_A),
-                         "Instance still there")
+        self.assertFalse(ipopo.is_registered_instance(NAME_A), "Instance still there")
 
     def testInstantiateConflict(self):
         """
@@ -185,21 +165,21 @@ class WaitingListTest(unittest.TestCase):
         module = install_bundle(self.framework)
 
         # The component must be present
-        self.assertTrue(ipopo.is_registered_instance(module.BASIC_INSTANCE),
-                        "Auto-instance not yet there")
+        self.assertTrue(ipopo.is_registered_instance(module.BASIC_INSTANCE), "Auto-instance not yet there")
 
         # This addition must not fail, but must be logger
         self.waiting.add(module.BASIC_FACTORY, module.BASIC_INSTANCE)
 
         # The original instance must still be there
-        self.assertTrue(ipopo.is_registered_instance(module.BASIC_INSTANCE),
-                        "Instance has been killed")
+        self.assertTrue(ipopo.is_registered_instance(module.BASIC_INSTANCE), "Instance has been killed")
+
 
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

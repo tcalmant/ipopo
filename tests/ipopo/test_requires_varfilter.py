@@ -6,25 +6,16 @@ Tests the iPOPO @RequiresVarFilter decorator.
 :author: Thomas Calmant
 """
 
-# Standard library
 import random
 import string
+import unittest
 
-from pelix.ipopo.instance import StoredInstance
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-# Pelix
+from pelix.framework import BundleContext, FrameworkFactory
 from pelix.ipopo.constants import IPopoEvent
-from pelix.ipopo.decorators import get_factory_context, RequiresVarFilter
-from pelix.framework import FrameworkFactory, BundleContext
-
-# Tests
-from tests.ipopo import install_bundle, install_ipopo
+from pelix.ipopo.decorators import RequiresVarFilter, get_factory_context
+from pelix.ipopo.instance import StoredInstance
 from tests.interfaces import IEchoService
+from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
@@ -65,12 +56,8 @@ class RequiresVarFilterTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Prepare random string values
-        random_static_1 = "".join(
-            random.choice(string.ascii_letters) for _ in range(50)
-        )
-        random_static_2 = "".join(
-            random.choice(string.ascii_letters) for _ in range(50)
-        )
+        random_static_1 = "".join(random.choice(string.ascii_letters) for _ in range(50))
+        random_static_2 = "".join(random.choice(string.ascii_letters) for _ in range(50))
 
         # Assert that the service is not yet available
         self.assertIsNone(
@@ -122,9 +109,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             consumer.reset()
 
         self.assertIs(consumer_single.service, svc1, "Wrong service injected")
-        self.assertListEqual(
-            consumer_multi.service, [svc1], "Wrong service injected"
-        )
+        self.assertListEqual(consumer_multi.service, [svc1], "Wrong service injected")
 
         # New service, still matching
         svc2 = object()
@@ -148,9 +133,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             consumer_multi.states,
             "Invalid component states: {0}".format(consumer_multi.states),
         )
-        self.assertListEqual(
-            consumer_multi.service, [svc1, svc2], "Second service not injected"
-        )
+        self.assertListEqual(consumer_multi.service, [svc1, svc2], "Second service not injected")
 
         # Reset states
         for consumer in consumers:
@@ -173,9 +156,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             consumer_multi.states,
             "Invalid component states: {0}".format(consumer_multi.states),
         )
-        self.assertListEqual(
-            consumer_multi.service, [svc1], "Second service not removed"
-        )
+        self.assertListEqual(consumer_multi.service, [svc1], "Second service not removed")
 
         # Change the filter property to the exact same value
         for consumer in consumers:
@@ -191,9 +172,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             consumer.reset()
 
         self.assertIs(consumer_single.service, svc1, "Wrong service injected")
-        self.assertListEqual(
-            consumer_multi.service, [svc1], "Wrong service injected"
-        )
+        self.assertListEqual(consumer_multi.service, [svc1], "Wrong service injected")
 
         # Change the filter property to a new value
         for consumer in consumers:
@@ -245,9 +224,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             consumer.reset()
 
         self.assertIs(consumer_single.service, svc4, "Wrong service injected")
-        self.assertListEqual(
-            consumer_multi.service, [svc4], "Wrong service injected"
-        )
+        self.assertListEqual(consumer_multi.service, [svc4], "Wrong service injected")
 
         # New service, matching the new filer
         svc5 = object()
@@ -271,9 +248,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             consumer_multi.states,
             "Invalid component states: {0}".format(consumer_multi.states),
         )
-        self.assertListEqual(
-            consumer_multi.service, [svc4, svc5], "Second service not injected"
-        )
+        self.assertListEqual(consumer_multi.service, [svc4, svc5], "Second service not injected")
 
         # Reset states
         for consumer in consumers:
@@ -296,9 +271,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             consumer_multi.states,
             "Invalid component states: {0}".format(consumer_multi.states),
         )
-        self.assertListEqual(
-            consumer_multi.service, [svc5], "First service not removed"
-        )
+        self.assertListEqual(consumer_multi.service, [svc5], "First service not removed")
 
         # Reset states
         for consumer in consumers:
@@ -356,9 +329,7 @@ class RequiresVarFilterTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
         assert isinstance(context, BundleContext)
 
-        random_static = "".join(
-            random.choice(string.ascii_letters) for _ in range(50)
-        )
+        random_static = "".join(random.choice(string.ascii_letters) for _ in range(50))
 
         # Assert that the service is not yet available
         self.assertIsNone(
@@ -425,9 +396,7 @@ class RequiresVarFilterTest(unittest.TestCase):
 
                 # Instantiate a service, matching the filter
                 svc = object()
-                reg = context.register_service(
-                    IEchoService, svc, {"s": random_static, "a": invalid}
-                )
+                reg = context.register_service(IEchoService, svc, {"s": random_static, "a": invalid})
 
                 # Nothing should happen
                 self.assertListEqual(
@@ -448,9 +417,7 @@ class RequiresVarFilterTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
         assert isinstance(context, BundleContext)
 
-        random_static = "".join(
-            random.choice(string.ascii_letters) for _ in range(50)
-        )
+        random_static = "".join(random.choice(string.ascii_letters) for _ in range(50))
 
         # Assert that the service is not yet available
         self.assertIsNone(
@@ -510,9 +477,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             consumer.reset()
 
         self.assertIs(consumer_single.service, svc1, "Wrong service injected")
-        self.assertListEqual(
-            consumer_multi.service, [svc1], "Wrong service injected"
-        )
+        self.assertListEqual(consumer_multi.service, [svc1], "Wrong service injected")
 
     def test_incomplete_properties(self):
         """
@@ -523,9 +488,7 @@ class RequiresVarFilterTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         answer = 42
-        random_static = "".join(
-            random.choice(string.ascii_letters) for _ in range(50)
-        )
+        random_static = "".join(random.choice(string.ascii_letters) for _ in range(50))
 
         # Assert that the service is not yet available
         self.assertIsNone(
@@ -535,9 +498,7 @@ class RequiresVarFilterTest(unittest.TestCase):
 
         # Instantiate a service, matching the filter
         svc1 = object()
-        context.register_service(
-            IEchoService, svc1, {"s": random_static, "a": answer}
-        )
+        context.register_service(IEchoService, svc1, {"s": random_static, "a": answer})
 
         for name, factory in (
             (NAME_A, module.FACTORY_REQUIRES_VAR_FILTER),
@@ -570,32 +531,48 @@ class RequiresVarFilterTest(unittest.TestCase):
         self.ipopo.instantiate("provider-factory", "provider-instance-1", {"prop": "svc1"})
         self.ipopo.instantiate("provider-factory", "provider-instance-2", {"prop": "svc2"})
 
-        svc1 =  self.ipopo.get_instance("provider-instance-1")
-        svc2 =  self.ipopo.get_instance("provider-instance-2")
-        consumer =  self.ipopo.get_instance("varservice-instance")
+        svc1 = self.ipopo.get_instance("provider-instance-1")
+        svc2 = self.ipopo.get_instance("provider-instance-2")
+        consumer = self.ipopo.get_instance("varservice-instance")
 
-        self.assertEqual(self.ipopo.get_instance_details("provider-instance-1")["state"], StoredInstance.VALID)
-        self.assertEqual(self.ipopo.get_instance_details("provider-instance-2")["state"], StoredInstance.VALID)
-        self.assertEqual(self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.INVALID)
+        self.assertEqual(
+            self.ipopo.get_instance_details("provider-instance-1")["state"], StoredInstance.VALID
+        )
+        self.assertEqual(
+            self.ipopo.get_instance_details("provider-instance-2")["state"], StoredInstance.VALID
+        )
+        self.assertEqual(
+            self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.INVALID
+        )
 
         consumer.search = "svc1"
-        self.assertEqual(self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.VALID)
+        self.assertEqual(
+            self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.VALID
+        )
         self.assertEqual(consumer.depends, svc1)
 
         consumer.search = "svc2"
-        self.assertEqual(self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.VALID)
+        self.assertEqual(
+            self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.VALID
+        )
         self.assertEqual(consumer.depends, svc2)
 
         consumer.search = "non-existent"
-        self.assertEqual(self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.INVALID)
+        self.assertEqual(
+            self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.INVALID
+        )
         self.assertIsNone(consumer.depends)
 
         consumer.search = "svc1"
-        self.assertEqual(self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.VALID)
+        self.assertEqual(
+            self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.VALID
+        )
         self.assertEqual(consumer.depends, svc1)
 
         consumer.search = None
-        self.assertEqual(self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.INVALID)
+        self.assertEqual(
+            self.ipopo.get_instance_details("varservice-instance")["state"], StoredInstance.INVALID
+        )
         self.assertIsNone(consumer.depends)
 
 

@@ -6,17 +6,10 @@ Tests the iPOPO @Provides decorator.
 :author: Thomas Calmant
 """
 
-# Standard library
 import sys
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
-# Pelix
-from pelix.framework import FrameworkFactory, BundleContext
-
-# Tests
+from pelix.framework import BundleContext, FrameworkFactory
 from tests.interfaces import IEchoService
 from tests.ipopo import install_bundle, install_ipopo
 
@@ -34,6 +27,7 @@ class ProvidesTest(unittest.TestCase):
     """
     Tests the component "provides" behavior
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -62,8 +56,7 @@ class ProvidesTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Assert that the service is not yet available
-        self.assertIsNone(context.get_service_reference(IEchoService),
-                          "Service is already registered")
+        self.assertIsNone(context.get_service_reference(IEchoService), "Service is already registered")
 
         # Instantiate the component
         compoA = self.ipopo.instantiate(module.FACTORY_A, NAME_A)
@@ -78,13 +71,11 @@ class ProvidesTest(unittest.TestCase):
             self.assertIsNotNone(ref, "Service hasn't been registered")
 
             # References must be different
-            self.assertNotEqual(ref, ref2,
-                                "Service references must be different")
+            self.assertNotEqual(ref, ref2, "Service references must be different")
 
             # Compare service instances
             svc = context.get_service(ref)
-            self.assertIs(svc, compoA,
-                          "Different instances for service and component")
+            self.assertIs(svc, compoA, "Different instances for service and component")
 
             svc2 = context.get_service(ref2)
             self.assertEqual(svc, svc2, "Got different service instances")
@@ -99,8 +90,7 @@ class ProvidesTest(unittest.TestCase):
             self.ipopo.invalidate(NAME_A)
 
             # Service should not be there anymore
-            self.assertIsNone(context.get_service_reference(IEchoService),
-                              "Service is still registered")
+            self.assertIsNone(context.get_service_reference(IEchoService), "Service is still registered")
         finally:
             try:
                 self.ipopo.kill(NAME_A)
@@ -116,18 +106,17 @@ class ProvidesTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Assert that the service is not yet available
-        self.assertIsNone(context.get_service_reference(IEchoService),
-                          "Service is already registered")
-        self.assertIsNone(context.get_service_reference("TestService"),
-                          "TestService is already registered")
+        self.assertIsNone(context.get_service_reference(IEchoService), "Service is already registered")
+        self.assertIsNone(context.get_service_reference("TestService"), "TestService is already registered")
 
         # Instantiate the component
         self.ipopo.instantiate(module.FACTORY_A, NAME_A)
 
         try:
             # Service should be there (controller default value is True)
-            self.assertIsNotNone(context.get_service_reference(IEchoService),
-                                 "EchoService hasn't been registered")
+            self.assertIsNotNone(
+                context.get_service_reference(IEchoService), "EchoService hasn't been registered"
+            )
 
             ref = context.get_service_reference("TestService")
             self.assertIsNotNone(ref, "TestService hasn't been registered")
@@ -137,17 +126,21 @@ class ProvidesTest(unittest.TestCase):
 
             # Change the value of the controller
             svc.change_controller(False)
-            self.assertIsNone(context.get_service_reference("TestService"),
-                              "TestService hasn't been unregistered")
-            self.assertIsNotNone(context.get_service_reference(IEchoService),
-                                 "EchoService has been unregistered")
+            self.assertIsNone(
+                context.get_service_reference("TestService"), "TestService hasn't been unregistered"
+            )
+            self.assertIsNotNone(
+                context.get_service_reference(IEchoService), "EchoService has been unregistered"
+            )
 
             # Re-change the value
             svc.change_controller(True)
-            self.assertIsNotNone(context.get_service_reference("TestService"),
-                                 "TestService hasn't been re-registered")
-            self.assertIsNotNone(context.get_service_reference(IEchoService),
-                                 "EchoService has been unregistered")
+            self.assertIsNotNone(
+                context.get_service_reference("TestService"), "TestService hasn't been re-registered"
+            )
+            self.assertIsNotNone(
+                context.get_service_reference(IEchoService), "EchoService has been unregistered"
+            )
 
             # Invalidate the component
             self.ipopo.invalidate(NAME_A)
@@ -156,10 +149,8 @@ class ProvidesTest(unittest.TestCase):
             svc.change_controller(True)
 
             # Service should not be there anymore
-            self.assertIsNone(context.get_service_reference("TestService"),
-                              "TestService is still registered")
-            self.assertIsNone(context.get_service_reference(IEchoService),
-                              "EchoService is still registered")
+            self.assertIsNone(context.get_service_reference("TestService"), "TestService is still registered")
+            self.assertIsNone(context.get_service_reference(IEchoService), "EchoService is still registered")
 
             # Clean up
             context.unget_service(ref)
@@ -178,10 +169,8 @@ class ProvidesTest(unittest.TestCase):
         assert isinstance(context, BundleContext)
 
         # Assert that the service is not yet available
-        self.assertIsNone(context.get_service_reference(IEchoService),
-                          "Service is already registered")
-        self.assertIsNone(context.get_service_reference("TestService"),
-                          "TestService is already registered")
+        self.assertIsNone(context.get_service_reference(IEchoService), "Service is already registered")
+        self.assertIsNone(context.get_service_reference("TestService"), "TestService is already registered")
 
         # Instantiate the component
         component = self.ipopo.instantiate(module.FACTORY_A, NAME_A)
@@ -189,8 +178,7 @@ class ProvidesTest(unittest.TestCase):
         try:
             # Service should be there (controller default value is True)
             ref_echo = context.get_service_reference(IEchoService)
-            self.assertIsNotNone(ref_echo,
-                                 "EchoService hasn't been registered")
+            self.assertIsNotNone(ref_echo, "EchoService hasn't been registered")
 
             ref = context.get_service_reference("TestService")
             self.assertIsNotNone(ref, "TestService hasn't been registered")
@@ -206,10 +194,12 @@ class ProvidesTest(unittest.TestCase):
 
             # Change the value of the controller
             svc.change_controller(False)
-            self.assertIsNone(context.get_service_reference("TestService"),
-                              "TestService hasn't been unregistered")
-            self.assertIsNotNone(context.get_service_reference(IEchoService),
-                                 "EchoService has been unregistered")
+            self.assertIsNone(
+                context.get_service_reference("TestService"), "TestService hasn't been unregistered"
+            )
+            self.assertIsNotNone(
+                context.get_service_reference(IEchoService), "EchoService has been unregistered"
+            )
 
             self.assertListEqual(component.calls_register, [])
             self.assertListEqual(component.calls_unregister, [ref])
@@ -219,10 +209,10 @@ class ProvidesTest(unittest.TestCase):
             # Re-change the value
             svc.change_controller(True)
             ref2 = context.get_service_reference("TestService")
-            self.assertIsNotNone(ref2,
-                                 "TestService hasn't been re-registered")
-            self.assertIsNotNone(context.get_service_reference(IEchoService),
-                                 "EchoService has been unregistered")
+            self.assertIsNotNone(ref2, "TestService hasn't been re-registered")
+            self.assertIsNotNone(
+                context.get_service_reference(IEchoService), "EchoService has been unregistered"
+            )
 
             self.assertListEqual(component.calls_register, [ref2])
             self.assertListEqual(component.calls_unregister, [])
@@ -241,10 +231,8 @@ class ProvidesTest(unittest.TestCase):
             svc.change_controller(True)
 
             # Service should not be there anymore
-            self.assertIsNone(context.get_service_reference("TestService"),
-                              "TestService is still registered")
-            self.assertIsNone(context.get_service_reference(IEchoService),
-                              "EchoService is still registered")
+            self.assertIsNone(context.get_service_reference("TestService"), "TestService is still registered")
+            self.assertIsNone(context.get_service_reference(IEchoService), "EchoService is still registered")
 
             # No notification here
             self.assertListEqual(component.calls_register, [])
@@ -266,8 +254,7 @@ class ProvidesTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
 
         # Instantiate the provider
-        component = self.ipopo.instantiate(
-            module.FACTORY_PROVIDES_SVC_FACTORY, "provides.factory")
+        component = self.ipopo.instantiate(module.FACTORY_PROVIDES_SVC_FACTORY, "provides.factory")
 
         # Ensure the initial state
         self.assertIsNone(component.caller, "Invalid initial state")
@@ -314,8 +301,7 @@ class ProvidesTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
 
         # Instantiate the provider
-        component = self.ipopo.instantiate(
-            module.FACTORY_PROVIDES_SVC_PROTOTYPE, "provides.prototype")
+        component = self.ipopo.instantiate(module.FACTORY_PROVIDES_SVC_PROTOTYPE, "provides.prototype")
 
         # Ensure the initial state
         self.assertIsNone(component.caller, "Invalid initial state")
@@ -370,11 +356,13 @@ class ProvidesTest(unittest.TestCase):
         self.assertNotIn(svc, component.services)
         self.assertNotIn(svc2, component.services)
 
+
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

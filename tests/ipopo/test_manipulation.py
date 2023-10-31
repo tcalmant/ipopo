@@ -6,19 +6,10 @@ Tests the iPOPO class manipulation.
 :author: Thomas Calmant
 """
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
-# Pelix
-from pelix.framework import FrameworkFactory
-
-# iPOPO
 import pelix.ipopo.decorators as decorators
-
-# Tests
+from pelix.framework import FrameworkFactory
 from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
@@ -35,6 +26,7 @@ class ManipulatedClassTest(unittest.TestCase):
     """
     Tests the usage as a classic class of a manipulated component factory
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -52,6 +44,7 @@ class ManipulatedClassTest(unittest.TestCase):
         """
         Tests the behavior of a manipulated class outside a framework
         """
+
         # Prepare the class
         @decorators.ComponentFactory("test-factory")
         @decorators.Instantiate("test-instance")
@@ -68,8 +61,7 @@ class ManipulatedClassTest(unittest.TestCase):
         instance = TestClass()
 
         # Check fields presence and values
-        self.assertTrue(
-            instance.controller, "Default service controller is On")
+        self.assertTrue(instance.controller, "Default service controller is On")
         self.assertIsNone(instance.req_1, "Requirement is not None")
         self.assertIsNone(instance.req_2, "Requirement is not None")
         self.assertIsNone(instance.prop_1, "Default property value is None")
@@ -96,11 +88,9 @@ class ManipulatedClassTest(unittest.TestCase):
         instance = module.ComponentFactoryA()
 
         # Check fields presence and values
-        self.assertTrue(
-            instance._test_ctrl, "Default service controller is On")
+        self.assertTrue(instance._test_ctrl, "Default service controller is On")
         self.assertIsNone(instance._req_1, "Requirement is not None")
-        self.assertEqual(
-            instance.prop_1, 10, "Constructor property value lost")
+        self.assertEqual(instance.prop_1, 10, "Constructor property value lost")
         self.assertEqual(instance.usable, True, "Incorrect property value")
         del instance
 
@@ -108,8 +98,7 @@ class ManipulatedClassTest(unittest.TestCase):
         instance = ipopo.instantiate(module.FACTORY_A, NAME_A)
 
         # Check fields presence and values
-        self.assertTrue(
-            instance._test_ctrl, "Default service controller is On")
+        self.assertTrue(instance._test_ctrl, "Default service controller is On")
         self.assertIsNone(instance._req_1, "Requirement is not None")
         self.assertIsNone(instance.prop_1, "Default property value is None")
         self.assertEqual(instance.usable, True, "Incorrect property value")
@@ -137,33 +126,35 @@ class ManipulatedClassTest(unittest.TestCase):
         # Install bundles: both provide a "basic-component-factory" factory
         # and instantiate a component (both with different names)
         module_A = install_bundle(self.framework, "tests.ipopo.ipopo_bundle")
-        module_B = install_bundle(self.framework,
-                                  "tests.ipopo.ipopo_bundle_copy")
+        module_B = install_bundle(self.framework, "tests.ipopo.ipopo_bundle_copy")
 
         # Ensure that the module providing the factory is the correct one
-        self.assertIs(module_A,
-                      ipopo.get_factory_bundle(
-                          module_A.BASIC_FACTORY).get_module(),
-                      "Duplicated factory is not provided by the first module")
-        self.assertIs(module_A,
-                      ipopo.get_factory_bundle(
-                          module_B.BASIC_FACTORY).get_module(),
-                      "Duplicated factory is not provided by the first module")
+        self.assertIs(
+            module_A,
+            ipopo.get_factory_bundle(module_A.BASIC_FACTORY).get_module(),
+            "Duplicated factory is not provided by the first module",
+        )
+        self.assertIs(
+            module_A,
+            ipopo.get_factory_bundle(module_B.BASIC_FACTORY).get_module(),
+            "Duplicated factory is not provided by the first module",
+        )
 
         # Component of module A must be there
         self.assertIsNotNone(
-            ipopo.get_instance_details(module_A.BASIC_INSTANCE),
-            "Component from module A not started")
+            ipopo.get_instance_details(module_A.BASIC_INSTANCE), "Component from module A not started"
+        )
 
         # Component of module B must be absent
-        self.assertRaises(ValueError,
-                          ipopo.get_instance_details, module_B.BASIC_INSTANCE)
+        self.assertRaises(ValueError, ipopo.get_instance_details, module_B.BASIC_INSTANCE)
+
 
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

@@ -6,25 +6,15 @@ Tests the component life cycle callbacks decorators
 :author: Thomas Calmant
 """
 
-# Standard library
 import itertools
+import unittest
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-# Tests
-from tests.ipopo import install_bundle, install_ipopo
-
-# Pelix
-from pelix.framework import FrameworkFactory, BundleContext
-
-# iPOPO
-from pelix.ipopo.contexts import ComponentContext
-from pelix.ipopo.instance import StoredInstance
 import pelix.ipopo.constants as constants
 import pelix.ipopo.decorators as decorators
+from pelix.framework import BundleContext, FrameworkFactory
+from pelix.ipopo.contexts import ComponentContext
+from pelix.ipopo.instance import StoredInstance
+from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
@@ -38,6 +28,7 @@ class ValidateComponentTest(unittest.TestCase):
     """
     Tests the @ValidateComponent decorator
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -57,6 +48,7 @@ class ValidateComponentTest(unittest.TestCase):
         """
         Tests type checking of @ValidateComponent
         """
+
         class Dummy:
             pass
 
@@ -84,6 +76,7 @@ class ValidateComponentTest(unittest.TestCase):
 
         for nb_args in range(len(valid_args) + 1):
             for decorator_args in itertools.combinations(valid_args, nb_args):
+
                 @decorators.ComponentFactory(factory_name)
                 class Sample:
                     @decorators.ValidateComponent(*decorator_args)
@@ -92,8 +85,7 @@ class ValidateComponentTest(unittest.TestCase):
                         args = args[1:]
 
                         for idx, arg in enumerate(args):
-                            self.assertIsInstance(
-                                arg, types[decorator_args[idx]])
+                            self.assertIsInstance(arg, types[decorator_args[idx]])
 
                 try:
                     self.ipopo.register_factory(ctx, Sample)
@@ -125,17 +117,14 @@ class ValidateComponentTest(unittest.TestCase):
                 self.calls.append("Invalidate")
 
         # Register factory
-        self.ipopo.register_factory(
-            self.framework.get_bundle_context(), Erroneous)
+        self.ipopo.register_factory(self.framework.get_bundle_context(), Erroneous)
 
         # Instantiate once
         instance_name = "test"
-        instance = self.ipopo.instantiate(
-            factory_name, instance_name, {"raise": True})
+        instance = self.ipopo.instantiate(factory_name, instance_name, {"raise": True})
 
         # Check calls
-        self.assertListEqual(
-            ["ValidateComponent", "Invalidate"], instance.calls)
+        self.assertListEqual(["ValidateComponent", "Invalidate"], instance.calls)
 
         # Check state
         details = self.ipopo.get_instance_details(instance_name)
@@ -165,6 +154,7 @@ class InvalidateComponentTest(unittest.TestCase):
     """
     Tests the @InvalidateComponent decorator
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -184,6 +174,7 @@ class InvalidateComponentTest(unittest.TestCase):
         """
         Tests type checking of @InvalidateComponentTest
         """
+
         class Dummy:
             pass
 
@@ -211,6 +202,7 @@ class InvalidateComponentTest(unittest.TestCase):
 
         for nb_args in range(len(valid_args) + 1):
             for decorator_args in itertools.combinations(valid_args, nb_args):
+
                 @decorators.ComponentFactory(factory_name)
                 class Sample:
                     @decorators.InvalidateComponent(*decorator_args)
@@ -219,8 +211,7 @@ class InvalidateComponentTest(unittest.TestCase):
                         args = args[1:]
 
                         for idx, arg in enumerate(args):
-                            self.assertIsInstance(
-                                arg, types[decorator_args[idx]])
+                            self.assertIsInstance(arg, types[decorator_args[idx]])
 
                 try:
                     self.ipopo.register_factory(ctx, Sample)
@@ -243,8 +234,7 @@ class InvalidateComponentTest(unittest.TestCase):
                 raise ValueError("Bad things happen")
 
         # Register factory
-        self.ipopo.register_factory(
-            self.framework.get_bundle_context(), Erroneous)
+        self.ipopo.register_factory(self.framework.get_bundle_context(), Erroneous)
 
         # Register a service so that it can become active
         ctx = self.framework.get_bundle_context()
@@ -268,12 +258,14 @@ class InvalidateComponentTest(unittest.TestCase):
         # Kill it
         self.ipopo.kill(instance_name)
 
+
 # ------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

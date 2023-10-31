@@ -6,18 +6,11 @@ Tests the iPOPO @HiddenProperty decorator.
 :author: Thomas Calmant
 """
 
-# Standard library
 import random
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
-# Pelix
 from pelix.framework import FrameworkFactory
 from pelix.ipopo.constants import use_ipopo
-
-# Tests
 from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
@@ -34,6 +27,7 @@ class HiddenPropTest(unittest.TestCase):
     """
     Tests the "hidden property" behavior
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -79,14 +73,16 @@ class HiddenPropTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
 
         # Prepare random values
-        hidden_value =  random.randint(0, 100)
+        hidden_value = random.randint(0, 100)
         public_value = random.randint(0, 100)
 
         # Instantiate the component
         with use_ipopo(context) as ipopo:
-            svc = ipopo.instantiate(self.module.FACTORY_HIDDEN_PROPS, NAME_A,
-                                    {"hidden.prop": hidden_value,
-                                     "public.prop": public_value})
+            svc = ipopo.instantiate(
+                self.module.FACTORY_HIDDEN_PROPS,
+                NAME_A,
+                {"hidden.prop": hidden_value, "public.prop": public_value},
+            )
 
         # Check default values (and accesses)
         self.assertEqual(svc.hidden, hidden_value)
@@ -98,10 +94,12 @@ class HiddenPropTest(unittest.TestCase):
 
         self.assertNotIn("hidden.prop", details["properties"])
 
+
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
     unittest.main()

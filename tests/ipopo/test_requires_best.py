@@ -6,21 +6,14 @@ Tests the iPOPO @RequiresBest decorator.
 :author: Thomas Calmant
 """
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
-# Pelix
-from pelix.ipopo.constants import IPopoEvent
-from pelix.ipopo.decorators import get_factory_context, RequiresBest
-from pelix.framework import FrameworkFactory, BundleContext
 from pelix.constants import SERVICE_RANKING
-
-# Tests
-from tests.ipopo import install_bundle, install_ipopo
+from pelix.framework import BundleContext, FrameworkFactory
+from pelix.ipopo.constants import IPopoEvent
+from pelix.ipopo.decorators import RequiresBest, get_factory_context
 from tests.interfaces import IEchoService
+from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 

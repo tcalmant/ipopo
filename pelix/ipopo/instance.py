@@ -28,14 +28,16 @@ Instance manager class definition
 import logging
 import threading
 import traceback
-from typing import Any, Dict, Iterable, List, Optional, Set, TypeVar
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, TypeVar
 
 import pelix.ipopo.constants as constants
 import pelix.ipopo.handlers.constants as handlers_const
 from pelix.constants import FrameworkException
-from pelix.framework import ServiceEvent, ServiceReference
-from pelix.ipopo.contexts import ComponentContext
-from pelix.ipopo.core import _IPopoService
+
+if TYPE_CHECKING:
+    from pelix.framework import ServiceEvent, ServiceReference
+    from pelix.ipopo.contexts import ComponentContext
+    from pelix.ipopo.core import _IPopoService
 
 T = TypeVar("T")
 
@@ -90,8 +92,8 @@ class StoredInstance:
 
     def __init__(
         self,
-        ipopo_service: _IPopoService,
-        context: ComponentContext,
+        ipopo_service: "_IPopoService",
+        context: "ComponentContext",
         instance: Any,
         handlers: Iterable[handlers_const.Handler],
     ) -> None:
@@ -110,10 +112,10 @@ class StoredInstance:
         self._lock = threading.RLock()
 
         # The iPOPO service
-        self._ipopo_service: Optional[_IPopoService] = ipopo_service
+        self._ipopo_service: Optional["_IPopoService"] = ipopo_service
 
         # Component context
-        self.context: Optional[ComponentContext] = context
+        self.context: Optional["ComponentContext"] = context
 
         # The instance name
         self.name = self.context.name
@@ -157,7 +159,7 @@ class StoredInstance:
         """
         return f"StoredInstance(Name={self.name}, State={self.state})"
 
-    def check_event(self, event: ServiceEvent) -> bool:
+    def check_event(self, event: "ServiceEvent") -> bool:
         """
         Tests if the given service event must be handled or ignored, based
         on the state of the iPOPO service and on the content of the event.
@@ -174,7 +176,7 @@ class StoredInstance:
             return self.__safe_handlers_callback("check_event", event)
 
     def bind(
-        self, dependency: handlers_const.DependencyHandler, svc: T, svc_ref: ServiceReference[T]
+        self, dependency: handlers_const.DependencyHandler, svc: T, svc_ref: "ServiceReference[T]"
     ) -> None:
         """
         Called by a dependency manager to inject a new service and update the
@@ -188,7 +190,7 @@ class StoredInstance:
         self,
         dependency: handlers_const.DependencyHandler,
         svc: T,
-        svc_ref: ServiceReference[T],
+        svc_ref: "ServiceReference[T]",
         old_properties: Dict[str, Any],
         new_value: bool = False,
     ) -> None:
@@ -207,7 +209,7 @@ class StoredInstance:
             self.check_lifecycle()
 
     def unbind(
-        self, dependency: handlers_const.DependencyHandler, svc: T, svc_ref: ServiceReference[T]
+        self, dependency: handlers_const.DependencyHandler, svc: T, svc_ref: "ServiceReference[T]"
     ) -> None:
         """
         Called by a dependency manager to remove an injected service and to
@@ -838,7 +840,7 @@ class StoredInstance:
         return result
 
     def __set_binding(
-        self, dependency: handlers_const.DependencyHandler, service: T, reference: ServiceReference[T]
+        self, dependency: handlers_const.DependencyHandler, service: T, reference: "ServiceReference[T]"
     ) -> None:
         """
         Injects a service in the component
@@ -868,7 +870,7 @@ class StoredInstance:
         self,
         dependency: handlers_const.DependencyHandler,
         service: T,
-        reference: ServiceReference[T],
+        reference: "ServiceReference[T]",
         old_properties: Dict[str, Any],
         new_value: bool,
     ) -> None:
@@ -902,7 +904,7 @@ class StoredInstance:
         self.safe_callback(constants.IPOPO_CALLBACK_UPDATE, service, reference, old_properties)
 
     def __unset_binding(
-        self, dependency: handlers_const.DependencyHandler, service: T, reference: ServiceReference[T]
+        self, dependency: handlers_const.DependencyHandler, service: T, reference: "ServiceReference[T]"
     ) -> None:
         """
         Removes a service from the component

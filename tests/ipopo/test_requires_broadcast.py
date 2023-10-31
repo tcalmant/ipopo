@@ -6,20 +6,13 @@ Tests the iPOPO @RequiresBest decorator.
 :author: Thomas Calmant
 """
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
 import random
+import unittest
 
-# Pelix
+from pelix.framework import BundleContext, FrameworkFactory
 from pelix.ipopo.constants import IPopoEvent
-from pelix.framework import FrameworkFactory, BundleContext
-
-# Tests
-from tests.ipopo import install_bundle, install_ipopo
 from tests.interfaces import IEchoService
+from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
@@ -98,9 +91,7 @@ class RequiresBestTest(unittest.TestCase):
         )
 
         # Instantiate the component
-        consumer = self.ipopo.instantiate(
-            module.FACTORY_REQUIRES_BROADCAST, NAME_A
-        )
+        consumer = self.ipopo.instantiate(module.FACTORY_REQUIRES_BROADCAST, NAME_A)
 
         # Component must be valid
         self.assertListEqual(
@@ -114,9 +105,7 @@ class RequiresBestTest(unittest.TestCase):
         self.assertFalse(consumer.service, "Proxy says it's valid")
 
         # We should be able to use the service
-        self.assertFalse(
-            consumer.service.echo("Hello"), "Service returned something"
-        )
+        self.assertFalse(consumer.service.echo("Hello"), "Service returned something")
 
         live_svc = []
 
@@ -171,14 +160,10 @@ class RequiresBestTest(unittest.TestCase):
 
             if live_svc:
                 self.assertTrue(consumer.service, "Proxy should be True")
-                self.assertTrue(
-                    consumer.service.echo(value), "Proxy should return True"
-                )
+                self.assertTrue(consumer.service.echo(value), "Proxy should return True")
             else:
                 self.assertFalse(consumer.service, "Proxy should be False")
-                self.assertFalse(
-                    consumer.service.echo(value), "Proxy should return False"
-                )
+                self.assertFalse(consumer.service.echo(value), "Proxy should return False")
 
             for _, svc_x in live_svc:
                 self.assertTrue(svc_x.called, "Service not called")
@@ -187,9 +172,7 @@ class RequiresBestTest(unittest.TestCase):
 
         # Last local check
         self.assertFalse(consumer.service, "Proxy should be False")
-        self.assertFalse(
-            consumer.service.echo(random.random()), "Call shouldn't return True"
-        )
+        self.assertFalse(consumer.service.echo(random.random()), "Call shouldn't return True")
 
     def test_required_service(self):
         """
@@ -206,9 +189,7 @@ class RequiresBestTest(unittest.TestCase):
         )
 
         # Instantiate the component
-        consumer = self.ipopo.instantiate(
-            module.FACTORY_REQUIRES_BROADCAST_REQUIRED, NAME_A
-        )
+        consumer = self.ipopo.instantiate(module.FACTORY_REQUIRES_BROADCAST_REQUIRED, NAME_A)
 
         # Component must be invalid
         self.assertListEqual(
@@ -250,9 +231,7 @@ class RequiresBestTest(unittest.TestCase):
             # Try a call
             value = random.randint(1, 100)
             self.assertTrue(consumer.service, "Proxy should be True")
-            self.assertTrue(
-                consumer.service.echo(value), "Proxy should return True"
-            )
+            self.assertTrue(consumer.service.echo(value), "Proxy should return True")
 
             for _, svc_x in live_svc:
                 self.assertTrue(svc_x.called, "Service not called")
@@ -279,9 +258,7 @@ class RequiresBestTest(unittest.TestCase):
                 # Test the call
                 value = random.randint(1, 42)
                 self.assertTrue(consumer.service, "Proxy should be True")
-                self.assertTrue(
-                    consumer.service.echo(value), "Proxy should return True"
-                )
+                self.assertTrue(consumer.service.echo(value), "Proxy should return True")
 
                 for _, svc_x in live_svc:
                     self.assertTrue(svc_x.called, "Service not called")
@@ -371,35 +348,26 @@ class RequiresBestTest(unittest.TestCase):
         )
 
         # Instantiate the component
-        consumer_muffled = self.ipopo.instantiate(
-            module.FACTORY_REQUIRES_BROADCAST, NAME_A
-        )
-        consumer_raise = self.ipopo.instantiate(
-            module.FACTORY_REQUIRES_BROADCAST_UNMUFFLED, NAME_B
-        )
+        consumer_muffled = self.ipopo.instantiate(module.FACTORY_REQUIRES_BROADCAST, NAME_A)
+        consumer_raise = self.ipopo.instantiate(module.FACTORY_REQUIRES_BROADCAST_UNMUFFLED, NAME_B)
 
         # Everything should be fine
-        self.assertFalse(
-            consumer_muffled.service.raise_ex(), "Call should return False"
-        )
-        self.assertFalse(
-            consumer_raise.service.raise_ex(), "Call should return False"
-        )
+        self.assertFalse(consumer_muffled.service.raise_ex(), "Call should return False")
+        self.assertFalse(consumer_raise.service.raise_ex(), "Call should return False")
 
         # Register the service
         svc = SampleEchoService()
         context.register_service(IEchoService, svc, {})
 
         # Muffled should be fine
-        self.assertTrue(
-            consumer_muffled.service.raise_ex(), "Call should return True"
-        )
+        self.assertTrue(consumer_muffled.service.raise_ex(), "Call should return True")
         self.assertTrue(svc.raised, "Service not called")
         svc.reset()
 
         # The other should raise the exception
         self.assertRaises(
-            KeyError, consumer_raise.service.raise_ex,
+            KeyError,
+            consumer_raise.service.raise_ex,
         )
         self.assertTrue(svc.raised, "Service not called")
 
@@ -418,9 +386,7 @@ class RequiresBestTest(unittest.TestCase):
         )
 
         # Instantiate the component
-        consumer = self.ipopo.instantiate(
-            module.FACTORY_REQUIRES_BROADCAST, NAME_A
-        )
+        consumer = self.ipopo.instantiate(module.FACTORY_REQUIRES_BROADCAST, NAME_A)
         consumer.reset()
 
         # Register the service

@@ -26,13 +26,15 @@ Defines some iPOPO constants
 """
 
 import contextlib
-from typing import Generator, Optional, Tuple
+from typing import TYPE_CHECKING, Generator, Optional, Tuple
 
 from pelix.constants import BundleException
-from pelix.framework import BundleContext
-from pelix.internals.registry import ServiceReference
-from pelix.ipopo.protocols import IPopoService
-from pelix.ipopo.waiting import IPopoWaitingList
+
+if TYPE_CHECKING:
+    from pelix.framework import BundleContext
+    from pelix.internals.registry import ServiceReference
+    from pelix.ipopo.protocols import IPopoService
+    from pelix.ipopo.waiting import IPopoWaitingList
 
 # ------------------------------------------------------------------------------
 
@@ -184,8 +186,8 @@ updated
 
 
 def get_ipopo_svc_ref(
-    bundle_context: BundleContext,
-) -> Optional[Tuple[ServiceReference[IPopoService], IPopoService]]:
+    bundle_context: "BundleContext",
+) -> Optional[Tuple["ServiceReference[IPopoService]", "IPopoService"]]:
     """
     Retrieves a tuple containing the service reference to iPOPO and the service
     itself
@@ -210,7 +212,7 @@ def get_ipopo_svc_ref(
 
 
 @contextlib.contextmanager
-def use_ipopo(bundle_context: BundleContext) -> Generator[IPopoService, None, None]:
+def use_ipopo(bundle_context: "BundleContext") -> Generator["IPopoService", None, None]:
     """
     Utility context to use the iPOPO service safely in a "with" block.
     It looks after the the iPOPO service and releases its reference when
@@ -238,7 +240,7 @@ def use_ipopo(bundle_context: BundleContext) -> Generator[IPopoService, None, No
 
 
 @contextlib.contextmanager
-def use_waiting_list(bundle_context: BundleContext) -> Generator[IPopoWaitingList, None, None]:
+def use_waiting_list(bundle_context: "BundleContext") -> Generator["IPopoWaitingList", None, None]:
     """
     Utility context to use the iPOPO waiting list safely in a "with" block.
     It looks after the the iPOPO waiting list service and releases its

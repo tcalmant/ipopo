@@ -35,12 +35,14 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional, Protocol, Tuple
+from typing import TYPE_CHECKING, Any, List, Optional, Protocol, Tuple
 
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceReference
-from pelix.ipopo.contexts import ComponentContext, Requirement
-from pelix.ipopo.instance import StoredInstance
+
+if TYPE_CHECKING:
+    from pelix.ipopo.contexts import ComponentContext, Requirement
+    from pelix.ipopo.instance import StoredInstance
 
 SERVICE_IPOPO_HANDLER_FACTORY = "ipopo.handler.factory"
 """
@@ -103,7 +105,7 @@ class Handler(ABC):
         ...
 
     @abstractmethod
-    def manipulate(self, stored_instance: StoredInstance, component_instance: Any) -> None:
+    def manipulate(self, stored_instance: "StoredInstance", component_instance: Any) -> None:
         """
         Manipulates the associated component instance
         """
@@ -227,7 +229,7 @@ class DependencyHandler(Handler, ABC):
     Dependency handler abstract class
     """
 
-    requirement: Requirement
+    requirement: "Requirement"
 
     def get_field(self) -> Optional[str]:
         """
@@ -265,7 +267,7 @@ class HandlerFactory(Protocol):
     Handler factory abstract class
     """
 
-    def get_handlers(self, component_context: ComponentContext, instance: Any) -> List[Handler]:
+    def get_handlers(self, component_context: "ComponentContext", instance: Any) -> List[Handler]:
         """
         Prepares handlers for the given component
 

@@ -6,18 +6,11 @@ Tests iPOPO handlers, using the sample logger handler
 :author: Thomas Calmant
 """
 
-# Standard library
 import sys
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
-# Pelix
-from pelix.framework import FrameworkFactory
 import pelix.ipopo.handlers.constants as constants
-
-# Tests
+from pelix.framework import FrameworkFactory
 from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
@@ -44,6 +37,7 @@ class DummyHandlerFactory(object):
     """
     A dummy handler with a "called" flag
     """
+
     def __init__(self):
         """
         Sets up members
@@ -57,6 +51,7 @@ class DummyHandlerFactory(object):
         self.called = True
         return []
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -64,6 +59,7 @@ class LifeCycleTest(unittest.TestCase):
     """
     Tests the component life cycle
     """
+
     def setUp(self):
         """
         Called before each test. Initiates a framework.
@@ -94,22 +90,19 @@ class LifeCycleTest(unittest.TestCase):
         install_bundle(self.framework, COMPONENT_BUNDLE_NAME)
 
         # The component must be absent
-        self.assertFalse(ipopo.is_registered_instance(COMPONENT_NAME),
-                         "Instance already there")
+        self.assertFalse(ipopo.is_registered_instance(COMPONENT_NAME), "Instance already there")
 
         # Install the handler
         install_bundle(self.framework, HANDLER_BUNDLE_NAME)
 
         # The component must have been validated
-        self.assertTrue(ipopo.is_registered_instance(COMPONENT_NAME),
-                        "Instance has not been validated")
+        self.assertTrue(ipopo.is_registered_instance(COMPONENT_NAME), "Instance has not been validated")
 
         # Remove the handler
         self.framework.get_bundle_by_name(HANDLER_BUNDLE_NAME).stop()
 
         # The component must be absent
-        self.assertFalse(ipopo.is_registered_instance(COMPONENT_NAME),
-                         "Instance still there")
+        self.assertFalse(ipopo.is_registered_instance(COMPONENT_NAME), "Instance still there")
 
         # Remove the component
         self.framework.get_bundle_by_name(COMPONENT_BUNDLE_NAME).stop()
@@ -128,8 +121,7 @@ class LifeCycleTest(unittest.TestCase):
         install_bundle(self.framework, COMPONENT_BUNDLE_NAME)
 
         # The component must have been validated
-        self.assertTrue(ipopo.is_registered_instance(COMPONENT_NAME),
-                        "Instance has not been validated")
+        self.assertTrue(ipopo.is_registered_instance(COMPONENT_NAME), "Instance has not been validated")
 
         # Remove the component
         self.framework.get_bundle_by_name(COMPONENT_BUNDLE_NAME).stop()
@@ -160,8 +152,7 @@ class LifeCycleTest(unittest.TestCase):
         self.assertCountEqual(missing, [HANDLER_ID])
 
         # The instance details must fail (instance not ready)
-        self.assertRaises(ValueError, ipopo.get_instance_details,
-                          COMPONENT_NAME)
+        self.assertRaises(ValueError, ipopo.get_instance_details, COMPONENT_NAME)
 
         # Get factory details
         factory_details = ipopo.get_factory_details(factory)
@@ -194,8 +185,7 @@ class LifeCycleTest(unittest.TestCase):
             self.fail("Component not in the waiting handler list")
 
         # The instance details must fail (instance not ready)
-        self.assertRaises(ValueError, ipopo.get_instance_details,
-                          COMPONENT_NAME)
+        self.assertRaises(ValueError, ipopo.get_instance_details, COMPONENT_NAME)
 
     def testDuplicateHandler(self):
         """
@@ -213,9 +203,7 @@ class LifeCycleTest(unittest.TestCase):
         # Register the handler factory service
         context = self.framework.get_bundle_context()
         dummy_handler = DummyHandlerFactory()
-        svc_reg = context.register_service(
-            constants.SERVICE_IPOPO_HANDLER_FACTORY,
-            dummy_handler, properties)
+        svc_reg = context.register_service(constants.SERVICE_IPOPO_HANDLER_FACTORY, dummy_handler, properties)
 
         # Install the component bundle
         install_bundle(self.framework, COMPONENT_BUNDLE_NAME)
@@ -239,8 +227,7 @@ class LifeCycleTest(unittest.TestCase):
                 self.fail("Component is waiting for its handler")
 
         # The duplicated handler must have been called
-        self.assertTrue(dummy_handler.called,
-                        "Second handler has not been used")
+        self.assertTrue(dummy_handler.called, "Second handler has not been used")
 
         # Unregister the duplicated handler
         svc_reg.unregister()
@@ -254,11 +241,13 @@ class LifeCycleTest(unittest.TestCase):
             # Component not found
             self.fail("Component not in the waiting handler list")
 
+
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

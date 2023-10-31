@@ -528,7 +528,7 @@ class ComponentFactory:
                 pass
     """
 
-    def __init__(self, name: Optional[str] = None, excluded: Optional[List[str]] = None) -> None:
+    def __init__(self, name: Optional[str] = None, excluded: Optional[Union[str, List[str]]] = None) -> None:
         """
         :param name: Name of the component factory, used to identify it when
                      instantiating a component. This name must be unique in a

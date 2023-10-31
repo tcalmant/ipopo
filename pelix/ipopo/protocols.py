@@ -25,11 +25,13 @@ iPOPO service interfaces definitions
     limitations under the License.
 """
 
-from typing import Any, Dict, List, Optional, Protocol, Set, Tuple, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Set, Tuple, Type
 
 from pelix.framework import Bundle, BundleContext
 from pelix.ipopo import constants
-from pelix.ipopo.constants import IPopoEvent
+
+if TYPE_CHECKING:
+    from pelix.ipopo.constants import IPopoEvent
 
 
 class IPopoEventListener(Protocol):
@@ -37,7 +39,7 @@ class IPopoEventListener(Protocol):
     Interface of iPOPO events listeners
     """
 
-    def handle_ipopo_event(self, event: IPopoEvent) -> None:
+    def handle_ipopo_event(self, event: "IPopoEvent") -> None:
         """
         Handles an iPOPO event
 
