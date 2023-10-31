@@ -7,23 +7,13 @@ Pelix HTTP routing test module.
 """
 
 import random
+import unittest
 import uuid
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-# Pelix
-from pelix.framework import create_framework, FrameworkFactory
-from pelix.utilities import to_str
-
-# HTTP service constants
 import pelix.http.routing as routing
-
-# Utilities
-from tests.http.test_basic import install_ipopo, instantiate_server, \
-    get_http_page
+from pelix.framework import FrameworkFactory, create_framework
+from pelix.utilities import to_str
+from tests.http.test_basic import get_http_page, install_ipopo, instantiate_server
 
 # ------------------------------------------------------------------------------
 
@@ -42,12 +32,13 @@ class HttpRoutingTests(unittest.TestCase):
     """
     Tests of the HTTP routing class
     """
+
     def setUp(self):
         """
         Sets up the test environment
         """
         # Start a framework
-        self.framework = create_framework(['pelix.http.basic'])
+        self.framework = create_framework(["pelix.http.basic"])
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
         self.http = instantiate_server(self.ipopo)
@@ -64,6 +55,7 @@ class HttpRoutingTests(unittest.TestCase):
         """
         Tests the @Http decorator type checking (all others depends on it)
         """
+
         # Define some invalid types
         class BadClass(object):
             pass
@@ -98,12 +90,19 @@ class HttpRoutingTests(unittest.TestCase):
         """
         Tests the @Http decorator method checking (all others depends on it)
         """
+
         def dummy():
             pass
 
-        for valid in (None, ("POST",), ["GET"],
-                      ("GET", "HEAD"), ["GET, HEAD"], {"HEAD", "GET"},
-                      frozenset(("GET", "HEAD"))):
+        for valid in (
+            None,
+            ("POST",),
+            ["GET"],
+            ("GET", "HEAD"),
+            ["GET, HEAD"],
+            {"HEAD", "GET"},
+            frozenset(("GET", "HEAD")),
+        ):
             self.assertIs(routing.Http("/", valid)(dummy), dummy)
 
         for invalid in (123, "HEAD"):
@@ -126,6 +125,7 @@ class HttpRoutingTests(unittest.TestCase):
         """
         Tests the dispatcher
         """
+
         class Servlet(routing.RestDispatcher):
             def __init__(self):
                 super(Servlet, self).__init__()
@@ -174,8 +174,7 @@ class HttpRoutingTests(unittest.TestCase):
         # Route path
         for path in ("", "/", "/test", "/test/a", "/test/b"):
             router.reset()
-            code, data = get_http_page(uri="{0}{1}".format(prefix, path),
-                                       only_code=False)
+            code, data = get_http_page(uri="{0}{1}".format(prefix, path), only_code=False)
             self.assertEqual(code, 200)
             self.assertEqual(to_str(data), "OK")
             self.assertEqual(router.called_path, path or "/")
@@ -185,6 +184,7 @@ class HttpRoutingTests(unittest.TestCase):
         """
         Tests the methods filters
         """
+
         class Servlet(routing.RestDispatcher):
             def __init__(self):
                 super(Servlet, self).__init__()
@@ -237,9 +237,7 @@ class HttpRoutingTests(unittest.TestCase):
         # Try basic filtering
         for method in HTTP_METHODS:
             router.reset()
-            code, data = get_http_page(
-                uri="{0}/{1}".format(prefix, method.lower()),
-                method=method, only_code=False)
+            code, data = get_http_page(uri=f"{prefix}/{method.lower()}", method=method, only_code=False)
             self.assertEqual(code, 200, method)
             self.assertEqual(router.verb, method)
             if method != "HEAD":
@@ -249,16 +247,13 @@ class HttpRoutingTests(unittest.TestCase):
             for other_method in HTTP_METHODS:
                 if other_method != method:
                     # Ensure that other HTTP methods are filtered
-                    code = get_http_page(
-                        uri="{0}/{1}".format(prefix, method.lower()),
-                        method=other_method)
+                    code = get_http_page(uri="{0}/{1}".format(prefix, method.lower()), method=other_method)
                     self.assertEqual(code, 404)
 
         # Try with multi-commands methods
         for method in ("GET", "HEAD"):
             router.reset()
-            code = get_http_page(uri="{0}/get-head".format(prefix),
-                                 method=method)
+            code = get_http_page(uri="{0}/get-head".format(prefix), method=method)
             self.assertEqual(code, 200, method)
             self.assertEqual(router.verb, method)
 
@@ -273,6 +268,7 @@ class HttpRoutingTests(unittest.TestCase):
         """
         Tests the type parsing by the dispatcher
         """
+
         class Servlet(routing.RestDispatcher):
             def __init__(self):
                 super(Servlet, self).__init__()
@@ -310,8 +306,7 @@ class HttpRoutingTests(unittest.TestCase):
                 self.args = [value]
                 resp.send_content(200, "OK")
 
-            @routing.HttpGet("/all/<count:int>/<temp:float>/"
-                             "<label:string>/<path:path>/toto")
+            @routing.HttpGet("/all/<count:int>/<temp:float>/" "<label:string>/<path:path>/toto")
             def all(self, req, resp, count, temp, label, path):
                 self.args = [count, temp, label, path]
                 resp.send_content(200, "OK")
@@ -376,9 +371,12 @@ class HttpRoutingTests(unittest.TestCase):
             self.assertIsInstance(router.args[0], str, path)
 
         # UUID
-        for val in (uuid.uuid1(), uuid.uuid4(),
-                    uuid.uuid3(uuid.NAMESPACE_OID, "test"),
-                    uuid.uuid5(uuid.NAMESPACE_OID, "test")):
+        for val in (
+            uuid.uuid1(),
+            uuid.uuid4(),
+            uuid.uuid3(uuid.NAMESPACE_OID, "test"),
+            uuid.uuid5(uuid.NAMESPACE_OID, "test"),
+        ):
             path = "/uuid/{0}".format(val)
             router.reset()
             code = get_http_page(uri="{0}/{1}".format(prefix, path))
@@ -388,8 +386,10 @@ class HttpRoutingTests(unittest.TestCase):
 
         # Optional
         for path, toto, titi in (
-                ("opt", None, None), ("opt/123", "123", None),
-                ("opt/toto/titi", "toto", "titi")):
+            ("opt", None, None),
+            ("opt/123", "123", None),
+            ("opt/toto/titi", "toto", "titi"),
+        ):
             router.reset()
             code = get_http_page(uri="{0}/{1}".format(prefix, path))
             self.assertEqual(code, 200, path)
@@ -397,12 +397,15 @@ class HttpRoutingTests(unittest.TestCase):
 
         # Keyword arguments
         for path, toto, titi in (
-                ("opt", None, None), ("opt/123", "123", None),
-                ("opt/toto/titi", "toto", "titi")):
+            ("opt", None, None),
+            ("opt/123", "123", None),
+            ("opt/toto/titi", "toto", "titi"),
+        ):
             router.reset()
             code = get_http_page(uri="{0}/{1}".format(prefix, path))
             self.assertEqual(code, 200, path)
             self.assertListEqual(router.args, [toto, titi], path)
+
 
 # ------------------------------------------------------------------------------
 

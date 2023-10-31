@@ -6,27 +6,15 @@ Pelix basic HTTP service test module.
 :author: Thomas Calmant
 """
 
+import http.client as httplib
 import logging
+from typing import Optional
+import unittest
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-try:
-    # Python 3
-    import http.client as httplib
-except (ImportError, AttributeError):
-    # Python 2 or IronPython
-    import httplib
-
-from pelix.framework import FrameworkFactory, BundleContext
-import pelix.ipopo.constants as constants
-
-# HTTP service constants
 import pelix.http as http
-
-from tests import log_on, log_off
+import pelix.ipopo.constants as constants
+from pelix.framework import BundleContext, FrameworkFactory
+from tests import log_off, log_on
 
 # ------------------------------------------------------------------------------
 
@@ -78,14 +66,15 @@ def install_ipopo(framework):
     return context.get_service(ref)
 
 
-def instantiate_server(ipopo_svc, address=DEFAULT_HOST, port=DEFAULT_PORT):
+def instantiate_server(ipopo_svc, address: Optional[str] = DEFAULT_HOST, port: Optional[int] = DEFAULT_PORT):
     """
     Instantiates a basic server component
     """
-    return ipopo_svc.instantiate(http.FACTORY_HTTP_BASIC,
-                                 "test-http-service",
-                                 {http.HTTP_SERVICE_ADDRESS: address,
-                                  http.HTTP_SERVICE_PORT: port})
+    return ipopo_svc.instantiate(
+        http.FACTORY_HTTP_BASIC,
+        "test-http-service",
+        {http.HTTP_SERVICE_ADDRESS: address, http.HTTP_SERVICE_PORT: port},
+    )
 
 
 def kill_server(ipopo_svc):
@@ -95,9 +84,9 @@ def kill_server(ipopo_svc):
     ipopo_svc.kill("test-http-service")
 
 
-def get_http_page(host=DEFAULT_HOST, port=DEFAULT_PORT,
-                  uri="/", method="GET", headers=None, content=None,
-                  only_code=True):
+def get_http_page(
+    host=DEFAULT_HOST, port=DEFAULT_PORT, uri="/", method="GET", headers=None, content=None, only_code=True
+):
     """
     Retrieves the result of an HTTP request
 
@@ -122,6 +111,7 @@ def get_http_page(host=DEFAULT_HOST, port=DEFAULT_PORT,
 
     return result.status, data
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -129,6 +119,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
     """
     Tests of the basic HTTP service servlets handling
     """
+
     def setUp(self):
         """
         Sets up the test environment
@@ -144,8 +135,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         install_bundle(self.framework, "pelix.http.basic")
 
         # Install test bundle
-        self.servlets = install_bundle(self.framework,
-                                       "tests.http.servlets_bundle")
+        self.servlets = install_bundle(self.framework, "tests.http.servlets_bundle")
 
     def tearDown(self):
         """
@@ -160,8 +150,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         Tests the server when no servlet is active
         """
         instantiate_server(self.ipopo)
-        self.assertEqual(get_http_page(only_code=True), 404,
-                         "Received something other than a 404")
+        self.assertEqual(get_http_page(only_code=True), 404, "Received something other than a 404")
 
     def testRegisteredServlet(self):
         """
@@ -171,8 +160,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
 
         # Register the servlet
         servlet = self.servlets.SimpleServlet()
-        self.assertTrue(http_svc.register_servlet("/test", servlet),
-                        "Servlet not registered")
+        self.assertTrue(http_svc.register_servlet("/test", servlet), "Servlet not registered")
 
         # Test the call back
         self.assertEqual(["/test"], servlet.bound, "bound_to not called")
@@ -180,34 +168,29 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         servlet.reset()
 
         # Test information
-        self.assertIs(http_svc.get_servlet("/test")[0], servlet,
-                      "get_servlet() didn't return the servlet")
-        self.assertIs(http_svc.get_servlet("/test/Toto")[0], servlet,
-                      "get_servlet() didn't return the servlet")
-        self.assertIsNone(http_svc.get_servlet("/"),
-                          "Root is associated to a servlet")
-        self.assertIsNone(http_svc.get_servlet("/tes"),
-                          "Incomplete path is associated to a servlet")
+        self.assertIs(http_svc.get_servlet("/test")[0], servlet, "get_servlet() didn't return the servlet")
+        self.assertIs(
+            http_svc.get_servlet("/test/Toto")[0], servlet, "get_servlet() didn't return the servlet"
+        )
+        self.assertIsNone(http_svc.get_servlet("/"), "Root is associated to a servlet")
+        self.assertIsNone(http_svc.get_servlet("/tes"), "Incomplete path is associated to a servlet")
 
         # Test access to /
-        self.assertEqual(get_http_page(uri="/", only_code=True), 404,
-                         "Received something other than a 404")
+        self.assertEqual(get_http_page(uri="/", only_code=True), 404, "Received something other than a 404")
 
         # Test access to /test
-        self.assertEqual(get_http_page(uri="/test", method="GET",
-                                       only_code=True), 200,
-                         "Servlet not registered ?")
-        self.assertEqual(get_http_page(uri="/test", method="POST",
-                                       only_code=True), 201,
-                         "Servlet not registered ?")
-        self.assertEqual(get_http_page(uri="/test", method="PUT",
-                                       only_code=True), 404,
-                         "Unwanted answer")
+        self.assertEqual(
+            get_http_page(uri="/test", method="GET", only_code=True), 200, "Servlet not registered ?"
+        )
+        self.assertEqual(
+            get_http_page(uri="/test", method="POST", only_code=True), 201, "Servlet not registered ?"
+        )
+        self.assertEqual(get_http_page(uri="/test", method="PUT", only_code=True), 404, "Unwanted answer")
 
         # Sub path
-        self.assertEqual(get_http_page(uri="/test/toto", method="GET",
-                                       only_code=True), 200,
-                         "Servlet not registered ?")
+        self.assertEqual(
+            get_http_page(uri="/test/toto", method="GET", only_code=True), 200, "Servlet not registered ?"
+        )
 
         # Unregister the servlet
         http_svc.unregister("/test")
@@ -218,18 +201,17 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         servlet.reset()
 
         # Test access to /
-        self.assertEqual(get_http_page(uri="/", only_code=True), 404,
-                         "Received something other than a 404")
+        self.assertEqual(get_http_page(uri="/", only_code=True), 404, "Received something other than a 404")
 
         # Test access to /test
-        self.assertEqual(get_http_page(uri="/test", method="POST",
-                                       only_code=True), 404,
-                         "Servlet still registered")
+        self.assertEqual(
+            get_http_page(uri="/test", method="POST", only_code=True), 404, "Servlet still registered"
+        )
 
         # Sub path
-        self.assertEqual(get_http_page(uri="/test/toto", method="GET",
-                                       only_code=True), 404,
-                         "Servlet still registered")
+        self.assertEqual(
+            get_http_page(uri="/test/toto", method="GET", only_code=True), 404, "Servlet still registered"
+        )
 
     def testBindingRaiser(self):
         """
@@ -243,12 +225,14 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
 
         # Register the servlet
         log_off()
-        self.assertFalse(http_svc.register_servlet("/test", servlet),
-                         "Servlet registered even raising an exception")
+        self.assertFalse(
+            http_svc.register_servlet("/test", servlet), "Servlet registered even raising an exception"
+        )
         log_on()
 
-        self.assertEqual(get_http_page(uri="/test", only_code=True), 404,
-                         "Servlet registered even raising an exception")
+        self.assertEqual(
+            get_http_page(uri="/test", only_code=True), 404, "Servlet registered even raising an exception"
+        )
 
     def testUnbindingRaiser(self):
         """
@@ -261,10 +245,8 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         servlet = self.servlets.SimpleServlet(False)
 
         # Register the servlet
-        self.assertTrue(http_svc.register_servlet("/test", servlet),
-                        "Servlet not registered")
-        self.assertEqual(get_http_page(uri="/test", only_code=True), 200,
-                         "Servlet not registered ?")
+        self.assertTrue(http_svc.register_servlet("/test", servlet), "Servlet not registered")
+        self.assertEqual(get_http_page(uri="/test", only_code=True), 200, "Servlet not registered ?")
 
         # Make it raise an exception
         servlet.raiser = True
@@ -275,8 +257,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         log_on()
 
         # The servlet must have been unregistered
-        self.assertEqual(get_http_page(uri="/test", only_code=True), 404,
-                         "Servlet still registered")
+        self.assertEqual(get_http_page(uri="/test", only_code=True), 404, "Servlet still registered")
 
     def testAcceptBinding(self):
         """
@@ -292,32 +273,27 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         servlet_2 = self.servlets.SimpleServlet(False)
 
         # Register the first servlet
-        self.assertTrue(http_svc.register_servlet("/test", servlet),
-                        "Servlet not registered")
-        self.assertEqual(get_http_page(uri="/test", only_code=True), 200,
-                         "Servlet not registered ?")
+        self.assertTrue(http_svc.register_servlet("/test", servlet), "Servlet not registered")
+        self.assertEqual(get_http_page(uri="/test", only_code=True), 200, "Servlet not registered ?")
 
         # Second registration must work
-        self.assertTrue(http_svc.register_servlet("/test", servlet),
-                        "Servlet not registered")
+        self.assertTrue(http_svc.register_servlet("/test", servlet), "Servlet not registered")
 
         # Try to register the second servlet, accepting the server
         servlet_2.accept = True
-        self.assertRaises(ValueError, http_svc.register_servlet,
-                          "/test", servlet_2)
+        self.assertRaises(ValueError, http_svc.register_servlet, "/test", servlet_2)
 
         # Ensure that our first servlet is still there
-        self.assertEqual(get_http_page(uri="/test", only_code=True), 200,
-                         "Servlet not registered ?")
+        self.assertEqual(get_http_page(uri="/test", only_code=True), 200, "Servlet not registered ?")
 
         # Try to register the second servlet, rejecting the server
         servlet_2.accept = False
-        self.assertFalse(http_svc.register_servlet("/test", servlet_2),
-                         "Non-accepted server -> must return False")
+        self.assertFalse(
+            http_svc.register_servlet("/test", servlet_2), "Non-accepted server -> must return False"
+        )
 
         # Ensure that our first servlet is still there
-        self.assertEqual(get_http_page(uri="/test", only_code=True), 200,
-                         "Servlet not registered ?")
+        self.assertEqual(get_http_page(uri="/test", only_code=True), 200, "Servlet not registered ?")
 
         # Unregister it (no exception should be propagated)
         log_off()
@@ -325,8 +301,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         log_on()
 
         # The servlet must have been unregistered
-        self.assertEqual(get_http_page(uri="/test", only_code=True), 404,
-                         "Servlet still registered")
+        self.assertEqual(get_http_page(uri="/test", only_code=True), 404, "Servlet still registered")
 
     def testWhiteboardPatternSimple(self):
         """
@@ -336,10 +311,11 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
 
         # Instantiate the servlet component
         servlet_name = "test-whiteboard-simple"
-        servlet = self.ipopo.instantiate(self.servlets.SIMPLE_SERVLET_FACTORY,
-                                         servlet_name,
-                                         {http.HTTP_SERVLET_PATH: "/test",
-                                          "raiser": False})
+        servlet = self.ipopo.instantiate(
+            self.servlets.SIMPLE_SERVLET_FACTORY,
+            servlet_name,
+            {http.HTTP_SERVLET_PATH: "/test", "raiser": False},
+        )
 
         # Test the call back
         self.assertEqual(["/test"], servlet.bound, "bound_to not called")
@@ -347,21 +323,19 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         servlet.reset()
 
         # Test information
-        self.assertIs(http_svc.get_servlet("/test")[0], servlet,
-                      "get_servlet() didn't return the servlet")
-        self.assertEqual(http_svc.get_servlet("/test")[2], "/test",
-                         "get_servlet() didn't return the prefix correctly")
+        self.assertIs(http_svc.get_servlet("/test")[0], servlet, "get_servlet() didn't return the servlet")
+        self.assertEqual(
+            http_svc.get_servlet("/test")[2], "/test", "get_servlet() didn't return the prefix correctly"
+        )
 
         # Test access to /test
-        self.assertEqual(get_http_page(uri="/test", method="GET",
-                                       only_code=True), 200,
-                         "Servlet not registered ?")
-        self.assertEqual(get_http_page(uri="/test", method="POST",
-                                       only_code=True), 201,
-                         "Servlet not registered ?")
-        self.assertEqual(get_http_page(uri="/test", method="PUT",
-                                       only_code=True), 404,
-                         "Unwanted answer")
+        self.assertEqual(
+            get_http_page(uri="/test", method="GET", only_code=True), 200, "Servlet not registered ?"
+        )
+        self.assertEqual(
+            get_http_page(uri="/test", method="POST", only_code=True), 201, "Servlet not registered ?"
+        )
+        self.assertEqual(get_http_page(uri="/test", method="PUT", only_code=True), 404, "Unwanted answer")
 
         # Kill the component
         self.ipopo.kill(servlet_name)
@@ -372,9 +346,9 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         servlet.reset()
 
         # Test access to /test
-        self.assertEqual(get_http_page(uri="/test", method="POST",
-                                       only_code=True), 404,
-                         "Servlet still registered")
+        self.assertEqual(
+            get_http_page(uri="/test", method="POST", only_code=True), 404, "Servlet still registered"
+        )
 
     def testWhiteboardPatternMultiple(self):
         """
@@ -386,42 +360,38 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         servlet_name = "test-whiteboard-multiple"
         paths = ["/test1", "/test2", "/test/1"]
 
-        servlet = self.ipopo.instantiate(self.servlets.SIMPLE_SERVLET_FACTORY,
-                                         servlet_name,
-                                         {http.HTTP_SERVLET_PATH: paths,
-                                          "raiser": False})
+        servlet = self.ipopo.instantiate(
+            self.servlets.SIMPLE_SERVLET_FACTORY,
+            servlet_name,
+            {http.HTTP_SERVLET_PATH: paths, "raiser": False},
+        )
 
         # Test the call back
         for path in paths:
-            self.assertIn(path, servlet.bound,
-                          "bound_to not called for {0}".format(path))
+            self.assertIn(path, servlet.bound, "bound_to not called for {0}".format(path))
         self.assertEqual([], servlet.unbound, "unbound_from called")
         servlet.reset()
 
         # Test information
         for path in paths:
-            self.assertIs(http_svc.get_servlet(path)[0], servlet,
-                          "get_servlet() didn't return the servlet")
+            self.assertIs(http_svc.get_servlet(path)[0], servlet, "get_servlet() didn't return the servlet")
 
         # Test access to /test
         for path in paths:
-            self.assertEqual(get_http_page(uri=path, only_code=True), 200,
-                             "Servlet not registered ?")
+            self.assertEqual(get_http_page(uri=path, only_code=True), 200, "Servlet not registered ?")
 
         # Kill the component
         self.ipopo.kill(servlet_name)
 
         # Test the call back
         for path in paths:
-            self.assertIn(path, servlet.unbound,
-                          "unbound_from not called for {0}".format(path))
+            self.assertIn(path, servlet.unbound, "unbound_from not called for {0}".format(path))
         self.assertEqual([], servlet.bound, "bound_to called")
         servlet.reset()
 
         # Test access to paths
         for path in paths:
-            self.assertEqual(get_http_page(uri=path, only_code=True),
-                             404, "Servlet still registered")
+            self.assertEqual(get_http_page(uri=path, only_code=True), 404, "Servlet still registered")
 
     def testWhiteboardPatternUpdate(self):
         """
@@ -432,10 +402,11 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
 
         # Instantiate the servlet component
         servlet_name = "test-whiteboard-simple"
-        servlet = self.ipopo.instantiate(self.servlets.SIMPLE_SERVLET_FACTORY,
-                                         servlet_name,
-                                         {http.HTTP_SERVLET_PATH: "/test",
-                                          "raiser": False})
+        servlet = self.ipopo.instantiate(
+            self.servlets.SIMPLE_SERVLET_FACTORY,
+            servlet_name,
+            {http.HTTP_SERVLET_PATH: "/test", "raiser": False},
+        )
 
         # Test the call back
         self.assertEqual(["/test"], servlet.bound, "bound_to not called")
@@ -443,51 +414,50 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         servlet.reset()
 
         # Test information
-        self.assertIs(http_svc.get_servlet("/test")[0], servlet,
-                      "get_servlet() didn't return the servlet")
+        self.assertIs(http_svc.get_servlet("/test")[0], servlet, "get_servlet() didn't return the servlet")
 
         # Test access to /test
-        self.assertEqual(get_http_page(uri="/test", method="GET",
-                                       only_code=True), 200,
-                         "Servlet not registered ?")
-        self.assertEqual(get_http_page(uri="/test-updated", method="GET",
-                                       only_code=True), 404,
-                         "Unwanted success")
+        self.assertEqual(
+            get_http_page(uri="/test", method="GET", only_code=True), 200, "Servlet not registered ?"
+        )
+        self.assertEqual(
+            get_http_page(uri="/test-updated", method="GET", only_code=True), 404, "Unwanted success"
+        )
 
         # Update the service property
-        servlet.change('/test-updated')
+        servlet.change("/test-updated")
 
         # Test the call back
-        self.assertEqual(["/test-updated"], servlet.bound,
-                         "bound_to not called")
+        self.assertEqual(["/test-updated"], servlet.bound, "bound_to not called")
         self.assertEqual(["/test"], servlet.unbound, "unbound_from not called")
         servlet.reset()
 
         # Test information
-        self.assertIs(http_svc.get_servlet("/test-updated")[0], servlet,
-                      "get_servlet() didn't return the servlet")
+        self.assertIs(
+            http_svc.get_servlet("/test-updated")[0], servlet, "get_servlet() didn't return the servlet"
+        )
 
         # Test access to /test-updated
-        self.assertEqual(get_http_page(uri="/test-updated", method="GET",
-                                       only_code=True), 200,
-                         "Servlet not registered ?")
-        self.assertEqual(get_http_page(uri="/test", method="GET",
-                                       only_code=True), 404,
-                         "Unwanted answer after update")
+        self.assertEqual(
+            get_http_page(uri="/test-updated", method="GET", only_code=True), 200, "Servlet not registered ?"
+        )
+        self.assertEqual(
+            get_http_page(uri="/test", method="GET", only_code=True), 404, "Unwanted answer after update"
+        )
 
         # Kill the component
         self.ipopo.kill(servlet_name)
 
         # Test the call back
-        self.assertEqual(["/test-updated"], servlet.unbound,
-                         "unbound_from not called")
+        self.assertEqual(["/test-updated"], servlet.unbound, "unbound_from not called")
         self.assertEqual([], servlet.bound, "bound_to called")
         servlet.reset()
 
         # Test access to /test-updated
-        self.assertEqual(get_http_page(uri="/test-updated", method="GET",
-                                       only_code=True), 404,
-                         "Servlet still registered")
+        self.assertEqual(
+            get_http_page(uri="/test-updated", method="GET", only_code=True), 404, "Servlet still registered"
+        )
+
 
 # ------------------------------------------------------------------------------
 
@@ -496,6 +466,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
     """
     Tests of the basic HTTP service methods
     """
+
     def setUp(self):
         """
         Sets up the test environment
@@ -512,8 +483,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         self.http_svc = instantiate_server(self.ipopo)
 
         # Install test bundle
-        self.servlets = install_bundle(self.framework,
-                                       "tests.http.servlets_bundle")
+        self.servlets = install_bundle(self.framework, "tests.http.servlets_bundle")
 
     def tearDown(self):
         """
@@ -535,11 +505,10 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         http_svc = instantiate_server(self.ipopo, address, port)
 
         import socket
-        self.assertEqual(http_svc.get_hostname(), socket.gethostname(),
-                         "Different host names found")
 
-        self.assertEqual(http_svc.get_access(), (address, port),
-                         "Different accesses found")
+        self.assertEqual(http_svc.get_hostname(), socket.gethostname(), "Different host names found")
+
+        self.assertEqual(http_svc.get_access(), (address, port), "Different accesses found")
 
         # Given no address -> must be in a standard localhost representation
         # (depends on test system)
@@ -556,24 +525,21 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         http_svc = instantiate_server(self.ipopo, None, None)
 
         address, port = http_svc.get_access()
-        self.assertEqual(get_http_page(address, port, only_code=True), 404,
-                         "HTTP Service not stated with a random port")
+        self.assertEqual(
+            get_http_page(address, port, only_code=True), 404, "HTTP Service not stated with a random port"
+        )
 
     def testGetServlet(self):
         """
         Tests the get_servlet() method
         """
-        self.assertIsNone(self.http_svc.get_servlet(None),
-                          "None servlet may not exist")
+        self.assertIsNone(self.http_svc.get_servlet(None), "None servlet may not exist")
 
-        self.assertIsNone(self.http_svc.get_servlet(""),
-                          "Empty path may not be handled")
+        self.assertIsNone(self.http_svc.get_servlet(""), "Empty path may not be handled")
 
-        self.assertIsNone(self.http_svc.get_servlet("test"),
-                          "Invalid path may not be handled")
+        self.assertIsNone(self.http_svc.get_servlet("test"), "Invalid path may not be handled")
 
-        self.assertIsNone(self.http_svc.get_servlet("/"),
-                          "Empty servlet service may return None")
+        self.assertIsNone(self.http_svc.get_servlet("/"), "Empty servlet service may return None")
 
         # Dummy objects
         servlet_1 = object()
@@ -588,16 +554,16 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
 
         # Test the get_servlet method
         for path in ("/test", "/test/", "/test/1"):
-            self.assertIs(self.http_svc.get_servlet(path)[0], servlet_1,
-                          "Servlet 1 should handle {0}".format(path))
-            self.assertEqual(self.http_svc.get_servlet(path)[2], path_1,
-                             "Servlet 1 path is not kept")
+            self.assertIs(
+                self.http_svc.get_servlet(path)[0], servlet_1, "Servlet 1 should handle {0}".format(path)
+            )
+            self.assertEqual(self.http_svc.get_servlet(path)[2], path_1, "Servlet 1 path is not kept")
 
         for path in ("/test/sub", "/test/sub/", "/test/sub/1"):
-            self.assertIs(self.http_svc.get_servlet(path)[0], servlet_2,
-                          "Servlet 2 should handle {0}".format(path))
-            self.assertEqual(self.http_svc.get_servlet(path)[2], path_2,
-                             "Servlet 2 path is not kept")
+            self.assertIs(
+                self.http_svc.get_servlet(path)[0], servlet_2, "Servlet 2 should handle {0}".format(path)
+            )
+            self.assertEqual(self.http_svc.get_servlet(path)[2], path_2, "Servlet 2 path is not kept")
 
     def testRegisterServlet(self):
         """
@@ -608,13 +574,11 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         servlet_2 = object()
 
         # Refuse None servlets
-        self.assertRaises(ValueError, self.http_svc.register_servlet,
-                          "/test", None)
+        self.assertRaises(ValueError, self.http_svc.register_servlet, "/test", None)
 
         # Refuse empty paths
         for invalid in (None, "", "test"):
-            self.assertRaises(ValueError, self.http_svc.register_servlet,
-                              invalid, servlet_1)
+            self.assertRaises(ValueError, self.http_svc.register_servlet, invalid, servlet_1)
 
         # Registration must succeed, even without calls to bound_to
         self.assertTrue(self.http_svc.register_servlet("/test", servlet_1))
@@ -622,8 +586,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         self.assertTrue(self.http_svc.register_servlet("/test", servlet_1))
 
         # Refuse overrides
-        self.assertRaises(ValueError, self.http_svc.register_servlet,
-                          "/test", servlet_2)
+        self.assertRaises(ValueError, self.http_svc.register_servlet, "/test", servlet_2)
         self.assertTrue(self.http_svc.register_servlet("/test/sub", servlet_2))
 
     def testUnregisterServlet(self):
@@ -637,17 +600,18 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
 
         # Try to unregister invalid/unknown paths
         for invalid in (None, "", "test", "/test/sub", "/"):
-            self.assertFalse(self.http_svc.unregister(invalid),
-                             "An invalid path was unregistered: {0}"
-                             .format(invalid))
+            self.assertFalse(
+                self.http_svc.unregister(invalid), "An invalid path was unregistered: {0}".format(invalid)
+            )
 
         # Try to unregister a None servlet
-        self.assertFalse(self.http_svc.unregister(None),
-                         "None can't be unregistered.")
+        self.assertFalse(self.http_svc.unregister(None), "None can't be unregistered.")
 
         # Try to unregister an unknown servlet
-        self.assertFalse(self.http_svc.unregister(None, object()),
-                         "An unknown servlet can't be unregistered.")
+        self.assertFalse(
+            self.http_svc.unregister(None, object()), "An unknown servlet can't be unregistered."
+        )
+
 
 # ------------------------------------------------------------------------------
 

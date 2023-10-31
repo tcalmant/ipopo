@@ -6,8 +6,8 @@ Bundle defining multiple classes and component factories for HTTP service tests
 :author: Thomas Calmant
 """
 
-from pelix.ipopo.decorators import ComponentFactory, Property, Provides
 import pelix.http as http
+from pelix.ipopo.decorators import ComponentFactory, Property, Provides
 
 # ------------------------------------------------------------------------------
 
@@ -20,10 +20,11 @@ MULTIPLE_SERVLET_FACTORY = "multiple.servlet.factory"
 # ------------------------------------------------------------------------------
 
 
-class SimpleServlet(object):
+class SimpleServlet(http.Servlet):
     """
     A simple servlet implementation
     """
+
     def __init__(self, raiser=False):
         """
         Sets up the servlet
@@ -86,9 +87,11 @@ class SimpleServlet(object):
 <li>Keys: {keys}</li>
 </ul>
 </body>
-</html>""".format(clt_addr=request.get_client_address(),
-                  host=request.get_header('host', 0),
-                  keys=request.get_headers().keys())
+</html>""".format(
+            clt_addr=request.get_client_address(),
+            host=request.get_header("host", 0),
+            keys=request.get_headers().keys(),
+        )
 
         response.send_content(200, content)
 
@@ -98,17 +101,19 @@ class SimpleServlet(object):
         """
         response.send_content(201, "Success")
 
+
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory(name=SIMPLE_SERVLET_FACTORY)
-@Provides(specifications=http.HTTP_SERVLET)
-@Property('_path', http.HTTP_SERVLET_PATH, "/simple")
-@Property('_raiser', 'raiser', False)
+@Provides(specifications=http.Servlet)
+@Property("_path", http.HTTP_SERVLET_PATH, "/simple")
+@Property("_raiser", "raiser", False)
 class SimpleServletFactory(SimpleServlet):
     """
     Simple servlet factory (same as SimpleServlet)
     """
+
     def __init__(self):
         """
         Set up the component

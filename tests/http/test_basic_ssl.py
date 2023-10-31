@@ -6,35 +6,23 @@ Pelix basic HTTP service test module.
 :author: Thomas Calmant
 """
 
+import http.client as httplib
 import logging
 import os
 import shutil
 import tempfile
+import unittest
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-try:
-    # Python 3
-    import http.client as httplib
-except (ImportError, AttributeError):
-    # Python 2 or IronPython
-    import httplib
+import pelix.http as http
+from pelix.framework import FrameworkFactory
+from tests.http.gen_cert import make_certs
+from tests.http.test_basic import install_bundle, install_ipopo
 
 # Check if we can run the tests
 try:
     from ssl import SSLContext, create_default_context
 except ImportError:
     raise unittest.SkipTest("SSLContext not supported")
-
-# HTTP service constants
-import pelix.http as http
-
-from pelix.framework import FrameworkFactory
-from tests.http.gen_cert import make_certs
-from tests.http.test_basic import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
@@ -62,21 +50,26 @@ def get_file(name):
     return name
 
 
-def instantiate_server(ipopo_svc, cert_file, key_file, password=None,
-                       address=DEFAULT_HOST, port=DEFAULT_PORT):
+def instantiate_server(
+    ipopo_svc, cert_file, key_file, password=None, address=DEFAULT_HOST, port=DEFAULT_PORT
+):
     """
     Instantiates a basic server component
     """
     cert_file = get_file(cert_file)
     key_file = get_file(key_file)
 
-    return ipopo_svc.instantiate(http.FACTORY_HTTP_BASIC,
-                                 "test-https-service",
-                                 {http.HTTP_SERVICE_ADDRESS: address,
-                                  http.HTTP_SERVICE_PORT: port,
-                                  http.HTTPS_CERT_FILE: cert_file,
-                                  http.HTTPS_KEY_FILE: key_file,
-                                  http.HTTPS_KEY_PASSWORD: password})
+    return ipopo_svc.instantiate(
+        http.FACTORY_HTTP_BASIC,
+        "test-https-service",
+        {
+            http.HTTP_SERVICE_ADDRESS: address,
+            http.HTTP_SERVICE_PORT: port,
+            http.HTTPS_CERT_FILE: cert_file,
+            http.HTTPS_KEY_FILE: key_file,
+            http.HTTPS_KEY_PASSWORD: password,
+        },
+    )
 
 
 def kill_server(ipopo_svc):
@@ -86,9 +79,9 @@ def kill_server(ipopo_svc):
     ipopo_svc.kill("test-https-service")
 
 
-def get_https_page(host=DEFAULT_HOST, port=DEFAULT_PORT,
-                   uri="/", method="GET", headers=None, content=None,
-                   only_code=True):
+def get_https_page(
+    host=DEFAULT_HOST, port=DEFAULT_PORT, uri="/", method="GET", headers=None, content=None, only_code=True
+):
     """
     Retrieves the result of an HTTP request
 
@@ -120,6 +113,7 @@ def get_https_page(host=DEFAULT_HOST, port=DEFAULT_PORT,
 
     return result.status, data
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -127,6 +121,7 @@ class BasicHTTPSTest(unittest.TestCase):
     """
     Tests of the basic HTTPS service
     """
+
     @classmethod
     def setUpClass(cls):
         """
@@ -156,8 +151,7 @@ class BasicHTTPSTest(unittest.TestCase):
         install_bundle(self.framework, "pelix.http.basic")
 
         # Install test bundle
-        self.servlets = install_bundle(self.framework,
-                                       "tests.http.servlets_bundle")
+        self.servlets = install_bundle(self.framework, "tests.http.servlets_bundle")
 
     def tearDown(self):
         """
@@ -171,22 +165,20 @@ class BasicHTTPSTest(unittest.TestCase):
         """
         Tests the use of a certificate without password
         """
-        instantiate_server(
-            self.ipopo, cert_file="server.crt", key_file="server.key")
+        instantiate_server(self.ipopo, cert_file="server.crt", key_file="server.key")
 
-        self.assertEqual(get_https_page(only_code=True), 404,
-                         "Received something other than a 404")
+        self.assertEqual(get_https_page(only_code=True), 404, "Received something other than a 404")
 
     def testPasswordCertificate(self):
         """
         Tests the use of a certificate with a password
         """
         instantiate_server(
-            self.ipopo, cert_file="server_enc.crt",
-            key_file="server_enc.key", password=PASSWORD)
+            self.ipopo, cert_file="server_enc.crt", key_file="server_enc.key", password=PASSWORD
+        )
 
-        self.assertEqual(get_https_page(only_code=True), 404,
-                         "Received something other than a 404")
+        self.assertEqual(get_https_page(only_code=True), 404, "Received something other than a 404")
+
 
 # ------------------------------------------------------------------------------
 
