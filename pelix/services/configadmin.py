@@ -28,30 +28,28 @@ TODO: Stabilize implementation of managed service factories
 FIXME: Add tests for the configuration of managed service factories
 """
 
-# Standard library
 import json
 import logging
 import os
 import threading
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Protocol, Set, Tuple, cast
 import uuid
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Protocol, Set, Tuple, cast
 
-# Pelix
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Provides,
-    Property,
-    Validate,
-    Invalidate,
-    Requires,
-    Instantiate,
-    BindField,
-    UnbindField,
-)
 import pelix.constants
 import pelix.ldapfilter as ldapfilter
 import pelix.services as services
 import pelix.threadpool
+from pelix.ipopo.decorators import (
+    BindField,
+    ComponentFactory,
+    Instantiate,
+    Invalidate,
+    Property,
+    Provides,
+    Requires,
+    UnbindField,
+    Validate,
+)
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
