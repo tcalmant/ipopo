@@ -86,19 +86,19 @@ class IConfigurationAdminDirectory(Protocol):
 
     def list_configurations(
         self, ldap_filter: Optional[ldapfilter.LdapFilterOrCriteria] = None
-    ) -> List["Configuration"]:
+    ) -> List[services.Configuration]:
         """
         Lists known configuration
         """
         ...
 
-    def get_configuration(self, pid: str) -> "Configuration":
+    def get_configuration(self, pid: str) -> services.Configuration:
         """
         Returns an existing configuration
         """
         ...
 
-    def get_factory_configurations(self, factory_pid: str) -> Optional[Iterable["Configuration"]]:
+    def get_factory_configurations(self, factory_pid: str) -> Optional[Iterable[services.Configuration]]:
         """
         List available configurations for the given factory
         """
@@ -110,7 +110,7 @@ class IConfigurationAdminDirectory(Protocol):
         properties: Optional[Dict[str, Any]],
         persistence: services.IConfigurationAdminPersistence,
         factory_pid: Optional[str] = None,
-    ) -> "Configuration":
+    ) -> services.Configuration:
         """
         Add a configuration to the directory
         """
@@ -358,8 +358,7 @@ class Configuration:
         Delete this configuration
 
         :param directory_updated: If True, tell ConfigurationAdmin to not
-                                  recall the directory of this deletion
-                                  (internal use only)
+        recall the directory of this deletion (internal use only)
         """
         with self.__lock:
             if self.__deleted:
@@ -414,7 +413,7 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         """
         Sets up members
         """
-        # PID -> Configuration
+        # PID -> services.Configuration
         self.__configurations: Dict[str, Configuration] = {}
 
         # Factory PIDs -> set(Configuration)
@@ -432,7 +431,7 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         """
         return pid in self.__configurations or pid in self.__factories
 
-    def get_configuration(self, pid: str) -> Configuration:
+    def get_configuration(self, pid: str) -> services.Configuration:
         """
         Retrieves the configuration with the given PID
 
@@ -472,7 +471,7 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         properties: Optional[Dict[str, Any]],
         loader: services.IConfigurationAdminPersistence,
         factory_pid: Optional[str] = None,
-    ) -> Configuration:
+    ) -> services.Configuration:
         """
         Creates a new configuration bean
 
@@ -887,7 +886,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
             except Exception as ex:
                 _logger.exception("Error updating service: %s", ex)
 
-    def _update(self, configuration: Configuration) -> None:
+    def _update(self, configuration: services.Configuration) -> None:
         """
         A configuration has been updated.
 
@@ -960,7 +959,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
             # Wait for the end of the notification, outside the lock
             future.result()
 
-    def create_factory_configuration(self, factory_pid: str) -> Configuration:
+    def create_factory_configuration(self, factory_pid: str) -> services.Configuration:
         """
         Create a new factory Configuration object with a new PID.
         The properties of the new Configuration object are null until the
@@ -988,7 +987,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
             # Create the new factory configuration
             return self._directory.add(pid, None, self._persistences[0], factory_pid)
 
-    def get_configuration(self, pid: str) -> Configuration:
+    def get_configuration(self, pid: str) -> services.Configuration:
         """
         Get an existing Configuration object from the persistent store, or
         create a new Configuration object.
@@ -1021,7 +1020,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
 
     def list_configurations(
         self, ldap_filter: Optional[ldapfilter.LdapFilterOrCriteria] = None
-    ) -> List[Configuration]:
+    ) -> List[services.Configuration]:
         """
         List the current Configuration objects which match the filter.
 

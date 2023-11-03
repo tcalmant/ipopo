@@ -25,6 +25,11 @@ Pelix OSGi-like services packages
     limitations under the License.
 """
 
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Protocol
+
+if TYPE_CHECKING:
+    import pelix.ldapfilter as ldapfilter
+
 # Module version
 __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -32,12 +37,9 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-# Service Registry Hooks
-
-from typing import Any, Dict, Iterable, Optional, Protocol
-
 
 SERVICE_EVENT_LISTENER_HOOK = "pelix.internal.hooks.EventListenerHook"
+
 # ------------------------------------------------------------------------------
 
 FACTORY_EVENT_ADMIN = "pelix-services-eventadmin-factory"
@@ -119,12 +121,180 @@ CONFIG_PROP_BUNDLE_LOCATION = "service.bundleLocation"
 """ Configuration property: bound location (not used yet) """
 
 
+class Configuration(Protocol):
+    """
+    Representation of a configuration
+    """
+
+    def get_bundle_location(self) -> Optional[str]:
+        """
+        Get the bundle location.
+        Returns the bundle location to which this configuration is bound,
+        or None if it is not yet bound to a bundle location.
+
+        :return: The location associated to the configuration
+        """
+        ...
+
+    def set_bundle_location(self, location: Optional[str]) -> None:
+        """
+        Bind this Configuration object to the specified bundle location.
+        If the location parameter is None then the Configuration object
+        will not be bound to a location.
+        It will be set to the bundle's location before the first time a
+        Managed Service/Managed Service Factory receives this Configuration
+        object via the updated method and before any plugins are called.
+        The bundle location will be set persistently.
+
+        :param location: A bundle location
+        """
+        ...
+
+    def get_factory_pid(self) -> Optional[str]:
+        """
+        For a factory configuration returns the PID of the corresponding
+        Managed Service Factory, else returns None.
+
+        :return: The factory PID or None
+        """
+        ...
+
+    def get_pid(self) -> str:
+        """
+        Returns the PID of this configuration
+
+        :return: The configuration PID
+        """
+        ...
+
+    def get_properties(self) -> Optional[Dict[str, Any]]:
+        """
+        Return the properties of this Configuration object.
+        The Dictionary object returned is a private copy for the caller and may
+        be changed without influencing the stored configuration.
+
+        If called just after the configuration is created and before update has
+        been called, this method returns None.
+
+        :return: A private copy of the properties for the caller or null.
+        These properties must not contain the "service.bundleLocation"
+        property. The value of this property may be obtained from the
+        get_bundle_location() method.
+        """
+        ...
+
+    def is_valid(self) -> bool:
+        """
+        Checks if this configuration has been updated at least once and has not
+        been deleted.
+
+        :return: True if the configuration has properties and has not been deleted
+        """
+        ...
+
+    def reload(self) -> None:
+        """
+        Reloads the configuration file using the persistence service
+
+        :raise IOError: File not found/readable
+        :raise ValueError: Invalid file content
+        """
+        ...
+
+    def update(self, properties: Optional[Dict[str, Any]] = None) -> None:
+        """
+        If called without properties, only notifies listeners
+
+        Update the properties of this Configuration object.
+        Stores the properties in persistent storage after adding or overwriting
+        the following properties:
+
+        * "service.pid" : is set to be the PID of this configuration.
+        * "service.factoryPid" : if this is a factory configuration it is set to
+        the factory PID else it is not set.
+
+        These system properties are all of type String.
+
+        If the corresponding Managed Service/Managed Service Factory is
+        registered, its updated method must be called asynchronously.
+        Else, this callback is delayed until aforementioned registration
+        occurs.
+
+        Also initiates an asynchronous call to all ConfigurationListeners with
+        a ConfigurationEvent.CM_UPDATED event.
+
+        :param properties: the new set of properties for this configuration
+        :raise IOError: Error storing the configuration
+        """
+        ...
+
+    def delete(self) -> None:
+        """
+        Delete this configuration
+        """
+        ...
+
+    def matches(self, ldap_filter: Optional[ldapfilter.LdapFilterOrCriteria]) -> bool:
+        """
+        Tests if this configuration matches the given filter.
+
+        :param ldap_filter: A parsed LDAP filter object
+        :return: True if the properties of this configuration matches the filter
+        """
+        ...
+
+
 class IConfigurationAdmin(Protocol):
     """
     Specification of the configuration admin service
     """
 
     __SPECIFICATION__ = SERVICE_CONFIGURATION_ADMIN
+
+    def create_factory_configuration(self, factory_pid: str) -> Configuration:
+        """
+        Create a new factory Configuration object with a new PID.
+        The properties of the new Configuration object are null until the
+        first time that its update() method is called.
+
+        :param factory_pid: PID of the factory
+        :raise ValueError: Invalid PID
+        """
+        ...
+
+    def get_configuration(self, pid: str) -> Configuration:
+        """
+        Get an existing Configuration object from the persistent store, or
+        create a new Configuration object.
+
+        :param pid: PID of the factory
+        :raise IOError: File not found/readable
+        """
+        ...
+
+    def list_configurations(
+        self, ldap_filter: Optional[ldapfilter.LdapFilterOrCriteria] = None
+    ) -> List[Configuration]:
+        """
+        List the current Configuration objects which match the filter.
+
+        Only Configuration objects with non-null properties are considered
+        current.
+        That is, Configuration.get_properties() is guaranteed not to return
+        null for each of the returned Configuration objects.
+
+        The syntax of the filter string is as defined in the Filter class.
+        The filter can test any configuration properties including the
+        following:
+
+        * service.pid (str): the PID under which this is registered
+        * service.factoryPid (str): the factory if applicable
+        * service.bundleLocation(str): the bundle location
+
+        The filter can also be null, meaning that all Configuration objects
+        should be returned.
+        """
+        ...
 
 
 class IConfigurationAdminPersistence(Protocol):
@@ -181,10 +351,16 @@ class IManagedService(Protocol):
 
 class IManagedServiceFactory(Protocol):
     """
-    Specification of a service factory managed by configuration admin
+    Specification of a managed service factory
     """
 
     __SPECIFICATION__ = SERVICE_CONFIGADMIN_MANAGED_FACTORY
+
+    def get_name(self) -> str:
+        """
+        Returns the name of the factory
+        """
+        ...
 
     def updated(self, pid: str, properties: Optional[Dict[str, Any]]) -> None:
         """
