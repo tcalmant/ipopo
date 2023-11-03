@@ -454,8 +454,7 @@ def to_iterable(value: Any, allow_none: bool = True) -> Optional[Iterable]:
     containing one string is returned, ...
 
     :param value: Any object
-    :param allow_none: If True, the method returns None if value is None, else
-                       it returns an empty list
+    :param allow_none: If True, the method returns None if value is None, else it returns an empty list
     :return: A list containing the given string, or the given value
     """
     if value is None:

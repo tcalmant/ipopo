@@ -57,12 +57,38 @@ SERVICE_EVENT_HANDLER = "pelix.services.eventadmin.handler"
 """ Specification of an EventAdmin event handler """
 
 
+class EventAdmin(Protocol):
+    """
+    Definition of the event admin service
+    """
+
+    __SPECIFICATION__: str = SERVICE_EVENT_ADMIN
+
+    def send(self, topic: str, properties: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Sends synchronously the given event
+
+        :param topic: Topic of event
+        :param properties: Associated properties
+        """
+        ...
+
+    def post(self, topic: str, properties: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Sends asynchronously the given event
+
+        :param topic: Topic of event
+        :param properties: Associated properties
+        """
+        ...
+
+
 class ServiceEventHandler(Protocol):
     """
     Definition of a Service Event handler
     """
 
-    __SPECIFICATION__: str = SERVICE_EVENT_ADMIN
+    __SPECIFICATION__: str = SERVICE_EVENT_HANDLER
 
     def handle_event(self, topic: str, properties: Dict[str, Any]) -> None:
         """
@@ -386,6 +412,56 @@ SERVICE_FILEINSTALL_LISTENERS = "pelix.services.fileinstall.listener"
 PROP_FILEINSTALL_FOLDER = "fileinstall.folder"
 """ Path to the folder to look after, in white board pattern """
 
+
+class FileInstallListener(Protocol):
+    """
+    Specification of the FileInstall listener service
+    """
+
+    __SPECIFICATION__ = SERVICE_FILEINSTALL_LISTENERS
+
+    def folder_change(
+        self, folder: str, added: Iterable[str], updated: Iterable[str], deleted: Iterable[str]
+    ) -> None:
+        """
+        Notification of changes in the watched folder
+
+        :param folder: Folder where changes occurred
+        :param added: Names of added files
+        :param updated: Names of modified files
+        :param deleted: Names of removed files
+        """
+        ...
+
+
+class FileInstall(Protocol):
+    """
+    Specification of the FileInstall service
+    """
+
+    __SPECIFICATION__ = SERVICE_FILEINSTALL
+
+    def add_listener(self, folder: str, listener: FileInstallListener) -> bool:
+        """
+        Manual registration of a folder listener
+
+        :param folder: Path to the folder to watch
+        :param listener: Listener to register
+        :return: True if the listener has been registered
+        """
+        ...
+
+    def remove_listener(self, folder: str, listener: FileInstallListener) -> None:
+        """
+        Manual unregistration of a folder listener.
+
+        :param folder: Path to the folder the listener watched
+        :param listener: Listener to unregister
+        :raise ValueError: The listener wasn't watching this folder
+        """
+        ...
+
+
 # ------------------------------------------------------------------------------
 
 SERVICE_MQTT_CONNECTOR_FACTORY = "pelix.mqtt.factory"
@@ -402,3 +478,40 @@ SERVICE_MQTT_LISTENER = "pelix.mqtt.listener"
 
 PROP_MQTT_TOPICS = "pelix.mqtt.topics"
 """ List of the topics a listener wants to subscribes to """
+
+
+class MqttConnectorFactory(Protocol):
+    """
+    Specification of an MQTT connector factory
+    """
+
+    __SPECIFICATION__ = SERVICE_MQTT_CONNECTOR_FACTORY
+
+    def publish(
+        self, topic: str, payload: bytes, qos: int = 0, retain: bool = False, pid: Optional[str] = None
+    ) -> None:
+        """
+        Publishes an MQTT message
+
+        :param topic: Message topic
+        :param payload: RAW message content
+        :param qos: MQTT quality of service (0 by default)
+        :param retain: Message must be retained
+        :param pid: Optional connection PID
+        :raise KeyError: Invalid PID
+        """
+        ...
+
+
+class MqttListener(Protocol):
+    """
+    Specification of an MQTT listener
+    """
+
+    __SPECIFICATION__ = SERVICE_MQTT_LISTENER
+
+    def handle_mqtt_message(self, topic: str, payload: bytes, qos: int) -> None:
+        """
+        Notification of a new message
+        """
+        ...

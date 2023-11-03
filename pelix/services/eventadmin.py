@@ -25,26 +25,20 @@ An EventAdmin-like implementation for Pelix: a publish-subscribe service
     limitations under the License.
 """
 
-# Standard library
 import copy
 import fnmatch
 import logging
 import time
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 
-# Pelix
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Provides,
-    Property,
-    Validate,
-    Invalidate,
-)
-from pelix.utilities import to_iterable
 import pelix.constants
 import pelix.framework
 import pelix.ldapfilter
 import pelix.services
 import pelix.threadpool
+from pelix.internals.registry import ServiceReference
+from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Validate
+from pelix.utilities import to_iterable
 
 # ------------------------------------------------------------------------------
 
@@ -63,40 +57,39 @@ _logger = logging.getLogger(__name__)
 
 
 @ComponentFactory(pelix.services.FACTORY_EVENT_ADMIN)
-@Provides(pelix.services.SERVICE_EVENT_ADMIN)
+@Provides(pelix.services.EventAdmin)
 @Property("_nb_threads", "pool.threads", 10)
-class EventAdmin(object):
+class EventAdmin(pelix.services.EventAdmin):
     """
     The EventAdmin implementation
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # The bundle context
-        self._context = None
+        self._context: Optional[pelix.framework.BundleContext] = None
 
         # The framework instance UID
-        self._fw_uid = None
+        self._fw_uid: Optional[str] = None
 
         # Number of threads in the pool
-        self._nb_threads = 10
+        self._nb_threads: int = 10
 
         # Thread pool
-        self._pool = None
+        self._pool: Optional[pelix.threadpool.ThreadPool] = None
 
-    def _get_handlers_ids(self, topic, properties):
+    def _get_handlers_ids(self, topic: str, properties: Dict[str, Any]) -> Optional[List[str]]:
         """
         Retrieves the IDs of the listeners that requested to handle this event
 
         :param topic: Topic of the event
         :param properties: Associated properties
-        :return: The IDs of the services to call back for this event
+        :return: The IDs of the services to call back for this event. None if none found
         """
-        handlers = []
+        handlers: List[str] = []
 
         # Get the handler service references
-        handlers_refs = self._context.get_all_service_references(
-            pelix.services.SERVICE_EVENT_HANDLER, None
-        )
+        assert self._context is not None
+        handlers_refs = self._context.get_all_service_references(pelix.services.SERVICE_EVENT_HANDLER, None)
 
         if handlers_refs is None:
             # No service found
@@ -110,14 +103,12 @@ class EventAdmin(object):
                 svc_id = svc_ref.get_property(pelix.constants.SERVICE_ID)
 
                 # Filter matches the event, test the topic
-                topics = to_iterable(
-                    svc_ref.get_property(pelix.services.PROP_EVENT_TOPICS), True
-                )
+                topics = to_iterable(svc_ref.get_property(pelix.services.PROP_EVENT_TOPICS), True)
                 if not topics:
                     # Filter matches, and no topic filter given: notify it
                     handlers.append(svc_id)
                 else:
-                    for handled_topic in to_iterable(topics, False):
+                    for handled_topic in cast(Iterable[str], to_iterable(topics, False)):
                         if fnmatch.fnmatch(topic, handled_topic):
                             # Full match, keep the service ID
                             handlers.append(svc_id)
@@ -126,7 +117,9 @@ class EventAdmin(object):
         return handlers
 
     @staticmethod
-    def __match_filter(properties, ldap_filter):
+    def __match_filter(
+        properties: Dict[str, Any], ldap_filter: Union[None, str, pelix.ldapfilter.LdapFilterOrCriteria]
+    ) -> bool:
         """
         Tests if the given properties match the given filter
 
@@ -140,9 +133,14 @@ class EventAdmin(object):
 
         # Normalize the filter
         ldap_filter = pelix.ldapfilter.get_ldap_filter(ldap_filter)
-        return ldap_filter.matches(properties)
+        return ldap_filter is None or ldap_filter.matches(properties)
 
-    def __get_service(self, service_id):
+    def __get_service(
+        self, service_id: str
+    ) -> Tuple[
+        Optional[ServiceReference[pelix.services.ServiceEventHandler]],
+        Optional[pelix.services.ServiceEventHandler],
+    ]:
         """
         Retrieves the reference and the service associated to the given ID,
         or a (None, None) tuple if no service was found.
@@ -155,24 +153,22 @@ class EventAdmin(object):
         """
         try:
             # Prepare the filter
-            ldap_filter = "({0}={1})".format(
-                pelix.constants.SERVICE_ID, service_id
-            )
+            ldap_filter = f"({pelix.constants.SERVICE_ID}={service_id})"
 
             # Get the reference
-            ref = self._context.get_service_reference(None, ldap_filter)
+            assert self._context is not None
+            ref = self._context.get_service_reference(pelix.services.ServiceEventHandler, ldap_filter)
             if ref is None:
                 # Unknown service
                 return None, None
 
             # Get the service
             return ref, self._context.get_service(ref)
-
         except pelix.framework.BundleException:
             # Service disappeared
             return None, None
 
-    def __notify_handlers(self, topic, properties, handlers_ids):
+    def __notify_handlers(self, topic: str, properties: Dict[str, Any], handlers_ids: Iterable[str]) -> None:
         """
         Notifies the handlers of an event
 
@@ -204,20 +200,19 @@ class EventAdmin(object):
                 if ref is not None:
                     self._context.unget_service(ref)
 
-    def __setup_properties(self, properties):
+    def __setup_properties(self, properties: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Adds the EventAdmin specific properties to the event
 
         :param properties: The initial event properties
-        :return: A copy of the initial properties, or new ones, with the
-                 EventAdmin specific properties
+        :return: A copy of the initial properties, or new ones, with the EventAdmin specific properties
         """
         # Compute the event time stamp
         timestamp = time.time()
 
         if not isinstance(properties, dict):
             # Create a new dictionary
-            props = {}
+            props: Dict[str, Any] = {}
 
         else:
             # Copy the given one
@@ -231,7 +226,7 @@ class EventAdmin(object):
 
         return props
 
-    def send(self, topic, properties=None):
+    def send(self, topic: str, properties: Optional[Dict[str, Any]] = None) -> None:
         """
         Sends synchronously the given event
 
@@ -247,7 +242,7 @@ class EventAdmin(object):
             # Notify them
             self.__notify_handlers(topic, properties, handlers_ids)
 
-    def post(self, topic, properties=None):
+    def post(self, topic: str, properties: Optional[Dict[str, Any]] = None) -> None:
         """
         Sends asynchronously the given event
 
@@ -261,12 +256,11 @@ class EventAdmin(object):
         handlers_ids = self._get_handlers_ids(topic, properties)
         if handlers_ids:
             # Enqueue the task in the thread pool
-            self._pool.enqueue(
-                self.__notify_handlers, topic, properties, handlers_ids
-            )
+            assert self._pool is not None
+            self._pool.enqueue(self.__notify_handlers, topic, properties, handlers_ids)
 
     @Validate
-    def validate(self, context):
+    def validate(self, context: pelix.framework.BundleContext) -> None:
         """
         Component validated
         """
@@ -274,7 +268,7 @@ class EventAdmin(object):
         self._context = context
 
         # Get the framework instance UID
-        self._fw_uid = context.get_property(pelix.framework.FRAMEWORK_UID)
+        self._fw_uid = cast(Optional[str], context.get_property(pelix.framework.FRAMEWORK_UID))
 
         # Normalize properties
         try:
@@ -282,25 +276,23 @@ class EventAdmin(object):
             if self._nb_threads < 2:
                 # Minimal value
                 self._nb_threads = 2
-
         except ValueError:
             # Default value
             self._nb_threads = 10
 
         # Create the thread pool
-        self._pool = pelix.threadpool.ThreadPool(
-            self._nb_threads, logname="eventadmin-pool"
-        )
+        self._pool = pelix.threadpool.ThreadPool(self._nb_threads, logname="eventadmin-pool")
         self._pool.start()
 
     @Invalidate
-    def invalidate(self, _):
+    def invalidate(self, context: pelix.framework.BundleContext) -> None:
         """
         Component invalidated
         """
         # Stop the thread pool (empties its queue)
-        self._pool.stop()
-        self._pool = None
+        if self._pool is not None:
+            self._pool.stop()
+            self._pool = None
 
         # Forget the bundle context
         self._context = None

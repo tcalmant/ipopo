@@ -25,27 +25,28 @@ FileInstall: Polls for changes on files in a directory and notifies listeners
     limitations under the License.
 """
 
-# Standard library
 import logging
 import os
 import threading
 import zlib
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, cast
 
-# Pelix
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Provides,
-    Requires,
-    Validate,
-    Invalidate,
-    Instantiate,
-    BindField,
-    UnbindField,
-    UpdateField,
-    Property,
-)
 import pelix.services as services
 import pelix.threadpool
+from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceReference
+from pelix.ipopo.decorators import (
+    BindField,
+    ComponentFactory,
+    Instantiate,
+    Invalidate,
+    Property,
+    Provides,
+    Requires,
+    UnbindField,
+    UpdateField,
+    Validate,
+)
 
 # ------------------------------------------------------------------------------
 
@@ -64,29 +65,29 @@ _logger = logging.getLogger(__name__)
 
 
 @ComponentFactory()
-@Provides(services.SERVICE_FILEINSTALL)
+@Provides(services.FileInstall)
 @Requires(
     "_listeners",
-    services.SERVICE_FILEINSTALL_LISTENERS,
+    services.FileInstallListener,
     aggregate=True,
     optional=True,
 )
 @Property("_poll_time", "poll.time", 1)
 @Instantiate("pelix-services-file-install")
-class FileInstall(object):
+class FileInstall(services.FileInstall):
     """
     Polls folders to look for files modifications
     """
 
-    def __init__(self):
+    # Listeners (injected)
+    _listeners: List[services.FileInstallListener]
+
+    def __init__(self) -> None:
         """
         Sets up members
         """
-        # Listeners (injected)
-        self._listeners = []
-
         # Folder -> [listeners] (computed)
-        self._folder_listeners = {}
+        self._folder_listeners: Dict[str, Set[services.FileInstallListener]] = {}
 
         # Polling delta time (1 second by default)
         self._poll_time = 1
@@ -95,21 +96,16 @@ class FileInstall(object):
         self.__lock = threading.RLock()
 
         # Single thread task pool to notify listeners
-        self.__pool = pelix.threadpool.ThreadPool(
-            1, logname="FileInstallNotifier"
-        )
+        self.__pool = pelix.threadpool.ThreadPool(1, logname="FileInstallNotifier")
 
         # 1 thread per watched folder (folder -> Thread)
-        self.__threads = {}
+        self.__threads: Dict[str, threading.Thread] = {}
 
         # Thread stoppers (folder -> Event)
-        self.__stoppers = {}
-
-        # Validation flag
-        self.__validated = False
+        self.__stoppers: Dict[str, threading.Event] = {}
 
     @Validate
-    def _validate(self, _):
+    def _validate(self, context: BundleContext) -> None:
         """
         Component validated
         """
@@ -117,18 +113,12 @@ class FileInstall(object):
             # Start the task pool
             self.__pool.start()
 
-            # Update the flag
-            self.__validated = True
-
     @Invalidate
-    def _invalidate(self, _):
+    def _invalidate(self, context: BundleContext) -> None:
         """
         Component invalidated
         """
         with self.__lock:
-            # Update the flag
-            self.__validated = False
-
             # Stop all threads
             for event in set(self.__stoppers.values()):
                 event.set()
@@ -145,32 +135,51 @@ class FileInstall(object):
             self.__threads.clear()
 
     @BindField("_listeners")
-    def _bind_listener(self, _, svc, svc_ref):
+    def _bind_listener(
+        self,
+        field: str,
+        svc: services.FileInstallListener,
+        svc_ref: ServiceReference[services.FileInstallListener],
+    ) -> None:
         """
         A new listener is bound
         """
         with self.__lock:
-            folder = svc_ref.get_property(services.PROP_FILEINSTALL_FOLDER)
+            folder = cast(Optional[str], svc_ref.get_property(services.PROP_FILEINSTALL_FOLDER))
             if folder:
                 # Register the listener for this service
                 self.add_listener(folder, svc)
 
     @UpdateField("_listeners")
-    def _update_field(self, _, svc, svc_ref, old_props):
+    def _update_field(
+        self,
+        field: str,
+        svc: services.FileInstallListener,
+        svc_ref: ServiceReference[services.FileInstallListener],
+        old_props: Optional[Dict[str, Any]],
+    ) -> None:
         """
         A bound listener has been updated
         """
         with self.__lock:
-            old_folder = old_props.get(services.PROP_FILEINSTALL_FOLDER)
+            old_folder = (old_props or {}).get(services.PROP_FILEINSTALL_FOLDER)
             new_folder = svc_ref.get_property(services.PROP_FILEINSTALL_FOLDER)
 
             if old_folder != new_folder:
                 # Folder changed
-                self.remove_listener(old_folder, svc)
-                self.add_listener(new_folder, svc)
+                if old_folder:
+                    self.remove_listener(old_folder, svc)
+
+                if new_folder:
+                    self.add_listener(new_folder, svc)
 
     @UnbindField("_listeners")
-    def _unbind_listener(self, _, svc, svc_ref):
+    def _unbind_listener(
+        self,
+        field: str,
+        svc: services.FileInstallListener,
+        svc_ref: ServiceReference[services.FileInstallListener],
+    ) -> None:
         """
         A listener is gone
         """
@@ -180,7 +189,7 @@ class FileInstall(object):
                 # Remove the listener
                 self.remove_listener(folder, svc)
 
-    def add_listener(self, folder, listener):
+    def add_listener(self, folder: str, listener: services.FileInstallListener) -> bool:
         """
         Manual registration of a folder listener
 
@@ -193,7 +202,6 @@ class FileInstall(object):
             if folder:
                 try:
                     listeners = self._folder_listeners[folder]
-
                 except KeyError:
                     # Unknown folder
                     listeners = self._folder_listeners[folder] = set()
@@ -203,7 +211,7 @@ class FileInstall(object):
                     thread = threading.Thread(
                         target=self.__watch,
                         args=(folder, event),
-                        name="FileInstall-{0}".format(folder),
+                        name=f"FileInstall-{folder}",
                     )
                     thread.daemon = True
                     self.__threads[folder] = thread
@@ -214,7 +222,7 @@ class FileInstall(object):
 
             return False
 
-    def remove_listener(self, folder, listener):
+    def remove_listener(self, folder: str, listener: services.FileInstallListener) -> None:
         """
         Manual unregistration of a folder listener.
 
@@ -242,7 +250,9 @@ class FileInstall(object):
                     # No more listener for this folder
                     del self._folder_listeners[folder]
 
-    def __notify(self, folder, added, updated, deleted):
+    def __notify(
+        self, folder: str, added: Iterable[str], updated: Iterable[str], deleted: Iterable[str]
+    ) -> None:
         """
         Notifies listeners that files of a folder has been modified
 
@@ -255,7 +265,6 @@ class FileInstall(object):
             try:
                 # Get a copy of the listeners for this folder
                 listeners = self._folder_listeners[folder].copy()
-
             except KeyError:
                 # No (more) listeners: do nothing
                 return
@@ -263,12 +272,11 @@ class FileInstall(object):
         for listener in listeners:
             try:
                 listener.folder_change(folder, added, updated, deleted)
-
             except Exception as ex:
                 _logger.exception("Error notifying a folder listener: %s", ex)
 
     @staticmethod
-    def __get_checksum(filepath):
+    def __get_checksum(filepath: str) -> int:
         """
         Returns the checksum (Adler32) of the given file
 
@@ -282,7 +290,7 @@ class FileInstall(object):
             # Return the checksum of the given file
             return zlib.adler32(filep.read())
 
-    def __get_file_info(self, folder, filename):
+    def __get_file_info(self, folder: str, filename: str) -> Tuple[float, int]:
         """
         Returns the (mtime, checksum) tuple for the given file
 
@@ -295,15 +303,16 @@ class FileInstall(object):
         filepath = os.path.join(folder, filename)
         return os.path.getmtime(filepath), self.__get_checksum(filepath)
 
-    def __check_different(self, folder, filename, file_info, updated):
+    def __check_different(
+        self, folder: str, filename: str, file_info: Tuple[float, int], updated: Set[str]
+    ) -> Tuple[float, int]:
         """
         Checks if the given file has changed since the previous check
 
         :param folder: Path to the parent folder
         :param filename: Base name of the file
         :param file_info: Current information about the file
-        :param updated: Set of updated files, where the file name might be
-                        added
+        :param updated: Set of updated files, where the file name might be added
         :return: The (updated) file information tuple
         :raise OSError: File not accessible
         :raise IOError: File not readable
@@ -335,7 +344,7 @@ class FileInstall(object):
         updated.add(filename)
         return mtime, checksum
 
-    def __watch(self, folder, stopper):
+    def __watch(self, folder: str, stopper: threading.Event) -> None:
         """
         Loop that looks for changes in the given folder
 
@@ -343,7 +352,7 @@ class FileInstall(object):
         :param stopper: An Event object that will stop the loop once set
         """
         # File name -> (modification time, checksum)
-        previous_info = {}
+        previous_info: Dict[str, Tuple[float, int]] = {}
 
         while not stopper.wait(self._poll_time) and not stopper.is_set():
             if not os.path.exists(folder):
@@ -352,38 +361,29 @@ class FileInstall(object):
 
             # Look for files
             filenames = {
-                filename
-                for filename in os.listdir(folder)
-                if os.path.isfile(os.path.join(folder, filename))
+                filename for filename in os.listdir(folder) if os.path.isfile(os.path.join(folder, filename))
             }
 
             # Prepare the sets
-            added = set()
-            updated = set()
-            deleted = set(previous_info.keys()).difference(filenames)
+            added: Set[str] = set()
+            updated: Set[str] = set()
+            deleted: Set[str] = set(previous_info.keys()).difference(filenames)
 
             # Compute differences
             for filename in filenames:
                 try:
                     # Get previous information
                     file_info = previous_info[filename]
-
                 except KeyError:
                     # Unknown file: added one
                     added.add(filename)
-                    previous_info[filename] = self.__get_file_info(
-                        folder, filename
-                    )
-
+                    previous_info[filename] = self.__get_file_info(folder, filename)
                 else:
                     try:
                         # Known file name
-                        new_info = self.__check_different(
-                            folder, filename, file_info, updated
-                        )
+                        new_info = self.__check_different(folder, filename, file_info, updated)
                         # Store new information
                         previous_info[filename] = new_info
-
                     except (IOError, OSError):
                         # Error reading file, do nothing
                         pass
@@ -394,6 +394,4 @@ class FileInstall(object):
 
             if added or updated or deleted:
                 # Something changed: notify listeners
-                self.__pool.enqueue(
-                    self.__notify, folder, added, updated, deleted
-                )
+                self.__pool.enqueue(self.__notify, folder, added, updated, deleted)

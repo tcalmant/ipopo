@@ -29,13 +29,11 @@ Eclipse Foundation: see http://www.eclipse.org/paho
     limitations under the License.
 """
 
-# Standard library
 import logging
 import os
-import sys
 import threading
+from typing import Any, Dict, Optional
 
-# MQTT client
 import paho.mqtt.client as paho
 
 # ------------------------------------------------------------------------------
@@ -53,13 +51,15 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+MqttMessage = paho.MQTTMessage
 
-class MqttClient(object):
+
+class MqttClient:
     """
     Remote Service discovery provider based on MQTT
     """
 
-    def __init__(self, client_id=None):
+    def __init__(self, client_id: Optional[str] = None) -> None:
         """
         Sets up members
 
@@ -72,8 +72,7 @@ class MqttClient(object):
         elif len(client_id) > 23:
             # ID too large
             _logger.warning(
-                "MQTT Client ID '%s' is too long (23 chars max): "
-                "generating a random one",
+                "MQTT Client ID '%s' is too long (23 chars max): " "generating a random one",
                 client_id,
             )
             # Keep the client ID as it might be accepted
@@ -86,7 +85,7 @@ class MqttClient(object):
         self.__timer = threading.Timer(5, self.__reconnect)
 
         # Publication events
-        self.__in_flight = {}
+        self.__in_flight: Dict[int, threading.Event] = {}
 
         # MQTT client
         self.__mqtt = paho.Client(self._client_id)
@@ -101,14 +100,14 @@ class MqttClient(object):
         self.__mqtt.on_publish = self.__on_publish
 
     @property
-    def raw_client(self):
+    def raw_client(self) -> paho.Client:
         """
         Returns the raw client object, depending on the underlying library
         """
         return self.__mqtt
 
     @staticmethod
-    def on_connect(client, result_code):
+    def on_connect(client: "MqttClient", result_code: int) -> None:
         """
         User callback: called when the client is connected
 
@@ -118,7 +117,7 @@ class MqttClient(object):
         pass
 
     @staticmethod
-    def on_disconnect(client, result_code):
+    def on_disconnect(client: "MqttClient", result_code: int) -> None:
         """
         User callback: called when the client is disconnected
 
@@ -128,7 +127,7 @@ class MqttClient(object):
         pass
 
     @staticmethod
-    def on_message(client, message):
+    def on_message(client: "MqttClient", message: MqttMessage) -> None:
         """
         User callback: called when the client has received a message
 
@@ -138,7 +137,7 @@ class MqttClient(object):
         pass
 
     @classmethod
-    def generate_id(cls, prefix="pelix-"):
+    def generate_id(cls, prefix: Optional[str] = "pelix-") -> str:
         """
         Generates a random MQTT client ID
 
@@ -156,13 +155,10 @@ class MqttClient(object):
         nb_bytes = (23 - len(prefix)) // 2
 
         random_bytes = os.urandom(nb_bytes)
-        if sys.version_info[0] >= 3:
-            random_ints = [char for char in random_bytes]
-        else:
-            random_ints = [ord(char) for char in random_bytes]
+        random_ints = [char for char in random_bytes]
 
-        random_id = "".join("{0:02x}".format(value) for value in random_ints)
-        return "{0}{1}".format(prefix, random_id)
+        random_id = "".join(f"{value:02x}" for value in random_ints)
+        return f"{prefix}{random_id}"
 
     @classmethod
     def topic_matches(cls, subscription_filter, topic):
@@ -176,13 +172,13 @@ class MqttClient(object):
         return paho.topic_matches_sub(subscription_filter, topic)
 
     @property
-    def client_id(self):
+    def client_id(self) -> str:
         """
         The MQTT client ID
         """
         return self._client_id
 
-    def set_credentials(self, username, password):
+    def set_credentials(self, username: str, password: Optional[str]) -> None:
         """
         Sets the user name and password to be authenticated on the server
 
@@ -191,7 +187,7 @@ class MqttClient(object):
         """
         self.__mqtt.username_pw_set(username, password)
 
-    def set_will(self, topic, payload, qos=0, retain=False):
+    def set_will(self, topic: str, payload: bytes, qos: int = 0, retain: bool = False) -> None:
         """
         Sets up the will message
 
@@ -204,15 +200,14 @@ class MqttClient(object):
         """
         self.__mqtt.will_set(topic, payload, qos, retain=retain)
 
-    def connect(self, host="localhost", port=1883, keepalive=60):
+    def connect(self, host: str = "localhost", port: int = 1883, keepalive: int = 60) -> None:
         """
         Connects to the MQTT server. The client will automatically try to
         reconnect to this server when the connection is lost.
 
         :param host: MQTT server host
         :param port: MQTT server port
-        :param keepalive: Maximum period in seconds between communications with
-                          the broker
+        :param keepalive: Maximum period in seconds between communications with the broker
         :raise ValueError: Invalid host or port
         """
         # Disconnect first (it also stops the timer)
@@ -224,7 +219,7 @@ class MqttClient(object):
         # Start the MQTT loop
         self.__mqtt.loop_start()
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         """
         Disconnects from the MQTT server
         """
@@ -247,7 +242,9 @@ class MqttClient(object):
         # Give it some time
         thread.join(4)
 
-    def publish(self, topic, payload, qos=0, retain=False, wait=False):
+    def publish(
+        self, topic: str, payload: bytes, qos: int = 0, retain: bool = False, wait: bool = False
+    ) -> Optional[int]:
         """
         Sends a message through the MQTT connection
 
@@ -255,19 +252,18 @@ class MqttClient(object):
         :param payload: Message content
         :param qos: Quality of Service
         :param retain: Retain flag
-        :param wait: If True, prepares an event to wait for the message to be
-                     published
+        :param wait: If True, prepares an event to wait for the message to be published
         :return: The local message ID, None on error
         """
         result = self.__mqtt.publish(topic, payload, qos, retain)
-        if wait and not result[0]:
+        if wait and not result.rc:
             # Publish packet sent, wait for it to return
-            self.__in_flight[result[1]] = threading.Event()
+            self.__in_flight[result.mid] = threading.Event()
             _logger.debug("Waiting for publication of %s", topic)
 
-        return result[1]
+        return result.mid
 
-    def wait_publication(self, mid, timeout=None):
+    def wait_publication(self, mid: int, timeout: Optional[float] = None) -> bool:
         """
         Wait for a publication to be validated
 
@@ -278,7 +274,7 @@ class MqttClient(object):
         """
         return self.__in_flight[mid].wait(timeout)
 
-    def subscribe(self, topic, qos=0):
+    def subscribe(self, topic: str, qos: int = 0) -> None:
         """
         Subscribes to a topic on the server
 
@@ -288,7 +284,7 @@ class MqttClient(object):
         """
         self.__mqtt.subscribe(topic, qos)
 
-    def unsubscribe(self, topic):
+    def unsubscribe(self, topic: str) -> None:
         """
         Unscribes from a topic on the server
 
@@ -297,7 +293,7 @@ class MqttClient(object):
         """
         self.__mqtt.unsubscribe(topic)
 
-    def __start_timer(self, delay):
+    def __start_timer(self, delay: float) -> None:
         """
         Starts the reconnection timer
 
@@ -307,7 +303,7 @@ class MqttClient(object):
         self.__timer.daemon = True
         self.__timer.start()
 
-    def __stop_timer(self):
+    def __stop_timer(self) -> None:
         """
         Stops the reconnection timer, if any
         """
@@ -315,7 +311,7 @@ class MqttClient(object):
             self.__timer.cancel()
             self.__timer = None
 
-    def __reconnect(self):
+    def __reconnect(self) -> None:
         """
         Tries to connect to the MQTT server
         """
@@ -327,8 +323,8 @@ class MqttClient(object):
             result_code = self.__mqtt.reconnect()
             if result_code:
                 # Something wrong happened
-                message = "Error connecting the MQTT server: {0} ({1})".format(
-                    result_code, paho.error_string(result_code)
+                message = (
+                    f"Error connecting the MQTT server: {result_code} ({paho.error_string(result_code)})"
                 )
                 _logger.error(message)
                 raise ValueError(message)
@@ -340,7 +336,9 @@ class MqttClient(object):
             # on_connect callback
             self.__start_timer(10)
 
-    def __on_connect(self, client, userdata, flags, result_code):
+    def __on_connect(
+        self, client: paho.Client, userdata: Any, flags: Dict[str, Any], result_code: int
+    ) -> None:
         # pylint: disable=W0613
         """
         Client connected to the server
@@ -368,7 +366,7 @@ class MqttClient(object):
             except Exception as ex:
                 _logger.exception("Error notifying MQTT listener: %s", ex)
 
-    def __on_disconnect(self, client, userdata, result_code):
+    def __on_disconnect(self, client: paho.Client, userdata: Any, result_code: int) -> None:
         # pylint: disable=W0613
         """
         Client has been disconnected from the server
@@ -396,7 +394,7 @@ class MqttClient(object):
             except Exception as ex:
                 _logger.exception("Error notifying MQTT listener: %s", ex)
 
-    def __on_message(self, client, userdata, msg):
+    def __on_message(self, client: paho.Client, userdata: Any, msg: MqttMessage) -> None:
         # pylint: disable=W0613
         """
         A message has been received from a server
@@ -412,7 +410,7 @@ class MqttClient(object):
             except Exception as ex:
                 _logger.exception("Error notifying MQTT listener: %s", ex)
 
-    def __on_publish(self, client, userdata, mid):
+    def __on_publish(self, client: paho.Client, userdata: Any, mid: int) -> None:
         # pylint: disable=W0613
         """
         A message has been published by a server
