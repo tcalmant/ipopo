@@ -34,7 +34,7 @@ __docformat__ = "restructuredtext en"
 
 # Service Registry Hooks
 
-from typing import Any, Dict, Protocol
+from typing import Any, Dict, Iterable, Optional, Protocol
 
 
 SERVICE_EVENT_LISTENER_HOOK = "pelix.internal.hooks.EventListenerHook"
@@ -117,6 +117,87 @@ CONFIG_PROP_FACTORY_PID = "service.factoryPid"
 
 CONFIG_PROP_BUNDLE_LOCATION = "service.bundleLocation"
 """ Configuration property: bound location (not used yet) """
+
+
+class IConfigurationAdmin(Protocol):
+    """
+    Specification of the configuration admin service
+    """
+
+    __SPECIFICATION__ = SERVICE_CONFIGURATION_ADMIN
+
+
+class IConfigurationAdminPersistence(Protocol):
+    """
+    Specification of a configuration admin persistence service
+    """
+
+    __SPECIFICATION__ = SERVICE_CONFIGADMIN_PERSISTENCE
+
+    def get_pids(self) -> Iterable[str]:
+        """
+        Returns the list of PIDs this storage could read
+        """
+        ...
+
+    def exists(self, pid: str) -> bool:
+        """
+        Checks if the given PID exists
+        """
+        ...
+
+    def load(self, pid: str) -> Dict[str, Any]:
+        """
+        Loads the configuration with the given PID
+        """
+        ...
+
+    def store(self, pid: str, properties: Dict[str, Any]) -> None:
+        """
+        Stores the given configuration
+        """
+        ...
+
+    def delete(self, pid: str) -> bool:
+        """
+        Deletes the given configuration
+        """
+        ...
+
+
+class IManagedService(Protocol):
+    """
+    Specification of a service managed by configuration admin
+    """
+
+    __SPECIFICATION__ = SERVICE_CONFIGADMIN_MANAGED
+
+    def updated(self, properties: Optional[Dict[str, Any]]) -> None:
+        """
+        Service configuration updated
+        """
+        ...
+
+
+class IManagedServiceFactory(Protocol):
+    """
+    Specification of a service factory managed by configuration admin
+    """
+
+    __SPECIFICATION__ = SERVICE_CONFIGADMIN_MANAGED_FACTORY
+
+    def updated(self, pid: str, properties: Optional[Dict[str, Any]]) -> None:
+        """
+        Service configuration updated
+        """
+        ...
+
+    def deleted(self, pid: str) -> None:
+        """
+        Service configuration deleted
+        """
+        ...
+
 
 # ------------------------------------------------------------------------------
 
