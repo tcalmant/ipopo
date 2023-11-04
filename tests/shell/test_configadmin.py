@@ -6,23 +6,14 @@ Tests the ConfigurationAdmin shell commands
 :author: Thomas Calmant
 """
 
-# Pelix
+import os
+import unittest
+from io import StringIO
+
 import pelix.framework
 import pelix.services
 import pelix.shell
 import pelix.shell.beans as beans
-
-# Standard library
-import os
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
 
 # ------------------------------------------------------------------------------
 
@@ -36,6 +27,10 @@ class ConfigAdminShellTest(unittest.TestCase):
     """
     Tests the EventAdmin shell commands
     """
+
+    def assertDictContainsSubset(self, subset, tested):
+        self.assertEqual(tested, tested | subset)
+
     def setUp(self):
         """
         Prepares a framework and a registers a service to export
@@ -45,9 +40,9 @@ class ConfigAdminShellTest(unittest.TestCase):
 
         # Create the framework
         self.framework = pelix.framework.create_framework(
-            ('pelix.ipopo.core', 'pelix.shell.core',
-             'pelix.services.configadmin', 'pelix.shell.configadmin'),
-            {'configuration.folder': conf_folder})
+            ("pelix.ipopo.core", "pelix.shell.core", "pelix.services.configadmin", "pelix.shell.configadmin"),
+            {"configuration.folder": conf_folder},
+        )
         self.framework.start()
 
         # Get the Shell service
@@ -59,8 +54,7 @@ class ConfigAdminShellTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
 
         # Get the service
-        self.config_ref = context.get_service_reference(
-            pelix.services.SERVICE_CONFIGURATION_ADMIN)
+        self.config_ref = context.get_service_reference(pelix.services.SERVICE_CONFIGURATION_ADMIN)
         self.config = context.get_service(self.config_ref)
 
         # Remove existing configurations
@@ -79,7 +73,7 @@ class ConfigAdminShellTest(unittest.TestCase):
             command = command.format(*args)
 
         # Add the namespace prefix
-        command = 'config.{0}'.format(command)
+        command = "config.{0}".format(command)
 
         # Run command
         session = beans.ShellSession(beans.IOHandler(None, str_output))
@@ -106,8 +100,7 @@ class ConfigAdminShellTest(unittest.TestCase):
         key = "testConfig"
         first_value = "first"
         factory_name = "testFactory"
-        output = self._run_command("create {0} {1}={2}", factory_name,
-                                   key, first_value)
+        output = self._run_command("create {0} {1}={2}", factory_name, key, first_value)
 
         # Get the generated configuration
         config = next(iter(self.config.list_configurations()))
@@ -115,24 +108,21 @@ class ConfigAdminShellTest(unittest.TestCase):
         # Check validity
         self.assertIn(config.get_pid(), output)
         self.assertEqual(factory_name, config.get_factory_pid())
-        self.assertDictContainsSubset({key: first_value},
-                                      config.get_properties())
+        self.assertDictContainsSubset({key: first_value}, config.get_properties())
 
         # Update it
         second_value = "second"
-        self._run_command("update {0} {1}={2}", config.get_pid(),
-                          key, second_value)
-        self.assertDictContainsSubset({key: second_value},
-                                      config.get_properties())
+        self._run_command("update {0} {1}={2}", config.get_pid(), key, second_value)
+        self.assertDictContainsSubset({key: second_value}, config.get_properties())
 
         # Reload it
         self._run_command("reload {0}", config.get_pid())
 
         # List it
-        output = self._run_command('list')
+        output = self._run_command("list")
         self.assertIn(config.get_pid(), output)
 
-        output = self._run_command('list {0}', config.get_pid())
+        output = self._run_command("list {0}", config.get_pid())
         self.assertIn(config.get_pid(), output)
 
         # Delete it

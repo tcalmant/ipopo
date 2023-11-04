@@ -74,13 +74,13 @@ class EventAdminCommands(ShellCommandsProvider):
         """
         return [("send", self.send), ("post", self.post)]
 
-    def send(self, _: ShellSession, topic: str, **kwargs: Any) -> None:
+    def send(self, _: "ShellSession", topic: str, **kwargs: Any) -> None:
         """
         Sends an event (blocking)
         """
         self._events.send(topic, kwargs)
 
-    def post(self, _: ShellSession, topic: str, **kwargs: Any) -> None:
+    def post(self, _: "ShellSession", topic: str, **kwargs: Any) -> None:
         """
         Posts an event (asynchronous)
         """

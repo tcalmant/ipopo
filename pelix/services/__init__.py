@@ -260,7 +260,7 @@ class Configuration(Protocol):
         """
         ...
 
-    def matches(self, ldap_filter: Optional[ldapfilter.LdapFilterOrCriteria]) -> bool:
+    def matches(self, ldap_filter: Optional["ldapfilter.LdapFilterOrCriteria"]) -> bool:
         """
         Tests if this configuration matches the given filter.
 
@@ -299,7 +299,7 @@ class IConfigurationAdmin(Protocol):
         ...
 
     def list_configurations(
-        self, ldap_filter: Optional[ldapfilter.LdapFilterOrCriteria] = None
+        self, ldap_filter: Optional["ldapfilter.LdapFilterOrCriteria"] = None
     ) -> List[Configuration]:
         """
         List the current Configuration objects which match the filter.

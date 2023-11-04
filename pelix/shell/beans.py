@@ -170,7 +170,7 @@ class IOHandler:
         self.input = in_stream
         self.output = out_stream
         self.encoding = encoding
-        self.out_encoding: str = getattr(self.output, "encoding", self.encoding)
+        self.out_encoding: str = getattr(self.output, "encoding", self.encoding) or self.encoding
 
         # Thread safety
         self.__lock = threading.RLock()

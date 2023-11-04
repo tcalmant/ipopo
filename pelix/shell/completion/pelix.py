@@ -30,9 +30,8 @@ from typing import TYPE_CHECKING, List
 
 from pelix.constants import SERVICE_ID, ActivatorProto, BundleActivator
 
-from . import PROP_COMPLETER_ID, Completer, CompletionInfo
+from . import BUNDLE, PROP_COMPLETER_ID, SERVICE, Completer, CompletionInfo
 from .core import AbstractCompleter
-from .decorators import BUNDLE, SERVICE
 
 try:
     import readline
@@ -63,7 +62,7 @@ class BundleCompleter(AbstractCompleter):
 
     @staticmethod
     def display_hook(
-        prompt: str, session: ShellSession, context: BundleContext, matches: List[str], longest_match_len: int
+        prompt: str, session: "ShellSession", context: "BundleContext", matches: List[str], longest_match_len: int
     ) -> None:
         """
         Displays the available bundle matches and the bundle name
@@ -97,8 +96,8 @@ class BundleCompleter(AbstractCompleter):
         self,
         config: CompletionInfo,
         prompt: str,
-        session: ShellSession,
-        context: BundleContext,
+        session: "ShellSession",
+        context: "BundleContext",
         current_arguments: List[str],
         current: str,
     ) -> List[str]:
@@ -134,7 +133,7 @@ class ServiceCompleter(AbstractCompleter):
 
     @staticmethod
     def display_hook(
-        prompt: str, session: ShellSession, context: BundleContext, matches: List[str], longest_match_len: int
+        prompt: str, session: "ShellSession", context: "BundleContext", matches: List[str], longest_match_len: int
     ) -> None:
         """
         Displays the available services matches and the service details
@@ -169,8 +168,8 @@ class ServiceCompleter(AbstractCompleter):
         self,
         config: CompletionInfo,
         prompt: str,
-        session: ShellSession,
-        context: BundleContext,
+        session: "ShellSession",
+        context: "BundleContext",
         current_arguments: List[str],
         current: str,
     ) -> List[str]:
@@ -213,9 +212,9 @@ class Activator(ActivatorProto):
     """
 
     def __init__(self) -> None:
-        self._registrations: List[ServiceRegistration[Completer]] = []
+        self._registrations: List["ServiceRegistration[Completer]"] = []
 
-    def start(self, context: BundleContext) -> None:
+    def start(self, context: "BundleContext") -> None:
         """
         Bundle starting
 
@@ -231,7 +230,7 @@ class Activator(ActivatorProto):
             for completer_id, completer_class in COMPLETERS.items()
         ]
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, _: "BundleContext") -> None:
         """
         Bundle stopping
         """

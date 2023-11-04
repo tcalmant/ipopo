@@ -27,6 +27,7 @@ Service registry and event dispatcher for Pelix.
 
 # Standard library
 import bisect
+import inspect
 import logging
 import threading
 from typing import (
@@ -1255,9 +1256,9 @@ class ServiceRegistry:
             if isinstance(clazz, str):
                 # Escape the class name
                 clazz = ldapfilter.escape_LDAP(clazz)
-            elif isinstance(clazz, type):
+            elif inspect.isclass(clazz):
                 # Escape the type name
-                clazz = ldapfilter.escape_LDAP(clazz.__name__)
+                clazz = ldapfilter.escape_LDAP(getattr(clazz, "__SPECIFICATION__", clazz.__name__))
 
             if clazz is None:
                 # Directly use the given filter

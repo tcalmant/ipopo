@@ -803,6 +803,9 @@ class Framework(Bundle):
         :raise BundleException: The service could not be found
         :raise TypeError: The argument is not a ServiceReference object
         """
+        if reference is None:
+            raise ValueError("No service reference given")
+
         if not isinstance(bundle, Bundle):
             raise TypeError("First argument must be a Bundle object")
         elif not isinstance(reference, ServiceReference):

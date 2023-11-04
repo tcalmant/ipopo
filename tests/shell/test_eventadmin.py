@@ -6,18 +6,13 @@ Tests the EventAdmin shell commands
 :author: Thomas Calmant
 """
 
-# Standard library
 import threading
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
-# Pelix
-from pelix.ipopo.constants import use_ipopo
 import pelix.framework
 import pelix.services
 import pelix.shell
+from pelix.ipopo.constants import use_ipopo
 
 # ------------------------------------------------------------------------------
 
@@ -31,6 +26,7 @@ class DummyEventHandler(object):
     """
     Dummy event handler
     """
+
     def __init__(self):
         """
         Sets up members
@@ -66,6 +62,7 @@ class DummyEventHandler(object):
         """
         self.__event.wait(timeout)
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -81,10 +78,8 @@ class EventAdminShellTest(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(
-            ('pelix.ipopo.core',
-             'pelix.shell.core',
-             'pelix.services.eventadmin',
-             'pelix.shell.eventadmin'))
+            ("pelix.ipopo.core", "pelix.shell.core", "pelix.services.eventadmin", "pelix.shell.eventadmin")
+        )
         self.framework.start()
 
         # Get the Shell service
@@ -95,9 +90,7 @@ class EventAdminShellTest(unittest.TestCase):
         # Instantiate the EventAdmin component
         context = self.framework.get_bundle_context()
         with use_ipopo(context) as ipopo:
-            self.eventadmin = ipopo.instantiate(
-                pelix.services.FACTORY_EVENT_ADMIN,
-                "evtadmin", {})
+            self.eventadmin = ipopo.instantiate(pelix.services.FACTORY_EVENT_ADMIN, "evtadmin", {})
 
     def _register_handler(self, topics, evt_filter=None):
         """
@@ -109,9 +102,10 @@ class EventAdminShellTest(unittest.TestCase):
         svc = DummyEventHandler()
         context = self.framework.get_bundle_context()
         svc_reg = context.register_service(
-            pelix.services.SERVICE_EVENT_HANDLER, svc,
-            {pelix.services.PROP_EVENT_TOPICS: topics,
-             pelix.services.PROP_EVENT_FILTER: evt_filter})
+            pelix.services.SERVICE_EVENT_HANDLER,
+            svc,
+            {pelix.services.PROP_EVENT_TOPICS: topics, pelix.services.PROP_EVENT_FILTER: evt_filter},
+        )
         return svc, svc_reg
 
     def _run_command(self, command, *args):
@@ -138,15 +132,15 @@ class EventAdminShellTest(unittest.TestCase):
         Tests sending topics
         """
         # Prepare a handler
-        handler, _ = self._register_handler('/titi/*')
+        handler, _ = self._register_handler("/titi/*")
 
         # Send events, with a matching topic
-        for topic in ('/titi/toto', '/titi/', '/titi/42', '/titi/toto/tata'):
+        for topic in ("/titi/toto", "/titi/", "/titi/42", "/titi/toto/tata"):
             self._run_command("send {0}", topic)
             self.assertEqual(handler.pop_event(), topic)
 
         # Send events, with a non-matching topic
-        for topic in ('/toto/titi/42', '/titi', '/toto/42'):
+        for topic in ("/toto/titi/42", "/titi", "/toto/42"):
             self._run_command("send {0}", topic)
             self.assertEqual(handler.pop_event(), None)
 
@@ -156,13 +150,13 @@ class EventAdminShellTest(unittest.TestCase):
         """
         # Prepare a handler
         key = "some.key"
-        handler, _ = self._register_handler(None, '({0}=42)'.format(key))
+        handler, _ = self._register_handler(None, "({0}=42)".format(key))
 
         # Assert the handler is empty
         self.assertEqual(handler.pop_event(), None)
 
         # Send event, with matching properties
-        for topic in ('/titi/toto', '/toto/', '/titi/42', '/titi/toto/tata'):
+        for topic in ("/titi/toto", "/toto/", "/titi/42", "/titi/toto/tata"):
             value = 42
             evt_props = {key: value}
             self._run_command("send {0} {1}=42", topic, key, value)
@@ -184,10 +178,10 @@ class EventAdminShellTest(unittest.TestCase):
         Tests the post event method
         """
         # Prepare a handler
-        handler, _ = self._register_handler('/titi/*')
+        handler, _ = self._register_handler("/titi/*")
 
         # Post a message
-        topic = '/titi/toto'
+        topic = "/titi/toto"
         self._run_command("post {0}", topic)
 
         # Wait a little

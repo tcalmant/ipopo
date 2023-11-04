@@ -827,6 +827,10 @@ def _get_specifications(specifications: Union[None, str, Iterable[str], Type, It
     if not specifications or specifications is object:
         raise ValueError("No specifications given")
     elif inspect.isclass(specifications):
+        if hasattr(specifications, "__SPECIFICATION__"):
+            # Explicit specification
+            return [getattr(specifications, "__SPECIFICATION__")]
+
         if Provides.USE_MODULE_QUALNAME:
             # Get the name of the class
             if not specifications.__module__:

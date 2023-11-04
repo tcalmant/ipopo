@@ -71,7 +71,7 @@ class ConfigAdminCommands(ShellCommandsProvider):
         self._configs: Dict[str, pelix.services.Configuration] = {}
 
     @Invalidate
-    def invalidate(self, _: BundleContext) -> None:
+    def invalidate(self, _: "BundleContext") -> None:
         """
         Component invalidated
         """
@@ -97,7 +97,7 @@ class ConfigAdminCommands(ShellCommandsProvider):
             ("list", self.list),
         ]
 
-    def create(self, session: ShellSession, factory_pid: str, **kwargs: Any) -> None:
+    def create(self, session: "ShellSession", factory_pid: str, **kwargs: Any) -> None:
         """
         Creates a factory configuration
         """
@@ -111,7 +111,7 @@ class ConfigAdminCommands(ShellCommandsProvider):
             # Update it immediately if some properties are already set
             config.update(kwargs)
 
-    def update(self, _: ShellSession, pid: str, **kwargs: Any) -> None:
+    def update(self, _: "ShellSession", pid: str, **kwargs: Any) -> None:
         """
         Updates a configuration
         """
@@ -136,7 +136,7 @@ class ConfigAdminCommands(ShellCommandsProvider):
         # Update configuration
         config.update(new_properties)
 
-    def reload(self, session: ShellSession, pid: str) -> None:
+    def reload(self, session: "ShellSession", pid: str) -> None:
         """
         Reloads the configuration with the given PID from the persistence
         """
@@ -150,7 +150,7 @@ class ConfigAdminCommands(ShellCommandsProvider):
             # Log errors
             session.write_line("Error reloading {0}: {1}", pid, ex)
 
-    def delete(self, _: ShellSession, pid: str) -> None:
+    def delete(self, _: "ShellSession", pid: str) -> None:
         """
         Deletes a configuration
         """
@@ -162,7 +162,7 @@ class ConfigAdminCommands(ShellCommandsProvider):
             # Configuration was unknown
             pass
 
-    def list(self, session: ShellSession, pid=None) -> None:
+    def list(self, session: "ShellSession", pid=None) -> None:
         """
         Lists known configurations
         """

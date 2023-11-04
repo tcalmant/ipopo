@@ -84,14 +84,14 @@ class InteractiveShell:
     The interactive shell handler
     """
 
-    def __init__(self, context: BundleContext) -> None:
+    def __init__(self, context: "BundleContext") -> None:
         """
         Sets up the members
 
         :param context: The bundle context
         """
         self._context = context
-        self._shell_ref: Optional[ServiceReference[ShellService]] = None
+        self._shell_ref: Optional["ServiceReference[ShellService]"] = None
         self._shell: Optional[ShellService] = None
 
         # Single session
@@ -364,7 +364,7 @@ class InteractiveShell:
                 # Request for a new binding
                 self.search_shell()
 
-    def set_shell(self, svc_ref: ServiceReference[ShellService]) -> None:
+    def set_shell(self, svc_ref: "ServiceReference[ShellService]") -> None:
         """
         Binds the given shell service.
 
@@ -440,11 +440,11 @@ class Activator(ActivatorProto):
         """
         Sets up the members
         """
-        self._context: Optional[BundleContext] = None
+        self._context: Optional["BundleContext"] = None
         self._shell: Optional[InteractiveShell] = None
         self._thread: Optional[threading.Thread] = None
 
-    def start(self, context: BundleContext) -> None:
+    def start(self, context: "BundleContext") -> None:
         """
         Bundle started
         """
@@ -462,7 +462,7 @@ class Activator(ActivatorProto):
         self._thread.daemon = True
         self._thread.start()
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, _: "BundleContext") -> None:
         """
         Bundle stopped
         """

@@ -38,7 +38,7 @@ from pelix.shell import ShellCommandMethod
 from pelix.utilities import to_str, get_method_arguments
 import pelix.shell.beans as beans
 
-from pelix.shell.completion.decorators import ATTR_COMPLETERS, CompletionInfo
+from pelix.shell.completion import ATTR_COMPLETERS, CompletionInfo
 
 if TYPE_CHECKING:
     from pelix.framework import Framework
@@ -160,7 +160,7 @@ class Shell:
     Allows the use of name spaces.
     """
 
-    def __init__(self, framework: Framework, logname: Optional[str] = None) -> None:
+    def __init__(self, framework: "Framework", logname: Optional[str] = None) -> None:
         """
         Sets up members
 

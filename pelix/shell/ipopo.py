@@ -34,7 +34,8 @@ import pelix.ipopo.constants
 import pelix.shell
 from pelix.ipopo.decorators import ComponentFactory, Instantiate, Provides, Requires
 from pelix.ipopo.protocols import IPopoService
-from pelix.shell.completion.decorators import COMPONENT, DUMMY, FACTORY, FACTORY_PROPERTY, Completion
+from pelix.shell.completion import COMPONENT, DUMMY, FACTORY, FACTORY_PROPERTY
+from pelix.shell.completion.decorators import Completion
 
 if TYPE_CHECKING:
     from pelix.shell.beans import ShellSession
@@ -111,7 +112,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
             ("retry", self.retry_erroneous),
         ]
 
-    def list_factories(self, session: ShellSession, name: Optional[str] = None) -> None:
+    def list_factories(self, session: "ShellSession", name: Optional[str] = None) -> None:
         """
         Lists the available iPOPO component factories
         """
@@ -130,7 +131,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         else:
             session.write_line("{0} filtered factories", len(lines))
 
-    def list_instances(self, session: ShellSession, name: Optional[str] = None) -> None:
+    def list_instances(self, session: "ShellSession", name: Optional[str] = None) -> None:
         """
         Lists the active iPOPO component instances
         """
@@ -150,7 +151,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         else:
             session.write_line("{0} filtered components", len(instances))
 
-    def list_waitings(self, session: ShellSession, name: Optional[str] = None) -> None:
+    def list_waitings(self, session: "ShellSession", name: Optional[str] = None) -> None:
         """
         Lists the components waiting to be instantiated
         """
@@ -171,7 +172,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
             session.write_line("{0} filtered components", len(components))
 
     @Completion(FACTORY)
-    def factory_details(self, session: ShellSession, name: str) -> Any:
+    def factory_details(self, session: "ShellSession", name: str) -> Any:
         """
         Prints the details of the given component factory
         """
@@ -233,7 +234,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         return None
 
     @Completion(COMPONENT)
-    def instance_details(self, session: ShellSession, name: str) -> Any:
+    def instance_details(self, session: "ShellSession", name: str) -> Any:
         """
         Prints the details of the given component instance
         """
@@ -284,7 +285,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         return None
 
     @Completion(FACTORY, DUMMY, FACTORY_PROPERTY, multiple=True)
-    def instantiate(self, session: ShellSession, factory: str, name: str, **properties: Any) -> Any:
+    def instantiate(self, session: "ShellSession", factory: str, name: str, **properties: Any) -> Any:
         """
         Instantiates a component of the given factory with the given name and
         properties
@@ -306,7 +307,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         return False
 
     @Completion(COMPONENT)
-    def kill(self, session: ShellSession, name: str) -> Any:
+    def kill(self, session: "ShellSession", name: str) -> Any:
         """
         Kills the given component instance
         """
@@ -320,7 +321,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         return None
 
     @Completion(COMPONENT, FACTORY_PROPERTY, multiple=True)
-    def retry_erroneous(self, session: ShellSession, name: str, **properties: Any) -> Any:
+    def retry_erroneous(self, session: "ShellSession", name: str, **properties: Any) -> Any:
         """
         Removes the erroneous flag from a component and retries to validate it
         """

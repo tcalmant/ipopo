@@ -32,8 +32,7 @@ from typing import TYPE_CHECKING, List
 
 from pelix.utilities import use_service
 
-from . import PROP_COMPLETER_ID, Completer
-from .decorators import DUMMY
+from . import PROP_COMPLETER_ID, Completer, DUMMY
 
 try:
     import readline
@@ -79,10 +78,10 @@ class AbstractCompleter(abc.ABC, Completer):
     @abc.abstractmethod
     def complete(
         self,
-        config: CompletionInfo,
+        config: "CompletionInfo",
         prompt: str,
-        session: ShellSession,
-        context: BundleContext,
+        session: "ShellSession",
+        context: "BundleContext",
         current_arguments: List[str],
         current: str,
     ) -> List[str]:
@@ -103,10 +102,10 @@ class AbstractCompleter(abc.ABC, Completer):
 
 
 def completion_hints(
-    config: CompletionInfo,
+    config: "CompletionInfo",
     prompt: str,
-    session: ShellSession,
-    context: BundleContext,
+    session: "ShellSession",
+    context: "BundleContext",
     current: str,
     arguments: List[str],
 ) -> List[str]:

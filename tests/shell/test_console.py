@@ -6,21 +6,14 @@ Tests the shell console
 :author: Thomas Calmant
 """
 
-# Pelix
-from pelix.utilities import to_str, to_bytes
-
-# Standard library
 import random
 import string
 import sys
 import threading
 import time
+import unittest
 
-# Tests
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+from pelix.utilities import to_bytes, to_str
 
 # ------------------------------------------------------------------------------
 
@@ -39,10 +32,12 @@ except ImportError:
     # Can't run the test if we can't start another process
     pass
 else:
+
     class ShellStandaloneTest(unittest.TestCase):
         """
         Tests the console shell when started as a script
         """
+
         @staticmethod
         def random_str():
             """
@@ -52,7 +47,7 @@ else:
             """
             data = list(string.ascii_letters)
             random.shuffle(data)
-            return ''.join(data)
+            return "".join(data)
 
         def test_echo(self):
             """
@@ -60,13 +55,16 @@ else:
             """
             # Get shell PS1 (static method)
             import pelix.shell.core
+
             ps1 = pelix.shell.core._ShellService.get_ps1()
 
             # Start the shell process
             process = subprocess.Popen(
-                [sys.executable, '-m', 'pelix.shell'],
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT)
+                [sys.executable, "-m", "pelix.shell"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
 
             # Avoid being blocked...
             timer = threading.Timer(5, process.terminate)
@@ -78,16 +76,14 @@ else:
                 char = to_str(process.stdout.read(1))
                 if not char:
                     if sys.version_info[0] == 2:
-                        self.skipTest("Shell console test doesn't work on "
-                                      "Python 2.7 with Travis")
+                        self.skipTest("Shell console test doesn't work on " "Python 2.7 with Travis")
                     else:
                         if process.poll():
                             output = to_str(process.stdout.read())
                         else:
                             output = "<no output>"
 
-                        self.fail("Can't read from stdout (rc={})\n{}"
-                                  .format(process.returncode, output))
+                        self.fail("Can't read from stdout (rc={})\n{}".format(process.returncode, output))
                 else:
                     got += char
 
@@ -117,7 +113,7 @@ else:
                     delta = time.time() - start
                     if process.poll() is not None:
                         break
-                    time.sleep(.1)
+                    time.sleep(0.1)
                 else:
                     self.fail("Process took too long to stop")
             finally:
@@ -141,9 +137,17 @@ else:
 
             # Start the shell process
             process = subprocess.Popen(
-                [sys.executable, '-m', 'pelix.shell',
-                 '-D', '{}={}'.format(key1, val1), '{}={}'.format(key2, val2)],
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+                [
+                    sys.executable,
+                    "-m",
+                    "pelix.shell",
+                    "-D",
+                    "{}={}".format(key1, val1),
+                    "{}={}".format(key2, val2),
+                ],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+            )
 
             try:
                 # List properties, stop and get output

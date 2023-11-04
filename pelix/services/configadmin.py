@@ -52,8 +52,7 @@ from pelix.ipopo.decorators import (
 )
 
 if TYPE_CHECKING:
-    from pelix.framework import BundleContext
-    from pelix.internals.registry import ServiceReference
+    from pelix.framework import BundleContext, ServiceReference
 
 # ------------------------------------------------------------------------------
 
@@ -594,9 +593,9 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         self._controller = False
 
         # Service reference -> Managed Service
-        self._managed_refs: Dict[ServiceReference[services.IManagedService], services.IManagedService] = {}
+        self._managed_refs: Dict["ServiceReference[services.IManagedService]", services.IManagedService] = {}
         self._factories_refs: Dict[
-            ServiceReference[services.IManagedServiceFactory], services.IManagedServiceFactory
+            "ServiceReference[services.IManagedServiceFactory]", services.IManagedServiceFactory
         ] = {}
 
         # Some safety
@@ -623,7 +622,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         self.__notify_pids(pids)
 
     @Validate
-    def _validate(self, _: BundleContext) -> None:
+    def _validate(self, _: "BundleContext") -> None:
         """
         Component validated
         """
@@ -640,7 +639,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
                 self.__set_up()
 
     @Invalidate
-    def _invalidate(self, _: BundleContext) -> None:
+    def _invalidate(self, _: "BundleContext") -> None:
         """
         Component invalidated
         """
@@ -658,7 +657,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         self,
         field: str,
         svc: IConfigurationAdminDirectory,
-        svc_ref: ServiceReference[IConfigurationAdminDirectory],
+        svc_ref: "ServiceReference[IConfigurationAdminDirectory]",
     ) -> None:
         """
         The configurations directory has been bound
@@ -674,7 +673,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         self,
         field: str,
         svc: services.IConfigurationAdminPersistence,
-        svc_ref: ServiceReference[services.IConfigurationAdminPersistence],
+        svc_ref: "ServiceReference[services.IConfigurationAdminPersistence]",
     ) -> None:
         """
         A persistence came in
@@ -686,7 +685,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
 
     @UnbindField("_persistences")
     @UnbindField("_directory")
-    def _unbind_directory(self, field: str, svc: Any, svc_ref: ServiceReference[Any]) -> None:
+    def _unbind_directory(self, field: str, svc: Any, svc_ref: "ServiceReference[Any]") -> None:
         """
         The configurations directory has gone
         """
@@ -695,7 +694,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
 
     @BindField("_managed")
     def _bind_managed(
-        self, field: str, svc: services.IManagedService, svc_ref: ServiceReference[services.IManagedService]
+        self, field: str, svc: services.IManagedService, svc_ref: "ServiceReference[services.IManagedService]"
     ) -> None:
         """
         A managed service has been bound
@@ -714,7 +713,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
 
     @UnbindField("_managed")
     def _unbind_managed(
-        self, field: str, svc: services.IManagedService, svc_ref: ServiceReference[services.IManagedService]
+        self, field: str, svc: services.IManagedService, svc_ref: "ServiceReference[services.IManagedService]"
     ) -> None:
         """
         A managed service has gone
@@ -728,7 +727,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         self,
         field: str,
         svc: services.IManagedServiceFactory,
-        svc_ref: ServiceReference[services.IManagedServiceFactory],
+        svc_ref: "ServiceReference[services.IManagedServiceFactory]",
     ) -> None:
         """
         A managed service factory has been bound
@@ -747,7 +746,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         self,
         field: str,
         svc: services.IManagedServiceFactory,
-        svc_ref: ServiceReference[services.IManagedServiceFactory],
+        svc_ref: "ServiceReference[services.IManagedServiceFactory]",
     ) -> None:
         """
         A managed service has gone
@@ -1101,7 +1100,7 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
             return None
 
     @Validate
-    def validate(self, _: BundleContext) -> None:
+    def validate(self, _: "BundleContext") -> None:
         """
         Component validated
         """
@@ -1117,7 +1116,7 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         self._watched_folder = self._conf_folder
 
     @Invalidate
-    def invalidate(self, _: BundleContext) -> None:
+    def invalidate(self, _: "BundleContext") -> None:
         """
         Component invalidated
         """
@@ -1268,7 +1267,7 @@ class Activator(pelix.constants.ActivatorProto):
     Instantiates the default JSON configuration provider
     """
 
-    def start(self, context: BundleContext) -> None:
+    def start(self, context: "BundleContext") -> None:
         """
         Bundle started
         """
@@ -1280,7 +1279,7 @@ class Activator(pelix.constants.ActivatorProto):
         # to the component factory
         Instantiate("pelix-services-configuration-json-default")(JsonPersistence)
 
-    def stop(self, context: BundleContext) -> None:
+    def stop(self, context: "BundleContext") -> None:
         """
         Bundle stopped
         """

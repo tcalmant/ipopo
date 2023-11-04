@@ -32,9 +32,8 @@ from typing import TYPE_CHECKING, List
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.ipopo.constants import use_ipopo
 
-from . import PROP_COMPLETER_ID, Completer
-from .core import AbstractCompleter
-from .decorators import COMPONENT, FACTORY, FACTORY_PROPERTY
+from pelix.shell.completion import COMPONENT, FACTORY, FACTORY_PROPERTY, PROP_COMPLETER_ID, Completer
+from pelix.shell.completion.core import AbstractCompleter
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext, ServiceRegistration
@@ -68,7 +67,7 @@ class ComponentFactoryCompleter(AbstractCompleter):
 
     @staticmethod
     def display_hook(
-        prompt: str, session: ShellSession, context: BundleContext, matches: List[str], longest_match_len: int
+        prompt: str, session: "ShellSession", context: "BundleContext", matches: List[str], longest_match_len: int
     ) -> None:
         """
         Displays the available services matches and the service details
@@ -101,10 +100,10 @@ class ComponentFactoryCompleter(AbstractCompleter):
 
     def complete(
         self,
-        config: CompletionInfo,
+        config: "CompletionInfo",
         prompt: str,
-        session: ShellSession,
-        context: BundleContext,
+        session: "ShellSession",
+        context: "BundleContext",
         current_arguments: List[str],
         current: str,
     ) -> List[str]:
@@ -134,7 +133,7 @@ class ComponentInstanceCompleter(AbstractCompleter):
 
     @staticmethod
     def display_hook(
-        prompt: str, session: ShellSession, context: BundleContext, matches: List[str], longest_match_len: int
+        prompt: str, session: "ShellSession", context: "BundleContext", matches: List[str], longest_match_len: int
     ) -> None:
         """
         Displays the available services matches and the service details
@@ -168,10 +167,10 @@ class ComponentInstanceCompleter(AbstractCompleter):
 
     def complete(
         self,
-        config: CompletionInfo,
+        config: "CompletionInfo",
         prompt: str,
-        session: ShellSession,
-        context: BundleContext,
+        session: "ShellSession",
+        context: "BundleContext",
         current_arguments: List[str],
         current: str,
     ) -> List[str]:
@@ -201,10 +200,10 @@ class ComponentFactoryPropertiesCompleter(AbstractCompleter):
 
     def complete(
         self,
-        config: CompletionInfo,
+        config: "CompletionInfo",
         prompt: str,
-        session: ShellSession,
-        context: BundleContext,
+        session: "ShellSession",
+        context: "BundleContext",
         current_arguments: List[str],
         current: str,
     ) -> List[str]:
@@ -266,9 +265,9 @@ class Activator(ActivatorProto):
     """
 
     def __init__(self) -> None:
-        self._registrations: List[ServiceRegistration[Completer]] = []
+        self._registrations: List["ServiceRegistration[Completer]"] = []
 
-    def start(self, context: BundleContext) -> None:
+    def start(self, context: "BundleContext") -> None:
         """
         Bundle starting
 
@@ -284,7 +283,7 @@ class Activator(ActivatorProto):
             for completer_id, completer_class in COMPLETERS.items()
         ]
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, _: "BundleContext") -> None:
         """
         Bundle stopping
 

@@ -28,24 +28,10 @@ Pelix shell completion package
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, List, Protocol
-from .decorators import BUNDLE, COMPONENT, DUMMY, FACTORY, SERVICE, Completion
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
-    from .decorators import CompletionInfo
-    from .. import ShellSession
-
-__all__ = [
-    "PROP_COMPLETER_ID",
-    "SVC_COMPLETER",
-    "BUNDLE",
-    "COMPONENT",
-    "DUMMY",
-    "FACTORY",
-    "SERVICE",
-    "Completion",
-    "Completer",
-]
+    from pelix.shell.beans import ShellSession
 
 # ------------------------------------------------------------------------------
 
@@ -58,6 +44,25 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+DUMMY = "dummy"
+""" Completer ID: a completer that does nothing """
+
+BUNDLE = "pelix.bundle"
+""" Completer ID: Pelix Bundle ID completer """
+
+SERVICE = "pelix.service"
+""" Completer ID: Pelix Service ID completer """
+
+FACTORY = "ipopo.factory"
+""" Completer ID: iPOPO Factory Name completer """
+
+FACTORY_PROPERTY = "ipopo.factory.property"
+""" Completer ID: iPOPO Property Name completer """
+
+COMPONENT = "ipopo.component"
+""" Completer ID: iPOPO Component Name completer """
+
+# ------------------------------------------------------------------------------
 
 SVC_COMPLETER = "pelix.shell.completer"
 """ Specification of a completer service """
@@ -97,8 +102,8 @@ class Completer(Protocol):
         self,
         config: CompletionInfo,
         prompt: str,
-        session: ShellSession,
-        context: BundleContext,
+        session: "ShellSession",
+        context: "BundleContext",
         current_arguments: List[str],
         current: str,
     ) -> List[str]:

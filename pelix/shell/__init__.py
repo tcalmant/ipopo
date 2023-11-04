@@ -90,7 +90,7 @@ Report command service: gives access to the report methods for a future reuse
   to their string representation.
 """
 
-ShellCommandMethod = Callable[[ShellSession], Any] | Callable[[ShellSession, *Any], Any]
+ShellCommandMethod = Callable[..., Any]
 
 class ShellService(Protocol):
     """
@@ -151,7 +151,7 @@ class ShellService(Protocol):
         """
         ...
 
-    def execute(self, cmdline: str, session: Optional[ShellSession]) -> bool:
+    def execute(self, cmdline: str, session: Optional["ShellSession"]) -> bool:
         """
         Executes the command corresponding to the given line
 
@@ -167,7 +167,7 @@ class ShellService(Protocol):
         """
         ...
 
-    def get_command_completers(self, namespace: str, command: str) -> Optional[CompletionInfo]:
+    def get_command_completers(self, namespace: str, command: str) -> Optional["CompletionInfo"]:
         """
         Returns the completer method associated to the given command, or None
 

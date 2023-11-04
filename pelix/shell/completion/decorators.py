@@ -46,29 +46,6 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 
-# ------------------------------------------------------------------------------
-
-DUMMY = "dummy"
-""" Completer ID: a completer that does nothing """
-
-BUNDLE = "pelix.bundle"
-""" Completer ID: Pelix Bundle ID completer """
-
-SERVICE = "pelix.service"
-""" Completer ID: Pelix Service ID completer """
-
-FACTORY = "ipopo.factory"
-""" Completer ID: iPOPO Factory Name completer """
-
-FACTORY_PROPERTY = "ipopo.factory.property"
-""" Completer ID: iPOPO Property Name completer """
-
-COMPONENT = "ipopo.component"
-""" Completer ID: iPOPO Component Name completer """
-
-# ------------------------------------------------------------------------------
-
-
 class Completion:
     """
     Decorator that sets up the arguments completion of a shell method
