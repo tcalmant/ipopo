@@ -25,22 +25,26 @@ Implementation of the OSGi LogService, based on Python standard logging
     limitations under the License.
 """
 
-# Standard library
 import collections
 import datetime
 import logging
 import sys
 import time
 import traceback
+from types import ModuleType
+from typing import Any, Optional, Set, Tuple, Union, cast
 
-# Pelix
 import pelix.framework
-from pelix.constants import BundleActivator
+from pelix.constants import ActivatorProto, BundleActivator
 from pelix.misc import (
     LOG_SERVICE,
-    LOG_READER_SERVICE,
     PROPERTY_LOG_LEVEL,
     PROPERTY_LOG_MAX_ENTRIES,
+    LogEntry,
+    LogListener,
+    LogReader,
+    LogService,
+    OptExcInfo,
 )
 
 # ------------------------------------------------------------------------------
@@ -81,7 +85,7 @@ LEVEL_TO_OSGI = {
 # ------------------------------------------------------------------------------
 
 
-class LogEntry(object):
+class LogEntryImpl(LogEntry):
     """
     Represents a log entry
     """
@@ -96,7 +100,14 @@ class LogEntry(object):
         "__record",
     )
 
-    def __init__(self, level, message, exception, bundle, reference):
+    def __init__(
+        self,
+        level: int,
+        message: Optional[str],
+        exception: Optional[str],
+        bundle: Optional[pelix.framework.Bundle],
+        reference: Optional[pelix.framework.ServiceReference[Any]],
+    ) -> None:
         """
         :param level: The Python log level of the entry
         :param message: A human readable message
@@ -109,8 +120,8 @@ class LogEntry(object):
         self.__level = level
         self.__message = message
         self.__reference = reference
-        self.__time = time.time()
-        self.__record = None
+        self.__time: float = time.time()
+        self.__record: Optional[logging.LogRecord] = None
 
     def __str__(self):
         """
@@ -126,71 +137,69 @@ class LogEntry(object):
 
         if self.__bundle:
             # Bundle name
-            values.append(
-                "{0: <20s} ::".format(self.__bundle.get_symbolic_name())
-            )
+            values.append("{0: <20s} ::".format(self.__bundle.get_symbolic_name()))
 
         # Message
-        values.append(self.__message)
+        if self.__message:
+            values.append(self.__message)
 
         if not self.__exception:
             # Print as is
             return " ".join(values)
 
         # Print the exception too
-        return "{0}\n{1}".format(" ".join(values), self.__exception)
+        return f"{' '.join(values)}\n{self.__exception}"
 
     @property
-    def bundle(self):
+    def bundle(self) -> Optional[pelix.framework.Bundle]:
         """
         The bundle that created this entry
         """
         return self.__bundle
 
     @property
-    def message(self):
+    def message(self) -> Optional[str]:
         """
         The message associated to this entry
         """
         return self.__message
 
     @property
-    def exception(self):
+    def exception(self) -> Optional[str]:
         """
         The exception associated to this entry
         """
         return self.__exception
 
     @property
-    def level(self):
+    def level(self) -> int:
         """
         The log level of this entry (Python constant)
         """
         return self.__level
 
     @property
-    def osgi_level(self):
+    def osgi_level(self) -> int:
         """
         The log level of this entry (OSGi constant)
         """
         return LEVEL_TO_OSGI.get(self.__level, LOG_INFO)
 
     @property
-    def reference(self):
+    def reference(self) -> Optional[pelix.framework.ServiceReference[Any]]:
         """
         The reference to the service associated to this entry
         """
         return self.__reference
 
     @property
-    def time(self):
+    def time(self) -> float:
         """
         The timestamp of this entry
         """
         return self.__time
 
-    def to_record(self):
-        # type: () -> logging.LogRecord
+    def to_record(self) -> logging.LogRecord:
         """
         Returns this object as a ``logging.LogRecord``
         """
@@ -200,28 +209,22 @@ class LogEntry(object):
 
         return self.__record
 
-    def __make_record(self):
+    def __make_record(self) -> logging.LogRecord:
         """
         Converts this object into a ``logging.LogRecord`` object
         """
         # Extract local details
         bundle = self.bundle
-        name = bundle.get_symbolic_name()
-        pathname = bundle.get_location()
+        name = bundle.get_symbolic_name() if bundle is not None else "n/a"
+        pathname = bundle.get_location() if bundle is not None else "n/a"
         lineno = 0
-
-        args = []
-        func = "n/a"
-        sinfo = None
 
         level = self.level
         msg = self.message
         exc_info = self.exception
 
         # Construct the record
-        record = logging.LogRecord(
-            name, level, pathname, lineno, msg, args, exc_info, func, sinfo
-        )
+        record = logging.LogRecord(name, level, pathname, lineno, msg, None, exc_info, "n/a", None)
 
         # Fix the time related entries
         log_start_time = record.created - (record.relativeCreated / 1000)
@@ -230,25 +233,24 @@ class LogEntry(object):
         record.created = creation_time
         record.msecs = (creation_time - int(creation_time)) * 1000
         record.relativeCreated = (creation_time - log_start_time) * 1000
-
         return record
 
 
-class LogReaderService:
+class LogReaderImpl(LogReader):
     """
     The LogReader service
     """
 
-    def __init__(self, context, max_entries):
+    def __init__(self, context: pelix.framework.BundleContext, max_entries: int) -> None:
         """
         :param context: The bundle context
         :param max_entries: Maximum stored entries
         """
         self._context = context
-        self.__logs = collections.deque(maxlen=max_entries)
-        self.__listeners = set()
+        self.__logs = collections.deque[LogEntry](maxlen=max_entries)
+        self.__listeners: Set[LogListener] = set()
 
-    def add_log_listener(self, listener):
+    def add_log_listener(self, listener: LogListener) -> None:
         """
         Subscribes a listener to log events.
 
@@ -268,7 +270,7 @@ class LogReaderService:
         if listener is not None:
             self.__listeners.add(listener)
 
-    def remove_log_listener(self, listener):
+    def remove_log_listener(self, listener: LogListener) -> None:
         """
         Unsubscribes a listener from log events.
 
@@ -276,7 +278,7 @@ class LogReaderService:
         """
         self.__listeners.discard(listener)
 
-    def get_log(self):
+    def get_log(self) -> Tuple[LogEntry, ...]:
         """
         Returns the logs events kept by the service
 
@@ -284,7 +286,7 @@ class LogReaderService:
         """
         return tuple(self.__logs)
 
-    def _store_entry(self, entry):
+    def _store_entry(self, entry: LogEntry) -> None:
         """
         Stores a new log entry and notifies listeners
 
@@ -300,11 +302,9 @@ class LogReaderService:
             except Exception as ex:
                 # Create a new log entry, without using logging nor notifying
                 # listener (to avoid a recursion)
-                err_entry = LogEntry(
+                err_entry = LogEntryImpl(
                     logging.WARNING,
-                    "Error notifying logging listener {0}: {1}".format(
-                        listener, ex
-                    ),
+                    f"Error notifying logging listener {listener}: {ex}",
                     sys.exc_info(),
                     self._context.get_bundle(),
                     None,
@@ -316,15 +316,14 @@ class LogReaderService:
                 self.__logs.append(entry)
 
 
-class LogServiceInstance:
-    # pylint: disable=R0903
+class LogServiceInstance(LogService):
     """
     Instance of the log service given to a bundle by the factory
     """
 
     __slots__ = ("__reader", "__bundle")
 
-    def __init__(self, reader, bundle):
+    def __init__(self, reader: LogReaderImpl, bundle: pelix.framework.Bundle) -> None:
         """
         :param reader: The Log Reader service
         :param bundle: Bundle associated to this instance
@@ -332,8 +331,13 @@ class LogServiceInstance:
         self.__reader = reader
         self.__bundle = bundle
 
-    def log(self, level, message, exc_info=None, reference=None):
-        # pylint: disable=W0212
+    def log(
+        self,
+        level: int,
+        message: Optional[str],
+        exc_info: OptExcInfo = None,
+        reference: Optional[pelix.framework.ServiceReference[Any]] = None,
+    ) -> None:
         """
         Logs a message, possibly with an exception
 
@@ -356,9 +360,7 @@ class LogServiceInstance:
             exception_str = None
 
         # Store the LogEntry
-        entry = LogEntry(
-            level, message, exception_str, self.__bundle, reference
-        )
+        entry = LogEntryImpl(level, message, exception_str, self.__bundle, reference)
         self.__reader._store_entry(entry)
 
 
@@ -367,7 +369,7 @@ class LogServiceFactory(logging.Handler):
     Log Service Factory: provides a logger per bundle
     """
 
-    def __init__(self, context, reader, level):
+    def __init__(self, context: pelix.framework.BundleContext, reader: LogReaderImpl, level: int) -> None:
         """
         :param context: The bundle context
         :param reader: The Log Reader service
@@ -377,24 +379,23 @@ class LogServiceFactory(logging.Handler):
         self._framework = context.get_framework()
         self._reader = reader
 
-    def _bundle_from_module(self, module_object):
+    def _bundle_from_module(self, module_object: Union[str, ModuleType]) -> Optional[pelix.framework.Bundle]:
         """
         Find the bundle associated to a module
 
         :param module_object: A Python module object
         :return: The Bundle object associated to the module, or None
         """
+        # Get the module name
         try:
-            # Get the module name
-            module_object = module_object.__name__
+            module_name = cast(str, getattr(module_object, "__name__"))
         except AttributeError:
             # We got a string
-            pass
+            module_name = str(module_object)
 
-        return self._framework.get_bundle_by_name(module_object)
+        return self._framework.get_bundle_by_name(module_name)
 
-    def emit(self, record):
-        # pylint: disable=W0212
+    def emit(self, record: logging.LogRecord) -> None:
         """
         Handle a message logged with the logger
 
@@ -404,13 +405,12 @@ class LogServiceFactory(logging.Handler):
         bundle = self._bundle_from_module(record.module)
 
         # Convert to a LogEntry
-        entry = LogEntry(
-            record.levelno, record.getMessage(), None, bundle, None
-        )
+        entry = LogEntryImpl(record.levelno, record.getMessage(), None, bundle, None)
         self._reader._store_entry(entry)
 
-    def get_service(self, bundle, registration):
-        # pylint: disable=W0613
+    def get_service(
+        self, bundle: pelix.framework.Bundle, registration: pelix.framework.ServiceRegistration[LogService]
+    ) -> LogService:
         """
         Returns an instance of the log service for the given bundle
 
@@ -421,7 +421,9 @@ class LogServiceFactory(logging.Handler):
         return LogServiceInstance(self._reader, bundle)
 
     @staticmethod
-    def unget_service(bundle, registration):
+    def unget_service(
+        bundle: pelix.framework.Bundle, registration: pelix.framework.ServiceRegistration[LogService]
+    ) -> None:
         """
         Releases the service associated to the given bundle
 
@@ -432,18 +434,18 @@ class LogServiceFactory(logging.Handler):
 
 
 @BundleActivator
-class Activator(object):
+class Activator(ActivatorProto):
     """
     The bundle activator
     """
 
     def __init__(self):
-        self.__reader_reg = None
-        self.__factory_reg = None
-        self.__factory = None
+        self.__reader_reg: Optional[pelix.framework.ServiceRegistration[LogReader]] = None
+        self.__factory_reg: Optional[pelix.framework.ServiceRegistration[Any]] = None
+        self.__factory: Optional[LogServiceFactory] = None
 
     @staticmethod
-    def get_level(context):
+    def get_level(context: pelix.framework.BundleContext) -> int:
         """
         Get the log level from the bundle context (framework properties)
 
@@ -466,7 +468,7 @@ class Activator(object):
         # By default, use the INFO level
         return logging.INFO
 
-    def start(self, context):
+    def start(self, context: pelix.framework.BundleContext) -> None:
         """
         Bundle starting
 
@@ -481,18 +483,12 @@ class Activator(object):
             max_entries = 100
 
         # Register the LogReader service
-        reader = LogReaderService(context, max_entries)
-        self.__reader_reg = context.register_service(
-            LOG_READER_SERVICE, reader, {}
-        )
+        reader = LogReaderImpl(context, max_entries)
+        self.__reader_reg = context.register_service(LogReader, reader, {})
 
         # Register the LogService factory
-        self.__factory = LogServiceFactory(
-            context, reader, self.get_level(context)
-        )
-        self.__factory_reg = context.register_service(
-            LOG_SERVICE, self.__factory, {}, factory=True
-        )
+        self.__factory = LogServiceFactory(context, reader, self.get_level(context))
+        self.__factory_reg = context.register_service(LOG_SERVICE, self.__factory, {}, factory=True)
 
         # Register the log service as a log handler
         logging.getLogger().addHandler(self.__factory)
@@ -513,5 +509,6 @@ class Activator(object):
             self.__reader_reg = None
 
         # Unregister the handler
-        logging.getLogger().removeHandler(self.__factory)
-        self.__factory = None
+        if self.__factory is not None:
+            logging.getLogger().removeHandler(self.__factory)
+            self.__factory = None

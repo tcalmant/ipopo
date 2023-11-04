@@ -25,6 +25,11 @@ Pelix miscellaneous modules
     limitations under the License.
 """
 
+from types import TracebackType
+from typing import Any, Optional, Protocol, Tuple, TypeAlias
+
+import pelix.framework
+
 # Module version
 __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -32,7 +37,13 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+
+OptExcInfo: TypeAlias = (
+    tuple[type[BaseException], BaseException, TracebackType] | tuple[None, None, None] | None
+)
+
 # ------------------------------------------------------------------------------
+
 
 FACTORY_EVENT_ADMIN_PRINTER = "pelix-misc-eventadmin-printer-factory"
 """
@@ -70,3 +81,141 @@ The log reader service, providing:
 Log listeners must provide a ``logged(entry)`` method, accepting a ``LogEntry``
 object as parameter.
 """
+
+
+class LogEntry(Protocol):
+    """
+    Specification of a log entry
+    """
+
+    @property
+    def bundle(self) -> Optional[pelix.framework.Bundle]:
+        """
+        The bundle that created this entry
+        """
+        ...
+
+    @property
+    def message(self) -> Optional[str]:
+        """
+        The message associated to this entry
+        """
+        ...
+
+    @property
+    def exception(self) -> Optional[str]:
+        """
+        The exception associated to this entry
+        """
+        ...
+
+    @property
+    def level(self) -> int:
+        """
+        The log level of this entry (Python constant)
+        """
+        ...
+
+    @property
+    def osgi_level(self) -> int:
+        """
+        The log level of this entry (OSGi constant)
+        """
+        ...
+
+    @property
+    def reference(self) -> Optional[pelix.framework.ServiceReference[Any]]:
+        """
+        The reference to the service associated to this entry
+        """
+        ...
+
+    @property
+    def time(self) -> float:
+        """
+        The timestamp of this entry
+        """
+        ...
+
+
+class LogListener(Protocol):
+    """
+    Specification of log listener
+    """
+
+    __SPECIFICATION__ = "pelix.log.listener"
+
+    def logged(self, entry: LogEntry) -> None:
+        """
+        Logs an entry with the given log level, human-readable message, exception (if any)
+        and associated service reference (if any)
+        """
+        ...
+
+
+class LogReader(Protocol):
+    """
+    Specification of a log reader service
+    """
+
+    __SPECIFICATION__ = LOG_READER_SERVICE
+
+    def add_log_listener(self, listener: LogListener) -> None:
+        """
+        Subscribes a listener to log events.
+
+        A log listener is an object providing with a ``logged`` method, with
+        the following signature:
+
+        .. code-block:: python
+
+            def logged(self, log_entry):
+                '''
+                A log entry (LogEntry) has been added to the log service
+                '''
+                # ...
+
+        :param listener: A new listener
+        """
+        ...
+
+    def remove_log_listener(self, listener: LogListener) -> None:
+        """
+        Unsubscribes a listener from log events.
+
+        :param listener: The listener to remove
+        """
+        ...
+
+    def get_log(self) -> Tuple[LogEntry, ...]:
+        """
+        Returns the logs events kept by the service
+
+        :return: A tuple of log entries
+        """
+        ...
+
+
+class LogService(Protocol):
+    """
+    Specification of the Log service
+    """
+
+    __SPECIFICATION__ = LOG_SERVICE
+
+    def log(
+        self,
+        level: int,
+        message: Optional[str],
+        exc_info: OptExcInfo = None,
+        reference: Optional[pelix.framework.ServiceReference[Any]] = None,
+    ) -> None:
+        """
+        Logs a message, possibly with an exception
+
+        :param level: Severity of the message (Python logging level)
+        :param message: Human readable message
+        :param exc_info: The exception context (sys.exc_info()), if any
+        :param reference: The ServiceReference associated to the log
+        """
+        ...
