@@ -25,9 +25,10 @@ Utility methods for SSL
     limitations under the License.
 """
 
-# Standard library
 import logging
+import socket
 import ssl
+from typing import Optional
 
 # ------------------------------------------------------------------------------
 
@@ -41,7 +42,9 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-def wrap_socket(socket, certfile, keyfile, password=None):
+def wrap_socket(
+    socket: socket.socket, certfile: str, keyfile: str, password: Optional[str] = None
+) -> socket.socket:
     """
     Wraps an existing TCP socket and returns an SSLSocket object
 
@@ -67,13 +70,9 @@ def wrap_socket(socket, certfile, keyfile, password=None):
         # Check support for key file password
         if password:
             logger.error(
-                "The ssl.wrap_socket() fallback method doesn't "
-                "support key files with a password."
+                "The ssl.wrap_socket() fallback method doesn't " "support key files with a password."
             )
-            raise OSError(
-                "Can't decode the SSL key file: "
-                "this version of Python doesn't support it"
-            )
+            raise OSError("Can't decode the SSL key file: " "this version of Python doesn't support it")
 
         # Load the certificate, without the password argument
         context.load_cert_chain(certfile, keyfile)
