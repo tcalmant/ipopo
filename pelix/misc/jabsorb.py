@@ -7,7 +7,7 @@ Jabsorb is a serialization library for Java, converting Java beans to JSON
 and vice versa.
 
 This module is compatible with the fork of Jabsorb available at
-https://github.com/Thomas Calmant/cohorte-org.jabsorb.ng
+https://github.com/cohorte/cohorte-org.jabsorb.ng
 
 :author: Thomas Calmant
 :copyright: Copyright 2023, Thomas Calmant
@@ -32,18 +32,10 @@ https://github.com/Thomas Calmant/cohorte-org.jabsorb.ng
 """
 
 
-# Standard library
+import builtins
 import inspect
 import re
-
-try:
-    # Python 2
-    # pylint: disable=F0401
-    import __builtin__ as builtins
-except ImportError:
-    # Python 3
-    # pylint: disable=F0401
-    import builtins
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 # ------------------------------------------------------------------------------
 
@@ -85,11 +77,11 @@ class HashableDict(dict):
     Small workaround because dictionaries are not hashable in Python
     """
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """
         Computes the hash of the dictionary
         """
-        return hash("HashableDict({0})".format(sorted(self.items())))
+        return hash(f"HashableDict({sorted(self.items())})")
 
 
 class HashableSet(set):
@@ -97,11 +89,11 @@ class HashableSet(set):
     Small workaround because sets are not hashable in Python
     """
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """
         Computes the hash of the set
         """
-        return hash("HashableSet({0})".format(sorted(self)))
+        return hash(f"HashableSet({sorted(self)})")
 
 
 class HashableList(list):
@@ -109,11 +101,11 @@ class HashableList(list):
     Small workaround because lists are not hashable in Python
     """
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """
         Computes the hash of the list
         """
-        return hash("HashableList({0})".format(sorted(self)))
+        return hash(f"HashableList({sorted(self)})")
 
 
 class AttributeMap(dict):
@@ -121,24 +113,24 @@ class AttributeMap(dict):
     Wraps a map to have the same behaviour between getattr and getitem
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """
         Adds a __dict__ member to this dictionary
         """
         super(AttributeMap, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """
         Computes the hash of the dictionary
         """
-        return hash("AttributeMap({0})".format(sorted(self.items())))
+        return hash(f"AttributeMap({sorted(self.items())})")
 
 
 # ------------------------------------------------------------------------------
 
 
-def _compute_jsonclass(obj):
+def _compute_jsonclass(obj: Any) -> Tuple[str, List[Any]]:
     """
     Compute the content of the __jsonclass__ field for the given object
 
@@ -146,15 +138,15 @@ def _compute_jsonclass(obj):
     :return: The content of the __jsonclass__ field
     """
     # It's not a standard type, so it needs __jsonclass__
-    module_name = inspect.getmodule(obj).__name__
-    json_class = obj.__class__.__name__
+    module_name = getattr(inspect.getmodule(obj), "__name__", "")
+    json_class = cast(str, obj.__class__.__name__)
     if module_name not in ("", "__main__"):
-        json_class = "{0}.{1}".format(module_name, json_class)
+        json_class = f"{module_name}.{json_class}"
 
-    return [json_class, []]
+    return json_class, []
 
 
-def _is_builtin(obj):
+def _is_builtin(obj: Any) -> bool:
     """
     Checks if the type of the given object is a built-in one or not
 
@@ -168,7 +160,7 @@ def _is_builtin(obj):
     return module_.__name__ in ("", "__main__")
 
 
-def _is_converted_class(java_class):
+def _is_converted_class(java_class: Optional[str]) -> bool:
     """
     Checks if the given Java class is one we *might* have set up
     """
@@ -185,7 +177,7 @@ def _is_converted_class(java_class):
 # ------------------------------------------------------------------------------
 
 
-def to_jabsorb(value):
+def to_jabsorb(value: Any) -> Any:
     """
     Adds information for Jabsorb, if needed.
 
@@ -198,13 +190,12 @@ def to_jabsorb(value):
     # None ?
     if value is None:
         return None
-
     # Map ?
     elif isinstance(value, dict):
         if JAVA_CLASS in value or JSON_CLASS in value:
             if not _is_converted_class(value.get(JAVA_CLASS)):
                 # Bean representation
-                converted_result = {}
+                converted_result: Dict[str, Any] = {}
 
                 for key, content in value.items():
                     converted_result[key] = to_jabsorb(content)
@@ -215,13 +206,13 @@ def to_jabsorb(value):
                 except KeyError:
                     pass
 
+                return converted_result
             else:
                 # We already worked on this value
-                converted_result = value
-
+                return value
         else:
             # Needs the whole transformation
-            converted_result = {JAVA_CLASS: "java.util.HashMap"}
+            converted_result: Dict[str, Any] = {JAVA_CLASS: "java.util.HashMap"}
             converted_result["map"] = map_pairs = {}
             for key, content in value.items():
                 map_pairs[key] = to_jabsorb(content)
@@ -232,52 +223,41 @@ def to_jabsorb(value):
             except KeyError:
                 pass
 
+            return converted_result
     # List ? (consider tuples as an array)
     elif isinstance(value, list):
-        converted_result = {
+        return {
             JAVA_CLASS: "java.util.ArrayList",
             "list": [to_jabsorb(entry) for entry in value],
         }
-
     # Set ?
     elif isinstance(value, (set, frozenset)):
-        converted_result = {
+        return {
             JAVA_CLASS: "java.util.HashSet",
             "set": [to_jabsorb(entry) for entry in value],
         }
-
     # Tuple ? (used as array, except if it is empty)
     elif isinstance(value, tuple):
-        converted_result = [to_jabsorb(entry) for entry in value]
-
+        return [to_jabsorb(entry) for entry in value]
     elif hasattr(value, JAVA_CLASS):
         # Class with a Java class hint: convert into a dictionary
-        class_members = {
-            name: getattr(value, name)
-            for name in dir(value)
-            if not name.startswith("_")
-        }
-
+        class_members = {name: getattr(value, name) for name in dir(value) if not name.startswith("_")}
         converted_result = HashableDict(
             (name, to_jabsorb(content))
             for name, content in class_members.items()
             if not inspect.ismethod(content)
         )
-
         # Do not forget the Java class
         converted_result[JAVA_CLASS] = getattr(value, JAVA_CLASS)
-
         # Also add a __jsonclass__ entry
         converted_result[JSON_CLASS] = _compute_jsonclass(value)
-
+        return converted_result
     # Other ?
     else:
-        converted_result = value
-
-    return converted_result
+        return value
 
 
-def from_jabsorb(request, seems_raw=False):
+def from_jabsorb(request: Any, seems_raw: bool = False) -> Any:
     """
     Transforms a jabsorb request into a more Python data model (converts maps
     and lists)
@@ -291,14 +271,11 @@ def from_jabsorb(request, seems_raw=False):
     if isinstance(request, (tuple, set, frozenset)):
         # Special case : JSON arrays (Python lists)
         return type(request)(from_jabsorb(element) for element in request)
-
     elif isinstance(request, list):
         # Check if we were a list or a tuple
         if seems_raw:
             return list(from_jabsorb(element) for element in request)
-
         return tuple(from_jabsorb(element) for element in request)
-
     elif isinstance(request, dict):
         # Dictionary
         java_class = request.get(JAVA_CLASS)
@@ -309,26 +286,18 @@ def from_jabsorb(request, seems_raw=False):
             # Java Map ?
             if JAVA_MAPS_PATTERN.match(java_class) is not None:
                 return HashableDict(
-                    (from_jabsorb(key), from_jabsorb(value))
-                    for key, value in request["map"].items()
+                    (from_jabsorb(key), from_jabsorb(value)) for key, value in request["map"].items()
                 )
-
             # Java List ?
             elif JAVA_LISTS_PATTERN.match(java_class) is not None:
-                return HashableList(
-                    from_jabsorb(element) for element in request["list"]
-                )
-
+                return HashableList(from_jabsorb(element) for element in request["list"])
             # Java Set ?
             elif JAVA_SETS_PATTERN.match(java_class) is not None:
-                return HashableSet(
-                    from_jabsorb(element) for element in request["set"]
-                )
+                return HashableSet(from_jabsorb(element) for element in request["set"])
 
         # Any other case
         result = AttributeMap(
-            (from_jabsorb(key), from_jabsorb(value, seems_raw))
-            for key, value in request.items()
+            (from_jabsorb(key), from_jabsorb(value, seems_raw)) for key, value in request.items()
         )
 
         # Keep JSON class information as is
@@ -336,7 +305,6 @@ def from_jabsorb(request, seems_raw=False):
             result[JSON_CLASS] = json_class
 
         return result
-
     elif not _is_builtin(request):
         # Bean
         for attr in dir(request):
@@ -344,9 +312,7 @@ def from_jabsorb(request, seems_raw=False):
             if not attr[0] == "_":
                 # Field conversion
                 setattr(request, attr, from_jabsorb(getattr(request, attr)))
-
         return request
-
     else:
         # Any other case
         return request

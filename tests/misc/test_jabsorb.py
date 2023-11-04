@@ -6,14 +6,9 @@ Tests the Jabsorb conversion module
 :author: Thomas Calmant
 """
 
-# Standard library
+import unittest
 import uuid
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
 
-# Pelix
 import pelix.misc.jabsorb as jabsorb
 
 # ------------------------------------------------------------------------------
@@ -28,32 +23,48 @@ class JabsorbConverterTest(unittest.TestCase):
     """
     Tests the Jabsorb conversion module
     """
+
     def testIsBuiltin(self):
         """
         Tests the _is_builtin() method
         """
-        for item in (int, 42, str, "toto", bool, True, float, 3.14,
-                     dict, {"a": "b"}, set, {12}, tuple, (1, 2, 3),
-                     list, [4, 5, 6]):
-            self.assertTrue(jabsorb._is_builtin(item),
-                            "Item {0} should be built-in".format(item))
+        for item in (
+            int,
+            42,
+            str,
+            "toto",
+            bool,
+            True,
+            float,
+            3.14,
+            dict,
+            {"a": "b"},
+            set,
+            {12},
+            tuple,
+            (1, 2, 3),
+            list,
+            [4, 5, 6],
+        ):
+            self.assertTrue(jabsorb._is_builtin(item), "Item {0} should be built-in".format(item))
 
         for item in (unittest.TestCase, jabsorb, jabsorb.to_jabsorb):
-            self.assertFalse(jabsorb._is_builtin(item),
-                             "Item {0} should not be built-in".format(item))
+            self.assertFalse(jabsorb._is_builtin(item), "Item {0} should not be built-in".format(item))
 
     def testMirror(self):
         """
         Tests the result of to_jabsorb + from_jabsorb
         """
-        value = {"list": [1, 2, 3],
-                 "tuple": (1, 2, 3),
-                 "set": {1, 2, 3},
-                 "dict": {"a": "b", "c": "d"},
-                 "int": 42,
-                 "float": 3.14,
-                 None: None,
-                 3.10: 51}
+        value = {
+            "list": [1, 2, 3],
+            "tuple": (1, 2, 3),
+            "set": {1, 2, 3},
+            "dict": {"a": "b", "c": "d"},
+            "int": 42,
+            "float": 3.14,
+            None: None,
+            3.10: 51,
+        }
 
         # Convert to Jabsorb
         jabsorb_value = jabsorb.to_jabsorb(value)
@@ -68,6 +79,7 @@ class JabsorbConverterTest(unittest.TestCase):
         """
         Tests the conversion of a custom class
         """
+
         # Basic class
         class Custom(object):
             javaClass = "test.Custom"
@@ -84,16 +96,16 @@ class JabsorbConverterTest(unittest.TestCase):
 
         # Check Jabsorb public value
         self.assertEqual(jabsorb_value[jabsorb.JAVA_CLASS], Custom.javaClass)
-        self.assertEqual(jabsorb_value['value'], value.value)
+        self.assertEqual(jabsorb_value["value"], value.value)
 
         # Check absence of private value
-        self.assertNotIn('_value', jabsorb_value)
-        self.assertNotIn('__value', jabsorb_value)
-        self.assertNotIn('_Custom__value', jabsorb_value)
+        self.assertNotIn("_value", jabsorb_value)
+        self.assertNotIn("__value", jabsorb_value)
+        self.assertNotIn("_Custom__value", jabsorb_value)
 
         # Check revert value
         self.assertEqual(revert[jabsorb.JAVA_CLASS], Custom.javaClass)
-        self.assertEqual(revert['value'], value.value)
+        self.assertEqual(revert["value"], value.value)
         self.assertEqual(revert.javaClass, Custom.javaClass)
         self.assertEqual(revert.value, value.value)
 
@@ -101,17 +113,15 @@ class JabsorbConverterTest(unittest.TestCase):
         """
         Tests the conversion of the content of a bean (half parsed stream)
         """
-        class Bean(object):
 
+        class Bean(object):
             def __init__(self):
                 self.list = jabsorb.to_jabsorb([1, 2, 3])
                 self.tuple = jabsorb.to_jabsorb((1, 2, 3))
                 self.set = jabsorb.to_jabsorb(set((1, 2, 3)))
 
             def __eq__(self, other):
-                return self.list == other.list \
-                    and self.tuple == other.tuple \
-                    and self.set == other.set
+                return self.list == other.list and self.tuple == other.tuple and self.set == other.set
 
         # Prepare the bean
         bean = Bean()
@@ -150,14 +160,16 @@ class JabsorbConverterTest(unittest.TestCase):
         """
         Checks the beheavior after a second call to to_jabsorb
         """
-        value = {"list": [1, 2, 3],
-                 "tuple": (1, 2, 3),
-                 "set": {1, 2, 3},
-                 "dict": {"a": "b", "c": "d"},
-                 "int": 42,
-                 "float": 3.14,
-                 None: None,
-                 3.10: 51}
+        value = {
+            "list": [1, 2, 3],
+            "tuple": (1, 2, 3),
+            "set": {1, 2, 3},
+            "dict": {"a": "b", "c": "d"},
+            "int": 42,
+            "float": 3.14,
+            None: None,
+            3.10: 51,
+        }
 
         # Double conversion: no modification on second pass
         first = jabsorb.to_jabsorb(value)
@@ -183,32 +195,32 @@ class JabsorbConverterTest(unittest.TestCase):
                     continue
 
                 # Prepare a fake bean
-                value = {"list": [1, 2, 3],
-                         "tuple": (1, 2, 3),
-                         "set": {1, 2, 3},
-                         "dict": {"a": "b", "c": "d"},
-                         "int": 42,
-                         "float": 3.14,
-                         None: None,
-                         3.10: 51}
+                value = {
+                    "list": [1, 2, 3],
+                    "tuple": (1, 2, 3),
+                    "set": {1, 2, 3},
+                    "dict": {"a": "b", "c": "d"},
+                    "int": 42,
+                    "float": 3.14,
+                    None: None,
+                    3.10: 51,
+                }
 
                 if has_json:
                     value[jabsorb.JSON_CLASS] = [1, 2, 3, [4, 5]]
 
                 if has_java:
-                    value[jabsorb.JAVA_CLASS] = 'test.Bean'
+                    value[jabsorb.JAVA_CLASS] = "test.Bean"
 
                 # Convert it
                 jabsorb_value = jabsorb.to_jabsorb(value)
 
                 # Check the value of the JSON class
                 if has_json:
-                    self.assertEqual(jabsorb_value[jabsorb.JSON_CLASS],
-                                     value[jabsorb.JSON_CLASS])
+                    self.assertEqual(jabsorb_value[jabsorb.JSON_CLASS], value[jabsorb.JSON_CLASS])
 
                 if has_java:
-                    self.assertEqual(jabsorb_value[jabsorb.JAVA_CLASS],
-                                     value[jabsorb.JAVA_CLASS])
+                    self.assertEqual(jabsorb_value[jabsorb.JAVA_CLASS], value[jabsorb.JAVA_CLASS])
 
                 # Revert
                 revert = jabsorb.from_jabsorb(jabsorb_value)
