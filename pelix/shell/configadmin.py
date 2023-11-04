@@ -28,18 +28,16 @@ service
     limitations under the License.
 """
 
-# Shell constants
-from pelix.shell import SERVICE_SHELL_COMMAND
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
-# iPOPO Decorators
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Requires,
-    Provides,
-    Instantiate,
-    Invalidate,
-)
 import pelix.services
+from pelix.ipopo.decorators import ComponentFactory, Instantiate, Invalidate, Provides, Requires
+from pelix.shell import ShellCommandMethod, ShellCommandsProvider
+
+if TYPE_CHECKING:
+    from pelix.framework import BundleContext
+    from pelix.shell.beans import ShellSession
+
 
 # ------------------------------------------------------------------------------
 
@@ -54,26 +52,26 @@ __docformat__ = "restructuredtext en"
 
 
 @ComponentFactory("configadmin-shell-commands-factory")
-@Requires("_config_admin", pelix.services.SERVICE_CONFIGURATION_ADMIN)
-@Provides(SERVICE_SHELL_COMMAND)
+@Requires("_config_admin", pelix.services.IConfigurationAdmin)
+@Provides(ShellCommandsProvider)
 @Instantiate("configadmin-shell-commands")
-class ConfigAdminCommands(object):
+class ConfigAdminCommands(ShellCommandsProvider):
     """
     Configuration Admin shell commands
     """
 
-    def __init__(self):
+    # Injected services
+    _config_admin: pelix.services.IConfigurationAdmin
+
+    def __init__(self) -> None:
         """
         Sets up members
         """
-        # Injected services
-        self._config_admin = None
-
         # Handled configurations (PID -> Configuration)
-        self._configs = {}
+        self._configs: Dict[str, pelix.services.Configuration] = {}
 
     @Invalidate
-    def invalidate(self, _):
+    def invalidate(self, _: BundleContext) -> None:
         """
         Component invalidated
         """
@@ -81,13 +79,13 @@ class ConfigAdminCommands(object):
         self._configs.clear()
 
     @staticmethod
-    def get_namespace():
+    def get_namespace() -> str:
         """
         Retrieves the name space of this command handler
         """
         return "config"
 
-    def get_methods(self):
+    def get_methods(self) -> List[Tuple[str, ShellCommandMethod]]:
         """
         Retrieves the list of tuples (command, method) for this command handler
         """
@@ -99,7 +97,7 @@ class ConfigAdminCommands(object):
             ("list", self.list),
         ]
 
-    def create(self, io_handler, factory_pid, **kwargs):
+    def create(self, session: ShellSession, factory_pid: str, **kwargs: Any) -> None:
         """
         Creates a factory configuration
         """
@@ -107,13 +105,13 @@ class ConfigAdminCommands(object):
 
         # Print the configuration PID
         pid = config.get_pid()
-        io_handler.write_line("New configuration: {0}", pid)
+        session.write_line(f"New configuration: {pid}")
 
         if kwargs:
             # Update it immediately if some properties are already set
             config.update(kwargs)
 
-    def update(self, _, pid, **kwargs):
+    def update(self, _: ShellSession, pid: str, **kwargs: Any) -> None:
         """
         Updates a configuration
         """
@@ -138,7 +136,7 @@ class ConfigAdminCommands(object):
         # Update configuration
         config.update(new_properties)
 
-    def reload(self, io_handler, pid):
+    def reload(self, session: ShellSession, pid: str) -> None:
         """
         Reloads the configuration with the given PID from the persistence
         """
@@ -150,9 +148,9 @@ class ConfigAdminCommands(object):
             config.reload()
         except Exception as ex:
             # Log errors
-            io_handler.write_line("Error reloading {0}: {1}", pid, ex)
+            session.write_line("Error reloading {0}: {1}", pid, ex)
 
-    def delete(self, _, pid):
+    def delete(self, _: ShellSession, pid: str) -> None:
         """
         Deletes a configuration
         """
@@ -164,13 +162,13 @@ class ConfigAdminCommands(object):
             # Configuration was unknown
             pass
 
-    def list(self, io_handler, pid=None):
+    def list(self, session: ShellSession, pid=None) -> None:
         """
         Lists known configurations
         """
         configs = self._config_admin.list_configurations()
         if not configs:
-            io_handler.write_line("No configuration.")
+            session.write_line("No configuration.")
             return
 
         # Filter with PID
@@ -181,7 +179,7 @@ class ConfigAdminCommands(object):
                     break
 
             else:
-                io_handler.write_line("No configuration with PID {0}.", pid)
+                session.write_line("No configuration with PID {0}.", pid)
                 return
 
         lines = []
@@ -199,13 +197,10 @@ class ConfigAdminCommands(object):
 
                 else:
                     lines.append("\tProperties:")
-                    lines.extend(
-                        "\t\t{0} = {1}".format(key, value)
-                        for key, value in properties.items()
-                    )
+                    lines.extend("\t\t{0} = {1}".format(key, value) for key, value in properties.items())
 
             except ValueError:
                 lines.append("\t** Deleted **")
 
         lines.append("")
-        io_handler.write_line("{0}", "\n".join(lines))
+        session.write_line("{0}", "\n".join(lines))

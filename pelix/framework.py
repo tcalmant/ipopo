@@ -157,6 +157,13 @@ _logger = logging.getLogger("pelix.main")
 # ------------------------------------------------------------------------------
 
 
+def _get_class_spec(clazz: Type[Any]) -> str:
+    """
+    Extract a specification from the given type
+    """
+    return getattr(clazz, "__SPECIFICATION__", clazz.__name__)
+
+
 class Bundle:
     # pylint: disable=W0212
     """
@@ -1082,7 +1089,7 @@ class Framework(Bundle):
         for svc_clazz in clazz:
             if inspect.isclass(svc_clazz):
                 # Get the specification field of keep the type name
-                svc_clazz = getattr(svc_clazz, "__SPECIFICATION__", svc_clazz.__name__)
+                svc_clazz = _get_class_spec(svc_clazz)
 
             if not svc_clazz or not is_string(svc_clazz):
                 # Invalid class name
@@ -1447,7 +1454,7 @@ class BundleContext:
         self,
         listener: ServiceListener,
         ldap_filter: Union[None, LDAPCriteria, LDAPFilter, str] = None,
-        specification: Optional[str] = None,
+        specification: Optional[Union[str, Type]] = None,
     ) -> bool:
         """
         Registers a service listener
@@ -1470,6 +1477,8 @@ class BundleContext:
                               (optional, None to accept all services)
         :return: True if the listener has been successfully registered
         """
+        if specification is not None and inspect.isclass(specification):
+            specification = _get_class_spec(specification)
         return self.__framework._dispatcher.add_service_listener(self, listener, specification, ldap_filter)
 
     def get_all_service_references(

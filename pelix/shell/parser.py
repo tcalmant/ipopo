@@ -26,21 +26,22 @@ Common parser for shell implementations
     limitations under the License.
 """
 
-# Standard library
 import collections
 import inspect
 import logging
 import shlex
 import string
 import sys
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, cast
+from pelix.shell import ShellCommandMethod
 
-# Pelix modules
 from pelix.utilities import to_str, get_method_arguments
 import pelix.shell.beans as beans
 
-# Shell completion
-# pylint: disable=W0611
 from pelix.shell.completion.decorators import ATTR_COMPLETERS, CompletionInfo
+
+if TYPE_CHECKING:
+    from pelix.framework import Framework
 
 # ------------------------------------------------------------------------------
 
@@ -59,7 +60,7 @@ DEFAULT_NAMESPACE = "default"
 # ------------------------------------------------------------------------------
 
 
-def _find_assignment(arg_token):
+def _find_assignment(arg_token: str) -> int:
     """
     Find the first non-escaped assignment in the given argument token.
     Returns -1 if no assignment was found.
@@ -87,7 +88,9 @@ class _ArgTemplate(string.Template):
     idpattern = r"[_a-z\?][_a-z0-9\.]*"
 
 
-def _make_args(args_list, session, fw_props):
+def _make_args(
+    args_list: List[str], session: beans.ShellSession, fw_props: Dict[str, Any]
+) -> Tuple[List[str], Dict[str, str]]:
     """
     Converts the given list of arguments into a list (args) and a
     dictionary (kwargs).
@@ -118,14 +121,11 @@ def _make_args(args_list, session, fw_props):
 
     # Replace variables
     args = [_ArgTemplate(arg).safe_substitute(variables) for arg in args]
-    kwargs = {
-        key: _ArgTemplate(value).safe_substitute(variables)
-        for key, value in kwargs.items()
-    }
+    kwargs = {key: _ArgTemplate(value).safe_substitute(variables) for key, value in kwargs.items()}
     return args, kwargs
 
 
-def _split_ns_command(cmd_token):
+def _split_ns_command(cmd_token: str) -> Tuple[str, str]:
     """
     Extracts the name space and the command name of the given command token.
 
@@ -153,21 +153,21 @@ def _split_ns_command(cmd_token):
 # ------------------------------------------------------------------------------
 
 
-class Shell(object):
+class Shell:
     """
     A simple shell, based on shlex.
 
     Allows the use of name spaces.
     """
 
-    def __init__(self, framework, logname=None):
+    def __init__(self, framework: Framework, logname: Optional[str] = None) -> None:
         """
         Sets up members
 
         :param framework: The Pelix Framework instance
         :param logname: Custom name for the shell logger
         """
-        self._commands = {}
+        self._commands: Dict[str, Dict[str, ShellCommandMethod]] = {}
         self._framework = framework
         self._logger = logging.getLogger(logname or __name__)
 
@@ -188,20 +188,20 @@ class Shell(object):
         self.register_command(None, "run", self.run_file)
 
     @staticmethod
-    def get_banner():
+    def get_banner() -> str:
         """
         Returns the Shell banner
         """
         return "** Shell prompt **\n"
 
     @staticmethod
-    def get_ps1():
+    def get_ps1() -> str:
         """
         Returns the PS1, the basic shell prompt
         """
         return "$ "
 
-    def register_command(self, namespace, command, method):
+    def register_command(self, namespace: Optional[str], command: str, method: ShellCommandMethod) -> bool:
         """
         Registers the given command to the shell.
 
@@ -210,8 +210,7 @@ class Shell(object):
         :param namespace: The command name space.
         :param command: The shell name of the command
         :param method: The method to call
-        :return: True if the method has been registered, False if it was
-                 already known or invalid
+        :return: True if the method has been registered, False if it was already known or invalid
         """
         if method is None:
             self._logger.error("No method given for %s.%s", namespace, command)
@@ -229,21 +228,18 @@ class Shell(object):
             return False
 
         if namespace not in self._commands:
-            space = self._commands[namespace] = {}
+            space = self._commands[namespace] = cast(Dict[str, Callable[..., Any]], {})
         else:
             space = self._commands[namespace]
 
         if command in space:
-            self._logger.error(
-                "Command already registered: %s.%s", namespace, command
-            )
+            self._logger.error("Command already registered: %s.%s", namespace, command)
             return False
 
         space[command] = method
         return True
 
-    def get_command_completers(self, namespace, command):
-        # type: (str, str) -> CompletionInfo
+    def get_command_completers(self, namespace: str, command: str) -> Optional[CompletionInfo]:
         """
         Returns the completer method associated to the given command, or None
 
@@ -258,7 +254,7 @@ class Shell(object):
         # Return the completer, if any
         return getattr(method, ATTR_COMPLETERS, None)
 
-    def unregister(self, namespace, command=None):
+    def unregister(self, namespace: str, command: Optional[str] = None) -> bool:
         """
         Unregisters the given command. If command is None, the whole name space
         is unregistered.
@@ -279,9 +275,7 @@ class Shell(object):
             # Remove the command
             command = command.strip().lower()
             if command not in self._commands[namespace]:
-                self._logger.warning(
-                    "Unknown command: %s.%s", namespace, command
-                )
+                self._logger.warning("Unknown command: %s.%s", namespace, command)
                 return False
 
             del self._commands[namespace][command]
@@ -295,7 +289,7 @@ class Shell(object):
 
         return True
 
-    def __find_command_ns(self, command):
+    def __find_command_ns(self, command: str) -> List[str]:
         """
         Returns the name spaces where the given command named is registered.
         If the command exists in the default name space, the returned list will
@@ -306,7 +300,7 @@ class Shell(object):
         :return: A list of name spaces
         """
         # Look for the spaces where the command name appears
-        namespaces = []
+        namespaces: List[str] = []
         for namespace, commands in self._commands.items():
             if command in commands:
                 namespaces.append(namespace)
@@ -324,7 +318,7 @@ class Shell(object):
 
         return namespaces
 
-    def get_namespaces(self):
+    def get_namespaces(self) -> List[str]:
         """
         Retrieves the list of known name spaces (without the default one)
 
@@ -335,7 +329,7 @@ class Shell(object):
         namespaces.sort()
         return namespaces
 
-    def get_commands(self, namespace):
+    def get_commands(self, namespace: str) -> List[str]:
         """
         Retrieves the commands of the given name space. If *namespace* is None
         or empty, it retrieves the commands of the default name space
@@ -356,7 +350,7 @@ class Shell(object):
             # Unknown name space
             return []
 
-    def get_ns_commands(self, cmd_name):
+    def get_ns_commands(self, cmd_name: str) -> List[Tuple[str, str]]:
         """
         Retrieves the possible name spaces and commands associated to the given
         command name.
@@ -371,7 +365,7 @@ class Shell(object):
             spaces = self.__find_command_ns(command)
             if not spaces:
                 # Unknown command
-                raise ValueError("Unknown command {0}".format(command))
+                raise ValueError(f"Unknown command {command}")
             else:
                 # Return a sorted list of tuples
                 return sorted((namespace, command) for namespace in spaces)
@@ -379,7 +373,7 @@ class Shell(object):
         # Single match
         return [(namespace, command)]
 
-    def get_ns_command(self, cmd_name):
+    def get_ns_command(self, cmd_name: str) -> Tuple[str, str]:
         """
         Retrieves the name space and the command associated to the given
         command name.
@@ -394,19 +388,16 @@ class Shell(object):
             spaces = self.__find_command_ns(command)
             if not spaces:
                 # Unknown command
-                raise ValueError("Unknown command {0}".format(command))
+                raise ValueError(f"Unknown command {command}")
             elif len(spaces) > 1:
                 # Multiple possibilities
                 if spaces[0] == DEFAULT_NAMESPACE:
                     # Default name space has priority
                     namespace = DEFAULT_NAMESPACE
-
                 else:
                     # Ambiguous name
                     raise ValueError(
-                        "Multiple name spaces for command '{0}': {1}".format(
-                            command, ", ".join(sorted(spaces))
-                        )
+                        f"Multiple name spaces for command '{command}': {', '.join(sorted(spaces))}"
                     )
             else:
                 # Use the found name space
@@ -415,7 +406,7 @@ class Shell(object):
         # Command found
         return namespace, command
 
-    def execute(self, cmdline, session=None):
+    def execute(self, cmdline: str, session: Optional[beans.ShellSession] = None) -> bool:
         """
         Executes the command corresponding to the given line
 
@@ -425,9 +416,7 @@ class Shell(object):
         """
         if session is None:
             # Default session
-            session = beans.ShellSession(
-                beans.IOHandler(sys.stdin, sys.stdout), {}
-            )
+            session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout), {})
 
         assert isinstance(session, beans.ShellSession)
 
@@ -441,7 +430,7 @@ class Shell(object):
         try:
             line_split = shlex.split(cmdline, True, True)
         except ValueError as ex:
-            session.write_line("Error reading line: {0}", ex)
+            session.write_line(f"Error reading line: {ex}")
             return False
 
         if not line_split:
@@ -458,19 +447,19 @@ class Shell(object):
         # Get the content of the name space
         space = self._commands.get(namespace, None)
         if not space:
-            session.write_line("Unknown name space {0}", namespace)
+            session.write_line(
+                f"Unknown name space {namespace}",
+            )
             return False
 
         # Get the method object
         method = space.get(command, None)
         if method is None:
-            session.write_line("Unknown command: {0}.{1}", namespace, command)
+            session.write_line(f"Unknown command: {namespace}.{command}")
             return False
 
         # Make arguments and keyword arguments
-        args, kwargs = _make_args(
-            line_split[1:], session, self._framework.get_properties()
-        )
+        args, kwargs = _make_args(line_split[1:], session, self._framework.get_properties())
         try:
             # Execute it
             result = method(session, *args, **kwargs)
@@ -483,18 +472,14 @@ class Shell(object):
             return result is not False
         except TypeError as ex:
             # Invalid arguments...
-            self._logger.error(
-                "Error calling %s.%s: %s", namespace, command, ex
-            )
-            session.write_line("Invalid method call: {0}", ex)
+            self._logger.error("Error calling %s.%s: %s", namespace, command, ex)
+            session.write_line(f"Invalid method call: {ex}")
             self.__print_namespace_help(session, namespace, command)
             return False
         except Exception as ex:
             # Error
-            self._logger.exception(
-                "Error calling %s.%s: %s", namespace, command, ex
-            )
-            session.write_line("{0}: {1}", type(ex).__name__, str(ex))
+            self._logger.exception("Error calling %s.%s: %s", namespace, command, ex)
+            session.write_line(f"{type(ex).__name__}: {ex}")
             return False
         finally:
             # Try to flush in any case
@@ -504,7 +489,7 @@ class Shell(object):
                 pass
 
     @staticmethod
-    def __extract_help(method):
+    def __extract_help(method: Callable[..., Any]) -> Tuple[str, str]:
         """
         Formats the help string for the given method
 
@@ -512,7 +497,7 @@ class Shell(object):
         :return: A tuple: (arguments list, documentation line)
         """
         if method is None:
-            return "(No associated method)"
+            return "", "(No associated method)"
 
         # Get the arguments
         arg_spec = get_method_arguments(method)
@@ -525,35 +510,30 @@ class Shell(object):
             nb_optional = len(arg_spec.defaults)
 
             # Let the mandatory arguments as they are
-            args = [
-                "<{0}>".format(arg)
-                for arg in arg_spec.args[start_arg:-nb_optional]
-            ]
+            args = [f"<{arg}>" for arg in arg_spec.args[start_arg:-nb_optional]]
 
             # Add the other arguments
-            for name, value in zip(
-                arg_spec.args[-nb_optional:], arg_spec.defaults[-nb_optional:]
-            ):
+            for name, value in zip(arg_spec.args[-nb_optional:], arg_spec.defaults[-nb_optional:]):
                 if value is not None:
                     args.append("[<{0}>={1}]".format(name, value))
                 else:
                     args.append("[<{0}>]".format(name))
         else:
             # All arguments are mandatory
-            args = ["<{0}>".format(arg) for arg in arg_spec.args[start_arg:]]
+            args = [f"<{arg}>" for arg in arg_spec.args[start_arg:]]
 
         # Extra arguments
         if arg_spec.keywords:
             args.append("[<property=value> ...]")
 
         if arg_spec.varargs:
-            args.append("[<{0} ...>]".format(arg_spec.varargs))
+            args.append(f"[<{arg_spec.varargs} ...>]")
 
         # Get the documentation string
         doc = inspect.getdoc(method) or "(Documentation missing)"
         return " ".join(args), " ".join(doc.split())
 
-    def __print_command_help(self, session, namespace, cmd_name):
+    def __print_command_help(self, session: beans.ShellSession, namespace: str, cmd_name: str) -> None:
         """
         Prints the documentation of the given command
 
@@ -573,7 +553,9 @@ class Shell(object):
         # Print the documentation line
         session.write_line("\t\t{0}", doc)
 
-    def __print_namespace_help(self, session, namespace, cmd_name=None):
+    def __print_namespace_help(
+        self, session: beans.ShellSession, namespace: str, cmd_name: Optional[str] = None
+    ) -> None:
         """
         Prints the documentation of all the commands in the given name space,
         or only of the given command
@@ -582,7 +564,7 @@ class Shell(object):
         :param namespace: Name space of the command
         :param cmd_name: Name of the command to show, None to show them all
         """
-        session.write_line("=== Name space '{0}' ===", namespace)
+        session.write_line(f"=== Name space '{namespace}' ===")
 
         # Get all commands in this name space
         if cmd_name is None:
@@ -600,7 +582,7 @@ class Shell(object):
             self.__print_command_help(session, namespace, command)
             first_cmd = False
 
-    def print_help(self, session, command=None):
+    def print_help(self, session: beans.ShellSession, command: Optional[str] = None) -> Any:
         """
         Prints the available methods and their documentation, or the
         documentation of the given command.
@@ -652,14 +634,14 @@ class Shell(object):
         return None
 
     @staticmethod
-    def echo(session, *words):
+    def echo(session: beans.ShellSession, *words: str) -> None:
         """
         Echoes the given words
         """
         session.write_line(" ".join(words))
 
     @staticmethod
-    def quit(session):
+    def quit(session: beans.ShellSession) -> None:
         """
         Stops the current shell session (raises a KeyboardInterrupt exception)
         """
@@ -667,7 +649,7 @@ class Shell(object):
         raise KeyboardInterrupt()
 
     @staticmethod
-    def var_set(session, **kwargs):
+    def var_set(session: beans.ShellSession, **kwargs: Any) -> None:
         """
         Sets the given variables or prints the current ones. "set answer=42"
         """
@@ -681,7 +663,7 @@ class Shell(object):
                 session.write_line("{0}={1}", name, value)
 
     @staticmethod
-    def var_unset(session, name):
+    def var_unset(session: beans.ShellSession, name: str) -> Any:
         """
         Unsets the given variable
         """
@@ -696,7 +678,7 @@ class Shell(object):
 
         return None
 
-    def run_file(self, session, filename):
+    def run_file(self, session: beans.ShellSession, filename: str) -> Any:
         """
         Runs the given "script" file
         """
@@ -713,9 +695,7 @@ class Shell(object):
 
                     # Execute the line
                     if not self.execute(line, session):
-                        session.write_line(
-                            "Command at line {0} failed. Abandon.", lineno + 1
-                        )
+                        session.write_line("Command at line {0} failed. Abandon.", lineno + 1)
                         return False
 
                 session.write_line("Script execution succeeded")

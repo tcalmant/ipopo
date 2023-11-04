@@ -26,6 +26,10 @@ Alias to call pelix.shell.console.main()
     limitations under the License.
 """
 
+import sys
+
+from pelix.shell.console import main
+
 # Module version
 __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -35,7 +39,4 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-if __name__ == "__main__":
-    from pelix.shell.console import main
-
-    main()
+sys.exit(main())

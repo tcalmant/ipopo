@@ -26,7 +26,21 @@ Defines the shell completion handlers for iPOPO concepts
     limitations under the License.
 """
 
-from __future__ import absolute_import
+
+from typing import TYPE_CHECKING, List
+
+from pelix.constants import ActivatorProto, BundleActivator
+from pelix.ipopo.constants import use_ipopo
+
+from . import PROP_COMPLETER_ID, Completer
+from .core import AbstractCompleter
+from .decorators import COMPONENT, FACTORY, FACTORY_PROPERTY
+
+if TYPE_CHECKING:
+    from pelix.framework import BundleContext, ServiceRegistration
+    from pelix.shell.beans import ShellSession
+
+    from .decorators import CompletionInfo
 
 # Try to import readline
 try:
@@ -34,29 +48,6 @@ try:
 except ImportError:
     readline = None
 
-# Add some typing
-try:
-    # pylint: disable=W0611
-    from typing import List
-    from pelix.framework import BundleContext
-    from pelix.shell.beans import ShellSession
-    from .decorators import CompletionInfo
-except ImportError:
-    pass
-
-# Pelix
-from pelix.constants import BundleActivator
-from pelix.ipopo.constants import use_ipopo
-
-# Completion classes
-from .decorators import (
-    SVC_COMPLETER,
-    PROP_COMPLETER_ID,
-    FACTORY,
-    COMPONENT,
-    FACTORY_PROPERTY,
-)
-from .core import Completer
 
 # ------------------------------------------------------------------------------
 
@@ -70,14 +61,15 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-class ComponentFactoryCompleter(Completer):
+class ComponentFactoryCompleter(AbstractCompleter):
     """
     Completes an iPOPO Component factory name
     """
 
     @staticmethod
-    def display_hook(prompt, session, context, matches, longest_match_len):
-        # type: (str, ShellSession, BundleContext, List[str], int) -> None
+    def display_hook(
+        prompt: str, session: ShellSession, context: BundleContext, matches: List[str], longest_match_len: int
+    ) -> None:
         """
         Displays the available services matches and the service details
 
@@ -100,9 +92,7 @@ class ComponentFactoryCompleter(Completer):
                 # Remove the spaces added for the completion
                 factory_name = factory_name.strip()
                 bnd = ipopo.get_factory_bundle(factory_name)
-                session.write_line(
-                    match_pattern, factory_name, bnd.get_symbolic_name()
-                )
+                session.write_line(match_pattern, factory_name, bnd.get_symbolic_name())
 
         # Print the prompt, then current line
         session.write(prompt)
@@ -110,9 +100,14 @@ class ComponentFactoryCompleter(Completer):
         readline.redisplay()
 
     def complete(
-        self, config, prompt, session, context, current_arguments, current
-    ):
-        # type: (CompletionInfo, str, ShellSession, BundleContext, List[str], str) -> List[str]
+        self,
+        config: CompletionInfo,
+        prompt: str,
+        session: ShellSession,
+        context: BundleContext,
+        current_arguments: List[str],
+        current: str,
+    ) -> List[str]:
         """
         Returns the list of services IDs matching the current state
 
@@ -129,21 +124,18 @@ class ComponentFactoryCompleter(Completer):
 
         # Return a list of component factories
         with use_ipopo(context) as ipopo:
-            return [
-                "{} ".format(factory)
-                for factory in ipopo.get_factories()
-                if factory.startswith(current)
-            ]
+            return ["{} ".format(factory) for factory in ipopo.get_factories() if factory.startswith(current)]
 
 
-class ComponentInstanceCompleter(Completer):
+class ComponentInstanceCompleter(AbstractCompleter):
     """
     Completes an iPOPO Component instance name
     """
 
     @staticmethod
-    def display_hook(prompt, session, context, matches, longest_match_len):
-        # type: (str, ShellSession, BundleContext, List[str], int) -> None
+    def display_hook(
+        prompt: str, session: ShellSession, context: BundleContext, matches: List[str], longest_match_len: int
+    ) -> None:
         """
         Displays the available services matches and the service details
 
@@ -175,9 +167,14 @@ class ComponentInstanceCompleter(Completer):
         readline.redisplay()
 
     def complete(
-        self, config, prompt, session, context, current_arguments, current
-    ):
-        # type: (CompletionInfo, str, ShellSession, BundleContext, List[str], str) -> List[str]
+        self,
+        config: CompletionInfo,
+        prompt: str,
+        session: ShellSession,
+        context: BundleContext,
+        current_arguments: List[str],
+        current: str,
+    ) -> List[str]:
         """
         Returns the list of services IDs matching the current state
 
@@ -194,22 +191,23 @@ class ComponentInstanceCompleter(Completer):
 
         # Return a list of component factories
         with use_ipopo(context) as ipopo:
-            return [
-                "{} ".format(name)
-                for name, _, _ in ipopo.get_instances()
-                if name.startswith(current)
-            ]
+            return [f"{name} " for name, _, _ in ipopo.get_instances() if name.startswith(current)]
 
 
-class ComponentFactoryPropertiesCompleter(Completer):
+class ComponentFactoryPropertiesCompleter(AbstractCompleter):
     """
     Completes the property names of iPOPO Component factories
     """
 
     def complete(
-        self, config, prompt, session, context, current_arguments, current
-    ):
-        # type: (CompletionInfo, str, ShellSession, BundleContext, List[str], str) -> List[str]
+        self,
+        config: CompletionInfo,
+        prompt: str,
+        session: ShellSession,
+        context: BundleContext,
+        current_arguments: List[str],
+        current: str,
+    ) -> List[str]:
         """
         Returns the list of services IDs matching the current state
 
@@ -247,11 +245,7 @@ class ComponentFactoryPropertiesCompleter(Completer):
                 # No/unknown factory name
                 return []
             else:
-                return [
-                    "{}=".format(key)
-                    for key in properties
-                    if key.startswith(current)
-                ]
+                return [f"{key}=" for key in properties if key.startswith(current)]
 
 
 # ------------------------------------------------------------------------------
@@ -266,16 +260,15 @@ COMPLETERS = {
 
 
 @BundleActivator
-class _Activator:
+class Activator(ActivatorProto):
     """
     Bundle activator
     """
 
-    def __init__(self):
-        self._registrations = []
+    def __init__(self) -> None:
+        self._registrations: List[ServiceRegistration[Completer]] = []
 
-    def start(self, context):
-        # type: (BundleContext) -> None
+    def start(self, context: BundleContext) -> None:
         """
         Bundle starting
 
@@ -284,15 +277,14 @@ class _Activator:
         # Register all completers we know
         self._registrations = [
             context.register_service(
-                SVC_COMPLETER,
+                Completer,
                 completer_class(),
                 {PROP_COMPLETER_ID: completer_id},
             )
             for completer_id, completer_class in COMPLETERS.items()
         ]
 
-    def stop(self, _):
-        # type: (BundleContext) -> None
+    def stop(self, _: BundleContext) -> None:
         """
         Bundle stopping
 

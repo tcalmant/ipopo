@@ -26,29 +26,26 @@ Defines the ``Completer`` class, mother of all shell completion handlers
     limitations under the License.
 """
 
-# Standard library
-from __future__ import absolute_import
+import abc
 import logging
+from typing import TYPE_CHECKING, List
 
-# Try to import readline
+from pelix.utilities import use_service
+
+from . import PROP_COMPLETER_ID, Completer
+from .decorators import DUMMY
+
 try:
     import readline
 except ImportError:
     readline = None
 
-# Add some typing
-try:
-    # pylint: disable=W0611
-    from typing import List
+if TYPE_CHECKING:
     from pelix.framework import BundleContext
     from pelix.shell.beans import ShellSession
-    from .decorators import CompletionInfo
-except ImportError:
-    pass
 
-# Pelix
-from pelix.utilities import use_service
-from .decorators import SVC_COMPLETER, PROP_COMPLETER_ID, DUMMY
+    from .decorators import CompletionInfo
+
 
 # ------------------------------------------------------------------------------
 
@@ -64,7 +61,7 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class Completer:
+class AbstractCompleter(abc.ABC, Completer):
     """
     Mother class of all completers
     """
@@ -73,18 +70,22 @@ class Completer:
     def set_display_hook(display_hook, prompt, session, context):
         try:
             readline.set_completion_display_matches_hook(
-                lambda sub, matches, longest: display_hook(
-                    prompt, session, context, matches, longest
-                )
+                lambda sub, matches, longest: display_hook(prompt, session, context, matches, longest)
             )
         except AttributeError:
             # Display hook not available
             pass
 
+    @abc.abstractmethod
     def complete(
-        self, config, prompt, session, context, current_arguments, current
-    ):
-        # type: (CompletionInfo, str, ShellSession, BundleContext, List[str], str) -> List[str]
+        self,
+        config: CompletionInfo,
+        prompt: str,
+        session: ShellSession,
+        context: BundleContext,
+        current_arguments: List[str],
+        current: str,
+    ) -> List[str]:
         """
         Returns the list of bundle IDs matching the current state
 
@@ -96,14 +97,19 @@ class Completer:
         :param current: Current word
         :return: A list of matches
         """
-        raise NotImplementedError
 
 
 # ------------------------------------------------------------------------------
 
 
-def completion_hints(config, prompt, session, context, current, arguments):
-    # type: (CompletionInfo, str, ShellSession, BundleContext, str, List[str]) -> List[str]
+def completion_hints(
+    config: CompletionInfo,
+    prompt: str,
+    session: ShellSession,
+    context: BundleContext,
+    current: str,
+    arguments: List[str],
+) -> List[str]:
     """
     Returns the possible completions of the current argument
 
@@ -140,9 +146,7 @@ def completion_hints(config, prompt, session, context, current, arguments):
         return []
 
     # Find the matching service
-    svc_ref = context.get_service_reference(
-        SVC_COMPLETER, "({}={})".format(PROP_COMPLETER_ID, completer_id)
-    )
+    svc_ref = context.get_service_reference(Completer, f"({PROP_COMPLETER_ID}={completer_id})")
     if svc_ref is None:
         # Handler not found
         _logger.debug("Unknown shell completer ID: %s", completer_id)
@@ -151,9 +155,7 @@ def completion_hints(config, prompt, session, context, current, arguments):
     # Call the completer
     try:
         with use_service(context, svc_ref) as completer:
-            matches = completer.complete(
-                config, prompt, session, context, arguments, current
-            )
+            matches = completer.complete(config, prompt, session, context, arguments, current)
             if not matches:
                 return []
 

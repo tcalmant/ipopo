@@ -27,26 +27,17 @@ Provides commands to the Pelix shell to get the state of iPOPO instances.
     limitations under the License.
 """
 
-# Standard library
 import logging
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple
 
-# Pelix
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Requires,
-    Provides,
-    Instantiate,
-)
 import pelix.ipopo.constants
 import pelix.shell
+from pelix.ipopo.decorators import ComponentFactory, Instantiate, Provides, Requires
+from pelix.ipopo.protocols import IPopoService
+from pelix.shell.completion.decorators import COMPONENT, DUMMY, FACTORY, FACTORY_PROPERTY, Completion
 
-from pelix.shell.completion.decorators import (
-    Completion,
-    FACTORY,
-    COMPONENT,
-    DUMMY,
-    FACTORY_PROPERTY,
-)
+if TYPE_CHECKING:
+    from pelix.shell.beans import ShellSession
 
 # ------------------------------------------------------------------------------
 
@@ -64,7 +55,7 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-def ipopo_state_to_str(state):
+def ipopo_state_to_str(state: int) -> str:
     """
     Converts the state of a component instance to its string representation
 
@@ -79,37 +70,33 @@ def ipopo_state_to_str(state):
         4: "ERRONEOUS",
     }
 
-    return ipopo_states.get(state, "Unknown state ({0})".format(state))
+    return ipopo_states.get(state, f"Unknown state ({state})")
 
 
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory("ipopo-shell-commands-factory")
-@Requires("_ipopo", pelix.ipopo.constants.SERVICE_IPOPO)
-@Requires("_utils", pelix.shell.SERVICE_SHELL_UTILS)
-@Provides(pelix.shell.SERVICE_SHELL_COMMAND)
+@Requires("_ipopo", IPopoService)
+@Requires("_utils", pelix.shell.ShellUtils)
+@Provides(pelix.shell.ShellCommandsProvider)
 @Instantiate("ipopo-shell-commands")
-class IPopoCommands(object):
+class IPopoCommands(pelix.shell.ShellCommandsProvider):
     """
     iPOPO shell commands
     """
 
-    def __init__(self):
-        """
-        Sets up the object
-        """
-        self._ipopo = None
-        self._utils = None
+    _ipopo: IPopoService
+    _utils: pelix.shell.ShellUtils
 
     @staticmethod
-    def get_namespace():
+    def get_namespace() -> str:
         """
         Retrieves the name space of this command handler
         """
         return "ipopo"
 
-    def get_methods(self):
+    def get_methods(self) -> List[Tuple[str, pelix.shell.ShellCommandMethod]]:
         """
         Retrieves the list of tuples (command, method) for this command handler
         """
@@ -124,7 +111,7 @@ class IPopoCommands(object):
             ("retry", self.retry_erroneous),
         ]
 
-    def list_factories(self, session, name=None):
+    def list_factories(self, session: ShellSession, name: Optional[str] = None) -> None:
         """
         Lists the available iPOPO component factories
         """
@@ -135,9 +122,7 @@ class IPopoCommands(object):
             # Filter factories by name
             factories = [factory for factory in factories if name in factory]
 
-        lines = sorted(
-            (name, self._ipopo.get_factory_bundle(name)) for name in factories
-        )
+        lines = sorted((name, self._ipopo.get_factory_bundle(name)) for name in factories)
 
         session.write(self._utils.make_table(header, lines))
         if name is None:
@@ -145,7 +130,7 @@ class IPopoCommands(object):
         else:
             session.write_line("{0} filtered factories", len(lines))
 
-    def list_instances(self, session, name=None):
+    def list_instances(self, session: ShellSession, name: Optional[str] = None) -> None:
         """
         Lists the active iPOPO component instances
         """
@@ -154,15 +139,10 @@ class IPopoCommands(object):
         instances = self._ipopo.get_instances()
         if name is not None:
             # Filter instances by name
-            instances = [
-                instance for instance in instances if name in instance[0]
-            ]
+            instances = [instance for instance in instances if name in instance[0]]
 
         # Lines are already sorted
-        lines = (
-            (name, factory, ipopo_state_to_str(state))
-            for name, factory, state in instances
-        )
+        lines = ((name, factory, ipopo_state_to_str(state)) for name, factory, state in instances)
 
         session.write(self._utils.make_table(headers, lines))
         if name is None:
@@ -170,7 +150,7 @@ class IPopoCommands(object):
         else:
             session.write_line("{0} filtered components", len(instances))
 
-    def list_waitings(self, session, name=None):
+    def list_waitings(self, session: ShellSession, name: Optional[str] = None) -> None:
         """
         Lists the components waiting to be instantiated
         """
@@ -179,35 +159,26 @@ class IPopoCommands(object):
         components = self._ipopo.get_waiting_components()
         if name is not None:
             # Filter components by name
-            components = [
-                component for component in components if name in component[0]
-            ]
+            components = [component for component in components if name in component[0]]
 
         # Lines are already sorted
-        lines = (
-            (name, factory, ", ".join(missing))
-            for name, factory, missing in components
-        )
+        lines = ((name, factory, ", ".join(missing)) for name, factory, missing in components)
 
         session.write(self._utils.make_table(headers, lines))
         if name is None:
-            session.write_line(
-                "{0} components in the waiting queue", len(components)
-            )
+            session.write_line("{0} components in the waiting queue", len(components))
         else:
             session.write_line("{0} filtered components", len(components))
 
     @Completion(FACTORY)
-    def factory_details(self, session, name):
+    def factory_details(self, session: ShellSession, name: str) -> Any:
         """
         Prints the details of the given component factory
         """
         try:
             details = self._ipopo.get_factory_details(name)
         except ValueError as ex:
-            session.write_line(
-                "Error getting details about '{0}': {1}", name, ex
-            )
+            session.write_line("Error getting details about '{0}': {1}", name, ex)
             return False
 
         lines = [
@@ -219,9 +190,7 @@ class IPopoCommands(object):
         if properties:
             lines.append("Properties:")
             prop_headers = ("Key", "Default value")
-            prop_lines = [
-                (str(key), str(value)) for key, value in properties.items()
-            ]
+            prop_lines = [(str(key), str(value)) for key, value in properties.items()]
             lines.append(self._utils.make_table(prop_headers, prop_lines))
 
         services = details.get("services", None)
@@ -258,24 +227,20 @@ class IPopoCommands(object):
             lines.append("Handlers:")
             handlers_headers = ("ID", "Configuration")
             handlers_lines = [(key, handlers[key]) for key in sorted(handlers)]
-            lines.append(
-                self._utils.make_table(handlers_headers, handlers_lines, "\t")
-            )
+            lines.append(self._utils.make_table(handlers_headers, handlers_lines, "\t"))
 
         session.write("\n".join(lines))
         return None
 
     @Completion(COMPONENT)
-    def instance_details(self, session, name):
+    def instance_details(self, session: ShellSession, name: str) -> Any:
         """
         Prints the details of the given component instance
         """
         try:
             details = self._ipopo.get_instance_details(name)
         except ValueError as ex:
-            session.write_line(
-                "Error getting details about '{0}': {1}", name, ex
-            )
+            session.write_line("Error getting details about '{0}': {1}", name, ex)
             return False
 
         # Basic information
@@ -288,18 +253,13 @@ class IPopoCommands(object):
         ]
 
         # Provided services
-        lines.extend(
-            "\t{0}".format(svc_reference)
-            for svc_reference in details["services"].values()
-        )
+        lines.extend("\t{0}".format(svc_reference) for svc_reference in details["services"].values())
 
         # Requirements
         lines.append("Dependencies:")
         for field, infos in details["dependencies"].items():
             lines.append("\tField: {0}".format(field))
-            lines.append(
-                "\t\tSpecification: {0}".format(infos["specification"])
-            )
+            lines.append("\t\tSpecification: {0}".format(infos["specification"]))
             lines.append("\t\tFilter......: {0}".format(infos["filter"]))
             lines.append("\t\tOptional.....: {0}".format(infos["optional"]))
             lines.append("\t\tAggregate....: {0}".format(infos["aggregate"]))
@@ -311,11 +271,7 @@ class IPopoCommands(object):
 
         # Properties
         lines.append("Properties:")
-        lines.append(
-            self._utils.make_table(
-                ("Key", "Value"), sorted(details["properties"].items()), "\t"
-            )
-        )
+        lines.append(self._utils.make_table(("Key", "Value"), sorted(details["properties"].items()), "\t"))
 
         # Error trace, for erroneous components
         error_trace = details["error_trace"]
@@ -328,7 +284,7 @@ class IPopoCommands(object):
         return None
 
     @Completion(FACTORY, DUMMY, FACTORY_PROPERTY, multiple=True)
-    def instantiate(self, session, factory, name, **properties):
+    def instantiate(self, session: ShellSession, factory: str, name: str, **properties: Any) -> Any:
         """
         Instantiates a component of the given factory with the given name and
         properties
@@ -350,7 +306,7 @@ class IPopoCommands(object):
         return False
 
     @Completion(COMPONENT)
-    def kill(self, session, name):
+    def kill(self, session: ShellSession, name: str) -> Any:
         """
         Kills the given component instance
         """
@@ -364,7 +320,7 @@ class IPopoCommands(object):
         return None
 
     @Completion(COMPONENT, FACTORY_PROPERTY, multiple=True)
-    def retry_erroneous(self, session, name, **properties):
+    def retry_erroneous(self, session: ShellSession, name: str, **properties: Any) -> Any:
         """
         Removes the erroneous flag from a component and retries to validate it
         """

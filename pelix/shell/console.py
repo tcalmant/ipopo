@@ -28,25 +28,24 @@ available.
     limitations under the License.
 """
 
-# Standard library
 import argparse
 import logging
 import os
 import shlex
 import sys
 import threading
+from typing import TYPE_CHECKING, Callable, List, Optional, cast
 
-# Initialization file handler
-from pelix.misc.init_handler import InitFileHandler, remove_duplicates
-
-# Shell constants
-from pelix.constants import BundleActivator
-from pelix.shell import SERVICE_SHELL
-from pelix.shell.beans import IOHandler, ShellSession, safe_input
 import pelix.framework as pelix
-
-# Shell completion
+from pelix.constants import ActivatorProto, BundleActivator
+from pelix.internals.events import ServiceEvent
+from pelix.misc.init_handler import InitFileHandler, remove_duplicates
+from pelix.shell import SERVICE_SHELL, ShellService
+from pelix.shell.beans import IOHandler, ShellSession, safe_input
 from pelix.shell.completion.core import completion_hints
+
+if TYPE_CHECKING:
+    from pelix.framework import BundleContext, ServiceReference
 
 # ------------------------------------------------------------------------------
 
@@ -58,8 +57,6 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
-
-_logger = logging.getLogger(__name__)
 
 PROP_INIT_FILE = "pelix.shell.console.init_file"
 """ Shell script to execute before starting the console """
@@ -82,26 +79,26 @@ except ImportError:
 # ------------------------------------------------------------------------------
 
 
-class InteractiveShell(object):
+class InteractiveShell:
     """
     The interactive shell handler
     """
 
-    def __init__(self, context):
+    def __init__(self, context: BundleContext) -> None:
         """
         Sets up the members
 
         :param context: The bundle context
         """
-        self._context = context  # type: pelix.BundleContext
-        self._shell_ref = None  # type: pelix.ServiceReference
-        self._shell = None
+        self._context = context
+        self._shell_ref: Optional[ServiceReference[ShellService]] = None
+        self._shell: Optional[ShellService] = None
 
         # Single session
         self.__session = ShellSession(IOHandler(sys.stdin, sys.stdout), {})
 
         # Read line cache
-        self._readline_matches = []
+        self._readline_matches: List[str] = []
 
         # Rendez-vous events
         self._lock = threading.RLock()
@@ -114,18 +111,20 @@ class InteractiveShell(object):
         # Register as a service listener
         self._context.add_service_listener(self, None, SERVICE_SHELL)
 
-    def __get_ps1(self):
+    def __get_ps1(self) -> str:
         """
         Gets the prompt string from the session of the shell service
 
         :return: The prompt string
         """
+        assert self._shell is not None
+
         try:
-            return self.__session.get("PS1")
+            return cast(str, self.__session.get("PS1"))
         except KeyError:
             return self._shell.get_ps1()
 
-    def _readline_prompt(self):
+    def _readline_prompt(self) -> str:
         """
         Prompt using the readline module (no pre-flush)
 
@@ -134,7 +133,7 @@ class InteractiveShell(object):
         sys.stdout.flush()
         return safe_input(self.__get_ps1())
 
-    def _normal_prompt(self):
+    def _normal_prompt(self) -> str:
         """
         Flushes the prompt before requesting the input
 
@@ -144,17 +143,17 @@ class InteractiveShell(object):
         sys.stdout.flush()
         return safe_input()
 
-    def loop_input(self, on_quit=None):
+    def loop_input(self, on_quit: Optional[Callable[[], None]] = None) -> None:
         """
         Reads the standard input until the shell session is stopped
 
         :param on_quit: A call back method, called without argument when the
                         shell session has ended
         """
+        assert self._context is not None
+
         # Start the init script
-        self._run_script(
-            self.__session, self._context.get_property(PROP_INIT_FILE)
-        )
+        self._run_script(self.__session, self._context.get_property(PROP_INIT_FILE))
 
         # Run the script
         script_file = self._context.get_property(PROP_RUN_FILE)
@@ -172,7 +171,7 @@ class InteractiveShell(object):
             # Call a handler if needed
             on_quit()
 
-    def _run_script(self, session, file_path):
+    def _run_script(self, session: ShellSession, file_path: str):
         """
         Runs the given script file
 
@@ -180,33 +179,33 @@ class InteractiveShell(object):
         :param file_path: Path to the file to execute
         :return: True if a file has been execute
         """
+        assert self._shell is not None
+
         if file_path:
             # The 'run' command returns False in case of error
             # The 'execute' method returns False if the run command fails
-            return self._shell.execute('run "{0}"'.format(file_path), session)
+            return self._shell.execute(f'run "{file_path}"', session)
 
         return None
 
-    def _run_loop(self, session):
+    def _run_loop(self, session: ShellSession) -> None:
         """
         Runs the main input loop
 
         :param session: Current shell session
         """
+        assert self._shell is not None
+
         try:
             first_prompt = True
 
             # Set up the prompt
-            prompt = (
-                self._readline_prompt
-                if readline is not None
-                else self._normal_prompt
-            )
+            prompt = self._readline_prompt if readline is not None else self._normal_prompt
 
             while not self._stop_event.is_set():
                 # Wait for the shell to be there
                 # Before Python 2.7, wait() doesn't return a result
-                if self._shell_event.wait(.2) or self._shell_event.is_set():
+                if self._shell_event.wait(0.2) or self._shell_event.is_set():
                     # Shell present
                     if first_prompt:
                         # Show the banner on first prompt
@@ -229,10 +228,14 @@ class InteractiveShell(object):
             # Input closed or keyboard interruption
             pass
 
-    def readline_completer(self, text, state):
+    def readline_completer(self, text: str, state: int) -> Optional[str]:
         """
         A completer for the readline library
         """
+        assert readline is not None
+        assert self._context is not None
+        assert self._shell is not None
+
         if state == 0:
             # New completion, reset the list of matches and the display hook
             self._readline_matches = []
@@ -265,9 +268,7 @@ class InteractiveShell(object):
 
                 # Use the completer associated to the command, if any
                 try:
-                    configuration = self._shell.get_command_completers(
-                        ns, command
-                    )
+                    configuration = self._shell.get_command_completers(ns, command)
                     if configuration is not None:
                         self._readline_matches = completion_hints(
                             configuration,
@@ -288,9 +289,7 @@ class InteractiveShell(object):
 
                 # Filter methods according to the prefix
                 self._readline_matches = [
-                    "{0}.{1}".format(namespace, command)
-                    for command in commands
-                    if command.startswith(prefix)
+                    f"{namespace}.{command}" for command in commands if command.startswith(prefix)
                 ]
             else:
                 # Completing a command or namespace
@@ -298,22 +297,18 @@ class InteractiveShell(object):
 
                 # Default commands goes first...
                 possibilities = [
-                    "{0} ".format(command)
-                    for command in self._shell.get_commands(None)
-                    if command.startswith(prefix)
+                    f"{command} " for command in self._shell.get_commands(None) if command.startswith(prefix)
                 ]
 
                 # ... then name spaces
                 namespaces = self._shell.get_namespaces()
                 possibilities.extend(
-                    "{0}.".format(namespace)
-                    for namespace in namespaces
-                    if namespace.startswith(prefix)
+                    f"{namespace}." for namespace in namespaces if namespace.startswith(prefix)
                 )
 
                 # ... then commands in those name spaces
                 possibilities.extend(
-                    "{0} ".format(command)
+                    f"{command} "
                     for namespace in namespaces
                     if namespace is not None
                     for command in self._shell.get_commands(namespace)
@@ -335,7 +330,7 @@ class InteractiveShell(object):
 
         return None
 
-    def search_shell(self):
+    def search_shell(self) -> None:
         """
         Looks for a shell service
         """
@@ -344,21 +339,23 @@ class InteractiveShell(object):
                 # A shell is already there
                 return
 
-            reference = self._context.get_service_reference(SERVICE_SHELL)
+            if self._context is None:
+                raise ValueError("No bundle context")
+
+            reference = self._context.get_service_reference(ShellService)
             if reference is not None:
                 self.set_shell(reference)
 
-    def service_changed(self, event):
+    def service_changed(self, event: ServiceEvent[ShellService]) -> None:
         """
         Called by Pelix when an events changes
         """
         kind = event.get_kind()
         reference = event.get_service_reference()
 
-        if kind in (pelix.ServiceEvent.REGISTERED, pelix.ServiceEvent.MODIFIED):
+        if kind in (ServiceEvent.REGISTERED, ServiceEvent.MODIFIED):
             # A service matches our filter
             self.set_shell(reference)
-
         else:
             with self._lock:
                 # Service is not matching our filter anymore
@@ -367,7 +364,7 @@ class InteractiveShell(object):
                 # Request for a new binding
                 self.search_shell()
 
-    def set_shell(self, svc_ref):
+    def set_shell(self, svc_ref: ServiceReference[ShellService]) -> None:
         """
         Binds the given shell service.
 
@@ -377,6 +374,8 @@ class InteractiveShell(object):
             return
 
         with self._lock:
+            assert self._context is not None
+
             # Get the service
             self._shell_ref = svc_ref
             self._shell = self._context.get_service(self._shell_ref)
@@ -388,11 +387,13 @@ class InteractiveShell(object):
             # Set the flag
             self._shell_event.set()
 
-    def clear_shell(self):
+    def clear_shell(self) -> None:
         """
         Unbinds the active shell service
         """
         with self._lock:
+            assert self._context is not None
+
             # Clear the flag
             self._shell_event.clear()
 
@@ -408,7 +409,7 @@ class InteractiveShell(object):
             self._shell_ref = None
             self._shell = None
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Clears all members
         """
@@ -430,20 +431,20 @@ class InteractiveShell(object):
 
 
 @BundleActivator
-class Activator(object):
+class Activator(ActivatorProto):
     """
     The bundle activator
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up the members
         """
-        self._context = None
-        self._shell = None
-        self._thread = None
+        self._context: Optional[BundleContext] = None
+        self._shell: Optional[InteractiveShell] = None
+        self._thread: Optional[threading.Thread] = None
 
-    def start(self, context):
+    def start(self, context: BundleContext) -> None:
         """
         Bundle started
         """
@@ -461,14 +462,14 @@ class Activator(object):
         self._thread.daemon = True
         self._thread.start()
 
-    def stop(self, _):
+    def stop(self, _: BundleContext) -> None:
         """
         Bundle stopped
         """
         self._cleanup()
         self._context = None
 
-    def _quit(self):
+    def _quit(self) -> None:
         """
         Called when the shell session has ended
         """
@@ -479,7 +480,7 @@ class Activator(object):
         if self._context is not None:
             self._context.get_framework().stop()
 
-    def _cleanup(self):
+    def _cleanup(self) -> None:
         """
         Cleans up the members
         """
@@ -494,7 +495,7 @@ class Activator(object):
 # ------------------------------------------------------------------------------
 
 
-def _resolve_file(file_name):
+def _resolve_file(file_name: str) -> Optional[str]:
     """
     Checks if the file exists.
 
@@ -514,7 +515,7 @@ def _resolve_file(file_name):
     return None
 
 
-def make_common_parser():
+def make_common_parser() -> argparse.ArgumentParser:
     """
     Creates an argument parser (argparse module) with the options that should
     be common to all shells.
@@ -530,7 +531,7 @@ def make_common_parser():
     parser.add_argument(
         "--version",
         action="version",
-        version="Pelix {0} from {1}".format(pelix.__version__, pelix.__file__),
+        version=f"Pelix {pelix.__version__} from {pelix.__file__}",
     )
 
     # Framework options
@@ -556,16 +557,14 @@ def make_common_parser():
         "--conf",
         dest="init_conf",
         metavar="FILE",
-        help="Name of an initial configuration file to use "
-        "(default configuration is also loaded)",
+        help="Name of an initial configuration file to use " "(default configuration is also loaded)",
     )
     group.add_argument(
         "-C",
         "--exclusive-conf",
         dest="init_conf_exclusive",
         metavar="FILE",
-        help="Name of an initial configuration file to use "
-        "(without the default configuration)",
+        help="Name of an initial configuration file to use " "(without the default configuration)",
     )
     group.add_argument(
         "-e",
@@ -594,7 +593,7 @@ def make_common_parser():
     return parser
 
 
-def handle_common_arguments(parsed_args):
+def handle_common_arguments(parsed_args: argparse.Namespace) -> InitFileHandler:
     """
     Handles the arguments defined by :meth:`~make_common_parser`
 
@@ -603,9 +602,7 @@ def handle_common_arguments(parsed_args):
     :raise IOError: Initial or run script not found
     """
     # Setup the logger
-    logging.basicConfig(
-        level=logging.DEBUG if parsed_args.verbose else logging.WARNING
-    )
+    logging.basicConfig(level=logging.DEBUG if parsed_args.verbose else logging.WARNING)
 
     # Framework properties dictionary
     props = {}
@@ -637,31 +634,25 @@ def handle_common_arguments(parsed_args):
     if parsed_args.init_script:
         path = props[PROP_INIT_FILE] = _resolve_file(parsed_args.init_script)
         if not path:
-            raise IOError(
-                "Initial script file not found: {0}".format(
-                    parsed_args.init_script
-                )
-            )
+            raise IOError("Initial script file not found: {0}".format(parsed_args.init_script))
 
     if parsed_args.run_script:
         # Find the file
         path = props[PROP_RUN_FILE] = _resolve_file(parsed_args.run_script)
         if not path:
-            raise IOError(
-                "Script file not found: {0}".format(parsed_args.run_script)
-            )
+            raise IOError("Script file not found: {0}".format(parsed_args.run_script))
 
     # Update the stored configuration
     init.properties.update(props)
     return init
 
 
-def main(argv=None):
+def main(argv: Optional[List[str]] = None) -> int:
     """
     Entry point
 
     :param argv: Script arguments (None for sys.argv)
-    :return: An exit code or None
+    :return: An exit code
     """
     # Parse arguments
     parser = argparse.ArgumentParser(
@@ -688,9 +679,7 @@ def main(argv=None):
     bundles.extend(init.bundles)
 
     # Use the utility method to create, run and delete the framework
-    framework = pelix.create_framework(
-        remove_duplicates(bundles), init.properties
-    )
+    framework = pelix.create_framework(remove_duplicates(bundles), init.properties)
     framework.start()
 
     # Instantiate components
@@ -698,10 +687,12 @@ def main(argv=None):
 
     try:
         framework.wait_for_stop()
+        return 0
     except KeyboardInterrupt:
         framework.stop()
+        return 127
 
 
 if __name__ == "__main__":
     # Run the entry point
-    sys.exit(main() or 0)
+    sys.exit(main())

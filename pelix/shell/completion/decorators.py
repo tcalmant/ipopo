@@ -26,12 +26,9 @@ Defines the decorators associated shell completion handlers to a shell function
     limitations under the License.
 """
 
-# Add some typing
-try:
-    # pylint: disable=W0611
-    from typing import List, Dict
-except ImportError:
-    pass
+from typing import List
+
+from . import ATTR_COMPLETERS, CompletionInfo
 
 try:
     # Everything here relies on readline
@@ -48,17 +45,6 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-# ------------------------------------------------------------------------------
-
-
-SVC_COMPLETER = "pelix.shell.completer"
-""" Specification of a completer service """
-
-PROP_COMPLETER_ID = "completer.id"
-""" Completer service property: ID of the completer """
-
-ATTR_COMPLETERS = "__pelix_shell_completers__"
-""" Attribute added to methods to keep the list of completers """
 
 # ------------------------------------------------------------------------------
 
@@ -83,50 +69,17 @@ COMPONENT = "ipopo.component"
 # ------------------------------------------------------------------------------
 
 
-class CompletionInfo:
-    """
-    Keep track of the configuration of a completion
-    """
-
-    __slots__ = ("__completers", "__multiple")
-
-    def __init__(self, completers, multiple):
-        # type: (List[str], bool) -> None
-        """
-        :param completers: The list of completers IDs
-        :param multiple: Flag indicating the repetition of the last completer
-        """
-        self.__completers = completers or []
-        self.__multiple = multiple
-
-    @property
-    def completers(self):
-        """
-        List of IDs of shell completers
-        """
-        return self.__completers[:]
-
-    @property
-    def multiple(self):
-        """
-        Flag indicating of the last completer can be reused multiple times
-        """
-        return self.__multiple
-
-
 class Completion:
-    # pylint: disable=R0903
     """
     Decorator that sets up the arguments completion of a shell method
     """
 
-    def __init__(self, *completers, **kwargs):
-        # type: (List[str], Dict[str, bool]) -> None
+    def __init__(self, *completers: str, **kwargs: bool) -> None:
         """
         :param completers: A list of IDs (str) of argument completers
         :param multiple: If True, the last completer is reused multiple times
         """
-        self._completers = completers  # type: List[str]
+        self._completers: List[str] = list(completers)
         self._multiple = kwargs.get("multiple", False)
 
     def __call__(self, method):

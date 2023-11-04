@@ -27,17 +27,15 @@ Provides commands to the Pelix shell to work with the EventAdmin service
     limitations under the License.
 """
 
-# Shell constants
-from pelix.shell import SERVICE_SHELL_COMMAND
+from typing import TYPE_CHECKING, Any, List, Tuple
 
-# iPOPO Decorators
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Requires,
-    Provides,
-    Instantiate,
-)
 import pelix.services
+from pelix.ipopo.decorators import ComponentFactory, Instantiate, Provides, Requires
+from pelix.shell import ShellCommandMethod, ShellCommandsProvider
+
+if TYPE_CHECKING:
+    from pelix.shell.beans import ShellSession
+
 
 # ------------------------------------------------------------------------------
 
@@ -52,41 +50,37 @@ __docformat__ = "restructuredtext en"
 
 
 @ComponentFactory("eventadmin-shell-commands-factory")
-@Requires("_events", pelix.services.SERVICE_EVENT_ADMIN)
-@Provides(SERVICE_SHELL_COMMAND)
+@Requires("_events", pelix.services.EventAdmin)
+@Provides(ShellCommandsProvider)
 @Instantiate("eventadmin-shell-commands")
-class EventAdminCommands(object):
+class EventAdminCommands(ShellCommandsProvider):
     """
     EventAdmin shell commands
     """
 
-    def __init__(self):
-        """
-        Sets up members
-        """
-        # Injected services
-        self._events = None
+    # Injected services
+    _events: pelix.services.EventAdmin
 
     @staticmethod
-    def get_namespace():
+    def get_namespace() -> str:
         """
         Retrieves the name space of this command handler
         """
         return "event"
 
-    def get_methods(self):
+    def get_methods(self) -> List[Tuple[str, ShellCommandMethod]]:
         """
         Retrieves the list of tuples (command, method) for this command handler
         """
         return [("send", self.send), ("post", self.post)]
 
-    def send(self, _, topic, **kwargs):
+    def send(self, _: ShellSession, topic: str, **kwargs: Any) -> None:
         """
         Sends an event (blocking)
         """
         self._events.send(topic, kwargs)
 
-    def post(self, _, topic, **kwargs):
+    def post(self, _: ShellSession, topic: str, **kwargs: Any) -> None:
         """
         Posts an event (asynchronous)
         """

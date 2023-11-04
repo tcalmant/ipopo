@@ -26,29 +26,23 @@ Defines the shell completion handlers for Pelix concepts
     limitations under the License.
 """
 
-from __future__ import absolute_import
+from typing import TYPE_CHECKING, List
 
-# Try to import readline
+from pelix.constants import SERVICE_ID, ActivatorProto, BundleActivator
+
+from . import PROP_COMPLETER_ID, Completer, CompletionInfo
+from .core import AbstractCompleter
+from .decorators import BUNDLE, SERVICE
+
 try:
     import readline
 except ImportError:
     readline = None
 
-# Add some typing
-try:
-    # pylint: disable=W0611
-    from typing import List
-    from pelix.framework import BundleContext
+if TYPE_CHECKING:
+    from pelix.framework import BundleContext, ServiceRegistration
     from pelix.shell.beans import ShellSession
-except ImportError:
-    pass
 
-# Pelix
-from pelix.constants import SERVICE_ID, BundleActivator
-
-# Completion classes
-from .decorators import SVC_COMPLETER, PROP_COMPLETER_ID, BUNDLE, SERVICE
-from .core import Completer
 
 # ------------------------------------------------------------------------------
 
@@ -62,14 +56,15 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-class BundleCompleter(Completer):
+class BundleCompleter(AbstractCompleter):
     """
     Completes a bundle ID and display a bundle name in current matches
     """
 
     @staticmethod
-    def display_hook(prompt, session, context, matches, longest_match_len):
-        # type: (str, ShellSession, BundleContext, List[str], int) -> None
+    def display_hook(
+        prompt: str, session: ShellSession, context: BundleContext, matches: List[str], longest_match_len: int
+    ) -> None:
         """
         Displays the available bundle matches and the bundle name
 
@@ -79,15 +74,17 @@ class BundleCompleter(Completer):
         :param matches: List of words matching the substitution
         :param longest_match_len: Length of the largest match
         """
+        assert readline is not None
+
         # Prepare a line pattern for each match
         match_pattern = "{{0: >{}}}: {{1}}".format(longest_match_len)
 
         # Sort matching IDs
-        matches = sorted(int(match) for match in matches)
+        matching_ids = sorted(int(match) for match in matches)
 
         # Print the match and the associated name
         session.write_line()
-        for bnd_id in matches:
+        for bnd_id in matching_ids:
             bnd = context.get_bundle(bnd_id)
             session.write_line(match_pattern, bnd_id, bnd.get_symbolic_name())
 
@@ -97,9 +94,14 @@ class BundleCompleter(Completer):
         readline.redisplay()
 
     def complete(
-        self, config, prompt, session, context, current_arguments, current
-    ):
-        # type: (CompletionInfo, str, ShellSession, BundleContext, List[str], str) -> List[str]
+        self,
+        config: CompletionInfo,
+        prompt: str,
+        session: ShellSession,
+        context: BundleContext,
+        current_arguments: List[str],
+        current: str,
+    ) -> List[str]:
         """
         Returns the list of bundle IDs matching the current state
 
@@ -118,21 +120,22 @@ class BundleCompleter(Completer):
         # and not yet in arguments
         rl_matches = []
         for bnd in context.get_bundles():
-            bnd_id = "{0} ".format(bnd.get_bundle_id())
+            bnd_id = f"{bnd.get_bundle_id()} "
             if bnd_id.startswith(current):
                 rl_matches.append(bnd_id)
 
         return rl_matches
 
 
-class ServiceCompleter(Completer):
+class ServiceCompleter(AbstractCompleter):
     """
     Completes a service ID and display a specification in current matches
     """
 
     @staticmethod
-    def display_hook(prompt, session, context, matches, longest_match_len):
-        # type: (str, ShellSession, BundleContext, List[str], int) -> None
+    def display_hook(
+        prompt: str, session: ShellSession, context: BundleContext, matches: List[str], longest_match_len: int
+    ) -> None:
         """
         Displays the available services matches and the service details
 
@@ -147,14 +150,12 @@ class ServiceCompleter(Completer):
             match_pattern = "{{0: >{}}}: {{1}}".format(longest_match_len)
 
             # Sort matching IDs
-            matches = sorted(int(match) for match in matches)
+            matching_ids = sorted(int(match) for match in matches)
 
             # Print the match and the associated name
             session.write_line()
-            for svc_id in matches:
-                svc_ref = context.get_service_reference(
-                    None, "({}={})".format(SERVICE_ID, svc_id)
-                )
+            for svc_id in matching_ids:
+                svc_ref = context.get_service_reference(None, f"({SERVICE_ID}={svc_id})")
                 session.write_line(match_pattern, svc_id, str(svc_ref))
 
             # Print the prompt, then current line
@@ -165,9 +166,14 @@ class ServiceCompleter(Completer):
             session.write_line("\n{}\n\n", ex)
 
     def complete(
-        self, config, prompt, session, context, current_arguments, current
-    ):
-        # type: (CompletionInfo, str, ShellSession, BundleContext, List[str], str) -> List[str]
+        self,
+        config: CompletionInfo,
+        prompt: str,
+        session: ShellSession,
+        context: BundleContext,
+        current_arguments: List[str],
+        current: str,
+    ) -> List[str]:
         """
         Returns the list of services IDs matching the current state
 
@@ -185,8 +191,8 @@ class ServiceCompleter(Completer):
         # Return a list of bundle IDs (strings) matching the current value
         # and not yet in arguments
         rl_matches = []
-        for svc_ref in context.get_all_service_references(None, None):
-            svc_id = "{0} ".format(svc_ref.get_property(SERVICE_ID))
+        for svc_ref in context.get_all_service_references(None, None) or []:
+            svc_id = f"{svc_ref.get_property(SERVICE_ID)} "
             if svc_id.startswith(current):
                 rl_matches.append(svc_id)
 
@@ -201,16 +207,15 @@ COMPLETERS = {BUNDLE: BundleCompleter, SERVICE: ServiceCompleter}
 
 
 @BundleActivator
-class _Activator:
+class Activator(ActivatorProto):
     """
     Bundle activator
     """
 
-    def __init__(self):
-        self._registrations = []
+    def __init__(self) -> None:
+        self._registrations: List[ServiceRegistration[Completer]] = []
 
-    def start(self, context):
-        # type: (BundleContext) -> None
+    def start(self, context: BundleContext) -> None:
         """
         Bundle starting
 
@@ -219,15 +224,14 @@ class _Activator:
         # Register all completers we know
         self._registrations = [
             context.register_service(
-                SVC_COMPLETER,
+                Completer,
                 completer_class(),
                 {PROP_COMPLETER_ID: completer_id},
             )
             for completer_id, completer_class in COMPLETERS.items()
         ]
 
-    def stop(self, _):
-        # type: (BundleContext) -> None
+    def stop(self, _: BundleContext) -> None:
         """
         Bundle stopping
         """

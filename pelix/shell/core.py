@@ -27,34 +27,25 @@ Provides the basic command parsing and execution support to make a Pelix shell.
     limitations under the License.
 """
 
-# Standard library
 import logging
 import os
 import sys
 import threading
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
-# Standard typing module should be optional
-try:
-    # pylint: disable=W0611
-    from typing import Any, Dict, Tuple
-except ImportError:
-    pass
-
-# Pelix modules
 import pelix.constants as constants
 import pelix.framework as pelix
-
-# Shell constants
-from pelix.shell import (
-    SERVICE_SHELL,
-    SERVICE_SHELL_COMMAND,
-    SERVICE_SHELL_UTILS,
-)
-from pelix.shell.report import format_frame_info
 import pelix.shell.parser as parser
+from pelix.internals.events import ServiceEvent
+from pelix.internals.registry import ServiceListener
+from pelix.shell import ShellCommandsProvider, ShellService, ShellUtils
+from pelix.shell.completion import BUNDLE, SERVICE, Completion
+from pelix.shell.report import format_frame_info
 
-# Shell completion
-from pelix.shell.completion import Completion, BUNDLE, SERVICE
+if TYPE_CHECKING:
+    from pelix.framework import Bundle, BundleContext, ServiceReference
+    from pelix.internals.registry import ServiceRegistration
+    from pelix.shell.beans import ShellSession
 
 # ------------------------------------------------------------------------------
 
@@ -71,13 +62,13 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-class _ShellUtils(object):
+class _ShellUtils(ShellUtils):
     """
     Utility methods for the shell
     """
 
     @staticmethod
-    def bundlestate_to_str(state):
+    def bundlestate_to_str(state: int) -> str:
         """
         Converts a bundle state integer to a string
         """
@@ -90,10 +81,10 @@ class _ShellUtils(object):
             pelix.Bundle.UNINSTALLED: "UNINSTALLED",
         }
 
-        return states.get(state, "Unknown state ({0})".format(state))
+        return states.get(state, f"Unknown state ({state})")
 
     @staticmethod
-    def make_table(headers, lines, prefix=None):
+    def make_table(headers: Iterable[str], lines: Iterable[Any], prefix: Optional[str] = None) -> str:
         """
         Generates an ASCII table according to the given headers and lines
 
@@ -101,8 +92,7 @@ class _ShellUtils(object):
         :param lines: List of table lines (N-tuples)
         :param prefix: Optional prefix for each line
         :return: The ASCII representation of the table
-        :raise ValueError: Different number of columns between headers and
-                           lines
+        :raise ValueError: Different number of columns between headers and lines
         """
         # Normalize the prefix
         prefix = str(prefix or "")
@@ -131,34 +121,26 @@ class _ShellUtils(object):
 
             except IndexError:
                 # Line too small/big
-                raise ValueError(
-                    "Different sizes for header and lines "
-                    "(line {0})".format(idx + 1)
-                )
+                raise ValueError("Different sizes for header and lines " "(line {0})".format(idx + 1))
 
             except (TypeError, AttributeError):
                 # Invalid type of line
-                raise ValueError(
-                    "Invalid type of line: %s", type(line).__name__
-                )
+                raise ValueError("Invalid type of line: %s", type(line).__name__)
 
             else:
                 if column != nb_columns:
                     # Check if all lines have the same number of columns
-                    raise ValueError(
-                        "Different sizes for header and lines "
-                        "(line {0})".format(idx + 1)
-                    )
+                    raise ValueError("Different sizes for header and lines " "(line {0})".format(idx + 1))
 
         # Prepare the head (centered text)
-        format_str = "{0}|".format(prefix)
+        format_str = f"{prefix}|"
         for column, length in enumerate(lengths):
             format_str += " {%d:^%d} |" % (column, length)
 
         head_str = format_str.format(*headers)
 
         # Prepare the separator, according the length of the headers string
-        separator = "{0}{1}".format(prefix, "-" * (len(head_str) - len(prefix)))
+        separator = f"{prefix}{'-' * (len(head_str) - len(prefix))}"
         idx = head_str.find("|")
         while idx != -1:
             separator = "+".join((separator[:idx], separator[idx + 1 :]))
@@ -183,14 +165,13 @@ class _ShellUtils(object):
 # ------------------------------------------------------------------------------
 
 
-class _ShellService(parser.Shell):
+class _ShellService(parser.Shell, ShellService):
     # pylint: disable=R0904
     """
     Provides the core shell service for Pelix
     """
 
-    def __init__(self, context, utilities):
-        # type: (pelix.BundleContext, _ShellUtils) -> None
+    def __init__(self, context: BundleContext, utilities: _ShellUtils) -> None:
         """
         Sets up the shell
 
@@ -201,13 +182,13 @@ class _ShellService(parser.Shell):
         self._utils = utilities
 
         # Bound services: reference -> service
-        self._bound_references = {}  # type: Dict[pelix.ServiceReference, Any]
+        self._bound_references: Dict[ServiceReference[ShellCommandsProvider], ShellCommandsProvider] = {}
 
         # Service reference -> (name space, [commands])
-        self._reference_commands = {}  # type: Dict[pelix.ServiceReference, Tuple[str, str]]
+        self._reference_commands: Dict[ServiceReference[ShellCommandsProvider], Tuple[str, List[str]]] = {}
 
         # Last working directory
-        self._previous_path = None
+        self._previous_path: Optional[str] = None
 
         # Register basic commands
         self.register_command(None, "bd", self.bundle_details)
@@ -236,7 +217,7 @@ class _ShellService(parser.Shell):
         self.register_command(None, "cd", self.change_dir)
         self.register_command(None, "pwd", self.print_dir)
 
-    def bind_handler(self, svc_ref):
+    def bind_handler(self, svc_ref: ServiceReference[ShellCommandsProvider]) -> bool:
         """
         Called if a command service has been found.
         Registers the methods of this service.
@@ -253,7 +234,7 @@ class _ShellService(parser.Shell):
 
         # Get its name space
         namespace = handler.get_namespace()
-        commands = []
+        commands: List[str] = []
 
         # Register all service methods directly
         for command, method in handler.get_methods():
@@ -265,7 +246,7 @@ class _ShellService(parser.Shell):
         self._reference_commands[svc_ref] = (namespace, commands)
         return True
 
-    def unbind_handler(self, svc_ref):
+    def unbind_handler(self, svc_ref: ServiceReference[ShellCommandsProvider]) -> bool:
         """
         Called if a command service is gone.
         Unregisters its commands.
@@ -289,22 +270,18 @@ class _ShellService(parser.Shell):
         return True
 
     @staticmethod
-    def get_banner():
+    def get_banner() -> str:
         """
         Returns the Shell banner
         """
         return "** Pelix Shell prompt **\n"
 
-    def var_set(self, session, **kwargs):
+    def var_set(self, session: ShellSession, **kwargs: Any) -> Any:
         """
         Sets the given variables or prints the current ones. "set answer=42"
         """
         if not kwargs:
-            session.write_line(
-                self._utils.make_table(
-                    ("Name", "Value"), session.variables.items()
-                )
-            )
+            session.write_line(self._utils.make_table(("Name", "Value"), session.variables.items()))
         else:
             for name, value in kwargs.items():
                 name = name.strip()
@@ -312,7 +289,7 @@ class _ShellService(parser.Shell):
                 session.write_line("{0}={1}", name, value)
 
     @Completion(BUNDLE)
-    def bundle_details(self, io_handler, bundle_id):
+    def bundle_details(self, session: ShellSession, bundle_id: Union[int, str]) -> Any:
         """
         Prints the details of the bundle with the given ID or name
         """
@@ -338,47 +315,45 @@ class _ShellService(parser.Shell):
 
         if bundle is None:
             # No matching bundle
-            io_handler.write_line("Unknown bundle ID: {0}", bundle_id)
+            session.write_line(f"Unknown bundle ID: {bundle_id}")
             return False
 
         lines = [
-            "ID......: {0}".format(bundle.get_bundle_id()),
-            "Name....: {0}".format(bundle.get_symbolic_name()),
-            "Version.: {0}".format(bundle.get_version()),
-            "State...: {0}".format(
-                self._utils.bundlestate_to_str(bundle.get_state())
-            ),
-            "Location: {0}".format(bundle.get_location()),
+            f"ID......: {bundle.get_bundle_id()}",
+            f"Name....: {bundle.get_symbolic_name()}",
+            f"Version.: {bundle.get_version()}",
+            f"State...: {self._utils.bundlestate_to_str(bundle.get_state())}",
+            f"Location: {bundle.get_location()}",
             "Published services:",
         ]
         try:
             services = bundle.get_registered_services()
             if services:
                 for svc_ref in services:
-                    lines.append("\t{0}".format(svc_ref))
+                    lines.append(f"\t{svc_ref}")
             else:
                 lines.append("\tn/a")
         except constants.BundleException as ex:
             # Bundle in a invalid state
-            lines.append("\tError: {0}".format(ex))
+            lines.append(f"\tError: {ex}")
 
         lines.append("Services used by this bundle:")
         try:
             services = bundle.get_services_in_use()
             if services:
                 for svc_ref in services:
-                    lines.append("\t{0}".format(svc_ref))
+                    lines.append(f"\t{svc_ref}")
             else:
                 lines.append("\tn/a")
         except constants.BundleException as ex:
             # Bundle in a invalid state
-            lines.append("\tError: {0}".format(ex))
+            lines.append(f"\tError: {ex}")
 
         lines.append("")
-        io_handler.write("\n".join(lines))
+        session.write("\n".join(lines))
         return None
 
-    def bundles_list(self, io_handler, name=None):
+    def bundles_list(self, session: ShellSession, name: Optional[str] = None) -> Any:
         """
         Lists the bundles in the framework and their state. Possibility to
         filter on the bundle name.
@@ -394,11 +369,7 @@ class _ShellService(parser.Shell):
 
         if name is not None:
             # Filter the list
-            bundles = [
-                bundle
-                for bundle in bundles
-                if name in bundle.get_symbolic_name()
-            ]
+            bundles = [bundle for bundle in bundles if name in bundle.get_symbolic_name()]
 
         # Make the entries
         lines = [
@@ -415,50 +386,42 @@ class _ShellService(parser.Shell):
         ]
 
         # Print'em all
-        io_handler.write(self._utils.make_table(headers, lines))
+        session.write(self._utils.make_table(headers, lines))
 
         if name is None:
-            io_handler.write_line("{0} bundles installed", len(lines))
+            session.write_line(f"{len(lines)} bundles installed")
         else:
-            io_handler.write_line("{0} filtered bundles", len(lines))
+            session.write_line(f"{len(lines)} filtered bundles")
 
     @Completion(SERVICE)
-    def service_details(self, io_handler, service_id):
+    def service_details(self, session: ShellSession, service_id: str) -> Any:
         """
         Prints the details of the service with the given ID
         """
-        svc_ref = self._context.get_service_reference(
-            None, "({0}={1})".format(constants.SERVICE_ID, service_id)
-        )
+        svc_ref = self._context.get_service_reference(None, f"({constants.SERVICE_ID}={service_id})")
         if svc_ref is None:
-            io_handler.write_line("Service not found: {0}", service_id)
+            session.write_line(f"Service not found: {service_id}")
             return False
 
         lines = [
-            "ID............: {0}".format(
-                svc_ref.get_property(constants.SERVICE_ID)
-            ),
-            "Rank..........: {0}".format(
-                svc_ref.get_property(constants.SERVICE_RANKING)
-            ),
-            "Specifications: {0}".format(
-                svc_ref.get_property(constants.OBJECTCLASS)
-            ),
-            "Bundle........: {0}".format(svc_ref.get_bundle()),
+            f"ID............: {svc_ref.get_property(constants.SERVICE_ID)}",
+            f"Rank..........: {svc_ref.get_property(constants.SERVICE_RANKING)}",
+            f"Specifications: {svc_ref.get_property(constants.OBJECTCLASS)}",
+            f"Bundle........: {svc_ref.get_bundle()}",
             "Properties....:",
         ]
         for key, value in sorted(svc_ref.get_properties().items()):
-            lines.append("\t{0} = {1}".format(key, value))
+            lines.append(f"\t{key} = {value}")
 
         lines.append("Bundles using this service:")
         for bundle in svc_ref.get_using_bundles():
-            lines.append("\t{0}".format(bundle))
+            lines.append(f"\t{bundle}")
 
         lines.append("")
-        io_handler.write("\n".join(lines))
+        session.write("\n".join(lines))
         return None
 
-    def services_list(self, io_handler, specification=None):
+    def services_list(self, session: ShellSession, specification: Optional[str] = None) -> Any:
         """
         Lists the services in the framework. Possibility to filter on an exact
         specification.
@@ -467,9 +430,7 @@ class _ShellService(parser.Shell):
         headers = ("ID", "Specifications", "Bundle", "Ranking")
 
         # Lines
-        references = (
-            self._context.get_all_service_references(specification, None) or []
-        )
+        references = self._context.get_all_service_references(specification, None) or []
 
         # Construct the list of services
         lines = [
@@ -487,15 +448,15 @@ class _ShellService(parser.Shell):
 
         if not lines and specification:
             # No matching service found
-            io_handler.write_line("No service provides '{0}'", specification)
+            session.write_line(f"No service provides '{specification}'")
             return False
 
         # Print'em all
-        io_handler.write(self._utils.make_table(headers, lines))
-        io_handler.write_line("{0} services registered", len(lines))
+        session.write(self._utils.make_table(headers, lines))
+        session.write_line(f"{len(lines)} services registered")
         return None
 
-    def properties_list(self, io_handler):
+    def properties_list(self, session: ShellSession) -> Any:
         """
         Lists the properties of the framework
         """
@@ -512,9 +473,9 @@ class _ShellService(parser.Shell):
         lines.sort()
 
         # Print the table
-        io_handler.write(self._utils.make_table(headers, lines))
+        session.write(self._utils.make_table(headers, lines))
 
-    def property_value(self, io_handler, name):
+    def property_value(self, session: ShellSession, name) -> Any:
         """
         Prints the value of the given property, looking into
         framework properties then environment variables.
@@ -524,9 +485,9 @@ class _ShellService(parser.Shell):
             # Avoid printing "None"
             value = ""
 
-        io_handler.write_line(str(value))
+        session.write_line(str(value))
 
-    def environment_list(self, io_handler):
+    def environment_list(self, session: ShellSession) -> Any:
         """
         Lists the framework process environment variables
         """
@@ -540,23 +501,23 @@ class _ShellService(parser.Shell):
         lines.sort()
 
         # Print the table
-        io_handler.write(self._utils.make_table(headers, lines))
+        session.write(self._utils.make_table(headers, lines))
 
     @staticmethod
-    def environment_value(io_handler, name):
+    def environment_value(session: ShellSession, name: str) -> Any:
         """
         Prints the value of the given environment variable
         """
-        io_handler.write_line(os.getenv(name))
+        session.write_line(os.getenv(name))
 
     @staticmethod
-    def threads_list(io_handler, max_depth=1):
+    def threads_list(session: ShellSession, max_depth: Optional[int] = 1) -> Any:
         """
         Lists the active threads and their current code line
         """
         # Normalize maximum depth
         try:
-            max_depth = int(max_depth)
+            max_depth = int(max_depth or 0)
             if max_depth < 1:
                 max_depth = None
         except (ValueError, TypeError):
@@ -568,9 +529,9 @@ class _ShellService(parser.Shell):
             frames = sys._current_frames()
 
             # Get the thread ID -> Thread mapping
-            names = threading._active.copy()
+            names = getattr(threading, "_active").copy()
         except AttributeError:
-            io_handler.write_line("sys._current_frames() is not available.")
+            session.write_line("sys._current_frames() is not available.")
             return
 
         # Sort by thread ID
@@ -587,15 +548,13 @@ class _ShellService(parser.Shell):
                 name = "<unknown>"
 
             # Construct the code position
-            lines.append("Thread ID: {0} - Name: {1}".format(thread_id, name))
+            lines.append(f"Thread ID: {thread_id} - Name: {name}")
             lines.append("Stack Trace:")
 
             trace_lines = []
             depth = 0
             frame = stack
-            while frame is not None and (
-                max_depth is None or depth < max_depth
-            ):
+            while frame is not None and (max_depth is None or depth < max_depth):
                 # Store the line information
                 trace_lines.append(format_frame_info(frame))
 
@@ -613,16 +572,18 @@ class _ShellService(parser.Shell):
         lines.append("")
 
         # Sort the lines
-        io_handler.write("\n".join(lines))
+        session.write("\n".join(lines))
 
     @staticmethod
-    def thread_details(io_handler, thread_id, max_depth=0):
+    def thread_details(
+        session: ShellSession, thread_id: Union[str, int], max_depth: Optional[int] = 0
+    ) -> Any:
         """
         Prints details about the thread with the given ID (not its name)
         """
         # Normalize maximum depth
         try:
-            max_depth = int(max_depth)
+            max_depth = int(max_depth or 0)
             if max_depth < 1:
                 max_depth = None
         except (ValueError, TypeError):
@@ -634,29 +595,27 @@ class _ShellService(parser.Shell):
             thread_id = int(thread_id)
             stack = sys._current_frames()[thread_id]
         except KeyError:
-            io_handler.write_line("Unknown thread ID: {0}", thread_id)
+            session.write_line(f"Unknown thread ID: {thread_id}")
         except ValueError:
-            io_handler.write_line("Invalid thread ID: {0}", thread_id)
+            session.write_line(f"Invalid thread ID: {thread_id}")
         except AttributeError:
-            io_handler.write_line("sys._current_frames() is not available.")
+            session.write_line("sys._current_frames() is not available.")
         else:
             # Get the name
             try:
-                name = threading._active[thread_id].name
+                name = getattr(threading, "_active")[thread_id].name
             except KeyError:
                 name = "<unknown>"
 
             lines = [
-                "Thread ID: {0} - Name: {1}".format(thread_id, name),
+                f"Thread ID: {thread_id} - Name: {name}",
                 "Stack trace:",
             ]
 
             trace_lines = []
             depth = 0
             frame = stack
-            while frame is not None and (
-                max_depth is None or depth < max_depth
-            ):
+            while frame is not None and (max_depth is None or depth < max_depth):
                 # Store the line information
                 trace_lines.append(format_frame_info(frame))
 
@@ -671,10 +630,10 @@ class _ShellService(parser.Shell):
             lines.extend(trace_lines)
 
             lines.append("")
-            io_handler.write("\n".join(lines))
+            session.write("\n".join(lines))
 
     @staticmethod
-    def log_level(io_handler, level=None, name=None):
+    def log_level(session: ShellSession, level: Optional[str] = None, name: Optional[str] = None) -> None:
         """
         Prints/Changes log level
         """
@@ -687,7 +646,7 @@ class _ShellService(parser.Shell):
 
         if not level:
             # Level not given: print the logger level
-            io_handler.write_line(
+            session.write_line(
                 "{0} log level: {1} (real: {2})",
                 name,
                 logging.getLevelName(logger.getEffectiveLevel()),
@@ -697,11 +656,11 @@ class _ShellService(parser.Shell):
             # Set the logger level
             try:
                 logger.setLevel(level.upper())
-                io_handler.write_line("New level for {0}: {1}", name, level)
+                session.write_line("New level for {0}: {1}", name, level)
             except ValueError:
-                io_handler.write_line("Invalid log level: {0}", level)
+                session.write_line("Invalid log level: {0}", level)
 
-    def change_dir(self, session, path):
+    def change_dir(self, session: ShellSession, path: str) -> None:
         """
         Changes the working directory
         """
@@ -714,14 +673,14 @@ class _ShellService(parser.Shell):
             os.chdir(path)
         except IOError as ex:
             # Can't change directory
-            session.write_line("Error changing directory: {0}", ex)
+            session.write_line(f"Error changing directory: {ex}")
         else:
             # Store previous path
             self._previous_path = previous
             session.write_line(os.getcwd())
 
     @staticmethod
-    def print_dir(session):
+    def print_dir(session: ShellSession) -> str:
         """
         Prints the current working directory
         """
@@ -729,25 +688,27 @@ class _ShellService(parser.Shell):
         session.write_line(pwd)
         return pwd
 
-    def __get_bundle(self, io_handler, bundle_id):
+    def __get_bundle(self, session: ShellSession, bundle_id: Union[int, str]) -> Optional[Bundle]:
         """
         Retrieves the Bundle object with the given bundle ID. Writes errors
         through the I/O handler if any.
 
-        :param io_handler: I/O Handler
+        :param session: I/O Handler
         :param bundle_id: String or integer bundle ID
         :return: The Bundle object matching the given ID, None if not found
         """
+        assert self._context is not None
+
         try:
             bundle_id = int(bundle_id)
             return self._context.get_bundle(bundle_id)
         except (TypeError, ValueError):
-            io_handler.write_line("Invalid bundle ID: {0}", bundle_id)
+            session.write_line("Invalid bundle ID: {0}", bundle_id)
         except constants.BundleException:
-            io_handler.write_line("Unknown bundle: {0}", bundle_id)
+            session.write_line("Unknown bundle: {0}", bundle_id)
 
     @Completion(BUNDLE, multiple=True)
-    def start(self, io_handler, bundle_id, *bundles_ids):
+    def start(self, session: ShellSession, bundle_id: Union[int, str], *bundles_ids: Union[int, str]) -> Any:
         """
         Starts the bundles with the given IDs. Stops on first failure.
         """
@@ -757,11 +718,11 @@ class _ShellService(parser.Shell):
                 bid = int(bid)
             except ValueError:
                 # Got something else, we will try to install it first
-                bid = self.install(io_handler, bid)
+                bid = self.install(session, str(bid))
 
-            bundle = self.__get_bundle(io_handler, bid)
+            bundle = self.__get_bundle(session, bid)
             if bundle is not None:
-                io_handler.write_line(
+                session.write_line(
                     "Starting bundle {0} ({1})...",
                     bid,
                     bundle.get_symbolic_name(),
@@ -773,14 +734,14 @@ class _ShellService(parser.Shell):
         return None
 
     @Completion(BUNDLE, multiple=True)
-    def stop(self, io_handler, bundle_id, *bundles_ids):
+    def stop(self, session: ShellSession, bundle_id: Union[int, str], *bundles_ids: Union[int, str]) -> Any:
         """
         Stops the bundles with the given IDs. Stops on first failure.
         """
         for bid in (bundle_id,) + bundles_ids:
-            bundle = self.__get_bundle(io_handler, bid)
+            bundle = self.__get_bundle(session, bid)
             if bundle is not None:
-                io_handler.write_line(
+                session.write_line(
                     "Stopping bundle {0} ({1})...",
                     bid,
                     bundle.get_symbolic_name(),
@@ -792,14 +753,14 @@ class _ShellService(parser.Shell):
         return None
 
     @Completion(BUNDLE, multiple=True)
-    def update(self, io_handler, bundle_id, *bundles_ids):
+    def update(self, session: ShellSession, bundle_id: Union[int, str], *bundles_ids: Union[int, str]) -> Any:
         """
         Updates the bundles with the given IDs. Stops on first failure.
         """
         for bid in (bundle_id,) + bundles_ids:
-            bundle = self.__get_bundle(io_handler, bid)
+            bundle = self.__get_bundle(session, bid)
             if bundle is not None:
-                io_handler.write_line(
+                session.write_line(
                     "Updating bundle {0} ({1})...",
                     bid,
                     bundle.get_symbolic_name(),
@@ -810,23 +771,25 @@ class _ShellService(parser.Shell):
 
         return None
 
-    def install(self, io_handler, module_name):
+    def install(self, session: ShellSession, module_name: str) -> int:
         """
         Installs the bundle with the given module name
         """
         bundle = self._context.install_bundle(module_name)
-        io_handler.write_line("Bundle ID: {0}", bundle.get_bundle_id())
+        session.write_line("Bundle ID: {0}", bundle.get_bundle_id())
         return bundle.get_bundle_id()
 
     @Completion(BUNDLE, multiple=True)
-    def uninstall(self, io_handler, bundle_id, *bundles_ids):
+    def uninstall(
+        self, session: ShellSession, bundle_id: Union[int, str], *bundles_ids: Union[int, str]
+    ) -> Any:
         """
         Uninstalls the bundles with the given IDs. Stops on first failure.
         """
         for bid in (bundle_id,) + bundles_ids:
-            bundle = self.__get_bundle(io_handler, bid)
+            bundle = self.__get_bundle(session, bid)
             if bundle is not None:
-                io_handler.write_line(
+                session.write_line(
                     "Uninstalling bundle {0} ({1})...",
                     bid,
                     bundle.get_symbolic_name(),
@@ -842,25 +805,26 @@ class _ShellService(parser.Shell):
 
 
 @constants.BundleActivator
-class _Activator(object):
+class Activator(constants.ActivatorProto, ServiceListener):
     """
     Activator class for Pelix
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up the activator
         """
-        self._shell = None
-        self._shell_reg = None
-        self._utils_reg = None
+        self._shell: Optional[_ShellService] = None
+        self._shell_reg: Optional[ServiceRegistration[ShellService]] = None
+        self._utils_reg: Optional[ServiceRegistration[ShellUtils]] = None
         self._logger = logging.getLogger(__name__)
 
-    def service_changed(self, event):
-        # type: (pelix.ServiceEvent) -> None
+    def service_changed(self, event: ServiceEvent[ShellCommandsProvider]) -> None:
         """
         Called when a command provider service event occurred
         """
+        assert self._shell is not None
+
         kind = event.get_kind()
         reference = event.get_service_reference()
 
@@ -871,8 +835,7 @@ class _Activator(object):
             # Service gone or not matching anymore
             self._shell.unbind_handler(reference)
 
-    def start(self, context):
-        # type: (pelix.BundleContext) -> None
+    def start(self, context: BundleContext) -> None:
         """
         Bundle starting
 
@@ -882,18 +845,14 @@ class _Activator(object):
             # Prepare the shell utility service
             utils = _ShellUtils()
             self._shell = _ShellService(context, utils)
-            self._shell_reg = context.register_service(
-                SERVICE_SHELL, self._shell, {}
-            )
-            self._utils_reg = context.register_service(
-                SERVICE_SHELL_UTILS, utils, {}
-            )
+            self._shell_reg = context.register_service(ShellService, self._shell, {})
+            self._utils_reg = context.register_service(ShellUtils, utils, {})
 
             # Register the service listener
-            context.add_service_listener(self, None, SERVICE_SHELL_COMMAND)
+            context.add_service_listener(self, None, ShellCommandsProvider)
 
             # Register existing command services
-            refs = context.get_all_service_references(SERVICE_SHELL_COMMAND)
+            refs = context.get_all_service_references(ShellCommandsProvider)
             if refs is not None:
                 for ref in refs:
                     self._shell.bind_handler(ref)
@@ -901,9 +860,7 @@ class _Activator(object):
             self._logger.info("Shell services registered")
 
         except constants.BundleException as ex:
-            self._logger.exception(
-                "Error registering the shell service: %s", ex
-            )
+            self._logger.exception("Error registering the shell service: %s", ex)
 
     def stop(self, context):
         # type: (pelix.BundleContext) -> None

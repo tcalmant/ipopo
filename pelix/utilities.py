@@ -412,7 +412,7 @@ def is_string(string: Any) -> bool:
     return isinstance(string, str)
 
 
-def to_bytes(data: str, encoding: str = "UTF-8") -> bytes:
+def to_bytes(data: Union[bytes, str], encoding: str = "UTF-8") -> bytes:
     """
     Converts the given string to an array of bytes.
     Returns the first parameter if it is already an array of bytes.
@@ -425,7 +425,7 @@ def to_bytes(data: str, encoding: str = "UTF-8") -> bytes:
         # Nothing to do
         return data
 
-    return data.encode(encoding)
+    return cast(str, data).encode(encoding)
 
 
 def to_str(data: Union[bytes, str], encoding: str = "UTF-8") -> str:

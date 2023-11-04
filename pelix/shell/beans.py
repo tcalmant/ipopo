@@ -26,11 +26,10 @@ Definition of classes used by the Pelix shell service and its consumers
     limitations under the License.
 """
 
-# Standard library
 import sys
 import threading
+from typing import IO, Any, Dict, Optional, Union
 
-# Pelix
 from pelix.utilities import to_bytes, to_str
 
 # ------------------------------------------------------------------------------
@@ -44,13 +43,7 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-# Before Python 3, input() was raw_input()
-if sys.version_info[0] < 3:
-    # pylint: disable=E0602,C0103
-    safe_input = raw_input
-else:
-    # pylint: disable=C0103
-    safe_input = input
+safe_input = input
 
 RESULT_VAR_NAME = "?"
 """ Name of the result variable """
@@ -58,14 +51,13 @@ RESULT_VAR_NAME = "?"
 # ------------------------------------------------------------------------------
 
 
-class ShellSession(object):
+class ShellSession:
     """
     Represents a shell session. This is the kind of object given as parameter
     to shell commands
     """
 
-    def __init__(self, io_handler, initial_vars=None):
-        # type: (IOHandler, dict) -> None
+    def __init__(self, io_handler: "IOHandler", initial_vars: Optional[Dict[str, Any]] = None) -> None:
         """
         Sets up the shell session
 
@@ -82,33 +74,54 @@ class ShellSession(object):
         # Special variable for the last result
         self.__variables[RESULT_VAR_NAME] = None
 
-        # Set I/O handler methods aliases
-        self.write_line = io_handler.write_line
-        self.write_line_no_feed = io_handler.write_line_no_feed
+    def prompt(self, prompt: Optional[str] = None) -> str:
+        """
+        Reads a line written by the user
 
-        # Those are defined in IOHandler.__init__
-        self.write = io_handler.write
-        self.flush = io_handler.flush
-        self.prompt = io_handler.prompt
+        :param prompt: An optional prompt message
+        :return: The read line, after a conversion to str
+        """
+        return self._io_handler.prompt(prompt)
+
+    def write(self, data: str) -> None:
+        """
+        Write data to the output
+        """
+        self._io_handler.write(data)
+
+    def write_line(self, line: Optional[str] = None, *args: Any, **kwargs: Any) -> None:
+        """
+        Formats and writes a line to the output
+        """
+        self._io_handler.write_line(line, *args, **kwargs)
+
+    def write_line_no_feed(self, line: Optional[str] = None, *args: Any, **kwargs: Any) -> None:
+        """
+        Formats and writes a line to the output
+        """
+        self._io_handler.write_line_no_feed(line, *args, **kwargs)
+
+    def flush(self) -> None:
+        """
+        Flush output
+        """
+        self._io_handler.flush()
 
     @property
-    def variables(self):
-        # type: () -> dict
+    def variables(self) -> Dict[str, Any]:
         """
         A copy of the session variables
         """
         return self.__variables.copy()
 
     @property
-    def last_result(self):
-        # type: () -> object
+    def last_result(self) -> Any:
         """
         Returns the content of $result
         """
         return self.__variables[RESULT_VAR_NAME]
 
-    def get(self, name):
-        # type: (str) -> object
+    def get(self, name: str) -> Any:
         """
         Returns the value of a variable
 
@@ -118,8 +131,7 @@ class ShellSession(object):
         """
         return self.__variables[name]
 
-    def set(self, name, value):
-        # type: (str, object) -> None
+    def set(self, name: str, value: Any) -> None:
         """
         Sets/overrides the value of a variable
 
@@ -128,8 +140,7 @@ class ShellSession(object):
         """
         self.__variables[name] = value
 
-    def unset(self, name):
-        # type: (str) -> None
+    def unset(self, name: str) -> None:
         """
         Unsets the variable with the given name
 
@@ -142,13 +153,13 @@ class ShellSession(object):
 # ------------------------------------------------------------------------------
 
 
-class IOHandler(object):
+class IOHandler:
     """
     Handles I/O operations between the command handler and the client
     It automatically converts the given data to bytes in Python 3.
     """
 
-    def __init__(self, in_stream, out_stream, encoding="UTF-8"):
+    def __init__(self, in_stream: IO, out_stream: IO, encoding: str = "UTF-8") -> None:
         """
         Sets up the printer
 
@@ -159,10 +170,7 @@ class IOHandler(object):
         self.input = in_stream
         self.output = out_stream
         self.encoding = encoding
-        try:
-            self.out_encoding = self.output.encoding or self.encoding
-        except AttributeError:
-            self.out_encoding = self.encoding
+        self.out_encoding: str = getattr(self.output, "encoding", self.encoding)
 
         # Thread safety
         self.__lock = threading.RLock()
@@ -176,9 +184,7 @@ class IOHandler(object):
             # In Python 3.6, the "mode" field is not available on file-like
             # objects, but the "encoding" field seems to be present only in
             # string compatible ones
-            if "b" in getattr(out_stream, "mode", "") or not hasattr(
-                out_stream, "encoding"
-            ):
+            if "b" in getattr(out_stream, "mode", "") or not hasattr(out_stream, "encoding"):
                 # Bytes conversion
                 self.write = self._write_bytes
             else:
@@ -192,7 +198,7 @@ class IOHandler(object):
         else:
             self.prompt = self._prompt
 
-    def _prompt(self, prompt=None):
+    def _prompt(self, prompt: Optional[str] = None) -> str:
         """
         Reads a line written by the user
 
@@ -207,7 +213,7 @@ class IOHandler(object):
         # Read the line
         return to_str(self.input.readline())
 
-    def _write_bytes(self, data):
+    def _write_bytes(self, data: Union[str, bytes]) -> None:
         """
         Converts the given data then writes it
 
@@ -217,7 +223,7 @@ class IOHandler(object):
         with self.__lock:
             self.output.write(to_bytes(data, self.encoding))
 
-    def _write_str(self, data):
+    def _write_str(self, data: Union[str, bytes]) -> None:
         """
         Converts the given data then writes it
 
@@ -226,12 +232,10 @@ class IOHandler(object):
         """
         with self.__lock:
             self.output.write(
-                to_str(data, self.encoding)
-                .encode()
-                .decode(self.out_encoding, errors="replace")
+                to_str(data, self.encoding).encode().decode(self.out_encoding, errors="replace")
             )
 
-    def write_line(self, line=None, *args, **kwargs):
+    def write_line(self, line: Optional[str] = None, *args: Any, **kwargs: Any) -> None:
         """
         Formats and writes a line to the output
         """
@@ -256,7 +260,7 @@ class IOHandler(object):
 
         self.flush()
 
-    def write_line_no_feed(self, line=None, *args, **kwargs):
+    def write_line_no_feed(self, line: Optional[str] = None, *args: Any, **kwargs: Any) -> None:
         """
         Formats and writes a line to the output
         """

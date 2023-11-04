@@ -26,9 +26,26 @@ Pelix shell completion package
     limitations under the License.
 """
 
-# Shortcut to the constants
-from .core import SVC_COMPLETER, PROP_COMPLETER_ID
-from .decorators import Completion, DUMMY, BUNDLE, SERVICE, FACTORY, COMPONENT
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, List, Protocol
+from .decorators import BUNDLE, COMPONENT, DUMMY, FACTORY, SERVICE, Completion
+
+if TYPE_CHECKING:
+    from pelix.framework import BundleContext
+    from .decorators import CompletionInfo
+    from .. import ShellSession
+
+__all__ = [
+    "PROP_COMPLETER_ID",
+    "SVC_COMPLETER",
+    "BUNDLE",
+    "COMPONENT",
+    "DUMMY",
+    "FACTORY",
+    "SERVICE",
+    "Completion",
+    "Completer",
+]
 
 # ------------------------------------------------------------------------------
 
@@ -38,3 +55,62 @@ __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
+
+# ------------------------------------------------------------------------------
+
+
+SVC_COMPLETER = "pelix.shell.completer"
+""" Specification of a completer service """
+
+PROP_COMPLETER_ID = "completer.id"
+""" Completer service property: ID of the completer """
+
+ATTR_COMPLETERS = "__pelix_shell_completers__"
+""" Attribute added to methods to keep the list of completers """
+
+
+@dataclass(frozen=True)
+class CompletionInfo:
+    """
+    Keep track of the configuration of a completion
+    """
+
+    completers: List[str]
+    """
+    List of IDs of shell completers
+    """
+
+    multiple: bool
+    """
+    Flag indicating of the last completer can be reused multiple times
+    """
+
+
+class Completer(Protocol):
+    """
+    Specification of a service providing completions
+    """
+
+    __SPECIFICATION__ = SVC_COMPLETER
+
+    def complete(
+        self,
+        config: CompletionInfo,
+        prompt: str,
+        session: ShellSession,
+        context: BundleContext,
+        current_arguments: List[str],
+        current: str,
+    ) -> List[str]:
+        """
+        Returns the list of bundle IDs matching the current state
+
+        :param config: Configuration of the current completion
+        :param prompt: Shell prompt (for re-display)
+        :param session: Shell session (to display in shell)
+        :param context: Bundle context of the Shell bundle
+        :param current_arguments: Current arguments (without the command itself)
+        :param current: Current word
+        :return: A list of matches
+        """
+        ...
