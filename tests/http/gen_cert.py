@@ -28,6 +28,7 @@ A utility script to generate test certificates for HTTPS
 import argparse
 import os
 import subprocess
+from typing import Any, List, Optional
 
 # ------------------------------------------------------------------------------
 
@@ -41,7 +42,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-def find_openssl():
+def find_openssl() -> str:
     """
     Looks for the OpenSSL executable
 
@@ -62,10 +63,10 @@ def find_openssl():
         if os.path.exists(exe):
             return exe
     else:
-        raise IOError("{0} not found in PATH".format(name))
+        raise IOError(f"{name} not found in PATH")
 
 
-def call_openssl(*args):
+def call_openssl(*args: Any) -> None:
     """
     Calls the openssl command
 
@@ -74,7 +75,7 @@ def call_openssl(*args):
     subprocess.check_output([find_openssl()] + [str(arg) for arg in args], stderr=subprocess.STDOUT)
 
 
-def write_conf(out_dir):
+def write_conf(out_dir: str) -> str:
     """
     Writes the configuration file for OpenSSL
 
@@ -102,7 +103,7 @@ basicConstraints = CA:true
     return config_file
 
 
-def make_subj(common_name, encrypted=False):
+def make_subj(common_name: str, encrypted: bool = False) -> str:
     """
     Make a subject string
 
@@ -110,12 +111,13 @@ def make_subj(common_name, encrypted=False):
     :param encrypted: Add the encrypted flag to the organisation
     :return: A subject string
     """
-    return "/C=FR/ST=Auvergne-Rhone-Alpes/L=Grenoble/O=iPOPO Tests ({0})" "/CN={1}".format(
-        "encrypted" if encrypted else "plain", common_name
+    return (
+        f"/C=FR/ST=Auvergne-Rhone-Alpes/L=Grenoble/O=iPOPO Tests "
+        f"({'encrypted' if encrypted else 'plain'})/CN={common_name}"
     )
 
 
-def make_certs(out_dir, key_password):
+def make_certs(out_dir: str, key_password: str) -> None:
     """
     Generates a certificate chain and two certificates: one with a password and
     one without
@@ -227,7 +229,7 @@ def make_certs(out_dir, key_password):
         )
 
 
-def main(args=None):
+def main(args: Optional[List[str]] = None) -> None:
     """
     Entry point
     """
