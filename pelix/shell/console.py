@@ -36,16 +36,18 @@ import sys
 import threading
 from typing import TYPE_CHECKING, Callable, List, Optional, cast
 
-import pelix.framework as pelix
+import pelix.framework
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.internals.events import ServiceEvent
-from pelix.misc.init_handler import InitFileHandler, remove_duplicates
+from pelix.misc.init_handler import InitFileHandler
 from pelix.shell import SERVICE_SHELL, ShellService
-from pelix.shell.beans import IOHandler, ShellSession, safe_input
+from pelix.shell.beans import IOHandler, ShellSession
 from pelix.shell.completion.core import completion_hints
+from pelix.utilities import remove_duplicates
 
 if TYPE_CHECKING:
-    from pelix.framework import BundleContext, ServiceReference
+    from pelix.framework import BundleContext
+    from pelix.internals.registry import ServiceReference
 
 # ------------------------------------------------------------------------------
 
@@ -72,9 +74,11 @@ try:
 
     readline.parse_and_bind("tab: complete")
     readline.set_completer(None)
+
+    HAS_READLINE = True
 except ImportError:
     # Readline is missing, not critical
-    readline = None
+    HAS_READLINE = False
 
 # ------------------------------------------------------------------------------
 
@@ -90,7 +94,7 @@ class InteractiveShell:
 
         :param context: The bundle context
         """
-        self._context = context
+        self._context: Optional[BundleContext] = context
         self._shell_ref: Optional["ServiceReference[ShellService]"] = None
         self._shell: Optional[ShellService] = None
 
@@ -131,7 +135,7 @@ class InteractiveShell:
         :return: The command line
         """
         sys.stdout.flush()
-        return safe_input(self.__get_ps1())
+        return input(self.__get_ps1())
 
     def _normal_prompt(self) -> str:
         """
@@ -141,7 +145,7 @@ class InteractiveShell:
         """
         sys.stdout.write(self.__get_ps1())
         sys.stdout.flush()
-        return safe_input()
+        return input()
 
     def loop_input(self, on_quit: Optional[Callable[[], None]] = None) -> None:
         """
@@ -171,7 +175,7 @@ class InteractiveShell:
             # Call a handler if needed
             on_quit()
 
-    def _run_script(self, session: ShellSession, file_path: str):
+    def _run_script(self, session: ShellSession, file_path: str) -> Optional[bool]:
         """
         Runs the given script file
 
@@ -232,6 +236,9 @@ class InteractiveShell:
         """
         A completer for the readline library
         """
+        if not HAS_READLINE:
+            return None
+
         assert readline is not None
         assert self._context is not None
         assert self._shell is not None
@@ -381,7 +388,7 @@ class InteractiveShell:
             self._shell = self._context.get_service(self._shell_ref)
 
             # Set the readline completer
-            if readline is not None:
+            if HAS_READLINE:
                 readline.set_completer(self.readline_completer)
 
             # Set the flag
@@ -679,7 +686,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     bundles.extend(init.bundles)
 
     # Use the utility method to create, run and delete the framework
-    framework = pelix.create_framework(remove_duplicates(bundles), init.properties)
+    framework = pelix.framework.create_framework(remove_duplicates(bundles), init.properties)
     framework.start()
 
     # Instantiate components

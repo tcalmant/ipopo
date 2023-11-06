@@ -33,12 +33,11 @@ import shlex
 import string
 import sys
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, cast
-from pelix.shell import ShellCommandMethod
 
-from pelix.utilities import to_str, get_method_arguments
 import pelix.shell.beans as beans
-
+from pelix.shell import ShellCommandMethod
 from pelix.shell.completion import ATTR_COMPLETERS, CompletionInfo
+from pelix.utilities import get_method_arguments, to_str
 
 if TYPE_CHECKING:
     from pelix.framework import Framework
@@ -115,7 +114,7 @@ def _make_args(
             args.append(arg_token)
 
     # Prepare the dictionary of variables
-    variables = collections.defaultdict(str)
+    variables: Dict[str, Any] = collections.defaultdict(str)
     variables.update(fw_props)
     variables.update(session.variables)
 
@@ -329,7 +328,7 @@ class Shell:
         namespaces.sort()
         return namespaces
 
-    def get_commands(self, namespace: str) -> List[str]:
+    def get_commands(self, namespace: Optional[str]) -> List[str]:
         """
         Retrieves the commands of the given name space. If *namespace* is None
         or empty, it retrieves the commands of the default name space
@@ -648,19 +647,18 @@ class Shell:
         session.write_line("Raising KeyboardInterrupt to stop main thread")
         raise KeyboardInterrupt()
 
-    @staticmethod
-    def var_set(session: beans.ShellSession, **kwargs: Any) -> None:
+    def var_set(self, session: beans.ShellSession, **kwargs: Any) -> None:
         """
         Sets the given variables or prints the current ones. "set answer=42"
         """
         if not kwargs:
             for name, value in session.variables.items():
-                session.write_line("{0}={1}".format(name, value))
+                session.write_line(f"{name}={value}")
         else:
             for name, value in kwargs.items():
                 name = name.strip()
                 session.set(name, value)
-                session.write_line("{0}={1}", name, value)
+                session.write_line(f"{name}={value}")
 
     @staticmethod
     def var_unset(session: beans.ShellSession, name: str) -> Any:

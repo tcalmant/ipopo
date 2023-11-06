@@ -26,15 +26,17 @@ Defines the decorators associated shell completion handlers to a shell function
     limitations under the License.
 """
 
-from typing import List
+from typing import List, TypeVar
 
 from . import ATTR_COMPLETERS, CompletionInfo
 
 try:
     # Everything here relies on readline
     import readline
+
+    HAS_READLINE = True
 except ImportError:
-    readline = None
+    HAS_READLINE = False
 
 # ------------------------------------------------------------------------------
 
@@ -44,6 +46,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
+
+T = TypeVar("T")
 
 
 class Completion:
@@ -59,7 +63,7 @@ class Completion:
         self._completers: List[str] = list(completers)
         self._multiple = kwargs.get("multiple", False)
 
-    def __call__(self, method):
+    def __call__(self, method: T) -> T:
         """
         Adds a CoreCompleter with the list of completers as metadata of the
         method.
@@ -68,7 +72,7 @@ class Completion:
         :param method: Decorated method
         :return: The method with a new metadata for the Pelix Shell
         """
-        if readline is not None and self._completers:
+        if HAS_READLINE and self._completers:
             # No need to setup completion if readline isn't available
             setattr(
                 method,

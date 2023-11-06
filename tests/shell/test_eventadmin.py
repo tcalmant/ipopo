@@ -7,9 +7,11 @@ Tests the EventAdmin shell commands
 """
 
 import threading
+from typing import Any, Dict, List, Optional, Tuple, Union
 import unittest
 
 import pelix.framework
+from pelix.internals.registry import ServiceRegistration
 import pelix.services
 import pelix.shell
 from pelix.ipopo.constants import use_ipopo
@@ -22,21 +24,21 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # ------------------------------------------------------------------------------
 
 
-class DummyEventHandler(object):
+class DummyEventHandler(pelix.services.ServiceEventHandler):
     """
     Dummy event handler
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up members
         """
         # Topic of the last received event
-        self.last_event = None
-        self.last_props = {}
+        self.last_event: Optional[str] = None
+        self.last_props: Dict[str, Any] = {}
         self.__event = threading.Event()
 
-    def handle_event(self, topic, properties):
+    def handle_event(self, topic: str, properties: Dict[str, Any]) -> None:
         """
         Handles an event received from EventAdmin
         """
@@ -45,7 +47,7 @@ class DummyEventHandler(object):
         self.last_props = properties
         self.__event.set()
 
-    def pop_event(self):
+    def pop_event(self) -> Optional[str]:
         """
         Pops the list of events
         """
@@ -56,7 +58,7 @@ class DummyEventHandler(object):
         event, self.last_event = self.last_event, None
         return event
 
-    def wait(self, timeout):
+    def wait(self, timeout: float) -> None:
         """
         Waits for the event to be received
         """
@@ -72,7 +74,11 @@ class EventAdminShellTest(unittest.TestCase):
     Tests the EventAdmin shell commands
     """
 
-    def setUp(self):
+    framework: pelix.framework.Framework
+    eventadmin: pelix.services.EventAdmin
+    shell: pelix.shell.ShellService
+
+    def setUp(self) -> None:
         """
         Prepares a framework and a registers a service to export
         """
@@ -84,7 +90,8 @@ class EventAdminShellTest(unittest.TestCase):
 
         # Get the Shell service
         context = self.framework.get_bundle_context()
-        svc_ref = context.get_service_reference(pelix.shell.SERVICE_SHELL)
+        svc_ref = context.get_service_reference(pelix.shell.ShellService)
+        assert svc_ref is not None
         self.shell = context.get_service(svc_ref)
 
         # Instantiate the EventAdmin component
@@ -92,7 +99,9 @@ class EventAdminShellTest(unittest.TestCase):
         with use_ipopo(context) as ipopo:
             self.eventadmin = ipopo.instantiate(pelix.services.FACTORY_EVENT_ADMIN, "evtadmin", {})
 
-    def _register_handler(self, topics, evt_filter=None):
+    def _register_handler(
+        self, topics: Union[None, str, List[str]], evt_filter: Optional[str] = None
+    ) -> Tuple[DummyEventHandler, ServiceRegistration[pelix.services.ServiceEventHandler]]:
         """
         Registers an event handler
 
@@ -102,13 +111,13 @@ class EventAdminShellTest(unittest.TestCase):
         svc = DummyEventHandler()
         context = self.framework.get_bundle_context()
         svc_reg = context.register_service(
-            pelix.services.SERVICE_EVENT_HANDLER,
+            pelix.services.ServiceEventHandler,
             svc,
             {pelix.services.PROP_EVENT_TOPICS: topics, pelix.services.PROP_EVENT_FILTER: evt_filter},
         )
         return svc, svc_reg
 
-    def _run_command(self, command, *args):
+    def _run_command(self, command: str, *args: Any) -> None:
         """
         Runs the given shell command
         """
@@ -119,15 +128,15 @@ class EventAdminShellTest(unittest.TestCase):
         # Run command
         self.shell.execute(command)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up for next test
         """
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
-        self.framework = None
+        self.framework = None  # type: ignore
 
-    def testTopics(self):
+    def testTopics(self) -> None:
         """
         Tests sending topics
         """
@@ -144,13 +153,13 @@ class EventAdminShellTest(unittest.TestCase):
             self._run_command("send {0}", topic)
             self.assertEqual(handler.pop_event(), None)
 
-    def testFilters(self):
+    def testFilters(self) -> None:
         """
         Tests the sending events with properties
         """
         # Prepare a handler
         key = "some.key"
-        handler, _ = self._register_handler(None, "({0}=42)".format(key))
+        handler, _ = self._register_handler(None, f"({key}=42)")
 
         # Assert the handler is empty
         self.assertEqual(handler.pop_event(), None)
@@ -173,7 +182,7 @@ class EventAdminShellTest(unittest.TestCase):
             self._run_command("send {0} {1}=21", topic, key)
             self.assertEqual(handler.pop_event(), None)
 
-    def testPost(self):
+    def testPost(self) -> None:
         """
         Tests the post event method
         """

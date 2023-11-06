@@ -27,26 +27,25 @@ Defines the shell completion handlers for iPOPO concepts
 """
 
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Dict, List, Type
 
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.ipopo.constants import use_ipopo
-
 from pelix.shell.completion import COMPONENT, FACTORY, FACTORY_PROPERTY, PROP_COMPLETER_ID, Completer
 from pelix.shell.completion.core import AbstractCompleter
 
 if TYPE_CHECKING:
-    from pelix.framework import BundleContext, ServiceRegistration
+    from pelix.framework import BundleContext
+    from pelix.internals.registry import ServiceRegistration
     from pelix.shell.beans import ShellSession
 
-    from .decorators import CompletionInfo
+    from . import CompletionInfo
 
 # Try to import readline
 try:
     import readline
 except ImportError:
-    readline = None
-
+    pass
 
 # ------------------------------------------------------------------------------
 
@@ -67,7 +66,11 @@ class ComponentFactoryCompleter(AbstractCompleter):
 
     @staticmethod
     def display_hook(
-        prompt: str, session: "ShellSession", context: "BundleContext", matches: List[str], longest_match_len: int
+        prompt: str,
+        session: "ShellSession",
+        context: "BundleContext",
+        matches: List[str],
+        longest_match_len: int,
     ) -> None:
         """
         Displays the available services matches and the service details
@@ -123,7 +126,7 @@ class ComponentFactoryCompleter(AbstractCompleter):
 
         # Return a list of component factories
         with use_ipopo(context) as ipopo:
-            return ["{} ".format(factory) for factory in ipopo.get_factories() if factory.startswith(current)]
+            return [f"{factory} " for factory in ipopo.get_factories() if factory.startswith(current)]
 
 
 class ComponentInstanceCompleter(AbstractCompleter):
@@ -133,7 +136,11 @@ class ComponentInstanceCompleter(AbstractCompleter):
 
     @staticmethod
     def display_hook(
-        prompt: str, session: "ShellSession", context: "BundleContext", matches: List[str], longest_match_len: int
+        prompt: str,
+        session: "ShellSession",
+        context: "BundleContext",
+        matches: List[str],
+        longest_match_len: int,
     ) -> None:
         """
         Displays the available services matches and the service details
@@ -251,7 +258,7 @@ class ComponentFactoryPropertiesCompleter(AbstractCompleter):
 
 
 # All completers for this bundle
-COMPLETERS = {
+COMPLETERS: Dict[str, Type[AbstractCompleter]] = {
     FACTORY: ComponentFactoryCompleter,
     FACTORY_PROPERTY: ComponentFactoryPropertiesCompleter,
     COMPONENT: ComponentInstanceCompleter,

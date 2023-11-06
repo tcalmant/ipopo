@@ -31,13 +31,14 @@ import logging
 import os
 import sys
 import threading
+from types import FrameType
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import pelix.constants as constants
-import pelix.framework as pelix
 import pelix.shell.parser as parser
+from pelix.framework import Bundle, BundleContext
 from pelix.internals.events import ServiceEvent
-from pelix.internals.registry import ServiceListener
+from pelix.internals.registry import ServiceListener, ServiceReference, ServiceRegistration
 from pelix.shell import ShellCommandsProvider, ShellService, ShellUtils
 from pelix.shell.completion import BUNDLE, SERVICE
 from pelix.shell.completion.decorators import Completion
@@ -72,12 +73,12 @@ class _ShellUtils(ShellUtils):
         Converts a bundle state integer to a string
         """
         states = {
-            pelix.Bundle.INSTALLED: "INSTALLED",
-            pelix.Bundle.ACTIVE: "ACTIVE",
-            pelix.Bundle.RESOLVED: "RESOLVED",
-            pelix.Bundle.STARTING: "STARTING",
-            pelix.Bundle.STOPPING: "STOPPING",
-            pelix.Bundle.UNINSTALLED: "UNINSTALLED",
+            Bundle.INSTALLED: "INSTALLED",
+            Bundle.ACTIVE: "ACTIVE",
+            Bundle.RESOLVED: "RESOLVED",
+            Bundle.STARTING: "STARTING",
+            Bundle.STOPPING: "STOPPING",
+            Bundle.UNINSTALLED: "UNINSTALLED",
         }
 
         return states.get(state, f"Unknown state ({state})")
@@ -106,7 +107,7 @@ class _ShellUtils(ShellUtils):
         str_lines = []
         for idx, line in enumerate(lines):
             # Recompute lengths
-            str_line = []
+            str_line: List[str] = []
             str_lines.append(str_line)
             column = -1
 
@@ -170,7 +171,7 @@ class _ShellService(parser.Shell, ShellService):
     Provides the core shell service for Pelix
     """
 
-    def __init__(self, context: pelix.BundleContext, utilities: _ShellUtils) -> None:
+    def __init__(self, context: BundleContext, utilities: _ShellUtils) -> None:
         """
         Sets up the shell
 
@@ -181,10 +182,10 @@ class _ShellService(parser.Shell, ShellService):
         self._utils = utilities
 
         # Bound services: reference -> service
-        self._bound_references: Dict[pelix.ServiceReference[ShellCommandsProvider], ShellCommandsProvider] = {}
+        self._bound_references: Dict[ServiceReference[ShellCommandsProvider], ShellCommandsProvider] = {}
 
         # Service reference -> (name space, [commands])
-        self._reference_commands: Dict[pelix.ServiceReference[ShellCommandsProvider], Tuple[str, List[str]]] = {}
+        self._reference_commands: Dict[ServiceReference[ShellCommandsProvider], Tuple[str, List[str]]] = {}
 
         # Last working directory
         self._previous_path: Optional[str] = None
@@ -216,7 +217,7 @@ class _ShellService(parser.Shell, ShellService):
         self.register_command(None, "cd", self.change_dir)
         self.register_command(None, "pwd", self.print_dir)
 
-    def bind_handler(self, svc_ref: pelix.ServiceReference[ShellCommandsProvider]) -> bool:
+    def bind_handler(self, svc_ref: ServiceReference[ShellCommandsProvider]) -> bool:
         """
         Called if a command service has been found.
         Registers the methods of this service.
@@ -245,7 +246,7 @@ class _ShellService(parser.Shell, ShellService):
         self._reference_commands[svc_ref] = (namespace, commands)
         return True
 
-    def unbind_handler(self, svc_ref: pelix.ServiceReference[ShellCommandsProvider]) -> bool:
+    def unbind_handler(self, svc_ref: ServiceReference[ShellCommandsProvider]) -> bool:
         """
         Called if a command service is gone.
         Unregisters its commands.
@@ -397,7 +398,9 @@ class _ShellService(parser.Shell, ShellService):
         """
         Prints the details of the service with the given ID
         """
-        svc_ref = self._context.get_service_reference(None, f"({constants.SERVICE_ID}={service_id})")
+        svc_ref: Optional[ServiceReference[Any]] = self._context.get_service_reference(
+            None, f"({constants.SERVICE_ID}={service_id})"
+        )
         if svc_ref is None:
             session.write_line(f"Service not found: {service_id}")
             return False
@@ -429,7 +432,9 @@ class _ShellService(parser.Shell, ShellService):
         headers = ("ID", "Specifications", "Bundle", "Ranking")
 
         # Lines
-        references = self._context.get_all_service_references(specification, None) or []
+        references: List[ServiceReference[Any]] = (
+            self._context.get_all_service_references(specification, None) or []
+        )
 
         # Construct the list of services
         lines = [
@@ -474,7 +479,7 @@ class _ShellService(parser.Shell, ShellService):
         # Print the table
         session.write(self._utils.make_table(headers, lines))
 
-    def property_value(self, session: "ShellSession", name) -> Any:
+    def property_value(self, session: "ShellSession", name: str) -> Any:
         """
         Prints the value of the given property, looking into
         framework properties then environment variables.
@@ -552,7 +557,7 @@ class _ShellService(parser.Shell, ShellService):
 
             trace_lines = []
             depth = 0
-            frame = stack
+            frame: Optional[FrameType] = stack
             while frame is not None and (max_depth is None or depth < max_depth):
                 # Store the line information
                 trace_lines.append(format_frame_info(frame))
@@ -613,7 +618,7 @@ class _ShellService(parser.Shell, ShellService):
 
             trace_lines = []
             depth = 0
-            frame = stack
+            frame: Optional[FrameType] = stack
             while frame is not None and (max_depth is None or depth < max_depth):
                 # Store the line information
                 trace_lines.append(format_frame_info(frame))
@@ -687,7 +692,7 @@ class _ShellService(parser.Shell, ShellService):
         session.write_line(pwd)
         return pwd
 
-    def __get_bundle(self, session: "ShellSession", bundle_id: Union[int, str]) -> Optional[pelix.Bundle]:
+    def __get_bundle(self, session: "ShellSession", bundle_id: Union[int, str]) -> Optional[Bundle]:
         """
         Retrieves the Bundle object with the given bundle ID. Writes errors
         through the I/O handler if any.
@@ -702,12 +707,15 @@ class _ShellService(parser.Shell, ShellService):
             bundle_id = int(bundle_id)
             return self._context.get_bundle(bundle_id)
         except (TypeError, ValueError):
-            session.write_line("Invalid bundle ID: {0}", bundle_id)
+            session.write_line(f"Invalid bundle ID: {bundle_id}")
         except constants.BundleException:
-            session.write_line("Unknown bundle: {0}", bundle_id)
+            session.write_line(f"Unknown bundle: {bundle_id}")
+        return None
 
     @Completion(BUNDLE, multiple=True)
-    def start(self, session: "ShellSession", bundle_id: Union[int, str], *bundles_ids: Union[int, str]) -> Any:
+    def start(
+        self, session: "ShellSession", bundle_id: Union[int, str], *bundles_ids: Union[int, str]
+    ) -> Any:
         """
         Starts the bundles with the given IDs. Stops on first failure.
         """
@@ -752,7 +760,9 @@ class _ShellService(parser.Shell, ShellService):
         return None
 
     @Completion(BUNDLE, multiple=True)
-    def update(self, session: "ShellSession", bundle_id: Union[int, str], *bundles_ids: Union[int, str]) -> Any:
+    def update(
+        self, session: "ShellSession", bundle_id: Union[int, str], *bundles_ids: Union[int, str]
+    ) -> Any:
         """
         Updates the bundles with the given IDs. Stops on first failure.
         """
@@ -827,14 +837,14 @@ class Activator(constants.ActivatorProto, ServiceListener):
         kind = event.get_kind()
         reference = event.get_service_reference()
 
-        if kind in (pelix.ServiceEvent.REGISTERED, pelix.ServiceEvent.MODIFIED):
+        if kind in (ServiceEvent.REGISTERED, ServiceEvent.MODIFIED):
             # New or modified service
             self._shell.bind_handler(reference)
         else:
             # Service gone or not matching anymore
             self._shell.unbind_handler(reference)
 
-    def start(self, context: pelix.BundleContext) -> None:
+    def start(self, context: BundleContext) -> None:
         """
         Bundle starting
 
@@ -861,7 +871,7 @@ class Activator(constants.ActivatorProto, ServiceListener):
         except constants.BundleException as ex:
             self._logger.exception("Error registering the shell service: %s", ex)
 
-    def stop(self, context: pelix.BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopping
 

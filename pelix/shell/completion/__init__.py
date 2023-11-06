@@ -96,7 +96,7 @@ class Completer(Protocol):
     Specification of a service providing completions
     """
 
-    __SPECIFICATION__ = SVC_COMPLETER
+    __SPECIFICATION__: str = SVC_COMPLETER
 
     def complete(
         self,

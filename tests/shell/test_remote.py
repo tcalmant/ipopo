@@ -6,30 +6,19 @@ Tests the remote shell
 :author: Thomas Calmant
 """
 
-# Standard library
 import socket
 import sys
 import threading
 import time
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+import unittest
+from io import StringIO
+from typing import Any, Callable, Optional, Tuple
 
-# Tests
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-# Pelix
-from pelix.framework import FrameworkFactory, create_framework
-from pelix.utilities import to_str, to_bytes
-from pelix.ipopo.constants import use_ipopo
-
-# Shell constants
-from pelix.shell import SERVICE_SHELL, FACTORY_REMOTE_SHELL
 import pelix.shell.beans as beans
+from pelix.framework import Framework, FrameworkFactory, create_framework
+from pelix.ipopo.constants import use_ipopo
+from pelix.shell import FACTORY_REMOTE_SHELL, RemoteShell, ShellService
+from pelix.utilities import to_bytes, to_str
 
 # ------------------------------------------------------------------------------
 
@@ -42,22 +31,22 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-class ShellClient(object):
+class ShellClient:
     """
     Simple client of the remote shell
     """
-    def __init__(self, banner, ps1, fail):
+
+    def __init__(self, banner: Optional[str], ps1: str, fail: Callable[[str], None]) -> None:
         """
         Sets up the client
         """
-        self._socket = None
+        self._socket: Optional[socket.socket] = None
         self._banner = banner
         self._ps1 = ps1
         self.fail = fail
         self.__wait_prompt = True
-        self.__prefix = ""
 
-    def connect(self, access):
+    def connect(self, access: Tuple[str, int]) -> None:
         """
         Connects to the remote shell
         """
@@ -70,23 +59,27 @@ class ShellClient(object):
             if banner != self._banner:
                 self.fail("Incorrect banner read from remote shell")
 
-    def close(self):
+    def close(self) -> None:
         """
         Close the connection
         """
-        self._socket.close()
+        if self._socket is not None:
+            self._socket.close()
+            self._socket = None
 
-    def wait_prompt(self, raise_error=True):
+    def wait_prompt(self, raise_error: bool = True) -> str:
         """
         Waits for the prompt to be read
         """
+        assert self._socket is not None
+
         data = ""
         # Wait for the prompt
         for _ in range(1, 10):
             spared = to_str(self._socket.recv(4096))
             if self._ps1 in spared:
                 # Found it
-                data += spared[:spared.index(self._ps1)]
+                data += spared[: spared.index(self._ps1)]
                 break
 
             else:
@@ -100,10 +93,12 @@ class ShellClient(object):
 
         return data
 
-    def run_command(self, command, disconnect=False):
+    def run_command(self, command: str, disconnect: bool = False) -> Optional[str]:
         """
         Runs a command on the remote shell
         """
+        assert self._socket is not None
+
         # Wait for the first prompt
         if self.__wait_prompt:
             self.wait_prompt()
@@ -115,11 +110,12 @@ class ShellClient(object):
         # Disconnect if required
         if disconnect:
             self.close()
-            return
+            return None
 
         # Get its result
         data = self.wait_prompt(False)
         return data.strip()
+
 
 # ------------------------------------------------------------------------------
 
@@ -130,25 +126,40 @@ except ImportError:
     # Can't run the test if we can't start another process
     pass
 else:
+
     class RemoteShellStandaloneTest(unittest.TestCase):
         """
         Tests the remote shell when started as a script
         """
-        def test_remote_main(self):
+
+        def test_remote_main(self) -> None:
             """
             Tests the remote shell 'main' method
             """
             # Get shell PS1 (static method)
             import pelix.shell.core
+
             ps1 = pelix.shell.core._ShellService.get_ps1()
 
             # Start the remote shell process
             port = 9000
             process = subprocess.Popen(
-                [sys.executable, '-m', 'coverage', 'run', '-m',
-                 'pelix.shell.remote', '-a', '127.0.0.1', '-p', str(port)],
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
+                [
+                    sys.executable,
+                    "-m",
+                    "coverage",
+                    "run",
+                    "-m",
+                    "pelix.shell.remote",
+                    "-a",
+                    "127.0.0.1",
+                    "-p",
+                    str(port),
+                ],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
 
             # Wait a little to ensure that the socket is here
             time.sleep(1)
@@ -159,9 +170,7 @@ else:
                 client.connect(("127.0.0.1", port))
 
                 test_string = "running"
-                self.assertEqual(
-                    client.run_command("echo {0}".format(test_string)),
-                    test_string)
+                self.assertEqual(client.run_command("echo {0}".format(test_string)), test_string)
 
                 # Good enough: stop there
                 client.close()
@@ -191,6 +200,7 @@ else:
                     # Process was already stopped
                     pass
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -198,38 +208,43 @@ class RemoteShellTest(unittest.TestCase):
     """
     Tests the remote shell by comparing local and remote outputs
     """
-    def setUp(self):
+
+    framework: Framework
+    shell: ShellService
+    remote: RemoteShell
+
+    def setUp(self) -> None:
         """
         Starts a framework and install the shell bundle
         """
         # Start the framework
-        self.framework = create_framework(('pelix.ipopo.core',
-                                           'pelix.shell.core',
-                                           'pelix.shell.remote'))
+        self.framework = create_framework(("pelix.ipopo.core", "pelix.shell.core", "pelix.shell.remote"))
         self.framework.start()
         context = self.framework.get_bundle_context()
         # Get the core shell service
-        svc_ref = context.get_service_reference(SERVICE_SHELL)
+        svc_ref = context.get_service_reference(ShellService)
+        assert svc_ref is not None
         self.shell = context.get_service(svc_ref)
 
         # Start the remote shell
         with use_ipopo(context) as ipopo:
             self.remote = ipopo.instantiate(
-                FACTORY_REMOTE_SHELL, "remoteShell",
-                {'pelix.shell.address': '127.0.0.1',
-                 'pelix.shell.port': 9000})
+                FACTORY_REMOTE_SHELL,
+                "remoteShell",
+                {"pelix.shell.address": "127.0.0.1", "pelix.shell.port": 9000},
+            )
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up the framework
         """
         self.framework.stop()
         FrameworkFactory.delete_framework()
-        self.remote = None
-        self.shell = None
-        self.framework = None
+        self.remote = None  # type: ignore
+        self.shell = None  # type: ignore
+        self.framework = None  # type: ignore
 
-    def _run_local_command(self, command, *args):
+    def _run_local_command(self, command: str, *args: Any) -> str:
         """
         Runs the given command and returns the output stream
         """
@@ -245,18 +260,17 @@ class RemoteShellTest(unittest.TestCase):
         self.shell.execute(command, session)
         return str_output.getvalue().strip()
 
-    def testCoreVsRemoteCommands(self):
+    def testCoreVsRemoteCommands(self) -> None:
         """
         Tests the output of commands, through the shell service and the remote
         shell
         """
         # Create a client
-        client = ShellClient(self.remote.get_banner(), self.remote.get_ps1(),
-                             self.fail)
+        client = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
         client.connect(self.remote.get_access())
 
         try:
-            for command in ('bl', 'bd 0', 'sl', 'sd 1'):
+            for command in ("bl", "bd 0", "sl", "sd 1"):
                 # Get local & remote outputs
                 local_output = self._run_local_command(command)
                 remote_output = client.run_command(command)
@@ -267,22 +281,20 @@ class RemoteShellTest(unittest.TestCase):
             # Close the client in any case
             client.close()
 
-    def testRemoteVsRemoteCommands(self):
+    def testRemoteVsRemoteCommands(self) -> None:
         """
         Tests the output for two clients
         """
         # Create clients
-        client_1 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(),
-                               self.fail)
-        client_2 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(),
-                               self.fail)
+        client_1 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
+        client_2 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
 
         # Connect them to the remote shell
         client_1.connect(self.remote.get_access())
         client_2.connect(self.remote.get_access())
 
         try:
-            for command in ('bl', 'bd 0', 'sl', 'sd 1'):
+            for command in ("bl", "bd 0", "sl", "sd 1"):
                 # Get clients outputs
                 client_1_output = client_1.run_command(command)
                 client_2_output = client_2.run_command(command)
@@ -294,31 +306,31 @@ class RemoteShellTest(unittest.TestCase):
             client_1.close()
             client_2.close()
 
-    def testDualRemoteShell(self):
+    def testDualRemoteShell(self) -> None:
         """
         Tests with a second remote shell component
         """
         # Start the remote shell, on a random port
         with use_ipopo(self.framework.get_bundle_context()) as ipopo:
-            remote_2 = ipopo.instantiate(FACTORY_REMOTE_SHELL, "remoteShell_2",
-                                         {'pelix.shell.address': '127.0.0.1',
-                                          'pelix.shell.port': 0})
+            remote_2 = ipopo.instantiate(
+                FACTORY_REMOTE_SHELL,
+                "remoteShell_2",
+                {"pelix.shell.address": "127.0.0.1", "pelix.shell.port": 0},
+            )
 
         # Accesses should be different
         self.assertNotEqual(self.remote.get_access(), remote_2.get_access())
 
         # Create clients
-        client_1 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(),
-                               self.fail)
-        client_2 = ShellClient(remote_2.get_banner(), remote_2.get_ps1(),
-                               self.fail)
+        client_1 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
+        client_2 = ShellClient(remote_2.get_banner(), remote_2.get_ps1(), self.fail)
 
         # Connect them to the remote shell
         client_1.connect(self.remote.get_access())
         client_2.connect(remote_2.get_access())
 
         try:
-            for command in ('bl', 'bd 0', 'sl', 'sd 1'):
+            for command in ("bl", "bd 0", "sl", "sd 1"):
                 # Get clients outputs
                 client_1_output = client_1.run_command(command)
                 client_2_output = client_2.run_command(command)
@@ -330,19 +342,20 @@ class RemoteShellTest(unittest.TestCase):
             client_1.close()
             client_2.close()
 
-    def testInvalidConfiguration(self):
+    def testInvalidConfiguration(self) -> None:
         """
         Tests the instantiation of the remote shell with invalid port
         """
         import logging
+
         logging.basicConfig(level=logging.DEBUG)
 
         with use_ipopo(self.framework.get_bundle_context()) as ipopo:
             # Check invalid ports
-            for port in (-1, 100000, '-100', '65536', 'Abc', None):
-                remote = ipopo.instantiate(FACTORY_REMOTE_SHELL,
-                                           "remoteShell_test",
-                                           {'pelix.shell.port': port})
+            for port in (-1, 100000, "-100", "65536", "Abc", None):
+                remote = ipopo.instantiate(
+                    FACTORY_REMOTE_SHELL, "remoteShell_test", {"pelix.shell.port": port}
+                )
 
                 # Check that the port is in a valid range
                 self.assertGreater(remote.get_access()[1], 0)
@@ -350,26 +363,25 @@ class RemoteShellTest(unittest.TestCase):
                 ipopo.kill("remoteShell_test")
 
             # Check empty addresses
-            for address in (None, ''):
-                remote = ipopo.instantiate(FACTORY_REMOTE_SHELL,
-                                           "remoteShell_test",
-                                           {'pelix.shell.address': address,
-                                            'pelix.shell.port': 0})
+            for address in (None, ""):
+                remote = ipopo.instantiate(
+                    FACTORY_REMOTE_SHELL,
+                    "remoteShell_test",
+                    {"pelix.shell.address": address, "pelix.shell.port": 0},
+                )
 
                 # Check that the address has been selected anyway
                 self.assertTrue(remote.get_access()[0])
                 ipopo.kill("remoteShell_test")
 
-    def testClientDisconnect(self):
+    def testClientDisconnect(self) -> None:
         """
         Tests the behavior of the server when a client disconnects before
         reading results
         """
         # Create clients
-        client_1 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(),
-                               self.fail)
-        client_2 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(),
-                               self.fail)
+        client_1 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
+        client_2 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
 
         # Connect them to the remote shell
         client_1.connect(self.remote.get_access())
@@ -390,13 +402,12 @@ class RemoteShellTest(unittest.TestCase):
         client_2.close()
         client_1.close()
 
-    def testClientInactive(self):
+    def testClientInactive(self) -> None:
         """
         Inactive client test: no packet sent during 1 second
         """
         # Create a client
-        client = ShellClient(self.remote.get_banner(), self.remote.get_ps1(),
-                             self.fail)
+        client = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
         client.connect(self.remote.get_access())
 
         # Wait a little (server poll time is 0.5s)

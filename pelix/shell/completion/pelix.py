@@ -26,9 +26,10 @@ Defines the shell completion handlers for Pelix concepts
     limitations under the License.
 """
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Any, List, Optional, cast
 
 from pelix.constants import SERVICE_ID, ActivatorProto, BundleActivator
+from pelix.internals.registry import ServiceReference
 
 from . import BUNDLE, PROP_COMPLETER_ID, SERVICE, Completer, CompletionInfo
 from .core import AbstractCompleter
@@ -36,10 +37,11 @@ from .core import AbstractCompleter
 try:
     import readline
 except ImportError:
-    readline = None
+    pass
 
 if TYPE_CHECKING:
-    from pelix.framework import BundleContext, ServiceRegistration
+    from pelix.framework import BundleContext
+    from pelix.internals.registry import ServiceRegistration
     from pelix.shell.beans import ShellSession
 
 
@@ -62,7 +64,11 @@ class BundleCompleter(AbstractCompleter):
 
     @staticmethod
     def display_hook(
-        prompt: str, session: "ShellSession", context: "BundleContext", matches: List[str], longest_match_len: int
+        prompt: str,
+        session: "ShellSession",
+        context: "BundleContext",
+        matches: List[str],
+        longest_match_len: int,
     ) -> None:
         """
         Displays the available bundle matches and the bundle name
@@ -133,7 +139,11 @@ class ServiceCompleter(AbstractCompleter):
 
     @staticmethod
     def display_hook(
-        prompt: str, session: "ShellSession", context: "BundleContext", matches: List[str], longest_match_len: int
+        prompt: str,
+        session: "ShellSession",
+        context: "BundleContext",
+        matches: List[str],
+        longest_match_len: int,
     ) -> None:
         """
         Displays the available services matches and the service details
@@ -154,7 +164,9 @@ class ServiceCompleter(AbstractCompleter):
             # Print the match and the associated name
             session.write_line()
             for svc_id in matching_ids:
-                svc_ref = context.get_service_reference(None, f"({SERVICE_ID}={svc_id})")
+                svc_ref: Optional[ServiceReference[Any]] = context.get_service_reference(
+                    None, f"({SERVICE_ID}={svc_id})"
+                )
                 session.write_line(match_pattern, svc_id, str(svc_ref))
 
             # Print the prompt, then current line
@@ -189,11 +201,13 @@ class ServiceCompleter(AbstractCompleter):
 
         # Return a list of bundle IDs (strings) matching the current value
         # and not yet in arguments
-        rl_matches = []
-        for svc_ref in context.get_all_service_references(None, None) or []:
-            svc_id = f"{svc_ref.get_property(SERVICE_ID)} "
-            if svc_id.startswith(current):
-                rl_matches.append(svc_id)
+        rl_matches: List[str] = []
+        svc_refs: Optional[List[ServiceReference[Any]]] = context.get_all_service_references(None, None)
+        if svc_refs:
+            for svc_ref in svc_refs:
+                svc_id = f"{svc_ref.get_property(SERVICE_ID)} "
+                if svc_id.startswith(current):
+                    rl_matches.append(svc_id)
 
         return rl_matches
 

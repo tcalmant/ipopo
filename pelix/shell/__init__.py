@@ -26,11 +26,11 @@ Pelix shell package
 """
 
 
-from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Protocol, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Protocol, Set, Tuple
 
 if TYPE_CHECKING:
     from pelix.shell.beans import ShellSession
-    from pelix.shell.completion.decorators import CompletionInfo
+    from pelix.shell.completion import CompletionInfo
 
 
 # Module version
@@ -74,8 +74,7 @@ SERVICE_SHELL_REMOTE = "pelix.shell.remote"
 """
 Remote shell service
 
-* get_access(): returns the (host, port) tuple where the remote shell is
-  waiting clients.
+* get_access(): returns the (host, port) tuple where the remote shell is waiting clients.
 """
 
 SERVICE_SHELL_REPORT = "pelix.shell.report"
@@ -92,12 +91,13 @@ Report command service: gives access to the report methods for a future reuse
 
 ShellCommandMethod = Callable[..., Any]
 
+
 class ShellService(Protocol):
     """
     Shell service specification
     """
 
-    __SPECIFICATION__ = SERVICE_SHELL
+    __SPECIFICATION__: str = SERVICE_SHELL
 
     def get_banner(self) -> str:
         """
@@ -151,19 +151,13 @@ class ShellService(Protocol):
         """
         ...
 
-    def execute(self, cmdline: str, session: Optional["ShellSession"]) -> bool:
+    def execute(self, cmdline: str, session: Optional["ShellSession"] = None) -> bool:
         """
         Executes the command corresponding to the given line
 
         :param cmdline: Command line to parse
         :param session: Current shell session
         :return: True if command succeeded, else False
-        """
-        ...
-
-    def stop(self) -> None:
-        """
-        Stops the service
         """
         ...
 
@@ -178,13 +172,37 @@ class ShellService(Protocol):
         """
         ...
 
+    def register_command(self, namespace: Optional[str], command: str, method: ShellCommandMethod) -> bool:
+        """
+        Registers the given command to the shell.
+
+        The namespace can be None, empty or "default"
+
+        :param namespace: The command name space.
+        :param command: The shell name of the command
+        :param method: The method to call
+        :return: True if the method has been registered, False if it was already known or invalid
+        """
+        ...
+
+    def unregister(self, namespace: str, command: Optional[str] = None) -> bool:
+        """
+        Unregisters the given command. If command is None, the whole name space
+        is unregistered.
+
+        :param namespace: The command name space.
+        :param command: The shell name of the command, or None
+        :return: True if the command was known, else False
+        """
+        ...
+
 
 class ShellUtils(Protocol):
     """
     Specification of the shell utility service
     """
 
-    __SPECIFICATION__ = SERVICE_SHELL_UTILS
+    __SPECIFICATION__: str = SERVICE_SHELL_UTILS
 
     @staticmethod
     def bundlestate_to_str(state: int) -> str:
@@ -212,7 +230,7 @@ class ShellCommandsProvider(Protocol):
     Specification of a provider of shell commands
     """
 
-    __SPECIFICATION__ = SERVICE_SHELL_COMMAND
+    __SPECIFICATION__: str = SERVICE_SHELL_COMMAND
 
     def get_namespace(self) -> str:
         """
@@ -223,6 +241,57 @@ class ShellCommandsProvider(Protocol):
     def get_methods(self) -> List[Tuple[str, ShellCommandMethod]]:
         """
         Retrieves the list of tuples (command, method) for this command handler
+        """
+        ...
+
+
+class ShellReport(Protocol):
+    """
+    Specification of the shell report service
+    """
+
+    __SPECIFICATION__ = SERVICE_SHELL_REPORT
+
+    def get_levels(self) -> Set[str]:
+        """
+        Returns the available levels of reports
+
+        :return: The list of report levels
+        """
+        ...
+
+
+class RemoteShell(Protocol):
+    """
+    Specification of the remote shell service
+    """
+
+    __SPECIFICATION__: str = SERVICE_SHELL_REMOTE
+
+    def get_access(self) -> Tuple[str, int]:
+        """
+        Returns the real access to this remote shell.
+        Can raise an exception or return default values if not ready.
+
+        :return: A (host, port) tuple
+        """
+        ...
+
+    def get_encoding(self) -> str:
+        """
+        Returns the stream encoding using in the transport
+        """
+        ...
+
+    def get_banner(self) -> str:
+        """
+        Retrieves the remote shell banner
+        """
+        ...
+
+    def get_ps1(self) -> str:
+        """
+        Returns the remote shell prompt string
         """
         ...
 

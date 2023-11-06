@@ -6,19 +6,11 @@ Tests the log shell commands
 :author: Thomas Calmant
 """
 
-# Standard library
 import logging
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+import unittest
+from io import StringIO
+from typing import Any, Tuple, cast
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-# Pelix
 import pelix.framework
 import pelix.misc
 import pelix.shell
@@ -36,34 +28,42 @@ class LogShellTest(unittest.TestCase):
     """
     Tests the log shell commands
     """
-    def setUp(self):
+
+    framework: pelix.framework.Framework
+    context: pelix.framework.BundleContext
+    shell: pelix.shell.ShellService
+    reader: pelix.misc.LogReader
+
+    def setUp(self) -> None:
         """
         Prepares a framework and a registers a service to export
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(
-            ('pelix.ipopo.core', 'pelix.shell.core',
-             'pelix.misc.log', 'pelix.shell.log'))
+            ("pelix.ipopo.core", "pelix.shell.core", "pelix.misc.log", "pelix.shell.log")
+        )
         self.framework.start()
 
         # Get the Shell service
         context = self.framework.get_bundle_context()
-        svc_ref = context.get_service_reference(pelix.shell.SERVICE_SHELL)
-        self.shell = context.get_service(svc_ref)
+        shell_ref = context.get_service_reference(pelix.shell.ShellService)
+        assert shell_ref is not None
+        self.shell = context.get_service(shell_ref)
 
         # Get the log reader service
-        svc_ref = context.get_service_reference(pelix.misc.LOG_READER_SERVICE)
-        self.reader = context.get_service(svc_ref)
+        reader_ref = context.get_service_reference(pelix.misc.LogReader)
+        assert reader_ref is not None
+        self.reader = context.get_service(reader_ref)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up for next test
         """
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
-        self.framework = None
+        self.framework = None  # type: ignore
 
-    def _make_session(self):
+    def _make_session(self) -> Tuple[beans.ShellSession, StringIO]:
         """
         Prepares a ShellSession object for _run_command
         """
@@ -74,7 +74,7 @@ class LogShellTest(unittest.TestCase):
         session = beans.ShellSession(beans.IOHandler(None, str_output))
         return session, str_output
 
-    def _run_command(self, command, *args, **kwargs):
+    def _run_command(self, command: str, *args: Any, **kwargs: Any) -> str:
         """
         Runs the given command and returns the output stream. A keyword
         argument 'session' can be given to use a custom ShellSession.
@@ -85,8 +85,8 @@ class LogShellTest(unittest.TestCase):
 
         try:
             # Get the given session
-            session = kwargs['session']
-            str_output = kwargs['output']
+            session = kwargs["session"]
+            str_output = kwargs["output"]
             str_output.truncate(0)
             str_output.seek(0)
         except KeyError:
@@ -96,16 +96,19 @@ class LogShellTest(unittest.TestCase):
 
         # Run command
         self.shell.execute(command, session)
-        return str_output.getvalue()
+        return cast(str, str_output.getvalue())
 
-    def test_log_levels(self):
+    def test_log_levels(self) -> None:
         """
         Tests the log commands
         """
-        for cmd, level in (("debug", logging.DEBUG), ("info", logging.INFO),
-                           ("warn", logging.WARNING),
-                           ("warning", logging.WARNING),
-                           ("error", logging.ERROR)):
+        for cmd, level in (
+            ("debug", logging.DEBUG),
+            ("info", logging.INFO),
+            ("warn", logging.WARNING),
+            ("warning", logging.WARNING),
+            ("error", logging.ERROR),
+        ):
             self._run_command("log.{0} some text".format(cmd))
 
             latest = self.reader.get_log()[-1]
@@ -113,7 +116,9 @@ class LogShellTest(unittest.TestCase):
             self.assertEqual(latest.message, "some text")
 
         # Remove the log service
-        self.framework.get_bundle_by_name("pelix.misc.log").stop()
+        log_bnd = self.framework.get_bundle_by_name("pelix.misc.log")
+        assert log_bnd is not None
+        log_bnd.stop()
 
         # Check if the commands work
         for cmd in ("debug", "info", "warn", "warning", "error"):
@@ -121,7 +126,7 @@ class LogShellTest(unittest.TestCase):
             self.assertIn("No LogService".lower(), output.lower())
             self.assertIn("available", output.lower())
 
-    def test_log_print(self):
+    def test_log_print(self) -> None:
         """
         Tests the "log" method
         """
@@ -139,20 +144,16 @@ class LogShellTest(unittest.TestCase):
                 self.assertIn(entry.message, output)
 
         # Filter given
-        for level in (logging.DEBUG, logging.INFO,
-                      logging.WARNING, logging.ERROR):
-            output = self._run_command(
-                "log.log {0}".format(logging.getLevelName(level)))
+        for level in (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR):
+            output = self._run_command("log.log {0}".format(logging.getLevelName(level)))
             for entry in logs:
                 if entry.level >= level:
                     self.assertIn(entry.message, output)
 
         # Test length filter, even when going beyond the log size
-        for level in (logging.DEBUG, logging.INFO,
-                      logging.WARNING, logging.ERROR):
+        for level in (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR):
             for i in range(1, len(logs) + 10):
-                output = self._run_command(
-                    "log.log {0} {1}".format(logging.getLevelName(level), i))
+                output = self._run_command("log.log {0} {1}".format(logging.getLevelName(level), i))
                 for entry in logs[-i:]:
                     if entry.level >= level:
                         self.assertIn(entry.message, output)

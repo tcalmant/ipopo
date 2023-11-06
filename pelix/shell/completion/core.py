@@ -28,7 +28,7 @@ Defines the ``Completer`` class, mother of all shell completion handlers
 
 import abc
 import logging
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Callable, List
 
 from pelix.utilities import use_service
 
@@ -37,13 +37,13 @@ from . import PROP_COMPLETER_ID, Completer, DUMMY
 try:
     import readline
 except ImportError:
-    readline = None
+    pass
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
     from pelix.shell.beans import ShellSession
 
-    from .decorators import CompletionInfo
+    from . import CompletionInfo
 
 
 # ------------------------------------------------------------------------------
@@ -66,7 +66,12 @@ class AbstractCompleter(abc.ABC, Completer):
     """
 
     @staticmethod
-    def set_display_hook(display_hook, prompt, session, context):
+    def set_display_hook(
+        display_hook: Callable[[str, "ShellSession", "BundleContext", List[str], int], None],
+        prompt: str,
+        session: "ShellSession",
+        context: "BundleContext",
+    ) -> None:
         try:
             readline.set_completion_display_matches_hook(
                 lambda sub, matches, longest: display_hook(prompt, session, context, matches, longest)

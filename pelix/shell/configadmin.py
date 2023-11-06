@@ -28,7 +28,7 @@ service
     limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import pelix.services
 from pelix.ipopo.decorators import ComponentFactory, Instantiate, Invalidate, Provides, Requires
@@ -162,7 +162,7 @@ class ConfigAdminCommands(ShellCommandsProvider):
             # Configuration was unknown
             pass
 
-    def list(self, session: "ShellSession", pid=None) -> None:
+    def list(self, session: "ShellSession", pid: Optional[str]=None) -> None:
         """
         Lists known configurations
         """

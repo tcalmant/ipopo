@@ -28,7 +28,7 @@ Definition of classes used by the Pelix shell service and its consumers
 
 import sys
 import threading
-from typing import IO, Any, Dict, Optional, Union
+from typing import IO, Any, Callable, Dict, Optional, Union, cast
 
 from pelix.utilities import to_bytes, to_str
 
@@ -42,8 +42,6 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
-
-safe_input = input
 
 RESULT_VAR_NAME = "?"
 """ Name of the result variable """
@@ -159,7 +157,12 @@ class IOHandler:
     It automatically converts the given data to bytes in Python 3.
     """
 
-    def __init__(self, in_stream: IO, out_stream: IO, encoding: str = "UTF-8") -> None:
+    def __init__(
+        self,
+        in_stream: Union[None, IO[bytes], IO[str]],
+        out_stream: Union[IO[bytes], IO[str]],
+        encoding: str = "UTF-8",
+    ) -> None:
         """
         Sets up the printer
 
@@ -167,8 +170,8 @@ class IOHandler:
         :param out_stream: Output stream
         :param encoding: Output encoding
         """
-        self.input = in_stream
-        self.output = out_stream
+        self.input: Union[None, IO[bytes], IO[str]] = in_stream
+        self.output: Union[IO[bytes], IO[str]] = out_stream
         self.encoding = encoding
         self.out_encoding: str = getattr(self.output, "encoding", self.encoding) or self.encoding
 
@@ -177,28 +180,34 @@ class IOHandler:
 
         # Standard behavior
         self.flush = self.output.flush
-        self.write = self.output.write
 
-        # Specific behavior
-        if sys.version_info[0] >= 3:
-            # In Python 3.6, the "mode" field is not available on file-like
-            # objects, but the "encoding" field seems to be present only in
-            # string compatible ones
-            if "b" in getattr(out_stream, "mode", "") or not hasattr(out_stream, "encoding"):
-                # Bytes conversion
-                self.write = self._write_bytes
-            else:
-                # Strings accepted
-                self.write = self._write_str
+        # In Python 3.6, the "mode" field is not available on file-like
+        # objects, but the "encoding" field seems to be present only in
+        # string compatible ones
+        if "b" in getattr(out_stream, "mode", "") or not hasattr(out_stream, "encoding"):
+            # Bytes conversion
+            self.write = cast(Callable[[Union[str, bytes]], int], self._write_bytes)
+        else:
+            # Strings accepted
+            self.write = cast(Callable[[Union[str, bytes]], int], self._write_str)
 
         # Very specific
         if in_stream is sys.stdin:
             # Warning: conflicts with the console
-            self.prompt = safe_input
+            self.prompt = self._real_prompt
         else:
             self.prompt = self._prompt
 
-    def _prompt(self, prompt: Optional[str] = None) -> str:
+    def _real_prompt(self, prompt: Optional[Union[bytes, str]] = None) -> str:
+        """
+        Reads a line written by the user
+
+        :param prompt: An optional prompt message
+        :return: The read line, after a conversion to str
+        """
+        return input(prompt)
+
+    def _prompt(self, prompt: Optional[Union[bytes, str]] = None) -> str:
         """
         Reads a line written by the user
 
@@ -210,30 +219,35 @@ class IOHandler:
             self.write(prompt)
             self.output.flush()
 
+        if self.input is None:
+            return ""
+
         # Read the line
         return to_str(self.input.readline())
 
-    def _write_bytes(self, data: Union[str, bytes]) -> None:
+    def _write_bytes(self, data: Optional[Union[bytes, str]]) -> None:
         """
         Converts the given data then writes it
 
         :param data: Data to be written
         :return: The result of ``self.output.write()``
         """
-        with self.__lock:
-            self.output.write(to_bytes(data, self.encoding))
+        if data is not None:
+            with self.__lock:
+                cast(IO[bytes], self.output).write(to_bytes(data, self.encoding))
 
-    def _write_str(self, data: Union[str, bytes]) -> None:
+    def _write_str(self, data: Optional[Union[str, bytes]]) -> None:
         """
         Converts the given data then writes it
 
         :param data: Data to be written
         :return: The result of ``self.output.write()``
         """
-        with self.__lock:
-            self.output.write(
-                to_str(data, self.encoding).encode().decode(self.out_encoding, errors="replace")
-            )
+        if data is not None:
+            with self.__lock:
+                cast(IO[str], self.output).write(
+                    to_str(data, self.encoding).encode().decode(self.out_encoding, errors="replace")
+                )
 
     def write_line(self, line: Optional[str] = None, *args: Any, **kwargs: Any) -> None:
         """

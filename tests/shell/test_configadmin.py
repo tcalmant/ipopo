@@ -7,6 +7,7 @@ Tests the ConfigurationAdmin shell commands
 """
 
 import os
+from typing import Any, Dict, Mapping, Optional
 import unittest
 from io import StringIO
 
@@ -28,10 +29,14 @@ class ConfigAdminShellTest(unittest.TestCase):
     Tests the EventAdmin shell commands
     """
 
-    def assertDictContainsSubset(self, subset, tested):
+    framework: pelix.framework.Framework
+    shell: pelix.shell.ShellService
+
+    def assertDictContains(self, subset: Dict[str, Any], tested: Optional[Dict[str, Any]]) -> None:
+        assert tested is not None
         self.assertEqual(tested, tested | subset)
 
-    def setUp(self):
+    def setUp(self) -> None:
         """
         Prepares a framework and a registers a service to export
         """
@@ -47,21 +52,23 @@ class ConfigAdminShellTest(unittest.TestCase):
 
         # Get the Shell service
         context = self.framework.get_bundle_context()
-        svc_ref = context.get_service_reference(pelix.shell.SERVICE_SHELL)
+        svc_ref = context.get_service_reference(pelix.shell.ShellService)
+        assert svc_ref is not None
         self.shell = context.get_service(svc_ref)
 
         # Instantiate the EventAdmin component
         context = self.framework.get_bundle_context()
 
         # Get the service
-        self.config_ref = context.get_service_reference(pelix.services.SERVICE_CONFIGURATION_ADMIN)
+        self.config_ref = context.get_service_reference(pelix.services.IConfigurationAdmin)
+        assert self.config_ref is not None
         self.config = context.get_service(self.config_ref)
 
         # Remove existing configurations
         for config in self.config.list_configurations():
             config.delete()
 
-    def _run_command(self, command, *args):
+    def _run_command(self, command: str, *args: str) -> str:
         """
         Runs the given shell command
         """
@@ -73,14 +80,14 @@ class ConfigAdminShellTest(unittest.TestCase):
             command = command.format(*args)
 
         # Add the namespace prefix
-        command = "config.{0}".format(command)
+        command = f"config.{command}"
 
         # Run command
         session = beans.ShellSession(beans.IOHandler(None, str_output))
         self.shell.execute(command, session)
         return str_output.getvalue()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up for next test
         """
@@ -90,9 +97,9 @@ class ConfigAdminShellTest(unittest.TestCase):
 
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework()
-        self.framework = None
+        self.framework = None  # type: ignore
 
-    def testLifeCycle(self):
+    def testLifeCycle(self) -> None:
         """
         Tests a configuration life cycle
         """
@@ -100,7 +107,7 @@ class ConfigAdminShellTest(unittest.TestCase):
         key = "testConfig"
         first_value = "first"
         factory_name = "testFactory"
-        output = self._run_command("create {0} {1}={2}", factory_name, key, first_value)
+        output = self._run_command(f"create {factory_name} {key}={first_value}")
 
         # Get the generated configuration
         config = next(iter(self.config.list_configurations()))
@@ -108,28 +115,28 @@ class ConfigAdminShellTest(unittest.TestCase):
         # Check validity
         self.assertIn(config.get_pid(), output)
         self.assertEqual(factory_name, config.get_factory_pid())
-        self.assertDictContainsSubset({key: first_value}, config.get_properties())
+        self.assertDictContains({key: first_value}, config.get_properties())
 
         # Update it
         second_value = "second"
-        self._run_command("update {0} {1}={2}", config.get_pid(), key, second_value)
-        self.assertDictContainsSubset({key: second_value}, config.get_properties())
+        self._run_command(f"update {config.get_pid()} {key}={second_value}")
+        self.assertDictContains({key: second_value}, config.get_properties())
 
         # Reload it
-        self._run_command("reload {0}", config.get_pid())
+        self._run_command(f"reload {config.get_pid()}")
 
         # List it
         output = self._run_command("list")
         self.assertIn(config.get_pid(), output)
 
-        output = self._run_command("list {0}", config.get_pid())
+        output = self._run_command(f"list {config.get_pid()}")
         self.assertIn(config.get_pid(), output)
 
         # Delete it
-        self._run_command("delete {0}", config.get_pid())
+        self._run_command(f"delete {config.get_pid()}")
         self.assertEqual(self.config.list_configurations(), set())
 
-    def testInvalidPid(self):
+    def testInvalidPid(self) -> None:
         """
         Tests commands with invalid PIDs
         """
@@ -137,7 +144,7 @@ class ConfigAdminShellTest(unittest.TestCase):
         self._run_command("list <invalid>")
         self._run_command("reload <invalid>")
 
-    def testUpdate(self):
+    def testUpdate(self) -> None:
         """
         Tests the update command
         """
@@ -146,7 +153,7 @@ class ConfigAdminShellTest(unittest.TestCase):
         value = "testValue"
 
         # Create the configuration, with no property
-        self._run_command("update {0}", pid)
+        self._run_command(f"update {pid}")
 
         # Get the generated configuration
         config = next(iter(self.config.list_configurations()))
@@ -154,14 +161,14 @@ class ConfigAdminShellTest(unittest.TestCase):
         self.assertIsNone(config.get_properties())
 
         # Set a key
-        self._run_command("update {0} {1}={2}", pid, key, value)
-        self.assertDictContainsSubset({key: value}, config.get_properties())
+        self._run_command(f"update {pid} {key}={value}")
+        self.assertDictContains({key: value}, config.get_properties())
 
         # Remove a key
-        self._run_command("update {0} {1}=None", pid, key)
-        self.assertNotIn(key, config.get_properties())
+        self._run_command(f"update {pid} {key}=None")
+        self.assertNotIn(key, config.get_properties() or {})
 
-    def testList(self):
+    def testList(self) -> None:
         """
         Other tests for the list command
         """
@@ -175,19 +182,19 @@ class ConfigAdminShellTest(unittest.TestCase):
         self.assertIn("No configuration", output)
 
         # List inexistent PID
-        output = self._run_command("list {0}", pid)
+        output = self._run_command(f"list {pid}")
         self.assertIn("No configuration", output)
 
         # Create a configuration without properties
         config = self.config.get_configuration(pid)
 
         # List it
-        output = self._run_command("list {0}", pid)
+        output = self._run_command(f"list {pid}")
         self.assertIn("Not yet updated", output)
 
         # Update it
         config.update({key: value})
-        output = self._run_command("list {0}", pid)
+        output = self._run_command(f"list {pid}")
         self.assertIn(pid, output)
         self.assertIn(key, output)
         self.assertIn(value, output)
@@ -201,6 +208,6 @@ class ConfigAdminShellTest(unittest.TestCase):
         self.assertIn(config2, self.config.list_configurations())
 
         # List it
-        output = self._run_command("list {0}", pid)
+        output = self._run_command(f"list {pid}")
         self.assertIn("No configuration", output)
         self.assertIn(pid, output)

@@ -25,19 +25,15 @@ Shell commands for the log service
     limitations under the License.
 """
 
-# Standard library
 import logging
+from typing import Iterable, List, Optional, Tuple, Union
 
-# Pelix
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Requires,
-    Provides,
-    Instantiate,
-    PostRegistration,
-)
-from pelix.misc import LOG_SERVICE, LOG_READER_SERVICE
-from pelix.shell import SERVICE_SHELL_COMMAND
+from pelix.internals.registry import ServiceReference
+from pelix.ipopo.decorators import (ComponentFactory, Instantiate,
+                                    PostRegistration, Provides, Requires)
+from pelix.misc import LogReader, LogService
+from pelix.shell import ShellCommandMethod, ShellCommandsProvider
+from pelix.shell.beans import ShellSession
 
 # ------------------------------------------------------------------------------
 
@@ -52,38 +48,39 @@ __docformat__ = "restructuredtext en"
 
 
 @ComponentFactory("pelix-shell-log-factory")
-@Provides(SERVICE_SHELL_COMMAND)
-@Requires("_logger", LOG_SERVICE, optional=True)
-@Requires("_reader", LOG_READER_SERVICE, optional=True)
+@Provides(ShellCommandsProvider)
+@Requires("_logger", LogService, optional=True)
+@Requires("_reader", LogReader, optional=True)
 @Instantiate("pelix-shell-log")
-class ShellLogCommand(object):
+class ShellLogCommand(ShellCommandsProvider):
     """
     Provides shell commands to print the content of the log service
     """
 
-    def __init__(self):
+    _logger: Optional[LogService]
+    _reader: Optional[LogReader]
+
+    def __init__(self) -> None:
         """
         Sets up members
         """
-        self._logger = None
-        self._reader = None
-        self.__svc_ref = None
+        self.__svc_ref: Optional[ServiceReference[ShellCommandsProvider]] = None
 
     @PostRegistration
-    def _post_register(self, svc_ref):
+    def _post_register(self, svc_ref: ServiceReference[ShellCommandsProvider]) -> None:
         """
         Called when the service has been provided
         """
         self.__svc_ref = svc_ref
 
     @staticmethod
-    def get_namespace():
+    def get_namespace() -> str:
         """
         Returns the name space of the commands
         """
         return "log"
 
-    def get_methods(self):
+    def get_methods(self) -> List[Tuple[str, ShellCommandMethod]]:
         """
         Returns the methods of the shell command
         """
@@ -96,7 +93,9 @@ class ShellLogCommand(object):
             ("error", self._error),
         ]
 
-    def _log(self, session, level="WARNING", count=None):
+    def _log(
+        self, session: ShellSession, level: Union[int, str] = "WARNING", count: Optional[int] = None
+    ) -> None:
         """
         Prints the content of the log
         """
@@ -121,16 +120,12 @@ class ShellLogCommand(object):
 
         # Filter the entries and keep the last ones only
         try:
-            for entry in [
-                entry
-                for entry in self._reader.get_log()
-                if entry.level >= level
-            ][-safe_count:]:
+            for entry in [entry for entry in self._reader.get_log() if entry.level >= level][-safe_count:]:
                 session.write_line(str(entry))
         except StopIteration:
             pass
 
-    def _trace(self, session, level, words):
+    def _trace(self, session: ShellSession, level: Union[int, str], words: Iterable[str]) -> None:
         """
         Logs a message using the log service
 
@@ -138,6 +133,12 @@ class ShellLogCommand(object):
         :param level: Log level (string)
         :param words: Message to log
         """
+        if isinstance(level, str):
+            level = logging.getLevelName(level.upper())
+
+        if not isinstance(level, int):
+            level = logging.INFO
+
         if self._logger is not None:
             self._logger.log(
                 level,
@@ -148,25 +149,25 @@ class ShellLogCommand(object):
         else:
             session.write_line("No LogService available.")
 
-    def _debug(self, session, *message):
+    def _debug(self, session: ShellSession, *message: str) -> None:
         """
         Logs a trace
         """
         self._trace(session, logging.DEBUG, message)
 
-    def _info(self, session, *message):
+    def _info(self, session: ShellSession, *message: str) -> None:
         """
         Logs an informative message
         """
         self._trace(session, logging.INFO, message)
 
-    def _warning(self, session, *message):
+    def _warning(self, session: ShellSession, *message: str) -> None:
         """
         Logs a warning message
         """
         self._trace(session, logging.WARNING, message)
 
-    def _error(self, session, *message):
+    def _error(self, session: ShellSession, *message: str) -> None:
         """
         Logs an informative message
         """

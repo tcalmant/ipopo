@@ -8,14 +8,23 @@ Tests the shell core module
 
 import os
 import sys
+from typing import Any, List, Optional, Tuple, cast
 import unittest
 from io import StringIO
 
 import pelix.constants as constants
+from pelix.internals.registry import ServiceReference
 import pelix.shell.beans as beans
-from pelix.framework import Bundle, FrameworkFactory, create_framework
+from pelix.framework import Bundle, BundleContext, Framework, FrameworkFactory, create_framework
 from pelix.ipopo.constants import use_ipopo
-from pelix.shell import SERVICE_SHELL, SERVICE_SHELL_COMMAND, SERVICE_SHELL_UTILS
+from pelix.shell import (
+    SERVICE_SHELL,
+    SERVICE_SHELL_COMMAND,
+    SERVICE_SHELL_UTILS,
+    ShellCommandMethod,
+    ShellService,
+    ShellUtils,
+)
 
 # ------------------------------------------------------------------------------
 
@@ -33,7 +42,11 @@ class ShellUtilsTest(unittest.TestCase):
     Tests the shell utility service
     """
 
-    def setUp(self):
+    framework: Framework
+    context: BundleContext
+    utility: ShellUtils
+
+    def setUp(self) -> None:
         """
         Starts a framework and install the shell bundle
         """
@@ -46,20 +59,21 @@ class ShellUtilsTest(unittest.TestCase):
         self.context.install_bundle("pelix.shell.core").start()
 
         # Get the utility service
-        svc_ref = self.context.get_service_reference(SERVICE_SHELL_UTILS)
+        svc_ref = self.context.get_service_reference(ShellUtils)
+        assert svc_ref is not None
         self.utility = self.context.get_service(svc_ref)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up the framework
         """
         self.framework.stop()
         FrameworkFactory.delete_framework()
-        self.utility = None
-        self.context = None
-        self.framework = None
+        self.utility = None  # type: ignore
+        self.context = None  # type: ignore
+        self.framework = None  # type: ignore
 
-    def testTableSimple(self):
+    def testTableSimple(self) -> None:
         """
         Tests a valid table creation
         """
@@ -88,7 +102,7 @@ class ShellUtilsTest(unittest.TestCase):
 """
         self.assertEqual(self.utility.make_table(headers, lines, "  "), result, "Different outputs")
 
-    def testTableEmpty(self):
+    def testTableEmpty(self) -> None:
         """
         Tests the creation of an empty table
         """
@@ -100,7 +114,7 @@ class ShellUtilsTest(unittest.TestCase):
 """
         self.assertEqual(self.utility.make_table(headers, []), result, "Different outputs")
 
-    def testTableBadCount(self):
+    def testTableBadCount(self) -> None:
         """
         Tests the creation of table with different headers/columns count
         """
@@ -116,7 +130,7 @@ class ShellUtilsTest(unittest.TestCase):
             ValueError, self.utility.make_table, headers, bad_columns_2, "Missing columns accepted"
         )
 
-    def testTableBadType(self):
+    def testTableBadType(self) -> None:
         """
         Tests invalid types of line
         """
@@ -136,7 +150,11 @@ class ShellCoreTest(unittest.TestCase):
     Tests the shell core service
     """
 
-    def setUp(self):
+    framework: Framework
+    context: BundleContext
+    shell: ShellService
+
+    def setUp(self) -> None:
         """
         Starts a framework and install the shell bundle
         """
@@ -149,30 +167,31 @@ class ShellCoreTest(unittest.TestCase):
         self.context.install_bundle("pelix.shell.core").start()
 
         # Get the utility service
-        svc_ref = self.context.get_service_reference(SERVICE_SHELL)
+        svc_ref = self.context.get_service_reference(ShellService)
+        assert svc_ref is not None
         self.shell = self.context.get_service(svc_ref)
 
         # Command flags
         self._flag = False
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up the framework
         """
         self.framework.stop()
         FrameworkFactory.delete_framework()
-        self.shell = None
-        self.context = None
-        self.framework = None
+        self.shell = None  # type: ignore
+        self.context = None  # type: ignore
+        self.framework = None  # type: ignore
         self._flag = False
 
-    def _command1(self, io_handler):
+    def _command1(self, io_handler: beans.ShellSession) -> None:
         """
         Test command
         """
         self._flag = True
 
-    def testRegister(self):
+    def testRegister(self) -> None:
         """
         Tests registration method
         """
@@ -189,14 +208,16 @@ class ShellCoreTest(unittest.TestCase):
         # Invalid command
         for invalid in (None, "", "  "):
             self.assertFalse(
-                self.shell.register_command("test", invalid, self._command1),
+                self.shell.register_command("test", invalid, self._command1),  # type: ignore
                 "Invalid command registered: '{0}'".format(invalid),
             )
 
         # Invalid method
-        self.assertFalse(self.shell.register_command("test", "invalid", None), "Invalid method registered")
+        self.assertFalse(
+            self.shell.register_command("test", "invalid", None), "Invalid method registered"  # type: ignore
+        )
 
-    def testExecute(self):
+    def testExecute(self) -> None:
         """
         Tests the execute() method
         """
@@ -213,19 +234,19 @@ class ShellCoreTest(unittest.TestCase):
         self.assertTrue(self.shell.execute("command"), "Error in executing 'command'")
         self.assertTrue(self._flag, "Command not called")
 
-    def testExecuteInvalid(self):
+    def testExecuteInvalid(self) -> None:
         """
         Tests execution of empty or unknown commands
         """
         # Empty line
         for empty in (None, "", "   "):
-            self.assertFalse(self.shell.execute(empty), "No error executing '{0}'".format(empty))
+            self.assertFalse(self.shell.execute(empty), f"No error executing '{empty}'")  # type: ignore
 
         # Unknown command
         for unknown in ("unknown", "test.unknown", "unknown.unknown"):
             self.assertFalse(self.shell.execute(unknown), "No error executing unknown command")
 
-    def testUnregister(self):
+    def testUnregister(self) -> None:
         """
         Tests command unregistration
         """
@@ -246,7 +267,7 @@ class ShellCoreTest(unittest.TestCase):
         self.assertFalse(self.shell.execute("test.command"), "Succeeded executing 'test.command'")
         self.assertFalse(self._flag, "Command called")
 
-    def testGetters(self):
+    def testGetters(self) -> None:
         """
         Tests get_*() methods
         """
@@ -264,7 +285,7 @@ class ShellCoreTest(unittest.TestCase):
         self.assertEqual(self.shell.get_namespaces(), ["test"], "Invalid name spaces")
         self.assertIn("command", self.shell.get_commands("test"), "Registered command not in get_commands")
 
-    def testMultiplePossibilities(self):
+    def testMultiplePossibilities(self) -> None:
         """
         Tests the execution of multiple command possibilities
         """
@@ -291,7 +312,11 @@ class ShellCommandTest(unittest.TestCase):
     Tests the shell core service
     """
 
-    def setUp(self):
+    framework: Framework
+    context: BundleContext
+    shell: ShellService
+
+    def setUp(self) -> None:
         """
         Starts a framework and install the shell bundle
         """
@@ -304,25 +329,26 @@ class ShellCommandTest(unittest.TestCase):
         self.context.install_bundle("pelix.shell.core").start()
 
         # Get the utility service
-        svc_ref = self.context.get_service_reference(SERVICE_SHELL)
+        svc_ref = self.context.get_service_reference(ShellService)
+        assert svc_ref is not None
         self.shell = self.context.get_service(svc_ref)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up the framework
         """
         self.framework.stop()
         FrameworkFactory.delete_framework()
-        self.shell = None
-        self.context = None
-        self.framework = None
+        self.shell = None  # type: ignore
+        self.context = None  # type: ignore
+        self.framework = None  # type: ignore
 
-    def testPositional(self):
+    def testPositional(self) -> None:
         """
         Tests positional arguments
         """
 
-        def command(io_handler, arg1, arg2):
+        def command(io_handler: beans.ShellSession, arg1: Any, arg2: Any) -> Tuple[Any, Any]:
             """
             Sample command
             """
@@ -342,12 +368,12 @@ class ShellCommandTest(unittest.TestCase):
             args = " ".join(str(arg) for arg in invalid)
             self.assertFalse(self.shell.execute("test.command {0}".format(args)), "Invalid call passed")
 
-    def testKeywords(self):
+    def testKeywords(self) -> None:
         """
         Tests positional arguments
         """
 
-        def command(io_handler, arg1="15", **kwargs):
+        def command(io_handler: beans.ShellSession, arg1: Any = "15", **kwargs: Any) -> Tuple[Any, Any]:
             """
             Sample command
             """
@@ -362,46 +388,46 @@ class ShellCommandTest(unittest.TestCase):
         # Valid execution
         self.shell.execute("test.command arg1=12 a=2 b=abc", session)
         result = session.last_result
-        self.assertEqual(result, ("12", {"a": "2", "b": "abc"}), "Invalid result: {0}".format(result))
+        self.assertEqual(result, ("12", {"a": "2", "b": "abc"}), f"Invalid result: {result}")
 
         self.shell.execute("test.command 12", session)
         result = session.last_result
-        self.assertEqual(result, ("12", {}), "Invalid result: {0}".format(result))
+        self.assertEqual(result, ("12", {}), f"Invalid result: {result}")
 
         self.shell.execute("test.command a=12", session)
         result = session.last_result
-        self.assertEqual(result, ("15", {"a": "12"}), "Invalid result: {0}".format(result))
+        self.assertEqual(result, ("15", {"a": "12"}), f"Invalid result: {result}")
 
         # First '=' sign is the assignment  one,
         # shlex.split removes slashes
-        self.shell.execute("test.command a=a=b b\=a=b", session)
+        self.shell.execute(r"test.command a=a=b b\=a=b", session)
         result = session.last_result
-        self.assertEqual(result, ("15", {"a": "a=b", "b": "a=b"}), "Invalid result: {0}".format(result))
+        self.assertEqual(result, ("15", {"a": "a=b", "b": "a=b"}), f"Invalid result: {result}")
 
         # Invalid call (2 arguments)
         self.assertFalse(self.shell.execute("test.command 1 2"), "Invalid call passed")
 
-    def testWhiteboard(self):
+    def testWhiteboard(self) -> None:
         """
         Tests commands registered by a service
         """
 
-        class CommandService(object):
+        class CommandService:
 
             """
             Command service
             """
 
-            def __init__(self):
+            def __init__(self) -> None:
                 self.flag = False
 
-            def get_namespace(self):
+            def get_namespace(self) -> str:
                 return "test"
 
-            def get_methods(self):
+            def get_methods(self) -> List[Tuple[str, ShellCommandMethod]]:
                 return [("command", self._command)]
 
-            def _command(self, io_handler):
+            def _command(self, io_handler: beans.ShellSession) -> None:
                 self.flag = True
 
         # Create the service object
@@ -421,7 +447,7 @@ class ShellCommandTest(unittest.TestCase):
 
         # Unregister the service
         svc_reg.unregister()
-        svc_reg = None
+        svc_reg = None  # type: ignore
 
         # Check state
         self.assertFalse(self.shell.execute("test.command"), "'test.command' can still be called")
@@ -436,7 +462,11 @@ class ShellCoreCommandsTest(unittest.TestCase):
     Tests the shell core commands
     """
 
-    def setUp(self):
+    framework: Framework
+    context: BundleContext
+    shell: ShellService
+
+    def setUp(self) -> None:
         """
         Starts a framework and install the shell bundle
         """
@@ -445,20 +475,21 @@ class ShellCoreCommandsTest(unittest.TestCase):
         self.framework.start()
         self.context = self.framework.get_bundle_context()
 
-        svc_ref = self.context.get_service_reference(SERVICE_SHELL)
+        svc_ref = self.context.get_service_reference(ShellService)
+        assert svc_ref is not None
         self.shell = self.context.get_service(svc_ref)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up the framework
         """
         self.framework.stop()
         FrameworkFactory.delete_framework()
-        self.shell = None
-        self.context = None
-        self.framework = None
+        self.shell = None  # type: ignore
+        self.context = None  # type: ignore
+        self.framework = None  # type: ignore
 
-    def _make_session(self):
+    def _make_session(self) -> Tuple[beans.ShellSession, StringIO]:
         """
         Prepares a ShellSession object for _run_command
         """
@@ -469,7 +500,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         session = beans.ShellSession(beans.IOHandler(None, str_output))
         return session, str_output
 
-    def _run_command(self, command, *args, **kwargs):
+    def _run_command(self, command: str, *args: Any, **kwargs: Any) -> str:
         """
         Runs the given command and returns the output stream. A keyword
         argument 'session' can be given to use a custom ShellSession.
@@ -491,9 +522,9 @@ class ShellCoreCommandsTest(unittest.TestCase):
 
         # Run command
         self.shell.execute(command, session)
-        return str_output.getvalue()
+        return cast(str, str_output.getvalue())
 
-    def testHelp(self):
+    def testHelp(self) -> None:
         """
         Tests the help command
         """
@@ -521,7 +552,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
                 self.assertIn(namespace, output)
                 self.assertIn(command, output)
 
-    def testEcho(self):
+    def testEcho(self) -> None:
         """
         Tests the echo command
         """
@@ -529,7 +560,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         output = self._run_command("echo {0}", echo_value)
         self.assertEqual(output.strip(), echo_value)
 
-    def test_variables(self):
+    def test_variables(self) -> None:
         """
         Tests the set and unset commands. Also tests the substitution of
         variables
@@ -577,7 +608,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         output = self._run_command("set", **kwargs)
         self.assertNotIn(var_name, output)
 
-    def test_run_file(self):
+    def test_run_file(self) -> None:
         """
         Tests the run shell command
         """
@@ -596,7 +627,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout), {"port": port})
 
         # Run the file a first time
-        self.assertTrue(self.shell.execute("run '{0}'".format(filename), session))
+        self.assertTrue(self.shell.execute(f"run '{filename}'", session))
 
         # Check the result
         self.assertEqual(session.get("rshell.name"), "rshell")
@@ -614,7 +645,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         # Run the file a second time: it must fail
         self.assertFalse(self.shell.execute("run '{0}'".format(filename), session))
 
-    def testBundlesInfo(self):
+    def testBundlesInfo(self) -> None:
         """
         Tests the bd and bl commands
         """
@@ -652,7 +683,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         output = self._run_command("bd aaa")
         self.assertIn("Unknown bundle", output)
 
-    def testBundlesCommands(self):
+    def testBundlesCommands(self) -> None:
         """
         Tests the install, start, update, stop and uninstall commands
         """
@@ -693,7 +724,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
             output = self._run_command("{0} {1}", command, -1)
             self.assertIn("Unknown bundle", output)
 
-    def testBundleNameStart(self):
+    def testBundleNameStart(self) -> None:
         """
         Tests the bundle start feature with
         :return:
@@ -709,12 +740,13 @@ class ShellCoreCommandsTest(unittest.TestCase):
         bundle_id = bundle.get_bundle_id()
         self.assertIn(str(bundle_id), output)
 
-    def testServicesInfo(self):
+    def testServicesInfo(self) -> None:
         """
         Tests the sl and sd commands
         """
         # Get all services references
-        svc_refs = self.context.get_all_service_references(None, None)
+        svc_refs: Optional[List[ServiceReference[Any]]] = self.context.get_all_service_references(None, None)
+        assert svc_refs is not None
         specs = set()
         for svc_ref in svc_refs:
             specs.update(svc_ref.get_property(constants.OBJECTCLASS))
@@ -730,7 +762,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
 
         # Check the specification filter
         for spec in specs:
-            output = self._run_command("sl {0}", spec)
+            output = self._run_command(f"sl {spec}")
             self.assertIn(spec, output)
             for svc_ref in svc_refs:
                 svc_id = str(svc_ref.get_property(constants.SERVICE_ID))
@@ -744,7 +776,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         # Check details
         for svc_ref in svc_refs:
             svc_id = str(svc_ref.get_property(constants.SERVICE_ID))
-            output = self._run_command("sd {0}", svc_id)
+            output = self._run_command(f"sd {svc_id}")
             self.assertIn(svc_id, output)
             self.assertIn(str(svc_ref.get_bundle()), output)
             for spec in svc_ref.get_property(constants.OBJECTCLASS):
@@ -752,10 +784,10 @@ class ShellCoreCommandsTest(unittest.TestCase):
 
         # Invalid IDs
         for invalid in (-1, "<invalid>", "-10"):
-            output = self._run_command("sd {0}", invalid)
+            output = self._run_command(f"sd {invalid}")
             self.assertIn("Service not found", output)
 
-    def testProperties(self):
+    def testProperties(self) -> None:
         """
         Tests the properties and property commands
         """
@@ -777,14 +809,14 @@ class ShellCoreCommandsTest(unittest.TestCase):
 
         # Check each property
         for name, value in props.items():
-            output = self._run_command("property {0}", name)
+            output = self._run_command(f"property {name}")
             self.assertIn(value, output.strip())
 
         # Check invalid property
         output = self._run_command("property <<invalid>>")
         self.assertEqual("", output.strip())
 
-    def testEnvironment(self):
+    def testEnvironment(self) -> None:
         """
         Tests the sysprops and sysprop commands
         """
@@ -808,14 +840,14 @@ class ShellCoreCommandsTest(unittest.TestCase):
 
         # Check each variable
         for name, value in props.items():
-            output = self._run_command("sysprop {0}", name)
+            output = self._run_command(f"sysprop {name}")
             self.assertIn(value, output.strip())
 
         # Check invalid variable
         output = self._run_command("sysprop <<invalid>>")
         self.assertEqual("", output.strip())
 
-    def testThreads(self):
+    def testThreads(self) -> None:
         """
         Tests the threads and thread commands
         """
@@ -835,7 +867,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
 
         # Check each thread
         for thread_id in threads:
-            output = self._run_command("thread {0}", thread_id)
+            output = self._run_command(f"thread {thread_id}")
 
         # Check invalid thread
         output = self._run_command("thread -1")
