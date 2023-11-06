@@ -202,27 +202,24 @@ class RemoteConsole(socketserver.StreamRequestHandler):
 
                 # Strip the line
                 line = line.strip()
-                if not line:
-                    # Empty line
-                    continue
+                if line:
+                    # Execute it
+                    try:
+                        self._shell.handle_line(line, session)
+                    except KeyboardInterrupt:
+                        # Stop there on interruption
+                        self.send("\nInterruption received.")
+                        return
+                    except IOError as ex:
+                        # I/O errors are fatal
+                        _logger.exception("Error communicating with a client: %s", ex)
+                        break
+                    except Exception as ex:
+                        # Other exceptions are not important
+                        import traceback
 
-                # Execute it
-                try:
-                    self._shell.handle_line(line, session)
-                except KeyboardInterrupt:
-                    # Stop there on interruption
-                    self.send("\nInterruption received.")
-                    return
-                except IOError as ex:
-                    # I/O errors are fatal
-                    _logger.exception("Error communicating with a client: %s", ex)
-                    break
-                except Exception as ex:
-                    # Other exceptions are not important
-                    import traceback
-
-                    self.send(f"\nError during last command: {ex}\n")
-                    self.send(traceback.format_exc())
+                        self.send(f"\nError during last command: {ex}\n")
+                        self.send(traceback.format_exc())
 
                 # Print the prompt
                 self.send(get_ps1())
