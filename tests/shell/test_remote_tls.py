@@ -6,6 +6,7 @@ Tests the remote shell with the TLS feature
 :author: Thomas Calmant
 """
 
+import ipaddress
 import os
 import socket
 import sys
@@ -252,25 +253,43 @@ class TLSShellClient:
         self.fail = fail
         self.__wait_prompt = True
 
-    def connect(self, access: Tuple[str, int]) -> None:
+    def connect(self, access: Tuple[str, int], server_hostname: Optional[str] = None) -> None:
         """
         Connects to the remote shell
         """
         # Connect to the server
         sock = socket.create_connection(access)
-        context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+
         if self._ca_chain is not None:
-            #     context.verify_mode = CERT_REQUIRED
             context.load_verify_locations(self._ca_chain)
+        else:
+            context.load_default_certs(ssl.Purpose.SERVER_AUTH)
+
+        # Check if we can require host verification
+        if server_hostname:
+            context.verify_mode = ssl.CERT_REQUIRED
+        else:
+            # Check if the access was a hostname
+            try:
+                ipaddress.ip_address(access[0])
+                # We got an IP address and no host name, so don't check for it
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
+            except ValueError:
+                # Not an IP address, then it should be a host name
+                server_hostname = access[0]
+                context.verify_mode = ssl.CERT_REQUIRED
+
         context.load_cert_chain(self._cert, self._key)
+
         self._socket = context.wrap_socket(
             sock=sock,
             server_side=False,
             do_handshake_on_connect=True,
             suppress_ragged_eofs=True,
+            server_hostname=server_hostname,
         )
-
-        # self._socket = ssl.wrap_socket(sock, server_side=False, certfile=self._cert, keyfile=self._key)
 
     def close(self) -> None:
         """
@@ -373,7 +392,7 @@ else:
                     "-m",
                     "pelix.shell.remote",
                     "-a",
-                    "0.0.0.0",
+                    "127.0.0.1",
                     "-p",
                     str(port),
                     "--cert",
@@ -391,14 +410,13 @@ else:
             # Wait a little to ensure that the socket is here
             time.sleep(1)
 
+            # Check if the remote shell port has been opened
+            client = TLSShellClient(ps1, self.fail, client_cert, client_key, ca_chain)
             try:
-                # Check if the remote shell port has been opened
-                client = TLSShellClient(ps1, self.fail, client_cert, client_key)
-
-                client.connect(("localhost", port))
+                client.connect(("localhost", port), "localhost")
 
                 test_string = "running"
-                self.assertEqual(client.run_command("echo {0}".format(test_string)), test_string)
+                self.assertEqual(client.run_command(f"echo {test_string}"), test_string)
 
                 # Good enough: stop there
                 client.close()
@@ -409,7 +427,7 @@ else:
 
                 # Stop the interpreter with a result code
                 rc_code = 42
-                stop_line = "import sys; sys.exit({0})".format(rc_code)
+                stop_line = f"import sys; sys.exit({rc_code})"
                 process.communicate(to_bytes(stop_line))
 
                 # We should be good
@@ -421,6 +439,7 @@ else:
                 # The ShellClient must fail a new connection
                 self.assertRaises(IOError, client.connect, ("localhost", port))
             finally:
+                client.close()
                 try:
                     # Kill it in any case
                     process.terminate()
@@ -512,7 +531,7 @@ class TLSRemoteShellTest(unittest.TestCase):
 
             # Test a command
             test_str = "toto"
-            remote_output = client.run_command("echo {0}".format(test_str))
+            remote_output = client.run_command(f"echo {test_str}")
             self.assertEqual(remote_output, test_str)
         finally:
             # Close the client in any case
@@ -549,17 +568,9 @@ class TLSRemoteShellTest(unittest.TestCase):
 
         # Create a client
         client = TLSShellClient(self.shell.get_ps1(), self.fail, client_cert, client_key)
-
         try:
-            print("Connecting to", self.remote.get_access())
-            client.connect(self.remote.get_access())
-            # self.assertRaises(ssl.SSLError, client.connect, self.remote.get_access())
-        except ssl.SSLError as ex:
-            print("Got SSL error:", ex)
-        except Exception as ex:
-            print("Got  error:", ex)
-        else:
-            self.fail("Didn't get error")
+            # Give the host name so that the client accepts the server for the server to reject the client
+            self.assertRaises(ssl.SSLError, client.connect, self.remote.get_access(), "localhost")
         finally:
             client.close()
 
@@ -594,8 +605,7 @@ class TLSRemoteShellTest(unittest.TestCase):
             )
 
         # Create a client
-        client = TLSShellClient(self.shell.get_ps1(), self.fail, client_cert, client_key)
-
+        client = TLSShellClient(self.shell.get_ps1(), self.fail, client_cert, client_key, ca_chain)
         try:
             client.connect(self.remote.get_access())
 
@@ -606,3 +616,7 @@ class TLSRemoteShellTest(unittest.TestCase):
         finally:
             # Close the client in any case
             client.close()
+
+
+if __name__ == "__main__":
+    unittest.main()

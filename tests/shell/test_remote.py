@@ -164,9 +164,9 @@ else:
             # Wait a little to ensure that the socket is here
             time.sleep(1)
 
+            client = ShellClient(None, ps1, self.fail)
             try:
                 # Check if the remote shell port has been opened
-                client = ShellClient(None, ps1, self.fail)
                 client.connect(("127.0.0.1", port))
 
                 test_string = "running"
@@ -193,6 +193,9 @@ else:
                 # The ShellClient must fail a new connection
                 self.assertRaises(IOError, client.connect, ("localhost", port))
             finally:
+                # Close connection
+                client.close()
+
                 try:
                     # Kill it in any case
                     process.terminate()
@@ -267,9 +270,8 @@ class RemoteShellTest(unittest.TestCase):
         """
         # Create a client
         client = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
-        client.connect(self.remote.get_access())
-
         try:
+            client.connect(self.remote.get_access())
             for command in ("bl", "bd 0", "sl", "sd 1"):
                 # Get local & remote outputs
                 local_output = self._run_local_command(command)
@@ -289,11 +291,11 @@ class RemoteShellTest(unittest.TestCase):
         client_1 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
         client_2 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
 
-        # Connect them to the remote shell
-        client_1.connect(self.remote.get_access())
-        client_2.connect(self.remote.get_access())
-
         try:
+            # Connect them to the remote shell
+            client_1.connect(self.remote.get_access())
+            client_2.connect(self.remote.get_access())
+
             for command in ("bl", "bd 0", "sl", "sd 1"):
                 # Get clients outputs
                 client_1_output = client_1.run_command(command)
@@ -325,11 +327,11 @@ class RemoteShellTest(unittest.TestCase):
         client_1 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
         client_2 = ShellClient(remote_2.get_banner(), remote_2.get_ps1(), self.fail)
 
-        # Connect them to the remote shell
-        client_1.connect(self.remote.get_access())
-        client_2.connect(remote_2.get_access())
-
         try:
+            # Connect them to the remote shell
+            client_1.connect(self.remote.get_access())
+            client_2.connect(remote_2.get_access())
+
             for command in ("bl", "bd 0", "sl", "sd 1"):
                 # Get clients outputs
                 client_1_output = client_1.run_command(command)
@@ -383,24 +385,25 @@ class RemoteShellTest(unittest.TestCase):
         client_1 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
         client_2 = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
 
-        # Connect them to the remote shell
-        client_1.connect(self.remote.get_access())
-        client_2.connect(self.remote.get_access())
+        try:
+            # Connect them to the remote shell
+            client_1.connect(self.remote.get_access())
+            client_2.connect(self.remote.get_access())
 
-        # Run commands
-        client_1.run_command("bl")
-        first_output = client_2.run_command("bl")
+            # Run commands
+            client_1.run_command("bl")
+            first_output = client_2.run_command("bl")
 
-        # Disconnect when running command (this might print/log an error)
-        client_1.run_command("bl", True)
-        second_output = client_2.run_command("bl")
+            # Disconnect when running command (this might print/log an error)
+            client_1.run_command("bl", True)
+            second_output = client_2.run_command("bl")
 
-        # Ensure that the results are not modified by the error
-        self.assertEqual(second_output, first_output)
-
-        # Close clients
-        client_2.close()
-        client_1.close()
+            # Ensure that the results are not modified by the error
+            self.assertEqual(second_output, first_output)
+        finally:
+            # Close clients
+            client_2.close()
+            client_1.close()
 
     def testClientInactive(self) -> None:
         """
@@ -408,17 +411,18 @@ class RemoteShellTest(unittest.TestCase):
         """
         # Create a client
         client = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
-        client.connect(self.remote.get_access())
+        try:
+            client.connect(self.remote.get_access())
 
-        # Wait a little (server poll time is 0.5s)
-        time.sleep(1)
+            # Wait a little (server poll time is 0.5s)
+            time.sleep(1)
 
-        # Send a command
-        local_output = self._run_local_command("bl")
-        remote_output = client.run_command("bl")
+            # Send a command
+            local_output = self._run_local_command("bl")
+            remote_output = client.run_command("bl")
 
-        # Compare them
-        self.assertEqual(remote_output, local_output)
-
-        # Close the client
-        client.close()
+            # Compare them
+            self.assertEqual(remote_output, local_output)
+        finally:
+            # Close the client
+            client.close()
