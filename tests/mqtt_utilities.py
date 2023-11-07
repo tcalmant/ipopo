@@ -20,10 +20,9 @@ Utility methods for MQTT tests
     limitations under the License.
 """
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
+from threading import Event
+from typing import Optional
 
 # ------------------------------------------------------------------------------
 
@@ -37,7 +36,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-def find_mqtt_server():
+def find_mqtt_server() -> Optional[str]:
     """
     Looks for a working server to run the tests
 
@@ -48,18 +47,15 @@ def find_mqtt_server():
     except ImportError:
         raise unittest.SkipTest("MQTT client library is missing")
 
-    from threading import Event
-
     evt = Event()
     clt = MqttClient()
 
-    def handle_disconnect(client, rc):
+    def handle_disconnect(client: MqttClient, result_code: int) -> None:
         evt.set()
 
     clt.on_disconnect = handle_disconnect
 
-    for server in ('localhost', 'test.mosquitto.org', 'iot.eclipse.org',
-                   'broker.hivemq.com'):
+    for server in ("localhost", "test.mosquitto.org", "iot.eclipse.org", "broker.hivemq.com"):
         try:
             # Try to connect
             evt.clear()
@@ -70,8 +66,7 @@ def find_mqtt_server():
         else:
             try:
                 # Try publishing something
-                mid = clt.publish(
-                    "/ipopo/test/bootstrap", "initial.data", wait=True)
+                mid = clt.publish("/ipopo/test/bootstrap", "initial.data", wait=True)
 
                 if not mid:
                     # Error while publishing: next server
@@ -86,3 +81,5 @@ def find_mqtt_server():
             finally:
                 # Disconnect from the server
                 clt.disconnect()
+
+    return None

@@ -23,14 +23,12 @@
     limitations under the License.
 """
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
 try:
     # Try to import modules
     from multiprocessing import Process, Queue
+
     # IronPython fails when creating a queue
     Queue()
 except ImportError:
@@ -51,5 +49,6 @@ try:
             finally:
                 cov.stop()
                 cov.save()
+
 except ImportError:
     WrappedProcess = Process
