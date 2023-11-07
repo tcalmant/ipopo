@@ -8,7 +8,6 @@ Tests the remote shell with the TLS feature
 
 import os
 import socket
-from ssl import CERT_OPTIONAL, CERT_REQUIRED, Purpose
 import sys
 import tempfile
 import threading
@@ -234,11 +233,19 @@ class TLSShellClient:
     Simple client of the TLS remote shell
     """
 
-    def __init__(self, ps1: str, fail: Callable[[str], None], client_cert: str, client_key: str) -> None:
+    def __init__(
+        self,
+        ps1: str,
+        fail: Callable[[str], None],
+        client_cert: str,
+        client_key: str,
+        ca_chain: Optional[str] = None,
+    ) -> None:
         """
         Sets up the client
         """
         self._socket: Optional[ssl.SSLSocket] = None
+        self._ca_chain = ca_chain
         self._cert = client_cert
         self._key = client_key
         self._ps1 = ps1
@@ -251,20 +258,19 @@ class TLSShellClient:
         """
         # Connect to the server
         sock = socket.create_connection(access)
-        # context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        # context.verify_mode = CERT_REQUIRED
-        # context.load_cert_chain(self._cert, self._key)
-        # self._socket = context.wrap_socket(
-        #     sock=sock,
-        #     server_side=False,
-        #     do_handshake_on_connect=True,
-        #     suppress_ragged_eofs=True,
-        # )
+        context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        if self._ca_chain is not None:
+            #     context.verify_mode = CERT_REQUIRED
+            context.load_verify_locations(self._ca_chain)
+        context.load_cert_chain(self._cert, self._key)
+        self._socket = context.wrap_socket(
+            sock=sock,
+            server_side=False,
+            do_handshake_on_connect=True,
+            suppress_ragged_eofs=True,
+        )
 
-        # context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        # context.load_cert_chain(certfile=self._cert, keyfile=self._key)
-        # self._socket = context.wrap_socket(sock, server_side=False)
-        self._socket = ssl.wrap_socket(sock, server_side=False, certfile=self._cert, keyfile=self._key)
+        # self._socket = ssl.wrap_socket(sock, server_side=False, certfile=self._cert, keyfile=self._key)
 
     def close(self) -> None:
         """
@@ -460,9 +466,7 @@ class TLSRemoteShellTest(unittest.TestCase):
         Cleans up the framework
         """
         try:
-            print("Stopping FW...")
             self.framework.stop()
-            print("Done...")
             self.remote = None  # type: ignore
             self.shell = None  # type: ignore
             self.framework = None  # type: ignore
@@ -502,7 +506,7 @@ class TLSRemoteShellTest(unittest.TestCase):
         time.sleep(0.1)
 
         # Create a client
-        client = TLSShellClient(self.shell.get_ps1(), self.fail, client_cert, client_key)
+        client = TLSShellClient(self.shell.get_ps1(), self.fail, client_cert, client_key, ca_chain)
         try:
             client.connect(self.remote.get_access())
 
@@ -551,9 +555,9 @@ class TLSRemoteShellTest(unittest.TestCase):
             client.connect(self.remote.get_access())
             # self.assertRaises(ssl.SSLError, client.connect, self.remote.get_access())
         except ssl.SSLError as ex:
-            print("Got SSL error:",ex)
+            print("Got SSL error:", ex)
         except Exception as ex:
-            print("Got  error:",ex)
+            print("Got  error:", ex)
         else:
             self.fail("Didn't get error")
         finally:

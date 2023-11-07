@@ -302,7 +302,7 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
             # Setup an SSL context to accept clients with a certificate
             # signed by a known chain of authority.
             # Other clients will be rejected during handshake.
-            context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             try:
                 # Force a valid/signed client-side certificate
                 context.verify_mode = ssl.CERT_REQUIRED
@@ -331,6 +331,7 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
             except ssl.SSLError as ex:
                 # Explicitly log the exception before re-raising it
                 _logger.warning("Error during SSL handshake with %s: %s", client_address, ex)
+                client_socket.close()
                 raise
         else:
             # Nothing to do, use the raw socket
