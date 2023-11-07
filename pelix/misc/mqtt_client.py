@@ -32,7 +32,7 @@ Eclipse Foundation: see http://www.eclipse.org/paho
 import logging
 import os
 import threading
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 import paho.mqtt.client as paho
 
@@ -243,7 +243,7 @@ class MqttClient:
         thread.join(4)
 
     def publish(
-        self, topic: str, payload: bytes, qos: int = 0, retain: bool = False, wait: bool = False
+        self, topic: str, payload: Union[bytes, str], qos: int = 0, retain: bool = False, wait: bool = False
     ) -> Optional[int]:
         """
         Sends a message through the MQTT connection
