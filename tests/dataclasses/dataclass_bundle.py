@@ -24,42 +24,38 @@ Module checking the behaviour of iPOPO with PEP-557 Data Classes
     limitations under the License.
 """
 
-try:
-    dataclass
-except NameError:
-    try:
-        from dataclasses import dataclass
-    except ImportError:
-        raise Exception("dataclass decorator not available "
-                        "(Python 3.6+ required)")
+from dataclasses import dataclass
+from typing import Optional
+from pelix.ipopo.constants import IPOPO_INSTANCE_NAME
 
-from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
-    Requires
+from pelix.ipopo.decorators import ComponentFactory, Property, Provides, Requires
 
 
 @ComponentFactory("dataclass.before")
 @Provides("dataclass.before")
-@Property("property_set", "property.set", "SAMPLE")
+@Property("instance_name", IPOPO_INSTANCE_NAME)
+@Property("property_set", "property.set", "SAMPLE-before")
 @Property("property_default", "property.default")
 @Requires("requirement", "dataclass.check")
 @dataclass
 class DataClassBeforeManipulation:
     some_value: str = "42"
-    instance_name: str = None
-    requirement: object = None
-    property_set: str = "Default"
-    property_default: str = "Default"
+    instance_name: Optional[str] = None
+    requirement: Optional[object] = None
+    property_set: str = "Default-before"
+    property_default: str = "Default-before"
 
 
 @dataclass
 @ComponentFactory("dataclass.after")
 @Provides("dataclass.after")
-@Property("property_set", "property.set", "SAMPLE")
+@Property("instance_name", IPOPO_INSTANCE_NAME)
+@Property("property_set", "property.set", "SAMPLE-after")
 @Property("property_default", "property.default")
 @Requires("requirement", "dataclass.check")
 class DataClassAfterManipulation:
     some_value: str = "42"
-    instance_name: str = None
-    requirement: object = None
-    property_set: str = "Default"
-    property_default: str = "Default"
+    instance_name: Optional[str] = None
+    requirement: Optional[object] = None
+    property_set: str = "Default-after"
+    property_default: str = "Default-after"
