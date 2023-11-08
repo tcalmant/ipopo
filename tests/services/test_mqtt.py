@@ -6,21 +6,18 @@ Tests the MQTT service
 :author: Thomas Calmant
 """
 
-# Standard library
 import random
 import shutil
 import string
 import tempfile
 import time
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
+from typing import Any, List, Optional, Tuple, Union
 
-# Pelix
 import pelix.framework
+from pelix.misc.mqtt_client import MqttClient
 import pelix.services as services
-
+from pelix.internals.registry import ServiceReference
 from tests.mqtt_utilities import find_mqtt_server
 
 # ------------------------------------------------------------------------------
@@ -35,13 +32,14 @@ class Listener:
     """
     Sample listener
     """
-    def __init__(self):
+
+    def __init__(self) -> None:
         """
         Sets up members
         """
-        self.messages = []
+        self.messages: List[Tuple[str, Union[str, bytes], int]] = []
 
-    def handle_mqtt_message(self, topic, payload, qos):
+    def handle_mqtt_message(self, topic: str, payload: Union[str, bytes], qos: int) -> None:
         """
         Got a message
         """
@@ -52,10 +50,15 @@ class MqttServiceTest(unittest.TestCase):
     """
     Tests the MQTT utility service
     """
+
     HOST = find_mqtt_server()
     PORT = 1883
 
-    def setUp(self):
+    framework: pelix.framework.Framework
+    config_ref: Optional[ServiceReference[services.IConfigurationAdmin]]
+    config: services.IConfigurationAdmin
+
+    def setUp(self) -> None:
         """
         Prepares a framework and a registers a service to export
         """
@@ -65,76 +68,81 @@ class MqttServiceTest(unittest.TestCase):
         # Create the framework
         # The MQTT component is automatically started
         self.framework = pelix.framework.create_framework(
-            ('pelix.ipopo.core',
-             'pelix.services.configadmin',
-             'pelix.services.mqtt'),
-            {'configuration.folder': self.conf_dir})
+            ("pelix.ipopo.core", "pelix.services.configadmin", "pelix.services.mqtt"),
+            {"configuration.folder": self.conf_dir},
+        )
         self.framework.start()
 
         # Get the configuration admin service
         context = self.framework.get_bundle_context()
-        self.config_ref = context.get_service_reference(
-            services.SERVICE_CONFIGURATION_ADMIN)
+        self.config_ref = context.get_service_reference(services.IConfigurationAdmin)
+        assert self.config_ref is not None
         self.config = context.get_service(self.config_ref)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up for next test
         """
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
-        self.framework = None
+        self.framework = None  # type: ignore
 
         # Clean up
         shutil.rmtree(self.conf_dir)
 
-    def test_no_config(self):
+    def test_no_config(self) -> None:
         """
         Tests MQTT utility without configuration
         """
+        svc_ref: Optional[ServiceReference[Any]]
+
         # Wait a bit
-        time.sleep(.5)
+        time.sleep(0.5)
 
         # Check if a service is active
         context = self.framework.get_bundle_context()
-        svc_ref = context.get_service_reference(
-            services.SERVICE_MQTT_CONNECTION)
+        svc_ref = context.get_service_reference(services.SERVICE_MQTT_CONNECTION)
         self.assertIsNone(svc_ref, "Found a MQTT connection")
 
-    def _setup_mqtt(self, context):
+    def _setup_mqtt(
+        self, context: pelix.framework.BundleContext
+    ) -> Tuple[services.Configuration, ServiceReference[Any]]:
         """
         Common code for MQTT service creation
         """
+        svc_ref: Optional[ServiceReference[Any]]
+
         # Setup MQTT connection
-        config = self.config.create_factory_configuration(
-            services.MQTT_CONNECTOR_FACTORY_PID)
+        config = self.config.create_factory_configuration(services.MQTT_CONNECTOR_FACTORY_PID)
         config.update({"host": self.HOST, "port": self.PORT})
 
         # Wait for service
         for _ in range(10):
             svc_ref = context.get_service_reference(
-                services.SERVICE_MQTT_CONNECTION,
-                "(id={})".format(config.get_pid()))
+                services.SERVICE_MQTT_CONNECTION, f"(id={config.get_pid()})"
+            )
             if svc_ref is not None:
                 break
-            time.sleep(.5)
+            time.sleep(0.5)
         else:
             self.fail("Connection Service not found")
         return config, svc_ref
 
-    def test_configuration(self):
+    def test_configuration(self) -> None:
         """
         Tests service configuration
         """
+        svc_ref: Optional[ServiceReference[Any]]
+
         # Prepare service
         context = self.framework.get_bundle_context()
         config, svc_ref = self._setup_mqtt(context)
 
         # Assert we have the same PID
         props = svc_ref.get_properties()
-        self.assertEqual(props['host'], self.HOST)
-        self.assertEqual(props['port'], self.PORT)
-        self.assertEqual(props['id'], config.get_pid())
+        self.assertEqual(props["host"], self.HOST)
+        self.assertEqual(props["port"], self.PORT)
+        self.assertEqual(props["id"], config.get_pid())
 
         # Delete configuration
         config.delete()
@@ -143,15 +151,15 @@ class MqttServiceTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
         for _ in range(10):
             svc_ref = context.get_service_reference(
-                services.SERVICE_MQTT_CONNECTION,
-                "(id={})".format(config.get_pid()))
+                services.SERVICE_MQTT_CONNECTION, "(id={})".format(config.get_pid())
+            )
             if svc_ref is None:
                 break
-            time.sleep(.5)
+            time.sleep(0.5)
         else:
             self.fail("Connection Service still there")
 
-    def __send_message(self, client, topic, qos):
+    def __send_message(self, client: MqttClient, topic: str, qos: int) -> bytes:
         """
         Sends a message using the given client (content is generated)
 
@@ -162,11 +170,11 @@ class MqttServiceTest(unittest.TestCase):
         """
         payload = list(string.ascii_letters)
         random.shuffle(payload)
-        payload = ''.join(payload).encode("utf-8")
-        client.publish(topic, payload, qos=qos)
-        return payload
+        raw_payload = "".join(payload).encode("utf-8")
+        client.publish(topic, raw_payload, qos=qos)
+        return raw_payload
 
-    def test_messages(self):
+    def test_messages(self) -> None:
         """
         Tests messages publication and reception
         """
@@ -185,8 +193,8 @@ class MqttServiceTest(unittest.TestCase):
         # Register a publisher
         listener = Listener()
         lst_reg = context.register_service(
-            services.SERVICE_MQTT_LISTENER, listener,
-            {services.PROP_MQTT_TOPICS: "/pelix/test/#"})
+            services.SERVICE_MQTT_LISTENER, listener, {services.PROP_MQTT_TOPICS: "/pelix/test/#"}
+        )
 
         # Check the initial test condition
         self.assertListEqual(listener.messages, [], "Invalid precondition")
@@ -201,7 +209,7 @@ class MqttServiceTest(unittest.TestCase):
                 msg_topic, msg_payload, qos = listener.messages.pop()
                 break
             except IndexError:
-                time.sleep(.5)
+                time.sleep(0.5)
         else:
             self.fail("Got no message")
 
@@ -218,13 +226,12 @@ class MqttServiceTest(unittest.TestCase):
             try:
                 msg_topic, msg_payload, qos = listener.messages.pop()
             except IndexError:
-                time.sleep(.5)
+                time.sleep(0.5)
             else:
                 # It is possible we got a copy of the previous message
                 # (QOS 1: at least one time)
                 if msg_topic == topic:
-                    self.fail("Got a message that should be filtered: {}"
-                              .format(msg_topic))
+                    self.fail("Got a message that should be filtered: {}".format(msg_topic))
 
         # Change topic filter
         lst_reg.set_properties({services.PROP_MQTT_TOPICS: "/pelix/foo/#"})
@@ -236,7 +243,7 @@ class MqttServiceTest(unittest.TestCase):
                 msg_topic, msg_payload, qos = listener.messages.pop()
                 break
             except IndexError:
-                time.sleep(.5)
+                time.sleep(0.5)
         else:
             self.fail("Got no message")
 
@@ -258,7 +265,7 @@ class MqttServiceTest(unittest.TestCase):
             try:
                 listener.messages.pop()
             except IndexError:
-                time.sleep(.5)
+                time.sleep(0.5)
             else:
                 self.fail("Got an unexpected message")
 

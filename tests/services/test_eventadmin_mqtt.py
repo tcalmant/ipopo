@@ -6,21 +6,17 @@ Tests the EventAdmin MQTT bridge service
 :author: Thomas Calmant
 """
 
-# Standard library
 import json
 import threading
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
-# Pelix
-from pelix.ipopo.constants import use_ipopo
+import pelix.constants
 import pelix.framework
-import pelix.misc.mqtt_client
 import pelix.services
-
-# Local utilities
+from pelix.internals.registry import ServiceRegistration
+from pelix.ipopo.constants import use_ipopo
+from pelix.misc.mqtt_client import MqttClient, MqttMessage
 from tests.mqtt_utilities import find_mqtt_server
 
 # ------------------------------------------------------------------------------
@@ -35,7 +31,8 @@ class MQTTListener:
     """
     An MQTT message listener
     """
-    def __init__(self, host, port, prefix):
+
+    def __init__(self, host: str, port: int, prefix: str):
         """
         :param host: MQTT Server host
         :param port: MQTT Server port
@@ -46,52 +43,52 @@ class MQTTListener:
         self.prefix = prefix
 
         # Prepare a Mqtt Client
-        self._client = pelix.misc.mqtt_client.MqttClient()
-        self._client.on_connect = self.on_connect
-        self._client.on_disconnect = self.on_disconnect
-        self._client.on_message = self.on_message
+        self._client = MqttClient()
+        self._client.on_connect = self.on_connect  # type: ignore
+        self._client.on_disconnect = self.on_disconnect  # type: ignore
+        self._client.on_message = self.on_message  # type: ignore
 
         # Received messages
-        self.messages = []
+        self.messages: List[MqttMessage] = []
 
         # Some control event
         self.connect_event = threading.Event()
         self.message_event = threading.Event()
 
-    def start(self):
+    def start(self) -> None:
         """
         Connect the client
         """
         # Connect to server
         self._client.connect(self.host, self.port)
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Disconnects the client
         """
         self._client.disconnect()
 
-    def on_connect(self, client, rc):
+    def on_connect(self, client: MqttClient, result_code: int) -> None:
         """
         Connected to server
         """
-        client.subscribe("{}/#".format(self.prefix))
+        client.subscribe(f"{self.prefix}/#")
         self.connect_event.set()
 
-    def on_disconnect(self, client, rc):
+    def on_disconnect(self, client: MqttClient, result_code: int) -> None:
         """
         Disconnected from server
         """
         self.connect_event.clear()
 
-    def on_message(self, client, message):
+    def on_message(self, client: MqttClient, message: MqttMessage) -> None:
         """
         Got an MQTT message
         """
         self.messages.append(message)
         self.message_event.set()
 
-    def publish(self, topic, payload):
+    def publish(self, topic: str, payload: Union[str, bytes]) -> Optional[int]:
         """
         Sends an MQTT message
 
@@ -101,20 +98,21 @@ class MQTTListener:
         return self._client.publish(topic, payload, qos=1)
 
 
-class DummyEventHandler(object):
+class DummyEventHandler:
     """
     Dummy event handler
     """
-    def __init__(self):
+
+    def __init__(self) -> None:
         """
         Sets up members
         """
         # Topic of the last received event
-        self.last_event = None
-        self.last_props = {}
+        self.last_event: Optional[str] = None
+        self.last_props: Dict[str, Any] = {}
         self.__event = threading.Event()
 
-    def handle_event(self, topic, properties):
+    def handle_event(self, topic: str, properties: Dict[str, Any]) -> None:
         """
         Handles an event received from EventAdmin
         """
@@ -123,7 +121,7 @@ class DummyEventHandler(object):
         self.last_props = properties
         self.__event.set()
 
-    def pop_event(self):
+    def pop_event(self) -> Tuple[Optional[str], Dict[str, Any]]:
         """
         Pops the list of events
         """
@@ -135,11 +133,12 @@ class DummyEventHandler(object):
         props, self.last_props = self.last_props, {}
         return event, props
 
-    def wait(self, timeout=5):
+    def wait(self, timeout: float = 5) -> None:
         """
         Waits for the event to be received
         """
         self.__event.wait(timeout)
+
 
 # ------------------------------------------------------------------------------
 
@@ -148,10 +147,13 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
     """
     Tests the EventAdmin MQTT bridge service
     """
+
     HOST = find_mqtt_server()
     PORT = 1883
 
-    def assertDictContains(self, subset, container):
+    framework: pelix.framework.Framework
+
+    def assertDictContains(self, subset: Dict[Any, Any], container: Dict[Any, Any]) -> None:
         """
         Ensures that the given subset exists in the container
 
@@ -162,38 +164,35 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
             for key, value in subset.items():
                 container_value = container[key]
                 self.assertEqual(
-                    value, container_value,
-                    "Different values for {}: {} != {}".format(
-                        key, value, container_value))
+                    value,
+                    container_value,
+                    f"Different values for {key}: {value} != {container_value}",
+                )
         except KeyError as ex:
-            self.fail("{} misses from container".format(ex))
+            self.fail(f"{ex} misses from container")
 
-    def setUp(self):
+    def setUp(self) -> None:
         """
         Prepares a framework and a registers a service to export
         """
         # Create the framework
-        self.framework = pelix.framework.create_framework(
-            ('pelix.ipopo.core',
-             'pelix.services.eventadmin'))
+        self.framework = pelix.framework.create_framework(("pelix.ipopo.core", "pelix.services.eventadmin"))
         self.framework.start()
 
         # Instantiate the EventAdmin component
         context = self.framework.get_bundle_context()
         with use_ipopo(context) as ipopo:
-            self.event_admin = ipopo.instantiate(
-                pelix.services.FACTORY_EVENT_ADMIN,
-                "event-admin", {})
+            self.event_admin = ipopo.instantiate(pelix.services.FACTORY_EVENT_ADMIN, "event-admin", {})
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up for next test
         """
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
-        self.framework = None
+        self.framework = None  # type: ignore
 
-    def _setup_bridge(self, event_filter, mqtt_prefix):
+    def _setup_bridge(self, event_filter: str, mqtt_prefix: str) -> None:
         """
         Instantiates the MQTT Event Admin bridge
 
@@ -208,19 +207,24 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
             ipopo.instantiate(
                 pelix.services.FACTORY_EVENT_ADMIN_MQTT,
                 "mqtt-bridge",
-                {pelix.services.PROP_EVENT_TOPICS: event_filter,
-                 "mqtt.host": self.HOST, "mqtt.port": self.PORT,
-                 "mqtt.topic.prefix": mqtt_prefix}
+                {
+                    pelix.services.PROP_EVENT_TOPICS: event_filter,
+                    "mqtt.host": self.HOST,
+                    "mqtt.port": self.PORT,
+                    "mqtt.topic.prefix": mqtt_prefix,
+                },
             )
 
         # Wait for it
         svc_ref = None
         while svc_ref is None:
             svc_ref = context.get_service_reference(
-                pelix.services.SERVICE_EVENT_HANDLER,
-                "(instance.name={})".format(name))
+                pelix.services.ServiceEventHandler, f"(instance.name={name})"
+            )
 
-    def _register_handler(self, topics, evt_filter=None):
+    def _register_handler(
+        self, topics: Union[str, List[str]], evt_filter: Optional[str] = None
+    ) -> Tuple[DummyEventHandler, ServiceRegistration[pelix.services.ServiceEventHandler]]:
         """
         Registers an event handler
 
@@ -230,23 +234,25 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
         svc = DummyEventHandler()
         context = self.framework.get_bundle_context()
         svc_reg = context.register_service(
-            pelix.services.SERVICE_EVENT_HANDLER, svc,
-            {pelix.services.PROP_EVENT_TOPICS: topics,
-             pelix.services.PROP_EVENT_FILTER: evt_filter})
+            pelix.services.ServiceEventHandler,
+            cast(pelix.services.ServiceEventHandler, svc),
+            {pelix.services.PROP_EVENT_TOPICS: topics, pelix.services.PROP_EVENT_FILTER: evt_filter},
+        )
         return svc, svc_reg
 
-    def test_bridge_emit(self):
+    def test_bridge_emit(self) -> None:
         """
         Tests the MQTT bridge emission behaviour
         """
         # Prepare a handler
-        handler, _ = self._register_handler('/mqtt/*')
+        handler, _ = self._register_handler("/mqtt/*")
 
         # Configuration
         bridge_prefix = "pelix/test/emit"
         bridge_event_filter = "/mqtt/propagate/*"
 
         # Setup a client
+        assert self.HOST is not None
         client = MQTTListener(self.HOST, self.PORT, bridge_prefix)
         client.start()
         if not client.connect_event.wait(10):
@@ -258,8 +264,12 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
 
             # Send an event in the filter and that can be propagate
             topic = "/mqtt/propagate/foobar"
-            props = {"answer": 42, "foo": "bar", "list": list(range(5)),
-                     pelix.services.EVENT_PROP_PROPAGATE: True}
+            props = {
+                "answer": 42,
+                "foo": "bar",
+                "list": list(range(5)),
+                pelix.services.EVENT_PROP_PROPAGATE: True,
+            }
             self.event_admin.send(topic, props)
 
             # Check if it has been received by the handler
@@ -275,23 +285,23 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
             # Ensure we find the properties in the payload
             message = client.messages.pop()
             self.assertIn(topic, message.topic)
-            self.assertDictContains(
-                props, json.loads(message.payload.decode('utf-8')))
+            self.assertDictContains(props, json.loads(message.payload.decode("utf-8")))
         finally:
             client.stop()
 
-    def test_bridge_filter(self):
+    def test_bridge_filter(self) -> None:
         """
         Tests the MQTT bridge emission behaviour
         """
         # Prepare a handler
-        handler, _ = self._register_handler('/mqtt/*')
+        handler, _ = self._register_handler("/mqtt/*")
 
         # Configuration
         bridge_prefix = "pelix/test/filter"
         bridge_event_filter = "/mqtt/propagate/*"
 
         # Setup a client
+        assert self.HOST is not None
         client = MQTTListener(self.HOST, self.PORT, bridge_prefix)
         client.start()
         if not client.connect_event.wait(10):
@@ -334,8 +344,7 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
             # Ensure we find the properties in the payload
             message = client.messages.pop()
             self.assertIn(topic, message.topic)
-            self.assertDictContains(
-                props, json.loads(message.payload.decode('utf-8')))
+            self.assertDictContains(props, json.loads(message.payload.decode("utf-8")))
 
             # -------------------------------------------------
             # Send an event in the filter with propagation flag
@@ -364,12 +373,12 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
         finally:
             client.stop()
 
-    def test_from_mqtt(self):
+    def test_from_mqtt(self) -> None:
         """
         Tests the events received from MQTT
         """
         # Prepare a handler
-        handler, _ = self._register_handler('from-mqtt/*')
+        handler, _ = self._register_handler("from-mqtt/*")
 
         # Configuration
         bridge_prefix = "pelix/test/filter"
@@ -379,6 +388,7 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
         self._setup_bridge(bridge_event_filter, bridge_prefix)
 
         # Setup a client
+        assert self.HOST is not None
         client = MQTTListener(self.HOST, self.PORT, bridge_prefix)
         client.start()
         if not client.connect_event.wait(10):
@@ -387,12 +397,14 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
         try:
             # Send a forged message
             topic = "from-mqtt/foobar"
-            props = {pelix.services.EVENT_PROP_FRAMEWORK_UID: "custom-client",
-                     "test": "from mqtt",
-                     "some": "answer"}
+            props = {
+                pelix.services.EVENT_PROP_FRAMEWORK_UID: "custom-client",
+                "test": "from mqtt",
+                "some": "answer",
+            }
 
             payload = json.dumps(props).encode("utf-8")
-            client.publish("{}/{}".format(bridge_prefix, topic), payload)
+            client.publish(f"{bridge_prefix}/{topic}", payload)
 
             # Wait for the message
             handler.wait(10)
@@ -405,14 +417,13 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
 
             # The bridge changes the properties a bit
             client_id = props.pop(pelix.services.EVENT_PROP_FRAMEWORK_UID)
-            fw_uid = self.framework.get_property(pelix.framework.FRAMEWORK_UID)
+            fw_uid = self.framework.get_property(pelix.constants.FRAMEWORK_UID)
 
             # Check untouched properties
             self.assertDictContains(props, last_props)
 
             # Check the source UID (changed to avoid loops)
-            self.assertEqual(
-                last_props[pelix.services.EVENT_PROP_FRAMEWORK_UID], fw_uid)
+            self.assertEqual(last_props[pelix.services.EVENT_PROP_FRAMEWORK_UID], fw_uid)
 
             # Check that we still can be find the real source UID
             self.assertIn(client_id, last_props.values())

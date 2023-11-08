@@ -106,8 +106,7 @@ class MqttClient:
         """
         return self.__mqtt
 
-    @staticmethod
-    def on_connect(client: "MqttClient", result_code: int) -> None:
+    def on_connect(self, client: "MqttClient", result_code: int) -> None:
         """
         User callback: called when the client is connected
 
@@ -116,8 +115,7 @@ class MqttClient:
         """
         pass
 
-    @staticmethod
-    def on_disconnect(client: "MqttClient", result_code: int) -> None:
+    def on_disconnect(self, client: "MqttClient", result_code: int) -> None:
         """
         User callback: called when the client is disconnected
 
@@ -126,8 +124,7 @@ class MqttClient:
         """
         pass
 
-    @staticmethod
-    def on_message(client: "MqttClient", message: MqttMessage) -> None:
+    def on_message(self, client: "MqttClient", message: MqttMessage) -> None:
         """
         User callback: called when the client has received a message
 
@@ -161,7 +158,7 @@ class MqttClient:
         return f"{prefix}{random_id}"
 
     @classmethod
-    def topic_matches(cls, subscription_filter, topic):
+    def topic_matches(cls, subscription_filter: str, topic: str) -> bool:
         """
         Checks if the given topic matches the given subscription filter
 

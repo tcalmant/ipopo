@@ -126,7 +126,7 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
         self._pool = None
 
     @Validate
-    def _validate(self, context: BundleContext) -> None:
+    def _validate(self, context: "BundleContext") -> None:
         """
         Component validated
         """
@@ -145,7 +145,7 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
         _logger.info("MQTT factory validated")
 
     @Invalidate
-    def _invalidate(self, _: BundleContext) -> None:
+    def _invalidate(self, _: "BundleContext") -> None:
         """
         Component invalidated
         """
@@ -215,7 +215,7 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
 
     @BindField("_listeners")
     def _bind_listener(
-        self, field: str, listener: services.MqttListener, svc_ref: ServiceReference[services.MqttListener]
+        self, field: str, listener: services.MqttListener, svc_ref: "ServiceReference[services.MqttListener]"
     ) -> None:
         """
         A new MQTT listener has been bound
@@ -229,7 +229,7 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
         self,
         field: str,
         listener: services.MqttListener,
-        svc_ref: ServiceReference[services.MqttListener],
+        svc_ref: "ServiceReference[services.MqttListener]",
         old_props: Optional[Dict[str, Any]],
     ) -> None:
         """
@@ -248,7 +248,7 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
 
     @UnbindField("_listeners")
     def _unbind_listener(
-        self, field: str, listener: services.MqttListener, svc_ref: ServiceReference[services.MqttListener]
+        self, field: str, listener: services.MqttListener, svc_ref: "ServiceReference[services.MqttListener]"
     ) -> None:
         """
         An MQTT listener is gone
@@ -362,7 +362,7 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
                 Reference holder for the service registration
                 """
 
-                registration: Optional[ServiceRegistration[_MqttConnection]] = None
+                registration: Optional["ServiceRegistration[_MqttConnection]"] = None
 
             holder = Holder()
 

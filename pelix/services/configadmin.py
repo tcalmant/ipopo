@@ -33,7 +33,7 @@ import logging
 import os
 import threading
 import uuid
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Protocol, Set, Tuple, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Protocol, Set, Tuple, Union, cast
 
 import pelix.constants
 import pelix.ldapfilter as ldapfilter
@@ -84,7 +84,7 @@ class IConfigurationAdminDirectory(Protocol):
     __SPECIFICATION__ = SERVICE_CONFIGADMIN_DIRECTORY
 
     def list_configurations(
-        self, ldap_filter: Optional[ldapfilter.LdapFilterOrCriteria] = None
+        self, ldap_filter: Union[None, str, ldapfilter.LdapFilterOrCriteria] = None
     ) -> List[services.Configuration]:
         """
         Lists known configuration
@@ -449,7 +449,7 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         """
         return set(self.__factories.get(factory_pid, []))
 
-    def list_configurations(self, ldap_filter: Optional[ldapfilter.LdapFilterOrCriteria] = None):
+    def list_configurations(self, ldap_filter: Union[None, str, ldapfilter.LdapFilterOrCriteria] = None):
         """
         Returns the list of stored configurations
 
@@ -1018,7 +1018,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
             return self._directory.add(pid, properties, persistence, factory_pid)
 
     def list_configurations(
-        self, ldap_filter: Optional[ldapfilter.LdapFilterOrCriteria] = None
+        self, ldap_filter: Union[None, str, ldapfilter.LdapFilterOrCriteria] = None
     ) -> List[services.Configuration]:
         """
         List the current Configuration objects which match the filter.

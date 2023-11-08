@@ -100,7 +100,7 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         self._framework_uid: Optional[str] = None
 
     @Validate
-    def _validate(self, context: BundleContext) -> None:
+    def _validate(self, context: "BundleContext") -> None:
         """
         Component validated
         """
@@ -130,7 +130,7 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         self._mqtt.connect(self._host, self._port)
 
     @Invalidate
-    def _invalidate(self, context: BundleContext) -> None:
+    def _invalidate(self, context: "BundleContext") -> None:
         """
         Component invalidated
         """

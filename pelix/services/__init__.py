@@ -25,7 +25,7 @@ Pelix OSGi-like services packages
     limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Protocol, Union
 
 if TYPE_CHECKING:
     import pelix.ldapfilter as ldapfilter
@@ -299,7 +299,7 @@ class IConfigurationAdmin(Protocol):
         ...
 
     def list_configurations(
-        self, ldap_filter: Optional["ldapfilter.LdapFilterOrCriteria"] = None
+        self, ldap_filter: Union[None, str, "ldapfilter.LdapFilterOrCriteria"] = None
     ) -> List[Configuration]:
         """
         List the current Configuration objects which match the filter.

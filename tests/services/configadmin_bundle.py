@@ -6,36 +6,39 @@ Bundle defining a component to be updated by ConfigAdmin
 :author: Thomas Calmant
 """
 
-from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
-    Instantiate
+from typing import Any, Dict, Optional
 
 import pelix.constants as constants
 import pelix.services as services
+from pelix.ipopo.decorators import ComponentFactory, Instantiate, Property, Provides
 
 # ------------------------------------------------------------------------------
 
-CONFIG_PID = 'test.ca.bundle'
+CONFIG_PID = "test.ca.bundle"
 
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory()
-@Provides(services.SERVICE_CONFIGADMIN_MANAGED)
-@Property('_config_pid', constants.SERVICE_PID, CONFIG_PID)
+@Provides(services.IManagedService)
+@Property("_config_pid", constants.SERVICE_PID, CONFIG_PID)
 @Instantiate("configadmin-test")
-class Configurable(object):
+class Configurable(services.IManagedService):
     """
     Configurable component
     """
-    def __init__(self):
+
+    _config_pid: str
+
+    def __init__(self) -> None:
         """
         Sets up members
         """
-        self.value = None
+        self.value: Any = None
         self.deleted = False
         self.call_count = 0
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Resets the flags
         """
@@ -43,7 +46,7 @@ class Configurable(object):
         self.deleted = False
         self.call_count = 0
 
-    def updated(self, properties):
+    def updated(self, properties: Optional[Dict[str, Any]]) -> None:
         """
         Called by the ConfigurationAdmin service
         """
@@ -53,8 +56,6 @@ class Configurable(object):
             # Deleted
             self.value = None
             self.deleted = True
-            return
-
         else:
             # Updated
-            self.value = properties.get('config.value', '<not set>')
+            self.value = properties.get("config.value", "<not set>")
