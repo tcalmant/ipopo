@@ -29,7 +29,7 @@ of HTTP requests.
 import inspect
 import re
 import uuid
-from typing import Any, Callable, Dict, List, Optional, Pattern, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Pattern, Tuple
 
 from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse, Servlet
 from pelix.utilities import get_method_arguments
@@ -102,7 +102,7 @@ class Http:
     Decorator indicating which route a method handles
     """
 
-    def __init__(self, route: str, methods: Optional[List[str]] = None) -> None:
+    def __init__(self, route: str, methods: Optional[Iterable[str]] = None) -> None:
         """
         :param route: Path handled by the method (beginning with a '/')
         :param methods: List of HTTP methods allowed (GET, POST, ...)
@@ -119,7 +119,7 @@ class Http:
             raise TypeError("methods should be a list")
 
         self._route = route
-        self._methods: List[str] = methods or ["GET"]
+        self._methods: Iterable[str] = methods or ["GET"]
 
     def __call__(self, decorated_method: Callable[..., Any]) -> Callable[..., Any]:
         """
@@ -217,10 +217,10 @@ class RestDispatcher(Servlet):
         Looks for the methods where to dispatch requests
         """
         # HTTP verb -> route pattern -> function
-        self.__routes: Dict[str, Dict[Pattern[str], Callable]] = {}
+        self.__routes: Dict[str, Dict[Pattern[str], Callable[..., None]]] = {}
 
         # function -> arg name -> arg converter
-        self.__methods_args: Dict[Callable, Dict[str, Optional[Callable[[str], Any]]]] = {}
+        self.__methods_args: Dict[Callable[..., None], Dict[str, Optional[Callable[[str], Any]]]] = {}
 
         # Find all REST methods
         self._setup_rest_dispatcher()
@@ -276,7 +276,7 @@ class RestDispatcher(Servlet):
         # Find the best matching method, according to the number of
         # readable arguments
         max_valid_args = -1
-        best_method: Optional[Callable] = None
+        best_method: Optional[Callable[..., None]] = None
         best_args = None
         best_match = None
 

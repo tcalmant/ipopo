@@ -9,14 +9,14 @@ Test package for Pelix
 import logging
 
 
-def log_on():
+def log_on() -> None:
     """
     Enables the logging
     """
     logging.disable(logging.NOTSET)
 
 
-def log_off():
+def log_off() -> None:
     """
     Disables the logging
     """

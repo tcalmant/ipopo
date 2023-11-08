@@ -355,7 +355,7 @@ class ErrorHandler(Protocol):
         """
         ...
 
-    def make_exception_page(self, path: str, stack) -> str:
+    def make_exception_page(self, path: str, stack: str) -> str:
         """
         Prepares a page printing an exception stack trace in a 500 error
 
@@ -409,7 +409,7 @@ class HTTPService(Protocol):
         """
         ...
 
-    def get_servlet(self, path: Optional[str]) -> Tuple[Servlet, Dict[str, Any], str]:
+    def get_servlet(self, path: Optional[str]) -> Optional[Tuple[Servlet, Dict[str, Any], str]]:
         """
         Retrieves the servlet matching the given path and its parameters.
         Returns None if no servlet matches the given path.
@@ -428,7 +428,7 @@ class HTTPService(Protocol):
         """
         ...
 
-    def make_exception_page(self, path: str, stack) -> str:
+    def make_exception_page(self, path: str, stack: str) -> str:
         """
         Prepares a page printing an exception stack trace in a 500 error
 

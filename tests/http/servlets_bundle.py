@@ -6,6 +6,8 @@ Bundle defining multiple classes and component factories for HTTP service tests
 :author: Thomas Calmant
 """
 
+from typing import Any, Dict, List, Optional
+
 import pelix.http as http
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides
 
@@ -25,7 +27,7 @@ class SimpleServlet(http.Servlet):
     A simple servlet implementation
     """
 
-    def __init__(self, raiser=False):
+    def __init__(self, raiser: bool = False) -> None:
         """
         Sets up the servlet
 
@@ -33,23 +35,23 @@ class SimpleServlet(http.Servlet):
         """
         self.raiser = raiser
         self.accept = True
-        self.bound = []
-        self.unbound = []
+        self.bound: List[str] = []
+        self.unbound: List[str] = []
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Resets the servlet data
         """
         del self.bound[:]
         del self.unbound[:]
 
-    def accept_binding(self, path, params):
+    def accept_binding(self, path: str, params: Dict[str, Any]) -> bool:
         """
         Tests if the HTTP server can be accepted
         """
         return self.accept
 
-    def bound_to(self, path, params):
+    def bound_to(self, path: str, params: Dict[str, Any]) -> bool:
         """
         Servlet bound to a path
         """
@@ -60,7 +62,7 @@ class SimpleServlet(http.Servlet):
 
         return True
 
-    def unbound_from(self, path, params):
+    def unbound_from(self, path: str, params: Dict[str, Any]) -> None:
         """
         Servlet unbound from a path
         """
@@ -71,7 +73,9 @@ class SimpleServlet(http.Servlet):
 
         return None
 
-    def do_GET(self, request, response):
+    def do_GET(
+        self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse
+    ) -> None:
         """
         Handle a GET
         """
@@ -95,7 +99,9 @@ class SimpleServlet(http.Servlet):
 
         response.send_content(200, content)
 
-    def do_POST(self, request, response):
+    def do_POST(
+        self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse
+    ) -> None:
         """
         Handle a GET
         """
@@ -114,15 +120,15 @@ class SimpleServletFactory(SimpleServlet):
     Simple servlet factory (same as SimpleServlet)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Set up the component
         """
         SimpleServlet.__init__(self, False)
-        self._path = None
+        self._path: Optional[str] = None
         self._raiser = False
 
-    def change(self, new_path):
+    def change(self, new_path: str) -> None:
         """
         Change the registration path
         """
