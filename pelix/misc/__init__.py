@@ -143,7 +143,7 @@ class LogListener(Protocol):
     Specification of log listener
     """
 
-    __SPECIFICATION__ = "pelix.log.listener"
+    __SPECIFICATION__:str = "pelix.log.listener"
 
     def logged(self, entry: LogEntry) -> None:
         """
@@ -158,7 +158,7 @@ class LogReader(Protocol):
     Specification of a log reader service
     """
 
-    __SPECIFICATION__ = LOG_READER_SERVICE
+    __SPECIFICATION__:str = LOG_READER_SERVICE
 
     def add_log_listener(self, listener: LogListener) -> None:
         """
@@ -201,7 +201,7 @@ class LogService(Protocol):
     Specification of the Log service
     """
 
-    __SPECIFICATION__ = LOG_SERVICE
+    __SPECIFICATION__:str = LOG_SERVICE
 
     def log(
         self,

@@ -275,7 +275,7 @@ class IConfigurationAdmin(Protocol):
     Specification of the configuration admin service
     """
 
-    __SPECIFICATION__ = SERVICE_CONFIGURATION_ADMIN
+    __SPECIFICATION__:str = SERVICE_CONFIGURATION_ADMIN
 
     def create_factory_configuration(self, factory_pid: str) -> Configuration:
         """
@@ -328,7 +328,7 @@ class IConfigurationAdminPersistence(Protocol):
     Specification of a configuration admin persistence service
     """
 
-    __SPECIFICATION__ = SERVICE_CONFIGADMIN_PERSISTENCE
+    __SPECIFICATION__:str = SERVICE_CONFIGADMIN_PERSISTENCE
 
     def get_pids(self) -> Iterable[str]:
         """
@@ -366,7 +366,7 @@ class IManagedService(Protocol):
     Specification of a service managed by configuration admin
     """
 
-    __SPECIFICATION__ = SERVICE_CONFIGADMIN_MANAGED
+    __SPECIFICATION__:str = SERVICE_CONFIGADMIN_MANAGED
 
     def updated(self, properties: Optional[Dict[str, Any]]) -> None:
         """
@@ -380,7 +380,7 @@ class IManagedServiceFactory(Protocol):
     Specification of a managed service factory
     """
 
-    __SPECIFICATION__ = SERVICE_CONFIGADMIN_MANAGED_FACTORY
+    __SPECIFICATION__:str = SERVICE_CONFIGADMIN_MANAGED_FACTORY
 
     def get_name(self) -> str:
         """
@@ -418,7 +418,7 @@ class FileInstallListener(Protocol):
     Specification of the FileInstall listener service
     """
 
-    __SPECIFICATION__ = SERVICE_FILEINSTALL_LISTENERS
+    __SPECIFICATION__:str = SERVICE_FILEINSTALL_LISTENERS
 
     def folder_change(
         self, folder: str, added: Iterable[str], updated: Iterable[str], deleted: Iterable[str]
@@ -439,7 +439,7 @@ class FileInstall(Protocol):
     Specification of the FileInstall service
     """
 
-    __SPECIFICATION__ = SERVICE_FILEINSTALL
+    __SPECIFICATION__:str = SERVICE_FILEINSTALL
 
     def add_listener(self, folder: str, listener: FileInstallListener) -> bool:
         """
@@ -485,7 +485,7 @@ class MqttConnectorFactory(Protocol):
     Specification of an MQTT connector factory
     """
 
-    __SPECIFICATION__ = SERVICE_MQTT_CONNECTOR_FACTORY
+    __SPECIFICATION__:str = SERVICE_MQTT_CONNECTOR_FACTORY
 
     def publish(
         self, topic: str, payload: bytes, qos: int = 0, retain: bool = False, pid: Optional[str] = None
@@ -508,7 +508,7 @@ class MqttListener(Protocol):
     Specification of an MQTT listener
     """
 
-    __SPECIFICATION__ = SERVICE_MQTT_LISTENER
+    __SPECIFICATION__:str = SERVICE_MQTT_LISTENER
 
     def handle_mqtt_message(self, topic: str, payload: bytes, qos: int) -> None:
         """

@@ -26,7 +26,7 @@ Defines some iPOPO constants
 """
 
 import contextlib
-from typing import TYPE_CHECKING, Generator, Optional, Tuple
+from typing import TYPE_CHECKING, Generator, Optional, Tuple, cast
 
 from pelix.constants import BundleException
 
@@ -196,7 +196,7 @@ def get_ipopo_svc_ref(
     :return: The reference to the iPOPO service and the service itself, None if not available
     """
     # Look after the service
-    ref = bundle_context.get_service_reference(SERVICE_IPOPO)
+    ref = cast("ServiceReference[IPopoService]", bundle_context.get_service_reference(SERVICE_IPOPO))
     if ref is None:
         return None
 

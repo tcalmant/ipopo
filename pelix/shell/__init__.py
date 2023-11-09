@@ -250,7 +250,7 @@ class ShellReport(Protocol):
     Specification of the shell report service
     """
 
-    __SPECIFICATION__ = SERVICE_SHELL_REPORT
+    __SPECIFICATION__:str = SERVICE_SHELL_REPORT
 
     def get_levels(self) -> Set[str]:
         """

@@ -487,7 +487,7 @@ class _MqttConnection:
     Represents a connection to an MQTT server
     """
 
-    __SPECIFICATION__ = services.SERVICE_MQTT_CONNECTION
+    __SPECIFICATION__:str = services.SERVICE_MQTT_CONNECTION
 
     def __init__(self, connection: paho.Client):
         """
