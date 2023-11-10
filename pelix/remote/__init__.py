@@ -25,6 +25,12 @@ Pelix remote services package
     limitations under the License.
 """
 
+from typing import Any, Dict, Iterable, List, Optional, Protocol, Tuple, Union
+
+import pelix.http
+from pelix.internals.registry import ServiceReference
+from pelix.remote.beans import ExportEndpoint, ImportEndpoint
+
 # Module version
 __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -242,3 +248,230 @@ class RemoteServiceError(Exception):
     """
 
     pass
+
+
+class RemoteServiceRegistry(Protocol):
+    """
+    Specification of the remote service registry
+    """
+
+    __SPECIFICATION__: str = SERVICE_REGISTRY
+
+    def add(self, endpoint: ImportEndpoint) -> bool:
+        """
+        Registers an end point and notifies listeners. Does nothing if the
+        endpoint UID was already known.
+
+        :param endpoint: An :class:`~pelix.remote.beans.ImportEndpoint` object
+        :return: True if the end point has been added
+        """
+        ...
+
+    def update(self, uid: str, new_properties: Dict[str, Any]) -> bool:
+        """
+        Updates an end point and notifies listeners
+
+        :param uid: The UID of the end point
+        :param new_properties: The new properties of the end point
+        :return: True if the endpoint is known, else False
+        """
+        ...
+
+    def contains(self, endpoint: Union[str, ImportEndpoint]) -> bool:
+        """
+        Checks if an endpoint is in the registry
+
+        :param endpoint: An endpoint UID or an :class:`~pelix.remote.beans.ImportEndpoint` object
+        :return: True if the endpoint is known, else False
+        """
+        ...
+
+    def remove(self, uid: str) -> bool:
+        """
+        Unregisters an end point and notifies listeners
+
+        :param uid: The UID of the end point to unregister
+        :return: True if the endpoint was known
+        """
+        ...
+
+    def lost_framework(self, uid: Optional[str]) -> None:
+        """
+        Unregisters all the end points associated to the given framework UID
+
+        :param uid: The UID of a framework
+        """
+        ...
+
+
+class RemoteServiceDispatcher(Protocol):
+    """
+    Remote service dispatcher
+    """
+
+    __SPECIFICATION__: str = SERVICE_DISPATCHER
+
+    def get_endpoints(self, kind: Optional[str] = None, name: Optional[str] = None) -> List[ExportEndpoint]:
+        """
+        Retrieves all end points matching the given kind and/or name
+
+        :param kind: A kind of end point
+        :param name: The name of the end point
+        :return: A list of :class:`~pelix.remote.beans.ExportEndpoint` matching the parameters
+        """
+        ...
+
+    def get_endpoint(self, uid: str) -> Optional[ExportEndpoint]:
+        """
+        Return an exported endpoint
+        """
+        ...
+
+
+class RemoteServiceDispatcherServlet(pelix.http.Servlet, Protocol):
+    """
+    Remote service dispatcher servlet
+    """
+
+    __SPECIFICATION__: str = SERVICE_DISPATCHER_SERVLET
+
+    def get_access(self) -> Optional[Tuple[int, str]]:
+        """
+        Returns the port and path to access this servlet with the first
+        bound HTTP service.
+        Returns None if this servlet is still not bound to a server
+
+        :return: A tuple: (port, path) or None
+        """
+        ...
+
+    def send_discovered(self, host: str, port: int, path: str) -> bool:
+        """
+        Sends a "discovered" HTTP POST request to the dispatcher servlet of the
+        framework that has been discovered
+
+        :param host: The address of the sender
+        :param port: Port of the HTTP server of the sender
+        :param path: Path of the dispatcher servlet
+        :return: True if the request has been handled by the peer
+        """
+        ...
+
+    def grab_endpoint(self, host: str, port: int, path: str, uid: str) -> Optional[ImportEndpoint]:
+        """
+        Retrieves the description of the end point with the given UID from the
+        given dispatcher servlet.
+        Returns an ImportEndpoint bean, or None in case of error.
+        Does not register the end point.
+
+        :param host: Dispatcher host address
+        :param port: Dispatcher HTTP service port
+        :param path: Path to the dispatcher servlet
+        :param uid: The UID of an end point
+        :return: An ImportEndpoint bean or None
+        """
+        ...
+
+
+class RemoteServiceExportProvider(Protocol):
+    """
+    Remote service exporter
+    """
+
+    __SPECIFICATION__: str = SERVICE_EXPORT_PROVIDER
+
+    def handles(self, configs: Iterable[str]) -> bool:
+        """
+        Checks if this provider handles the given configuration types
+
+        :param configurations: Configuration types
+        """
+        ...
+
+    def export_service(
+        self, svc_ref: ServiceReference[Any], name: str, fw_uid: Optional[str]
+    ) -> Optional[ExportEndpoint]:
+        """
+        Prepares an export endpoint
+
+        :param svc_ref: Service reference
+        :param name: Endpoint name
+        :param fw_uid: Framework UID
+        :return: An ExportEndpoint bean
+        :raise NameError: Already known name
+        :raise BundleException: Error getting the service
+        """
+        ...
+
+    def update_export(
+        self, endpoint: ExportEndpoint, new_name: str, old_properties: Optional[Dict[str, Any]]
+    ) -> None:
+        """
+        Updates an export endpoint
+
+        :param endpoint: An ExportEndpoint bean
+        :param new_name: Future endpoint name
+        :param old_properties: Previous properties
+        :raise NameError: Rename refused
+        """
+        ...
+
+    def unexport_service(self, endpoint: ExportEndpoint) -> None:
+        """
+        Deletes an export endpoint
+
+        :param endpoint: An ExportEndpoint bean
+        """
+        ...
+
+
+class RemoteServiceExportEndpointListener(Protocol):
+    """
+    Remote service export endpoint listener
+    """
+
+    __SPECIFICATION__: str = SERVICE_EXPORT_ENDPOINT_LISTENER
+
+    def endpoints_added(self, endpoints: List[ExportEndpoint]) -> None:
+        """
+        Notification of new remote service export endpoints
+        """
+        ...
+
+    def endpoint_updated(self, endpoint: ExportEndpoint, old_properties: Optional[Dict[str, Any]]) -> None:
+        """
+        Notification of the update of an endpoint of an an exported service
+        """
+        ...
+
+    def endpoint_removed(self, endpoint: ExportEndpoint) -> None:
+        """
+        Notification of the removal of an endpoint of an an exported service
+        """
+        ...
+
+
+class RemoteServiceImportEndpointListener(Protocol):
+    """
+    Remote service import endpoint listener
+    """
+
+    __SPECIFICATION__: str = SERVICE_IMPORT_ENDPOINT_LISTENER
+
+    def endpoint_added(self, endpoint: ImportEndpoint) -> None:
+        """
+        Notification of new imported remote service endpoint
+        """
+        ...
+
+    def endpoint_updated(self, endpoint: ImportEndpoint, old_properties: Optional[Dict[str, Any]]) -> None:
+        """
+        Notification of the removal of a remote service
+        """
+        ...
+
+    def endpoint_removed(self, endpoint: ImportEndpoint) -> None:
+        """
+        Notification of the removal of a remote service endpoint
+        """
+        ...

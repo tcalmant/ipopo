@@ -25,34 +25,21 @@ Pelix Remote Services: Java-compatible RPC, based on the Jabsorb library
     limitations under the License.
 """
 
-# Standard library
 import logging
+from typing import Any, Callable, Dict, Iterable, Optional, Union
 
-# JSON-RPC
-from jsonrpclib.SimpleJSONRPCServer import (
-    SimpleJSONRPCDispatcher,
-    NoMulticallResult,
-)
 import jsonrpclib.jsonrpc as jsonrpclib
+from jsonrpclib.SimpleJSONRPCServer import NoMulticallResult, SimpleJSONRPCDispatcher
 
-# Jabsorb conversion
-import pelix.misc.jabsorb as jabsorb
-
-# iPOPO Decorators
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Provides,
-    Validate,
-    Invalidate,
-    Requires,
-    Property,
-)
-
-# Pelix constants
-from pelix.utilities import to_str
 import pelix.http
+import pelix.misc.jabsorb as jabsorb
 import pelix.remote
 import pelix.remote.transport.commons as commons
+from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceReference
+from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
+from pelix.remote.beans import ImportEndpoint
+from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
 
@@ -68,10 +55,10 @@ __version__ = ".".join(str(x) for x in __version_info__)
 JABSORB_CONFIG = "ecf.jabsorb"
 """ Remote Service configuration constant """
 
-PROP_JABSORB_ENDPOINT_NAME = "{0}.name".format(JABSORB_CONFIG)
+PROP_JABSORB_ENDPOINT_NAME = f"{JABSORB_CONFIG}.name"
 """ Name of the endpoint """
 
-PROP_HTTP_ACCESSES = "{0}.accesses".format(JABSORB_CONFIG)
+PROP_HTTP_ACCESSES = f"{JABSORB_CONFIG}.accesses"
 """ HTTP accesses (comma-separated String) """
 
 HOST_SERVLET_PATH = "/JABSORB-RPC"
@@ -88,7 +75,11 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
     converting data from and to Jabsorb format.
     """
 
-    def __init__(self, dispatch_method, encoding=None):
+    def __init__(
+        self,
+        dispatch_method: Callable[[str, Union[Iterable[Any], Dict[str, Any]]], Any],
+        encoding: Optional[str] = None,
+    ) -> None:
         """
         Sets up the servlet
         """
@@ -100,7 +91,7 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
         # Make a link to the dispatch method
         self._dispatch_method = dispatch_method
 
-    def _simple_dispatch(self, name, params):
+    def _simple_dispatch(self, name: str, params: Union[Iterable[Any], Dict[str, Any]]) -> Any:
         """
         Dispatch method
         """
@@ -121,7 +112,9 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
         # an exception state (logs will consider the KeyError as a failure)
         return self._dispatch_method(name, params)
 
-    def do_POST(self, request, response):
+    def do_POST(
+        self, request: pelix.http.AbstractHTTPServletRequest, response: pelix.http.AbstractHTTPServletResponse
+    ) -> None:
         # pylint: disable=C0103
         """
         Handle a POST request
@@ -136,6 +129,7 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
         data = jabsorb.from_jabsorb(data)
 
         # Dispatch
+        result: Any
         try:
             result = self._unmarshaled_dispatch(data, self._simple_dispatch)
         except NoMulticallResult:
@@ -161,8 +155,8 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
 
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_JABSORBRPC_EXPORTER)
-@Provides(pelix.remote.SERVICE_EXPORT_PROVIDER)
-@Requires("_http", pelix.http.HTTP_SERVICE)
+@Provides(pelix.remote.RemoteServiceExportProvider)
+@Requires("_http", pelix.http.HTTPService)
 @Property("_path", pelix.http.HTTP_SERVLET_PATH, HOST_SERVLET_PATH)
 @Property(
     "_kinds",
@@ -174,24 +168,24 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
     JABSORB-RPC Remote Services exporter
     """
 
-    def __init__(self):
+    _http: pelix.http.HTTPService
+
+    def __init__(self) -> None:
         """
         Sets up the exporter
         """
         # Call parent
         super(JabsorbRpcServiceExporter, self).__init__()
 
-        # Supported configurations
-        self._kinds = None
-
         # HTTP Service
-        self._http = None
-        self._path = None
+        self._path = ""
 
         # JSON-RPC servlet
-        self._servlet = None
+        self._servlet: Optional[pelix.http.Servlet] = None
 
-    def make_endpoint_properties(self, svc_ref, name, fw_uid):
+    def make_endpoint_properties(
+        self, svc_ref: ServiceReference[Any], name: str, fw_uid: Optional[str]
+    ) -> Dict[str, Any]:
         """
         Prepare properties for the ExportEndpoint to be created
 
@@ -214,7 +208,7 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
             PROP_HTTP_ACCESSES: self.get_accesses(),
         }
 
-    def get_accesses(self):
+    def get_accesses(self) -> str:
         """
         Retrieves the URLs to access this component as a comma-separated list.
         The first URL contains a '{server}' variable
@@ -223,17 +217,15 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
         host, port = self._http.get_access()
         if ":" in host:
             # IPv6 address
-            host = "[{0}]".format(host)
+            host = f"[{host}]"
 
         # Return two accesses: with a {server} variable and with the
         # bound address
-        model = "http{2}://{{server}}:{0}{1}".format(
-            port, self._path, "s" if self._http.is_https() else ""
-        )
+        model = "http{2}://{{server}}:{0}{1}".format(port, self._path, "s" if self._http.is_https() else "")
         return ",".join((model, model.format(server=host)))
 
     @Validate
-    def validate(self, context):
+    def validate(self, context: BundleContext) -> None:
         """
         Component validated
         """
@@ -242,10 +234,11 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
         # Create/register the servlet
         self._servlet = _JabsorbRpcServlet(self.dispatch)
+        self._path = self._path or ""
         self._http.register_servlet(self._path, self._servlet)
 
     @Invalidate
-    def invalidate(self, context):
+    def invalidate(self, context: BundleContext) -> None:
         """
         Component invalidated
         """
@@ -262,13 +255,13 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
 # ------------------------------------------------------------------------------
 
 
-class _ServiceCallProxy(object):
+class _ServiceCallProxy:
     # pylint: disable=R0903
     """
     Service call proxy
     """
 
-    def __init__(self, name, url):
+    def __init__(self, name: str, url: str) -> None:
         """
         Sets up the call proxy
 
@@ -278,7 +271,7 @@ class _ServiceCallProxy(object):
         self.__name = name
         self.__url = url
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """
         Prefixes the requested attribute name by the endpoint name
         """
@@ -288,18 +281,16 @@ class _ServiceCallProxy(object):
         # it means sending a request before retrieving a result
         proxy = jsonrpclib.ServerProxy(self.__url)
 
-        def wrapped_call(*args, **kwargs):
+        def wrapped_call(*args: Any, **kwargs: Any) -> Any:
             """
             Wrapped call
             """
             # Get the method from the proxy
-            method = getattr(proxy, "{0}.{1}".format(self.__name, name))
+            method = getattr(proxy, f"{self.__name}.{name}")
 
             # Convert arguments
-            args = [jabsorb.to_jabsorb(arg) for arg in args]
-            kwargs = {
-                key: jabsorb.to_jabsorb(value) for key, value in kwargs.items()
-            }
+            args = tuple(jabsorb.to_jabsorb(arg) for arg in args)
+            kwargs = {key: jabsorb.to_jabsorb(value) for key, value in kwargs.items()}
 
             result = method(*args, **kwargs)
             return jabsorb.from_jabsorb(result)
@@ -311,7 +302,7 @@ class _ServiceCallProxy(object):
 
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_JABSORBRPC_IMPORTER)
-@Provides(pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER)
+@Provides(pelix.remote.RemoteServiceImportEndpointListener)
 @Property(
     "_kinds",
     pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
@@ -322,17 +313,7 @@ class JabsorbRpcServiceImporter(commons.AbstractRpcServiceImporter):
     JABSORB-RPC Remote Services importer
     """
 
-    def __init__(self):
-        """
-        Sets up the exporter
-        """
-        # Call parent
-        super(JabsorbRpcServiceImporter, self).__init__()
-
-        # Component properties
-        self._kinds = None
-
-    def make_service_proxy(self, endpoint):
+    def make_service_proxy(self, endpoint: ImportEndpoint) -> Any:
         """
         Creates the proxy for the given ImportEndpoint
 
@@ -366,7 +347,7 @@ class JabsorbRpcServiceImporter(commons.AbstractRpcServiceImporter):
         # Prepare the proxy
         return _ServiceCallProxy(name, access_url)
 
-    def clear_service_proxy(self, endpoint):
+    def clear_service_proxy(self, endpoint: ImportEndpoint) -> None:
         """
         Destroys the proxy made for the given ImportEndpoint
 

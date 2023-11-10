@@ -28,17 +28,18 @@ Pelix remote services: Abstract RPC implementation
 * "system" methods (list, help, ...)
 """
 
-# Standard library
+from abc import abstractmethod
+import abc
 import logging
 import threading
 import uuid
+from typing import Any, Dict, Iterable, List, Optional, Union
 
-# iPOPO decorators
-from pelix.ipopo.decorators import Validate, Invalidate, Property, Provides
-
-# Pelix constants
 import pelix.constants as constants
 import pelix.remote.beans
+from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceReference, ServiceRegistration
+from pelix.ipopo.decorators import Invalidate, Property, Provides, Validate
 from pelix.remote import RemoteServiceError
 
 # ------------------------------------------------------------------------------
@@ -50,40 +51,37 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-# ------------------------------------------------------------------------------
-
-_logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
 
-@Provides(pelix.remote.SERVICE_EXPORT_PROVIDER)
+@Provides(pelix.remote.RemoteServiceExportProvider)
 @Property("_kinds", pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED)
-class AbstractRpcServiceExporter(object):
+class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
     """
     Abstract Remote Services exporter
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up the exporter
         """
         # Bundle context
-        self._context = None
+        self._context: Optional[BundleContext] = None
 
         # Framework UID
-        self._framework_uid = None
+        self._framework_uid: Optional[str] = None
 
         # Handled configurations
-        self._kinds = []
+        self._kinds: List[str] = []
 
         # Exported services: Name -> ExportEndpoint
-        self.__endpoints = {}
+        self.__endpoints: Dict[str, pelix.remote.beans.ExportEndpoint] = {}
 
         # Thread safety
         self.__lock = threading.Lock()
 
-    def dispatch(self, method, params):
+    def dispatch(self, method: str, params: Union[Iterable[Any], Dict[str, Any]]) -> Any:
         """
         Called by the servlet: calls the method of an exported service
         """
@@ -98,9 +96,7 @@ class AbstractRpcServiceExporter(object):
 
         if matching is None:
             # No end point name match
-            raise RemoteServiceError(
-                "No end point found for: {0}".format(method)
-            )
+            raise RemoteServiceError(f"No end point found for: {method}")
 
         # Extract the method name. (+1 for the trailing dot)
         method_name = method[len_found + 1 :]
@@ -109,12 +105,12 @@ class AbstractRpcServiceExporter(object):
         try:
             service = self.__endpoints[matching].instance
         except KeyError:
-            raise RemoteServiceError("Unknown endpoint: {0}".format(matching))
+            raise RemoteServiceError(f"Unknown endpoint: {matching}")
 
         # Get the method
         method_ref = getattr(service, method_name, None)
         if method_ref is None:
-            raise RemoteServiceError("Unknown method {0}".format(method))
+            raise RemoteServiceError(f"Unknown method {method}")
 
         # Call it (let the errors be propagated)
         if isinstance(params, (list, tuple)):
@@ -122,7 +118,7 @@ class AbstractRpcServiceExporter(object):
 
         return method_ref(**params)
 
-    def handles(self, configurations):
+    def handles(self, configurations: Union[None, str, Iterable[str]]) -> bool:
         """
         Checks if this provider handles the given configuration types
 
@@ -134,7 +130,9 @@ class AbstractRpcServiceExporter(object):
 
         return bool(set(configurations).intersection(self._kinds))
 
-    def export_service(self, svc_ref, name, fw_uid):
+    def export_service(
+        self, svc_ref: ServiceReference[Any], name: str, fw_uid: Optional[str]
+    ) -> Optional[pelix.remote.beans.ExportEndpoint]:
         """
         Prepares an export endpoint
 
@@ -146,6 +144,8 @@ class AbstractRpcServiceExporter(object):
         :raise BundleException: Error getting the service
         """
         with self.__lock:
+            assert self._context is not None
+
             # Prepare extra properties
             extra_props = self.make_endpoint_properties(svc_ref, name, fw_uid)
 
@@ -158,11 +158,7 @@ class AbstractRpcServiceExporter(object):
 
             if name in self.__endpoints:
                 # Already known end point
-                raise NameError(
-                    "Already known end point {0} for kinds {1}".format(
-                        name, ",".join(self._kinds)
-                    )
-                )
+                raise NameError(f"Already known end point {name} for kinds {','.join(self._kinds)}")
 
             # Get the service (let it raise a BundleException if any
             service = self._context.get_service(svc_ref)
@@ -188,8 +184,12 @@ class AbstractRpcServiceExporter(object):
             # Return the endpoint bean
             return endpoint
 
-    def update_export(self, endpoint, new_name, old_properties):
-        # pylint: disable=W0613
+    def update_export(
+        self,
+        endpoint: pelix.remote.beans.ExportEndpoint,
+        new_name: str,
+        old_properties: Optional[Dict[str, Any]],
+    ) -> None:
         """
         Updates an export endpoint
 
@@ -202,11 +202,7 @@ class AbstractRpcServiceExporter(object):
             try:
                 if self.__endpoints[new_name] is not endpoint:
                     # Reject the new name, as an endpoint uses it
-                    raise NameError(
-                        "New name of {0} already used: {1}".format(
-                            endpoint.name, new_name
-                        )
-                    )
+                    raise NameError(f"New name of {endpoint.name} already used: {new_name}")
                 else:
                     # Name hasn't changed
                     pass
@@ -218,13 +214,15 @@ class AbstractRpcServiceExporter(object):
                 # No endpoint matches the new name: update the storage
                 self.__endpoints[new_name] = self.__endpoints.pop(old_name)
 
-    def unexport_service(self, endpoint):
+    def unexport_service(self, endpoint: pelix.remote.beans.ExportEndpoint) -> None:
         """
         Deletes an export endpoint
 
         :param endpoint: An ExportEndpoint bean
         """
         with self.__lock:
+            assert self._context is not None
+
             # Clean up storage
             del self.__endpoints[endpoint.name]
 
@@ -232,7 +230,9 @@ class AbstractRpcServiceExporter(object):
             svc_ref = endpoint.reference
             self._context.unget_service(svc_ref)
 
-    def make_endpoint_properties(self, svc_ref, name, fw_uid):
+    def make_endpoint_properties(
+        self, svc_ref: ServiceReference[Any], name: str, fw_uid: Optional[str]
+    ) -> Dict[str, Any]:
         """
         Prepare properties for the ExportEndpoint to be created
 
@@ -242,12 +242,11 @@ class AbstractRpcServiceExporter(object):
         :return: A dictionary of extra endpoint properties
         """
         raise NotImplementedError(
-            "make_endpoint_properties() not "
-            "implemented by class {0}".format(type(self).__name__)
+            "make_endpoint_properties() not " f"implemented by class {type(self).__name__}"
         )
 
     @Validate
-    def validate(self, context):
+    def validate(self, context: BundleContext) -> None:
         """
         Component validated
         """
@@ -258,7 +257,7 @@ class AbstractRpcServiceExporter(object):
         self._framework_uid = context.get_property(constants.FRAMEWORK_UID)
 
     @Invalidate
-    def invalidate(self, _):
+    def invalidate(self, _: BundleContext) -> None:
         """
         Component invalidated
         """
@@ -273,31 +272,31 @@ class AbstractRpcServiceExporter(object):
 # ------------------------------------------------------------------------------
 
 
-@Provides(pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER)
+@Provides(pelix.remote.RemoteServiceImportEndpointListener)
 @Property("_kinds", pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED)
-class AbstractRpcServiceImporter(object):
+class AbstractRpcServiceImporter(abc.ABC, pelix.remote.RemoteServiceImportEndpointListener):
     """
     Abstract Remote Services importer
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up the exporter
         """
         # Bundle context
-        self._context = None
+        self._context: Optional[BundleContext] = None
 
         # Framework UID
-        self._framework_uid = None
+        self._framework_uid: Optional[str] = None
 
         # Component properties
-        self._kinds = None
+        self._kinds: List[str] = []
 
         # Registered services (endpoint UID -> ServiceReference)
-        self.__registrations = {}
+        self.__registrations: Dict[str, ServiceRegistration[Any]] = {}
         self.__lock = threading.Lock()
 
-    def endpoint_added(self, endpoint):
+    def endpoint_added(self, endpoint: pelix.remote.beans.ImportEndpoint) -> None:
         """
         An end point has been imported
         """
@@ -307,6 +306,8 @@ class AbstractRpcServiceImporter(object):
             return
 
         with self.__lock:
+            assert self._context is not None
+
             if endpoint.uid in self.__registrations:
                 # Already known endpoint
                 return
@@ -317,30 +318,26 @@ class AbstractRpcServiceImporter(object):
                 return
 
             # Register it as a service
-            svc_reg = self._context.register_service(
-                endpoint.specifications, svc, endpoint.properties
-            )
+            svc_reg = self._context.register_service(endpoint.specifications, svc, endpoint.properties)
 
             # Store references
             self.__registrations[endpoint.uid] = svc_reg
 
-    def endpoint_updated(self, endpoint, old_properties):
-        # pylint: disable=W0613
+    def endpoint_updated(
+        self, endpoint: pelix.remote.beans.ImportEndpoint, old_properties: Optional[Dict[str, Any]]
+    ) -> None:
         """
         An end point has been updated
         """
         with self.__lock:
             try:
                 # Update service registration properties
-                self.__registrations[endpoint.uid].set_properties(
-                    endpoint.properties
-                )
-
+                self.__registrations[endpoint.uid].set_properties(endpoint.properties)
             except KeyError:
                 # Unknown end point
                 return
 
-    def endpoint_removed(self, endpoint):
+    def endpoint_removed(self, endpoint: pelix.remote.beans.ImportEndpoint) -> None:
         """
         An end point has been removed
         """
@@ -348,40 +345,34 @@ class AbstractRpcServiceImporter(object):
             try:
                 # Pop reference and unregister the service
                 self.__registrations.pop(endpoint.uid).unregister()
-
             except KeyError:
                 # Unknown end point
                 return
-
             else:
                 # Clear the proxy
                 self.clear_service_proxy(endpoint)
 
-    def make_service_proxy(self, endpoint):
+    @abstractmethod
+    def make_service_proxy(self, endpoint: pelix.remote.beans.ImportEndpoint) -> Any:
         """
         Creates the proxy for the given ImportEndpoint
 
         :param endpoint: An ImportEndpoint bean
         :return: A service proxy
         """
-        raise NotImplementedError(
-            "make_service_proxy() not implemented by "
-            "class {0}".format(type(self).__name__)
-        )
+        ...
 
-    def clear_service_proxy(self, endpoint):
+    @abstractmethod
+    def clear_service_proxy(self, endpoint: pelix.remote.beans.ImportEndpoint) -> None:
         """
         Destroys the proxy made for the given ImportEndpoint
 
         :param endpoint: An ImportEndpoint bean
         """
-        raise NotImplementedError(
-            "clear_service_proxy() not implemented by "
-            "class {0}".format(type(self).__name__)
-        )
+        ...
 
     @Validate
-    def validate(self, context):
+    def validate(self, context: BundleContext) -> None:
         """
         Component validated
         """
@@ -390,7 +381,7 @@ class AbstractRpcServiceImporter(object):
         self._framework_uid = context.get_property(constants.FRAMEWORK_UID)
 
     @Invalidate
-    def invalidate(self, _):
+    def invalidate(self, _: BundleContext) -> None:
         """
         Component invalidated
         """

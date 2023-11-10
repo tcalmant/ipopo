@@ -1675,10 +1675,8 @@ class BundleContext:
         self,
         clazz: Union[
             str,
+            Iterable[Any],
             Type[T],
-            List[Union[str, Type[T]]],
-            Set[Union[str, Type[T]]],
-            Tuple[Union[str, Type[T]], ...],
         ],
         service: T,
         properties: Optional[Dict[str, Any]],

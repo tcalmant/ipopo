@@ -27,42 +27,32 @@ Calls services according to the given method name and parameters
     limitations under the License.
 """
 
-# Standard library
+import http.client as httplib
 import json
 import logging
 import threading
+from typing import Any, Dict, List, Optional, Set, Tuple
+from urllib.parse import urljoin
 
-try:
-    # Python 3
-    # pylint: disable=F0401,E0611
-    from urllib.parse import urljoin
-    import http.client as httplib
-except ImportError:
-    # Python 2 or IronPython
-    # pylint: disable=F0401
-    from urlparse import urljoin
-    import httplib
-
-# iPOPO decorators
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Requires,
-    Provides,
-    BindField,
-    Property,
-    Validate,
-    Invalidate,
-    Instantiate,
-    UnbindField,
-)
-from pelix.utilities import to_str
-
-# Pelix constants
 import pelix.constants
 import pelix.framework
 import pelix.http
 import pelix.remote
 import pelix.remote.beans as beans
+from pelix.internals.events import ServiceEvent
+from pelix.internals.registry import ServiceReference
+from pelix.ipopo.decorators import (
+    BindField,
+    ComponentFactory,
+    Instantiate,
+    Invalidate,
+    Property,
+    Provides,
+    Requires,
+    UnbindField,
+    Validate,
+)
+from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
 
@@ -81,49 +71,46 @@ _logger = logging.getLogger(__name__)
 
 
 @ComponentFactory("pelix-remote-dispatcher-factory")
-@Provides(pelix.remote.SERVICE_DISPATCHER)
-@Requires("_exporters", pelix.remote.SERVICE_EXPORT_PROVIDER, True, True)
+@Provides(pelix.remote.RemoteServiceDispatcher)
+@Requires("_exporters", pelix.remote.RemoteServiceExportProvider, True, True)
 @Requires(
     "_listeners",
-    pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER,
+    pelix.remote.RemoteServiceExportEndpointListener,
     aggregate=True,
     optional=True,
 )
 @Instantiate("pelix-remote-dispatcher")
-class Dispatcher(object):
+class Dispatcher(pelix.remote.RemoteServiceDispatcher):
     """
     Common dispatcher for all exporters
     """
 
-    def __init__(self):
-        # Remote Service providers
-        self._exporters = []
+    # Remote Service providers
+    _exporters: List[pelix.remote.RemoteServiceExportProvider]
 
-        # Injected listeners
-        self._listeners = []
+    # Injected listeners
+    _listeners: List[pelix.remote.RemoteServiceExportEndpointListener]
 
+    def __init__(self) -> None:
         # Bundle context
-        self._context = None
+        self._context: Optional[pelix.framework.BundleContext] = None
 
         # Framework UID
-        self._fw_uid = None
-
-        # Kind -> {Name -> Endpoint}
-        self.__kind_endpoints = {}
+        self._fw_uid: Optional[str] = None
 
         # UID -> Endpoint
-        self.__endpoints = {}
+        self.__endpoints: Dict[str, beans.ExportEndpoint] = {}
         self.__endpoints_lock = threading.Lock()
 
         # UID -> Exporter
-        self.__uid_exporter = {}
+        self.__uid_exporter: Dict[str, pelix.remote.RemoteServiceExportProvider] = {}
 
         # Service Reference -> set(UID)
-        self.__service_uids = {}
+        self.__service_uids: Dict[ServiceReference[Any], Set[str]] = {}
         self.__exporters_lock = threading.Lock()
 
     @Validate
-    def _validate(self, context):
+    def _validate(self, context: pelix.framework.BundleContext) -> None:
         """
         Component validated
         """
@@ -132,22 +119,19 @@ class Dispatcher(object):
         self._context = context
 
         # Prepare the export LDAP filter
-        ldapfilter = "(|({0}=*)({1}=*))".format(
-            pelix.remote.PROP_EXPORTED_CONFIGS,
-            pelix.remote.PROP_EXPORTED_INTERFACES,
-        )
+        ldap = f"(|({pelix.remote.PROP_EXPORTED_CONFIGS}=*)({pelix.remote.PROP_EXPORTED_INTERFACES}=*))"
 
         # Export existing services
-        existing_ref = context.get_all_service_references(None, ldapfilter)
+        existing_ref: Optional[List[ServiceReference[Any]]] = context.get_all_service_references(None, ldap)
         if existing_ref is not None:
             for reference in existing_ref:
                 self.__export_service(reference)
 
         # Register a service listener, to update the exported services state
-        context.add_service_listener(self, ldapfilter)
+        context.add_service_listener(self, ldap)
 
     @Invalidate
-    def _invalidate(self, context):
+    def _invalidate(self, context: pelix.framework.BundleContext) -> None:
         """
         Component invalidated: clean up storage
         """
@@ -157,7 +141,7 @@ class Dispatcher(object):
         self._fw_uid = None
 
     @staticmethod
-    def _compute_endpoint_name(properties):
+    def _compute_endpoint_name(properties: Dict[str, Any]) -> str:
         """
         Computes the end point name according to service properties
 
@@ -166,26 +150,26 @@ class Dispatcher(object):
         """
         name = properties.get(pelix.remote.PROP_ENDPOINT_NAME)
         if not name:
-            name = "service_{0}".format(properties[pelix.constants.SERVICE_ID])
+            name = f"service_{properties[pelix.constants.SERVICE_ID]}"
 
         return name
 
-    def _check_name_reuse(self, name):
+    def _check_name_reuse(self, name: str) -> None:
         """
         Checks if a service was waiting to reuse an endpoint name
 
         :param name: The endpoint name to reuse
         """
-        ldap_filter = "(&({0}={1})(!({2}=*)))".format(
-            pelix.remote.PROP_ENDPOINT_NAME, name, pelix.remote.PROP_IMPORTED
-        )
-        svc_ref = self._context.get_service_reference(None, ldap_filter)
+        assert self._context is not None
+
+        ldap_filter = f"(&({pelix.remote.PROP_ENDPOINT_NAME}={name})(!({pelix.remote.PROP_IMPORTED}=*)))"
+        svc_ref: Optional[ServiceReference[Any]] = self._context.get_service_reference(None, ldap_filter)
         if svc_ref is not None:
             # A service wants to be exported with the given endpoint name
             _logger.debug("Reuse endpoint name %s with %s", name, svc_ref)
             self.__export_service(svc_ref)
 
-    def service_changed(self, event):
+    def service_changed(self, event: ServiceEvent[Any]) -> None:
         """
         Called when a service event is triggered
         """
@@ -193,11 +177,11 @@ class Dispatcher(object):
         svc_ref = event.get_service_reference()
 
         with self.__exporters_lock:
-            if kind == pelix.framework.ServiceEvent.REGISTERED:
+            if kind == ServiceEvent.REGISTERED:
                 # Simply export the service
                 self.__export_service(svc_ref)
 
-            elif kind == pelix.framework.ServiceEvent.MODIFIED:
+            elif kind == ServiceEvent.MODIFIED:
                 # Matching registering or updated service
                 if svc_ref not in self.__service_uids:
                     # New match
@@ -206,18 +190,15 @@ class Dispatcher(object):
                 else:
                     # Properties modification:
                     # Re-export if endpoint.name has changed
-                    self.__update_service(
-                        svc_ref, event.get_previous_properties()
-                    )
+                    self.__update_service(svc_ref, event.get_previous_properties())
 
             elif svc_ref in self.__service_uids and (
-                kind == pelix.framework.ServiceEvent.UNREGISTERING
-                or kind == pelix.framework.ServiceEvent.MODIFIED_ENDMATCH
+                kind == ServiceEvent.UNREGISTERING or kind == ServiceEvent.MODIFIED_ENDMATCH
             ):
                 # Service is updated or unregistering
                 self.__unexport_service(svc_ref)
 
-    def __export_service(self, svc_ref):
+    def __export_service(self, svc_ref: ServiceReference[Any]) -> None:
         """
         Exports the given service using all available matching providers
 
@@ -240,14 +221,9 @@ class Dispatcher(object):
         if not configs or configs == "*":
             # Export with all providers
             exporters = self._exporters[:]
-
         else:
             # Filter exporters
-            exporters = [
-                exporter
-                for exporter in self._exporters[:]
-                if exporter.handles(configs)
-            ]
+            exporters = [exporter for exporter in self._exporters[:] if exporter.handles(configs)]
 
         if not exporters:
             _logger.warning("No exporter for %s", configs)
@@ -273,7 +249,6 @@ class Dispatcher(object):
                 self.__endpoints[uid] = endpoint
                 self.__uid_exporter[uid] = exporter
                 service_uids.add(uid)
-
             except (NameError, pelix.constants.BundleException) as ex:
                 _logger.error("Error exporting service: %s", ex)
 
@@ -286,41 +261,38 @@ class Dispatcher(object):
             for listener in self._listeners[:]:
                 listener.endpoints_added(endpoints)
 
-    def __update_service(self, svc_ref, old_properties):
+    def __update_service(
+        self, svc_ref: ServiceReference[Any], old_properties: Optional[Dict[str, Any]]
+    ) -> None:
         """
         Service updated, notify exporters
         """
         try:
             # Get the UIDs of its endpoints
             uids = self.__service_uids[svc_ref].copy()
-
         except KeyError:
             # No known UID
             return
 
-        names = set()
+        names: Set[str] = set()
         for uid in uids:
             try:
                 # Get its exporter and bean
                 exporter = self.__uid_exporter[uid]
                 endpoint = self.__endpoints[uid]
-
             except KeyError:
                 # No exporter
                 _logger.warning("No exporter for endpoint %s", uid)
 
                 # Remove the UID from the storage
-                self.__service_uids[svc_ref].retain(uid)
-
+                self.__service_uids[svc_ref].discard(uid)
             else:
                 # TODO: check configuration change (can be an unexport)
-
                 # Compute the previous name
                 new_name = self._compute_endpoint_name(svc_ref.get_properties())
 
                 try:
                     exporter.update_export(endpoint, new_name, old_properties)
-
                 except NameError as ex:
                     _logger.error("Error updating service properties: %s", ex)
 
@@ -334,7 +306,6 @@ class Dispatcher(object):
                     if self._listeners:
                         for listener in self._listeners:
                             listener.endpoint_removed(endpoint)
-
                 else:
                     # Call listeners (out of the lock)
                     if self._listeners:
@@ -345,7 +316,7 @@ class Dispatcher(object):
         for name in names:
             self._check_name_reuse(name)
 
-    def __unexport_service(self, svc_ref):
+    def __unexport_service(self, svc_ref: ServiceReference[Any]) -> None:
         """
         Deletes all endpoints for the given service
 
@@ -354,22 +325,19 @@ class Dispatcher(object):
         try:
             # Get the UIDs of its endpoints
             uids = self.__service_uids.pop(svc_ref)
-
         except KeyError:
             # No known UID
             return
 
-        names = set()
+        names: Set[str] = set()
         for uid in uids:
             try:
                 # Remove from storage
                 endpoint = self.__endpoints.pop(uid)
                 exporter = self.__uid_exporter.pop(uid)
-
             except KeyError:
                 # Oops
                 _logger.warning("Trying to remove a lost endpoint (%s)", uid)
-
             else:
                 # Delete endpoint
                 exporter.unexport_service(endpoint)
@@ -380,7 +348,6 @@ class Dispatcher(object):
                     for listener in self._listeners[:]:
                         try:
                             listener.endpoint_removed(endpoint)
-
                         except Exception as ex:
                             _logger.error("Error notifying listener: %s", ex)
 
@@ -389,7 +356,12 @@ class Dispatcher(object):
             self._check_name_reuse(name)
 
     @BindField("_listeners")
-    def _bind_listener(self, field, listener, svc_ref):
+    def _bind_listener(
+        self,
+        field: str,
+        listener: pelix.remote.RemoteServiceExportEndpointListener,
+        svc_ref: ServiceReference[pelix.remote.RemoteServiceExportEndpointListener],
+    ) -> None:
         # pylint: disable=W0613
         """
         Listener bound to the component
@@ -398,14 +370,16 @@ class Dispatcher(object):
         if self.__endpoints:
             try:
                 listener.endpoints_added(list(self.__endpoints.values()))
-
             except Exception as ex:
-                _logger.exception(
-                    "Error notifying newly bound listener: %s", ex
-                )
+                _logger.exception("Error notifying newly bound listener: %s", ex)
 
     @BindField("_exporters", if_valid=True)
-    def _bind_exporter(self, field, exporter, exporter_ref):
+    def _bind_exporter(
+        self,
+        field: str,
+        exporter: pelix.remote.RemoteServiceExportProvider,
+        exporter_ref: ServiceReference[pelix.remote.RemoteServiceExportProvider],
+    ) -> None:
         # pylint: disable=W0613
         """
         Exporter bound
@@ -418,19 +392,18 @@ class Dispatcher(object):
 
                 try:
                     # Create the endpoint
-                    endpoint = exporter.export_service(
-                        svc_ref, name, self._fw_uid
-                    )
+                    endpoint = exporter.export_service(svc_ref, name, self._fw_uid)
+                    if endpoint is None:
+                        _logger.error("No ExportEndpoint created for %s", name)
+                        return
 
                     # Store it
                     uid = endpoint.uid
                     self.__endpoints[uid] = endpoint
                     self.__uid_exporter[uid] = exporter
                     self.__service_uids.setdefault(svc_ref, set()).add(uid)
-
                 except (NameError, pelix.constants.BundleException) as ex:
                     _logger.error("Error exporting service: %s", ex)
-
                 else:
                     # Call listeners (out of the lock)
                     if self._listeners:
@@ -438,7 +411,12 @@ class Dispatcher(object):
                             listener.endpoints_added([endpoint])
 
     @UnbindField("_exporters")
-    def _unbind_exporter(self, field, exporter, svc_ref):
+    def _unbind_exporter(
+        self,
+        field: str,
+        exporter: pelix.remote.RemoteServiceExportProvider,
+        svc_ref: ServiceReference[pelix.remote.RemoteServiceExportProvider],
+    ) -> None:
         # pylint: disable=W0613
         """
         Exporter gone
@@ -447,11 +425,7 @@ class Dispatcher(object):
 
         with self.__exporters_lock:
             # Get the UIDs of all endpoints managed by this exporter
-            uids = [
-                uid
-                for uid, uid_exporter in self.__uid_exporter.items()
-                if uid_exporter is exporter
-            ]
+            uids = [uid for uid, uid_exporter in self.__uid_exporter.items() if uid_exporter is exporter]
 
             # Delete each endpoint
             for uid in uids:
@@ -466,7 +440,6 @@ class Dispatcher(object):
                 # Unexport the service
                 try:
                     exporter.unexport_service(endpoint)
-
                 except Exception as ex:
                     _logger.exception("Error unexporting service: %s", ex)
 
@@ -479,7 +452,7 @@ class Dispatcher(object):
                     except Exception as ex:
                         _logger.error("Error notifying listener: %s", ex)
 
-    def get_endpoint(self, uid):
+    def get_endpoint(self, uid: str) -> Optional[beans.ExportEndpoint]:
         """
         Retrieves an end point description, selected by its UID.
         Returns None if the UID is unknown.
@@ -489,14 +462,15 @@ class Dispatcher(object):
         """
         return self.__endpoints.get(uid)
 
-    def get_endpoints(self, kind=None, name=None):
+    def get_endpoints(
+        self, kind: Optional[str] = None, name: Optional[str] = None
+    ) -> List[beans.ExportEndpoint]:
         """
         Retrieves all end points matching the given kind and/or name
 
         :param kind: A kind of end point
         :param name: The name of the end point
-        :return: A list of :class:`~pelix.remote.beans.ExportEndpoint`
-                 matching the parameters
+        :return: A list of :class:`~pelix.remote.beans.ExportEndpoint` matching the parameters
         """
         with self.__endpoints_lock:
             # Get all endpoints
@@ -504,17 +478,11 @@ class Dispatcher(object):
 
         # Filter by name
         if name:
-            endpoints = [
-                endpoint for endpoint in endpoints if endpoint.name == name
-            ]
+            endpoints = [endpoint for endpoint in endpoints if endpoint.name == name]
 
         # Filter by kind
         if kind:
-            endpoints = [
-                endpoint
-                for endpoint in endpoints
-                if kind in endpoint.configurations
-            ]
+            endpoints = [endpoint for endpoint in endpoints if kind in endpoint.configurations]
 
         return endpoints
 
@@ -523,41 +491,41 @@ class Dispatcher(object):
 
 
 @ComponentFactory(pelix.remote.FACTORY_REGISTRY_SERVLET)
-@Provides(pelix.http.HTTP_SERVLET)
-@Provides(pelix.remote.SERVICE_DISPATCHER_SERVLET, "_controller")
-@Requires("_dispatcher", pelix.remote.SERVICE_DISPATCHER)
-@Requires("_registry", pelix.remote.SERVICE_REGISTRY)
+@Provides(pelix.http.Servlet)
+@Provides(pelix.remote.RemoteServiceDispatcherServlet, "_controller")
+@Requires("_dispatcher", pelix.remote.RemoteServiceDispatcher)
+@Requires("_registry", pelix.remote.RemoteServiceRegistry)
 @Property("_path", pelix.http.HTTP_SERVLET_PATH, "/pelix-dispatcher")
-class RegistryServlet(object):
+class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
     """
     Servlet to access the content of the registry
     """
 
-    def __init__(self):
+    # The dispatcher
+    _dispatcher: pelix.remote.RemoteServiceDispatcher
+
+    # The imported services registry
+    _registry: pelix.remote.RemoteServiceRegistry
+
+    def __init__(self) -> None:
         """
         Sets up members
         """
         # The framework UID
-        self._fw_uid = None
-
-        # The dispatcher
-        self._dispatcher = None
-
-        # The imported services registry
-        self._registry = None
+        self._fw_uid: Optional[str] = None
 
         # Controller for the provided service:
         # => activate only if bound to a server
-        self._controller = False
+        self._controller: bool = False
 
         # Servlet path property
-        self._path = None
+        self._path: str = ""
 
         # Ports of exposing servers
-        self._ports = []
+        self._ports: List[int] = []
 
     @Validate
-    def _validate(self, context):
+    def _validate(self, context: pelix.framework.BundleContext) -> None:
         """
         Component validated
         """
@@ -565,16 +533,12 @@ class RegistryServlet(object):
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
         # Normalize the path
-        self._path = "/{0}/".format(
-            "/".join(part for part in self._path.split("/") if part)
-        )
+        self._path = f"/{'/'.join(part for part in (self._path or '').split('/') if part)}/"
 
-        _logger.debug(
-            "Dispatcher servlet for %s on %s", self._fw_uid, self._path
-        )
+        _logger.debug("Dispatcher servlet for %s on %s", self._fw_uid, self._path)
 
     @Invalidate
-    def _invalidate(self, _):
+    def _invalidate(self, _: pelix.framework.BundleContext) -> None:
         """
         Component invalidated
         """
@@ -582,7 +546,7 @@ class RegistryServlet(object):
         self._fw_uid = None
 
     @staticmethod
-    def __grab_data(host, port, path):
+    def __grab_data(host: str, port: int, path: str) -> Optional[Any]:
         """
         Sends a HTTP request to the server at (host, port), on the given path.
         Returns the parsed response.
@@ -609,17 +573,14 @@ class RegistryServlet(object):
             return None
 
         try:
-            # Convert the response to a string
-            data = to_str(data)
             # Parse the JSON result
             return json.loads(data)
         except ValueError as ex:
             # Error parsing data
-            _logger.error(
-                "Error reading the response of the dispatcher: %s", ex
-            )
+            _logger.error("Error reading the response of the dispatcher: %s", ex)
+            return None
 
-    def _make_endpoint_dict(self, endpoint):
+    def _make_endpoint_dict(self, endpoint: beans.ExportEndpoint) -> Dict[str, Any]:
         """
         Converts the end point into a dictionary
 
@@ -637,7 +598,9 @@ class RegistryServlet(object):
         }
 
     @staticmethod
-    def _make_endpoint_bean(endpoint_dict, host=None):
+    def _make_endpoint_bean(
+        endpoint_dict: Dict[str, Any], host: Optional[str] = None
+    ) -> beans.ImportEndpoint:
         """
         Converts an endpoint dictionary into an ImportEndpoint bean
 
@@ -646,7 +609,7 @@ class RegistryServlet(object):
         :return: An ImportEndpoint bean
         """
         # Create the end point bean
-        endpoint = pelix.remote.beans.ImportEndpoint(
+        endpoint = beans.ImportEndpoint(
             endpoint_dict["uid"],
             endpoint_dict["sender"],
             endpoint_dict["configurations"],
@@ -659,7 +622,7 @@ class RegistryServlet(object):
         endpoint.server = host
         return endpoint
 
-    def bound_to(self, path, parameters):
+    def bound_to(self, path: str, parameters: Dict[str, Any]) -> None:
         # pylint: disable=W0613
         """
         This servlet has been bound to a server
@@ -675,7 +638,7 @@ class RegistryServlet(object):
             # Activate the service, we're bound to a server
             self._controller = True
 
-    def unbound_from(self, path, parameters):
+    def unbound_from(self, path: str, parameters: Dict[str, Any]) -> None:
         # pylint: disable=W0613
         """
         This servlet has been unbound from a server
@@ -692,7 +655,9 @@ class RegistryServlet(object):
             if not self._ports:
                 self._controller = False
 
-    def do_GET(self, request, response):
+    def do_GET(
+        self, request: pelix.http.AbstractHTTPServletRequest, response: pelix.http.AbstractHTTPServletResponse
+    ) -> None:
         """
         Handles a GET request
 
@@ -707,6 +672,7 @@ class RegistryServlet(object):
         path_parts = path_parts[len(servlet_parts) :]
         action = path_parts[0]
 
+        data: Any
         if action == "framework":
             # /framework: return the framework UID, let it be converted as a
             # JSON string
@@ -717,9 +683,7 @@ class RegistryServlet(object):
             if not endpoints:
                 data = []
             else:
-                data = [
-                    self._make_endpoint_dict(endpoint) for endpoint in endpoints
-                ]
+                data = [self._make_endpoint_dict(endpoint) for endpoint in endpoints]
         elif action == "endpoint":
             # /endpoint/<uid>: specific end point
             try:
@@ -731,9 +695,7 @@ class RegistryServlet(object):
                 endpoint = None
 
             if endpoint is None:
-                response.send_content(
-                    404, "Unknown UID: {0}".format(uid), "text/plain"
-                )
+                response.send_content(404, f"Unknown UID: {uid}", "text/plain")
                 return
             else:
                 data = self._make_endpoint_dict(endpoint)
@@ -741,7 +703,7 @@ class RegistryServlet(object):
             # Unknown
             response.send_content(
                 404,
-                "Unhandled path {0}".format(request.get_path()),
+                f"Unhandled path {request.get_path()}",
                 "text/plain",
             )
             return
@@ -752,7 +714,9 @@ class RegistryServlet(object):
         # Send the result
         response.send_content(200, data, "application/json")
 
-    def do_POST(self, request, response):
+    def do_POST(
+        self, request: pelix.http.AbstractHTTPServletRequest, response: pelix.http.AbstractHTTPServletResponse
+    ) -> None:
         """
         Handles a POST request
 
@@ -777,7 +741,7 @@ class RegistryServlet(object):
         # We got the end points
         response.send_content(200, "OK", "text/plain")
 
-    def get_access(self):
+    def get_access(self) -> Optional[Tuple[int, str]]:
         """
         Returns the port and path to access this servlet with the first
         bound HTTP service.
@@ -790,7 +754,7 @@ class RegistryServlet(object):
 
         return None
 
-    def grab_endpoint(self, host, port, path, uid):
+    def grab_endpoint(self, host: str, port: int, path: str, uid: str) -> Optional[beans.ImportEndpoint]:
         """
         Retrieves the description of the end point with the given UID from the
         given dispatcher servlet.
@@ -807,7 +771,7 @@ class RegistryServlet(object):
         if path[-1] == "/":
             path = path[:-1]
 
-        request_path = "{0}/endpoint/{1}".format(path, uid)
+        request_path = f"{path}/endpoint/{uid}"
 
         # Get the endpoint description
         endpoint_dict = self.__grab_data(host, port, request_path)
@@ -818,7 +782,7 @@ class RegistryServlet(object):
         # Create the end point bean
         return self._make_endpoint_bean(endpoint_dict, host)
 
-    def send_discovered(self, host, port, path):
+    def send_discovered(self, host: str, port: int, path: str) -> bool:
         """
         Sends a "discovered" HTTP POST request to the dispatcher servlet of the
         framework that has been discovered
@@ -829,10 +793,7 @@ class RegistryServlet(object):
         :return: True if the request has been handled by the peer
         """
         # Get the end points from the dispatcher
-        endpoints = [
-            self._make_endpoint_dict(endpoint)
-            for endpoint in self._dispatcher.get_endpoints()
-        ]
+        endpoints = [self._make_endpoint_dict(endpoint) for endpoint in self._dispatcher.get_endpoints()]
 
         # Make the path to /endpoints
         if path[-1] != "/":
@@ -863,8 +824,7 @@ class RegistryServlet(object):
             if result.status != 200:
                 # Not a valid result
                 _logger.warning(
-                    "Got an HTTP code %d when contacting a "
-                    "discovered framework: %s",
+                    "Got an HTTP code %d when contacting a " "discovered framework: %s",
                     result.status,
                     data,
                 )

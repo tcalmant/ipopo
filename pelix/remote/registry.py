@@ -25,25 +25,24 @@ Pelix remote services: Imported end points registry
     limitations under the License.
 """
 
-# Standard library
 import logging
 import threading
+from typing import Any, Dict, List, Optional, Union
 
-# Remote Services constants
 import pelix.constants
-import pelix.remote
 import pelix.remote.beans as beans
-
-# iPOPO decorators
+from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import (
+    BindField,
     ComponentFactory,
-    Requires,
-    Provides,
     Instantiate,
     Invalidate,
+    Provides,
+    Requires,
     Validate,
-    BindField,
 )
+from pelix.remote import RemoteServiceImportEndpointListener, RemoteServiceRegistry
 
 # ------------------------------------------------------------------------------
 
@@ -62,37 +61,41 @@ _logger = logging.getLogger(__name__)
 
 
 @ComponentFactory("pelix-remote-imports-registry-factory")
-@Provides(pelix.remote.SERVICE_REGISTRY)
+@Provides(RemoteServiceRegistry)
 @Requires(
     "_listeners",
-    pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER,
+    RemoteServiceImportEndpointListener,
     aggregate=True,
     optional=True,
 )
 @Instantiate("pelix-remote-imports-registry")
-class ImportsRegistry(object):
+class ImportsRegistry(RemoteServiceRegistry):
     """
     Registry of discovered end points. End points are identified by their UID
     """
 
-    def __init__(self):
-        # Listeners (injected)
-        self._listeners = []
+    _listeners: List[RemoteServiceImportEndpointListener]
 
+    def __init__(self) -> None:
         # Framework UID
-        self._fw_uid = None
+        self._fw_uid: Optional[str] = None
 
         # Framework UID -> [ImportEndpoint]
-        self._frameworks = {}
+        self._frameworks: Dict[Optional[str], List[beans.ImportEndpoint]] = {}
 
         # End point UID -> ImportEndpoint
-        self._registry = {}
+        self._registry: Dict[str, beans.ImportEndpoint] = {}
 
         # Lock
         self.__lock = threading.Lock()
 
     @BindField("_listeners", if_valid=True)
-    def _bind_listener(self, field, listener, svc_ref):
+    def _bind_listener(
+        self,
+        field: str,
+        listener: RemoteServiceImportEndpointListener,
+        svc_ref: ServiceReference[RemoteServiceImportEndpointListener],
+    ) -> None:
         # pylint: disable=W0613
         """
         New listener bound
@@ -105,7 +108,7 @@ class ImportsRegistry(object):
                 except Exception as ex:
                     _logger.exception("Error calling listener: %s", ex)
 
-    def add(self, endpoint):
+    def add(self, endpoint: beans.ImportEndpoint) -> bool:
         """
         Registers an end point and notifies listeners. Does nothing if the
         endpoint UID was already known.
@@ -127,9 +130,7 @@ class ImportsRegistry(object):
             # Store the end point
             self._registry[endpoint.uid] = endpoint
             if endpoint.framework:
-                self._frameworks.setdefault(endpoint.framework, []).append(
-                    endpoint
-                )
+                self._frameworks.setdefault(endpoint.framework, []).append(endpoint)
 
         # Notify listeners (out of lock)
         if self._listeners:
@@ -140,7 +141,7 @@ class ImportsRegistry(object):
                     _logger.exception("Error calling listener: %s", ex)
         return True
 
-    def update(self, uid, new_properties):
+    def update(self, uid: str, new_properties: Dict[str, Any]) -> bool:
         """
         Updates an end point and notifies listeners
 
@@ -164,19 +165,16 @@ class ImportsRegistry(object):
             if self._listeners:
                 for listener in self._listeners[:]:
                     try:
-                        listener.endpoint_updated(
-                            stored_endpoint, old_properties
-                        )
+                        listener.endpoint_updated(stored_endpoint, old_properties)
                     except Exception as ex:
                         _logger.exception("Error calling listener: %s", ex)
             return True
 
-    def contains(self, endpoint):
+    def contains(self, endpoint: Union[str, beans.ImportEndpoint]) -> bool:
         """
         Checks if an endpoint is in the registry
 
-        :param endpoint: An endpoint UID or an
-                         :class:`~pelix.remote.beans.ImportEndpoint` object
+        :param endpoint: An endpoint UID or an :class:`~pelix.remote.beans.ImportEndpoint` object
         :return: True if the endpoint is known, else False
         """
         if isinstance(endpoint, beans.ImportEndpoint):
@@ -187,7 +185,7 @@ class ImportsRegistry(object):
     # Support for the 'in' keyword
     __contains__ = contains
 
-    def remove(self, uid):
+    def remove(self, uid: str) -> bool:
         """
         Unregisters an end point and notifies listeners
 
@@ -225,7 +223,7 @@ class ImportsRegistry(object):
 
         return True
 
-    def lost_framework(self, uid):
+    def lost_framework(self, uid: Optional[str]) -> None:
         """
         Unregisters all the end points associated to the given framework UID
 
@@ -251,7 +249,7 @@ class ImportsRegistry(object):
                         _logger.exception("Error calling listener: %s", ex)
 
     @Validate
-    def _validate(self, context):
+    def _validate(self, context: BundleContext) -> None:
         """
         Component validated
         """
@@ -259,7 +257,7 @@ class ImportsRegistry(object):
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
     @Invalidate
-    def _invalidate(self, _):
+    def _invalidate(self, _: BundleContext) -> None:
         """
         Component invalidated: clean up storage
         """

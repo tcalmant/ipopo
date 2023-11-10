@@ -28,17 +28,10 @@ specifications, section 122.8.
     limitations under the License.
 """
 
-# Standard library
 import xml.etree.ElementTree as ElementTree
+from io import StringIO
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
-try:
-    # Python 2
-    from StringIO import StringIO
-except ImportError:
-    # Python 3
-    from io import StringIO
-
-# Pelix
 import pelix.constants
 import pelix.remote
 from pelix.remote.beans import EndpointDescription
@@ -58,9 +51,7 @@ __docformat__ = "restructuredtext en"
 EDEF_NAMESPACE = "http://www.osgi.org/xmlns/rsa/v1.0.0"
 
 # EDEF tags
-TAG_ENDPOINT_DESCRIPTIONS = "{{{0}}}endpoint-descriptions".format(
-    EDEF_NAMESPACE
-)
+TAG_ENDPOINT_DESCRIPTIONS = "{{{0}}}endpoint-descriptions".format(EDEF_NAMESPACE)
 TAG_ENDPOINT_DESCRIPTION = "{{{0}}}endpoint-description".format(EDEF_NAMESPACE)
 TAG_PROPERTY = "{{{0}}}property".format(EDEF_NAMESPACE)
 TAG_ARRAY = "{{{0}}}array".format(EDEF_NAMESPACE)
@@ -107,19 +98,19 @@ TYPED_STRING = (
 )
 
 # Special case: XML value given
-XML_VALUE = object()
+XML_VALUE = "__pelix__edef__xml_value"
 
 # ------------------------------------------------------------------------------
 
 
-class EDEFReader(object):
+class EDEFReader:
     # pylint: disable=R0903
     """
-    Reads an EDEF XML data. Inspired from EndpoitnDescriptionParser from ECF
+    Reads an EDEF XML data. Inspired from EndpointDescriptionParser from ECF
     """
 
     @staticmethod
-    def _convert_value(vtype, value):
+    def _convert_value(vtype: str, value: Optional[str]) -> Any:
         """
         Converts the given value string according to the given type
 
@@ -128,6 +119,9 @@ class EDEFReader(object):
         :return: The converted value
         :raise ValueError: Conversion failed
         """
+        if value is None:
+            return None
+
         # Normalize value
         value = value.strip()
 
@@ -145,9 +139,9 @@ class EDEFReader(object):
             return value[0]
 
         # No luck
-        raise ValueError("Unknown value type: {0}".format(vtype))
+        raise ValueError(f"Unknown value type: {vtype}")
 
-    def _parse_description(self, node):
+    def _parse_description(self, node: ElementTree.Element) -> EndpointDescription:
         """
         Parse an endpoint description node
 
@@ -156,14 +150,14 @@ class EDEFReader(object):
         :raise KeyError: Attribute missing
         :raise ValueError: Invalid description
         """
-        endpoint = {}
+        endpoint: Dict[str, Any] = {}
         for prop_node in node.findall(TAG_PROPERTY):
             name, value = self._parse_property(prop_node)
             endpoint[name] = value
 
         return EndpointDescription(None, endpoint)
 
-    def _parse_property(self, node):
+    def _parse_property(self, node: ElementTree.Element) -> Tuple[str, Any]:
         """
         Parses a property node
 
@@ -185,7 +179,7 @@ class EDEFReader(object):
 
         return name, value
 
-    def _parse_value_node(self, vtype, node):
+    def _parse_value_node(self, vtype: str, node: ElementTree.Element) -> Any:
         """
         Parses a value node
 
@@ -197,33 +191,22 @@ class EDEFReader(object):
         if kind == TAG_XML:
             # Raw XML value
             return next(iter(node))
-
         elif kind == TAG_LIST:
             # List
-            return [
-                self._convert_value(vtype, value_node.text)
-                for value_node in node.findall(TAG_VALUE)
-            ]
-
+            return [self._convert_value(vtype, value_node.text) for value_node in node.findall(TAG_VALUE)]
         elif kind == TAG_ARRAY:
             # Tuple (array)
             return tuple(
-                self._convert_value(vtype, value_node.text)
-                for value_node in node.findall(TAG_VALUE)
+                self._convert_value(vtype, value_node.text) for value_node in node.findall(TAG_VALUE)
             )
-
         elif kind == TAG_SET:
             # Set
-            return set(
-                self._convert_value(vtype, value_node.text)
-                for value_node in node.findall(TAG_VALUE)
-            )
-
+            return set(self._convert_value(vtype, value_node.text) for value_node in node.findall(TAG_VALUE))
         else:
             # Unknown
-            raise ValueError("Unknown value tag: {0}".format(kind))
+            raise ValueError(f"Unknown value tag: {kind}")
 
-    def parse(self, xml_str):
+    def parse(self, xml_str: Union[str, bytes, bytearray]) -> List[EndpointDescription]:
         """
         Parses an EDEF XML string
 
@@ -231,26 +214,23 @@ class EDEFReader(object):
         :return: The list of parsed EndpointDescription
         """
         # Parse the document
-        root = ElementTree.fromstring(xml_str)
+        root: ElementTree.Element = ElementTree.fromstring(xml_str)
         if root.tag != TAG_ENDPOINT_DESCRIPTIONS:
-            raise ValueError("Not an EDEF XML: {0}".format(root.tag))
+            raise ValueError(f"Not an EDEF XML: {root.tag}")
 
         # Parse content
-        return [
-            self._parse_description(node)
-            for node in root.findall(TAG_ENDPOINT_DESCRIPTION)
-        ]
+        return [self._parse_description(node) for node in root.findall(TAG_ENDPOINT_DESCRIPTION)]
 
 
 # ------------------------------------------------------------------------------
 
 
-class EDEFWriter(object):
+class EDEFWriter:
     """
     EDEF XML file writer
     """
 
-    def _indent(self, element, level=0, prefix="\t"):
+    def _indent(self, element: ElementTree.Element, level: int = 0, prefix: str = "\t") -> None:
         """
         In-place Element text auto-indent, for pretty printing.
 
@@ -260,7 +240,7 @@ class EDEFWriter(object):
         :param level: Level of indentation
         :param prefix: String to use for each indentation
         """
-        element_prefix = "\r\n{0}".format(level * prefix)
+        element_prefix = f"\r\n{level * prefix}"
 
         if len(element):
             if not element.text or not element.text.strip():
@@ -277,13 +257,12 @@ class EDEFWriter(object):
             # Tail of the last child
             if not element.tail or not element.tail.strip():
                 element.tail = element_prefix
-
         else:
             if level and (not element.tail or not element.tail.strip()):
                 element.tail = element_prefix
 
     @staticmethod
-    def _add_container(props_node, tag, container):
+    def _add_container(props_node: ElementTree.Element, tag: str, container: Iterable[Any]) -> None:
         """
         Walks through the given container and fills the node
 
@@ -297,7 +276,7 @@ class EDEFWriter(object):
             value_node.text = str(value)
 
     @staticmethod
-    def _get_type(name, value):
+    def _get_type(name: str, value: Any) -> str:
         """
         Returns the type associated to the given name or value
 
@@ -308,10 +287,8 @@ class EDEFWriter(object):
         # Types forced for known keys
         if name in TYPED_BOOL:
             return TYPE_BOOLEAN
-
         elif name in TYPED_LONG:
             return TYPE_LONG
-
         elif name in TYPED_STRING:
             return TYPE_STRING
 
@@ -321,28 +298,24 @@ class EDEFWriter(object):
             try:
                 # Extract value
                 value = next(iter(value))
-
             except StopIteration:
                 # Empty list, can't check
                 return TYPE_STRING
-
         # Single value
         if isinstance(value, int):
             # Integer
             return TYPE_LONG
-
         elif isinstance(value, float):
             # Float
             return TYPE_DOUBLE
-
-        elif isinstance(value, type(ElementTree.Element(None))):
+        elif isinstance(value, ElementTree.Element):
             # XML
             return XML_VALUE
 
         # Default: String
         return TYPE_STRING
 
-    def _make_endpoint(self, root_node, endpoint):
+    def _make_endpoint(self, root_node: ElementTree.Element, endpoint: EndpointDescription) -> None:
         """
         Converts the given endpoint bean to an XML Element
 
@@ -350,18 +323,14 @@ class EDEFWriter(object):
         :param endpoint: An EndpointDescription bean
         :return: An Element
         """
-        endpoint_node = ElementTree.SubElement(
-            root_node, TAG_ENDPOINT_DESCRIPTION
-        )
+        endpoint_node = ElementTree.SubElement(root_node, TAG_ENDPOINT_DESCRIPTION)
 
         for name, value in endpoint.get_properties().items():
             # Compute value type
             vtype = self._get_type(name, value)
 
             # Prepare the property node
-            prop_node = ElementTree.SubElement(
-                endpoint_node, TAG_PROPERTY, {ATTR_NAME: name}
-            )
+            prop_node = ElementTree.SubElement(endpoint_node, TAG_PROPERTY, {ATTR_NAME: name})
 
             if vtype == XML_VALUE:
                 # Special case, we have to store the value as a child
@@ -376,24 +345,20 @@ class EDEFWriter(object):
             if isinstance(value, tuple):
                 # Array
                 self._add_container(prop_node, TAG_ARRAY, value)
-
             elif isinstance(value, list):
                 # List
                 self._add_container(prop_node, TAG_LIST, value)
-
             elif isinstance(value, set):
                 # Set
                 self._add_container(prop_node, TAG_SET, value)
-
             elif isinstance(value, type(root_node)):
                 # XML (direct addition)
                 prop_node.append(value)
-
             else:
                 # Simple value -> Attribute
                 prop_node.set(ATTR_VALUE, str(value))
 
-    def _make_xml(self, endpoints):
+    def _make_xml(self, endpoints: Iterable[EndpointDescription]) -> ElementTree.Element:
         """
         Converts the given endpoint description beans into an XML Element
 
@@ -410,7 +375,7 @@ class EDEFWriter(object):
 
         return root
 
-    def to_string(self, endpoints):
+    def to_string(self, endpoints: Iterable[EndpointDescription]) -> str:
         """
         Converts the given endpoint description beans into a string
 
@@ -438,17 +403,15 @@ class EDEFWriter(object):
                     method="xml",
                 )
                 break
-
             except LookupError:
                 # 'unicode' is needed in Python 3, but unknown in Python 2...
                 continue
-
         else:
             raise LookupError("Couldn't find a valid encoding")
 
         return output.getvalue()
 
-    def write(self, endpoints, filename):
+    def write(self, endpoints: Iterable[EndpointDescription], filename: str) -> None:
         """
         Writes the given endpoint descriptions to the given file
 

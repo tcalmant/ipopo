@@ -27,28 +27,18 @@ This module depends on the zeroconf package
     limitations under the License.
 """
 
-# Standard library
 import json
 import logging
 import socket
+from typing import Any, Dict, List, Optional, Union, cast
 
-# Zeroconf
 import zeroconf
 
-# iPOPO decorators
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Requires,
-    Provides,
-    Invalidate,
-    Validate,
-    Property,
-)
 import pelix.constants
-
-# Remote services
+from pelix.framework import BundleContext
 import pelix.remote
 import pelix.remote.beans as beans
+from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
 from pelix.utilities import is_bytes, is_string, to_str
 
 # ------------------------------------------------------------------------------
@@ -66,75 +56,57 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+DEFAULT_ZEROCONF_TYPE = "_pelix-rs._tcp.local."
+
 
 @ComponentFactory(pelix.remote.FACTORY_DISCOVERY_ZEROCONF)
-@Provides(pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER)
-@Property("_rs_type", pelix.remote.PROP_ZEROCONF_TYPE, "_pelix-rs._tcp.local.")
+@Provides(pelix.remote.RemoteServiceExportEndpointListener)
+@Property("_rs_type", pelix.remote.PROP_ZEROCONF_TYPE, DEFAULT_ZEROCONF_TYPE)
 @Property("_ttl", "zeroconf.ttl", 60)
-@Requires("_access", pelix.remote.SERVICE_DISPATCHER_SERVLET)
-@Requires("_registry", pelix.remote.SERVICE_REGISTRY)
-class ZeroconfDiscovery(object):
+@Requires("_access", pelix.remote.RemoteServiceDispatcherServlet)
+@Requires("_registry", pelix.remote.RemoteServiceRegistry)
+class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, zeroconf.ServiceListener):
     """
     Remote services discovery and notification using the module zeroconf
     """
 
+    # Imported endpoints registry
+    _registry: pelix.remote.RemoteServiceRegistry
+
+    # Dispatcher access
+    _access: pelix.remote.RemoteServiceDispatcherServlet
+
     # Service type for the Pelix dispatcher servlet
     DNS_DISPATCHER_TYPE = "_rs-dispatcher._tcp.local."
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up the component
         """
-        # Imported endpoints registry
-        self._registry = None
-
-        # Dispatcher access
-        self._access = None
-
         # Remote Service type
-        self._rs_type = None
+        self._rs_type: str = DEFAULT_ZEROCONF_TYPE
 
         # Zeroconf TTL
         self._ttl = 60
 
         # Framework UID
-        self._fw_uid = None
+        self._fw_uid: Optional[str] = None
 
         # Address of this framework
-        self._address = None
+        self._address: Optional[str] = None
 
         # Zeroconf
-        self._zeroconf = None  # type: zeroconf.Zeroconf
-        self._browsers = []
+        self._zeroconf: Optional[zeroconf.Zeroconf] = None
+        self._browsers: List[zeroconf.ServiceBrowser] = []
 
         # Endpoint UID -> ServiceInfo
-        self._export_infos = {}
+        self._export_infos: Dict[str, zeroconf.ServiceInfo] = {}
 
         # mDNS name -> Endpoint UID
-        self._imported_endpoints = {}
-
-    @Invalidate
-    def invalidate(self, _):
-        """
-        Component invalidated
-        """
-        # Stop listeners
-        for browser in self._browsers:
-            browser.cancel()
-
-        # Close Zeroconf
-        self._zeroconf.unregister_all_services()
-        self._zeroconf.close()
-
-        # Clean up
-        self._export_infos.clear()
-        self._zeroconf = None
-        self._fw_uid = None
-
-        _logger.debug("Zeroconf discovery invalidated")
+        self._imported_endpoints: Dict[str, str] = {}
 
     @Validate
-    def validate(self, context):
+    def validate(self, context: BundleContext) -> None:
         """
         Component validated
         """
@@ -142,9 +114,7 @@ class ZeroconfDiscovery(object):
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
         # Get the host address
-        self._address = socket.inet_aton(
-            socket.gethostbyname(socket.gethostname())
-        )
+        self._address = socket.gethostbyname(socket.gethostname())
 
         # Prepare Zeroconf
         self._zeroconf = zeroconf.Zeroconf()
@@ -154,22 +124,40 @@ class ZeroconfDiscovery(object):
 
         # Listen to our types
         self._browsers.append(
-            zeroconf.ServiceBrowser(
-                self._zeroconf, ZeroconfDiscovery.DNS_DISPATCHER_TYPE, self
-            )
+            zeroconf.ServiceBrowser(self._zeroconf, ZeroconfDiscovery.DNS_DISPATCHER_TYPE, self)
         )
-        self._browsers.append(
-            zeroconf.ServiceBrowser(self._zeroconf, self._rs_type, self)
-        )
+        self._rs_type = self._rs_type or DEFAULT_ZEROCONF_TYPE
+        self._browsers.append(zeroconf.ServiceBrowser(self._zeroconf, self._rs_type, self))
 
         _logger.debug("Zeroconf discovery validated")
 
+    @Invalidate
+    def invalidate(self, _: BundleContext) -> None:
+        """
+        Component invalidated
+        """
+        # Stop listeners
+        for browser in self._browsers:
+            browser.cancel()
+
+        # Close Zeroconf
+        if self._zeroconf is not None:
+            self._zeroconf.unregister_all_services()
+            self._zeroconf.close()
+
+        # Clean up
+        self._export_infos.clear()
+        self._zeroconf = None
+        self._fw_uid = None
+
+        _logger.debug("Zeroconf discovery invalidated")
+
     @staticmethod
-    def _serialize_properties(props):
+    def _serialize_properties(props: Dict[str, Any]) -> Dict[str, Any]:
         """
         Converts properties values into strings
         """
-        new_props = {}
+        new_props: Dict[str, Any] = {}
 
         for key, value in props.items():
             if is_string(value):
@@ -178,9 +166,7 @@ class ZeroconfDiscovery(object):
                 try:
                     new_props[key] = json.dumps(value)
                 except ValueError:
-                    new_props[key] = "pelix-type:{0}:{1}".format(
-                        type(value).__name__, repr(value)
-                    )
+                    new_props[key] = f"pelix-type:{type(value).__name__}:{repr(value)}"
 
         # FIXME: to simplify the usage with ECF, send single strings instead of
         # arrays
@@ -196,17 +182,20 @@ class ZeroconfDiscovery(object):
         return new_props
 
     @staticmethod
-    def _deserialize_properties(props):
+    def _deserialize_properties(
+        props: Dict[Union[str, bytes], Optional[Union[str, bytes]]]
+    ) -> Dict[str, Any]:
         """
         Converts properties values into their type
         """
-        new_props = {}
-        for key, value in props.items():
+        new_props: Dict[str, Any] = {}
+        for key, raw_value in props.items():
             key = to_str(key)
+            if raw_value is None:
+                new_props[key] = None
+                continue
 
-            if is_bytes(value):
-                # Convert value to string if necessary
-                value = to_str(value)
+            value: str = to_str(raw_value) if is_bytes(raw_value) else cast(str, raw_value)
 
             try:
                 try:
@@ -217,9 +206,7 @@ class ZeroconfDiscovery(object):
                         value_type, value = value.split(":", 3)[2:]
                         if "." in value_type and value_type not in value:
                             # Not a builtin type...
-                            _logger.warning(
-                                "Won't work: %s (%s)", value, value_type
-                            )
+                            _logger.warning("Won't work: %s (%s)", value, value_type)
 
                         new_props[key] = eval(value)
                     else:
@@ -230,13 +217,16 @@ class ZeroconfDiscovery(object):
 
         return new_props
 
-    def __register_servlet(self):
+    def __register_servlet(self) -> None:
         """
-        Registers the Pelix Remote Services dispatcher servlet as a service via
-        mDNS
+        Registers the Pelix Remote Services dispatcher servlet as a service via mDNS
         """
+        assert self._zeroconf is not None
+
         # Get the dispatcher servlet access
         access = self._access.get_access()
+        if access is None:
+            raise ValueError("No dispatcher servlet access to broadcast")
 
         # Convert properties to be stored as strings
         properties = {
@@ -248,42 +238,53 @@ class ZeroconfDiscovery(object):
         properties = self._serialize_properties(properties)
 
         # Prepare the service type
-        svc_name = "{0}.{1}".format(
-            self._fw_uid, ZeroconfDiscovery.DNS_DISPATCHER_TYPE
-        )
+        svc_name = f"{self._fw_uid}.{ZeroconfDiscovery.DNS_DISPATCHER_TYPE}"
 
         # Prepare the mDNS entry
         info = zeroconf.ServiceInfo(
             ZeroconfDiscovery.DNS_DISPATCHER_TYPE,  # Type
             svc_name,  # Name
-            self._address,  # Access address
             access[0],  # Access port
             properties=properties,
+            server=self._address,  # Access address
         )
 
         # Register the service
         self._zeroconf.register_service(info, self._ttl)
 
-    def endpoints_added(self, endpoints):
+    def endpoints_added(self, endpoints: List[beans.ExportEndpoint]) -> None:
         """
         Multiple endpoints have been added
 
         :param endpoints: A list of ExportEndpoint beans
         """
+        if self._zeroconf is None:
+            _logger.error("Zeroconf is not ready")
+            return
+
         # Get the dispatcher servlet port
-        access_port = self._access.get_access()[0]
+        access = self._access.get_access()
+        if access is None:
+            _logger.error("Dispatcher servlet is not ready")
+            return
+
+        access_port = access[0]
 
         # Handle each one separately
         for endpoint in endpoints:
             self._endpoint_added(endpoint, access_port)
 
-    def _endpoint_added(self, exp_endpoint, access_port):
+    def _endpoint_added(self, exp_endpoint: beans.ExportEndpoint, access_port: int) -> None:
         """
         A new service is exported
 
         :param exp_endpoint: An ExportEndpoint bean
         :param access_port: The dispatcher access port
         """
+        if self._zeroconf is None:
+            _logger.error("Zeroconf is not ready")
+            return
+
         # Convert the export endpoint into an EndpointDescription bean
         endpoint = beans.EndpointDescription.from_export(exp_endpoint)
 
@@ -294,17 +295,15 @@ class ZeroconfDiscovery(object):
         properties = self._serialize_properties(properties)
 
         # Prepare the service name
-        svc_name = "{0}.{1}".format(
-            endpoint.get_id().replace("-", ""), self._rs_type
-        )
+        svc_name = f"{endpoint.get_id().replace('-', '')}.{self._rs_type}"
 
         # Prepare the mDNS entry
         info = zeroconf.ServiceInfo(
             self._rs_type,  # Type
             svc_name,  # Name
-            self._address,  # Access address
             access_port,  # Access port
             properties=properties,
+            server=self._address,  # Access address
         )
 
         self._export_infos[exp_endpoint.uid] = info
@@ -312,8 +311,9 @@ class ZeroconfDiscovery(object):
         # Register the service
         self._zeroconf.register_service(info, self._ttl)
 
-    @staticmethod
-    def endpoint_updated(endpoint, old_properties):
+    def endpoint_updated(
+        self, endpoint: beans.ExportEndpoint, old_properties: Optional[Dict[str, Any]]
+    ) -> None:
         # pylint: disable=W0613
         """
         An end point is updated
@@ -325,12 +325,16 @@ class ZeroconfDiscovery(object):
         # TODO: register a temporary service while the update is performed ?
         return
 
-    def endpoint_removed(self, endpoint):
+    def endpoint_removed(self, endpoint: beans.ExportEndpoint) -> None:
         """
         An end point is removed
 
         :param endpoint: Endpoint being removed
         """
+        if self._zeroconf is None:
+            _logger.error("Zeroconf is not ready")
+            return
+
         try:
             # Get the associated service info
             info = self._export_infos.pop(endpoint.uid)
@@ -341,8 +345,9 @@ class ZeroconfDiscovery(object):
             # Unregister the service
             self._zeroconf.unregister_service(info)
 
-    def _get_service_info(self, svc_type, name, max_retries=10):
-        # type: (str, str, int) -> zeroconf.ServiceInfo
+    def _get_service_info(
+        self, svc_type: str, name: str, max_retries: int = 10
+    ) -> Optional[zeroconf.ServiceInfo]:
         """
         Tries to get information about the given mDNS service
 
@@ -353,32 +358,25 @@ class ZeroconfDiscovery(object):
         """
         info = None
         retries = 0
-        while (
-            self._zeroconf is not None
-            and info is None
-            and retries < max_retries
-        ):
+        while self._zeroconf is not None and info is None and retries < max_retries:
             # Try to get information about the service...
             info = self._zeroconf.get_service_info(svc_type, name)
             retries += 1
 
         return info
 
-    def add_service(self, zeroconf_, svc_type, name):
+    def add_service(self, zeroconf_: zeroconf.Zeroconf, svc_type: str, name: str) -> None:
         """
         Called by Zeroconf when a record is updated
 
-        :param zeroconf_: The Zeroconf instance than notifies of the
-                          modification
+        :param zeroconf_: The Zeroconf instance than notifies of the modification
         :param svc_type: Service type
         :param name: Service name
         """
         # Get information about the service
         info = self._get_service_info(svc_type, name)
         if info is None:
-            _logger.warning(
-                "Timeout reading service information: %s - %s", svc_type, name
-            )
+            _logger.warning("Timeout reading service information: %s - %s", svc_type, name)
             return
 
         # Read properties
@@ -396,21 +394,31 @@ class ZeroconfDiscovery(object):
 
         if svc_type == ZeroconfDiscovery.DNS_DISPATCHER_TYPE:
             # Dispatcher servlet found, get source info
-            address = to_str(socket.inet_ntoa(info.address))
-            port = info.port
-            self._access.send_discovered(
-                address, port, properties["pelix.access.path"]
-            )
+            if info.port is None:
+                _logger.warning("Ignore discovered service with no port information: %s", info)
+                return
+
+            address: Optional[str] = None
+            if info.addresses:
+                address = socket.inet_ntoa(info.addresses[0])
+            elif info.server:
+                address = info.server
+
+            if not address:
+                _logger.warning("Ignore discovered service with no server information: %s", info)
+                return
+
+            self._access.send_discovered(address, info.port, properties["pelix.access.path"])
         elif svc_type == self._rs_type:
             # Remote service
             # Get the first available configuration
             configuration = properties[pelix.remote.PROP_IMPORTED_CONFIGS]
-            if not is_string(configuration):
+            if not isinstance(configuration, str):
                 configuration = configuration[0]
 
             # Ensure we have a list of specifications
             specs = properties[pelix.constants.OBJECTCLASS]
-            if is_string(specs):
+            if isinstance(specs, str):
                 specs = [specs]
 
             try:
@@ -437,12 +445,11 @@ class ZeroconfDiscovery(object):
                     # Associate the mDNS name to the endpoint on success
                     self._imported_endpoints[name] = endpoint.uid
 
-    def remove_service(self, zeroconf_, svc_type, name):
+    def remove_service(self, zeroconf_: zeroconf.Zeroconf, svc_type: str, name: str) -> None:
         """
         Called by Zeroconf when a record is removed
 
-        :param zeroconf_: The Zeroconf instance than notifies of the
-                          modification
+        :param zeroconf_: The Zeroconf instance than notifies of the modification
         :param svc_type: Service type
         :param name: Service name
         """

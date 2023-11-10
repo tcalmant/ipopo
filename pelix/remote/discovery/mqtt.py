@@ -29,27 +29,17 @@ Eclipse Foundation: see http://www.eclipse.org/paho
     limitations under the License.
 """
 
-# Standard library
 import logging
+from typing import Any, Dict, Iterable, List, Optional
 
-# MQTT client
-import pelix.misc.mqtt_client
-
-# iPOPO decorators
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Requires,
-    Provides,
-    Validate,
-    Property,
-    Invalidate,
-)
-
-# Pelix & Remote services
-from pelix.remote.edef_io import EDEFWriter, EDEFReader
 import pelix.constants as constants
 import pelix.remote
 import pelix.remote.beans as beans
+from pelix.framework import BundleContext
+from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
+from pelix.misc.mqtt_client import MqttClient, MqttMessage
+from pelix.remote.edef_io import EDEFReader, EDEFWriter
+from pelix.utilities import to_bytes, to_str
 
 # ------------------------------------------------------------------------------
 
@@ -76,33 +66,32 @@ ENDPOINT_EVENTS = (EVENT_ADD, EVENT_UPDATE, EVENT_REMOVE)
 
 
 @ComponentFactory(pelix.remote.FACTORY_DISCOVERY_MQTT)
-@Provides(pelix.remote.SERVICE_EXPORT_ENDPOINT_LISTENER, "_controller")
-@Requires("_dispatcher", pelix.remote.SERVICE_DISPATCHER)
-@Requires("_registry", pelix.remote.SERVICE_REGISTRY)
+@Provides(pelix.remote.RemoteServiceExportEndpointListener, "_controller")
+@Requires("_dispatcher", pelix.remote.RemoteServiceDispatcher)
+@Requires("_registry", pelix.remote.RemoteServiceRegistry)
 @Property("_host", "mqtt.host", "localhost")
 @Property("_port", "mqtt.port", 1883)
 @Property("_prefix", "topic.prefix", "pelix/{appid}/remote-services")
 @Property("_appid", "application.id", None)
-class MqttDiscovery(object):
+class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
     """
     Remote Service discovery provider based on MQTT
     """
 
-    def __init__(self):
+    # Imports registry
+    _dispatcher: pelix.remote.RemoteServiceDispatcher
+    # Exports registry
+    _registry: pelix.remote.RemoteServiceRegistry
+
+    def __init__(self) -> None:
         """
         Sets up members
         """
-        # Imports registry
-        self._registry = None
-
-        # Exports registry
-        self._dispatcher = None
-
         # Service controller
         self._controller = False
 
         # Framework UID
-        self._framework_uid = None
+        self._framework_uid: str = ""
 
         # MQTT server properties
         self._host = "localhost"
@@ -110,16 +99,16 @@ class MqttDiscovery(object):
 
         # MQTT topic Properties
         self._prefix = ""
-        self._appid = None
+        self._appid: Optional[str] = None
 
         # MQTT client
-        self.__mqtt = None
+        self.__mqtt: Optional[MqttClient] = None
 
         # Real prefix
         self._real_prefix = ""
 
     @Validate
-    def _validate(self, context):
+    def _validate(self, context: BundleContext) -> None:
         """
         Component validated
         """
@@ -131,9 +120,11 @@ class MqttDiscovery(object):
 
         # Get the framework UID
         self._framework_uid = context.get_property(constants.FRAMEWORK_UID)
+        if self._framework_uid:
+            raise ValueError(f"A Framework UID must be set with property {constants.FRAMEWORK_UID}")
 
         # Create the MQTT client
-        self.__mqtt = pelix.misc.mqtt_client.MqttClient()
+        self.__mqtt = MqttClient()
 
         # Customize callbacks
         self.__mqtt.on_connect = self.__on_connect
@@ -141,39 +132,37 @@ class MqttDiscovery(object):
         self.__mqtt.on_message = self.__on_message
 
         # Prepare the will packet
-        self.__mqtt.set_will(
-            self._make_topic(EVENT_LOST), self._framework_uid, qos=2
-        )
+        self.__mqtt.set_will(self._make_topic(EVENT_LOST), to_bytes(self._framework_uid), qos=2)
 
         # Prepare the connection
         self.__mqtt.connect(self._host, self._port)
 
     @Invalidate
-    def _invalidate(self, _):
+    def _invalidate(self, _: BundleContext) -> None:
         """
         Component invalidated
         """
-        # Send the "lost" message
-        mid = self.__send_message(EVENT_LOST, self._framework_uid, True)
-        self.__mqtt.wait_publication(mid, 10)
-
-        # Disconnect from the server (this stops the loop)
-        self.__mqtt.disconnect()
+        if self.__mqtt is not None:
+            # Send the "lost" message
+            mid = self.__send_message(EVENT_LOST, self._framework_uid, True)
+            if mid is not None:
+                self.__mqtt.wait_publication(mid, 10)
+            # Disconnect from the server (this stops the loop)
+            self.__mqtt.disconnect()
 
         # Clean up
-        self._framework_uid = None
         self.__mqtt = None
 
-    def _make_topic(self, event):
+    def _make_topic(self, event: str) -> str:
         """
         Prepares a MQTT topic name for the given event
 
-        :param event: An event type (add, update, remove)
+        :param event: An event type (add, update, remove) or a filter
         :return: A MQTT topic
         """
-        return "{0}/{1}".format(self._real_prefix, event)
+        return f"{self._real_prefix}/{event}"
 
-    def __on_connect(self, client, result_code):
+    def __on_connect(self, client: MqttClient, result_code: int) -> None:
         """
         Client connected to the server
         """
@@ -187,7 +176,7 @@ class MqttDiscovery(object):
             # Send a discovery packet
             self.__send_message(EVENT_DISCOVER, self._framework_uid)
 
-    def __on_disconnect(self, client, result_code):
+    def __on_disconnect(self, client: MqttClient, result_code: int) -> None:
         # pylint: disable=W0613
         """
         Client has been disconnected from the server
@@ -195,16 +184,16 @@ class MqttDiscovery(object):
         # Disconnected: stop providing the service
         self._controller = False
 
-    def __on_message(self, client, msg):
+    def __on_message(self, client: MqttClient, message: MqttMessage) -> None:
         # pylint: disable=W0613
         """
         A message has been received from a server
 
         :param client: Client that received the message
-        :param msg: A MQTTMessage bean
+        :param message: A MQTTMessage bean
         """
         # Get the topic
-        topic = msg.topic
+        topic = message.topic
 
         # Extract the event
         event = topic.rsplit("/", 1)[1]
@@ -212,15 +201,10 @@ class MqttDiscovery(object):
         try:
             if event in ENDPOINT_EVENTS:
                 # Parse the endpoints (from EDEF XML to ImportEndpoint)
-                endpoints_descr = EDEFReader().parse(msg.payload)
-                endpoints = [
-                    endpoint.to_import() for endpoint in endpoints_descr
-                ]
+                endpoints_descr = EDEFReader().parse(message.payload)
+                endpoints = [endpoint.to_import() for endpoint in endpoints_descr]
 
-                if (
-                    not endpoints
-                    or endpoints[0].framework == self._framework_uid
-                ):
+                if not endpoints or endpoints[0].framework == self._framework_uid:
                     # No enpoints to read or Loopback message
                     return
 
@@ -228,19 +212,17 @@ class MqttDiscovery(object):
                 parameter = endpoints
             else:
                 # Give the payload as is to other event handlers
-                parameter = msg.payload
+                parameter = message.payload
 
             try:
-                getattr(self, "_handle_{0}".format(event))(parameter)
+                getattr(self, f"_handle_{event}")(parameter)
             except AttributeError:
                 _logger.error("Unhandled MQTT event: %s", event)
 
         except Exception as ex:
-            _logger.exception(
-                "Error handling an MQTT message '%s': %s", topic, ex
-            )
+            _logger.exception("Error handling an MQTT message '%s': %s", topic, ex)
 
-    def __send_message(self, event, payload, wait=False):
+    def __send_message(self, event: str, payload: Any, wait: bool = False) -> Optional[int]:
         """
         Sends a message through the MQTT connection
 
@@ -248,12 +230,12 @@ class MqttDiscovery(object):
         :param payload: Message content
         :return: The local message ID
         """
-        # Publish the MQTT message (QoS 2 - Exactly Once)
-        return self.__mqtt.publish(
-            self._make_topic(event), payload, qos=2, wait=wait
-        )
+        assert self.__mqtt is not None
 
-    def _handle_add(self, endpoints):
+        # Publish the MQTT message (QoS 2 - Exactly Once)
+        return self.__mqtt.publish(self._make_topic(event), payload, qos=2, wait=wait)
+
+    def _handle_add(self, endpoints: Iterable[beans.ImportEndpoint]) -> None:
         """
         A set of endpoints have been registered
 
@@ -263,7 +245,7 @@ class MqttDiscovery(object):
         for endpoint in endpoints:
             self._registry.add(endpoint)
 
-    def _handle_update(self, endpoints):
+    def _handle_update(self, endpoints: Iterable[beans.ImportEndpoint]) -> None:
         """
         A set of endpoints have been updated
 
@@ -273,7 +255,7 @@ class MqttDiscovery(object):
         for endpoint in endpoints:
             self._registry.update(endpoint.uid, endpoint.properties)
 
-    def _handle_remove(self, endpoints):
+    def _handle_remove(self, endpoints: Iterable[beans.ImportEndpoint]) -> None:
         """
         A set of endpoints has been removed
 
@@ -283,13 +265,13 @@ class MqttDiscovery(object):
         for endpoint in endpoints:
             self._registry.remove(endpoint.uid)
 
-    def _handle_discover(self, payload):
+    def _handle_discover(self, payload: bytes) -> None:
         """
         A framework wants to discover all services
 
         :param payload: The UID of the sender
         """
-        if payload == self._framework_uid:
+        if to_str(payload) == self._framework_uid:
             # We are the sender, ignore this message
             return
 
@@ -301,22 +283,21 @@ class MqttDiscovery(object):
 
         # Convert the beans to XML (EDEF format)
         xml_string = EDEFWriter().to_string(
-            beans.EndpointDescription.from_export(endpoint)
-            for endpoint in endpoints
+            beans.EndpointDescription.from_export(endpoint) for endpoint in endpoints
         )
 
         # Send the message
         self.__send_message(EVENT_ADD, xml_string)
 
-    def _handle_lost(self, payload):
+    def _handle_lost(self, payload: bytes) -> None:
         """
         A framework has been lost
 
         :param payload: The UID of the lost framework
         """
-        self._registry.lost_framework(payload)
+        self._registry.lost_framework(to_str(payload))
 
-    def endpoints_added(self, endpoints):
+    def endpoints_added(self, endpoints: List[beans.ExportEndpoint]) -> None:
         """
         Multiple endpoints have been added
 
@@ -324,14 +305,15 @@ class MqttDiscovery(object):
         """
         # Convert the beans to XML (EDEF format)
         xml_string = EDEFWriter().to_string(
-            beans.EndpointDescription.from_export(endpoint)
-            for endpoint in endpoints
+            beans.EndpointDescription.from_export(endpoint) for endpoint in endpoints
         )
 
         # Send the message
         self.__send_message(EVENT_ADD, xml_string)
 
-    def endpoint_updated(self, endpoint, old_properties):
+    def endpoint_updated(
+        self, endpoint: beans.ExportEndpoint, old_properties: Optional[Dict[str, Any]]
+    ) -> None:
         # pylint: disable=W0613
         """
         An end point is updated
@@ -348,7 +330,7 @@ class MqttDiscovery(object):
         # Send the message
         self.__send_message(EVENT_UPDATE, xml_string)
 
-    def endpoint_removed(self, endpoint):
+    def endpoint_removed(self, endpoint: beans.ExportEndpoint) -> None:
         """
         An end point is removed
 

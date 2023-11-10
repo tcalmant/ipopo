@@ -27,36 +27,19 @@ Based on standard package xmlrpclib
     limitations under the License.
 """
 
-# Standard library
 import logging
+import xmlrpc.client as xmlrpclib
+from typing import Any, Callable, Dict, Iterable, Optional, Union
+from xmlrpc.server import SimpleXMLRPCDispatcher
 
-# XML RPC modules
-try:
-    # Python 3
-    # pylint: disable=F0401
-    from xmlrpc.server import SimpleXMLRPCDispatcher
-    import xmlrpc.client as xmlrpclib
-except ImportError:
-    # Python 2
-    # pylint: disable=F0401
-    from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
-    import xmlrpclib
-
-# iPOPO decorators
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Requires,
-    Validate,
-    Invalidate,
-    Property,
-    Provides,
-)
-
-# Pelix constants
-from pelix.utilities import to_str
 import pelix.http
+from pelix.internals.registry import ServiceReference
 import pelix.remote
+from pelix.remote.beans import ImportEndpoint
 import pelix.remote.transport.commons as commons
+from pelix.framework import BundleContext
+from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
+from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
 
@@ -72,7 +55,7 @@ __docformat__ = "restructuredtext en"
 XMLRPC_CONFIGURATION = "xmlrpc"
 """ Remote Service configuration constant """
 
-PROP_XMLRPC_URL = "{0}.url".format(XMLRPC_CONFIGURATION)
+PROP_XMLRPC_URL = f"{XMLRPC_CONFIGURATION}.url"
 """ XML-RPC servlet URL """
 
 _logger = logging.getLogger(__name__)
@@ -80,20 +63,22 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class _XmlRpcServlet(SimpleXMLRPCDispatcher):
+class _XmlRpcServlet(SimpleXMLRPCDispatcher, pelix.http.Servlet):
     """
     A XML-RPC servlet that can be registered in the Pelix HTTP service
 
     Calls the dispatch method given in the constructor
     """
 
-    def __init__(self, dispatch_method, encoding=None):
+    def __init__(
+        self,
+        dispatch_method: Callable[[str, Union[Iterable[Any], Dict[str, Any]]], Any],
+        encoding: Optional[str] = None,
+    ) -> None:
         """
         Sets up the servlet
         """
-        SimpleXMLRPCDispatcher.__init__(
-            self, allow_none=True, encoding=encoding
-        )
+        SimpleXMLRPCDispatcher.__init__(self, allow_none=True, encoding=encoding)
 
         # Register the system.* functions
         self.register_introspection_functions()
@@ -101,7 +86,7 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher):
         # Make a link to the dispatch method
         self._dispatch_method = dispatch_method
 
-    def _simple_dispatch(self, name, params):
+    def _simple_dispatch(self, name: str, params: Union[Iterable[Any], Dict[str, Any]]) -> Any:
         """
         Dispatch method
         """
@@ -116,7 +101,9 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher):
         # in case of error
         return self._dispatch_method(name, params)
 
-    def do_POST(self, request, response):
+    def do_POST(
+        self, request: pelix.http.AbstractHTTPServletRequest, response: pelix.http.AbstractHTTPServletResponse
+    ) -> None:
         # pylint: disable=C0103
         """
         Handles a HTTP POST request
@@ -128,7 +115,7 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher):
         data = to_str(request.read_data())
 
         # Dispatch
-        result = self._marshaled_dispatch(data, self._simple_dispatch)
+        result = self._marshaled_dispatch(data, self._simple_dispatch)  # type: ignore
 
         # Send the result
         response.send_content(200, result, "text/xml")
@@ -138,8 +125,8 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher):
 
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_XMLRPC_EXPORTER)
-@Provides(pelix.remote.SERVICE_EXPORT_PROVIDER)
-@Requires("_http", pelix.http.HTTP_SERVICE)
+@Provides(pelix.remote.RemoteServiceExportProvider)
+@Requires("_http", pelix.http.HTTPService)
 @Property("_path", pelix.http.HTTP_SERVLET_PATH, "/XML-RPC")
 @Property(
     "_kinds",
@@ -151,33 +138,31 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
     XML-RPC Remote Services exporter
     """
 
-    def __init__(self):
+    _http: pelix.http.HTTPService
+
+    def __init__(self) -> None:
         """
         Sets up the exporter
         """
         # Call parent
         super(XmlRpcServiceExporter, self).__init__()
 
-        # Handled configurations
-        self._kinds = None
-
         # HTTP Service
-        self._http = None
-        self._path = None
+        self._path = ""
 
         # XML-RPC servlet
-        self._servlet = None
+        self._servlet: Optional[pelix.http.Servlet] = None
 
-    def get_access(self):
+    def get_access(self) -> str:
         """
         Retrieves the URL to access this component
         """
         port = self._http.get_access()[1]
-        return "http{2}://{{server}}:{0}{1}".format(
-            port, self._path, "s" if self._http.is_https() else ""
-        )
+        return "http{2}://{{server}}:{0}{1}".format(port, self._path, "s" if self._http.is_https() else "")
 
-    def make_endpoint_properties(self, svc_ref, name, fw_uid):
+    def make_endpoint_properties(
+        self, svc_ref: ServiceReference[Any], name: str, fw_uid: Optional[str]
+    ) -> Dict[str, Any]:
         """
         Prepare properties for the ExportEndpoint to be created
 
@@ -189,7 +174,7 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
         return {PROP_XMLRPC_URL: self.get_access()}
 
     @Validate
-    def validate(self, context):
+    def validate(self, context: BundleContext) -> None:
         """
         Component validated
         """
@@ -198,10 +183,11 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
         # Create/register the servlet
         self._servlet = _XmlRpcServlet(self.dispatch)
+        self._path = self._path or ""
         self._http.register_servlet(self._path, self._servlet)
 
     @Invalidate
-    def invalidate(self, context):
+    def invalidate(self, context: BundleContext) -> None:
         """
         Component invalidated
         """
@@ -218,13 +204,13 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
 # ------------------------------------------------------------------------------
 
 
-class _ServiceCallProxy(object):
+class _ServiceCallProxy:
     # pylint: disable=R0903
     """
     Service call proxy
     """
 
-    def __init__(self, name, url):
+    def __init__(self, name: str, url: str) -> None:
         """
         Sets up the call proxy
 
@@ -234,7 +220,7 @@ class _ServiceCallProxy(object):
         self.__name = name
         self.__url = url
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """
         Prefixes the requested attribute name by the endpoint name
         """
@@ -243,11 +229,11 @@ class _ServiceCallProxy(object):
         # underlying proxy re-uses the same connection when possible: sometimes
         # it means sending a request before retrieving a result
         proxy = xmlrpclib.ServerProxy(self.__url, allow_none=True)
-        return getattr(proxy, "{0}.{1}".format(self.__name, name))
+        return getattr(proxy, f"{self.__name}.{name}")
 
 
 @ComponentFactory(pelix.remote.FACTORY_TRANSPORT_XMLRPC_IMPORTER)
-@Provides(pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER)
+@Provides(pelix.remote.RemoteServiceImportEndpointListener)
 @Property(
     "_kinds",
     pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
@@ -258,23 +244,17 @@ class XmlRpcServiceImporter(commons.AbstractRpcServiceImporter):
     XML-RPC Remote Services importer
     """
 
-    def __init__(self):
-        """
-        Sets up the exporter
-        """
-        # Call parent
-        super(XmlRpcServiceImporter, self).__init__()
-
-        # Component properties
-        self._kinds = None
-
-    def make_service_proxy(self, endpoint):
+    def make_service_proxy(self, endpoint: ImportEndpoint) -> Any:
         """
         Creates the proxy for the given ImportEndpoint
 
         :param endpoint: An ImportEndpoint bean
         :return: A service proxy
         """
+        if not endpoint.name:
+            _logger.warning("Ignoring endpoint with no name: %s", endpoint)
+            return None
+
         # Get the access URL
         access_url = endpoint.properties.get(PROP_XMLRPC_URL)
         if not access_url:
@@ -293,7 +273,7 @@ class XmlRpcServiceImporter(commons.AbstractRpcServiceImporter):
         # Return the proxy
         return _ServiceCallProxy(endpoint.name, access_url)
 
-    def clear_service_proxy(self, endpoint):
+    def clear_service_proxy(self, endpoint: ImportEndpoint) -> None:
         """
         Destroys the proxy made for the given ImportEndpoint
 

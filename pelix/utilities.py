@@ -396,7 +396,7 @@ def is_bytes(string: Any) -> bool:
     :return: True if the given object is a bytes string
     """
     # str in Python 2 is bytes in Python 3
-    return isinstance(string, bytes)
+    return isinstance(string, (bytes, bytearray))
 
 
 def is_string(string: Any) -> bool:
@@ -428,7 +428,7 @@ def to_bytes(data: Union[bytes, str], encoding: str = "UTF-8") -> bytes:
     return cast(str, data).encode(encoding)
 
 
-def to_str(data: Union[bytes, str], encoding: str = "UTF-8") -> str:
+def to_str(data: Union[bytes, bytearray, str], encoding: str = "UTF-8") -> str:
     """
     Converts the given parameter to a string.
     Returns the first parameter if it is already an instance of ``str``.
