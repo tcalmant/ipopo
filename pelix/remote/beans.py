@@ -248,7 +248,7 @@ class ImportEndpoint:
         framework: Optional[str],
         configurations: Union[str, Iterable[str]],
         name: Optional[str],
-        specifications: List[str],
+        specifications: Union[str, Iterable[str]],
         properties: Optional[Dict[str, Any]],
     ) -> None:
         """

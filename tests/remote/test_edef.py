@@ -6,20 +6,15 @@ Tests the Remote Services EDEF I/O operations
 :author: Thomas Calmant
 """
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+from typing import Any
+import unittest
 
-# Remote Services
-from pelix.remote.edef_io import EDEFReader, EDEFWriter
-import pelix.remote.beans as beans
-
-# Pelix
 import pelix.constants
 import pelix.framework
+from pelix.internals.registry import ServiceReference
 import pelix.remote
+import pelix.remote.beans as beans
+from pelix.remote.edef_io import EDEFReader, EDEFWriter
 
 # ------------------------------------------------------------------------------
 
@@ -33,43 +28,55 @@ class EdefIOTest(unittest.TestCase):
     """
     Tests for the Remote Services EDEF I/O operations
     """
-    def setUp(self):
+
+    framework: pelix.framework.Framework
+    svc_ref: ServiceReference[Any]
+
+    def setUp(self) -> None:
         """
         Prepares a framework and a registers a service to export
         """
         # Create the framework
-        self.framework = pelix.framework.create_framework(['pelix.ipopo.core'])
+        self.framework = pelix.framework.create_framework(["pelix.ipopo.core"])
         self.framework.start()
 
         # Register an exported service
         context = self.framework.get_bundle_context()
         svc_reg = context.register_service(
-            "sample.spec", object(),
-            {pelix.remote.PROP_EXPORTED_INTENTS: "*",
-             pelix.remote.PROP_EXPORTED_CONFIGS: "*",
-             "some.property": "some value"})
+            "sample.spec",
+            object(),
+            {
+                pelix.remote.PROP_EXPORTED_INTENTS: "*",
+                pelix.remote.PROP_EXPORTED_CONFIGS: "*",
+                "some.property": "some value",
+            },
+        )
         self.svc_ref = svc_reg.get_reference()
+        assert self.svc_ref is not None
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up for next test
         """
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework()
 
-        self.framework = None
-        self.svc_ref = None
+        self.framework = None  # type: ignore
+        self.svc_ref = None  # type: ignore
 
-    def testEdefStringReload(self):
+    def testEdefStringReload(self) -> None:
         """
         Tries to convert an EndpointDescription to its XML format (EDEF) and to
         reload this string
         """
         original = beans.EndpointDescription(
             self.svc_ref,
-            {pelix.remote.PROP_ENDPOINT_ID: "toto",
-             pelix.remote.PROP_IMPORTED_CONFIGS: ['titi'],
-             pelix.constants.OBJECTCLASS: "spec"})
+            {
+                pelix.remote.PROP_ENDPOINT_ID: "toto",
+                pelix.remote.PROP_IMPORTED_CONFIGS: ["titi"],
+                pelix.constants.OBJECTCLASS: "spec",
+            },
+        )
 
         # Write the endpoint to an XML string
         writer = EDEFWriter()
@@ -84,20 +91,17 @@ class EdefIOTest(unittest.TestCase):
         endpoint = endpoints[0]
 
         # Ensure equality
-        self.assertIsNot(original, endpoint,
-                         "Same exact endpoint object returned")
+        self.assertIsNot(original, endpoint, "Same exact endpoint object returned")
 
-        self.assertEqual(original, endpoint,
-                         "Parsed endpoint is different")
-        self.assertEqual(endpoint, original,
-                         "Parsed endpoint is different")
+        self.assertEqual(original, endpoint, "Parsed endpoint is different")
+        self.assertEqual(endpoint, original, "Parsed endpoint is different")
 
         # Ensure properties equality
-        self.assertDictEqual(original.get_properties(),
-                             endpoint.get_properties(),
-                             "Endpoint properties changed")
+        self.assertDictEqual(
+            original.get_properties(), endpoint.get_properties(), "Endpoint properties changed"
+        )
 
-    def testEdefIOTypes(self):
+    def testEdefIOTypes(self) -> None:
         """
         Tests the writing and parsing of an EndpointDescription bean with
         "complex" properties
@@ -114,11 +118,12 @@ class EdefIOTest(unittest.TestCase):
             "list_float": [1.0, 2.0, 3.0],
             "set_str": {"a", "b", "c"},
             "set_int": {1, 2, 3},
-            "set_float": {1.0, 2.0, 3.0}}
+            "set_float": {1.0, 2.0, 3.0},
+        }
 
         all_props = properties.copy()
-        all_props[pelix.remote.PROP_ENDPOINT_ID] = 'toto'
-        all_props[pelix.remote.PROP_IMPORTED_CONFIGS] = ['titi']
+        all_props[pelix.remote.PROP_ENDPOINT_ID] = "toto"
+        all_props[pelix.remote.PROP_IMPORTED_CONFIGS] = ["titi"]
 
         # Prepare an endpoint description with different property values
         endpoint = beans.EndpointDescription(self.svc_ref, all_props)
@@ -129,8 +134,8 @@ class EdefIOTest(unittest.TestCase):
         parsed_properties = parsed.get_properties()
 
         # Check values
-        self.assertDictContainsSubset(endpoint.get_properties(),
-                                      parsed_properties)
+        self.assertDictContainsSubset(endpoint.get_properties(), parsed_properties)
+
 
 # ------------------------------------------------------------------------------
 
@@ -139,65 +144,77 @@ class BeansTest(unittest.TestCase):
     """
     Tests beans methods
     """
-    def setUp(self):
+
+    framework: pelix.framework.Framework
+    svc_ref: ServiceReference[Any]
+
+    def setUp(self) -> None:
         """
         Prepares a framework and a registers a service to export
         """
         # Create the framework
-        self.framework = pelix.framework.create_framework(['pelix.ipopo.core'])
+        self.framework = pelix.framework.create_framework(["pelix.ipopo.core"])
         self.framework.start()
 
         # Register an exported service
         context = self.framework.get_bundle_context()
         self.service = object()
         svc_reg = context.register_service(
-            "sample.spec", self.service,
-            {pelix.remote.PROP_EXPORTED_INTENTS: "*",
-             pelix.remote.PROP_EXPORTED_CONFIGS: "*",
-             "some.property": "some value"})
+            "sample.spec",
+            self.service,
+            {
+                pelix.remote.PROP_EXPORTED_INTENTS: "*",
+                pelix.remote.PROP_EXPORTED_CONFIGS: "*",
+                "some.property": "some value",
+            },
+        )
         self.svc_ref = svc_reg.get_reference()
+        assert self.svc_ref is not None
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up for next test
         """
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework()
 
-        self.framework = None
-        self.svc_ref = None
+        self.framework = None  # type: ignore
+        self.svc_ref = None  # type: ignore
 
-    def testConstructor(self):
+    def testConstructor(self) -> None:
         """
         Tests the behavior of the __init__ method
         """
         # Must fail due to the lack of endpoint.id
-        self.assertRaises(ValueError, beans.EndpointDescription,
-                          self.svc_ref, None)
+        self.assertRaises(ValueError, beans.EndpointDescription, self.svc_ref, None)
 
         # Must not fail
         beans.EndpointDescription(
             self.svc_ref,
-            {pelix.remote.PROP_ENDPOINT_ID: "toto",
-             pelix.remote.PROP_IMPORTED_CONFIGS: ['titi']})
+            {pelix.remote.PROP_ENDPOINT_ID: "toto", pelix.remote.PROP_IMPORTED_CONFIGS: ["titi"]},
+        )
 
         # Must fail due to the lack of properties
-        for mandatory in (pelix.remote.PROP_ENDPOINT_ID,
-                          pelix.remote.PROP_IMPORTED_CONFIGS):
-            self.assertRaises(ValueError, beans.EndpointDescription,
-                              None, {mandatory: "toto",
-                                     pelix.constants.OBJECTCLASS: "spec",
-                                     pelix.constants.SERVICE_ID: 1})
+        for mandatory in (pelix.remote.PROP_ENDPOINT_ID, pelix.remote.PROP_IMPORTED_CONFIGS):
+            self.assertRaises(
+                ValueError,
+                beans.EndpointDescription,
+                None,
+                {mandatory: "toto", pelix.constants.OBJECTCLASS: "spec", pelix.constants.SERVICE_ID: 1},
+            )
 
         # Must not fail
         beans.EndpointDescription(
             None,
-            {pelix.remote.PROP_ENDPOINT_ID: "toto",
-             pelix.remote.PROP_IMPORTED_CONFIGS: ['titi'],
-             pelix.constants.OBJECTCLASS: "spec",
-             pelix.constants.SERVICE_ID: 1})
+            {
+                pelix.remote.PROP_ENDPOINT_ID: "toto",
+                pelix.remote.PROP_IMPORTED_CONFIGS: ["titi"],
+                pelix.constants.OBJECTCLASS: "spec",
+                pelix.constants.SERVICE_ID: 1,
+            },
+        )
 
-    def testProperties(self):
+    def testProperties(self) -> None:
         """
         There must be no "service.exported.*" property in an endpoint
         description
@@ -205,27 +222,31 @@ class BeansTest(unittest.TestCase):
         # Original endpoint description
         original = beans.EndpointDescription(
             self.svc_ref,
-            {pelix.remote.PROP_ENDPOINT_ID: "toto",
-             pelix.remote.PROP_IMPORTED_CONFIGS: ['titi'],
-             pelix.constants.OBJECTCLASS: "spec"})
+            {
+                pelix.remote.PROP_ENDPOINT_ID: "toto",
+                pelix.remote.PROP_IMPORTED_CONFIGS: ["titi"],
+                pelix.constants.OBJECTCLASS: "spec",
+            },
+        )
         for key in original.get_properties().keys():
-            self.assertFalse(key.startswith("service.exported"),
-                             "An export property has been found")
+            self.assertFalse(key.startswith("service.exported"), "An export property has been found")
 
-    def testConvertBeans(self):
+    def testConvertBeans(self) -> None:
         """
         Tests the conversion of an ExportEndpoint to an EndpointDescription
         and of an EndpointDescription to an ImportEndpoint bean
         """
         # Prepare ExportEndpoint & ImportEndpoint beans
         specifications = self.svc_ref.get_property(pelix.constants.OBJECTCLASS)
-        export_bean = beans.ExportEndpoint("some.endpoint.uid",
-                                           "some.framework.uid",
-                                           ["configurationA"],
-                                           "some.endpoint.name",
-                                           self.svc_ref,
-                                           self.service,
-                                           {"extra.property": 42})
+        export_bean = beans.ExportEndpoint(
+            "some.endpoint.uid",
+            "some.framework.uid",
+            ["configurationA"],
+            "some.endpoint.name",
+            self.svc_ref,
+            self.service,
+            {"extra.property": 42},
+        )
 
         import_bean = beans.ImportEndpoint(
             export_bean.uid,
@@ -233,31 +254,27 @@ class BeansTest(unittest.TestCase):
             export_bean.configurations,
             export_bean.name,
             export_bean.specifications,
-            export_bean.make_import_properties())
+            export_bean.make_import_properties(),
+        )
 
         # Convert it to an EndpointDescription bean
         description_bean = beans.EndpointDescription.from_export(export_bean)
 
         # ... ensure its content is valid
         self.assertEqual(description_bean.get_id(), export_bean.uid)
-        self.assertEqual(description_bean.get_framework_uuid(),
-                         export_bean.framework)
-        self.assertEqual(description_bean.get_configuration_types(),
-                         export_bean.configurations)
+        self.assertEqual(description_bean.get_framework_uuid(), export_bean.framework)
+        self.assertEqual(description_bean.get_configuration_types(), export_bean.configurations)
 
         # ExportEndpoint specifications are prefixed by "python:/"
         self.assertEqual(description_bean.get_interfaces(), specifications)
 
-        self.assertDictContainsSubset(export_bean.make_import_properties(),
-                                      description_bean.get_properties())
+        self.assertDictContainsSubset(export_bean.make_import_properties(), description_bean.get_properties())
 
         # Convert the result to an ImportEndpoint bean
         descripted_import = description_bean.to_import()
 
         # ... ensure its content is valid
-        for field in ('uid', 'framework', 'configurations', 'specifications'):
-            self.assertEqual(getattr(descripted_import, field),
-                             getattr(import_bean, field))
+        for field in ("uid", "framework", "configurations", "specifications"):
+            self.assertEqual(getattr(descripted_import, field), getattr(import_bean, field))
 
-        self.assertDictContainsSubset(import_bean.properties,
-                                      descripted_import.properties)
+        self.assertDictContainsSubset(import_bean.properties, descripted_import.properties)

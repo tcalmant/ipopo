@@ -6,25 +6,20 @@ Tests the Remote Services abstract transport classes
 :author: Thomas Calmant
 """
 
-# Standard library
 import sys
+import unittest
 import uuid
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+from typing import Any, Dict, List, Optional, cast
 
-# Remote Services
-from pelix.remote import RemoteServiceError
-from pelix.remote.beans import ImportEndpoint
-import pelix.remote
-import pelix.remote.transport.commons as commons
-
-# Pelix
-from pelix.ipopo.constants import use_ipopo
-from pelix.ipopo.decorators import ComponentFactory, Provides, Property
 import pelix.constants
 import pelix.framework
+import pelix.remote
+import pelix.remote.transport.commons as commons
+from pelix.internals.registry import ServiceReference
+from pelix.ipopo.constants import use_ipopo
+from pelix.ipopo.decorators import ComponentFactory, Property, Provides
+from pelix.remote import RemoteServiceDispatcher, RemoteServiceError
+from pelix.remote.beans import ImportEndpoint
 
 # ------------------------------------------------------------------------------
 
@@ -50,24 +45,25 @@ SERVICE_CALLED = 4
 # ------------------------------------------------------------------------------
 
 
-class DummyService(object):
+class DummyService:
     """
     Dummy exported service
     """
-    def __init__(self):
+
+    def __init__(self) -> None:
         """
         Sets up a random value to be returned by the service method
         """
         self.value = uuid.uuid4()
-        self.events = []
+        self.events: List[int] = []
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Clears the state
         """
         del self.events[:]
 
-    def call_me(self):
+    def call_me(self) -> Any:
         """
         Sample call
         """
@@ -76,30 +72,32 @@ class DummyService(object):
 
 
 @ComponentFactory(TEST_EXPORTER_FACTORY)
-@Provides(pelix.remote.SERVICE_EXPORT_PROVIDER)
-@Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
-          (TEST_CONFIGURATION,))
+@Provides(pelix.remote.RemoteServiceExportProvider)
+@Property("_kinds", pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED, (TEST_CONFIGURATION,))
 class Exporter(commons.AbstractRpcServiceExporter):
     """
     Service exporter
     """
-    def __init__(self):
+
+    def __init__(self) -> None:
         """
         Sets up members
         """
         # Call parent
         super(Exporter, self).__init__()
 
-        self.events = []
+        self.events: List[int] = []
         self.raise_exception = False
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Clears the state
         """
         del self.events[:]
 
-    def make_endpoint_properties(self, svc_ref, name, fw_uid):
+    def make_endpoint_properties(
+        self, svc_ref: ServiceReference[Any], name: str, fw_uid: Optional[str]
+    ) -> Dict[str, Any]:
         """
         Prepare properties for the ExportEndpoint to be created
 
@@ -111,14 +109,16 @@ class Exporter(commons.AbstractRpcServiceExporter):
         self.events.append(EXPORT_MAKE)
         return {TEST_PROPERTY: fw_uid}
 
+
 # ------------------------------------------------------------------------------
 
 
-class Proxy(object):
+class Proxy:
     """
     Small test proxy
     """
-    def __init__(self, fw_uid):
+
+    def __init__(self, fw_uid: str) -> None:
         """
         Sets up proxy data
         """
@@ -126,30 +126,30 @@ class Proxy(object):
 
 
 @ComponentFactory(TEST_IMPORTER_FACTORY)
-@Provides(pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER)
-@Property('_kinds', pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
-          (TEST_CONFIGURATION,))
+@Provides(pelix.remote.RemoteServiceImportEndpointListener)
+@Property("_kinds", pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED, (TEST_CONFIGURATION,))
 class Importer(commons.AbstractRpcServiceImporter):
     """
     Service importer
     """
-    def __init__(self):
+
+    def __init__(self) -> None:
         """
         Sets up members
         """
         # Call parent
         super(Importer, self).__init__()
 
-        self.events = []
+        self.events: List[int] = []
         self.raise_exception = False
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Clears the state
         """
         del self.events[:]
 
-    def make_service_proxy(self, endpoint):
+    def make_service_proxy(self, endpoint: ImportEndpoint) -> Any:
         """
         Creates the proxy for the given ImportEndpoint
 
@@ -158,15 +158,17 @@ class Importer(commons.AbstractRpcServiceImporter):
         """
         self.events.append(IMPORT_MAKE)
         fw_uid = endpoint.properties.get(TEST_PROPERTY)
+        assert fw_uid is not None
         return Proxy(fw_uid)
 
-    def clear_service_proxy(self, endpoint):
+    def clear_service_proxy(self, endpoint: ImportEndpoint) -> None:
         """
         Destroys the proxy made for the given ImportEndpoint
 
         :param endpoint: An ImportEndpoint bean
         """
         self.events.append(IMPORT_CLEAR)
+
 
 # ------------------------------------------------------------------------------
 
@@ -175,30 +177,28 @@ class AbstractCommonExporterTest(unittest.TestCase):
     """
     Tests for the common code for exporters
     """
-    def setUp(self):
+
+    framework: pelix.framework.Framework
+    dispatcher: RemoteServiceDispatcher
+
+    def setUp(self) -> None:
         """
         Sets up the test
         """
-        # Compatibility issue between Python 2 & 3
-        if sys.version_info[0] < 3:
-            self.assertCountEqual = self.assertItemsEqual
-
         # Create the framework
-        self.framework = pelix.framework.create_framework(
-            ('pelix.ipopo.core', 'pelix.remote.dispatcher'))
+        self.framework = pelix.framework.create_framework(("pelix.ipopo.core", "pelix.remote.dispatcher"))
         self.framework.start()
 
         # Get the framework UID
         context = self.framework.get_bundle_context()
-        self.framework_uid = context.get_property(
-            pelix.constants.FRAMEWORK_UID)
+        self.framework_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
         # Get the dispatcher and the imports registry
-        svc_ref = context.get_service_reference(
-            pelix.remote.SERVICE_DISPATCHER)
+        svc_ref = context.get_service_reference(pelix.remote.RemoteServiceDispatcher)
+        assert svc_ref is not None
         self.dispatcher = context.get_service(svc_ref)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up for next test
         """
@@ -207,10 +207,10 @@ class AbstractCommonExporterTest(unittest.TestCase):
         pelix.framework.FrameworkFactory.delete_framework()
 
         # Clean up members
-        self.framework = None
-        self.dispatcher = None
+        self.framework = None  # type: ignore
+        self.dispatcher = None  # type: ignore
 
-    def _install_exporter(self):
+    def _install_exporter(self) -> Exporter:
         """
         Installs the service exporter
 
@@ -222,9 +222,9 @@ class AbstractCommonExporterTest(unittest.TestCase):
             ipopo.register_factory(context, Exporter)
 
             # Instantiate the component
-            return ipopo.instantiate(TEST_EXPORTER_FACTORY, "exporter", {})
+            return cast(Exporter, ipopo.instantiate(TEST_EXPORTER_FACTORY, "exporter", {}))
 
-    def testExportAny(self):
+    def testExportAny(self) -> None:
         """
         Tests the call to the exporter, even if no configuration is given
         """
@@ -236,16 +236,15 @@ class AbstractCommonExporterTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
         service = object()
         svc_reg = context.register_service(
-            "sample.spec", service,
-            {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+            "sample.spec", service, {pelix.remote.PROP_EXPORTED_INTERFACES: "*"}
+        )
 
         # The exporter must have been called
         self.assertListEqual(exporter.events, [EXPORT_MAKE])
         exporter.clear()
 
         # Check the dispatcher content
-        self.assertEqual(len(self.dispatcher.get_endpoints()), 1,
-                         "Export endpoint creation error ?")
+        self.assertEqual(len(self.dispatcher.get_endpoints()), 1, "Export endpoint creation error ?")
 
         # Update the service
         svc_reg.set_properties({"some.property": 42})
@@ -256,7 +255,7 @@ class AbstractCommonExporterTest(unittest.TestCase):
         # No call of the exporter
         self.assertListEqual(exporter.events, [])
 
-    def testExportConfig(self):
+    def testExportConfig(self) -> None:
         """
         Tests the call to the exporter, with a given configuration
         """
@@ -264,31 +263,30 @@ class AbstractCommonExporterTest(unittest.TestCase):
         exporter = self._install_exporter()
         self.assertListEqual(exporter.events, [])
 
-        for config in (exporter._kinds, '*'):
+        for config in (exporter._kinds, "*"):
             # Register an exported service
             context = self.framework.get_bundle_context()
             service = object()
             svc_reg = context.register_service(
-                "sample.spec", service,
-                {pelix.remote.PROP_EXPORTED_INTERFACES: "*",
-                 pelix.remote.PROP_EXPORTED_CONFIGS: config})
+                "sample.spec",
+                service,
+                {pelix.remote.PROP_EXPORTED_INTERFACES: "*", pelix.remote.PROP_EXPORTED_CONFIGS: config},
+            )
 
             # Check if handle works correctly
-            self.assertTrue(exporter.handles(config),
-                            "Exporter doesn't handle {0}".format(config))
+            self.assertTrue(exporter.handles(config), "Exporter doesn't handle {0}".format(config))
 
             # The exporter must have been called
             self.assertListEqual(exporter.events, [EXPORT_MAKE])
             exporter.clear()
 
             # Check the dispatcher content
-            self.assertEqual(len(self.dispatcher.get_endpoints()), 1,
-                             "Export endpoint creation error ?")
+            self.assertEqual(len(self.dispatcher.get_endpoints()), 1, "Export endpoint creation error ?")
 
             # Unregister the service
             svc_reg.unregister()
 
-    def testExportDispatch(self):
+    def testExportDispatch(self) -> None:
         """
         Tests the call to the exported service
         """
@@ -299,8 +297,8 @@ class AbstractCommonExporterTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
         service = DummyService()
         svc_reg = context.register_service(
-            "sample.spec", service,
-            {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+            "sample.spec", service, {pelix.remote.PROP_EXPORTED_INTERFACES: "*"}
+        )
 
         # The exporter must have been called
         self.assertListEqual(exporter.events, [EXPORT_MAKE])
@@ -312,24 +310,22 @@ class AbstractCommonExporterTest(unittest.TestCase):
         # Call the test method
         method_name = "{0}.{1}".format(endpoint.name, "call_me")
         self.assertEqual(exporter.dispatch(method_name, []), service.value)
-        self.assertListEqual(service.events, [SERVICE_CALLED],
-                             "Service not called")
+        self.assertListEqual(service.events, [SERVICE_CALLED], "Service not called")
         service.clear()
 
         # Call an unknown method
-        self.assertRaises(RemoteServiceError, exporter.dispatch,
-                          "{0}.{1}".format(endpoint.name, "unknown"), [])
+        self.assertRaises(
+            RemoteServiceError, exporter.dispatch, "{0}.{1}".format(endpoint.name, "unknown"), []
+        )
 
         # Unregister the service
         svc_reg.unregister()
 
         # An exception must be raised
-        self.assertRaises(RemoteServiceError,
-                          exporter.dispatch, method_name, [])
-        self.assertListEqual(service.events, [],
-                             "Service called after unregistration")
+        self.assertRaises(RemoteServiceError, exporter.dispatch, method_name, [])
+        self.assertListEqual(service.events, [], "Service called after unregistration")
 
-    def testExportRename(self):
+    def testExportRename(self) -> None:
         """
         Tests the rename of an exported endpoint
         """
@@ -341,8 +337,8 @@ class AbstractCommonExporterTest(unittest.TestCase):
         service = DummyService()
         service_2 = DummyService()
         svc_reg = context.register_service(
-            "sample.spec", service,
-            {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+            "sample.spec", service, {pelix.remote.PROP_EXPORTED_INTERFACES: "*"}
+        )
 
         # Get the export endpoint
         endpoint = self.dispatcher.get_endpoints()[0]
@@ -362,34 +358,30 @@ class AbstractCommonExporterTest(unittest.TestCase):
         # Call the test method
         method_name = "{0}.{1}".format(name, "call_me")
         self.assertEqual(exporter.dispatch(method_name, []), service.value)
-        self.assertListEqual(service.events, [SERVICE_CALLED],
-                             "Service not called")
+        self.assertListEqual(service.events, [SERVICE_CALLED], "Service not called")
         service.clear()
 
         # Update another property
-        svc_reg.set_properties({pelix.remote.PROP_ENDPOINT_NAME: name,
-                                "other.prop": 42})
+        svc_reg.set_properties({pelix.remote.PROP_ENDPOINT_NAME: name, "other.prop": 42})
 
         # Call the test method
         self.assertEqual(exporter.dispatch(method_name, []), service.value)
-        self.assertListEqual(service.events, [SERVICE_CALLED],
-                             "Service not called")
+        self.assertListEqual(service.events, [SERVICE_CALLED], "Service not called")
         service.clear()
 
         # Register another service with the same name
         svc_reg_2 = context.register_service(
-            "sample.spec", service_2,
-            {pelix.remote.PROP_EXPORTED_INTERFACES: "*",
-             pelix.remote.PROP_ENDPOINT_NAME: name})
+            "sample.spec",
+            service_2,
+            {pelix.remote.PROP_EXPORTED_INTERFACES: "*", pelix.remote.PROP_ENDPOINT_NAME: name},
+        )
 
         # Call the test method
         # (the replacement endpoint should not be callable yet)
         self.assertEqual(exporter.dispatch(method_name, []), service.value)
         # The second service must be callable now
-        self.assertListEqual(service.events, [SERVICE_CALLED],
-                             "Old service not called")
-        self.assertListEqual(service_2.events, [],
-                             "New service called after registration")
+        self.assertListEqual(service.events, [SERVICE_CALLED], "Old service not called")
+        self.assertListEqual(service_2.events, [], "New service called after registration")
         service.clear()
         service_2.clear()
 
@@ -403,15 +395,14 @@ class AbstractCommonExporterTest(unittest.TestCase):
         self.assertEqual(exporter.dispatch(method_name, []), service_2.value)
 
         # The second service must be callable now
-        self.assertListEqual(service_2.events, [SERVICE_CALLED],
-                             "New service not called")
-        self.assertListEqual(service.events, [],
-                             "Old service called after unregistration")
+        self.assertListEqual(service_2.events, [SERVICE_CALLED], "New service not called")
+        self.assertListEqual(service.events, [], "Old service called after unregistration")
         service.clear()
         service_2.clear()
 
         # Unregister the second service
         svc_reg_2.unregister()
+
 
 # ------------------------------------------------------------------------------
 
@@ -420,7 +411,11 @@ class AbstractCommonImporterTest(unittest.TestCase):
     """
     Tests for the common importer
     """
-    def setUp(self):
+
+    framework: pelix.framework.Framework
+    registry: pelix.remote.RemoteServiceRegistry
+
+    def setUp(self) -> None:
         """
         Sets up the test
         """
@@ -429,20 +424,19 @@ class AbstractCommonImporterTest(unittest.TestCase):
             self.assertCountEqual = self.assertItemsEqual
 
         # Create the framework
-        self.framework = pelix.framework.create_framework(
-            ('pelix.ipopo.core', 'pelix.remote.registry'))
+        self.framework = pelix.framework.create_framework(("pelix.ipopo.core", "pelix.remote.registry"))
         self.framework.start()
 
         # Get the framework UID
         context = self.framework.get_bundle_context()
-        self.framework_uid = context.get_property(
-            pelix.constants.FRAMEWORK_UID)
+        self.framework_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
         # Get the imports registry
-        svc_ref = context.get_service_reference(pelix.remote.SERVICE_REGISTRY)
+        svc_ref = context.get_service_reference(pelix.remote.RemoteServiceRegistry)
+        assert svc_ref is not None
         self.registry = context.get_service(svc_ref)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up for next test
         """
@@ -451,10 +445,10 @@ class AbstractCommonImporterTest(unittest.TestCase):
         pelix.framework.FrameworkFactory.delete_framework()
 
         # Clean up members
-        self.framework = None
-        self.registry = None
+        self.framework = None  # type: ignore
+        self.registry = None  # type: ignore
 
-    def _install_importer(self):
+    def _install_importer(self) -> Importer:
         """
         Installs the service importer
 
@@ -466,9 +460,9 @@ class AbstractCommonImporterTest(unittest.TestCase):
             ipopo.register_factory(context, Importer)
 
             # Instantiate the component
-            return ipopo.instantiate(TEST_IMPORTER_FACTORY, "importer", {})
+            return cast(Importer, ipopo.instantiate(TEST_IMPORTER_FACTORY, "importer", {}))
 
-    def testImportAny(self):
+    def testImportAny(self) -> None:
         """
         Tests the import of an endpoint for any configuration
         """
@@ -476,34 +470,29 @@ class AbstractCommonImporterTest(unittest.TestCase):
         importer = self._install_importer()
 
         # Prepare an import endpoint matching any configuration
-        endpoint = ImportEndpoint("import-uid", "other-framework", "*",
-                                  "endpoint_name", ['some.spec'], {})
+        endpoint = ImportEndpoint("import-uid", "other-framework", "*", "endpoint_name", ["some.spec"], {})
 
         # Ensure the importer has not been called yet
-        self.assertListEqual(importer.events, [],
-                             "Importer called before registration")
+        self.assertListEqual(importer.events, [], "Importer called before registration")
 
         # Register it
         self.registry.add(endpoint)
-        self.assertListEqual(importer.events, [IMPORT_MAKE],
-                             "Importer not called after registration")
+        self.assertListEqual(importer.events, [IMPORT_MAKE], "Importer not called after registration")
         importer.clear()
 
         # Update it
         props = endpoint.properties.copy()
-        props['other.value'] = 42
+        props["other.value"] = 42
         self.registry.update(endpoint.uid, props)
 
         # The import has not been called
-        self.assertListEqual(importer.events, [],
-                             "Importer called after update")
+        self.assertListEqual(importer.events, [], "Importer called after update")
 
         # Clear it
         self.registry.remove(endpoint.uid)
-        self.assertListEqual(importer.events, [IMPORT_CLEAR],
-                             "Importer not called after unregistration")
+        self.assertListEqual(importer.events, [IMPORT_CLEAR], "Importer not called after unregistration")
 
-    def testImportUnknownConfig(self):
+    def testImportUnknownConfig(self) -> None:
         """
         Tests the import of an endpoint for an unknown configuration
         """
@@ -511,21 +500,19 @@ class AbstractCommonImporterTest(unittest.TestCase):
         importer = self._install_importer()
 
         # Prepare an import endpoint with an unknown configuration
-        endpoint = ImportEndpoint("import-uid", "other-framework",
-                                  "unknown-config",
-                                  "endpoint_name", ['some.spec'], {})
+        endpoint = ImportEndpoint(
+            "import-uid", "other-framework", "unknown-config", "endpoint_name", ["some.spec"], {}
+        )
 
         # Register it
         self.registry.add(endpoint)
-        self.assertListEqual(importer.events, [],
-                             "Importer called for an unknown configuration")
+        self.assertListEqual(importer.events, [], "Importer called for an unknown configuration")
 
         # Remove it
-        self.registry.remove(endpoint)
-        self.assertListEqual(importer.events, [],
-                             "Importer called for an unknown configuration")
+        self.registry.remove(endpoint.uid)
+        self.assertListEqual(importer.events, [], "Importer called for an unknown configuration")
 
-    def testImportKnownConfig(self):
+    def testImportKnownConfig(self) -> None:
         """
         Tests the import of an endpoint for a known configuration
         """
@@ -533,25 +520,20 @@ class AbstractCommonImporterTest(unittest.TestCase):
         importer = self._install_importer()
 
         # Prepare an import endpoint with a known configuration
-        endpoint = ImportEndpoint("import-uid", "other-framework",
-                                  importer._kinds,
-                                  "endpoint_name", ['some.spec'], {})
+        endpoint = ImportEndpoint(
+            "import-uid", "other-framework", importer._kinds, "endpoint_name", ["some.spec"], {}
+        )
 
         # Register it
         self.registry.add(endpoint)
-        self.assertListEqual(importer.events, [IMPORT_MAKE],
-                             "Importer not called for a known configuration")
+        self.assertListEqual(importer.events, [IMPORT_MAKE], "Importer not called for a known configuration")
         importer.clear()
-
-        # Remove it
-        self.registry.remove(endpoint)
 
         # Clear it
         self.registry.remove(endpoint.uid)
-        self.assertListEqual(importer.events, [IMPORT_CLEAR],
-                             "Importer not called after unregistration")
+        self.assertListEqual(importer.events, [IMPORT_CLEAR], "Importer not called after unregistration")
 
-    def testLostFramework(self):
+    def testLostFramework(self) -> None:
         """
         Tests the loss of a framework
         """
@@ -560,25 +542,24 @@ class AbstractCommonImporterTest(unittest.TestCase):
 
         # Prepare an import endpoint matching any configuration
         fw_uid = "other-framework"
-        endpoint = ImportEndpoint("import-uid", fw_uid, "*",
-                                  "endpoint_name", ['some.spec'], {})
+        endpoint = ImportEndpoint("import-uid", fw_uid, "*", "endpoint_name", ["some.spec"], {})
 
         # Register it
         self.registry.add(endpoint)
-        self.assertListEqual(importer.events, [IMPORT_MAKE],
-                             "Importer not called after registration")
+        self.assertListEqual(importer.events, [IMPORT_MAKE], "Importer not called after registration")
         importer.clear()
 
         # Clear it
         self.registry.lost_framework(endpoint.framework)
-        self.assertListEqual(importer.events, [IMPORT_CLEAR],
-                             "Importer not called after framework loss")
+        self.assertListEqual(importer.events, [IMPORT_CLEAR], "Importer not called after framework loss")
+
 
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

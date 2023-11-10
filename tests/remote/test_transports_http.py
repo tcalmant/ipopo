@@ -24,37 +24,28 @@ Tests remote services transports based on HTTP
     limitations under the License.
 """
 
-# Standard library
-import time
+import queue
 import threading
+import time
+from typing import Any, Iterable, Optional, Tuple
+import unittest
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import pelix.http
+from pelix.internals.registry import ServiceReference
+import pelix.remote
+from pelix.framework import Framework, FrameworkFactory, create_framework
+from pelix.ipopo.constants import use_ipopo
+from tests.utilities import WrappedProcess
 
 try:
     # Try to import modules
     from multiprocessing import Process, Queue
+
     # IronPython fails when creating a queue
     Queue()
 except ImportError:
     # Some interpreters don't have support for multiprocessing
     raise unittest.SkipTest("Interpreter doesn't support multiprocessing")
-
-try:
-    import queue
-except ImportError:
-    import Queue as queue
-
-# Pelix
-from pelix.framework import create_framework, FrameworkFactory
-from pelix.ipopo.constants import use_ipopo
-import pelix.http
-import pelix.remote
-
-# Local utilities
-from tests.utilities import WrappedProcess
 
 # ------------------------------------------------------------------------------
 
@@ -69,11 +60,12 @@ __docformat__ = "restructuredtext en"
 SVC_SPEC = "pelix.test.remote"
 
 
-class RemoteService(object):
+class RemoteService:
     """
     Exported service
     """
-    def __init__(self, state_queue, event):
+
+    def __init__(self, state_queue: Queue, event: threading.Event) -> None:
         """
         Sets up members
 
@@ -83,20 +75,20 @@ class RemoteService(object):
         self.state_queue = state_queue
         self.event = event
 
-    def dummy(self):
+    def dummy(self) -> None:
         """
         No argument, no result
         """
         self.state_queue.put("call-dummy")
 
-    def echo(self, value):
+    def echo(self, value: Any) -> Any:
         """
         Returns the given value
         """
         self.state_queue.put("call-echo")
         return value
 
-    def keywords(self, text, to_lower=False):
+    def keywords(self, text: str, to_lower: bool = False) -> str:
         """
         Return the string value in lower or upper case
         """
@@ -106,35 +98,38 @@ class RemoteService(object):
         else:
             return text.upper()
 
-    def error(self):
+    def error(self) -> None:
         """
         Raises an error
         """
         self.state_queue.put("call-error")
         raise ValueError("Some error")
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Stops the peer
         """
         self.event.set()
 
+
 # ------------------------------------------------------------------------------
 
 
-def load_framework(transport, components):
+def load_framework(transport: str, components: Iterable[Tuple[str, str]]) -> Framework:
     """
     Starts a Pelix framework in the local process
 
     :param transport: Name of the transport bundle to install
     :param components: Tuples (factory, name) of instances to start
     """
-    all_bundles = ['pelix.ipopo.core',
-                   'pelix.http.basic',
-                   'pelix.remote.dispatcher',
-                   'pelix.remote.registry',
-                   'pelix.remote.discovery.multicast',
-                   transport]
+    all_bundles = [
+        "pelix.ipopo.core",
+        "pelix.http.basic",
+        "pelix.remote.dispatcher",
+        "pelix.remote.registry",
+        "pelix.remote.discovery.multicast",
+        transport,
+    ]
 
     # Start the framework
     framework = create_framework(all_bundles)
@@ -142,17 +137,16 @@ def load_framework(transport, components):
 
     with use_ipopo(framework.get_bundle_context()) as ipopo:
         # Start a HTTP service on a random port
-        ipopo.instantiate(pelix.http.FACTORY_HTTP_BASIC,
-                          "http-server",
-                          {pelix.http.HTTP_SERVICE_ADDRESS: "0.0.0.0",
-                           pelix.http.HTTP_SERVICE_PORT: 0})
+        ipopo.instantiate(
+            pelix.http.FACTORY_HTTP_BASIC,
+            "http-server",
+            {pelix.http.HTTP_SERVICE_ADDRESS: "0.0.0.0", pelix.http.HTTP_SERVICE_PORT: 0},
+        )
 
-        ipopo.instantiate(pelix.remote.FACTORY_REGISTRY_SERVLET,
-                          "dispatcher-servlet")
+        ipopo.instantiate(pelix.remote.FACTORY_REGISTRY_SERVLET, "dispatcher-servlet")
 
         # Start the multicast discovery
-        ipopo.instantiate(pelix.remote.FACTORY_DISCOVERY_MULTICAST,
-                          "multicast-discovery")
+        ipopo.instantiate(pelix.remote.FACTORY_DISCOVERY_MULTICAST, "multicast-discovery")
 
         # Start other components
         for factory, name in components:
@@ -161,7 +155,7 @@ def load_framework(transport, components):
     return framework
 
 
-def export_framework(state_queue, transport, components):
+def export_framework(state_queue: Queue, transport: str, components: Iterable[Tuple[str, str]]) -> None:
     """
     Starts a Pelix framework, on the export side
 
@@ -176,9 +170,9 @@ def export_framework(state_queue, transport, components):
 
         # Register the exported service
         event = threading.Event()
-        context.register_service(SVC_SPEC,
-                                 RemoteService(state_queue, event),
-                                 {pelix.remote.PROP_EXPORTED_INTERFACES: '*'})
+        context.register_service(
+            SVC_SPEC, RemoteService(state_queue, event), {pelix.remote.PROP_EXPORTED_INTERFACES: "*"}
+        )
 
         # Send the ready state
         state_queue.put("ready")
@@ -189,9 +183,9 @@ def export_framework(state_queue, transport, components):
         # Stopping
         state_queue.put("stopping")
         framework.stop()
-
     except Exception as ex:
-        state_queue.put("Error: {0}".format(ex))
+        state_queue.put(f"Error: {ex}")
+
 
 # ------------------------------------------------------------------------------
 
@@ -200,13 +194,15 @@ class HttpTransportsTest(unittest.TestCase):
     """
     Tests Pelix built-in Remote Services transports
     """
-    def __init__(self, *args, **kwargs):
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super(HttpTransportsTest, self).__init__(*args, **kwargs)
         self._load_framework = load_framework
         self._export_framework = export_framework
 
-    def _run_test(self, transport_bundle, exporter_factory, importer_factory,
-                  test_kwargs=True):
+    def _run_test(
+        self, transport_bundle: str, exporter_factory: str, importer_factory: str, test_kwargs: bool = True
+    ) -> None:
         """
         Runs a remote service call test
 
@@ -218,19 +214,18 @@ class HttpTransportsTest(unittest.TestCase):
         :raise ValueError: Test failed
         """
         # Define components
-        components = [(exporter_factory, "rs-exporter"),
-                      (importer_factory, "rs-importer")]
+        components = [(exporter_factory, "rs-exporter"), (importer_factory, "rs-importer")]
 
         # Start the remote framework
         status_queue = Queue()
-        peer = WrappedProcess(target=self._export_framework,
-                              args=(status_queue, transport_bundle,
-                                    components))
+        peer = WrappedProcess(
+            target=self._export_framework, args=(status_queue, transport_bundle, components)
+        )
         peer.start()
 
         try:
             # Wait for the ready state
-            state = status_queue.get(4)
+            state = status_queue.get(True, 4)
             self.assertEqual(state, "ready")
 
             # Load the local framework (after the fork)
@@ -239,10 +234,10 @@ class HttpTransportsTest(unittest.TestCase):
 
             # Look for the remote service
             for _ in range(10):
-                svc_ref = context.get_service_reference(SVC_SPEC)
+                svc_ref: Optional[ServiceReference[Any]] = context.get_service_reference(SVC_SPEC)
                 if svc_ref is not None:
                     break
-                time.sleep(.5)
+                time.sleep(0.5)
             else:
                 self.fail("Remote Service not found")
 
@@ -251,17 +246,16 @@ class HttpTransportsTest(unittest.TestCase):
 
             # Dummy call
             result = svc.dummy()
-            state = status_queue.get(2)
+            state = status_queue.get(True, 2)
             self.assertEqual(state, "call-dummy")
-            self.assertIsNone(result, "Dummy didn't returned None: {0}"
-                              .format(result))
+            self.assertIsNone(result, f"Dummy didn't returned None: {result}")
 
             # Echo call
             for value in (None, "Test", 42, [1, 2, 3], {"a": "b"}):
                 result = svc.echo(value)
 
                 # Check state
-                state = status_queue.get(2)
+                state = status_queue.get(True, 2)
                 self.assertEqual(state, "call-echo")
 
                 # Check result
@@ -273,25 +267,25 @@ class HttpTransportsTest(unittest.TestCase):
 
                 # Test as-is with default arguments
                 result = svc.keywords(text=sample_text)
-                state = status_queue.get(2)
+                state = status_queue.get(True, 2)
                 self.assertEqual(state, "call-keyword")
                 self.assertEqual(result, sample_text.upper())
 
                 # Test with keywords in the same order as positional arguments
                 result = svc.keywords(text=sample_text, to_lower=True)
-                state = status_queue.get(2)
+                state = status_queue.get(True, 2)
                 self.assertEqual(state, "call-keyword")
                 self.assertEqual(result, sample_text.lower())
 
                 result = svc.keywords(text=sample_text, to_lower=False)
-                state = status_queue.get(2)
+                state = status_queue.get(True, 2)
                 self.assertEqual(state, "call-keyword")
                 self.assertEqual(result, sample_text.upper())
 
                 # Test with keywords in a different order
                 # than positional arguments
                 result = svc.keywords(to_lower=True, text=sample_text)
-                state = status_queue.get(2)
+                state = status_queue.get(True, 2)
                 self.assertEqual(state, "call-keyword")
                 self.assertEqual(result, sample_text.lower())
 
@@ -300,7 +294,7 @@ class HttpTransportsTest(unittest.TestCase):
                 svc.error()
             except:
                 # The error has been propagated
-                state = status_queue.get(2)
+                state = status_queue.get(True, 2)
                 self.assertEqual(state, "call-error")
             else:
                 self.fail("No exception raised calling 'error'")
@@ -318,59 +312,67 @@ class HttpTransportsTest(unittest.TestCase):
             svc.stop()
 
             # Wait for the peer to stop
-            state = status_queue.get(2)
+            state = status_queue.get(True, 2)
             self.assertEqual(state, "stopping")
 
             # Wait a bit more, to let coverage save its files
-            time.sleep(.1)
+            time.sleep(0.1)
         finally:
             # Stop everything (and delete the framework in any case
             FrameworkFactory.delete_framework()
             peer.terminate()
             status_queue.close()
 
-    def test_xmlrpc(self):
+    def test_xmlrpc(self) -> None:
         """
         Tests the XML-RPC transport
         """
         try:
-            self._run_test("pelix.remote.xml_rpc",
-                           pelix.remote.FACTORY_TRANSPORT_XMLRPC_EXPORTER,
-                           pelix.remote.FACTORY_TRANSPORT_XMLRPC_IMPORTER,
-                           False)
+            self._run_test(
+                "pelix.remote.xml_rpc",
+                pelix.remote.FACTORY_TRANSPORT_XMLRPC_EXPORTER,
+                pelix.remote.FACTORY_TRANSPORT_XMLRPC_IMPORTER,
+                False,
+            )
         except queue.Empty:
             # Process error
             self.fail("Remote framework took to long to reply")
 
-    def test_jsonrpc(self):
+    def test_jsonrpc(self) -> None:
         """
         Tests the JSON-RPC transport
         """
         try:
-            self._run_test("pelix.remote.json_rpc",
-                           pelix.remote.FACTORY_TRANSPORT_JSONRPC_EXPORTER,
-                           pelix.remote.FACTORY_TRANSPORT_JSONRPC_IMPORTER)
+            self._run_test(
+                "pelix.remote.json_rpc",
+                pelix.remote.FACTORY_TRANSPORT_JSONRPC_EXPORTER,
+                pelix.remote.FACTORY_TRANSPORT_JSONRPC_IMPORTER,
+            )
         except queue.Empty:
             # Process error
             self.fail("Remote framework took to long to reply")
 
-    def test_jabsorbrpc(self):
+    def test_jabsorbrpc(self) -> None:
         """
         Tests the JABSORB-RPC transport
         """
         try:
-            self._run_test("pelix.remote.transport.jabsorb_rpc",
-                           pelix.remote.FACTORY_TRANSPORT_JABSORBRPC_EXPORTER,
-                           pelix.remote.FACTORY_TRANSPORT_JABSORBRPC_IMPORTER)
+            self._run_test(
+                "pelix.remote.transport.jabsorb_rpc",
+                pelix.remote.FACTORY_TRANSPORT_JABSORBRPC_EXPORTER,
+                pelix.remote.FACTORY_TRANSPORT_JABSORBRPC_IMPORTER,
+            )
         except queue.Empty:
             # Process error
             self.fail("Remote framework took to long to reply")
+
 
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Set logging level
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     unittest.main()

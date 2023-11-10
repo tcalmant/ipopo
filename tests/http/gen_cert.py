@@ -117,7 +117,7 @@ def make_subj(common_name: str, encrypted: bool = False) -> str:
     )
 
 
-def make_certs(out_dir: str, key_password: str) -> None:
+def make_certs(out_dir: str, key_password: Optional[str]) -> None:
     """
     Generates a certificate chain and two certificates: one with a password and
     one without
