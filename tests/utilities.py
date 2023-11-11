@@ -24,6 +24,7 @@
 """
 
 import unittest
+from typing import Any
 
 try:
     # Try to import modules
@@ -41,11 +42,11 @@ try:
     import coverage
 
     class WrappedProcess(Process):
-        def _bootstrap(self):
+        def _bootstrap(self, *args: Any, **kwargs: Any):
             cov = coverage.Coverage(data_suffix=True)
             cov.start()
             try:
-                return Process._bootstrap(self)
+                return Process._bootstrap(self, *args, **kwargs)
             finally:
                 cov.stop()
                 cov.save()
