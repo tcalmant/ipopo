@@ -376,7 +376,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
                 self._redis.delete(*keys)
         elif event == "expire" and fw_uid not in self._frameworks_hosts:
             # Unknown framework found: store its hostname
-            hostname = self._redis.get(fw_key)
+            hostname = cast(Optional[bytes], self._redis.get(fw_key))
             if hostname:
                 self._frameworks_hosts[fw_uid] = to_str(hostname)
 
@@ -432,7 +432,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
             hostname = self._frameworks_hosts[fw_uid]
         except KeyError:
             # Get it from Redis
-            hostname = self._redis.get(PATTERN_FRAMEWORK_KEY.format(fw_uid=fw_uid))
+            hostname = cast(Optional[bytes], self._redis.get(PATTERN_FRAMEWORK_KEY.format(fw_uid=fw_uid)))
             if not hostname:
                 # Endpoint's framework has been removed: ignore
                 # (happens when two frameworks clear traces of an old one)
@@ -446,7 +446,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
                 hostname = self._frameworks_hosts[fw_uid] = to_str(hostname)
 
         # 2. Read the EDEF content
-        content = self._redis.get(endpoint_key)
+        content = cast(Optional[bytes], self._redis.get(endpoint_key))
         if not content:
             logging.debug("Endpoint description removed while handling it")
             return False
