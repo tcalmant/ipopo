@@ -59,7 +59,7 @@ def find_mqtt_server() -> Optional[str]:
         try:
             # Try to connect
             evt.clear()
-            clt.connect(server)
+            clt.connect(server, blocking=True)
         except IOError:
             # Not available
             pass
@@ -67,8 +67,7 @@ def find_mqtt_server() -> Optional[str]:
             try:
                 # Try publishing something
                 mid = clt.publish("/ipopo/test/bootstrap", "initial.data", wait=True)
-
-                if not mid:
+                if mid is None:
                     # Error while publishing: next server
                     continue
 

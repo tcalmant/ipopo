@@ -197,7 +197,9 @@ class MqttClient:
         """
         self.__mqtt.will_set(topic, payload, qos, retain=retain)
 
-    def connect(self, host: str = "localhost", port: int = 1883, keepalive: int = 60) -> None:
+    def connect(
+        self, host: str = "localhost", port: int = 1883, keepalive: int = 60, blocking: bool = False
+    ) -> None:
         """
         Connects to the MQTT server. The client will automatically try to
         reconnect to this server when the connection is lost.
@@ -205,13 +207,17 @@ class MqttClient:
         :param host: MQTT server host
         :param port: MQTT server port
         :param keepalive: Maximum period in seconds between communications with the broker
+        :param blocking: If True, block until connecting, else be notified with on_connect
         :raise ValueError: Invalid host or port
         """
         # Disconnect first (it also stops the timer)
         self.disconnect()
 
         # Prepare the connection
-        self.__mqtt.connect_async(host, port, keepalive)
+        if blocking:
+            self.__mqtt.connect(host, port, keepalive)
+        else:
+            self.__mqtt.connect_async(host, port, keepalive)
 
         # Start the MQTT loop
         self.__mqtt.loop_start()
@@ -253,7 +259,11 @@ class MqttClient:
         :return: The local message ID, None on error
         """
         result = self.__mqtt.publish(topic, payload, qos, retain)
-        if wait and not result.rc:
+        if result.rc != 0:
+            # No success
+            return None
+
+        if wait:
             # Publish packet sent, wait for it to return
             self.__in_flight[result.mid] = threading.Event()
             _logger.debug("Waiting for publication of %s", topic)
