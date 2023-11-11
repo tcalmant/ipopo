@@ -1047,10 +1047,9 @@ class Framework(Bundle):
         bundle: Bundle,
         clazz: Union[
             str,
+            Iterable[str],
+            Iterable[Type[Any]],
             Type[T],
-            List[Union[str, Type[T]]],
-            Set[Union[str, Type[T]]],
-            Tuple[Union[str, Type[T]], ...],
         ],
         service: T,
         properties: Optional[Dict[str, Any]],
@@ -1085,7 +1084,7 @@ class Framework(Bundle):
         # Prepare the class specification
         if not isinstance(clazz, (list, tuple, set)):
             # Make a list from the single class
-            clazz = [clazz]
+            clazz = cast(Union[List[str], List[Type[T]]], [clazz])
 
         # Test the list content
         classes: List[str] = []
@@ -1675,7 +1674,8 @@ class BundleContext:
         self,
         clazz: Union[
             str,
-            Iterable[Any],
+            Iterable[str],
+            Iterable[Type[Any]],
             Type[T],
         ],
         service: T,
