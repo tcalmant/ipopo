@@ -27,12 +27,13 @@ Tests remote services discovery using the JSON-RPC transport
 import queue
 import threading
 import time
+import traceback
 import unittest
 from typing import Any, Dict, Iterable, Optional, Tuple, Union
 
 import pelix.http
 import pelix.remote
-from pelix.framework import Framework, FrameworkFactory, create_framework
+from pelix.framework import Bundle, Framework, FrameworkFactory, create_framework
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
 from tests.utilities import WrappedProcess
@@ -156,6 +157,11 @@ def export_framework(
         framework = load_framework(transport, discovery, components)
         context = framework.get_bundle_context()
 
+        # Ensure everything is there
+        bundles = {b.get_symbolic_name(): b for b in context.get_bundles()}
+        assert bundles[transport].get_state() == Bundle.ACTIVE
+        assert bundles[discovery].get_state() == Bundle.ACTIVE
+
         # Register the exported service
         event = threading.Event()
         context.register_service(
@@ -172,7 +178,7 @@ def export_framework(
         state_queue.put("stopping")
         framework.stop()
     except Exception as ex:
-        state_queue.put(f"Error: {ex}")
+        state_queue.put(f"Error: {ex}\n{traceback.format_exc()}")
 
 
 # ------------------------------------------------------------------------------
