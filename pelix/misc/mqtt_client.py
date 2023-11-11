@@ -211,7 +211,7 @@ class MqttClient:
         self.disconnect()
 
         # Prepare the connection
-        self.__mqtt.connect(host, port, keepalive)
+        self.__mqtt.connect_async(host, port, keepalive)
 
         # Start the MQTT loop
         self.__mqtt.loop_start()
