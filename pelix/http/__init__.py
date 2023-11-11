@@ -379,6 +379,8 @@ class HTTPService(Protocol):
     HTTP service interface
     """
 
+    __SPECIFICATION__: str = HTTP_SERVICE
+
     def get_access(self) -> Tuple[str, int]:
         """
         Retrieves the (address, port) tuple to access the server
