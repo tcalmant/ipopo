@@ -650,7 +650,7 @@ class Framework(Bundle):
             self.__properties = properties.copy()
 
         # Generate and set a framework instance UUID, if needed
-        framework_uid: str = str(self.__properties.get(FRAMEWORK_UID) or str(uuid.uuid4()))
+        framework_uid: str = str(self.__properties.get(FRAMEWORK_UID) or uuid.uuid4())
         # Normalize the UID: it must be a string
         self.__properties[FRAMEWORK_UID] = framework_uid
         # Also normalize the OSGI_FRAMEWORK_UID: it must be a string
@@ -1922,7 +1922,7 @@ def normalize_path() -> None:
     sys.path = list(whole_set)
 
     # Normalize paths in loaded modules
-    for module_ in sys.modules.values():
+    for module_ in list(sys.modules.values()):
         try:
             if module_.__path__ is not None:
                 # Seems that (some?) DLL-based modules don't have a __path__
