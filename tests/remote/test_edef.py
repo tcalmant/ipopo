@@ -6,7 +6,7 @@ Tests the Remote Services EDEF I/O operations
 :author: Thomas Calmant
 """
 
-from typing import Any
+from typing import Any, Dict, Optional
 import unittest
 
 import pelix.constants
@@ -31,6 +31,12 @@ class EdefIOTest(unittest.TestCase):
 
     framework: pelix.framework.Framework
     svc_ref: ServiceReference[Any]
+
+    def assertDictContains(
+        self, subset: Dict[str, Any], tested: Optional[Dict[str, Any]], msg: Any = None
+    ) -> None:
+        assert tested is not None
+        self.assertEqual(tested, tested | subset, msg)
 
     def setUp(self) -> None:
         """
@@ -134,7 +140,7 @@ class EdefIOTest(unittest.TestCase):
         parsed_properties = parsed.get_properties()
 
         # Check values
-        self.assertDictContainsSubset(endpoint.get_properties(), parsed_properties)
+        self.assertDictContains(endpoint.get_properties(), parsed_properties)
 
 
 # ------------------------------------------------------------------------------
@@ -147,6 +153,12 @@ class BeansTest(unittest.TestCase):
 
     framework: pelix.framework.Framework
     svc_ref: ServiceReference[Any]
+
+    def assertDictContains(
+        self, subset: Dict[str, Any], tested: Optional[Dict[str, Any]], msg: Any = None
+    ) -> None:
+        assert tested is not None
+        self.assertEqual(tested, tested | subset, msg)
 
     def setUp(self) -> None:
         """
@@ -268,7 +280,7 @@ class BeansTest(unittest.TestCase):
         # ExportEndpoint specifications are prefixed by "python:/"
         self.assertEqual(description_bean.get_interfaces(), specifications)
 
-        self.assertDictContainsSubset(export_bean.make_import_properties(), description_bean.get_properties())
+        self.assertDictContains(export_bean.make_import_properties(), description_bean.get_properties())
 
         # Convert the result to an ImportEndpoint bean
         descripted_import = description_bean.to_import()
@@ -277,4 +289,4 @@ class BeansTest(unittest.TestCase):
         for field in ("uid", "framework", "configurations", "specifications"):
             self.assertEqual(getattr(descripted_import, field), getattr(import_bean, field))
 
-        self.assertDictContainsSubset(import_bean.properties, descripted_import.properties)
+        self.assertDictContains(import_bean.properties, descripted_import.properties)

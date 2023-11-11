@@ -96,7 +96,7 @@ class Exporter(commons.AbstractRpcServiceExporter):
         del self.events[:]
 
     def make_endpoint_properties(
-        self, svc_ref: ServiceReference[Any], name: str, fw_uid: Optional[str]
+        self, svc_ref: ServiceReference[Any], name: str, fw_uid: str
     ) -> Dict[str, Any]:
         """
         Prepare properties for the ExportEndpoint to be created
@@ -118,7 +118,7 @@ class Proxy:
     Small test proxy
     """
 
-    def __init__(self, fw_uid: str) -> None:
+    def __init__(self, fw_uid: Optional[str]) -> None:
         """
         Sets up proxy data
         """
@@ -158,7 +158,6 @@ class Importer(commons.AbstractRpcServiceImporter):
         """
         self.events.append(IMPORT_MAKE)
         fw_uid = endpoint.properties.get(TEST_PROPERTY)
-        assert fw_uid is not None
         return Proxy(fw_uid)
 
     def clear_service_proxy(self, endpoint: ImportEndpoint) -> None:
@@ -419,10 +418,6 @@ class AbstractCommonImporterTest(unittest.TestCase):
         """
         Sets up the test
         """
-        # Compatibility issue between Python 2 & 3
-        if sys.version_info[0] < 3:
-            self.assertCountEqual = self.assertItemsEqual
-
         # Create the framework
         self.framework = pelix.framework.create_framework(("pelix.ipopo.core", "pelix.remote.registry"))
         self.framework.start()

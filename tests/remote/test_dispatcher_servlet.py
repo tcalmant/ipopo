@@ -134,6 +134,9 @@ class DispatcherTest(unittest.TestCase):
     Tests for the Remote Services dispatcher
     """
 
+    framework: pelix.framework.Framework
+    servlet: pelix.remote.RemoteServiceDispatcherServlet
+
     def setUp(self) -> None:
         """
         Sets up the test
@@ -365,8 +368,17 @@ class DispatcherTest(unittest.TestCase):
         grabbed_endpoint = self.servlet.grab_endpoint("localhost", self.port, self.servlet_path, endpoint.uid)
 
         # Check endpoint values
+        assert grabbed_endpoint is not None
         self.assertIsNot(grabbed_endpoint, endpoint)
-        self.assertEqual(grabbed_endpoint, endpoint)
+        self.assertEqual(grabbed_endpoint.uid, endpoint.uid)
+        self.assertEqual(grabbed_endpoint.framework, endpoint.framework)
+
+        # Properties will be different
+        # Specifications might be prefixed with the language
+        self.assertGreaterEqual(len(grabbed_endpoint.specifications), 1)
+        self.assertEqual(len(grabbed_endpoint.specifications), len(endpoint.specifications))
+        for grabbed, exported in zip(grabbed_endpoint.specifications, grabbed_endpoint.specifications):
+            self.assertIn(exported, grabbed)
 
         # Unregister the service
         svc_reg.unregister()
@@ -457,7 +469,7 @@ class DispatcherTest(unittest.TestCase):
 
         # Replace the dispatcher servlet
         servlet = FakeSerlvet()
-        servlet_path = self.servlet.get_access()[1]
+        servlet_path = (self.servlet.get_access() or [])[1]
         http.unregister(servlet_path)
         http.register_servlet(servlet_path, servlet)
 
