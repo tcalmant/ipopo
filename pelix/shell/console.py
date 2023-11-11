@@ -204,7 +204,7 @@ class InteractiveShell:
             first_prompt = True
 
             # Set up the prompt
-            prompt = self._readline_prompt if readline is not None else self._normal_prompt
+            prompt = self._readline_prompt if HAS_READLINE else self._normal_prompt
 
             while not self._stop_event.is_set():
                 # Wait for the shell to be there
@@ -405,7 +405,7 @@ class InteractiveShell:
             self._shell_event.clear()
 
             # Clear the readline completer
-            if readline is not None:
+            if HAS_READLINE:
                 readline.set_completer(None)
                 del self._readline_matches[:]
 
