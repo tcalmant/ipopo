@@ -183,8 +183,8 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
             return False
 
         lines = [
-            "Name  : {0}".format(details["name"]),
-            "Bundle: {0}".format(details["bundle"]),
+            f"Name  : {details['name']}",
+            f"Bundle: {details['bundle']}",
         ]
 
         properties = details.get("properties", None)
@@ -197,7 +197,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         services = details.get("services", None)
         if services:
             lines.append("Provided services:")
-            lines.extend("\t{0}".format(spec) for spec in services)
+            lines.extend(f"\t{spec}" for spec in services)
             lines.append("")
 
         requirements = details.get("requirements", None)
@@ -246,29 +246,29 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
 
         # Basic information
         lines = [
-            "Name.....: {0}".format(details["name"]),
-            "Factory..: {0}".format(details["factory"]),
-            "Bundle ID: {0}".format(details["bundle_id"]),
-            "State....: {0}".format(ipopo_state_to_str(details["state"])),
+            f"Name.....: {details['name']}",
+            f"Factory..: {details['factory']}",
+            f"Bundle ID: {details['bundle_id']}",
+            f"State....: {ipopo_state_to_str(details['state'])}",
             "Services.:",
         ]
 
         # Provided services
-        lines.extend("\t{0}".format(svc_reference) for svc_reference in details["services"].values())
+        lines.extend(f"\t{svc_reference}" for svc_reference in details["services"].values())
 
         # Requirements
         lines.append("Dependencies:")
         for field, infos in details["dependencies"].items():
-            lines.append("\tField: {0}".format(field))
-            lines.append("\t\tSpecification: {0}".format(infos["specification"]))
-            lines.append("\t\tFilter......: {0}".format(infos["filter"]))
-            lines.append("\t\tOptional.....: {0}".format(infos["optional"]))
-            lines.append("\t\tAggregate....: {0}".format(infos["aggregate"]))
+            lines.append(f"\tField: {field}")
+            lines.append(f"\t\tSpecification: {infos['specification']}")
+            lines.append(f"\t\tFilter.......: {infos['filter']}")
+            lines.append(f"\t\tOptional.....: {infos['optional']}")
+            lines.append(f"\t\tAggregate....: {infos['aggregate']}")
 
-            lines.append("\t\tHandler......: {0}".format(infos["handler"]))
+            lines.append(f"\t\tHandler......: {infos['handler']}")
             lines.append("\t\tBindings:")
             for ref in infos["bindings"]:
-                lines.append("\t\t\t{0}".format(ref))
+                lines.append(f"\t\t\t{ref}")
 
         # Properties
         lines.append("Properties:")
