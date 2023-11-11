@@ -120,7 +120,7 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
 
         # Get the framework UID
         self._framework_uid = context.get_property(constants.FRAMEWORK_UID)
-        if self._framework_uid:
+        if not self._framework_uid:
             raise ValueError(f"A Framework UID must be set with property {constants.FRAMEWORK_UID}")
 
         # Create the MQTT client
