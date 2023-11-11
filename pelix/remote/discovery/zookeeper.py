@@ -429,9 +429,11 @@ class ZooKeeperDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         try:
             return self._frameworks_hosts[fw_uid]
         except KeyError:
-            fw_host = self._frameworks_hosts[fw_uid] = to_str(
-                self._zk.get(self._framework_path(fw_uid), self._on_framework_event)[0]
-            )
+            raw_data = self._zk.get(self._framework_path(fw_uid), self._on_framework_event)
+            if not raw_data:
+                raise ValueError("Couldn't get remote framework UID from ZooKeeper")
+
+            fw_host = self._frameworks_hosts[fw_uid] = to_str(raw_data[0])
             return fw_host
 
     def __read_endpoint(self, path: str) -> beans.EndpointDescription:
@@ -443,7 +445,11 @@ class ZooKeeperDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         :return: An EndpointDescription bean
         """
         assert self._zk is not None
-        return EDEFReader().parse(to_str(self._zk.get(path, self._on_endpoint_event)[0]))[0]
+
+        raw_data = self._zk.get(path, self._on_endpoint_event)
+        if not raw_data:
+            raise ValueError("Couldn't get remote endpoint description from ZooKeeper")
+        return EDEFReader().parse(to_str(raw_data[0]))[0]
 
     def _load_existing_endpoints(self) -> None:
         """
