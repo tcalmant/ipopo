@@ -1,6 +1,6 @@
 jsonrpclib-pelix>=0.4.3
 redis>=2.10
-kazoo>=2.4
+kazoo==2.8.0
 paho-mqtt>=1.6.1
 zeroconf==0.19
 python-etcd>=0.4.5
