@@ -35,9 +35,9 @@ from typing import Any, Dict, List, Optional, Union, cast
 import zeroconf
 
 import pelix.constants
-from pelix.framework import BundleContext
 import pelix.remote
 import pelix.remote.beans as beans
+from pelix.framework import BundleContext
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
 from pelix.utilities import is_bytes, is_string, to_str
 
@@ -240,13 +240,16 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, zeroco
         # Prepare the service type
         svc_name = f"{self._fw_uid}.{ZeroconfDiscovery.DNS_DISPATCHER_TYPE}"
 
+        # Prepare "list" of access addresses
+        addresses = [self._address] if self._address else []
+
         # Prepare the mDNS entry
         info = zeroconf.ServiceInfo(
             ZeroconfDiscovery.DNS_DISPATCHER_TYPE,  # Type
             svc_name,  # Name
             access[0],  # Access port
             properties=properties,
-            server=self._address,  # Access address
+            parsed_addresses=addresses,  # Access address
         )
 
         # Register the service
@@ -297,13 +300,16 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, zeroco
         # Prepare the service name
         svc_name = f"{endpoint.get_id().replace('-', '')}.{self._rs_type}"
 
+        # Prepare "list" of access addresses
+        addresses = [self._address] if self._address else []
+
         # Prepare the mDNS entry
         info = zeroconf.ServiceInfo(
             self._rs_type,  # Type
             svc_name,  # Name
             access_port,  # Access port
             properties=properties,
-            server=self._address,  # Access address
+            parsed_addresses=addresses,  # Access address
         )
 
         self._export_infos[exp_endpoint.uid] = info
@@ -365,18 +371,18 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, zeroco
 
         return info
 
-    def add_service(self, zeroconf_: zeroconf.Zeroconf, svc_type: str, name: str) -> None:
+    def add_service(self, zc: zeroconf.Zeroconf, type_: str, name: str) -> None:
         """
         Called by Zeroconf when a record is updated
 
-        :param zeroconf_: The Zeroconf instance than notifies of the modification
-        :param svc_type: Service type
+        :param zc: The Zeroconf instance than notifies of the modification
+        :param type_: Service type
         :param name: Service name
         """
         # Get information about the service
-        info = self._get_service_info(svc_type, name)
+        info = self._get_service_info(type_, name)
         if info is None:
-            _logger.warning("Timeout reading service information: %s - %s", svc_type, name)
+            _logger.warning("Timeout reading service information: %s - %s", type_, name)
             return
 
         # Read properties
@@ -392,7 +398,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, zeroco
             _logger.warning("Not a Pelix record: %s", properties)
             return
 
-        if svc_type == ZeroconfDiscovery.DNS_DISPATCHER_TYPE:
+        if type_ == ZeroconfDiscovery.DNS_DISPATCHER_TYPE:
             # Dispatcher servlet found, get source info
             if info.port is None:
                 _logger.warning("Ignore discovered service with no port information: %s", info)
@@ -409,7 +415,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, zeroco
                 return
 
             self._access.send_discovered(address, info.port, properties["pelix.access.path"])
-        elif svc_type == self._rs_type:
+        elif type_ == self._rs_type:
             # Remote service
             # Get the first available configuration
             configuration = properties[pelix.remote.PROP_IMPORTED_CONFIGS]
@@ -445,15 +451,15 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, zeroco
                     # Associate the mDNS name to the endpoint on success
                     self._imported_endpoints[name] = endpoint.uid
 
-    def remove_service(self, zeroconf_: zeroconf.Zeroconf, svc_type: str, name: str) -> None:
+    def remove_service(self, zc: zeroconf.Zeroconf, type_: str, name: str) -> None:
         """
         Called by Zeroconf when a record is removed
 
-        :param zeroconf_: The Zeroconf instance than notifies of the modification
-        :param svc_type: Service type
+        :param zc: The Zeroconf instance than notifies of the modification
+        :param type_: Service type
         :param name: Service name
         """
-        if svc_type == self._rs_type:
+        if type_ == self._rs_type:
             # Get information about the service
             try:
                 # Get the stored endpoint UID
@@ -464,7 +470,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, zeroco
             else:
                 # Remove it
                 self._registry.remove(uid)
-        elif svc_type == ZeroconfDiscovery.DNS_DISPATCHER_TYPE:
+        elif type_ == ZeroconfDiscovery.DNS_DISPATCHER_TYPE:
             # A dispatcher servlet is gone
             fw_uid = name.split(".", 1)[0]
             if fw_uid == self._fw_uid:
@@ -473,3 +479,39 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, zeroco
 
             # Remote framework is lost
             self._registry.lost_framework(fw_uid)
+
+    def update_service(self, zc: zeroconf.Zeroconf, type_: str, name: str) -> None:
+        """
+        Called by Zeroconf when a record is removed
+
+        :param zc: The Zeroconf instance than notifies of the modification
+        :param type_: Service type
+        :param name: Service name
+        """
+        if type_ == ZeroconfDiscovery.DNS_DISPATCHER_TYPE:
+            fw_uid = name.split(".", 1)[0]
+            if fw_uid == self._fw_uid:
+                # Local message: ignore
+                return
+
+            # Framework updates should not happen: consider a removal/addition
+            self.remove_service(zc, type_, name)
+            self.add_service(zc, type_, name)
+        elif type_ == self._rs_type:
+            # Remote service update
+            try:
+                # Get the stored endpoint UID
+                uid = self._imported_endpoints.pop(name)
+            except KeyError:
+                # Unknown service: try to add it
+                self.add_service(zc, type_, name)
+            else:
+                # Get information about the known service
+                info = self._get_service_info(type_, name)
+                if info is None:
+                    _logger.warning("Timeout reading service information: %s - %s", type_, name)
+                    return
+
+                # Update local endpoint
+                properties = self._deserialize_properties(info.properties)
+                self._registry.update(uid, properties)
