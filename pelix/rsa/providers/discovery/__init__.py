@@ -26,23 +26,14 @@ Discovery Provider API
     limitations under the License.
 """
 
+import abc
 import logging
 from threading import RLock
+from typing import Any, Dict, List, Optional, Protocol, Tuple
 
-from pelix.ipopo.decorators import (
-    Provides,
-    ComponentFactory,
-    Instantiate,
-    BindField,
-    UnbindField,
-    Requires,
-)
-
-from pelix.rsa import (
-    get_string_plus_property,
-    get_string_plus_property_value,
-    ECF_ENDPOINT_CONTAINERID_NAMESPACE,
-)
+from pelix.internals.registry import ServiceReference
+from pelix.ipopo.decorators import BindField, Requires, UnbindField
+from pelix.rsa import get_string_plus_property_value
 from pelix.rsa.endpointdescription import EndpointDescription
 
 # ------------------------------------------------------------------------------
@@ -63,18 +54,20 @@ _logger = logging.getLogger(__name__)
 SERVICE_ENDPOINT_ADVERTISER = "pelix.rsa.discovery.endpointadvertiser"
 
 
-class EndpointAdvertiser(object):
+class EndpointAdvertiser(abc.ABC):
     """
     Endpoint advertiser service specification.  EndpointAdvertiser services
     are used to advertise exported remote services.  See EndpointAdvertiser
     class below.
     """
 
-    def __init__(self):
-        self._published_endpoints = {}
+    __SPECIFICATION__: str = SERVICE_ENDPOINT_ADVERTISER
+
+    def __init__(self) -> None:
+        self._published_endpoints: Dict[str, Tuple[EndpointDescription, Any]] = {}
         self._published_endpoints_lock = RLock()
 
-    def advertise_endpoint(self, endpoint_description):
+    def advertise_endpoint(self, endpoint_description: EndpointDescription) -> bool:
         """
         Advertise and endpoint_description for remote discovery.
         If it hasn't already been a endpoint_description will be advertised via
@@ -97,7 +90,7 @@ class EndpointAdvertiser(object):
 
             return False
 
-    def update_endpoint(self, updated_ed):
+    def update_endpoint(self, updated_ed: EndpointDescription) -> bool:
         """
         Update a previously advertised endpoint_description.
 
@@ -119,7 +112,7 @@ class EndpointAdvertiser(object):
 
             return False
 
-    def unadvertise_endpoint(self, endpointid):
+    def unadvertise_endpoint(self, endpointid: str) -> bool:
         """
         Unadvertise a previously-advertised endpointid (string).
 
@@ -130,18 +123,17 @@ class EndpointAdvertiser(object):
         by this advertiser
         """
         with self._published_endpoints_lock:
-            with self._published_endpoints_lock:
-                advertised = self.get_advertised_endpoint(endpointid)
-                if not advertised:
-                    return None
+            advertised = self.get_advertised_endpoint(endpointid)
+            if not advertised:
+                return False
 
-                unadvertise_result = self._unadvertise(advertised)
-                if unadvertise_result:
-                    self._remove_advertised(endpointid)
+            unadvertise_result = self._unadvertise(advertised)
+            if unadvertise_result:
+                self._remove_advertised(endpointid)
 
-                return None
+            return True
 
-    def is_advertised(self, endpointid):
+    def is_advertised(self, endpointid: str) -> bool:
         """
         Is given endpointid been advertised by this advertiser.
 
@@ -152,7 +144,7 @@ class EndpointAdvertiser(object):
         """
         return self.get_advertised_endpoint(endpointid) is not None
 
-    def get_advertised_endpoint(self, endpointid):
+    def get_advertised_endpoint(self, endpointid: str) -> Optional[Tuple[EndpointDescription, Any]]:
         """
         Get the advertised endpoint given endpointid.
 
@@ -165,7 +157,7 @@ class EndpointAdvertiser(object):
         with self._published_endpoints_lock:
             return self._published_endpoints.get(endpointid, None)
 
-    def get_advertised_endpoints(self):
+    def get_advertised_endpoints(self) -> Dict[str, Tuple[EndpointDescription, Any]]:
         """
         Get all endpoints advertised by this advertiser.
 
@@ -175,27 +167,34 @@ class EndpointAdvertiser(object):
         with self._published_endpoints_lock:
             return self._published_endpoints.copy()
 
-    def _add_advertised(self, ed, advertise_result):
+    def _add_advertised(self, ed: EndpointDescription, advertise_result: Any) -> None:
         with self._published_endpoints_lock:
             self._published_endpoints[ed.get_id()] = (ed, advertise_result)
 
-    def _remove_advertised(self, endpointid):
+    def _remove_advertised(self, endpointid: str) -> Optional[Tuple[EndpointDescription, Any]]:
         with self._published_endpoints_lock:
             return self._published_endpoints.pop(endpointid, None)
 
-    def _advertise(self, endpoint_description):
-        # pylint: disable=R0201, W0613
-        raise Exception("Endpoint._advertise must be overridden by subclasses")
+    @abc.abstractmethod
+    def _advertise(self, endpoint_description: EndpointDescription) -> Any:
+        """
+        Advertise a new endpoint description.
+        Result is implementation dependent.
+        """
 
-    def _update(self, endpoint_description):
-        # pylint: disable=R0201, W0613
-        raise Exception("Endpoint._update must be overridden by subclasses")
+    @abc.abstractmethod
+    def _update(self, endpoint_description: EndpointDescription) -> Any:
+        """
+        Advertise the update of an endpoint description.
+        Result is implementation dependent.
+        """
 
-    def _unadvertise(self, advertised):
-        # pylint: disable=R0201, W0613
-        raise Exception(
-            "Endpoint._unadvertise must be overridden by subclasses"
-        )
+    @abc.abstractmethod
+    def _unadvertise(self, advertised: Tuple[EndpointDescription, Any]) -> Any:
+        """
+        Advertise the removal of an endpoint description.
+        Result is implementation dependent.
+        """
 
 
 # ------------------------------------------------------------------------------
@@ -203,7 +202,7 @@ class EndpointAdvertiser(object):
 # instances with valid EndpointEvent by endpoint advertisers
 
 
-class EndpointEvent(object):
+class EndpointEvent:
     """
     EndpointEvents are used by endpoint advertisers to call
     EndpointEventListeners with the type of event (ADDED,REMOVED,MODIFIED)
@@ -214,15 +213,11 @@ class EndpointEvent(object):
     REMOVED = 2
     MODIFIED = 4
 
-    def __init__(self, event_type, endpoint_description):
-        assert event_type and isinstance(event_type, int)
+    def __init__(self, event_type: int, endpoint_description: EndpointDescription) -> None:
         self._type = event_type
-        assert endpoint_description and isinstance(
-            endpoint_description, EndpointDescription
-        )
         self._ed = endpoint_description
 
-    def get_type(self):
+    def get_type(self) -> int:
         """
         Get the type of the EndpointEvent (ADDED|REMOVED|MODIFIED).
 
@@ -230,7 +225,7 @@ class EndpointEvent(object):
         """
         return self._type
 
-    def get_endpoint_description(self):
+    def get_endpoint_description(self) -> EndpointDescription:
         """
         Get the EndpointDescription associated with this event.
 
@@ -238,10 +233,8 @@ class EndpointEvent(object):
         """
         return self._ed
 
-    def __str__(self):
-        return "EndpointEvent(type={0},ed={1})".format(
-            self.get_type(), self.get_endpoint_description()
-        )
+    def __str__(self) -> str:
+        return f"EndpointEvent(type={self._type},ed={self._ed})"
 
 
 # ------------------------------------------------------------------------------
@@ -256,13 +249,14 @@ SERVICE_ENDPOINT_LISTENER = "pelix.rsa.discovery.endpointeventlistener"
 SERVICE_ENDPOINT_EVENT_LISTENER = SERVICE_ENDPOINT_LISTENER
 
 
-class EndpointEventListener(object):
-    # pylint: disable=R0903
+class EndpointEventListener(Protocol):
     """
     Subclasses should override the endpoint_changed method
     so that they will receive notification (via an arbitrary
     thread) when an endpoint has been added, removed or modified
     """
+
+    __SPECIFICATION__: str = SERVICE_ENDPOINT_EVENT_LISTENER
 
     # Endpoint listener scope will be consulted when a
     # discovery provider receives an endpoint event.
@@ -276,10 +270,9 @@ class EndpointEventListener(object):
     # the filter '(*=*)' matches any set of endpoint description
     # properties.  If the filter matches the properties, then
     # the endpoint_changed method will be called
-    ENDPOINT_LISTENER_SCOPE = "endpoint.listener.scope"
+    ENDPOINT_LISTENER_SCOPE: str = "endpoint.listener.scope"
 
-    def endpoint_changed(self, endpoint_event, matched_filter):
-        # pylint: disable=W0613
+    def endpoint_changed(self, endpoint_event: EndpointEvent, matched_filter: Optional[str]) -> None:
         """
         Called by discovery providers when an endpoint has been
         ADDED,REMOVED or MODIFIED.
@@ -289,49 +282,56 @@ class EndpointEventListener(object):
         :param matched_filter the filter (as string) that matched
         this endpoint event listener service instance.
         """
-        raise Exception("{0}.endpoint_changed not implemented".format(self))
+        ...
 
 
-@Requires("_event_listeners", SERVICE_ENDPOINT_LISTENER, True, True)
-class EndpointSubscriber(object):
-    # pylint: disable=R0903
+@Requires("_event_listeners", EndpointEventListener, True, True)
+class EndpointSubscriber(abc.ABC):
     """
     Utility superclass for EndpointSubscribers.
     """
 
-    def __init__(self):
-        self._endpoint_event_listeners = []
+    def __init__(self) -> None:
+        self._endpoint_event_listeners: List[
+            Tuple[EndpointEventListener, ServiceReference[EndpointEventListener]]
+        ] = []
         self._endpoint_event_listeners_lock = RLock()
-        self._discovered_endpoints = {}
+        self._discovered_endpoints: Dict[str, Tuple[str, EndpointDescription]] = {}
         self._discovered_endpoints_lock = RLock()
 
     @BindField("_event_listeners")
-    def _add_endpoint_event_listener(self, field, listener, service_ref):
-        # pylint: disable=W0613
+    def _add_endpoint_event_listener(
+        self,
+        field: str,
+        listener: EndpointEventListener,
+        service_ref: ServiceReference[EndpointEventListener],
+    ) -> None:
         with self._endpoint_event_listeners_lock:
             self._endpoint_event_listeners.append((listener, service_ref))
 
     @UnbindField("_event_listeners")
-    def _remove_endpoint_event_listener(self, field, listener, service_ref):
-        # pylint: disable=W0613
+    def _remove_endpoint_event_listener(
+        self,
+        field: str,
+        listener: EndpointEventListener,
+        service_ref: ServiceReference[EndpointEventListener],
+    ) -> None:
         with self._endpoint_event_listeners_lock:
             try:
-                return self._endpoint_event_listeners.remove(
-                    (listener, service_ref)
-                )
+                return self._endpoint_event_listeners.remove((listener, service_ref))
             except Exception:
                 pass
 
-    def _get_matching_endpoint_event_listeners(self, ed):
+    def _get_matching_endpoint_event_listeners(
+        self, ed: EndpointDescription
+    ) -> List[Tuple[EndpointEventListener, str]]:
         result = []
         with self._discovered_endpoints_lock:
             ls = self._endpoint_event_listeners[:]
         for l in ls:
             svc_ref = l[1]
             filters = get_string_plus_property_value(
-                svc_ref.get_property(
-                    EndpointEventListener.ENDPOINT_LISTENER_SCOPE
-                )
+                svc_ref.get_property(EndpointEventListener.ENDPOINT_LISTENER_SCOPE)
             )
             matching_filter = None
             if filters:
@@ -343,7 +343,7 @@ class EndpointSubscriber(object):
                 result.append((l[0], matching_filter))
         return result
 
-    def _has_discovered_endpoint(self, ed_id):
+    def _has_discovered_endpoint(self, ed_id: str) -> Optional[EndpointDescription]:
         with self._discovered_endpoints_lock:
             ep = self._discovered_endpoints.get(ed_id, None)
             if ep:
@@ -351,20 +351,20 @@ class EndpointSubscriber(object):
 
             return None
 
-    def _get_endpointids_for_sessionid(self, sessionid):
-        result = []
+    def _get_endpointids_for_sessionid(self, sessionid: str) -> List[str]:
+        result: List[str] = []
         with self._discovered_endpoints_lock:
             for epid, ep in self._discovered_endpoints.items():
                 if ep and sessionid == ep[0]:
                     result.append(epid)
         return result
 
-    def _add_discovered_endpoint(self, sessionid, ed):
+    def _add_discovered_endpoint(self, sessionid: str, ed: EndpointDescription) -> None:
         with self._discovered_endpoints_lock:
             _logger.debug("_add_discovered_endpoint ed=%s", ed)
             self._discovered_endpoints[ed.get_id()] = (sessionid, ed)
 
-    def _remove_discovered_endpoint(self, endpointid):
+    def _remove_discovered_endpoint(self, endpointid: str) -> Optional[EndpointDescription]:
         with self._discovered_endpoints_lock:
             node = self._discovered_endpoints.pop(endpointid, None)
             if node:
@@ -372,7 +372,7 @@ class EndpointSubscriber(object):
 
             return None
 
-    def _fire_endpoint_event(self, event_type, ed):
+    def _fire_endpoint_event(self, event_type: int, ed: EndpointDescription) -> None:
         listeners = self._get_matching_endpoint_event_listeners(ed)
         if not listeners:
             logging.error(

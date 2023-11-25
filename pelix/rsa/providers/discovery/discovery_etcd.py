@@ -26,41 +26,27 @@ Etcd Discovery Provider
     limitations under the License.
 """
 
-from threading import Thread, RLock
-import logging
 import json
+import logging
 import socket
+import threading
 import time
-
-try:
-    # pylint: disable=W0611
-    from typing import List
-except ImportError:
-    pass
+from typing import Any, Dict, List, Optional, Tuple
 
 import etcd
 
+from pelix.framework import BundleContext
 from pelix.ipopo.decorators import (
     ComponentFactory,
-    Provides,
     Instantiate,
-    ValidateComponent,
-    Property,
     Invalidate,
+    Property,
+    Provides,
+    ValidateComponent,
 )
-
 from pelix.rsa import create_uuid, prop_dot_suffix
-from pelix.rsa.endpointdescription import (
-    encode_endpoint_props,
-    decode_endpoint_props,
-    EndpointDescription,
-)
-from pelix.rsa.providers.discovery import (
-    SERVICE_ENDPOINT_ADVERTISER,
-    EndpointAdvertiser,
-    EndpointEvent,
-    EndpointSubscriber,
-)
+from pelix.rsa.endpointdescription import EndpointDescription, decode_endpoint_props, encode_endpoint_props
+from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent, EndpointSubscriber
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -87,7 +73,7 @@ ETCD_WATCHSTART_WAIT_PROP = "watchstartwait"
 
 
 @ComponentFactory("etcd-endpoint-discovery-factory")
-@Provides(SERVICE_ENDPOINT_ADVERTISER)
+@Provides(EndpointAdvertiser)
 @Property(
     "_hostname",
     prop_dot_suffix(ETCD_NAME_PROP, ETCD_HOSTNAME_PROP),
@@ -99,9 +85,7 @@ ETCD_WATCHSTART_WAIT_PROP = "watchstartwait"
     prop_dot_suffix(ETCD_NAME_PROP, ETCD_TOPPATH_PROP),
     "/org.eclipse.ecf.provider.etcd.EtcdDiscoveryContainer",
 )
-@Property(
-    "_session_ttl", prop_dot_suffix(ETCD_NAME_PROP, ETCD_SESSIONTTL_PROP), 30
-)
+@Property("_session_ttl", prop_dot_suffix(ETCD_NAME_PROP, ETCD_SESSIONTTL_PROP), 30)
 @Property(
     "_watch_start_wait",
     prop_dot_suffix(ETCD_NAME_PROP, ETCD_WATCHSTART_WAIT_PROP),
@@ -118,26 +102,28 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     Note that this depends upon the python-etcd client library.
     """
 
-    REMOVE_ACTIONS = ["delete", "expire"]
-    ADD_ACTIONS = ["set", "create"]
+    REMOVE_ACTIONS: List[str] = ["delete", "expire"]
+    ADD_ACTIONS: List[str] = ["set", "create"]
 
-    def __init__(self):
+    def __init__(self) -> None:
         EndpointAdvertiser.__init__(self)
         EndpointSubscriber.__init__(self)
-        self._hostname = self._port = self._top_path = None
+        self._hostname: str = "localhost"
+        self._port: int = 2379
+        self._top_path: str = "/org.eclipse.ecf.provider.etcd.EtcdDiscoveryContainer"
         self._sessionid = create_uuid()
-        self._session_ttl = self._watch_start_wait = None
-        self._client = None  # type: etcd.Client
-        self._client_lock = RLock()
-        self._top_nodes = (
-            self._wait_index
-        ) = self._ttl_thread = self._watch_thread = None
-        servicename = "osgirsvc_{0}".format(create_uuid())
+        self._session_ttl: int = 30
+        self._watch_start_wait: int = 5
+        self._client: Optional[etcd.Client] = None
+        self._client_lock = threading.RLock()
+        self._top_nodes: Optional[List[etcd.EtcdResult]] = None
+        self._wait_index: Optional[int] = None
+        self._ttl_thread: Optional[threading.Thread] = None
+        self._watch_thread: Optional[threading.Thread] = None
+        servicename = f"osgirsvc_{create_uuid()}"
         hostip = socket.gethostbyname(socket.gethostname())
         self._service_props = {
-            "location": "ecfosgisvc://{0}:32565/{1}".format(
-                hostip, servicename
-            ),
+            "location": f"ecfosgisvc://{hostip}:32565/{servicename}",
             "priority": 0,
             "weight": 0,
             "servicename": servicename,
@@ -151,34 +137,34 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         }
 
     @ValidateComponent()
-    def _validate_component(self):
+    def _validate_component(self) -> None:
         # now connect
         self._connect()
 
     @Invalidate
-    def _invalidate(self, _):
+    def _invalidate(self, _: BundleContext) -> None:
         self._disconnect()
 
-    def _encode_description(self, endpoint_description):
-        # type: (EndpointDescription) -> dict
+    def _encode_description(self, endpoint_description: EndpointDescription) -> Dict[str, Any]:
         encoded_props = encode_endpoint_props(endpoint_description)
         # get copy of service props
         service_props = self._service_props.copy()
         # set 'properties field'
         service_props["properties"] = [
-            {"type": "string", "name": key, "value": encoded_props.get(key)}
-            for key in encoded_props
+            {"type": "string", "name": key, "value": encoded_props.get(key)} for key in encoded_props
         ]
         return service_props
 
-    def _write_description(self, endpoint_description):
-        # type: (EndpointDescription) -> etcd.EtcdResult
+    def _write_description(self, endpoint_description: EndpointDescription) -> etcd.EtcdResult:
         # encode props as string -> string
         service_props = self._encode_description(endpoint_description)
         # dump service_props to json
         props_json = json.dumps(service_props)
         # write to etcd
         with self._client_lock:
+            if self._client is None:
+                raise Exception("etcd client not available")
+
             return self._client.write(
                 key=self._get_endpoint_path(endpoint_description.get_id()),
                 value=props_json,
@@ -187,34 +173,32 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     # implementation of EndpointAdvertiser service.  These methods
     # are called when (e.g.) RSA asks us to advertise/unadvertise
     # an endpoint_description
-    def _advertise(self, endpoint_description):
-        # type: (EndpointDescription) -> etcd.EtcdResult
+    def _advertise(self, endpoint_description: EndpointDescription) -> etcd.EtcdResult:
         _logger.debug("advertising ed=%s", endpoint_description)
         return self._write_description(endpoint_description)
 
-    def _update(self, endpoint_description):
-        # type: (EndpointDescription) -> etcd.EtcdResult
+    def _update(self, endpoint_description: EndpointDescription) -> etcd.EtcdResult:
         _logger.debug("updating ed=%s", endpoint_description)
         return self._write_description(endpoint_description)
 
-    def _unadvertise(self, advertised):
-        # type: (List[EndpointDescription]) -> etcd.EtcdResult
+    def _unadvertise(self, advertised: Tuple[EndpointDescription, Any]) -> etcd.EtcdResult:
         _logger.debug("unadvertising ed=%s", advertised[0])
         # get endpoint id
         endpointid = advertised[0].get_id()
         # write to etcd
         with self._client_lock:
+            if self._client is None:
+                raise Exception("etcd client not available")
+
             return self._client.delete(key=self._get_endpoint_path(endpointid))
 
-    def _get_session_path(self):
-        # type: () -> str
-        return "{0}/{1}".format(self._top_path, self._sessionid)
+    def _get_session_path(self) -> str:
+        return f"{self._top_path}/{self._sessionid}"
 
-    def _get_endpoint_path(self, endpointid):
-        # type: (str) -> str
-        return "{0}/{1}".format(self._get_session_path(), endpointid)
+    def _get_endpoint_path(self, endpointid: str) -> str:
+        return f"{self._get_session_path()}/{endpointid}"
 
-    def _disconnect(self):
+    def _disconnect(self) -> None:
         """
         Disconnects the etcd client
         """
@@ -224,12 +208,10 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 try:
                     self._client.delete(session_path, True, True)
                 except Exception:
-                    _logger.exception(
-                        "Exception deleting session_path=%s", session_path
-                    )
+                    _logger.exception("Exception deleting session_path=%s", session_path)
                 self._client = None
 
-    def _connect(self):
+    def _connect(self) -> None:
         """
         Connects to etcd
         """
@@ -244,9 +226,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             except etcd.EtcdKeyNotFound:
                 # if this happens, attempt to write it
                 try:
-                    top_response = self._client.write(
-                        self._top_path, None, None, True
-                    )
+                    top_response = self._client.write(self._top_path, None, None, True)
                 except Exception as e:
                     _logger.exception(
                         "Exception attempting to create top dir=%s",
@@ -255,9 +235,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                     raise e
             # set top nodes with list comprehension base top_response subtree
             self._top_nodes = [
-                x
-                for x in list(top_response.get_subtree())
-                if x.dir and x.key != self._top_path
+                x for x in list(top_response.get_subtree()) if x.dir and x.key != self._top_path
             ]
             try:
                 session_exists_result = self._client.write(
@@ -277,20 +255,17 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             # Note: error disabled as EtcdResult object is too dynamic
             # pylint: disable=E1101
             self._wait_index = session_exists_result.createdIndex + 1
-            self._ttl_thread = Thread(target=self._ttl_job, name="Etcd TTL Job")
+            self._ttl_thread = threading.Thread(target=self._ttl_job, name="Etcd TTL Job")
             self._ttl_thread.daemon = True
-            self._watch_thread = Thread(
-                target=self._watch_job, name="Etcd Listen Job"
-            )
+            self._watch_thread = threading.Thread(target=self._watch_job, name="Etcd Listen Job")
             self._watch_thread.daemon = True
             self._ttl_thread.start()
             self._watch_thread.start()
 
-    def _get_start_wait(self):
-        # type: () -> int
+    def _get_start_wait(self) -> int:
         return int(self._session_ttl - (self._session_ttl / 10))
 
-    def _handle_add_dir(self, dir_node):
+    def _handle_add_dir(self, dir_node: etcd.EtcdResult) -> None:
         sessionid = dir_node.key[len(self._top_path) + 1 :]
         _logger.debug("_handle_add_dir sessionid=%s", sessionid)
         self._handle_add_nodes(
@@ -298,12 +273,12 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             [node for node in list(dir_node.children) if not node.dir],
         )
 
-    def _handle_remove_dir(self, sessionid):
+    def _handle_remove_dir(self, sessionid: str) -> None:
         _logger.debug("_handle_remove_dir sessionid=%s", sessionid)
         endpointids = self._get_endpointids_for_sessionid(sessionid)
         self._handle_remove_nodes(endpointids)
 
-    def _handle_add_nodes(self, sessionid, nodes):
+    def _handle_add_nodes(self, sessionid: str, nodes: List[etcd.EtcdResult]) -> None:
         for node in nodes:
             # we only care about properties
             node_val = node.value
@@ -334,20 +309,18 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                         if new_ts > old_ts:
                             self._remove_discovered_endpoint(old_ed.get_id())
                             self._add_discovered_endpoint(sessionid, new_ed)
-                            self._fire_endpoint_event(
-                                EndpointEvent.MODIFIED, new_ed
-                            )
+                            self._fire_endpoint_event(EndpointEvent.MODIFIED, new_ed)
 
-    def _handle_remove_nodes(self, endpointids):
+    def _handle_remove_nodes(self, endpointids: List[str]) -> None:
         for endpointid in endpointids:
             self._handle_remove_node(endpointid)
 
-    def _handle_remove_node(self, endpointid):
+    def _handle_remove_node(self, endpointid: str) -> None:
         ed = self._remove_discovered_endpoint(endpointid)
         if ed:
             self._fire_endpoint_event(EndpointEvent.REMOVED, ed)
 
-    def _watch_job(self):
+    def _watch_job(self) -> None:
         # sleep for a few seconds to allow endpoint listeners to be
         # asynchronously added before the top nodes are processed
         time.sleep(5)
@@ -379,9 +352,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 action = result.action
                 if key.endswith(self._sessionid):
                     if action == "delete":
-                        _logger.debug(
-                            "watch_job: session dir deleted...exiting"
-                        )
+                        _logger.debug("watch_job: session dir deleted...exiting")
                         # we are done
                         return
                 else:
@@ -404,11 +375,10 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                                 self._handle_remove_dir(sessionid)
                             elif action in self.ADD_ACTIONS:
                                 self._handle_add_dir(result)
-
             except Exception:
                 _logger.exception("watch_job:Exception in watch loop")
 
-    def _ttl_job(self):
+    def _ttl_job(self) -> None:
         waittime = self._get_start_wait()
         while True:
             _logger.debug("ttl_job: starting sleep with waittime=%s", waittime)
@@ -419,15 +389,11 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 _logger.debug("ttl_job: exiting")
                 return
             waittime -= 1
-            _logger.debug(
-                "ttl_job: testing waittime <= 0 with waittime=%s", waittime
-            )
+            _logger.debug("ttl_job: testing waittime <= 0 with waittime=%s", waittime)
             if waittime <= 0:
                 try:
                     session_ttl = self._session_ttl
-                    _logger.debug(
-                        "ttl_job: updating with session_ttl=%s", session_ttl
-                    )
+                    _logger.debug("ttl_job: updating with session_ttl=%s", session_ttl)
                     with self._client_lock:
                         if self._client:
                             self._client.write(
@@ -437,9 +403,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                                 dir=True,
                                 prevExist=True,
                             )
-                    _logger.debug(
-                        "ttl_job: updated with session_ttl=%s", session_ttl
-                    )
+                    _logger.debug("ttl_job: updated with session_ttl=%s", session_ttl)
                 except Exception:
                     _logger.exception("Exception updating in ttl job")
                 waittime = self._get_start_wait()

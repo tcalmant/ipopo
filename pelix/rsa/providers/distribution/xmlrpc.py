@@ -26,48 +26,35 @@ XmlRpc-on-HttpService-based Export and Import Distribution Providers
     limitations under the License.
 """
 
-import logging
+import xmlrpc.client as xmlrpclib
+from concurrent.futures import Executor
+from concurrent.futures.thread import ThreadPoolExecutor
+from typing import Any, Callable, Dict, List, Optional, Tuple, cast
+from xmlrpc.server import SimpleXMLRPCDispatcher
 
-# XML RPC modules for Python 2 or 3
-try:
-    # Python 3
-    # pylint: disable=F0401
-    from xmlrpc.server import SimpleXMLRPCDispatcher
-    import xmlrpc.client as xmlrpclib
-    from concurrent.futures import Executor
-    from concurrent.futures.thread import ThreadPoolExecutor
-except ImportError:
-    # Python 2
-    # pylint: disable=F0401
-    from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
-    import xmlrpclib
-
-    Executor = None
-
-from pelix.http import HTTP_SERVICE
-from pelix.utilities import to_str
-
+from pelix.framework import BundleContext
+from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse, HTTPService, Servlet
 from pelix.ipopo.constants import ARG_BUNDLE_CONTEXT, ARG_PROPERTIES
 from pelix.ipopo.decorators import (
     ComponentFactory,
-    Provides,
     Instantiate,
-    Property,
-    Requires,
     Invalidate,
+    Property,
+    Provides,
+    Requires,
     ValidateComponent,
 )
-
 from pelix.rsa import prop_dot_suffix
+from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.rsa.providers.distribution import (
-    ExportContainer,
-    ImportContainer,
-    ExportDistributionProvider,
-    ImportDistributionProvider,
     SERVICE_EXPORT_CONTAINER,
     SERVICE_EXPORT_DISTRIBUTION_PROVIDER,
     SERVICE_IMPORT_CONTAINER,
     SERVICE_IMPORT_DISTRIBUTION_PROVIDER,
+    ExportContainer,
+    ExportDistributionProvider,
+    ImportContainer,
+    ImportDistributionProvider,
 )
 
 # ------------------------------------------------------------------------------
@@ -78,9 +65,6 @@ __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
-
-# Standard logging
-_logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 # XmlRpc Distribution Provider Constants. Note that to get interoperability with
@@ -97,32 +81,38 @@ ECF_XMLRPC_HOSTNAME_PROP = "hostname"
 # ------------------------------------------------------------------------------
 
 
-class ServerDispatcher(SimpleXMLRPCDispatcher, object):
-    """ServerDispatcher (subclass of SimpleXMLRPCDispatcher)
+class ServerDispatcher(SimpleXMLRPCDispatcher, Servlet):
+    """
+    ServerDispatcher (subclass of SimpleXMLRPCDispatcher)
     uses ECF remote service id to identify the service
     for method invocation requests.  See do_POST and _dispatch
     for the actual method invocation.
     """
 
-    def __init__(self, dispatch_func, timeout=None, executor=None):
+    def __init__(
+        self,
+        dispatch_func: Callable[..., Any],
+        timeout: Optional[float] = None,
+        executor: Optional[Executor] = None,
+    ) -> None:
         super(ServerDispatcher, self).__init__(allow_none=True)
         self._dispatch_func = dispatch_func
         self._timeout = timeout
         self._executor = executor
 
-    def do_POST(self, request, response):
+    def do_POST(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
         # pylint: disable=C0103
-        data = to_str(request.read_data())
+        data = request.read_data().decode()
         result = self._marshaled_dispatch(data, self._dispatch)
         response.send_content(200, result, "text/xml")
 
-    def _dispatch(self, method, params):
+    def _dispatch(self, method: Optional[str], params: Any) -> Any:
+        if method is None:
+            raise Exception("No method to dispatch given")
         obj_method_list = method.split(".")
         if not len(obj_method_list) == 2:
             raise Exception(
-                "_dispatch: invalid method="
-                + method
-                + ".  Must be of form <objectid>.<methodname>"
+                "_dispatch: invalid method=" + method + ".  Must be of form <objectid>.<methodname>"
             )
         # and call _dispatch_func/3
         if self._executor:
@@ -133,9 +123,7 @@ class ServerDispatcher(SimpleXMLRPCDispatcher, object):
                 params,
             ).result(self._timeout)
 
-        return self._dispatch_func(
-            obj_method_list[0], obj_method_list[1], params
-        )
+        return self._dispatch_func(obj_method_list[0], obj_method_list[1], params)
 
 
 # ------------------------------------------------------------------------------
@@ -152,18 +140,16 @@ class XmlRpcExportContainer(ExportContainer):
     XmlRpcExportDistributionProvider below
     """
 
+    def _get_distribution_provider(self) -> "XmlRpcExportDistributionProvider":
+        return cast(XmlRpcExportDistributionProvider, super()._get_distribution_provider())
+
     @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_PROPERTIES)
-    def _validate_component(self, bundle_context, container_props):
+    def _validate_component(self, bundle_context: BundleContext, container_props: Dict[str, Any]) -> None:
         # pylint: disable=W0212
-        ExportContainer._validate_component(
-            self, bundle_context, container_props
-        )
+        ExportContainer._validate_component(self, bundle_context, container_props)
         timeout = container_props.get(ECF_XMLRPC_TIMEOUT_PROP, None)
         dp = self._get_distribution_provider()
-        if Executor:
-            executor = ThreadPoolExecutor(max_workers=5)
-        else:
-            executor = None
+        executor = ThreadPoolExecutor(max_workers=5)
         # register the ServerDispatcher instance our uri_path
         dp._httpservice.register_servlet(
             dp._uri_path,
@@ -171,7 +157,7 @@ class XmlRpcExportContainer(ExportContainer):
         )
 
     @Invalidate
-    def _invalidate_component(self, bundle_context):
+    def _invalidate_component(self, bundle_context: BundleContext) -> None:
         # pylint: disable=W0212
         """
         First invalidate by unregistering the servlet/dispatcher,
@@ -191,13 +177,9 @@ class XmlRpcExportContainer(ExportContainer):
 @Provides(SERVICE_EXPORT_DISTRIBUTION_PROVIDER)
 @Property("_config_name", "config_name", ECF_XMLRPC_SERVER_CONFIG)
 @Property("_namespace", "namespace", ECF_XMLRPC_NAMESPACE)
-@Property(
-    "_supported_configs", "supported_configs", ECF_XMLRPC_SUPPORTED_CONFIGS
-)
-@Property(
-    "_supported_intents", "supported_intents", ECF_XMLRPC_SUPPORTED_INTENTS
-)
-@Requires("_httpservice", HTTP_SERVICE)
+@Property("_supported_configs", "supported_configs", ECF_XMLRPC_SUPPORTED_CONFIGS)
+@Property("_supported_intents", "supported_intents", ECF_XMLRPC_SUPPORTED_INTENTS)
+@Requires("_httpservice", HTTPService)
 @Property(
     "_uri_path",
     prop_dot_suffix(ECF_XMLRPC_SERVER_CONFIG, ECF_XMLRPC_PATH_PROP),
@@ -228,14 +210,17 @@ class XmlRpcExportDistributionProvider(ExportDistributionProvider):
     as implemented in XmlRpcExportContainer._validate_component.
     """
 
-    def __init__(self):
-        super(XmlRpcExportDistributionProvider, self).__init__()
-        self._httpservice = None
-        self._uri_path = None
-        self._timeout = None
-        self._hostname = None
+    _httpservice: HTTPService
 
-    def _prepare_container_props(self, service_intents, export_props):
+    def __init__(self) -> None:
+        super(XmlRpcExportDistributionProvider, self).__init__()
+        self._uri_path: str = ""
+        self._timeout: Optional[float] = None
+        self._hostname: Optional[str] = None
+
+    def _prepare_container_props(
+        self, service_intents: Optional[List[str]], export_props: Dict[str, Any]
+    ) -> Dict[str, Any]:
         container_props = ExportDistributionProvider._prepare_container_props(
             self, service_intents, export_props
         )
@@ -243,7 +228,7 @@ class XmlRpcExportDistributionProvider(ExportDistributionProvider):
             container_props[ECF_XMLRPC_TIMEOUT_PROP] = self._timeout
         return container_props
 
-    def _prepare_container_id(self, container_props):
+    def _prepare_container_id(self, container_props: Dict[str, Any]) -> str:
         """
         This method is called prior to actual container creation in order to
         create the name/id of the ExportContainer to be subsequently created
@@ -252,21 +237,18 @@ class XmlRpcExportDistributionProvider(ExportDistributionProvider):
         The String returned from this method is used in the instantiate call as
         the container_id.
         """
-        uri = "http://"
-        if self._httpservice.is_https():
-            uri = "https://"
-
-        hostname = container_props.get(ECF_XMLRPC_HOSTNAME_PROP, None)
+        protocol = "https" if self._httpservice.is_https() else "http"
+        hostname = cast(Optional[str], container_props.get(ECF_XMLRPC_HOSTNAME_PROP, None))
         if not hostname:
             hostname = self._hostname
             if not hostname:
-                self._httpservice.get_hostname()
+                hostname = self._httpservice.get_hostname()
 
-        port = container_props.get("port")
+        port = cast(Optional[int], container_props.get("port"))
         if not port:
-            port = str(self._httpservice.get_access()[1])
+            port = self._httpservice.get_access()[1]
 
-        uri = uri + "{0}:{1}".format(hostname, port)
+        uri = f"{protocol}://{hostname}:{port}"
         return uri + self._uri_path
 
 
@@ -283,28 +265,27 @@ class XmlRpcImportContainer(ImportContainer):
     used at to create an instance of this container at import-time.
     """
 
-    def _prepare_proxy(self, endpoint_description):
+    def _prepare_proxy(self, endpoint_description: EndpointDescription) -> Any:
         """
         This method is called as part of RSA.import_service.  In this case
         an instance of XmlRpcProxy declared below is returned as the object
         representing the imported remote service (proxy).  Once returned,
         this proxy is registered with locals service registry.
         When a consumer retrieves this service and calls a method, the
-         __getattr__ method (below) is and this make the remote call
+        __getattr__ method (below) is and this make the remote call
         with a string: <objectid>.<method> using the
         xmlrpc.client.ServerProxy
         """
 
-        class XmlRpcProxy(object):
-            # pylint: disable=R0903
-            def __init__(self, get_remoteservice_id):
+        class XmlRpcProxy:
+            def __init__(self, get_remoteservice_id: Tuple[Tuple[Any, str], int]) -> None:
                 self._url = get_remoteservice_id[0][1]
                 self._rsid = str(get_remoteservice_id[1])
 
-            def __getattr__(self, name):
+            def __getattr__(self, name: str) -> Any:
                 return getattr(
                     xmlrpclib.ServerProxy(self._url, allow_none=True),
-                    "{0}.{1}".format(self._rsid, name),
+                    f"{self._rsid}.{name}",
                 )
 
         # create instance of XmlRpcProxy and pass in remoteservice id:
@@ -318,16 +299,12 @@ class XmlRpcImportContainer(ImportContainer):
 @Provides(SERVICE_IMPORT_DISTRIBUTION_PROVIDER)
 @Property("_config_name", "config_name", ECF_XMLRPC_CLIENT_CONFIG)
 @Property("_namespace", "namespace", ECF_XMLRPC_NAMESPACE)
-@Property(
-    "_supported_configs", "supported_configs", ECF_XMLRPC_SUPPORTED_CONFIGS
-)
-@Property(
-    "_supported_intents", "supported_intents", ECF_XMLRPC_SUPPORTED_INTENTS
-)
+@Property("_supported_configs", "supported_configs", ECF_XMLRPC_SUPPORTED_CONFIGS)
+@Property("_supported_intents", "supported_intents", ECF_XMLRPC_SUPPORTED_INTENTS)
 @Instantiate("xmlrpc-import-distribution-provider")
 class XmlRpcImportDistributionProvider(ImportDistributionProvider):
     """
     We get all necessary methods from ImportDistributionProvider
     """
 
-    pass
+    ...

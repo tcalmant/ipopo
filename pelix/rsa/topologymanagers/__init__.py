@@ -28,34 +28,32 @@ Topology Manager API
 
 import logging
 
-try:
-    from typing import Any, Dict
-except ImportError:
-    pass
-
-from pelix.framework import ServiceEvent, ServiceReference, BundleContext
+from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceReference
+from pelix.internals.events import ServiceEvent
 from pelix.internals.hooks import EventListenerHook
-from pelix.ipopo.decorators import Validate, Invalidate, Provides, Requires
-from pelix.services import SERVICE_EVENT_LISTENER_HOOK
-
-from pelix.rsa.providers.discovery import (
-    SERVICE_ENDPOINT_ADVERTISER,
-    SERVICE_ENDPOINT_LISTENER,
-    EndpointEventListener,
-    EndpointEvent,
-)
-
+from pelix.ipopo.decorators import Invalidate, Provides, Requires, Validate
 from pelix.rsa import (
     SERVICE_EXPORTED_INTERFACES,
-    get_exported_interfaces,
     SERVICE_RSA_EVENT_LISTENER,
-    SERVICE_REMOTE_SERVICE_ADMIN,
-    ECF_ENDPOINT_CONTAINERID_NAMESPACE,
-    RemoteServiceAdminListener,
-    RemoteServiceAdminEvent,
     ImportRegistration,
+    RemoteServiceAdmin,
+    RemoteServiceAdminEvent,
+    RemoteServiceAdminListener,
+    get_exported_interfaces,
 )
 from pelix.rsa.endpointdescription import EndpointDescription
+from pelix.rsa.providers.discovery import (
+    EndpointAdvertiser,
+    SERVICE_ENDPOINT_LISTENER,
+    EndpointEvent,
+    EndpointEventListener,
+)
+from pelix.services import SERVICE_EVENT_LISTENER_HOOK
+from typing import TYPE_CHECKING, Any, Dict, List, cast, Optional
+
+if TYPE_CHECKING:
+    import pelix.rsa.remoteserviceadmin as rsa_impl
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -79,59 +77,50 @@ _logger = logging.getLogger(__name__)
         SERVICE_ENDPOINT_LISTENER,
     ]
 )
-@Requires("_rsa", SERVICE_REMOTE_SERVICE_ADMIN)
-@Requires("_advertisers", SERVICE_ENDPOINT_ADVERTISER, True, True)
-class TopologyManager(
-    EventListenerHook, RemoteServiceAdminListener, EndpointEventListener, object
-):
-    def __init__(self):
-        self._advertisers = []
-        self._context = None  # type: BundleContext
-        self._rsa = None
+@Requires("_rsa", RemoteServiceAdmin)
+@Requires("_advertisers", EndpointAdvertiser, True, True)
+class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEventListener):
+    _rsa: RemoteServiceAdmin
+    _advertisers: List[EndpointAdvertiser]
+
+    def __init__(self) -> None:
+        self._context: Optional[BundleContext] = None
 
     @Validate
-    def _validate(self, context):
-        # type: (BundleContext) -> None
+    def _validate(self, context: BundleContext) -> None:
         self._context = context
 
     @Invalidate
-    def _invalidate(self, _):
+    def _invalidate(self, _: BundleContext) -> None:
         self._context = None
 
-    def _import_added_endpoint(self, endpoint_description):
-        # type: (EndpointDescription) -> ImportRegistration
+    def _import_added_endpoint(self, endpoint_description: EndpointDescription) -> ImportRegistration:
         return self._rsa.import_service(endpoint_description)
 
-    def _unimport_removed_endpoint(self, endpoint_description):
-        # type: (EndpointDescription) -> None
+    def _unimport_removed_endpoint(self, endpoint_description: EndpointDescription) -> None:
         # pylint: disable=W0212
-        import_regs = self._rsa._get_import_regs()
+        import_regs = cast(rsa_impl.RemoteServiceAdminImpl, self._rsa)._get_import_regs()
         for import_reg in import_regs:
             if import_reg.match_ed(endpoint_description):
                 import_reg.close()
 
-    def _update_imported_endpoint(self, endpoint_description):
-        # type: (EndpointDescription) -> None
+    def _update_imported_endpoint(self, endpoint_description: EndpointDescription) -> None:
         # pylint: disable=W0212
-        import_regs = self._rsa._get_import_regs()
+        import_regs = cast(rsa_impl.RemoteServiceAdminImpl, self._rsa)._get_import_regs()
         for import_reg in import_regs:
             if import_reg.match_ed(endpoint_description):
                 import_reg.update(endpoint_description)
 
-    def _handle_service_registered(self, service_ref):
-        # type: (ServiceReference) -> None
+    def _handle_service_registered(self, service_ref: ServiceReference[Any]) -> None:
         exp_intfs = get_exported_interfaces(service_ref)
         # If no exported interfaces, then all done
         if not exp_intfs:
             return
-        self._rsa.export_service(
-            service_ref, {SERVICE_EXPORTED_INTERFACES: exp_intfs}
-        )
+        self._rsa.export_service(service_ref, {SERVICE_EXPORTED_INTERFACES: exp_intfs})
 
-    def _handle_service_unregistering(self, service_ref):
-        # type: (ServiceReference) -> None
+    def _handle_service_unregistering(self, service_ref: ServiceReference[Any]) -> None:
         # pylint: disable=W0212
-        export_regs = self._rsa._get_export_regs()
+        export_regs = cast(rsa_impl.RemoteServiceAdminImpl, self._rsa)._get_export_regs()
         if export_regs:
             for export_reg in export_regs:
                 if export_reg.match_sr(service_ref):
@@ -142,29 +131,25 @@ class TopologyManager(
                     )
                     export_reg.close()
 
-    def _handle_service_modified(self, service_ref):
-        # type: (ServiceReference) -> EndpointDescription
+    def _handle_service_modified(self, service_ref: ServiceReference[Any]) -> None:
         # pylint: disable=W0212
-        export_regs = self._rsa._get_export_regs()
+        export_regs = cast(rsa_impl.RemoteServiceAdminImpl, self._rsa)._get_export_regs()
         if export_regs:
             for export_reg in export_regs:
                 if export_reg.match_sr(service_ref):
                     _logger.debug(
-                        "_handle_service_modified. updating "
-                        "export_registration for service reference=%s",
+                        "_handle_service_modified. updating " "export_registration for service reference=%s",
                         service_ref,
                     )
 
                     # actually update the export_reg here
                     if not export_reg.update(None):
                         _logger.warning(
-                            "_handle_service_modified. updating"
-                            "update for service_ref=%s failed",
+                            "_handle_service_modified. updating" "update for service_ref=%s failed",
                             service_ref,
                         )
 
-    def _handle_event(self, service_event):
-        # type: (ServiceEvent) -> None
+    def _handle_event(self, service_event: ServiceEvent[Any]) -> None:
         kind = service_event.get_kind()
         service_ref = service_event.get_service_reference()
         if kind == ServiceEvent.REGISTERED:
@@ -175,63 +160,56 @@ class TopologyManager(
             self._handle_service_modified(service_ref)
 
     # impl of EventListenerHook
-    def event(self, service_event, listener_dict):
-        # type: (ServiceEvent, Dict[Any, Any]) -> None
+    def event(self, service_event: ServiceEvent[Any], listener_dict: Dict[Any, Any]) -> None:
         self._handle_event(service_event)
 
-    def _advertise_endpoint(self, ed):
-        # type: (EndpointDescription) -> None
+    def _advertise_endpoint(self, ed: EndpointDescription) -> None:
         for adv in self._advertisers:
             try:
                 adv.advertise_endpoint(ed)
             except:
                 _logger.exception(
-                    "Exception in advertise_endpoint for "
-                    "advertiser=%s endpoint=%s",
+                    "Exception in advertise_endpoint for " "advertiser=%s endpoint=%s",
                     adv,
                     ed,
                 )
 
-    def _update_endpoint(self, ed):
-        # type: (EndpointDescription) -> None
+    def _update_endpoint(self, ed: EndpointDescription) -> None:
         for adv in self._advertisers:
             try:
                 adv.update_endpoint(ed)
             except:
                 _logger.exception(
-                    "Exception in update_endpoint for advertiser=%s "
-                    "endpoint=%s",
+                    "Exception in update_endpoint for advertiser=%s " "endpoint=%s",
                     adv,
                     ed,
                 )
 
-    def _unadvertise_endpoint(self, ed):
-        # type: (EndpointDescription) -> None
+    def _unadvertise_endpoint(self, ed: EndpointDescription) -> None:
         for adv in self._advertisers:
             try:
                 adv.unadvertise_endpoint(ed.get_id())
             except:
                 _logger.exception(
-                    "Exception in unadvertise_endpoint for advertiser=%s "
-                    "endpoint=%s",
+                    "Exception in unadvertise_endpoint for advertiser=%s " "endpoint=%s",
                     adv,
                     ed,
                 )
 
     # impl of RemoteServiceAdminListener
-    def remote_admin_event(self, rsa_event):
-        # type: (RemoteServiceAdminEvent) -> None
+    def remote_admin_event(self, rsa_event: RemoteServiceAdminEvent) -> None:
+        ed = rsa_event.get_description()
+        if ed is None:
+            _logger.warning("Got an event without an endpoint description")
+            return
+
         kind = rsa_event.get_type()
         if kind == RemoteServiceAdminEvent.EXPORT_REGISTRATION:
-            self._advertise_endpoint(rsa_event.get_description())
+            self._advertise_endpoint(ed)
         elif kind == RemoteServiceAdminEvent.EXPORT_UNREGISTRATION:
-            self._unadvertise_endpoint(rsa_event.get_description())
+            self._unadvertise_endpoint(ed)
         elif kind == RemoteServiceAdminEvent.EXPORT_UPDATE:
-            self._update_endpoint(rsa_event.get_description())
+            self._update_endpoint(ed)
 
-    def endpoint_changed(self, endpoint_event, matched_filter):
-        # type: (EndpointEvent, Any) -> None
-        _logger.debug(
-            "TopologyManager.endpoint_event called. "
-            "You probably want to override this method"
-        )
+    def endpoint_changed(self, endpoint_event: EndpointEvent, matched_filter: Any) -> None:
+        _logger.debug("TopologyManager.endpoint_event called. You probably want to override this method")

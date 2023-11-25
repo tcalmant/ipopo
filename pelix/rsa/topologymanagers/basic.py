@@ -27,14 +27,8 @@ BasicTopologyManager implements TopologyManager API
 """
 
 import logging
-
-try:
-    # pylint: disable=W0611
-    from typing import Any, Dict
-    from pelix.framework import ServiceEvent
-    from pelix.rsa import RemoteServiceAdminEvent
-except ImportError:
-    pass
+from typing import Any, Dict
+from pelix.internals.events import ServiceEvent
 
 from pelix.ipopo.decorators import ComponentFactory, Instantiate
 
@@ -61,19 +55,14 @@ _logger = logging.getLogger(__name__)
 # Tell iPOPO to instantiate a component instance as soon as the file is loaded
 @Instantiate(
     "basic-topology-manager",
-    {
-        TopologyManager.ENDPOINT_LISTENER_SCOPE: "({0}=*)".format(
-            ECF_ENDPOINT_CONTAINERID_NAMESPACE
-        )
-    },
+    {TopologyManager.ENDPOINT_LISTENER_SCOPE: f"({ECF_ENDPOINT_CONTAINERID_NAMESPACE}=*)"},
 )
 class BasicTopologyManager(TopologyManager):
     """
     BasicTopologyManager extends TopologyManager api
     """
 
-    def event(self, service_event, listener_dict):
-        # type: (ServiceEvent, Dict[Any, Any]) -> None
+    def event(self, service_event: ServiceEvent[Any], listener_dict: Dict[Any, Any]) -> None:
         """
         Implementation of EventListenerHook.  Called by local
         service registry when a service is registered, unregistered
@@ -82,8 +71,7 @@ class BasicTopologyManager(TopologyManager):
         """
         self._handle_event(service_event)
 
-    def endpoint_changed(self, endpoint_event, matched_filter):
-        # type: (EndpointEvent, Any) -> None
+    def endpoint_changed(self, endpoint_event: EndpointEvent, matched_filter: Any) -> None:
         """
         Implementation of discovery API EndpointEventListener.
         Called by discovery provider when an endpoint change
@@ -107,18 +95,13 @@ class BasicTopologyManager(TopologyManager):
                 )
             else:
                 _logger.debug(
-                    "BasicTopologyManager: service imported! "
-                    "endpoint.id=%s, service_ref=%s",
+                    "BasicTopologyManager: service imported! " "endpoint.id=%s, service_ref=%s",
                     ed_id,
                     imported_reg.get_reference(),
                 )
         elif event_type == EndpointEvent.REMOVED:
             self._unimport_removed_endpoint(ed)
-            _logger.debug(
-                "BasicTopologyManager: endpoint removed. endpoint.id=%s", ed_id
-            )
+            _logger.debug("BasicTopologyManager: endpoint removed. endpoint.id=%s", ed_id)
         elif event_type == EndpointEvent.MODIFIED:
             self._update_imported_endpoint(ed)
-            _logger.debug(
-                "BasicTopologyManager: endpoint updated. endpoint.id=%s", ed_id
-            )
+            _logger.debug("BasicTopologyManager: endpoint updated. endpoint.id=%s", ed_id)
