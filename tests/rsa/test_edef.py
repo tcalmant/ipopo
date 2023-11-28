@@ -6,19 +6,13 @@ Tests the RSA EDEF I/O operations
 :author: Thomas Calmant
 """
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
 
-# Remote Services
-from pelix.rsa.edef import EDEFReader, EDEFWriter
-from pelix.rsa.endpointdescription import EndpointDescription
-
-# Pelix
 import pelix.constants
 import pelix.framework
+import pelix.rsa
+from pelix.rsa.edef import EDEFReader, EDEFWriter
+from pelix.rsa.endpointdescription import EndpointDescription
 
 # ------------------------------------------------------------------------------
 
@@ -32,21 +26,26 @@ class EdefIOTest(unittest.TestCase):
     """
     Tests for the Remote Services EDEF I/O operations
     """
+
     def setUp(self):
         """
         Prepares a framework and a registers a service to export
         """
         # Create the framework
-        self.framework = pelix.framework.create_framework(['pelix.ipopo.core'])
+        self.framework = pelix.framework.create_framework(["pelix.ipopo.core"])
         self.framework.start()
 
         # Register an exported service
         context = self.framework.get_bundle_context()
         svc_reg = context.register_service(
-            "sample.spec", object(),
-            {pelix.rsa.SERVICE_EXPORTED_INTENTS: "*",
-             pelix.rsa.SERVICE_EXPORTED_CONFIGS: "*",
-             "some.property": "some value"})
+            "sample.spec",
+            object(),
+            {
+                pelix.rsa.SERVICE_EXPORTED_INTENTS: "*",
+                pelix.rsa.SERVICE_EXPORTED_CONFIGS: "*",
+                "some.property": "some value",
+            },
+        )
         self.svc_ref = svc_reg.get_reference()
 
     def tearDown(self):
@@ -66,12 +65,15 @@ class EdefIOTest(unittest.TestCase):
         """
         original = EndpointDescription(
             self.svc_ref,
-            {pelix.rsa.ENDPOINT_ID: "toto",
-             pelix.rsa.ECF_ENDPOINT_ID: "toto",
-             pelix.rsa.ECF_ENDPOINT_CONTAINERID_NAMESPACE: "test",
-             pelix.rsa.ENDPOINT_FRAMEWORK_UUID: "other-fw",
-             pelix.rsa.SERVICE_IMPORTED_CONFIGS: ['titi'],
-             pelix.constants.OBJECTCLASS: "spec"})
+            {
+                pelix.rsa.ENDPOINT_ID: "toto",
+                pelix.rsa.ECF_ENDPOINT_ID: "toto",
+                pelix.rsa.ECF_ENDPOINT_CONTAINERID_NAMESPACE: "test",
+                pelix.rsa.ENDPOINT_FRAMEWORK_UUID: "other-fw",
+                pelix.rsa.SERVICE_IMPORTED_CONFIGS: ["titi"],
+                pelix.constants.OBJECTCLASS: "spec",
+            },
+        )
 
         # Write the endpoint to an XML string
         writer = EDEFWriter()
@@ -86,18 +88,15 @@ class EdefIOTest(unittest.TestCase):
         endpoint = endpoints[0]
 
         # Ensure equality
-        self.assertIsNot(original, endpoint,
-                         "Same exact endpoint object returned")
+        self.assertIsNot(original, endpoint, "Same exact endpoint object returned")
 
-        self.assertEqual(original, endpoint,
-                         "Parsed endpoint is different")
-        self.assertEqual(endpoint, original,
-                         "Parsed endpoint is different")
+        self.assertEqual(original, endpoint, "Parsed endpoint is different")
+        self.assertEqual(endpoint, original, "Parsed endpoint is different")
 
         # Ensure properties equality
-        self.assertDictEqual(original.get_properties(),
-                             endpoint.get_properties(),
-                             "Endpoint properties changed")
+        self.assertDictEqual(
+            original.get_properties(), endpoint.get_properties(), "Endpoint properties changed"
+        )
 
     def testEdefIOTypes(self):
         """
@@ -116,11 +115,12 @@ class EdefIOTest(unittest.TestCase):
             "list_float": [1.0, 2.0, 3.0],
             "set_str": {"a", "b", "c"},
             "set_int": {1, 2, 3},
-            "set_float": {1.0, 2.0, 3.0}}
+            "set_float": {1.0, 2.0, 3.0},
+        }
 
         all_props = properties.copy()
-        all_props[pelix.rsa.ENDPOINT_ID] = 'toto'
-        all_props[pelix.rsa.SERVICE_IMPORTED_CONFIGS] = ['titi']
+        all_props[pelix.rsa.ENDPOINT_ID] = "toto"
+        all_props[pelix.rsa.SERVICE_IMPORTED_CONFIGS] = ["titi"]
         all_props[pelix.rsa.ECF_ENDPOINT_ID] = "toto"
         all_props[pelix.rsa.ECF_ENDPOINT_CONTAINERID_NAMESPACE] = "test"
         all_props[pelix.rsa.ENDPOINT_FRAMEWORK_UUID] = "other-fw"
@@ -141,6 +141,7 @@ class EdefIOTest(unittest.TestCase):
 
             self.assertEqual(parsed_properties[key], initial_value)
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -148,22 +149,27 @@ class BeansTest(unittest.TestCase):
     """
     Tests beans methods
     """
+
     def setUp(self):
         """
         Prepares a framework and a registers a service to export
         """
         # Create the framework
-        self.framework = pelix.framework.create_framework(['pelix.ipopo.core'])
+        self.framework = pelix.framework.create_framework(["pelix.ipopo.core"])
         self.framework.start()
 
         # Register an exported service
         context = self.framework.get_bundle_context()
         self.service = object()
         svc_reg = context.register_service(
-            "sample.spec", self.service,
-            {pelix.rsa.SERVICE_EXPORTED_INTENTS: "*",
-             pelix.rsa.SERVICE_EXPORTED_CONFIGS: "*",
-             "some.property": "some value"})
+            "sample.spec",
+            self.service,
+            {
+                pelix.rsa.SERVICE_EXPORTED_INTENTS: "*",
+                pelix.rsa.SERVICE_EXPORTED_CONFIGS: "*",
+                "some.property": "some value",
+            },
+        )
         self.svc_ref = svc_reg.get_reference()
 
     def tearDown(self):
@@ -181,33 +187,39 @@ class BeansTest(unittest.TestCase):
         Tests the behavior of the __init__ method
         """
         # Must fail due to the lack of endpoint.id
-        self.assertRaises(ValueError, EndpointDescription,
-                          self.svc_ref, None)
+        self.assertRaises(ValueError, EndpointDescription, self.svc_ref, None)
 
         # Must not fail
         EndpointDescription(
             self.svc_ref,
-            {pelix.rsa.ENDPOINT_ID: "toto",
-             pelix.rsa.ECF_ENDPOINT_ID: "toto",
-             pelix.rsa.ECF_ENDPOINT_CONTAINERID_NAMESPACE: "test",
-             pelix.rsa.ENDPOINT_FRAMEWORK_UUID: "other-fw",
-             pelix.rsa.SERVICE_IMPORTED_CONFIGS: ['titi']})
+            {
+                pelix.rsa.ENDPOINT_ID: "toto",
+                pelix.rsa.ECF_ENDPOINT_ID: "toto",
+                pelix.rsa.ECF_ENDPOINT_CONTAINERID_NAMESPACE: "test",
+                pelix.rsa.ENDPOINT_FRAMEWORK_UUID: "other-fw",
+                pelix.rsa.SERVICE_IMPORTED_CONFIGS: ["titi"],
+            },
+        )
 
         # Must fail due to the lack of properties
-        for mandatory in (pelix.rsa.ENDPOINT_ID,
-                          pelix.rsa.SERVICE_IMPORTED_CONFIGS):
-            self.assertRaises(ValueError, EndpointDescription,
-                              None, {mandatory: "toto",
-                                     pelix.constants.OBJECTCLASS: "spec",
-                                     pelix.constants.SERVICE_ID: 1})
+        for mandatory in (pelix.rsa.ENDPOINT_ID, pelix.rsa.SERVICE_IMPORTED_CONFIGS):
+            self.assertRaises(
+                ValueError,
+                EndpointDescription,
+                None,
+                {mandatory: "toto", pelix.constants.OBJECTCLASS: "spec", pelix.constants.SERVICE_ID: 1},
+            )
 
         # Must not fail
         EndpointDescription(
             None,
-            {pelix.rsa.ENDPOINT_ID: "toto",
-             pelix.rsa.ECF_ENDPOINT_ID: "toto",
-             pelix.rsa.ECF_ENDPOINT_CONTAINERID_NAMESPACE: "test",
-             pelix.rsa.ENDPOINT_FRAMEWORK_UUID: "other-fw",
-             pelix.rsa.SERVICE_IMPORTED_CONFIGS: ['titi'],
-             pelix.constants.OBJECTCLASS: "spec",
-             pelix.constants.SERVICE_ID: 1})
+            {
+                pelix.rsa.ENDPOINT_ID: "toto",
+                pelix.rsa.ECF_ENDPOINT_ID: "toto",
+                pelix.rsa.ECF_ENDPOINT_CONTAINERID_NAMESPACE: "test",
+                pelix.rsa.ENDPOINT_FRAMEWORK_UUID: "other-fw",
+                pelix.rsa.SERVICE_IMPORTED_CONFIGS: ["titi"],
+                pelix.constants.OBJECTCLASS: "spec",
+                pelix.constants.SERVICE_ID: 1,
+            },
+        )

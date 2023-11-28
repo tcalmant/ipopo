@@ -6,18 +6,14 @@ Tests the RSA discovery provider
 :author: Scott Lewis
 """
 
-# Standard library
 import json
+import queue
 import threading
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
+from io import StringIO
+from typing import Any, TypeVar
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from pelix.internals.registry import ServiceReference
 
 try:
     # Try to import modules
@@ -29,41 +25,28 @@ except ImportError:
     # Some interpreters don't have support for multiprocessing
     raise unittest.SkipTest("Interpreter doesn't support multiprocessing")
 
-try:
-    import queue
-except ImportError:
-    import Queue as queue
-
-
 import pelix
-from pelix.rsa import (
-    SERVICE_REMOTE_SERVICE_ADMIN,
-    ECF_ENDPOINT_CONTAINERID_NAMESPACE,
-)
-from pelix.rsa.endpointdescription import EndpointDescription
+import pelix.framework
+import pelix.rsa as rsa
 from pelix.framework import create_framework
 from pelix.ipopo.constants import use_ipopo
-
-# RSA
-import pelix.rsa as rsa
+from pelix.rsa import ECF_ENDPOINT_CONTAINERID_NAMESPACE, RemoteServiceAdmin
+from pelix.rsa.endpointdescription import EndpointDescription
+from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent
 from pelix.rsa.topologymanagers import TopologyManager
-from pelix.rsa.providers.discovery import (
-    SERVICE_ENDPOINT_ADVERTISER,
-    EndpointEvent,
-)
-
-# Local utilities
 from tests.utilities import WrappedProcess
 
 TEST_ETCD_HOSTNAME = "localhost"
 TEST_ETCD_TOPPATH = "/etcddiscovery.tests"
 
-ENDPOINT_LISTENER_SCOPE = "({0}=*)".format(ECF_ENDPOINT_CONTAINERID_NAMESPACE)
+ENDPOINT_LISTENER_SCOPE = f"({ECF_ENDPOINT_CONTAINERID_NAMESPACE}=*)"
 
 # ------------------------------------------------------------------------------
 
 __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
+
+T = TypeVar("T")
 
 # ------------------------------------------------------------------------------
 
@@ -108,14 +91,16 @@ def start_framework_for_advertise(state_queue):
             )
 
         bc = framework.get_bundle_context()
-        rsa = bc.get_service(
-            bc.get_service_reference("pelix.rsa.remoteserviceadmin", None)
-        )
+        svc_ref = bc.get_service_reference(RemoteServiceAdmin, None)
+        assert svc_ref is not None
+        rsa = bc.get_service(svc_ref)
         # export the hello remote service via rsa
         # with the BasicTopologyManager, this will result
         # in publish via etcd
+        hello_ref = bc.get_service_reference("org.eclipse.ecf.examples.hello.IHello")
+        assert hello_ref is not None
         rsa.export_service(
-            bc.get_service_reference("org.eclipse.ecf.examples.hello.IHello"),
+            hello_ref,
             {
                 "service.exported.interfaces": "*",
                 "service.exported.configs": "ecf.xmlrpc.server",
@@ -135,7 +120,7 @@ def start_framework_for_advertise(state_queue):
         # stop the framework gracefully
         framework.stop()
     except Exception as ex:
-        state_queue.put("Error: {0}".format(ex))
+        state_queue.put(f"Error: {ex}")
 
 
 class EtcdDiscoveryListenerTest(unittest.TestCase):
@@ -145,11 +130,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
         remote service.  Then starts a local framework to register the
         TestEndpointEventListener
         """
-        print(
-            "EtcdDiscoveryListenerTest etcd_hostname={0},toppath={1}".format(
-                TEST_ETCD_HOSTNAME, TEST_ETCD_TOPPATH
-            )
-        )
+        print(f"EtcdDiscoveryListenerTest etcd_hostname={TEST_ETCD_HOSTNAME},toppath={TEST_ETCD_TOPPATH}")
         # start external framework that publishes remote service
         self.status_queue = Queue()
         self.publisher_process = WrappedProcess(
@@ -181,9 +162,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
             self.listener = ipopo.instantiate(
                 "etcd-test-endpoint-event-listener-factory",
                 "etcd-test-endpoint-event-listener",
-                {
-                    TopologyManager.ENDPOINT_LISTENER_SCOPE: ENDPOINT_LISTENER_SCOPE
-                },
+                {TopologyManager.ENDPOINT_LISTENER_SCOPE: ENDPOINT_LISTENER_SCOPE},
             )
 
     def tearDown(self):
@@ -208,15 +187,10 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
             self.assertIsNotNone(endpoint_event, "endpoint_event is None")
             self.assertTrue(isinstance(endpoint_event, EndpointEvent))
             ee_type = endpoint_event.get_type()
-            self.assertTrue(
-                ee_type == EndpointEvent.ADDED
-                or ee_type == EndpointEvent.REMOVED
-            )
+            self.assertTrue(ee_type == EndpointEvent.ADDED or ee_type == EndpointEvent.REMOVED)
             ee_ed = endpoint_event.get_endpoint_description()
             self.assertTrue(isinstance(ee_ed, EndpointDescription))
-            self.assertIsNotNone(
-                ee_ed.get_id(), "endpoint_description id is None"
-            )
+            self.assertIsNotNone(ee_ed.get_id(), "endpoint_description id is None")
             self.assertIsNotNone(
                 ee_ed.get_framework_uuid(),
                 "endpoint_description framework uuid is None",
@@ -226,9 +200,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
             # test that service interfaces is not None and is of type list
             self.assertIsNotNone(interfaces)
             self.assertTrue(isinstance(interfaces, type([])))
-            self.assertTrue(
-                "org.eclipse.ecf.examples.hello.IHello" in interfaces
-            )
+            self.assertTrue("org.eclipse.ecf.examples.hello.IHello" in interfaces)
 
             # set the test_done_event, so tester thread will continue
             test_done_event.set()
@@ -253,9 +225,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
                 self.assertTrue(isinstance(endpoint_event, EndpointEvent))
                 ee_ed = endpoint_event.get_endpoint_description()
                 self.assertTrue(isinstance(ee_ed, EndpointDescription))
-                self.assertIsNotNone(
-                    ee_ed.get_id(), "endpoint_description id is None"
-                )
+                self.assertIsNotNone(ee_ed.get_id(), "endpoint_description id is None")
                 self.assertIsNotNone(
                     ee_ed.get_framework_uuid(),
                     "endpoint_description framework uuid is None",
@@ -265,9 +235,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
                 # test that service interfaces is not None and is of type list
                 self.assertIsNotNone(interfaces)
                 self.assertTrue(isinstance(interfaces, type([])))
-                self.assertTrue(
-                    "org.eclipse.ecf.examples.hello.IHello" in interfaces
-                )
+                self.assertTrue("org.eclipse.ecf.examples.hello.IHello" in interfaces)
 
                 # finally set the test_done_event, so tester thread will
                 # continue
@@ -343,20 +311,24 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         pelix.framework.FrameworkFactory.delete_framework()
         self.framework = None
 
-    def _get_discovery_advertiser_sr(self):
-        return self.framework.get_bundle_context().get_service_reference(
-            SERVICE_ENDPOINT_ADVERTISER
-        )
+    def _get_discovery_advertiser_sr(self) -> ServiceReference[EndpointAdvertiser]:
+        assert self.framework is not None
+        svc_ref = self.framework.get_bundle_context().get_service_reference(EndpointAdvertiser)
+        assert svc_ref is not None
+        return svc_ref
 
-    def _get_rsa_sr(self):
-        return self.framework.get_bundle_context().get_service_reference(
-            SERVICE_REMOTE_SERVICE_ADMIN
-        )
+    def _get_rsa_sr(self) -> ServiceReference[RemoteServiceAdmin]:
+        assert self.framework is not None
+        svc_ref = self.framework.get_bundle_context().get_service_reference(RemoteServiceAdmin)
+        assert svc_ref is not None
+        return svc_ref
 
-    def _get_service(self, sr):
+    def _get_service(self, sr: ServiceReference[T]) -> T:
+        assert self.framework is not None
         return self.framework.get_bundle_context().get_service(sr)
 
-    def _unget_service(self, sr):
+    def _unget_service(self, sr: ServiceReference[Any]) -> None:
+        assert self.framework is not None
         self.framework.get_bundle_context().unget_service(sr)
 
     def _get_advertiser(self):
@@ -368,11 +340,10 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         return self.rsa
 
     def _register_svc(self):
+        assert self.framework is not None
         spec = "test.svc"
         svc = object()
-        return self.framework.get_bundle_context().register_service(
-            spec, svc, {}
-        )
+        return self.framework.get_bundle_context().register_service(spec, svc, {})
 
     def _export_svc(self):
         self.svc_reg = self._register_svc()
@@ -394,19 +365,13 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
     def test_none_advertised(self):
         adv = self._get_advertiser()
         eps = adv.get_advertised_endpoints()
-        self.assertDictEqual(
-            eps, {}, "advertised endpoints not empty eps={0}".format(eps)
-        )
+        self.assertDictEqual(eps, {}, "advertised endpoints not empty eps={0}".format(eps))
 
     def test_etcd_session(self):
-        self.assertIsNotNone(
-            self._get_advertiser()._sessionid, "etcd._sessionid is null"
-        )
+        self.assertIsNotNone(self._get_advertiser()._sessionid, "etcd._sessionid is null")
 
     def test_etcd_client(self):
-        self.assertIsNotNone(
-            self._get_advertiser()._client, "etcd._client is null"
-        )
+        self.assertIsNotNone(self._get_advertiser()._client, "etcd._client is null")
 
     def test_etcd_remote_exists(self):
         adv = self._get_advertiser()
@@ -430,11 +395,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         adv.unadvertise_endpoint(ed_id)
         try:
             adv._client.get(ep_key)
-            self.fail(
-                "endpoint={0} still advertised after being removed".format(
-                    ed_id
-                )
-            )
+            self.fail("endpoint={0} still advertised after being removed".format(ed_id))
         except Exception:  # exception expected
             pass
         eps = adv.get_advertised_endpoints()
@@ -453,15 +414,11 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         # advertise it
         adv.advertise_endpoint(ed)
         # get the string directly via http and key
-        ed_val_str = list(
-            adv._client.get(adv._get_session_path() + "/" + ed_id).get_subtree()
-        )[0].value
+        ed_val_str = list(adv._client.get(adv._get_session_path() + "/" + ed_id).get_subtree())[0].value
         # decode the string into json object (dict)
         val_encoded = json.loads(ed_val_str)
         # compare the original dict with the one returned
-        self.assertDictEqual(
-            encoded_ep, val_encoded, "encoded endpoints not equal"
-        )
+        self.assertDictEqual(encoded_ep, val_encoded, "encoded endpoints not equal")
         # also check a couple of fields
         self.assertListEqual(
             encoded_ep["properties"],

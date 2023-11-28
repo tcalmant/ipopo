@@ -6,26 +6,16 @@ Tests the RSA endpoint description
 :author: Thomas Calmant
 """
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
+from typing import List, cast
 
-try:
-    from typing import List
-except ImportError:
-    pass
-
-# Pelix
-from pelix.framework import FRAMEWORK_UID, OSGI_FRAMEWORK_UUID
-from pelix.ipopo.constants import use_ipopo
 import pelix.constants
 import pelix.framework
-
-# Remote Services
+import pelix.rsa
 import pelix.rsa.endpointdescription as rsa_ed
 import pelix.rsa.remoteserviceadmin as rsa
+from pelix.framework import FRAMEWORK_UID
+from pelix.ipopo.constants import use_ipopo
 
 # ------------------------------------------------------------------------------
 
@@ -46,25 +36,32 @@ class EndpointDescriptionTests(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(
-            ["pelix.ipopo.core", "pelix.http.basic",
-             "pelix.rsa.remoteserviceadmin",
-             "pelix.rsa.providers.distribution.xmlrpc"],
-            {"ecf.xmlrpc.server.hostname": "localhost"})
+            [
+                "pelix.ipopo.core",
+                "pelix.http.basic",
+                "pelix.rsa.remoteserviceadmin",
+                "pelix.rsa.providers.distribution.xmlrpc",
+            ],
+            {"ecf.xmlrpc.server.hostname": "localhost"},
+        )
         self.framework.start()
 
         # Get the RSA service
         context = self.framework.get_bundle_context()
-        self.rsa = context.get_service(
-            context.get_service_reference(
-                rsa.SERVICE_REMOTE_SERVICE_ADMIN))  # type: rsa.RemoteServiceAdminImpl
+        svc_ref = context.get_service_reference(pelix.rsa.RemoteServiceAdmin)
+        assert svc_ref is not None
+        self.rsa = cast(
+            rsa.RemoteServiceAdminImpl,
+            context.get_service(svc_ref),
+        )
 
         # Start an HTTP server, required by XML-RPC
         with use_ipopo(context) as ipopo:
             ipopo.instantiate(
-                'pelix.http.service.basic.factory',
-                'http-server',
-                {'pelix.http.address': 'localhost',
-                 'pelix.http.port': 0})
+                "pelix.http.service.basic.factory",
+                "http-server",
+                {"pelix.http.address": "localhost", "pelix.http.port": 0},
+            )
 
     def tearDown(self):
         """
@@ -100,8 +97,7 @@ class EndpointDescriptionTests(unittest.TestCase):
         self.assertEqual("simple", rsa_ed.package_name("simple"))
         self.assertEqual("package", rsa_ed.package_name("package.simple"))
         self.assertEqual("", rsa_ed.package_name(".simple"))
-        self.assertEqual(
-            "root.package", rsa_ed.package_name("root.package.simple"))
+        self.assertEqual("root.package", rsa_ed.package_name("root.package.simple"))
 
     def test_encode_osgi_props(self):
         """
@@ -115,8 +111,8 @@ class EndpointDescriptionTests(unittest.TestCase):
 
         # Export the service
         export_reg = self.rsa.export_service(
-            svc_ref, {rsa.SERVICE_EXPORTED_INTERFACES: '*',
-                      rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"})[0]
+            svc_ref, {rsa.SERVICE_EXPORTED_INTERFACES: "*", rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"}
+        )[0]
         ed = export_reg.get_description()
 
         # Encode properties
@@ -151,8 +147,8 @@ class EndpointDescriptionTests(unittest.TestCase):
 
         # Export the service
         export_reg = self.rsa.export_service(
-            svc_ref, {rsa.SERVICE_EXPORTED_INTERFACES: '*',
-                      rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"})[0]
+            svc_ref, {rsa.SERVICE_EXPORTED_INTERFACES: "*", rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"}
+        )[0]
         ed = export_reg.get_description()
 
         # Encode properties
@@ -193,14 +189,14 @@ class EndpointDescriptionTests(unittest.TestCase):
         # Export the services
         export_reg_1 = self.rsa.export_service(
             svc_ref_1,
-            {rsa.SERVICE_EXPORTED_INTERFACES: '*',
-             rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"})[0]
+            {rsa.SERVICE_EXPORTED_INTERFACES: "*", rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"},
+        )[0]
         ed_1 = export_reg_1.get_description()
 
         export_reg_2 = self.rsa.export_service(
             svc_ref_2,
-            {rsa.SERVICE_EXPORTED_INTERFACES: '*',
-             rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"})[0]
+            {rsa.SERVICE_EXPORTED_INTERFACES: "*", rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"},
+        )[0]
         ed_2 = export_reg_2.get_description()
 
         # Just ensure that str() works

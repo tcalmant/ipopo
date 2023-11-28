@@ -6,28 +6,17 @@ Tests the RSA shell commands
 :author: Thomas Calmant
 """
 
-# Standard library
 import os
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+import unittest
+from io import StringIO
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
-
-# Pelix
-from pelix.constants import SERVICE_ID, FRAMEWORK_UID, BundleException
-from pelix.ipopo.constants import use_ipopo
-from pelix.shell import SERVICE_SHELL
 import pelix.constants
 import pelix.framework
 import pelix.shell.beans as beans
-
-# RSA
-from pelix.rsa import ENDPOINT_ID, ENDPOINT_FRAMEWORK_UUID
+from pelix.constants import FRAMEWORK_UID, SERVICE_ID, BundleException
+from pelix.ipopo.constants import use_ipopo
+from pelix.rsa import ENDPOINT_FRAMEWORK_UUID, ENDPOINT_ID
+from pelix.shell import ShellService
 
 # ------------------------------------------------------------------------------
 
@@ -41,31 +30,37 @@ class ShellTest(unittest.TestCase):
     """
     Tests for the RSA Shell tests
     """
+
     def setUp(self):
         """
         Prepares a framework and a registers a service to export
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(
-            ["pelix.ipopo.core",
-             "pelix.shell.core", "pelix.rsa.shell",
-             "pelix.http.basic",
-             "pelix.rsa.remoteserviceadmin",
-             "pelix.rsa.providers.distribution.xmlrpc"],
-            {"ecf.xmlrpc.server.hostname": "localhost"})
+            [
+                "pelix.ipopo.core",
+                "pelix.shell.core",
+                "pelix.rsa.shell",
+                "pelix.http.basic",
+                "pelix.rsa.remoteserviceadmin",
+                "pelix.rsa.providers.distribution.xmlrpc",
+            ],
+            {"ecf.xmlrpc.server.hostname": "localhost"},
+        )
         self.framework.start()
 
         # Start an HTTP server, required by XML-RPC
         context = self.framework.get_bundle_context()
         with use_ipopo(context) as ipopo:
             ipopo.instantiate(
-                'pelix.http.service.basic.factory',
-                'http-server',
-                {'pelix.http.address': 'localhost',
-                 'pelix.http.port': 0})
+                "pelix.http.service.basic.factory",
+                "http-server",
+                {"pelix.http.address": "localhost", "pelix.http.port": 0},
+            )
 
         # Get the shell service
-        svc_ref = context.get_service_reference(SERVICE_SHELL)
+        svc_ref = context.get_service_reference(ShellService)
+        assert svc_ref is not None
         self.shell = context.get_service(svc_ref)
 
     def tearDown(self):
@@ -89,8 +84,8 @@ class ShellTest(unittest.TestCase):
 
         try:
             # Get the given session
-            session = kwargs['session']
-            str_output = kwargs['output']
+            session = kwargs["session"]
+            str_output = kwargs["output"]
             str_output.truncate(0)
             str_output.seek(0)
         except KeyError:
@@ -135,6 +130,7 @@ class ShellTest(unittest.TestCase):
         """
         Tests service export/import with
         """
+        assert self.framework is not None
         # Prepare a service to export
         context = self.framework.get_bundle_context()
         svc_reg = context.register_service("toto", object(), {})
@@ -170,6 +166,7 @@ class ShellTest(unittest.TestCase):
 
         # Check if we imported the service
         imp_ref = context.get_service_reference("toto", "(service.imported=*)")
+        assert imp_ref is not None
         fw_uid = context.get_property(FRAMEWORK_UID)
         self.assertEqual(imp_ref.get_property(ENDPOINT_FRAMEWORK_UUID), fw_uid)
 

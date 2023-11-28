@@ -240,7 +240,6 @@ class DistributionProvider(abc.ABC):
                 if container is None:
                     container = self._ipopo.instantiate(self._config_name, container_id, container_props)
 
-
                 if not isinstance(container, Container) or not container.is_valid():
                     raise Exception("New RSA container is invalid")
 
@@ -326,7 +325,7 @@ class ExportDistributionProvider(DistributionProvider):
         exported_configs: Optional[List[str]],
         service_intents: Optional[List[str]],
         export_props: Dict[str, Any],
-    ) -> Optional["Container"]:
+    ) -> Optional["ExportContainer"]:
         """
         Method called by rsa.export_service to ask if this
         ExportDistributionProvider supports export for given
@@ -339,7 +338,9 @@ class ExportDistributionProvider(DistributionProvider):
 
         The default implementation returns self._get_or_create_container.
         """
-        return self._get_or_create_container(exported_configs, service_intents, export_props)
+        return cast(
+            ExportContainer, self._get_or_create_container(exported_configs, service_intents, export_props)
+        )
 
 
 # ------------------------------------------------------------------------------
@@ -366,7 +367,7 @@ class ImportDistributionProvider(DistributionProvider):
         exported_configs: Optional[List[str]],
         service_intents: Optional[List[str]],
         endpoint_props: Dict[str, Any],
-    ) -> Optional["Container"]:
+    ) -> Optional["ImportContainer"]:
         """
         Method called by rsa.export_service to ask if this
         ImportDistributionProvider supports import for given
@@ -379,7 +380,9 @@ class ImportDistributionProvider(DistributionProvider):
 
         The default implementation returns self._get_or_create_container.
         """
-        return self._get_or_create_container(exported_configs, service_intents, endpoint_props)
+        return cast(
+            ImportContainer, self._get_or_create_container(exported_configs, service_intents, endpoint_props)
+        )
 
 
 # ------------------------------------------------------------------------------
@@ -396,13 +399,16 @@ class Container(abc.ABC):
         self._exported_services: Dict[str, Tuple[Any, EndpointDescription]] = {}
         self._exported_instances_lock = RLock()
 
-    def get_id(self) -> Optional[str]:
+    def get_id(self) -> str:
         """
         Returns the ID of this container (its component name)
 
         :return: The ID of this containers
         """
-        return cast(Optional[str], self._container_props.get(IPOPO_INSTANCE_NAME, None))
+        name = cast(Optional[str], self._container_props.get(IPOPO_INSTANCE_NAME, None))
+        if not name:
+            raise ValueError(f"Invalid empty ID for container {self}")
+        return name
 
     def is_valid(self) -> bool:
         """

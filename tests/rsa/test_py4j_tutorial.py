@@ -6,35 +6,22 @@ Tests the RSA Py4J provider, using the tutorial
 :author: Thomas Calmant
 """
 
-# The Py4J provider doesn't work on Python 2
-import sys
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-if sys.version_info[0] < 3:
-    raise unittest.SkipTest("The Py4J provider requires Python 3.")
-
-# Standard library
-from contextlib import contextmanager
-from urllib.request import urlopen
 import io
 import os
 import subprocess
 import tarfile
-import time
 import tempfile
+import time
+from typing import Generator, Optional
+import unittest
+from contextlib import contextmanager
+from urllib.request import urlopen
 
-# Pelix
 from pelix.framework import create_framework
 
 # ------------------------------------------------------------------------------
 
-KARAF_URL = (
-    "http://apache.mediamirrors.org/karaf/4.2.10/apache-karaf-4.2.10.tar.gz"
-)
+KARAF_URL = "http://apache.mediamirrors.org/karaf/4.2.10/apache-karaf-4.2.10.tar.gz"
 
 __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -42,9 +29,9 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # ------------------------------------------------------------------------------
 
 
-def install_karaf(folder=None):
+def install_karaf(folder: Optional[str] = None) -> None:
     """
-    Downloads & uncompress Karaf tar file
+    Downloads & decompress Karaf tar file
 
     :param folder: Folder where to decompress the TAR file
     """
@@ -66,8 +53,8 @@ def install_karaf(folder=None):
 
             fd.seek(0)
             with tarfile.open(fileobj=fd, mode="r:gz") as tar:
-                def is_within_directory(directory, target):
 
+                def is_within_directory(directory, target):
                     abs_directory = os.path.abspath(directory)
                     abs_target = os.path.abspath(target)
 
@@ -76,14 +63,12 @@ def install_karaf(folder=None):
                     return prefix == abs_directory
 
                 def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
-
                     for member in tar.getmembers():
                         member_path = os.path.join(path, member.name)
                         if not is_within_directory(path, member_path):
                             raise Exception("Attempted Path Traversal in Tar File")
 
                     tar.extractall(path, members, numeric_owner=numeric_owner)
-
 
                 safe_extract(tar)
     else:
@@ -92,8 +77,7 @@ def install_karaf(folder=None):
         os.chdir(cur_dir)
 
 
-def find_karaf_root(folder=None):
-    # type: (str) -> str
+def find_karaf_root(folder: Optional[str] = None) -> str:
     """
     Looks for the Karaf root folder in the given directory
 
@@ -116,8 +100,7 @@ def find_karaf_root(folder=None):
     raise IOError("Karaf folder not found in {}".format(folder))
 
 
-def start_karaf(karaf_root):
-    # type: (str) -> subprocess.Popen
+def start_karaf(karaf_root: str) -> subprocess.Popen:
     """
     Starts Karaf
 
@@ -137,14 +120,16 @@ def start_karaf(karaf_root):
     )
 
 
-def wait_for_prompt(process, prompt="karaf@root()>"):
-    # type: (subprocess.Popen, str) -> None
+def wait_for_prompt(process: subprocess.Popen, prompt: str = "karaf@root()>") -> None:
     """
     Reads the stdout of a process until a prompt is seen
 
     :param process: A Popen object, with decoded I/O
     :param prompt: The string to look for
     """
+    if process.stdout is None:
+        raise IOError("Can't read from process")
+
     output = io.StringIO()
     while True:
         data = process.stdout.read(1)
@@ -162,8 +147,7 @@ def wait_for_prompt(process, prompt="karaf@root()>"):
 
 
 @contextmanager
-def use_karaf():
-    # type: () -> subprocess.Popen
+def use_karaf() -> Generator[subprocess.Popen, None, None]:
     """
     A context that prepares a Karaf installation before giving the hand
     """
@@ -177,6 +161,9 @@ def use_karaf():
 
     start = time.time()
     with start_karaf(karaf_root) as karaf:
+        if karaf.stdin is None or karaf.stdout is None:
+            raise IOError("Can't access Karaf I/O")
+
         # Wait for Karaf to start
         wait_for_prompt(karaf)
         print(round(time.time() - start, 3), "- Karaf started")
@@ -188,9 +175,7 @@ def use_karaf():
         print(round(time.time() - start, 3), "- ECF repository added")
 
         # Install the tutorial sample
-        karaf.stdin.write(
-            b"feature:install -v ecf-rs-examples-python.java-hello\n"
-        )
+        karaf.stdin.write(b"feature:install -v ecf-rs-examples-python.java-hello\n")
         karaf.stdin.flush()
         wait_for_prompt(karaf)
         print(round(time.time() - start, 3), "- Feature installed")
@@ -261,7 +246,7 @@ class Py4JTutorialTest(unittest.TestCase):
                         # Found the service reference: service imported
                         break
 
-                    time.sleep(.5)
+                    time.sleep(0.5)
                 else:
                     # Service not found after 5 seconds
                     self.fail("Py4J service not found")

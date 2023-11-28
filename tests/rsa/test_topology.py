@@ -6,18 +6,12 @@ Tests the RSA basic topology manager
 :author: Thomas Calmant
 """
 
-# Standard library
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+from typing import cast
+import unittest
 
-# Pelix
-from pelix.ipopo.constants import use_ipopo
 import pelix.framework
-
-# Remote Services
 import pelix.rsa.remoteserviceadmin as rsa
+from pelix.ipopo.constants import use_ipopo
 
 # ------------------------------------------------------------------------------
 
@@ -50,9 +44,9 @@ class TopologyManagerTest(unittest.TestCase):
 
         # Get the RSA service
         context = self.framework.get_bundle_context()
-        self.rsa = context.get_service(
-            context.get_service_reference(rsa.SERVICE_REMOTE_SERVICE_ADMIN)
-        )  # type: rsa.RemoteServiceAdminImpl
+        svc_ref = context.get_service_reference(rsa.RemoteServiceAdmin)
+        assert svc_ref is not None
+        self.rsa = cast(rsa.RemoteServiceAdminImpl, context.get_service(svc_ref))
 
         # Start an HTTP server, required by XML-RPC
         with use_ipopo(context) as ipopo:

@@ -9,21 +9,15 @@ Tests using the RSA EndpointEventListener callback service
 from threading import RLock
 
 from pelix.ipopo.decorators import ComponentFactory, Provides
-from pelix.rsa.providers.discovery import SERVICE_ENDPOINT_LISTENER,\
-    EndpointEventListener
+from pelix.rsa.providers.discovery import EndpointEventListener
 
 __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 
 @ComponentFactory("etcd-test-endpoint-event-listener-factory")
-@Provides(
-    [
-        SERVICE_ENDPOINT_LISTENER
-    ]
-)
+@Provides(EndpointEventListener)
 class TestEndpointEventListener(EndpointEventListener):
-
     def __init__(self):
         self._func = None
         self._lock = RLock()
@@ -33,8 +27,7 @@ class TestEndpointEventListener(EndpointEventListener):
             if self._func:
                 self._func(endpoint_event, matched_filter)
             else:
-                print("TestEndpointEventListener.endpoint_changed endpoint_event={0},matched_filter={1}".
-                      format(endpoint_event, matched_filter))
+                print(f"TestEndpointEventListener.endpoint_changed {endpoint_event=},{matched_filter=}")
 
     def set_handler(self, func):
         with self._lock:

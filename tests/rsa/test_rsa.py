@@ -6,26 +6,15 @@ Tests the RSA basic methods
 :author: Thomas Calmant
 """
 
-# Standard library
 import tempfile
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
+from typing import cast
+import unittest
 
-try:
-    from typing import List
-except ImportError:
-    pass
-
-# Pelix
-from pelix.ipopo.constants import use_ipopo
 import pelix.constants
 import pelix.framework
-
-# Remote Services
-from pelix.rsa.edef import EDEFReader, EDEFWriter
 import pelix.rsa.remoteserviceadmin as rsa
+from pelix.ipopo.constants import use_ipopo
+from pelix.rsa.edef import EDEFReader, EDEFWriter
 
 # ------------------------------------------------------------------------------
 
@@ -68,15 +57,13 @@ class RSABundleTests(unittest.TestCase):
 
         # Check services
         # No debug service (disabled)
-        self.assertIsNone(
-            context.get_service_reference(rsa.SERVICE_RSA_EVENT_LISTENER)
-        )
+        self.assertIsNone(context.get_service_reference(rsa.RemoteServiceAdminListener))
 
         # Check all services that should be started with the bundle
         for spec in (
-            rsa.SERVICE_EXPORT_CONTAINER_SELECTOR,
-            rsa.SERVICE_IMPORT_CONTAINER_SELECTOR,
-            rsa.SERVICE_REMOTE_SERVICE_ADMIN,
+            rsa.ExportContainerSelector,
+            rsa.ImportContainerSelector,
+            rsa.RemoteServiceAdmin,
         ):
             self.assertIsNotNone(context.get_service_reference(spec))
 
@@ -95,12 +82,13 @@ class RSABundleTests(unittest.TestCase):
         # Check all services that should be started with the bundle
         # Debug service must be active
         for spec in (
-            rsa.SERVICE_EXPORT_CONTAINER_SELECTOR,
-            rsa.SERVICE_IMPORT_CONTAINER_SELECTOR,
-            rsa.SERVICE_REMOTE_SERVICE_ADMIN,
-            rsa.SERVICE_RSA_EVENT_LISTENER,
+            rsa.ExportContainerSelector,
+            rsa.ImportContainerSelector,
+            rsa.RemoteServiceAdmin,
+            rsa.RemoteServiceAdminListener,
         ):
             self.assertIsNotNone(context.get_service_reference(spec))
+
 
 # ------------------------------------------------------------------------------
 
@@ -116,14 +104,15 @@ class RSABasicFeatures(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(
-            ["pelix.ipopo.core", "pelix.rsa.remoteserviceadmin"])
+            ["pelix.ipopo.core", "pelix.rsa.remoteserviceadmin"]
+        )
         self.framework.start()
 
         # Get the RSA service
         context = self.framework.get_bundle_context()
-        self.rsa = context.get_service(
-            context.get_service_reference(
-                rsa.SERVICE_REMOTE_SERVICE_ADMIN))  # type: rsa.RemoteServiceAdminImpl
+        svc_ref = context.get_service_reference(rsa.RemoteServiceAdmin)
+        assert svc_ref is not None
+        self.rsa = cast(rsa.RemoteServiceAdminImpl, context.get_service(svc_ref))
 
     def tearDown(self):
         """
@@ -141,16 +130,15 @@ class RSABasicFeatures(unittest.TestCase):
         context.install_bundle("pelix.http.basic").start()
         with use_ipopo(context) as ipopo:
             ipopo.instantiate(
-                'pelix.http.service.basic.factory',
-                'http-server',
-                {'pelix.http.address': 'localhost',
-                 'pelix.http.port': 0})
+                "pelix.http.service.basic.factory",
+                "http-server",
+                {"pelix.http.address": "localhost", "pelix.http.port": 0},
+            )
 
         # Install the XML-RPC provider to have an endpoint
         # Indicate the XML-RPC server
         self.framework.add_property("ecf.xmlrpc.server.hostname", "localhost")
-        context.install_bundle(
-            "pelix.rsa.providers.distribution.xmlrpc").start()
+        context.install_bundle("pelix.rsa.providers.distribution.xmlrpc").start()
 
         # Register a service to be exported
         spec = "test.svc"
@@ -160,8 +148,8 @@ class RSABasicFeatures(unittest.TestCase):
 
         # Export the service
         export_regs = self.rsa.export_service(
-            svc_ref, {rsa.SERVICE_EXPORTED_INTERFACES: '*',
-                      rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"})
+            svc_ref, {rsa.SERVICE_EXPORTED_INTERFACES: "*", rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"}
+        )
 
         # Get the export endpoints
         export_endpoints = []
@@ -208,16 +196,15 @@ class RSABasicFeatures(unittest.TestCase):
         context.install_bundle("pelix.http.basic").start()
         with use_ipopo(context) as ipopo:
             ipopo.instantiate(
-                'pelix.http.service.basic.factory',
-                'http-server',
-                {'pelix.http.address': 'localhost',
-                 'pelix.http.port': 0})
+                "pelix.http.service.basic.factory",
+                "http-server",
+                {"pelix.http.address": "localhost", "pelix.http.port": 0},
+            )
 
         # Install the XML-RPC provider to have an endpoint
         # Indicate the XML-RPC server
         self.framework.add_property("ecf.xmlrpc.server.hostname", "localhost")
-        context.install_bundle(
-            "pelix.rsa.providers.distribution.xmlrpc").start()
+        context.install_bundle("pelix.rsa.providers.distribution.xmlrpc").start()
 
         # Register a service to be exported
         spec = "test.svc"
@@ -230,8 +217,8 @@ class RSABasicFeatures(unittest.TestCase):
 
         # Export the service
         export_regs = self.rsa.export_service(
-            svc_ref, {rsa.SERVICE_EXPORTED_INTERFACES: '*',
-                      rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"})
+            svc_ref, {rsa.SERVICE_EXPORTED_INTERFACES: "*", rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"}
+        )
 
         # Get the export endpoints
         export_reg = None
@@ -245,6 +232,7 @@ class RSABasicFeatures(unittest.TestCase):
                 break
 
         # Export & import the EDEF XML
+        assert export_endpoint is not None
         edef_1 = EDEFWriter().to_string([export_endpoint])
         parsed_endpoint = EDEFReader().parse(edef_1)[0]
 
@@ -258,8 +246,9 @@ class RSABasicFeatures(unittest.TestCase):
                 import_endpoint = import_reg.get_description()
 
         # Get the imported service
-        imported_svc_ref = context.get_service_reference(
-            spec, "(service.imported=*)")
+        assert import_endpoint is not None
+        imported_svc_ref = context.get_service_reference(spec, "(service.imported=*)")
+        assert imported_svc_ref is not None
 
         # Check property value in export and import beans
         self.assertEqual(val_1, export_endpoint.get_properties()[key])
@@ -270,6 +259,7 @@ class RSABasicFeatures(unittest.TestCase):
         svc_reg.set_properties({key: val_2})
 
         # Update the endpoint
+        assert export_reg is not None
         export_endpoint_2 = export_reg.get_export_reference().update({})
         self.assertEqual(val_2, export_endpoint_2.get_properties()[key])
 
@@ -291,6 +281,7 @@ class RSABasicFeatures(unittest.TestCase):
                 import_endpoint_2 = import_reg_2.get_description()
 
         # Check property value in export and import beans
+        assert import_endpoint_2 is not None
         self.assertEqual(val_2, import_endpoint_2.get_properties()[key])
 
         # Check if the imported have been updated

@@ -210,7 +210,7 @@ class RemoteServiceAdmin(Protocol):
         """
         ...
 
-    def import_service(self, endpoint_description: EndpointDescription) -> "ImportRegistration":
+    def import_service(self, endpoint_description: "EndpointDescription") -> "ImportRegistration":
         """
         Import a given endpoint_description.  Must not be None, and must
         be of type EndpointDescription.  The endpoint_description props
@@ -298,7 +298,7 @@ class ExportRegistration(Protocol):
         """
         ...
 
-    def get_description(self) -> EndpointDescription:
+    def get_description(self) -> "EndpointDescription":
         """
         Get EndpointDescription associated with this ExportRegistration.
         Will not be None.  See EndpointDescription class.
@@ -317,7 +317,7 @@ class ExportRegistration(Protocol):
         """
         ...
 
-    def update(self, properties: Optional[Dict[str, Any]]) -> EndpointDescription:
+    def update(self, properties: Optional[Dict[str, Any]]) -> "EndpointDescription":
         """
         Updates ExportRegistration with new properties.
 
@@ -387,7 +387,7 @@ class ExportReference(Protocol):
         """
         ...
 
-    def get_description(self) -> EndpointDescription:
+    def get_description(self) -> "EndpointDescription":
         """
         Get EndpointDescription associated with this ExportReference.
         Will not be None.  See EndpointDescription class.  Will be None
@@ -410,7 +410,7 @@ class ExportReference(Protocol):
         """
         ...
 
-    def update(self, properties: Dict[str, Any]) -> EndpointDescription:
+    def update(self, properties: Dict[str, Any]) -> "EndpointDescription":
         """
         Update the service properties of the exported service.
 
@@ -519,7 +519,7 @@ class ImportRegistration(Protocol):
         """
         ...
 
-    def get_description(self) -> Optional[EndpointDescription]:
+    def get_description(self) -> Optional["EndpointDescription"]:
         """
         Get EndpointDescription associated with this ImportRegistration.
         Will not be None.  See EndpointDescription class.
@@ -528,7 +528,7 @@ class ImportRegistration(Protocol):
         """
         ...
 
-    def update(self, endpoint_description: EndpointDescription) -> bool:
+    def update(self, endpoint_description: "EndpointDescription") -> bool:
         """
         Update the service properties of the imported service.
 
@@ -544,7 +544,7 @@ class ImportRegistration(Protocol):
         """
         ...
 
-    def match_ed(self, ed: EndpointDescription) -> bool:
+    def match_ed(self, ed: "EndpointDescription") -> bool:
         """
         Checks if this registration matches the given endpoint description
         """
@@ -620,7 +620,7 @@ class ImportReference(Protocol):
         """
         ...
 
-    def get_description(self) -> EndpointDescription:
+    def get_description(self) -> "EndpointDescription":
         """
         Get EndpointDescription associated with this ImportReference.
         Will not be None.  See EndpointDescription class.  Will be None
@@ -643,7 +643,7 @@ class ImportReference(Protocol):
         """
         ...
 
-    def update(self, endpoint: EndpointDescription) -> Optional[EndpointDescription]:
+    def update(self, endpoint: "EndpointDescription") -> Optional["EndpointDescription"]:
         """
         Update the service properties of the imported service.
 
@@ -839,7 +839,7 @@ class RemoteServiceAdminEvent:
         rsid: Tuple[Tuple[str, str], int],
         import_ref: ImportReference,
         exception: Optional[Tuple[Any, Any, Any]],
-        endpoint: EndpointDescription,
+        endpoint: "EndpointDescription",
     ) -> "RemoteServiceAdminEvent":
         """
         Creates a RemoteServiceAdminEvent object from the departure of an
@@ -863,7 +863,7 @@ class RemoteServiceAdminEvent:
         rsid: Tuple[Tuple[str, str], int],
         export_ref: ExportReference,
         exception: Optional[Tuple[Any, Any, Any]],
-        endpoint: EndpointDescription,
+        endpoint: "EndpointDescription",
     ) -> "RemoteServiceAdminEvent":
         """
         Creates a RemoteServiceAdminEvent object from the departure of an
@@ -886,7 +886,7 @@ class RemoteServiceAdminEvent:
         importerid: Tuple[str, str],
         rsid: Tuple[Tuple[str, str], int],
         exception: Optional[Tuple[Any, Any, Any]],
-        endpoint: EndpointDescription,
+        endpoint: "EndpointDescription",
     ) -> "RemoteServiceAdminEvent":
         """
         Creates a RemoteServiceAdminEvent object from an import error
@@ -909,7 +909,7 @@ class RemoteServiceAdminEvent:
         exporterid: Tuple[str, str],
         rsid: Tuple[Tuple[str, str], int],
         exception: Optional[Tuple[Any, Any, Any]],
-        endpoint: EndpointDescription,
+        endpoint: "EndpointDescription",
     ) -> "RemoteServiceAdminEvent":
         """
         Creates a RemoteServiceAdminEvent object from an export error
@@ -931,7 +931,7 @@ class RemoteServiceAdminEvent:
         bundle: Bundle,
         cid: Tuple[str, str],
         rsid: Tuple[Tuple[str, str], int],
-        endpoint: Optional[EndpointDescription],
+        endpoint: Optional["EndpointDescription"],
         import_ref: Optional[ImportReference] = None,
         export_ref: Optional[ExportReference] = None,
         exception: Optional[Tuple[Any, Any, Any]] = None,
@@ -945,7 +945,7 @@ class RemoteServiceAdminEvent:
         self._exception = exception
         self._ed = endpoint
 
-    def get_description(self) -> Optional[EndpointDescription]:
+    def get_description(self) -> Optional["EndpointDescription"]:
         """
         Get the EndpointDescription associated with this event.
         Will not be None
