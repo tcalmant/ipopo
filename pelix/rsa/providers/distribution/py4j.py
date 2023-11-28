@@ -45,7 +45,6 @@ from py4j.java_gateway import (
     CallbackServerParameters,
     GatewayParameters,
 )
-from build.lib.pelix.rsa.providers.distribution import py4j
 
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference
@@ -63,12 +62,7 @@ from pelix.ipopo.decorators import (
 from pelix.rsa import prop_dot_suffix
 from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.rsa.providers.distribution import (
-    SERVICE_EXPORT_CONTAINER,
-    SERVICE_EXPORT_DISTRIBUTION_PROVIDER,
-    SERVICE_IMPORT_CONTAINER,
-    SERVICE_IMPORT_DISTRIBUTION_PROVIDER,
     Container,
-    DistributionProvider,
     ExportContainer,
     ExportDistributionProvider,
     ImportContainer,
