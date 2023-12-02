@@ -14,7 +14,7 @@ from typing import Any, List, Optional
 import pelix.http.routing as routing
 from pelix.framework import Framework, FrameworkFactory, create_framework
 from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse
-from pelix.ipopo.protocols import IPopoService
+from pelix.ipopo.constants import IPopoService
 from pelix.utilities import to_str
 from tests.http.test_basic import get_http_code, get_http_page, install_ipopo, instantiate_server
 

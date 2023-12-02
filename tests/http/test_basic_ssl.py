@@ -16,7 +16,7 @@ from typing import Any, Dict, Optional, cast
 
 import pelix.http as http
 from pelix.framework import Framework, FrameworkFactory
-from pelix.ipopo.protocols import IPopoService
+from pelix.ipopo.constants import IPopoService
 from tests.http.gen_cert import make_certs
 from tests.http.test_basic import install_bundle, install_ipopo
 

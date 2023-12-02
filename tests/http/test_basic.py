@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional, Tuple, cast
 
 import pelix.http as http
 from pelix.framework import BundleContext, Framework, FrameworkFactory
-from pelix.ipopo.protocols import IPopoService
+from pelix.ipopo.constants import IPopoService
 from tests import log_off, log_on
 
 # ------------------------------------------------------------------------------
