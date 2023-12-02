@@ -30,9 +30,13 @@ from some listeners to avoid a double-action.
 """
 
 from __future__ import print_function
+from typing import Any, Dict, List, Optional
 
 # Pelix remote services constants
-from pelix.constants import BundleActivator
+from pelix.constants import ActivatorProto, BundleActivator
+from pelix.framework import BundleContext
+from pelix.internals.events import ServiceEvent
+from pelix.internals.registry import ServiceListener, ServiceRegistration
 from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 
 # ------------------------------------------------------------------------------
@@ -47,20 +51,20 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-class EventListenerHookImpl(object):
+class EventListenerHookImpl:
     """
     Implementation of an EventListener hook. It will be notified of any service
     event before standard listeners.
     """
 
-    def __init__(self, context):
+    def __init__(self, context: BundleContext) -> None:
         """
         :param context: Context of the parent bundle
         """
         self._context = context
         self._count = 0
 
-    def event(self, service_event, listener_dict):
+    def event(self, service_event: ServiceEvent[Any], listener_dict: Dict[BundleContext, List[Any]]) -> None:
         """
         A service has been received: this method can alter the list of
         listeners to be notified of this event (remove only).
@@ -68,8 +72,7 @@ class EventListenerHookImpl(object):
         before any standard one.
 
         :param service_event: The ServiceEvent being triggered
-        :param listener_dict: A dictionary associating a bundle context to a
-                              list of listeners
+        :param listener_dict: A dictionary associating a bundle context to a list of listeners
         """
         print(
             "EventListenerHookImpl: service_event=",
@@ -97,12 +100,12 @@ class EventListenerHookImpl(object):
 # ------------------------------------------------------------------------------
 
 
-class ServiceEventListenerImpl(object):
+class ServiceEventListenerImpl(ServiceListener):
     """
     A standard service event
     """
 
-    def service_changed(self, service_event):
+    def service_changed(self, service_event: ServiceEvent[Any]) -> None:
         """
         Notification of a service event, always executed after the hook.
 
@@ -112,16 +115,16 @@ class ServiceEventListenerImpl(object):
 
 
 @BundleActivator
-class Activator(object):
+class Activator(ActivatorProto):
     """
     Bundle activator
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.__sel = ServiceEventListenerImpl()
-        self.__registration = None
+        self.__registration: Optional[ServiceRegistration[Any]] = None
 
-    def start(self, context):
+    def start(self, context: BundleContext) -> None:
         """
         Bundle is starting
 
@@ -137,15 +140,16 @@ class Activator(object):
             {"sample": True},
         )
 
-    def stop(self, context):
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle is stopping
 
         :param context: The context of the bundle
         """
-        # Unregister the EventListenerHook service
-        self.__registration.unregister()
-        self.__registration = None
+        if self.__registration is not None:
+            # Unregister the EventListenerHook service
+            self.__registration.unregister()
+            self.__registration = None
 
         # Remove the standard service listener
         context.remove_service_listener(self.__sel)

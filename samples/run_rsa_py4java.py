@@ -26,8 +26,6 @@ Run RSA with py4java distribution and discovery module
     limitations under the License.
 """
 
-import logging
-
 import pelix.framework as pelix
 
 # ------------------------------------------------------------------------------
@@ -38,9 +36,6 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-# Logger
-_logger = logging.getLogger(__name__)
-
 # ------------------------------------------------------------------------------
 # ------- Main constants for the sample
 HTTP_HOSTNAME = "127.0.0.1"
@@ -49,7 +44,7 @@ HTTP_PORT = 8181
 # ------------------------------------------------------------------------------
 
 
-def main():
+def main() -> None:
     # Set the initial bundles
     bundles = (
         "pelix.ipopo.core",

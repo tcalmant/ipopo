@@ -26,10 +26,14 @@ The logger handler implementation
 """
 
 import logging
+from typing import Any, List, Optional
+from pelix.internals.registry import ServiceRegistration
 
 import pelix.ipopo.handlers.constants as ipopo_constants
 import samples.handler.constants as constants
 from pelix.constants import ActivatorProto, BundleActivator
+from pelix.framework import BundleContext
+from pelix.ipopo.contexts import ComponentContext
 
 # ------------------------------------------------------------------------------
 
@@ -60,9 +64,9 @@ class Activator(ActivatorProto):
         """
         Sets up members
         """
-        self._registration = None
+        self._registration: Optional[ServiceRegistration[ipopo_constants.HandlerFactory]] = None
 
-    def start(self, context):
+    def start(self, context: BundleContext) -> None:
         """
         Bundle started
         """
@@ -76,7 +80,7 @@ class Activator(ActivatorProto):
             properties,
         )
 
-    def stop(self, context):
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -95,7 +99,9 @@ class _LoggerHandlerFactory(ipopo_constants.HandlerFactory):
     instance
     """
 
-    def get_handlers(self, component_context, instance):
+    def get_handlers(
+        self, component_context: ComponentContext, instance: Any
+    ) -> List[ipopo_constants.Handler]:
         """
         Sets up service providers for the given component
 

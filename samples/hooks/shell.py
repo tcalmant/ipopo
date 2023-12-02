@@ -27,6 +27,8 @@ Provides commands to the Pelix shell to generate some service events
     limitations under the License.
 """
 
+from typing import Callable, List, Optional, Tuple
+from pelix.framework import BundleContext
 import pelix.shell
 from pelix.ipopo.decorators import (
     ComponentFactory,
@@ -34,6 +36,7 @@ from pelix.ipopo.decorators import (
     Instantiate,
     Validate,
 )
+from pelix.shell.beans import ShellSession
 
 # ------------------------------------------------------------------------------
 
@@ -49,18 +52,17 @@ __docformat__ = "restructuredtext en"
 
 
 @ComponentFactory()
-@Provides(pelix.shell.SERVICE_SHELL_COMMAND)
+@Provides(pelix.shell.ShellCommandsProvider)
 @Instantiate("event-hook-shell-commands")
-class EventHookCommands(object):
+class EventHookCommands(pelix.shell.ShellCommandsProvider):
     """
     EventHook shell commands
     """
 
-    def __init__(self):
-        self._context = None
+    _context: BundleContext
 
     @Validate
-    def validate(self, context):
+    def validate(self, context: BundleContext) -> None:
         """
         Component validated
 
@@ -69,13 +71,13 @@ class EventHookCommands(object):
         self._context = context
 
     @staticmethod
-    def get_namespace():
+    def get_namespace() -> str:
         """
         Retrieves the name space of this command handler
         """
         return "hook"
 
-    def get_methods(self):
+    def get_methods(self) -> List[Tuple[str, pelix.shell.ShellCommandMethod]]:
         """
         Retrieves the list of tuples (command, method) for this command handler
         """
@@ -84,7 +86,7 @@ class EventHookCommands(object):
             ("gen_filtered_event", self.gen_filtered_event),
         ]
 
-    def gen_event(self, session):
+    def gen_event(self, session: ShellSession) -> None:
         """
         Generates a service event
         """
@@ -93,7 +95,7 @@ class EventHookCommands(object):
             "sample-service", object(), {"to_filter": False}
         )
 
-    def gen_filtered_event(self, session):
+    def gen_filtered_event(self, session: ShellSession) -> None:
         """
         Generates a service event that will be filtered by the event hook after
         its 3rd appearance

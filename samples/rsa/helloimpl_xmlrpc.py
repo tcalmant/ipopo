@@ -19,7 +19,7 @@ service consumers may be notified via either discovery provider publishing
 """
 
 
-from pelix.ipopo.decorators import Instantiate, ComponentFactory, Provides
+from pelix.ipopo.decorators import ComponentFactory, Instantiate, Provides
 from samples.rsa.helloimpl import HelloImpl
 
 

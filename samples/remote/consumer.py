@@ -24,24 +24,17 @@ Greeting service consumer
     limitations under the License.
 """
 
-# Python 2 compatibility
-from __future__ import print_function
-
 # Standard library
 import threading
+from typing import Any, List
 
 # Pelix constants
 import pelix.constants
+from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceReference
 
 # iPOPO decorators
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Requires,
-    Instantiate,
-    BindField,
-    UnbindField,
-    Validate,
-)
+from pelix.ipopo.decorators import BindField, ComponentFactory, Instantiate, Requires, UnbindField, Validate
 
 # ------------------------------------------------------------------------------
 
@@ -63,28 +56,28 @@ SERVICE_SPECIFICATION = "sample.greetings"
 @ComponentFactory("hello-world-consumer")
 @Requires("_services", SERVICE_SPECIFICATION, aggregate=True, optional=True)
 @Instantiate("consumer")
-class HelloWorldConsumer(object):
+class HelloWorldConsumer:
     """
     Simple greeting service consumer
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up members
         """
-        self._services = []
+        self._services: List[Any] = []
         self._fw_uid = None
 
-    def _use_service(self, service):
+    def _use_service(self, service: Any) -> None:
         """
         Calls the given greeting service
 
         :param service: A greeting service
         """
-        service.sayHello("from {0} (Pelix framework)".format(self._fw_uid))
+        service.sayHello(f"from {self._fw_uid} (Pelix framework)")
 
     @BindField("_services", if_valid=True)
-    def bind_greeting(self, field, service, reference):
+    def bind_greeting(self, field: str, service: Any, reference: ServiceReference[Any]) -> None:
         """
         A greeting service has been bound
 
@@ -99,7 +92,7 @@ class HelloWorldConsumer(object):
         threading.Thread(target=self._use_service, args=[service]).start()
 
     @UnbindField("_services", if_valid=True)
-    def unbind_greeting(self, field, service, reference):
+    def unbind_greeting(self, field: str, service: Any, reference: ServiceReference[Any]) -> None:
         """
         A greeting service has been bound
 
@@ -114,7 +107,7 @@ class HelloWorldConsumer(object):
         # disconnected
 
     @Validate
-    def validate(self, context):
+    def validate(self, context: BundleContext) -> None:
         """
         Component validated
 

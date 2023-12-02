@@ -39,12 +39,11 @@ Usage: run_remote.py [-h] [-s] [-p HTTP_PORT] [-d [DISCOVERY [DISCOVERY ...]]]
     limitations under the License.
 """
 
-# Standard library
 import argparse
 import logging
 import sys
+from typing import Any
 
-# Pelix
 import pelix.constants
 import pelix.framework
 import pelix.remote as rs
@@ -70,12 +69,12 @@ TRANSPORTS = ("xmlrpc", "jsonrpc", "mqttrpc", "jabsorbrpc")
 # ------------------------------------------------------------------------------
 
 
-class InstallUtils(object):
+class InstallUtils:
     """
     Utility class to install services and instantiate components in a framework
     """
 
-    def __init__(self, context, arguments):
+    def __init__(self, context: pelix.framework.BundleContext, arguments: Any) -> None:
         """
         Sets up the utility class
 
@@ -85,7 +84,7 @@ class InstallUtils(object):
         self.context = context
         self.arguments = arguments
 
-    def discovery_multicast(self):
+    def discovery_multicast(self) -> None:
         """
         Installs the multicast discovery bundles and instantiates components
         """
@@ -94,11 +93,9 @@ class InstallUtils(object):
 
         with use_waiting_list(self.context) as ipopo:
             # Instantiate the discovery
-            ipopo.add(
-                rs.FACTORY_DISCOVERY_MULTICAST, "pelix-discovery-multicast"
-            )
+            ipopo.add(rs.FACTORY_DISCOVERY_MULTICAST, "pelix-discovery-multicast")
 
-    def discovery_mdns(self):
+    def discovery_mdns(self) -> None:
         """
         Installs the mDNS discovery bundles and instantiates components
         """
@@ -112,7 +109,7 @@ class InstallUtils(object):
             # Instantiate the discovery
             ipopo.add(rs.FACTORY_DISCOVERY_ZEROCONF, "pelix-discovery-zeroconf")
 
-    def discovery_mqtt(self):
+    def discovery_mqtt(self) -> None:
         """
         Installs the MQTT discovery bundles and instantiates components
         """
@@ -131,7 +128,7 @@ class InstallUtils(object):
                 },
             )
 
-    def discovery_redis(self):
+    def discovery_redis(self) -> None:
         """
         Installs the Redis discovery bundles and instantiates components
         """
@@ -150,7 +147,7 @@ class InstallUtils(object):
                 },
             )
 
-    def discovery_zookeeper(self):
+    def discovery_zookeeper(self) -> None:
         """
         Installs the ZooKeeper discovery bundles and instantiates components
         """
@@ -169,7 +166,7 @@ class InstallUtils(object):
                 },
             )
 
-    def transport_jsonrpc(self):
+    def transport_jsonrpc(self) -> None:
         """
         Installs the JSON-RPC transport bundles and instantiates components
         """
@@ -178,21 +175,15 @@ class InstallUtils(object):
 
         with use_waiting_list(self.context) as ipopo:
             # Instantiate the discovery
-            ipopo.add(
-                rs.FACTORY_TRANSPORT_JSONRPC_EXPORTER, "pelix-jsonrpc-exporter"
-            )
-            ipopo.add(
-                rs.FACTORY_TRANSPORT_JSONRPC_IMPORTER, "pelix-jsonrpc-importer"
-            )
+            ipopo.add(rs.FACTORY_TRANSPORT_JSONRPC_EXPORTER, "pelix-jsonrpc-exporter")
+            ipopo.add(rs.FACTORY_TRANSPORT_JSONRPC_IMPORTER, "pelix-jsonrpc-importer")
 
-    def transport_jabsorbrpc(self):
+    def transport_jabsorbrpc(self) -> None:
         """
         Installs the JABSORB-RPC transport bundles and instantiates components
         """
         # Install the bundle
-        self.context.install_bundle(
-            "pelix.remote.transport.jabsorb_rpc"
-        ).start()
+        self.context.install_bundle("pelix.remote.transport.jabsorb_rpc").start()
 
         with use_waiting_list(self.context) as ipopo:
             # Instantiate the discovery
@@ -205,7 +196,7 @@ class InstallUtils(object):
                 "pelix-jabsorbrpc-importer",
             )
 
-    def transport_mqttrpc(self):
+    def transport_mqttrpc(self) -> None:
         """
         Installs the MQTT-RPC transport bundles and instantiates components
         """
@@ -231,7 +222,7 @@ class InstallUtils(object):
                 },
             )
 
-    def transport_xmlrpc(self):
+    def transport_xmlrpc(self) -> None:
         """
         Installs the XML-RPC transport bundles and instantiates components
         """
@@ -240,23 +231,18 @@ class InstallUtils(object):
 
         with use_waiting_list(self.context) as ipopo:
             # Instantiate the discovery
-            ipopo.add(
-                rs.FACTORY_TRANSPORT_XMLRPC_EXPORTER, "pelix-xmlrpc-exporter"
-            )
-            ipopo.add(
-                rs.FACTORY_TRANSPORT_XMLRPC_IMPORTER, "pelix-xmlrpc-importer"
-            )
+            ipopo.add(rs.FACTORY_TRANSPORT_XMLRPC_EXPORTER, "pelix-xmlrpc-exporter")
+            ipopo.add(rs.FACTORY_TRANSPORT_XMLRPC_IMPORTER, "pelix-xmlrpc-importer")
 
 
 # ------------------------------------------------------------------------------
 
 
-def main(is_server, discoveries, transports, http_port, other_arguments):
+def main(is_server, discoveries, transports, http_port, other_arguments) -> None:
     """
     Runs the framework
 
-    :param is_server: If True, starts the provider bundle,
-                      else the consumer one
+    :param is_server: If True, starts the provider bundle, else the consumer one
     :param discoveries: List of discovery protocols
     :param transports: List of RPC protocols
     :param http_port: Port of the HTTP server
@@ -297,20 +283,18 @@ def main(is_server, discoveries, transports, http_port, other_arguments):
         )
 
         # ... servlet giving access to the registry
-        ipopo.add(
-            rs.FACTORY_REGISTRY_SERVLET, "pelix-remote-dispatcher-servlet"
-        )
+        ipopo.add(rs.FACTORY_REGISTRY_SERVLET, "pelix-remote-dispatcher-servlet")
 
     # Prepare the utility object
     util = InstallUtils(context, other_arguments)
 
     # Install the discovery bundles
     for discovery in discoveries:
-        getattr(util, "discovery_{0}".format(discovery))()
+        getattr(util, f"discovery_{discovery}")()
 
     # Install the transport bundles
     for transport in transports:
-        getattr(util, "transport_{0}".format(transport))()
+        getattr(util, f"transport_{transport}")()
 
     # Start the service provider or consumer
     if is_server:
@@ -350,9 +334,7 @@ if __name__ == "__main__":
         choices=DISCOVERIES,
         dest="discoveries",
         metavar="DISCOVERY",
-        help="Discovery protocols to use (one of {0})".format(
-            ", ".join(DISCOVERIES)
-        ),
+        help="Discovery protocols to use (one of {0})".format(", ".join(DISCOVERIES)),
     )
 
     # Transport
@@ -364,15 +346,11 @@ if __name__ == "__main__":
         choices=TRANSPORTS,
         dest="transports",
         metavar="TRANSPORT",
-        help="Transport protocols to use (one of {0})".format(
-            ", ".join(TRANSPORTS)
-        ),
+        help="Transport protocols to use (one of {0})".format(", ".join(TRANSPORTS)),
     )
 
     # Framework configuration
-    group = parser.add_argument_group(
-        "Framework Configuration", "Configuration of the Pelix framework"
-    )
+    group = parser.add_argument_group("Framework Configuration", "Configuration of the Pelix framework")
     # ... HTTP server
     group.add_argument(
         "-p",
@@ -418,9 +396,7 @@ if __name__ == "__main__":
     )
 
     # Redis configuration
-    group = parser.add_argument_group(
-        "Redis Configuration", "Configuration of Redis discovery"
-    )
+    group = parser.add_argument_group("Redis Configuration", "Configuration of Redis discovery")
     # ... server
     group.add_argument(
         "--redis-host",
@@ -439,9 +415,7 @@ if __name__ == "__main__":
     )
 
     # ZooKeeper configuration
-    group = parser.add_argument_group(
-        "ZooKeeper Configuration", "Configuration of ZooKeeper discovery"
-    )
+    group = parser.add_argument_group("ZooKeeper Configuration", "Configuration of ZooKeeper discovery")
     # ... server
     group.add_argument(
         "--zk-hosts",
@@ -466,6 +440,4 @@ if __name__ == "__main__":
     logging.getLogger("kazoo.client").setLevel(logging.INFO)
 
     # Run the sample
-    main(
-        args.is_server, args.discoveries, args.transports, args.http_port, args
-    )
+    main(args.is_server, args.discoveries, args.transports, args.http_port, args)

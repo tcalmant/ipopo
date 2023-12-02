@@ -58,7 +58,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-def main():
+def main() -> None:
     """
     Runs the framework
     """

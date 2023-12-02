@@ -24,12 +24,11 @@ Greeting service provider
     limitations under the License.
 """
 
-# Python 2 compatibility
-from __future__ import print_function
-
-# Pelix remote services constants
+from typing import Any, Optional
+from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceRegistration
 import pelix.remote
-from pelix.constants import BundleActivator
+from pelix.constants import ActivatorProto, BundleActivator
 
 # ------------------------------------------------------------------------------
 
@@ -48,12 +47,12 @@ SERVICE_SPECIFICATION = "sample.greetings"
 # ------------------------------------------------------------------------------
 
 
-class HelloWorldImpl(object):
+class HelloWorldImpl:
     """
     Implementation of the greeting service
     """
 
-    def sayHello(self, name):
+    def sayHello(self, name: str) -> None:
         """
         Prints a greeting message
 
@@ -66,18 +65,18 @@ class HelloWorldImpl(object):
 
 
 @BundleActivator
-class Activator(object):
+class Activator(ActivatorProto):
     """
     The bundle activator
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up members
         """
-        self.__registration = None
+        self.__registration: Optional[ServiceRegistration[Any]] = None
 
-    def start(self, context):
+    def start(self, context: BundleContext) -> None:
         """
         Bundle started
 
@@ -91,12 +90,13 @@ class Activator(object):
             SERVICE_SPECIFICATION, HelloWorldImpl(), props
         )
 
-    def stop(self, context):
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopped
 
         @param context The bundle context
         """
-        # Unregister the service
-        self.__registration.unregister()
-        self.__registration = None
+        if self.__registration is not None:
+            # Unregister the service
+            self.__registration.unregister()
+            self.__registration = None

@@ -15,13 +15,14 @@
 # which then invokes the sayHello, sayHelloAsync, and/or sayHelloPromise on
 # this remote service.
 
+from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
 
 from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate
 from samples.rsa.hellomsg_pb2 import HelloMsgContent
 
 
-def create_hellomsgcontent(message):
+def create_hellomsgcontent(message:str) -> HelloMsgContent:
     resmsg = HelloMsgContent()
     resmsg.h = "Response from Python"
     resmsg.f = "Python Impls"
@@ -47,7 +48,7 @@ def create_hellomsgcontent(message):
         "osgi.basic.timeout": 120000,
     },
 )
-class PbHelloImpl(object):
+class PbHelloImpl:
     """
     Implementation of Java org.eclipse.ecf.examples.protobuf.hello.IHello
     service interface.
@@ -67,7 +68,7 @@ class PbHelloImpl(object):
 
     """
 
-    def sayHello(self, hellomsg):
+    def sayHello(self, hellomsg: HelloMsgContent) -> HelloMsgContent:
         """
         Synchronous implementation of IHello.sayHello synchronous method.
         The remote calling thread will be blocked until this is executed and
@@ -82,7 +83,7 @@ class PbHelloImpl(object):
             "that's a nice runtime you got there".format(hellomsg.f)
         )
 
-    def sayHelloAsync(self, hellomsg):
+    def sayHelloAsync(self, hellomsg: HelloMsgContent) -> HelloMsgContent:
         print(
             "Python.sayHelloAsync called by: {0} "
             "with message: '{1}'".format(hellomsg.f, hellomsg)
@@ -92,7 +93,7 @@ class PbHelloImpl(object):
             "that's a nice runtime you got there".format(hellomsg.f)
         )
 
-    def _sayHelloFuture(self, hellomsg):
+    def _sayHelloFuture(self, hellomsg: HelloMsgContent) -> HelloMsgContent:
         print(
             "Python.sayHelloFuture called by: {0} "
             "with message: '{1}'".format(hellomsg.f, hellomsg)
@@ -102,7 +103,7 @@ class PbHelloImpl(object):
             "that's a nice runtime you got there".format(hellomsg.f)
         )
 
-    def sayHelloPromise(self, hellomsg):
+    def sayHelloPromise(self, hellomsg: HelloMsgContent) -> Future[HelloMsgContent]:
         print(
             "Python.sayHelloPromise called by: {0} "
             "with message: '{1}'".format(hellomsg.f, hellomsg)

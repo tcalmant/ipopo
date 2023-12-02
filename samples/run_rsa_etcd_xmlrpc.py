@@ -26,8 +26,6 @@ Run RSA with etcd-based discovery module
     limitations under the License.
 """
 
-import logging
-
 import pelix.framework as pelix
 from pelix.ipopo.constants import use_ipopo
 
@@ -39,9 +37,6 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-# Logger
-_logger = logging.getLogger(__name__)
-
 # ------------------------------------------------------------------------------
 # ------- Main constants for the sample
 HTTP_HOSTNAME = "127.0.0.1"
@@ -52,7 +47,7 @@ ETCD_HOSTNAME = "disco.ecf-project.org"
 # ------------------------------------------------------------------------------
 
 
-def main():
+def main() -> None:
     # Define the initial bundles
     bundles = (
         "pelix.ipopo.core",

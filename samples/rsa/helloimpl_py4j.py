@@ -18,7 +18,7 @@ see @Reference(target='(service.imported=*)' which may then invoke the
 sayHello, sayHelloAsync, and/or sayHelloPromise on this remote service.
 """
 
-from pelix.ipopo.decorators import Instantiate, ComponentFactory, Provides
+from pelix.ipopo.decorators import ComponentFactory, Instantiate, Provides
 from samples.rsa.helloimpl import HelloImpl
 
 

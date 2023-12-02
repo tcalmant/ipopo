@@ -1,13 +1,13 @@
+from pelix.framework import BundleContext
 from pelix.ipopo.decorators import ComponentFactory, Instantiate, Validate
-
 from samples.rsa.helloimpl import HelloImpl
 
 
 @ComponentFactory("remote-hello-consumer-update-factory")
 @Instantiate("remote-hello-consumer-update")
-class RemoteHelloConsumer(object):
+class RemoteHelloConsumer:
     @Validate
-    def _validate(self, bundle_context):
+    def _validate(self, bundle_context: BundleContext) -> None:
         # first register
         registration = bundle_context.register_service(
             "org.eclipse.ecf.examples.hello.IHello",
