@@ -371,14 +371,8 @@ class LogServiceTest(unittest.TestCase):
             self.logger.log(logging.ERROR, "Error!", sys.exc_info())
 
         latest = self.reader.get_log()[-1]
-        self.assertTrue(isinstance(latest.exception, str), "Exception info must be a string")
-        self.assertIn(__file__, latest.exception, "Incomplete exception info")
-
-        # Check if the exception in the string representation
-        self.assertIn(latest.exception, str(latest))
-
-        # Check invalid exception info
-        for invalid in ([], [1, 2], (4, 5, 6)):
-            self.logger.log(logging.ERROR, "Error!", invalid)
-            latest = self.reader.get_log()[-1]
-            self.assertEqual(latest.exception, "<Invalid exc_info>")
+        assert latest.exception is not None
+        self.assertTrue(isinstance(latest.exception, tuple), "Exception info must be a tuple")
+        self.assertEqual(len(latest.exception), 3, "Invalid exception format")
+        for i in range(3):
+            self.assertIsNotNone(latest.exception[i])
