@@ -26,7 +26,7 @@ EventListenerHook for Pelix.
 """
 
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Dict, Generic, Iterator, List, Optional, Protocol, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, Generic, Iterable, Iterator, List, Optional, Protocol, TypeVar, Union, overload
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
@@ -62,13 +62,25 @@ class ShrinkableList(MutableSequence[T]):
     def __len__(self) -> int:
         return len(self._delegate)
 
-    def __getitem__(self, index: int) -> T:
+    @overload
+    def __getitem__(self, index: int) -> T: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> MutableSequence[T]: ...
+
+    def __getitem__(self, index):  # type: ignore
         return self._delegate[index]
 
-    def __delitem__(self, index: int) -> None:
+    def __delitem__(self, index: Union[int, slice]) -> None:
         del self._delegate[index]
 
-    def __setitem__(self, index: int, value: T) -> None:
+    @overload
+    def __setitem__(self, index: int, value: T) -> None: ...
+
+    @overload
+    def __setitem__(self, index: slice, values: Iterable[T]) -> None: ...
+
+    def __setitem__(self, index, value) -> None:  # type: ignore
         raise IndexError
 
     def insert(self, index: int, value: T) -> None:
@@ -189,7 +201,7 @@ class EventListenerHook(Protocol):
     """
 
     def event(
-        self, service_event: "ServiceEvent", listener_dict: Dict["BundleContext", List["ServiceListener"]]
+        self, service_event: "ServiceEvent[Any]", listener_dict: Dict["BundleContext", List["ServiceListener"]]
     ) -> None:
         """
         Method called when a service event is triggered.

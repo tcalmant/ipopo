@@ -177,7 +177,7 @@ class _FactoryCounter:
         svc_ref = svc_registration.get_reference()
         try:
             # Use the existing service
-            service, counter = self.__factored[svc_ref]
+            service, counter = cast(Tuple[T, _UsageCounter], self.__factored[svc_ref])
             counter.inc()
         except KeyError:
             # Create the service
@@ -190,7 +190,7 @@ class _FactoryCounter:
 
         return service
 
-    def _get_from_prototype(self, factory: Any, svc_registration: "ServiceRegistration[T]") -> T:
+    def _get_from_prototype(self, factory: ServiceFactory, svc_registration: "ServiceRegistration[T]") -> T:
         """
         Returns a service instance from a Prototype Service Factory
 
@@ -215,7 +215,7 @@ class _FactoryCounter:
 
         return service
 
-    def get_service(self, factory: Any, svc_registration: "ServiceRegistration[T]") -> T:
+    def get_service(self, factory: ServiceFactory, svc_registration: "ServiceRegistration[T]") -> T:
         """
         Returns the service required by the bundle. The Service Factory is
         called only when necessary while the Prototype Service Factory is
@@ -232,7 +232,7 @@ class _FactoryCounter:
         return self._get_from_factory(factory, svc_registration)
 
     def unget_service(
-        self, factory: Any, svc_registration: "ServiceRegistration[T]", service: Optional[T] = None
+        self, factory: ServiceFactory, svc_registration: "ServiceRegistration[T]", service: Optional[T] = None
     ) -> bool:
         """
         Releases references to the given service reference
@@ -240,8 +240,7 @@ class _FactoryCounter:
         :param factory: The service factory
         :param svc_registration: The ServiceRegistration object
         :param service: Service instance (for prototype factories)
-        :return: True if all service references to this service factory
-                 have been released
+        :return: True if all service references to this service factory have been released
         """
         svc_ref = svc_registration.get_reference()
         try:
@@ -249,9 +248,11 @@ class _FactoryCounter:
         except KeyError:
             logging.warning("Trying to release an unknown service factory: %s", svc_ref)
         else:
-            if svc_ref.is_prototype():
-                # Notify the factory to clean up this instance
-                factory.unget_service_instance(self.__bundle, svc_registration, service)
+            if svc_ref.is_prototype() and service is not None:
+                # Notify the factory to clean up the given instance
+                cast(PrototypeServiceFactory, factory).unget_service_instance(
+                    self.__bundle, svc_registration, service
+                )
 
             if not counter.dec():
                 # All references have been released: clean up
@@ -266,7 +267,7 @@ class _FactoryCounter:
         # Some references are still there
         return False
 
-    def cleanup_service(self, factory: Any, svc_registration: "ServiceRegistration") -> bool:
+    def cleanup_service(self, factory: ServiceFactory, svc_registration: "ServiceRegistration[Any]") -> bool:
         """
         If this bundle used that factory, releases the reference; else does
         nothing
@@ -283,6 +284,7 @@ class _FactoryCounter:
             return False
         else:
             if svc_ref.is_prototype() and services:
+                factory = cast(PrototypeServiceFactory, factory)
                 for service in services:
                     try:
                         factory.unget_service_instance(self.__bundle, svc_registration, service)
@@ -373,25 +375,25 @@ class ServiceReference(Generic[T]):
         else:
             return False
 
-    def __lt__(self, other: "ServiceReference") -> bool:
+    def __lt__(self, other: "ServiceReference[Any]") -> bool:
         """
         Lesser than other
         """
         return self.__sort_key < other.__sort_key
 
-    def __gt__(self, other: "ServiceReference") -> bool:
+    def __gt__(self, other: "ServiceReference[Any]") -> bool:
         """
         Greater than other
         """
         return self.__sort_key > other.__sort_key
 
-    def __le__(self, other: "ServiceReference") -> bool:
+    def __le__(self, other: "ServiceReference[Any]") -> bool:
         """
         Lesser than or equal to other"
         """
         return self.__sort_key <= other.__sort_key
 
-    def __ge__(self, other: "ServiceReference") -> bool:
+    def __ge__(self, other: "ServiceReference[Any]") -> bool:
         """
         Greater than or equal to other
         """
@@ -466,7 +468,7 @@ class ServiceReference(Generic[T]):
 
         :return: True if the service provides from a prototype factory
         """
-        return self.__properties[SERVICE_SCOPE] == SCOPE_PROTOTYPE
+        return bool(self.__properties[SERVICE_SCOPE] == SCOPE_PROTOTYPE)
 
     def unused_by(self, bundle: "Bundle") -> None:
         """
@@ -660,7 +662,7 @@ class ServiceListener(Protocol):
     Protocol that must be implemented by a service listener
     """
 
-    def service_changed(self, event: "ServiceEvent") -> None:
+    def service_changed(self, event: "ServiceEvent[Any]") -> None:
         ...
 
 
@@ -871,7 +873,7 @@ class EventDispatcher:
             except:
                 self._logger.exception("An error occurred calling one of the " "framework stop listeners")
 
-    def fire_service_event(self, event: ServiceEvent) -> None:
+    def fire_service_event(self, event: ServiceEvent[Any]) -> None:
         """
         Notifies service events listeners of a new event in the calling thread.
 
@@ -881,7 +883,7 @@ class EventDispatcher:
         properties = event.get_service_reference().get_properties()
         svc_specs = cast(List[str], properties[OBJECTCLASS])
         previous: Optional[Dict[str, Any]] = None
-        endmatch_event: Optional[ServiceEvent] = None
+        endmatch_event: Optional[ServiceEvent[Any]] = None
         svc_modified = event.get_kind() == ServiceEvent.MODIFIED
 
         if svc_modified:
@@ -895,7 +897,7 @@ class EventDispatcher:
 
         with self.__svc_lock:
             # Get the listeners for this specification
-            listeners: Set[ListenerInfo] = set()
+            listeners: Set[ListenerInfo[Any]] = set()
             for spec in svc_specs:
                 try:
                     listeners.update(self.__svc_listeners[spec])
@@ -935,7 +937,7 @@ class EventDispatcher:
                 self._logger.exception("Error calling a service listener")
 
     def _filter_with_hooks(
-        self, svc_event: ServiceEvent, listeners: Set[ListenerInfo[ServiceListener]]
+        self, svc_event: ServiceEvent[Any], listeners: Set[ListenerInfo[ServiceListener]]
     ) -> Set[ListenerInfo[ServiceListener]]:
         """
         Filters listeners with EventListenerHooks
@@ -1018,19 +1020,19 @@ class ServiceRegistry:
         self.__next_service_id: int = 1
 
         # Service reference -> Service instance
-        self.__svc_registry: Dict[ServiceReference, Any] = {}
+        self.__svc_registry: Dict[ServiceReference[Any], Any] = {}
 
         # Service reference -> (Service factory, Service Registration)
-        self.__svc_factories: Dict[ServiceReference, Tuple[Any, ServiceRegistration]] = {}
+        self.__svc_factories: Dict[ServiceReference[Any], Tuple[Any, ServiceRegistration[Any]]] = {}
 
         # Specification -> Service references[] (always sorted)
-        self.__svc_specs: Dict[str, List[ServiceReference]] = {}
+        self.__svc_specs: Dict[str, List[ServiceReference[Any]]] = {}
 
         # Services published: "Bundle" -> set(Service references)
-        self.__bundle_svc: Dict[Bundle, Set[ServiceReference]] = {}
+        self.__bundle_svc: Dict[Bundle, Set[ServiceReference[Any]]] = {}
 
         # Services consumed: "Bundle" -> {Service reference -> UsageCounter}
-        self.__bundle_imports: Dict[Bundle, Dict[ServiceReference, _UsageCounter]] = {}
+        self.__bundle_imports: Dict[Bundle, Dict[ServiceReference[Any], _UsageCounter]] = {}
 
         # Service factories consumption: "Bundle" -> _FactoryCounter
         self.__factory_usage: Dict[Bundle, _FactoryCounter] = {}
@@ -1039,7 +1041,7 @@ class ServiceRegistry:
         self.__svc_lock = threading.RLock()
 
         # Pending unregistration: Service reference -> Service instance
-        self.__pending_services: Dict[ServiceReference, Any] = {}
+        self.__pending_services: Dict[ServiceReference[Any], Any] = {}
 
     def clear(self) -> None:
         """
@@ -1121,7 +1123,7 @@ class ServiceRegistry:
             bundle_services.add(svc_ref)
             return svc_registration
 
-    def __sort_registry(self, svc_ref: ServiceReference) -> None:
+    def __sort_registry(self, svc_ref: ServiceReference[Any]) -> None:
         """
         Sorts the registry, after the update of the sort key of given service
         reference
@@ -1158,7 +1160,7 @@ class ServiceRegistry:
         with self.__svc_lock:
             try:
                 # Try in pending services
-                return self.__pending_services.pop(svc_ref)
+                return cast(T, self.__pending_services.pop(svc_ref))
             except KeyError:
                 # Not pending: continue
                 pass
@@ -1170,7 +1172,7 @@ class ServiceRegistry:
             bundle = svc_ref.get_bundle()
 
             # Get the service instance
-            service = self.__svc_registry.pop(svc_ref)
+            service = cast(T, self.__svc_registry.pop(svc_ref))
 
             for spec in svc_ref.get_property(OBJECTCLASS):
                 spec_services = self.__svc_specs[spec]
@@ -1196,7 +1198,7 @@ class ServiceRegistry:
 
             return service
 
-    def hide_bundle_services(self, bundle: "Bundle") -> Set[ServiceReference]:
+    def hide_bundle_services(self, bundle: "Bundle") -> Set[ServiceReference[Any]]:
         """
         Hides the services of the given bundle (removes them from lists, but
         lets them be unregistered)
@@ -1234,10 +1236,10 @@ class ServiceRegistry:
 
     def find_service_references(
         self,
-        clazz: Union[None, str, Type] = None,
+        clazz: Union[None, str, Type[Any]] = None,
         ldap_filter: Union[None, str, ldapfilter.LDAPFilter, ldapfilter.LDAPCriteria] = None,
         only_one: bool = False,
-    ) -> Optional[List[ServiceReference]]:
+    ) -> Optional[List[ServiceReference[Any]]]:
         """
         Finds all services references matching the given filter.
 
@@ -1266,7 +1268,7 @@ class ServiceRegistry:
             else:
                 try:
                     # Only for references with the given specification
-                    refs_set = iter(self.__svc_specs[clazz])
+                    refs_set = iter(self.__svc_specs[str(clazz)])
                 except KeyError:
                     # No matching specification
                     return None
@@ -1293,7 +1295,7 @@ class ServiceRegistry:
             # Get all the matching references
             return list(refs_set) or None
 
-    def get_bundle_imported_services(self, bundle: "Bundle") -> List[ServiceReference]:
+    def get_bundle_imported_services(self, bundle: "Bundle") -> List[ServiceReference[Any]]:
         """
         Returns this bundle's ServiceReference list for all services it is
         using or returns None if this bundle is not using any services.
@@ -1310,7 +1312,7 @@ class ServiceRegistry:
         with self.__svc_lock:
             return sorted(self.__bundle_imports.get(bundle, []))
 
-    def get_bundle_registered_services(self, bundle: "Bundle") -> List[ServiceReference]:
+    def get_bundle_registered_services(self, bundle: "Bundle") -> List[ServiceReference[Any]]:
         """
         Retrieves the services registered by the given bundle. Returns None
         if the bundle didn't register any service.
@@ -1336,7 +1338,7 @@ class ServiceRegistry:
 
             # Be sure to have the instance
             try:
-                service = self.__svc_registry[reference]
+                service = cast(T, self.__svc_registry[reference])
 
                 # Indicate the dependency
                 imports = self.__bundle_imports.setdefault(bundle, {})
@@ -1358,7 +1360,7 @@ class ServiceRegistry:
         :raise BundleException: The service could not be found
         """
         try:
-            factory, svc_reg = self.__svc_factories[reference]
+            factory, svc_reg = cast(Tuple[Any, ServiceRegistration[T]], self.__svc_factories[reference])
 
             # Indicate the dependency
             imports = self.__bundle_imports.setdefault(bundle, {})
