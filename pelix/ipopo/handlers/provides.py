@@ -26,7 +26,7 @@ Service providing handler
 """
 
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import Any, Callable, Iterable, List, Optional, Tuple, TypeVar
 
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
@@ -34,6 +34,7 @@ from pelix.constants import ActivatorProto, BundleActivator, BundleException
 from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceReference, ServiceRegistration
+from pelix.ipopo.contexts import ComponentContext
 from pelix.ipopo.instance import StoredInstance
 
 # ------------------------------------------------------------------------------
@@ -45,16 +46,17 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+T = TypeVar("T")
+
 # ------------------------------------------------------------------------------
 
 
 class _HandlerFactory(constants.HandlerFactory):
-    # pylint: disable=R0903
     """
     Factory service for service registration handlers
     """
 
-    def get_handlers(self, component_context, instance):
+    def get_handlers(self, component_context: ComponentContext, instance: Any) -> Iterable[constants.Handler]:
         """
         Sets up service providers for the given component
 
@@ -66,7 +68,7 @@ class _HandlerFactory(constants.HandlerFactory):
         provides = component_context.get_handler(ipopo_constants.HANDLER_PROVIDES)
         if not provides:
             # Nothing to do
-            return ()
+            return []
 
         # 1 handler per provided service
         return [
@@ -85,9 +87,9 @@ class Activator(ActivatorProto):
         """
         Sets up members
         """
-        self._registration = None
+        self._registration: Optional[ServiceRegistration[constants.HandlerFactory]] = None
 
-    def start(self, context):
+    def start(self, context: BundleContext) -> None:
         """
         Bundle started
         """
@@ -96,12 +98,12 @@ class Activator(ActivatorProto):
 
         # Register the handler factory service
         self._registration = context.register_service(
-            constants.SERVICE_IPOPO_HANDLER_FACTORY,
+            constants.HandlerFactory,
             _HandlerFactory(),
             properties,
         )
 
-    def stop(self, _):
+    def stop(self, _: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -143,10 +145,10 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         self.__is_prototype = is_prototype
 
         # The ServiceRegistration and ServiceReference objects
-        self._registration: Optional[ServiceRegistration] = None
-        self._svc_reference: Optional[ServiceReference] = None
+        self._registration: Optional[ServiceRegistration[Any]] = None
+        self._svc_reference: Optional[ServiceReference[Any]] = None
 
-    def _field_controller_generator(self):
+    def _field_controller_generator(self) -> Tuple[Callable[[T, str], Any], Callable[[T, str, Any], Any]]:
         """
         Generates the methods called by the injected controller
         """
@@ -155,7 +157,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         if stored_instance is None:
             raise ValueError("Stored instance not available")
 
-        def get_value(self, name: str) -> Any:
+        def get_value(_: T, name: str) -> Any:
             # pylint: disable=W0613
             """
             Retrieves the controller value, from the iPOPO dictionaries
@@ -165,7 +167,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
             """
             return stored_instance.get_controller_state(name)
 
-        def set_value(self, name: str, new_value: Any) -> Any:
+        def set_value(_: T, name: str, new_value: Any) -> Any:
             # pylint: disable=W0613
             """
             Sets the property value and trigger an update event
@@ -183,7 +185,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
 
         return get_value, set_value
 
-    def manipulate(self, stored_instance, component_instance):
+    def manipulate(self, stored_instance: StoredInstance, component_instance: Any) -> None:
         """
         Manipulates the component instance
 
@@ -212,7 +214,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         setattr(component_instance, getter_name, getter)
         setattr(component_instance, setter_name, setter)
 
-    def check_event(self, event: ServiceEvent) -> bool:
+    def check_event(self, event: ServiceEvent[Any]) -> bool:
         """
         Tests if the given service event corresponds to the registered service
 
@@ -229,7 +231,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         """
         return (constants.KIND_SERVICE_PROVIDER,)
 
-    def get_service_reference(self) -> Optional[ServiceReference]:
+    def get_service_reference(self) -> Optional[ServiceReference[Any]]:
         """
         Retrieves the reference of the provided service
 
@@ -237,7 +239,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         """
         return self._svc_reference
 
-    def on_controller_change(self, name, value):
+    def on_controller_change(self, name: str, value: bool) -> None:
         """
         Called by the instance manager when a controller value has been
         modified
@@ -258,7 +260,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
             # Controller switched to "OFF"
             self._unregister_service()
 
-    def on_property_change(self, name, old_value, new_value):
+    def on_property_change(self, name: str, old_value: Any, new_value: Any) -> None:
         """
         Called by the instance manager when a component property is modified
 
@@ -270,7 +272,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
             # use the registration to trigger the service event
             self._registration.set_properties({name: new_value})
 
-    def post_validate(self):
+    def post_validate(self) -> None:
         """
         Called by the instance manager once the component has been validated
         """
@@ -278,7 +280,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         self.__validated = True
         self._register_service()
 
-    def pre_invalidate(self):
+    def pre_invalidate(self) -> None:
         """
         Called by the instance manager before the component is invalidated
         """
@@ -288,7 +290,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         # Force service unregistration
         self._unregister_service()
 
-    def _register_service(self):
+    def _register_service(self) -> None:
         """
         Registers the provided service, if possible
         """
@@ -316,7 +318,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
                 self._svc_reference,
             )
 
-    def _unregister_service(self):
+    def _unregister_service(self) -> None:
         """
         Unregisters the provided service, if needed
         """

@@ -25,6 +25,18 @@ iPOPO handlers constants and base classes
     limitations under the License.
 """
 
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Protocol, Tuple
+
+from pelix.internals.events import ServiceEvent
+from pelix.internals.registry import ServiceReference
+
+if TYPE_CHECKING:
+    from pelix.ipopo.contexts import ComponentContext, Requirement
+    from pelix.ipopo.instance import StoredInstance
+
+# ------------------------------------------------------------------------------
+
 # Module version
 __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -33,16 +45,6 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
-
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, List, Optional, Protocol, Tuple
-
-from pelix.internals.events import ServiceEvent
-from pelix.internals.registry import ServiceReference
-
-if TYPE_CHECKING:
-    from pelix.ipopo.contexts import ComponentContext, Requirement
-    from pelix.ipopo.instance import StoredInstance
 
 SERVICE_IPOPO_HANDLER_FACTORY = "ipopo.handler.factory"
 """
@@ -75,8 +77,7 @@ KIND_SERVICE_PROVIDER = "service_provider"
 Represents the 'service_provider' kind of handler.
 Those handlers must implement the following method:
 
-* get_service_reference(): Retrieves the reference of the provided service
-  (a ServiceReference object).
+* get_service_reference(): Retrieves the reference of the provided service (a ServiceReference object).
 
 It should also implement the following ones:
 
@@ -96,11 +97,11 @@ class Handler(ABC):
     """
 
     @abstractmethod
-    def get_kinds(self) -> Tuple[str]:
+    def get_kinds(self) -> Iterable[str]:
         """
         Returns the kinds of this handler
 
-        :return: A tuple of the kinds of this handler, or None
+        :return: A tuple of the kinds of this handler
         """
         ...
 
@@ -111,15 +112,15 @@ class Handler(ABC):
         """
         ...
 
-    def check_event(self, event: ServiceEvent) -> bool:
+    def check_event(self, event: ServiceEvent[Any]) -> Optional[bool]:
         """
         Tests if the given service event must be handled or ignored, based
         on the state of the iPOPO service and on the content of the event.
 
         :param event: A service event
-        :return: True if the event can be handled, False if it must be ignored
+        :return: None to ignore result, True if the event can be handled, False if it must be ignored
         """
-        return True
+        return None
 
     def is_valid(self) -> bool:
         """
@@ -137,7 +138,7 @@ class Handler(ABC):
         :param name: The name of the controller
         :param value: The new value of the controller
         """
-        ...
+        return None
 
     def on_property_change(self, name: str, old_value: Any, new_value: Any) -> None:
         """
@@ -147,54 +148,64 @@ class Handler(ABC):
         :param old_value: The previous property value
         :param new_value: The new property value
         """
-        ...
+        return None
+
+    def on_hidden_property_change(self, name: str, old_value: Any, new_value: Any) -> None:
+        """
+        Handles a the property changed event of a hidden property
+
+        :param name: The changed property name
+        :param old_value: The previous property value
+        :param new_value: The new property value
+        """
+        return None
 
     def start(self) -> None:
         """
         Starts the handler (listeners, ...). Called once, after the component
         has been manipulated by all handlers.
         """
-        ...
+        return None
 
-    def stop(self) -> Optional[List[Tuple[Any, ServiceReference]]]:
+    def stop(self) -> Optional[Iterable[Tuple[Any, ServiceReference[Any]]]]:
         """
         Stops the handler. Called once, just after the component has been
         killed
 
         :return: The removed bindings (list) or None
         """
-        ...
+        return None
 
     def clear(self) -> None:
         """
         Called just after a component has been killed and all handlers have
         been stopped. The handler should release all its resources here.
         """
-        ...
+        return None
 
     def pre_validate(self) -> None:
         """
         Called just before a component is validated
         """
-        ...
+        return None
 
     def post_validate(self) -> None:
         """
         Called just after a component has been validated
         """
-        ...
+        return None
 
     def pre_invalidate(self) -> None:
         """
         Called just before a component is invalidated
         """
-        ...
+        return None
 
     def post_invalidate(self) -> None:
         """
         Called just after a component has been invalidated
         """
-        ...
+        return None
 
 
 class HandlerException(Exception):
@@ -208,13 +219,13 @@ class HandlerException(Exception):
 # ------------------------------------------------------------------------------
 
 
-class ServiceProviderHandler(Handler):
+class ServiceProviderHandler(Handler, ABC):
     """
     Service provider handler abstract class
     """
 
     @abstractmethod
-    def get_service_reference(self) -> ServiceReference[Any]:
+    def get_service_reference(self) -> Optional[ServiceReference[Any]]:
         """
         Returns the reference to the service provided by this handler
         """
@@ -241,9 +252,9 @@ class DependencyHandler(Handler, ABC):
         """
         Forces the handler to try to bind to existing services
         """
-        ...
+        return None
 
-    def get_bindings(self) -> List[ServiceReference]:
+    def get_bindings(self) -> List[ServiceReference[Any]]:
         """
         Retrieves the list of the references to the bound services
 
@@ -252,7 +263,6 @@ class DependencyHandler(Handler, ABC):
         return []
 
     def get_value(self) -> Any:
-        # pylint: disable=R0201
         """
         Returns the value to inject
         """
@@ -267,7 +277,9 @@ class HandlerFactory(Protocol):
     Handler factory abstract class
     """
 
-    def get_handlers(self, component_context: "ComponentContext", instance: Any) -> List[Handler]:
+    __SPECIFICATION__: str = SERVICE_IPOPO_HANDLER_FACTORY
+
+    def get_handlers(self, component_context: "ComponentContext", instance: Any) -> Iterable[Handler]:
         """
         Prepares handlers for the given component
 

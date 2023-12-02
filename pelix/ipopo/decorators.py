@@ -29,7 +29,20 @@ import inspect
 import logging
 import threading
 import types
-from typing import Any, Callable, Dict, Generic, Iterable, List, Optional, Type, TypeVar, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    Optional,
+    ParamSpec,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import pelix.ipopo.constants as constants
 from pelix.framework import BundleContext
@@ -39,7 +52,7 @@ from pelix.utilities import get_method_arguments, is_string, to_iterable
 
 T = TypeVar("T")
 RT = TypeVar("RT")
-M = Callable[..., RT]
+P = ParamSpec("P")
 
 # ------------------------------------------------------------------------------
 
@@ -58,7 +71,7 @@ _logger = logging.getLogger("ipopo.decorators")
 # ------------------------------------------------------------------------------
 
 
-def is_from_parent(cls: Type, attribute_name: str, value: Any = None) -> bool:
+def is_from_parent(cls: Type[Any], attribute_name: str, value: Any = None) -> bool:
     """
     Tests if the current attribute value is shared by a parent of the given
     class.
@@ -89,7 +102,7 @@ def is_from_parent(cls: Type, attribute_name: str, value: Any = None) -> bool:
     return False
 
 
-def get_factory_context(cls: Type) -> FactoryContext:
+def get_factory_context(cls: Type[Any]) -> FactoryContext:
     """
     Retrieves the factory context object associated to a factory. Creates it
     if needed
@@ -116,7 +129,7 @@ def get_factory_context(cls: Type) -> FactoryContext:
     return context
 
 
-def get_method_description(method: Callable) -> str:
+def get_method_description(method: Callable[..., Any]) -> str:
     """
     Retrieves a description of the given method. If possible, the description
     contains the source file name and line.
@@ -138,7 +151,7 @@ def get_method_description(method: Callable) -> str:
         return f"'{method.__name__}'"
 
 
-def validate_method_arity(method: Callable, *needed_args: str) -> None:
+def validate_method_arity(method: Callable[..., Any], *needed_args: str) -> None:
     """
     Tests if the decorated method has a sufficient number of parameters.
 
@@ -184,7 +197,7 @@ def validate_method_arity(method: Callable, *needed_args: str) -> None:
 # ------------------------------------------------------------------------------
 
 
-def _ipopo_setup_callback(cls: Type, context: FactoryContext) -> None:
+def _ipopo_setup_callback(cls: Type[Any], context: FactoryContext) -> None:
     """
     Sets up the class _callback dictionary
 
@@ -462,7 +475,7 @@ class Instantiate:
         self.__name = name
         self.__properties = properties or {}
 
-    def __call__(self, factory_class: Type) -> Type:
+    def __call__(self, factory_class: Type[T]) -> Type[T]:
         """
         Sets up and registers the instances descriptions
 
@@ -539,7 +552,7 @@ class ComponentFactory:
         self.__factory_name = name
         self.__excluded_inheritance = to_iterable(excluded)
 
-    def __call__(self, factory_class: Type) -> Type:
+    def __call__(self, factory_class: Type[T]) -> Type[T]:
         """
         Sets up and registers the factory class
 
@@ -620,7 +633,7 @@ class SingletonFactory(ComponentFactory):
             pass
     """
 
-    def __call__(self, factory_class: Type) -> Type:
+    def __call__(self, factory_class: Type[T]) -> Type[T]:
         """
         Sets up and registers the factory class
 
@@ -705,7 +718,7 @@ class Property:
         self._name = name
         self._value = value
 
-    def __call__(self, clazz: Type) -> Type:
+    def __call__(self, clazz: Type[T]) -> Type[T]:
         """
         Adds the property to the class iPOPO properties field.
         Creates the field if needed.
@@ -774,7 +787,7 @@ class HiddenProperty(Property):
                 self._password = "UpdatedSecret"
     """
 
-    def __call__(self, clazz: Type) -> Type:
+    def __call__(self, clazz: Type[T]) -> Type[T]:
         """
         Adds the property to the class iPOPO properties field.
         Creates the field if needed.
@@ -816,7 +829,9 @@ class HiddenProperty(Property):
 # ------------------------------------------------------------------------------
 
 
-def _get_specifications(specifications: Union[None, str, Iterable[str], Type, Iterable[Type]]) -> List[str]:
+def _get_specifications(
+    specifications: Union[None, str, Iterable[str], Type[Any], Iterable[Type[Any]]]
+) -> List[str]:
     """
     Computes the list of strings corresponding to the given specifications
 
@@ -921,14 +936,14 @@ class Provides:
 
     def __init__(
         self,
-        specifications: Union[None, str, Iterable[str], Type, Iterable[Type]],
+        specifications: Union[None, str, Iterable[str], Type[Any], Iterable[Type[Any]]],
         controller: Optional[str] = None,
         factory: bool = False,
         prototype: bool = False,
     ) -> None:
         """
         :param specifications: A list of provided specification(s), or the
-                               single provided specification (can't be empty)
+        single provided specification (can't be empty)
         :param controller: The name of the service controller class field (optional)
         :param factory: If True, this service is a service factory (False by default)
         :param prototype: If True, this service is prototype service factory (False by default)
@@ -951,7 +966,7 @@ class Provides:
         self.__is_factory = factory
         self.__is_prototype = prototype
 
-    def __call__(self, clazz: Type) -> Type:
+    def __call__(self, clazz: Type[T]) -> Type[T]:
         """
         Adds the provided service information to the class context iPOPO field.
         Creates the field if needed.
@@ -1072,7 +1087,7 @@ class Requires:
     def __init__(
         self,
         field: str,
-        specification: Union[None, str, Iterable[str], Type, Iterable[Type]],
+        specification: Union[None, str, Iterable[str], Type[Any], Iterable[Type[Any]]],
         aggregate: bool = False,
         optional: bool = False,
         spec_filter: Optional[str] = None,
@@ -1120,7 +1135,7 @@ class Requires:
             immediate_rebind,
         )
 
-    def __call__(self, clazz: Type) -> Type:
+    def __call__(self, clazz: Type[T]) -> Type[T]:
         """
         Adds the requirement to the class iPOPO field
 
@@ -1253,7 +1268,7 @@ class RequiresBest(Requires):
     def __init__(
         self,
         field: str,
-        specification: Union[None, str, Iterable[str], Type, Iterable[Type]],
+        specification: Union[None, str, Iterable[str], Type[Any], Iterable[Type[Any]]],
         optional: bool = False,
         spec_filter: Optional[str] = None,
         immediate_rebind: bool = True,
@@ -1301,7 +1316,7 @@ class RequiresMap(Requires):
     def __init__(
         self,
         field: str,
-        specification: Union[None, str, Iterable[str], Type, Iterable[Type]],
+        specification: Union[None, str, Iterable[str], Type[Any], Iterable[Type[Any]]],
         key: str,
         allow_none: bool = False,
         aggregate: bool = False,
@@ -1332,7 +1347,7 @@ class RequiresMap(Requires):
         self._key = key
         self._allow_none = allow_none
 
-    def __call__(self, clazz: Type) -> Type:
+    def __call__(self, clazz: Type[T]) -> Type[T]:
         """
         Adds the requirement to the class iPOPO field
 
@@ -1389,7 +1404,7 @@ class RequiresBroadcast(Requires):
     def __init__(
         self,
         field: str,
-        specification: Union[None, str, Iterable[str], Type, Iterable[Type]],
+        specification: Union[None, str, Iterable[str], Type[Any], Iterable[Type[Any]]],
         optional: bool = True,
         spec_filter: Optional[str] = None,
         muffle_exceptions: bool = True,
@@ -1414,7 +1429,7 @@ class RequiresBroadcast(Requires):
         self._muffle_ex = muffle_exceptions
         self._trace_ex = trace_exceptions
 
-    def __call__(self, clazz: Type) -> Type:
+    def __call__(self, clazz: Type[T]) -> Type[T]:
         """
         Adds the requirement to the class iPOPO field
 
@@ -1484,7 +1499,7 @@ class Temporal(Requires):
     def __init__(
         self,
         field: str,
-        specification: Union[None, str, Iterable[str], Type, Iterable[Type]],
+        specification: Union[None, str, Iterable[str], Type[Any], Iterable[Type[Any]]],
         optional: bool = False,
         spec_filter: Optional[str] = None,
         timeout: float = 10,
@@ -1506,7 +1521,7 @@ class Temporal(Requires):
         else:
             self._timeout = timeout
 
-    def __call__(self, clazz: Type) -> Type:
+    def __call__(self, clazz: Type[T]) -> Type[T]:
         """
         Adds the requirement to the class iPOPO field
 
@@ -1982,7 +1997,7 @@ class InvalidateComponent(ValidateComponent):
     after the provided service has been unregistered to the framework.
     """
 
-    def __call__(self, method: Callable[..., None]) -> Callable[..., Any]:
+    def __call__(self, method: Callable[P, RT]) -> Callable[P, RT]:
         """
         Registers the decorated method as a callback for component invalidation
 
@@ -2005,13 +2020,13 @@ class InvalidateComponent(ValidateComponent):
         # Append arguments list to the method
         _set_object_entry(method, constants.IPOPO_VALIDATE_ARGS, self._args)
 
-        return cast(Callable[..., None], method)
+        return cast(Callable[P, RT], method)
 
 
 # ------------------------------------------------------------------------------
 
 
-def Validate(method: Callable[[Any, BundleContext], None]) -> Callable[[Any, BundleContext], None]:
+def Validate(method: Callable[[T, BundleContext], None]) -> Callable[[T, BundleContext], None]:
     # pylint: disable=C0103
     """
     This decorator is an alias to :class:`ValidateComponent` to decorate a
@@ -2048,7 +2063,7 @@ def Validate(method: Callable[[Any, BundleContext], None]) -> Callable[[Any, Bun
     return ValidateComponent(constants.ARG_BUNDLE_CONTEXT)(method)
 
 
-def Invalidate(method: Callable[[Any, BundleContext], None]) -> Callable[[Any, BundleContext], None]:
+def Invalidate(method: Callable[[T, BundleContext], None]) -> Callable[[T, BundleContext], None]:
     # pylint: disable=C0103
     """
     This decorator is an alias to :class:`InvalidateComponent` to decorate a
@@ -2085,8 +2100,8 @@ def Invalidate(method: Callable[[Any, BundleContext], None]) -> Callable[[Any, B
 
 
 def PostRegistration(
-    method: Callable[[Any, ServiceReference], None]
-) -> Callable[[Any, ServiceReference], None]:
+    method: Callable[[T, ServiceReference[Any]], None]
+) -> Callable[[T, ServiceReference[Any]], None]:
     # pylint: disable=C0103
     """
     The service post-registration callback decorator is called after a service
@@ -2126,12 +2141,12 @@ def PostRegistration(
         constants.IPOPO_METHOD_CALLBACKS,
         constants.IPOPO_CALLBACK_POST_REGISTRATION,
     )
-    return cast(Callable[[Any, ServiceReference], None], method)
+    return cast(Callable[[T, ServiceReference[Any]], None], method)
 
 
 def PostUnregistration(
-    method: Callable[[Any, ServiceReference], None]
-) -> Callable[[Any, ServiceReference], None]:
+    method: Callable[[T, ServiceReference[Any]], None]
+) -> Callable[[T, ServiceReference[Any]], None]:
     # pylint: disable=C0103
     """
     The service post-unregistration callback decorator is called after a
@@ -2175,4 +2190,4 @@ def PostUnregistration(
         constants.IPOPO_METHOD_CALLBACKS,
         constants.IPOPO_CALLBACK_POST_UNREGISTRATION,
     )
-    return cast(Callable[[Any, ServiceReference], None], method)
+    return cast(Callable[[T, ServiceReference[Any]], None], method)

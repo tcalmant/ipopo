@@ -38,8 +38,13 @@ from pelix.constants import ActivatorProto, BundleActivator, BundleException
 from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceRegistration
-from pelix.ipopo.constants import SERVICE_IPOPO, SERVICE_IPOPO_WAITING_LIST, IPopoEvent, use_ipopo
-from pelix.ipopo.protocols import IPopoService
+from pelix.ipopo.constants import (
+    SERVICE_IPOPO,
+    IPopoEvent,
+    IPopoService,
+    IPopoWaitingList,
+    use_ipopo,
+)
 
 # ------------------------------------------------------------------------------
 
@@ -57,7 +62,7 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class IPopoWaitingList:
+class IPopoWaitingListImpl(IPopoWaitingList):
     """
     iPOPO instantiation waiting list
     """
@@ -153,7 +158,7 @@ class IPopoWaitingList:
         self.__queue.clear()
         self.__context = None
 
-    def service_changed(self, event: ServiceEvent) -> None:
+    def service_changed(self, event: ServiceEvent[Any]) -> None:
         """
         Handles an event about the iPOPO service
         """
@@ -273,18 +278,18 @@ class Activator(ActivatorProto):
         Constructor
         """
         self.__registration: Optional[ServiceRegistration[IPopoWaitingList]] = None
-        self.__service: Optional[IPopoWaitingList] = None
+        self.__service: Optional[IPopoWaitingListImpl] = None
 
     def start(self, context: BundleContext) -> None:
         """
         Bundle started
         """
         # Start the service
-        self.__service = IPopoWaitingList(context)
+        self.__service = IPopoWaitingListImpl(context)
         self.__service._start()
 
         # Register it
-        self.__registration = context.register_service(SERVICE_IPOPO_WAITING_LIST, self.__service, {})
+        self.__registration = context.register_service(IPopoWaitingList, self.__service, {})
 
     def stop(self, _: BundleContext) -> None:
         """

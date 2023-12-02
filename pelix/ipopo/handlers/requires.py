@@ -25,9 +25,10 @@ Dependency handler
     limitations under the License.
 """
 
+import abc
 import logging
 import threading
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
@@ -88,9 +89,7 @@ class _HandlerFactory(constants.HandlerFactory):
 
         return new_requirements
 
-    def get_handlers(
-        self, component_context: ComponentContext, instance: Any
-    ) -> List[constants.Handler]:
+    def get_handlers(self, component_context: ComponentContext, instance: Any) -> Iterable[constants.Handler]:
         """
         Sets up service providers for the given component
 
@@ -123,13 +122,13 @@ class Activator(ActivatorProto):
     The bundle activator
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up members
         """
-        self._registration = None
+        self._registration: Optional[ServiceRegistration[constants.HandlerFactory]] = None
 
-    def start(self, context):
+    def start(self, context: BundleContext) -> None:
         """
         Bundle started
         """
@@ -138,12 +137,12 @@ class Activator(ActivatorProto):
 
         # Register the handler factory service
         self._registration = context.register_service(
-            constants.SERVICE_IPOPO_HANDLER_FACTORY,
+            constants.HandlerFactory,
             _HandlerFactory(),
             properties,
         )
 
-    def stop(self, _):
+    def stop(self, _: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -156,7 +155,7 @@ class Activator(ActivatorProto):
 # ------------------------------------------------------------------------------
 
 
-class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
+class _RuntimeDependency(constants.DependencyHandler, ServiceListener, abc.ABC):
     """
     Manages a required dependency field when a component is running
     """
@@ -178,7 +177,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
         self._context: Optional[BundleContext] = None
 
         # The associated field
-        self._field = field
+        self._field: Optional[str] = field
 
         # The underlying requirement
         self.requirement: Requirement = requirement.copy()
@@ -186,7 +185,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
         # Current field value
         self._value: Any = None
 
-    def manipulate(self, stored_instance, component_instance):
+    def manipulate(self, stored_instance: StoredInstance, component_instance: Any) -> None:
         """
         Stores the given StoredInstance bean.
 
@@ -199,7 +198,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
         # ... and the bundle context
         self._context = stored_instance.bundle_context
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Cleans up the manager. The manager can't be used after this method has
         been called
@@ -209,47 +208,53 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
         self._value = None
         self._field = None
 
-    def get_bindings(self) -> List[ServiceReference]:
-        raise NotImplementedError
+    @abc.abstractmethod
+    def get_bindings(self) -> List[ServiceReference[Any]]:
+        ...
 
-    def get_field(self):
+    def get_field(self) -> Optional[str]:
         return self._field
 
-    def get_kinds(self):
+    def get_kinds(self) -> Iterable[str]:
         return (constants.KIND_DEPENDENCY,)
 
-    def get_value(self):
+    def get_value(self) -> Any:
         return self._value
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         return (self.requirement is not None and self.requirement.optional) or self._value is not None
 
-    def on_service_arrival(self, svc_ref: ServiceReference) -> None:
+    @abc.abstractmethod
+    def on_service_arrival(self, svc_ref: ServiceReference[Any]) -> Optional[bool]:
         """
         Called when a service has been registered in the framework
 
         :param svc_ref: A service reference
+        :return: True if the service was accepted by the handler
         """
-        raise NotImplementedError
+        ...
 
-    def on_service_departure(self, svc_ref: ServiceReference) -> None:
+    @abc.abstractmethod
+    def on_service_departure(self, svc_ref: ServiceReference[Any]) -> Optional[bool]:
         """
         Called when a service has been registered in the framework
 
         :param svc_ref: A service reference
+        :return: True if the service departure was accepted by the handler
         """
-        raise NotImplementedError
+        ...
 
-    def on_service_modify(self, svc_ref: ServiceReference, old_properties: Dict[str, Any]) -> None:
+    @abc.abstractmethod
+    def on_service_modify(self, svc_ref: ServiceReference[Any], old_properties: Dict[str, Any]) -> None:
         """
         Called when a service has been registered in the framework
 
         :param svc_ref: A service reference
         :param old_properties: Previous properties values
         """
-        raise NotImplementedError
+        ...
 
-    def service_changed(self, event):
+    def service_changed(self, event: ServiceEvent[Any]) -> None:
         if self._ipopo_instance is None or not self._ipopo_instance.check_event(event):
             # stop() and clean() may have been called after we have been put
             # inside a listener list copy...
@@ -275,7 +280,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
             # Modified properties (can be a new injection)
             self.on_service_modify(svc_ref, event.get_previous_properties() or {})
 
-    def start(self):
+    def start(self) -> None:
         if self._context is None:
             raise ValueError("Bundle context not configured")
 
@@ -284,11 +289,12 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
 
         self._context.add_service_listener(self, self.requirement.filter, self.requirement.specification)
 
-    def stop(self):
+    def stop(self) -> Optional[Iterable[Tuple[Any, ServiceReference[Any]]]]:
         if self._context is None:
             raise ValueError("Bundle context not configured")
 
         self._context.remove_service_listener(self)
+        return None
 
 
 class SimpleDependency(_RuntimeDependency):
@@ -296,19 +302,19 @@ class SimpleDependency(_RuntimeDependency):
     Manages a simple dependency field
     """
 
-    def __init__(self, field, requirement):
+    def __init__(self, field: str, requirement: Requirement) -> None:
         """
         Sets up the dependency
         """
         super(SimpleDependency, self).__init__(field, requirement)
 
         # We have only one reference to keep
-        self.reference = None
+        self.reference: Optional[ServiceReference[Any]] = None
 
         # Pending reference (to avoid double-lookup)
-        self._pending_ref = None
+        self._pending_ref: Optional[ServiceReference[Any]] = None
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Cleans up the manager. The manager can't be used after this method has
         been called
@@ -317,19 +323,19 @@ class SimpleDependency(_RuntimeDependency):
         self._pending_ref = None
         super().clear()
 
-    def get_bindings(self):
+    def get_bindings(self) -> List[ServiceReference[Any]]:
         """
         Retrieves the list of the references to the bound services
 
         :return: A list of ServiceReferences objects
         """
         with self._lock:
-            if self.reference:
+            if self.reference is not None:
                 return [self.reference]
 
             return []
 
-    def on_service_arrival(self, svc_ref):
+    def on_service_arrival(self, svc_ref: ServiceReference[Any]) -> Optional[bool]:
         """
         Called when a service has been registered in the framework
 
@@ -346,7 +352,7 @@ class SimpleDependency(_RuntimeDependency):
 
         return None
 
-    def on_service_departure(self, svc_ref):
+    def on_service_departure(self, svc_ref: ServiceReference[Any]) -> Optional[bool]:
         """
         Called when a service has been unregistered from the framework
 
@@ -377,7 +383,7 @@ class SimpleDependency(_RuntimeDependency):
 
             return None
 
-    def on_service_modify(self, svc_ref, old_properties):
+    def on_service_modify(self, svc_ref: ServiceReference[Any], old_properties: Dict[str, Any]) -> None:
         """
         Called when a service has been modified in the framework
 
@@ -395,7 +401,7 @@ class SimpleDependency(_RuntimeDependency):
                 # Notify the property modification
                 self._ipopo_instance.update(self, self._value, svc_ref, old_properties)
 
-    def stop(self):
+    def stop(self) -> Optional[Iterable[Tuple[Any, ServiceReference[Any]]]]:
         """
         Stops the dependency manager (must be called before clear())
 
@@ -408,7 +414,7 @@ class SimpleDependency(_RuntimeDependency):
 
         return None
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """
         Tests if the dependency is in a valid state
         """
@@ -418,7 +424,7 @@ class SimpleDependency(_RuntimeDependency):
             and self._pending_ref is not None
         )
 
-    def try_binding(self):
+    def try_binding(self) -> None:
         """
         Searches for the required service if needed
 
@@ -435,6 +441,7 @@ class SimpleDependency(_RuntimeDependency):
             if self.requirement is None:
                 raise ValueError("Requirement not set")
 
+            ref: Optional[ServiceReference[Any]]
             if self._pending_ref is not None:
                 # Get the reference we chose to keep this component valid
                 ref = self._pending_ref
@@ -462,12 +469,12 @@ class AggregateDependency(_RuntimeDependency):
         super(AggregateDependency, self).__init__(field, requirement)
 
         # Reference -> Service
-        self.services: Dict[ServiceReference, Any] = {}
+        self.services: Dict[ServiceReference[Any], Any] = {}
 
         # Future injected value
-        self._future_value: Any = None
+        self._future_value: Optional[List[Any]] = None
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Cleans up the manager. The manager can't be used after this method has
         been called
@@ -476,7 +483,7 @@ class AggregateDependency(_RuntimeDependency):
         self._future_value = None
         super(AggregateDependency, self).clear()
 
-    def get_bindings(self):
+    def get_bindings(self) -> List[ServiceReference[Any]]:
         """
         Retrieves the list of the references to the bound services
 
@@ -485,7 +492,7 @@ class AggregateDependency(_RuntimeDependency):
         with self._lock:
             return list(self.services.keys())
 
-    def get_value(self):
+    def get_value(self) -> Any:
         """
         Retrieves the value to inject in the component
 
@@ -498,13 +505,13 @@ class AggregateDependency(_RuntimeDependency):
 
             return None
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """
         Tests if the dependency is in a valid state
         """
         return (self.requirement is not None and self.requirement.optional) or self._future_value is not None
 
-    def on_service_arrival(self, svc_ref):
+    def on_service_arrival(self, svc_ref: ServiceReference[Any]) -> Optional[bool]:
         """
         Called when a service has been registered in the framework
 
@@ -534,7 +541,7 @@ class AggregateDependency(_RuntimeDependency):
 
             return None
 
-    def on_service_departure(self, svc_ref):
+    def on_service_departure(self, svc_ref: ServiceReference[Any]) -> Optional[bool]:
         """
         Called when a service has been unregistered from the framework
 
@@ -549,8 +556,9 @@ class AggregateDependency(_RuntimeDependency):
                 # Not a known service reference: ignore
                 pass
             else:
-                # Clean the instance values
-                self._future_value.remove(service)
+                if self._future_value:
+                    # Clean the instance values
+                    self._future_value.remove(service)
 
                 # Nullify the value if needed
                 if not self._future_value:
@@ -564,13 +572,12 @@ class AggregateDependency(_RuntimeDependency):
 
             return None
 
-    def on_service_modify(self, svc_ref, old_properties):
+    def on_service_modify(self, svc_ref: ServiceReference[Any], old_properties: Dict[str, Any]) -> None:
         """
         Called when a service has been modified in the framework
 
         :param svc_ref: A service reference
         :param old_properties: Previous properties values
-        :return: A tuple (added, (service, reference)) if the dependency has been changed, else None
         """
         with self._lock:
             try:
@@ -578,7 +585,8 @@ class AggregateDependency(_RuntimeDependency):
                 service = self.services[svc_ref]
             except KeyError:
                 # A previously registered service now matches our filter
-                return self.on_service_arrival(svc_ref)
+                self.on_service_arrival(svc_ref)
+                return
             else:
                 if self._ipopo_instance is None:
                     raise ValueError("StoredInstance not set")
@@ -586,9 +594,7 @@ class AggregateDependency(_RuntimeDependency):
                 # Notify the property modification
                 self._ipopo_instance.update(self, service, svc_ref, old_properties)
 
-            return None
-
-    def stop(self) -> Optional[List[Tuple[Any, ServiceReference]]]:
+    def stop(self) -> Optional[List[Tuple[Any, ServiceReference[Any]]]]:
         """
         Stops the dependency manager (must be called before clear())
 
@@ -617,14 +623,14 @@ class AggregateDependency(_RuntimeDependency):
                 raise ValueError("Requirement not set")
 
             # Get all matching services
-            refs = self._context.get_all_service_references(
+            refs: Optional[List[ServiceReference[Any]]] = self._context.get_all_service_references(
                 self.requirement.specification, self.requirement.filter
             )
             if not refs:
                 # No match found
                 return
 
-            results: List[ServiceReference] = []
+            results: List[ServiceReference[Any]] = []
             try:
                 # Bind all new reference
                 for reference in refs:

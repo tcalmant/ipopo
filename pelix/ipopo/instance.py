@@ -28,17 +28,33 @@ Instance manager class definition
 import logging
 import threading
 import traceback
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Concatenate,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    ParamSpec,
+    Set,
+    TypeVar,
+    cast,
+)
 
 import pelix.ipopo.constants as constants
 import pelix.ipopo.handlers.constants as handlers_const
 from pelix.constants import FrameworkException
+from pelix.framework import BundleContext
+from pelix.internals.events import ServiceEvent
+from pelix.internals.registry import ServiceReference
+from pelix.ipopo.contexts import ComponentContext
 
 if TYPE_CHECKING:
-    from pelix.framework import ServiceEvent, ServiceReference
-    from pelix.ipopo.contexts import ComponentContext
     from pelix.ipopo.core import _IPopoService
 
+P = ParamSpec("P")
 T = TypeVar("T")
 
 # ------------------------------------------------------------------------------
@@ -93,7 +109,7 @@ class StoredInstance:
     def __init__(
         self,
         ipopo_service: "_IPopoService",
-        context: "ComponentContext",
+        context: ComponentContext,
         instance: Any,
         handlers: Iterable[handlers_const.Handler],
     ) -> None:
@@ -115,16 +131,16 @@ class StoredInstance:
         self._ipopo_service: Optional["_IPopoService"] = ipopo_service
 
         # Component context
-        self.context: Optional["ComponentContext"] = context
+        self.context: Optional[ComponentContext] = context
 
         # The instance name
-        self.name = self.context.name
+        self.name: str = self.context.name
 
         # Factory name
         self.factory_name = self.context.get_factory_name()
 
         # Component instance
-        self.instance = instance
+        self.instance: Any = instance
 
         # Set the instance state
         self.state = StoredInstance.INVALID
@@ -133,7 +149,7 @@ class StoredInstance:
         self.error_trace: Optional[str] = None
 
         # Store the bundle context
-        self.bundle_context = self.context.get_bundle_context()
+        self.bundle_context: BundleContext = self.context.get_bundle_context()
 
         # The controllers state dictionary
         self._controllers_state: Dict[str, bool] = {}
@@ -159,7 +175,7 @@ class StoredInstance:
         """
         return f"StoredInstance(Name={self.name}, State={self.state})"
 
-    def check_event(self, event: "ServiceEvent") -> bool:
+    def check_event(self, event: ServiceEvent[Any]) -> bool:
         """
         Tests if the given service event must be handled or ignored, based
         on the state of the iPOPO service and on the content of the event.
@@ -173,10 +189,10 @@ class StoredInstance:
                 # ignore it
                 return False
 
-            return self.__safe_handlers_callback("check_event", event)
+            return self.__safe_handlers_callback(handlers_const.Handler.check_event, event)
 
     def bind(
-        self, dependency: handlers_const.DependencyHandler, svc: T, svc_ref: "ServiceReference[T]"
+        self, dependency: handlers_const.DependencyHandler, svc: T, svc_ref: ServiceReference[T]
     ) -> None:
         """
         Called by a dependency manager to inject a new service and update the
@@ -190,7 +206,7 @@ class StoredInstance:
         self,
         dependency: handlers_const.DependencyHandler,
         svc: T,
-        svc_ref: "ServiceReference[T]",
+        svc_ref: ServiceReference[T],
         old_properties: Dict[str, Any],
         new_value: bool = False,
     ) -> None:
@@ -209,7 +225,7 @@ class StoredInstance:
             self.check_lifecycle()
 
     def unbind(
-        self, dependency: handlers_const.DependencyHandler, svc: T, svc_ref: "ServiceReference[T]"
+        self, dependency: handlers_const.DependencyHandler, svc: T, svc_ref: ServiceReference[T]
     ) -> None:
         """
         Called by a dependency manager to remove an injected service and to
@@ -245,7 +261,7 @@ class StoredInstance:
         """
         with self._lock:
             self._controllers_state[name] = value
-            self.__safe_handlers_callback("on_controller_change", name, value)
+            self.__safe_handlers_callback(handlers_const.Handler.on_controller_change, name, value)
 
     def update_property(self, name: str, old_value: Any, new_value: Any) -> None:
         """
@@ -256,7 +272,9 @@ class StoredInstance:
         :param new_value: The new property value
         """
         with self._lock:
-            self.__safe_handlers_callback("on_property_change", name, old_value, new_value)
+            self.__safe_handlers_callback(
+                handlers_const.Handler.on_property_change, name, old_value, new_value
+            )
 
     def update_hidden_property(self, name: str, old_value: Any, new_value: Any) -> None:
         """
@@ -267,7 +285,9 @@ class StoredInstance:
         :param new_value: The new property value
         """
         with self._lock:
-            self.__safe_handlers_callback("on_hidden_property_change", name, old_value, new_value)
+            self.__safe_handlers_callback(
+                handlers_const.Handler.on_hidden_property_change, name, old_value, new_value
+            )
 
     def get_handlers(self, kind: Optional[str] = None) -> List[handlers_const.Handler]:
         """
@@ -302,8 +322,8 @@ class StoredInstance:
                 StoredInstance.VALID,
             )
 
-            # Test the validity of all handlers
-            handlers_valid = self.__safe_handlers_callback("is_valid", break_on_false=True)
+            # Test the validity of all handlers, stop on first invalid one
+            handlers_valid = all(handler.is_valid() for handler in self.__all_handlers)
 
             if was_valid and not handlers_valid:
                 # A dependency is missing
@@ -320,14 +340,26 @@ class StoredInstance:
         """
         with self._lock:
             all_valid = True
-            for handler in self.get_handlers(handlers_const.KIND_DEPENDENCY):
+            for handler in cast(
+                List[handlers_const.DependencyHandler], self.get_handlers(handlers_const.KIND_DEPENDENCY)
+            ):
                 # Try to bind
-                self.__safe_handler_callback(handler, "try_binding")
+                try:
+                    handler.try_binding()
+                except Exception as ex:
+                    # Ignore exception
+                    self._logger.debug("Error calling try_binding() on %s: %s", handler, ex)
 
                 # Update the validity flag
-                all_valid &= self.__safe_handler_callback(
-                    handler, "is_valid", only_boolean=True, none_as_true=True
-                )
+                try:
+                    handler_valid = handler.is_valid()
+                except Exception as ex:
+                    # Don't update the validity flag
+                    self._logger.debug("Error calling is_valid() on %s: %s", handler, ex)
+                else:
+                    # Consider None as True
+                    all_valid &= handler_valid or handler_valid is None
+
             return all_valid
 
     def start(self) -> None:
@@ -335,7 +367,7 @@ class StoredInstance:
         Starts the handlers
         """
         with self._lock:
-            self.__safe_handlers_callback("start")
+            self.__safe_handlers_callback(handlers_const.Handler.start)
 
     def retry_erroneous(self, properties_update: Optional[Dict[str, Any]]) -> int:
         """
@@ -385,7 +417,7 @@ class StoredInstance:
             self.state = StoredInstance.INVALID
 
             # Call the handlers
-            self.__safe_handlers_callback("pre_invalidate")
+            self.__safe_handlers_callback(handlers_const.Handler.pre_invalidate)
 
             # Call the component
             if callback:
@@ -400,7 +432,7 @@ class StoredInstance:
                 )
 
             # Call the handlers
-            self.__safe_handlers_callback("post_invalidate")
+            self.__safe_handlers_callback(handlers_const.Handler.post_invalidate)
             return True
 
     def kill(self) -> bool:
@@ -431,16 +463,22 @@ class StoredInstance:
 
             # Stop all handlers (can tell to unset a binding)
             for handler in self.get_handlers():
-                results = self.__safe_handler_callback(handler, "stop")
-                if results and isinstance(handler, handlers_const.DependencyHandler):
-                    try:
+                try:
+                    results = handler.stop()
+                except Exception as ex:
+                    self._logger.debug("Error calling stop() on %s: %s", handler, ex)
+                else:
+                    if results and isinstance(handler, handlers_const.DependencyHandler):
                         for binding in results:
-                            self.__unset_binding(handler, binding[0], binding[1])
-                    except Exception as ex:
-                        self._logger.exception("Error stopping handler '%s': %s", handler, ex)
+                            try:
+                                self.__unset_binding(handler, binding[0], binding[1])
+                            except Exception as ex:
+                                self._logger.exception(
+                                    "Error removing binding in handler '%s': %s", handler, ex
+                                )
 
             # Call the handlers
-            self.__safe_handlers_callback("clear")
+            self.__safe_handlers_callback(handlers_const.Handler.clear)
 
             # Change the state
             self.state = StoredInstance.KILLED
@@ -475,13 +513,13 @@ class StoredInstance:
                 return False
 
             if self.state == StoredInstance.KILLED:
-                raise RuntimeError("{0}: Zombies !".format(self.name))
+                raise RuntimeError(f"{self.name}: Zombies !")
 
             # Clear the error trace
             self.error_trace = None
 
             # Call the handlers
-            self.__safe_handlers_callback("pre_validate")
+            self.__safe_handlers_callback(handlers_const.Handler.pre_validate)
 
             if safe_callback:
                 # Safe call back needed and not yet passed
@@ -501,7 +539,7 @@ class StoredInstance:
             self.state = StoredInstance.VALID
 
             # Call the handlers
-            self.__safe_handlers_callback("post_validate")
+            self.__safe_handlers_callback(handlers_const.Handler.post_validate)
 
             # We may have caused a framework error, so check if iPOPO is active
             if self._ipopo_service is not None:
@@ -720,83 +758,22 @@ class StoredInstance:
             return False
         except:
             self._logger.exception(
-                "Component '%s' : error calling " "callback method for event %s",
+                "Component '%s' : error calling callback method for event %s",
                 self.name,
                 event,
             )
             return False
 
-    def __safe_handler_callback(
-        self, handler: handlers_const.Handler, method_name: str, *args: Any, **kwargs: Any
-    ) -> Any:
-        """
-        Calls the given method with the given arguments in the given handler.
-        Logs exceptions, but doesn't propagate them.
-
-        Special arguments can be given in kwargs:
-
-        * 'none_as_true': If set to True and the method returned None or
-                          doesn't exist, the result is considered as True.
-                          If set to False, None result is kept as is.
-                          Default is False.
-        * 'only_boolean': If True, the result can only be True or False, else
-                          the result is the value returned by the method.
-                          Default is False.
-
-        :param handler: The handler to call
-        :param method_name: The name of the method to call
-        :param args: List of arguments for the method to call
-        :param kwargs: Dictionary of arguments for the method to call and to control the call
-        :return: The method result, or None on error
-        """
-        if handler is None or method_name is None:
-            return None
-
-        # Behavior flags
-        only_boolean = kwargs.pop("only_boolean", False)
-        none_as_true = kwargs.pop("none_as_true", False)
-
-        # Get the method for each handler
-        try:
-            method = getattr(handler, method_name)
-        except AttributeError:
-            # Method not found
-            result = None
-        else:
-            try:
-                # Call it
-                result = method(*args, **kwargs)
-            except Exception as ex:
-                # No result
-                result = None
-
-                # Log error
-                self._logger.exception("Error calling handler '%s': %s", handler, ex)
-
-        if result is None and none_as_true:
-            # Consider None (nothing returned) as True
-            result = True
-
-        if only_boolean:
-            # Convert to a boolean result
-            return bool(result)
-
-        return result
-
-    def __safe_handlers_callback(self, method_name: str, *args: Any, **kwargs: Any) -> bool:
+    def __safe_handlers_callback(
+        self,
+        method: Callable[Concatenate[handlers_const.Handler, P], Optional[bool]],
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> bool:
         """
         Calls the given method with the given arguments in all handlers.
         Logs exceptions, but doesn't propagate them.
         Methods called in handlers must return None, True or False.
-
-        Special parameters can be given in kwargs:
-
-        * 'exception_as_error': if it is set to True and an exception is raised
-          by a handler, then this method will return False. By default, this
-          flag is set to False and exceptions are ignored.
-        * 'break_on_false': if it set to True, the loop calling the handler
-          will stop after an handler returned False. By default, this flag
-          is set to False, and all handlers are called.
 
         :param method_name: Name of the method to call
         :param args: List of arguments for the method to call
@@ -807,40 +784,25 @@ class StoredInstance:
             # Nothing to do
             return False
 
-        # Behavior flags
-        exception_as_error = kwargs.pop("exception_as_error", False)
-        break_on_false = kwargs.pop("break_on_false", False)
-
         result = True
         for handler in self.get_handlers():
             # Get the method for each handler
             try:
-                method = getattr(handler, method_name)
-            except AttributeError:
-                # Ignore missing methods
-                pass
-            else:
-                try:
-                    # Call it
-                    res = method(*args, **kwargs)
-                    if res is not None and not res:
-                        # Ignore 'None' results
-                        result = False
-                except Exception as ex:
-                    # Log errors
-                    self._logger.exception("Error calling handler '%s': %s", handler, ex)
-
-                    # We can consider exceptions as errors or ignore them
-                    result = result and not exception_as_error
-
-                if not handler and break_on_false:
-                    # The loop can stop here
-                    break
+                # Get the bound method
+                handler_method = cast(Callable[P, Optional[bool]], getattr(handler, method.__name__))
+                # Call it
+                res = handler_method(*args, **kwargs)
+                if res is not None and not res:
+                    # Ignore 'None' results
+                    result = False
+            except Exception as ex:
+                # Log errors
+                self._logger.exception("Error calling handler '%s': %s", handler, ex)
 
         return result
 
     def __set_binding(
-        self, dependency: handlers_const.DependencyHandler, service: T, reference: "ServiceReference[T]"
+        self, dependency: handlers_const.DependencyHandler, service: T, reference: ServiceReference[T]
     ) -> None:
         """
         Injects a service in the component
@@ -870,7 +832,7 @@ class StoredInstance:
         self,
         dependency: handlers_const.DependencyHandler,
         service: T,
-        reference: "ServiceReference[T]",
+        reference: ServiceReference[T],
         old_properties: Dict[str, Any],
         new_value: bool,
     ) -> None:
@@ -904,7 +866,7 @@ class StoredInstance:
         self.safe_callback(constants.IPOPO_CALLBACK_UPDATE, service, reference, old_properties)
 
     def __unset_binding(
-        self, dependency: handlers_const.DependencyHandler, service: T, reference: "ServiceReference[T]"
+        self, dependency: handlers_const.DependencyHandler, service: T, reference: ServiceReference[T]
     ) -> None:
         """
         Removes a service from the component

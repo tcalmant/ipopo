@@ -25,7 +25,7 @@ Definition of Factory and Component context classes
     limitations under the License.
 """
 
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar, Union, cast
 
 import pelix.ipopo.constants as constants
 import pelix.ldapfilter as ldapfilter
@@ -246,10 +246,10 @@ class FactoryContext:
         self.bundle_context: Optional[BundleContext] = None
 
         # Callbacks : Kind -> callback method
-        self.callbacks = {}  # FIXME
+        self.callbacks: Dict[str, Callable[..., Any]] = {}
 
         # Field callbacks: Field -> {Kind -> Callback}
-        self.field_callbacks = {}  # FIXME
+        self.field_callbacks: Dict[str, Dict[str, Tuple[Callable[..., Any], bool]]] = {}
 
         # The factory name
         self.name: Optional[str] = None
@@ -302,7 +302,7 @@ class FactoryContext:
         """
         return not self.__eq__(other)
 
-    def _deepcopy(self, data: Any) -> Any:
+    def _deepcopy(self, data: T) -> T:
         """
         Deep copies the given object
 
@@ -311,14 +311,14 @@ class FactoryContext:
         """
         if isinstance(data, dict):
             # Copy dictionary values
-            return {key: self._deepcopy(value) for key, value in data.items()}
+            return cast(T, {key: self._deepcopy(value) for key, value in data.items()})
         elif isinstance(data, (list, tuple, set, frozenset)):
             # Copy sequence types values
-            return type(data)(self._deepcopy(value) for value in data)
+            return cast(T, type(data)(self._deepcopy(value) for value in data))
 
         try:
             # Try to use a copy() method, if any
-            return data.copy()
+            return data.copy()  # type: ignore
         except AttributeError:
             # Can't copy the data, return it as is
             return data
@@ -495,7 +495,7 @@ class ComponentContext:
             raise ValueError(f"Bundle context not set for factory {self.name}")
         return self.factory_context.bundle_context
 
-    def get_callback(self, event: str) -> Optional[Callable]:
+    def get_callback(self, event: str) -> Optional[Callable[..., Any]]:
         """
         Retrieves the registered method for the given event. Returns None if
         not found
@@ -508,7 +508,7 @@ class ComponentContext:
         except KeyError:
             return None
 
-    def get_field_callback(self, field: str, event: str) -> Optional[Tuple[Callable, bool]]:
+    def get_field_callback(self, field: str, event: str) -> Optional[Tuple[Callable[..., Any], bool]]:
         """
         Retrieves the registered method for the given event. Returns None if
         not found

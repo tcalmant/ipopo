@@ -27,7 +27,7 @@ RequiresBroadcast handler implementation
 
 import logging
 import threading
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
@@ -35,8 +35,8 @@ import pelix.ipopo.handlers.requires as requires
 from pelix.constants import ActivatorProto, BundleActivator, BundleException
 from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
-from pelix.internals.registry import ServiceListener, ServiceReference
-from pelix.ipopo.contexts import Requirement
+from pelix.internals.registry import ServiceListener, ServiceReference, ServiceRegistration
+from pelix.ipopo.contexts import ComponentContext, Requirement
 from pelix.ipopo.instance import StoredInstance
 
 # ------------------------------------------------------------------------------
@@ -52,12 +52,11 @@ __docformat__ = "restructuredtext en"
 
 
 class _HandlerFactory(requires._HandlerFactory):
-    # pylint: disable=W0212, R0903
     """
     Factory service for service registration handlers
     """
 
-    def get_handlers(self, component_context, instance):
+    def get_handlers(self, component_context: ComponentContext, instance: Any) -> Iterable[constants.Handler]:
         """
         Sets up service providers for the given component
 
@@ -90,13 +89,13 @@ class Activator(ActivatorProto):
     The bundle activator
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up members
         """
-        self._registration = None
+        self._registration: Optional[ServiceRegistration[constants.HandlerFactory]] = None
 
-    def start(self, context):
+    def start(self, context: BundleContext) -> None:
         """
         Bundle started
         """
@@ -105,12 +104,12 @@ class Activator(ActivatorProto):
 
         # Register the handler factory service
         self._registration = context.register_service(
-            constants.SERVICE_IPOPO_HANDLER_FACTORY,
+            constants.HandlerFactory,
             _HandlerFactory(),
             properties,
         )
 
-    def stop(self, _):
+    def stop(self, _: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -128,7 +127,7 @@ class _ProxyDummy:
     Dummy "Yes Man" object
     """
 
-    def __init__(self, handler: "BroadcastDependency", name: Optional[str]):
+    def __init__(self, handler: "BroadcastDependency", name: Optional[str]) -> None:
         """
         :param handler: The parent BroadcastHandler
         :param name: Name of this field
@@ -136,7 +135,7 @@ class _ProxyDummy:
         self.__handler = handler
         self.__name = name
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         """
         Returns True if at least one service is bound
         """
@@ -148,7 +147,7 @@ class _ProxyDummy:
         """
         return self.__handler.handle_call(self.__name, args, kwargs)
 
-    def __getattr__(self, member):
+    def __getattr__(self, member: str) -> Any:
         """
         Recursive proxy
         """
@@ -203,12 +202,12 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
         self._logger = logging.getLogger("-".join(("<n/a>", "RequiresBroadcast", field)))
 
         # Reference -> Service
-        self._services: Dict[ServiceReference, Any] = {}
+        self._services: Dict[ServiceReference[Any], Any] = {}
 
         # Length of the future injected list
         self._future_len = 0
 
-    def manipulate(self, stored_instance, component_instance):
+    def manipulate(self, stored_instance: StoredInstance, component_instance: Any) -> None:
         """
         Stores the given StoredInstance bean.
 
@@ -228,7 +227,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
         if self.requirement.optional:
             setattr(component_instance, self._field, self._proxy)
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Cleans up the manager. The manager can't be used after this method has
         been called
@@ -239,9 +238,8 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
         self._context = None
         self._muffle_ex = False
         self._trace_ex = False
-        self._proxy = None
 
-    def get_bindings(self):
+    def get_bindings(self) -> List[ServiceReference[Any]]:
         """
         Retrieves the list of the references to the bound services
 
@@ -250,13 +248,13 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
         with self._lock:
             return list(self._services.keys())
 
-    def get_field(self):
+    def get_field(self) -> str:
         """
         Returns the name of the field handled by this handler
         """
         return self._field
 
-    def get_kinds(self):
+    def get_kinds(self) -> Tuple[str]:
         """
         Retrieves the kinds of this handler: 'dependency'
 
@@ -264,7 +262,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
         """
         return (constants.KIND_DEPENDENCY,)
 
-    def get_value(self):
+    def get_value(self) -> Any:
         """
         Retrieves the value to inject in the component
 
@@ -277,19 +275,19 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
         # Invalid state
         return None
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """
         Tests if the dependency is in a valid state
         """
         return (self.requirement is not None and self.requirement.optional) or self._future_len > 0
 
-    def has_services(self):
+    def has_services(self) -> bool:
         """
         Indicates if at least one service is bound (used by the proxy)
         """
         return self._future_len > 0
 
-    def on_service_arrival(self, svc_ref: ServiceReference) -> bool:
+    def on_service_arrival(self, svc_ref: ServiceReference[Any]) -> bool:
         """
         Called when a service has been registered in the framework
 
@@ -311,7 +309,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
             self._ipopo_instance.bind(self, svc, svc_ref)
             return True
 
-    def on_service_departure(self, svc_ref: ServiceReference) -> bool:
+    def on_service_departure(self, svc_ref: ServiceReference[Any]) -> bool:
         """
         Called when a service has been unregistered from the framework
 
@@ -342,7 +340,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
 
             return True
 
-    def service_changed(self, event):
+    def service_changed(self, event: ServiceEvent[Any]) -> None:
         """
         Called by the framework when a service event occurs
         """
@@ -367,7 +365,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
             # Service gone or not matching anymore
             self.on_service_departure(svc_ref)
 
-    def start(self):
+    def start(self) -> None:
         """
         Starts the dependency manager
         """
@@ -376,7 +374,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
 
         self._context.add_service_listener(self, self.requirement.filter, self.requirement.specification)
 
-    def stop(self):
+    def stop(self) -> Optional[List[Tuple[Any, ServiceReference[Any]]]]:
         """
         Stops the dependency manager (must be called before clear())
 
@@ -391,7 +389,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
 
         return None
 
-    def try_binding(self):
+    def try_binding(self) -> None:
         """
         Searches for the required service if needed
 
@@ -407,7 +405,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
                 raise ValueError("Requirement not set up")
 
             # Get all matching services
-            refs = self._context.get_all_service_references(
+            refs: Optional[List[ServiceReference[Any]]] = self._context.get_all_service_references(
                 self.requirement.specification, self.requirement.filter
             )
             if not refs:

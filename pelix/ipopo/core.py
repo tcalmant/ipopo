@@ -35,12 +35,12 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Type, cast
 import pelix.ipopo.constants as constants
 import pelix.ipopo.handlers.constants as handlers_const
 from pelix.constants import SERVICE_ID, ActivatorProto, BundleActivator, BundleException
-from pelix.framework import Bundle, BundleContext, ServiceReference
+from pelix.framework import Bundle, BundleContext
 from pelix.internals.events import BundleEvent, ServiceEvent
-from pelix.internals.registry import ServiceRegistration
-from pelix.ipopo.contexts import ComponentContext, FactoryContext
+from pelix.internals.registry import ServiceRegistration, ServiceReference
+from pelix.ipopo.constants import IPopoEventListener, IPopoService
+from pelix.ipopo.contexts import ComponentContext, FactoryContext, Requirement
 from pelix.ipopo.instance import StoredInstance
-from pelix.ipopo.protocols import IPopoEventListener, IPopoService
 from pelix.utilities import add_listener, is_string, remove_listener
 
 # ------------------------------------------------------------------------------
@@ -73,7 +73,7 @@ BUILTIN_HANDLERS = (
 
 
 def _set_factory_context(
-    factory_class: Type, bundle_context: Optional[BundleContext]
+    factory_class: Type[Any], bundle_context: Optional[BundleContext]
 ) -> Optional[FactoryContext]:
     """
     Transforms the context data dictionary into its FactoryContext object form.
@@ -159,7 +159,7 @@ class _IPopoService(IPopoService):
         self.__context = bundle_context
 
         # Factories registry : name -> factory class
-        self.__factories: Dict[str, Type] = {}
+        self.__factories: Dict[str, Type[Any]] = {}
 
         # Instances registry : name -> StoredInstance object
         self.__instances: Dict[str, StoredInstance] = {}
@@ -187,7 +187,7 @@ class _IPopoService(IPopoService):
         self.__waiting_handlers: Dict[str, Tuple[ComponentContext, Any]] = {}
 
         # Register the service listener
-        bundle_context.add_service_listener(self, None, handlers_const.SERVICE_IPOPO_HANDLER_FACTORY)
+        bundle_context.add_service_listener(self, None, handlers_const.HandlerFactory)
         self.__find_handler_factories()
 
     def __find_handler_factories(self) -> None:
@@ -195,7 +195,7 @@ class _IPopoService(IPopoService):
         Finds all registered handler factories and stores them
         """
         # Get the references
-        svc_refs = self.__context.get_all_service_references(handlers_const.SERVICE_IPOPO_HANDLER_FACTORY)
+        svc_refs = self.__context.get_all_service_references(handlers_const.HandlerFactory)
         if svc_refs:
             for svc_ref in svc_refs:
                 # Store each handler factory
@@ -276,13 +276,13 @@ class _IPopoService(IPopoService):
 
             # Try to find a new handler factory
             new_ref = self.__context.get_service_reference(
-                handlers_const.SERVICE_IPOPO_HANDLER_FACTORY,
+                handlers_const.HandlerFactory,
                 f"({handlers_const.PROP_HANDLER_ID}={handler_id})",
             )
             if new_ref is not None:
                 self.__add_handler_factory(new_ref)
 
-    def __get_factory_with_context(self, factory_name: str) -> Tuple[Type, FactoryContext]:
+    def __get_factory_with_context(self, factory_name: str) -> Tuple[Type[Any], FactoryContext]:
         """
         Retrieves the factory registered with the given and its factory context
 
@@ -525,7 +525,7 @@ class _IPopoService(IPopoService):
                 for name, properties in context.get_instances().items():
                     self.instantiate(context.name, name, properties)
 
-    def _register_factory(self, factory_name: str, factory: Type, override: bool) -> None:
+    def _register_factory(self, factory_name: str, factory: Type[Any], override: bool) -> None:
         """
         Registers a component factory
 
@@ -643,7 +643,7 @@ class _IPopoService(IPopoService):
             # Update failed, clean the stored components
             self._autorestart_clear_components(bundle)
 
-    def service_changed(self, event: ServiceEvent) -> None:
+    def service_changed(self, event: ServiceEvent[Any]) -> None:
         """
         Called when a handler factory service is un/registered
         """
@@ -814,7 +814,7 @@ class _IPopoService(IPopoService):
                 except KeyError:
                     raise ValueError(f"Unknown component instance '{name}'")
 
-    def register_factory(self, bundle_context: BundleContext, factory: Type) -> bool:
+    def register_factory(self, bundle_context: BundleContext, factory: Type[Any]) -> bool:
         """
         Registers a manually created factory, using decorators programmatically
 
@@ -1133,8 +1133,10 @@ class _IPopoService(IPopoService):
             }
 
             # Requirements (list of dictionaries)
-            reqs = result["requirements"] = []  # FIXME
-            handler_requires = context.get_handler(constants.HANDLER_REQUIRES)
+            handler_requires = cast(
+                Optional[Dict[str, Requirement]], context.get_handler(constants.HANDLER_REQUIRES)
+            )
+            reqs: List[Dict[str, Any]] = []
             if handler_requires is not None:
                 for field, requirement in handler_requires.items():
                     reqs.append(
@@ -1146,9 +1148,13 @@ class _IPopoService(IPopoService):
                             "filter": requirement.original_filter,
                         }
                     )
+            result["requirements"] = reqs
 
             # Provided services (list of list of specifications)
-            handler_provides = context.get_handler(constants.HANDLER_PROVIDES)
+            handler_provides = cast(
+                Optional[List[Tuple[List[str], Optional[str], bool, bool]]],
+                context.get_handler(constants.HANDLER_PROVIDES),
+            )
             if handler_provides is not None:
                 result["services"] = [specs_controller[0] for specs_controller in handler_provides]
             else:

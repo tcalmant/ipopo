@@ -25,11 +25,14 @@ Properties handler
     limitations under the License.
 """
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Callable, Iterable, Optional, Tuple, TypeVar
 
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
 from pelix.constants import ActivatorProto, BundleActivator
+from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceRegistration
+from pelix.ipopo.contexts import ComponentContext
 from pelix.ipopo.instance import StoredInstance
 
 # ------------------------------------------------------------------------------
@@ -41,16 +44,17 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+T = TypeVar("T")
+
 # ------------------------------------------------------------------------------
 
 
 class _HandlerFactory(constants.HandlerFactory):
-    # pylint: disable=R0903
     """
     Factory service for service registration handlers
     """
 
-    def get_handlers(self, component_context, instance):
+    def get_handlers(self, component_context: ComponentContext, instance: Any) -> Iterable[constants.Handler]:
         """
         Sets up service providers for the given component
 
@@ -68,13 +72,13 @@ class Activator(ActivatorProto):
     The bundle activator
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up members
         """
-        self._registration = None
+        self._registration: Optional[ServiceRegistration[constants.HandlerFactory]] = None
 
-    def start(self, context):
+    def start(self, context: BundleContext) -> None:
         """
         Bundle started
         """
@@ -83,12 +87,12 @@ class Activator(ActivatorProto):
 
         # Register the handler factory service
         self._registration = context.register_service(
-            constants.SERVICE_IPOPO_HANDLER_FACTORY,
+            constants.HandlerFactory,
             _HandlerFactory(),
             properties,
         )
 
-    def stop(self, _):
+    def stop(self, _: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -110,7 +114,9 @@ class PropertiesHandler(constants.Handler):
         super().__init__()
         self._ipopo_instance: Optional[StoredInstance] = None
 
-    def _field_property_generator(self, public_properties: Dict[str, Any]):
+    def _field_property_generator(
+        self, public_properties: bool
+    ) -> Tuple[Callable[[T, str], Any], Callable[[T, str, Any], Any]]:
         """
         Generates the methods called by the injected class properties
 
@@ -134,7 +140,7 @@ class PropertiesHandler(constants.Handler):
             properties = stored_instance.context.grab_hidden_properties()
             update_notifier = stored_instance.update_hidden_property
 
-        def get_value(_, name: str) -> Any:
+        def get_value(_: T, name: str) -> Any:
             """
             Retrieves the property value, from the iPOPO dictionaries
 
@@ -143,7 +149,7 @@ class PropertiesHandler(constants.Handler):
             """
             return properties.get(name)
 
-        def set_value(_, name: str, new_value: Any) -> Any:
+        def set_value(_: T, name: str, new_value: Any) -> Any:
             """
             Sets the property value and trigger an update event
 
@@ -166,7 +172,7 @@ class PropertiesHandler(constants.Handler):
         return get_value, set_value
 
     @staticmethod
-    def get_methods_names(public_properties: Dict[str, Any]) -> Tuple[str, str]:
+    def get_methods_names(public_properties: bool) -> Tuple[str, str]:
         """
         Generates the names of the fields where to inject the getter and setter
         methods
@@ -188,7 +194,7 @@ class PropertiesHandler(constants.Handler):
     def get_kinds(self) -> Tuple[str]:
         return (constants.KIND_PROPERTIES,)
 
-    def manipulate(self, stored_instance, component_instance):
+    def manipulate(self, stored_instance: StoredInstance, component_instance: Any) -> None:
         """
         Manipulates the component instance
 

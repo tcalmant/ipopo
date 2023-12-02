@@ -26,15 +26,16 @@ Temporal dependency handler
 """
 
 import threading
-from typing import Any, Callable, Dict, Generic, Optional, Tuple, TypeVar, cast
+from typing import Any, Callable, Dict, Generic, Iterable, Optional, Tuple, TypeVar, cast
+from pelix.framework import BundleContext
 
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
 import pelix.ipopo.handlers.requires as requires
 import pelix.utilities as utilities
 from pelix.constants import ActivatorProto, BundleActivator
-from pelix.internals.registry import ServiceReference
-from pelix.ipopo.contexts import Requirement
+from pelix.internals.registry import ServiceReference, ServiceRegistration
+from pelix.ipopo.contexts import ComponentContext, Requirement
 
 # ------------------------------------------------------------------------------
 
@@ -51,7 +52,6 @@ T = TypeVar("T")
 
 
 class _HandlerFactory(constants.HandlerFactory):
-    # pylint: disable=R0903
     """
     Factory service for service registration handlers
     """
@@ -111,7 +111,7 @@ class _HandlerFactory(constants.HandlerFactory):
 
         return new_configs
 
-    def get_handlers(self, component_context, instance):
+    def get_handlers(self, component_context: ComponentContext, instance: Any) -> Iterable[constants.Handler]:
         """
         Sets up service providers for the given component
 
@@ -140,13 +140,13 @@ class Activator(ActivatorProto):
     The bundle activator
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up members
         """
-        self._registration = None
+        self._registration: Optional[ServiceRegistration[constants.HandlerFactory]] = None
 
-    def start(self, context):
+    def start(self, context: BundleContext) -> None:
         """
         Bundle started
         """
@@ -155,12 +155,12 @@ class Activator(ActivatorProto):
 
         # Register the handler factory service
         self._registration = context.register_service(
-            constants.SERVICE_IPOPO_HANDLER_FACTORY,
+            constants.HandlerFactory,
             _HandlerFactory(),
             properties,
         )
 
-    def stop(self, _):
+    def stop(self, _: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -261,7 +261,7 @@ class TemporalDependency(requires.SimpleDependency):
         # The injected value is the proxy
         self._value = _TemporalProxy(self.__timeout)
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Cleans up the manager. The manager can't be used after this method has
         been called
