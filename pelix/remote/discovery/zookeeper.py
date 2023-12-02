@@ -204,7 +204,7 @@ class ZooKeeperClient:
         """
         return self._zk.ensure_path(self.__path(path))
 
-    def get(self, path: str, watch: Optional[Callable[[WatchedEvent], None]] = None) -> None:
+    def get(self, path: str, watch: Optional[Callable[[WatchedEvent], None]] = None) -> Any:
         """
         Gets the content of a ZooKeeper node
 

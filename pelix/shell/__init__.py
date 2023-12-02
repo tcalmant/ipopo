@@ -268,7 +268,7 @@ class RemoteShell(Protocol):
 
     __SPECIFICATION__: str = SERVICE_SHELL_REMOTE
 
-    def get_access(self) -> Tuple[str, int]:
+    def get_access(self) -> Tuple[Optional[str], Optional[int]]:
         """
         Returns the real access to this remote shell.
         Can raise an exception or return default values if not ready.

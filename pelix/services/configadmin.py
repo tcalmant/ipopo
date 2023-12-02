@@ -52,7 +52,8 @@ from pelix.ipopo.decorators import (
 )
 
 if TYPE_CHECKING:
-    from pelix.framework import BundleContext, ServiceReference
+    from pelix.framework import BundleContext
+    from pelix.internals.registry import ServiceReference
 
 # ------------------------------------------------------------------------------
 
@@ -81,11 +82,11 @@ class IConfigurationAdminDirectory(Protocol):
     Specification of a configuration admin directory service
     """
 
-    __SPECIFICATION__:str = SERVICE_CONFIGADMIN_DIRECTORY
+    __SPECIFICATION__: str = SERVICE_CONFIGADMIN_DIRECTORY
 
     def list_configurations(
         self, ldap_filter: Union[None, str, ldapfilter.LdapFilterOrCriteria] = None
-    ) -> List[services.Configuration]:
+    ) -> Iterable[services.Configuration]:
         """
         Lists known configuration
         """
@@ -131,7 +132,7 @@ class IConfigurationAdminDirectory(Protocol):
 # ------------------------------------------------------------------------------
 
 
-class Configuration:
+class Configuration(services.Configuration):
     """
     Configuration object
     """
@@ -158,7 +159,7 @@ class Configuration:
         self.__factory_pid = factory_pid
 
         # Properties
-        self.__properties = None
+        self.__properties: Optional[Dict[str, Any]] = None
         self.__lock = threading.RLock()
 
         # Associated services
@@ -166,9 +167,9 @@ class Configuration:
         self.__persistence = persistence
 
         # Configuration state
-        self.__updated = False
-        self.__deleted = False
-        self.__location = None
+        self.__updated: bool = False
+        self.__deleted: bool = False
+        self.__location: Optional[str] = None
 
         # Update using given properties, if any
         self.__properties_update(properties)
@@ -449,7 +450,9 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         """
         return set(self.__factories.get(factory_pid, []))
 
-    def list_configurations(self, ldap_filter: Union[None, str, ldapfilter.LdapFilterOrCriteria] = None):
+    def list_configurations(
+        self, ldap_filter: Union[None, str, ldapfilter.LdapFilterOrCriteria] = None
+    ) -> Iterable[services.Configuration]:
         """
         Returns the list of stored configurations
 
@@ -1019,7 +1022,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
 
     def list_configurations(
         self, ldap_filter: Union[None, str, ldapfilter.LdapFilterOrCriteria] = None
-    ) -> List[services.Configuration]:
+    ) -> Iterable[services.Configuration]:
         """
         List the current Configuration objects which match the filter.
 
@@ -1064,7 +1067,7 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
     # Configurations directory
     _directory: IConfigurationAdminDirectory
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up members
         """
@@ -1172,7 +1175,7 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
             data = filep.read()
 
         # Store the configuration
-        return json.loads(data)
+        return cast(Dict[str, Any], json.loads(data))
 
     def store(self, pid: str, properties: Dict[str, Any]) -> None:
         """

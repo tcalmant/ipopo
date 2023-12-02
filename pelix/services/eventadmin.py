@@ -89,7 +89,7 @@ class EventAdmin(pelix.services.EventAdmin):
 
         # Get the handler service references
         assert self._context is not None
-        handlers_refs = self._context.get_all_service_references(pelix.services.SERVICE_EVENT_HANDLER, None)
+        handlers_refs = self._context.get_all_service_references(pelix.services.ServiceEventHandler, None)
 
         if handlers_refs is None:
             # No service found
@@ -164,7 +164,7 @@ class EventAdmin(pelix.services.EventAdmin):
 
             # Get the service
             return ref, self._context.get_service(ref)
-        except pelix.framework.BundleException:
+        except pelix.constants.BundleException:
             # Service disappeared
             return None, None
 
@@ -268,7 +268,7 @@ class EventAdmin(pelix.services.EventAdmin):
         self._context = context
 
         # Get the framework instance UID
-        self._fw_uid = cast(Optional[str], context.get_property(pelix.framework.FRAMEWORK_UID))
+        self._fw_uid = cast(Optional[str], context.get_property(pelix.constants.FRAMEWORK_UID))
 
         # Normalize properties
         try:

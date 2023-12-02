@@ -98,32 +98,32 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
     # Listeners (injected)
     _listeners: List[services.MqttListener]
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Sets up members
         """
         # ConfigAdmin PID
-        self._pid = None
+        self._pid: Optional[str] = None
 
         # Topics to subscribe to (topic -> nb_references)
         self._topics: Dict[str, Set[services.MqttListener]] = {}
 
         # Bundle context
-        self._context = None
+        self._context: Optional[BundleContext] = None
 
         # Active connections (PID -> connection)
         self._clients: Dict[str, paho.Client] = {}
 
         # Registered service (PID -> service registration)
-        self._services = {}
+        self._services: Dict[str, ServiceRegistration[Any]] = {}
 
         # Client loop thread
-        self._thread = None
+        self._thread: Optional[threading.Thread] = None
         self.__lock = threading.RLock()
         self.__stop_event = threading.Event()
 
         # Notification pool
-        self._pool = None
+        self._pool: Optional[pelix.threadpool.ThreadPool] = None
 
     @Validate
     def _validate(self, context: "BundleContext") -> None:

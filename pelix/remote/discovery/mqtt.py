@@ -199,6 +199,7 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         event = topic.rsplit("/", 1)[1]
 
         try:
+            parameter: Any
             if event in ENDPOINT_EVENTS:
                 # Parse the endpoints (from EDEF XML to ImportEndpoint)
                 endpoints_descr = EDEFReader().parse(message.payload)

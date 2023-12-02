@@ -34,9 +34,8 @@ import pelix.rsa as rsa
 from pelix.constants import OBJECTCLASS, SERVICE_SCOPE
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference, ServiceRegistration
-from pelix.ipopo.constants import ARG_BUNDLE_CONTEXT, ARG_PROPERTIES, IPOPO_INSTANCE_NAME
+from pelix.ipopo.constants import ARG_BUNDLE_CONTEXT, ARG_PROPERTIES, IPOPO_INSTANCE_NAME, IPopoService
 from pelix.ipopo.decorators import Invalidate, Requires, ValidateComponent
-from pelix.ipopo.protocols import IPopoService
 from pelix.rsa import (
     ECF_SERVICE_EXPORTED_ASYNC_INTERFACES,
     ENDPOINT_FRAMEWORK_UUID,

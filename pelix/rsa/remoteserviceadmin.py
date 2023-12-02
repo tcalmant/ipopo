@@ -32,7 +32,7 @@ import threading
 from datetime import datetime
 from distutils.util import strtobool
 from traceback import print_exception
-from typing import IO, Any, Dict, List, Optional, Protocol, Set, Tuple, cast
+from typing import IO, Any, Dict, List, Optional, Protocol, Set, Tuple, Union, cast
 
 from pelix import constants
 from pelix.constants import (
@@ -241,7 +241,7 @@ class ImportContainerSelector(Protocol):
 
     def select_import_container(
         self, remote_configs: List[str], endpoint_description: EndpointDescription
-    ) -> ImportContainer:
+    ) -> Optional[ImportContainer]:
         """
         Select import container, given endpoint_description
         (EndpointDescription).
@@ -320,16 +320,18 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
 
     def _get_export_regs(self) -> List[ExportRegistration]:
         with self._exported_regs_lock:
-            return self._exported_regs[:]
+            return list(self._exported_regs)
 
     def _get_import_regs(self) -> List[ImportRegistration]:
         with self._imported_regs_lock:
-            return self._imported_regs[:]
+            return list(self._imported_regs)
 
     def export_service(
         self, service_ref: ServiceReference[Any], overriding_props: Optional[Dict[str, Any]] = None
     ) -> List[ExportRegistration]:
         assert self._context is not None
+        bundle = self._get_bundle()
+        assert bundle is not None
 
         if service_ref is None:
             raise RemoteServiceError("service_ref must not be None")
@@ -339,7 +341,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
         # must be set by service_ref or overriding_props or error
         if not exported_intfs:
             raise RemoteServiceError(
-                SERVICE_EXPORTED_INTERFACES + " must be set in svc_ref properties or overriding_props"
+                f"{SERVICE_EXPORTED_INTERFACES} must be set in svc_ref properties or overriding_props"
             )
 
         # If the given exported_interfaces is not valid, then return empty list
@@ -377,13 +379,13 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
             error_reg = ExportRegistrationImpl.fromexception(
                 sys.exc_info(), EndpointDescription(service_ref, error_props)
             )
-            export_event = RemoteServiceAdminEvent.fromexportreg(self._get_bundle(), error_reg)
+            export_event = RemoteServiceAdminEvent.fromexportreg(bundle, error_reg)
             result_regs.append(error_reg)
             self._add_exported_service(error_reg)
             result_events.append(export_event)
 
         # If no errors added to result_regs then we continue
-        if not result_regs:
+        if not result_regs and exporters:
             # get _exported_regs_lock
             with self._exported_regs_lock:
                 # cycle through all exporters
@@ -421,7 +423,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
                                     self, exporter, export_ed, service_ref
                                 )
                                 export_event = RemoteServiceAdminEvent.fromexportreg(
-                                    self._get_bundle(), export_reg
+                                    bundle, export_reg
                                 )
                         except Exception:
                             export_reg = ExportRegistrationImpl.fromexception(
@@ -429,7 +431,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
                                 EndpointDescription.fromprops(ed_props),
                             )
                             export_event = RemoteServiceAdminEvent.fromexportreg(
-                                self._get_bundle(), export_reg
+                                bundle, export_reg
                             )
 
                         # add exported reg to exported services
@@ -438,7 +440,8 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
                         result_regs.append(export_reg)
                         # add to result_events
                         result_events.append(export_event)
-            # publish events
+
+        # publish events
         for e in result_events:
             self._publish_event(e)
         return result_regs
@@ -1234,6 +1237,8 @@ class ImportRegistrationImpl(ImportRegistration):
         exception: Optional[Tuple[Any, Any, Any]] = None,
         errored: Optional[EndpointDescription] = None,
     ) -> None:
+        self._rsa: Optional[RemoteServiceAdminImpl]
+
         if endpoint is None:
             if exception is None or errored is None:
                 raise RemoteServiceError("export endpoint or get_exception/errorED must not be null")
@@ -1363,7 +1368,7 @@ class ImportRegistrationImpl(ImportRegistration):
                 )
             )
 
-            self.__rsa = None  # type: ignore
+            self.__rsa = None
 
 
 # ------------------------------------------------------------------------------
@@ -1432,7 +1437,7 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
             RemoteServiceAdminEvent.IMPORT_ERROR,
         ]
 
-    def write_description(self, ed: EndpointDescription) -> None:
+    def write_description(self, ed: Optional[EndpointDescription]) -> None:
         if self._write_endpoint and ed:
             self._output.write("---Endpoint Description---\n")
             self._output.write(self._writer.to_string([ed]))
@@ -1480,7 +1485,7 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
 
     def write_event(self, rsa_event: RemoteServiceAdminEvent) -> None:
         event_type = rsa_event.get_type()
-        rs_ref = None
+        rs_ref: Union[None, ImportReference, ExportReference] = None
         svc_ref = None
         exception = None
         self.write_type(event_type)

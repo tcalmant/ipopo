@@ -300,7 +300,7 @@ class IConfigurationAdmin(Protocol):
 
     def list_configurations(
         self, ldap_filter: Union[None, str, "ldapfilter.LdapFilterOrCriteria"] = None
-    ) -> List[Configuration]:
+    ) -> Iterable[Configuration]:
         """
         List the current Configuration objects which match the filter.
 
