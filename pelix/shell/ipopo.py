@@ -32,8 +32,8 @@ from typing import TYPE_CHECKING, Any, List, Optional, Tuple
 
 import pelix.ipopo.constants
 import pelix.shell
+from pelix.ipopo.constants import IPopoService
 from pelix.ipopo.decorators import ComponentFactory, Instantiate, Provides, Requires
-from pelix.ipopo.protocols import IPopoService
 from pelix.shell.completion import COMPONENT, DUMMY, FACTORY, FACTORY_PROPERTY
 from pelix.shell.completion.decorators import Completion
 
