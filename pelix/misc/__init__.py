@@ -28,7 +28,8 @@ Pelix miscellaneous modules
 from types import TracebackType
 from typing import Any, Optional, Protocol, Tuple, TypeAlias
 
-import pelix.framework
+from pelix.framework import Bundle
+from pelix.internals.registry import ServiceReference
 
 # Module version
 __version_info__ = (1, 0, 2)
@@ -89,7 +90,7 @@ class LogEntry(Protocol):
     """
 
     @property
-    def bundle(self) -> Optional[pelix.framework.Bundle]:
+    def bundle(self) -> Optional[Bundle]:
         """
         The bundle that created this entry
         """
@@ -103,7 +104,7 @@ class LogEntry(Protocol):
         ...
 
     @property
-    def exception(self) -> Optional[str]:
+    def exception(self) -> OptExcInfo:
         """
         The exception associated to this entry
         """
@@ -124,7 +125,7 @@ class LogEntry(Protocol):
         ...
 
     @property
-    def reference(self) -> Optional[pelix.framework.ServiceReference[Any]]:
+    def reference(self) -> Optional[ServiceReference[Any]]:
         """
         The reference to the service associated to this entry
         """
@@ -143,7 +144,7 @@ class LogListener(Protocol):
     Specification of log listener
     """
 
-    __SPECIFICATION__:str = "pelix.log.listener"
+    __SPECIFICATION__: str = "pelix.log.listener"
 
     def logged(self, entry: LogEntry) -> None:
         """
@@ -158,7 +159,7 @@ class LogReader(Protocol):
     Specification of a log reader service
     """
 
-    __SPECIFICATION__:str = LOG_READER_SERVICE
+    __SPECIFICATION__: str = LOG_READER_SERVICE
 
     def add_log_listener(self, listener: LogListener) -> None:
         """
@@ -201,14 +202,14 @@ class LogService(Protocol):
     Specification of the Log service
     """
 
-    __SPECIFICATION__:str = LOG_SERVICE
+    __SPECIFICATION__: str = LOG_SERVICE
 
     def log(
         self,
         level: int,
         message: Optional[str],
         exc_info: OptExcInfo = None,
-        reference: Optional[pelix.framework.ServiceReference[Any]] = None,
+        reference: Optional[ServiceReference[Any]] = None,
     ) -> None:
         """
         Logs a message, possibly with an exception

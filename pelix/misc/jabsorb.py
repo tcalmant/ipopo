@@ -35,7 +35,7 @@ https://github.com/cohorte/cohorte-org.jabsorb.ng
 import builtins
 import inspect
 import re
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, cast
 
 # ------------------------------------------------------------------------------
 
@@ -45,6 +45,9 @@ __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
+
+K = TypeVar("K")
+V = TypeVar("V")
 
 # ------------------------------------------------------------------------------
 
@@ -72,43 +75,43 @@ JAVA_SETS_PATTERN = re.compile(r"java\.util\..*Set")
 # ------------------------------------------------------------------------------
 
 
-class HashableDict(dict):
+class HashableDict(dict[Any, Any]):
     """
     Small workaround because dictionaries are not hashable in Python
     """
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore
         """
         Computes the hash of the dictionary
         """
         return hash(f"HashableDict({sorted(self.items())})")
 
 
-class HashableSet(set):
+class HashableSet(set[Any]):
     """
     Small workaround because sets are not hashable in Python
     """
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore
         """
         Computes the hash of the set
         """
         return hash(f"HashableSet({sorted(self)})")
 
 
-class HashableList(list):
+class HashableList(list[Any]):
     """
     Small workaround because lists are not hashable in Python
     """
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore
         """
         Computes the hash of the list
         """
         return hash(f"HashableList({sorted(self)})")
 
 
-class AttributeMap(dict):
+class AttributeMap(dict[Any, Any]):
     """
     Wraps a map to have the same behaviour between getattr and getitem
     """
@@ -120,7 +123,7 @@ class AttributeMap(dict):
         super(AttributeMap, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore
         """
         Computes the hash of the dictionary
         """
@@ -154,7 +157,7 @@ def _is_builtin(obj: Any) -> bool:
     :return: True if the object is of a built-in type
     """
     module_ = inspect.getmodule(obj)
-    if module_ in (None, builtins):
+    if module_ is None or module_ is builtins:
         return True
 
     return module_.__name__ in ("", "__main__")
@@ -192,10 +195,11 @@ def to_jabsorb(value: Any) -> Any:
         return None
     # Map ?
     elif isinstance(value, dict):
+        converted_result: Dict[str, Any]
         if JAVA_CLASS in value or JSON_CLASS in value:
             if not _is_converted_class(value.get(JAVA_CLASS)):
                 # Bean representation
-                converted_result: Dict[str, Any] = {}
+                converted_result = {}
 
                 for key, content in value.items():
                     converted_result[key] = to_jabsorb(content)
@@ -212,7 +216,7 @@ def to_jabsorb(value: Any) -> Any:
                 return value
         else:
             # Needs the whole transformation
-            converted_result: Dict[str, Any] = {JAVA_CLASS: "java.util.HashMap"}
+            converted_result = {JAVA_CLASS: "java.util.HashMap"}
             converted_result["map"] = map_pairs = {}
             for key, content in value.items():
                 map_pairs[key] = to_jabsorb(content)

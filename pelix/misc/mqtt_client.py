@@ -82,7 +82,7 @@ class MqttClient:
             self._client_id = client_id
 
         # Reconnection timer
-        self.__timer = threading.Timer(5, self.__reconnect)
+        self.__timer: Optional[threading.Timer] = threading.Timer(5, self.__reconnect)
 
         # Publication events
         self.__in_flight: Dict[int, threading.Event] = {}

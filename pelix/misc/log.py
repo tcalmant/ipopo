@@ -30,12 +30,12 @@ import datetime
 import logging
 import sys
 import time
-import traceback
 from types import ModuleType
-from typing import Any, Optional, Set, Tuple, Union, cast
+from typing import Any, Callable, Iterable, Optional, Set, Tuple, Union, cast
 
-import pelix.framework
 from pelix.constants import ActivatorProto, BundleActivator
+from pelix.framework import Bundle, BundleContext
+from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.misc import (
     LOG_SERVICE,
     PROPERTY_LOG_LEVEL,
@@ -104,9 +104,9 @@ class LogEntryImpl(LogEntry):
         self,
         level: int,
         message: Optional[str],
-        exception: Optional[str],
-        bundle: Optional[pelix.framework.Bundle],
-        reference: Optional[pelix.framework.ServiceReference[Any]],
+        exception: OptExcInfo,
+        bundle: Optional[Bundle],
+        reference: Optional[ServiceReference[Any]],
     ) -> None:
         """
         :param level: The Python log level of the entry
@@ -123,7 +123,7 @@ class LogEntryImpl(LogEntry):
         self.__time: float = time.time()
         self.__record: Optional[logging.LogRecord] = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         String representation
         """
@@ -151,7 +151,7 @@ class LogEntryImpl(LogEntry):
         return f"{' '.join(values)}\n{self.__exception}"
 
     @property
-    def bundle(self) -> Optional[pelix.framework.Bundle]:
+    def bundle(self) -> Optional[Bundle]:
         """
         The bundle that created this entry
         """
@@ -165,7 +165,7 @@ class LogEntryImpl(LogEntry):
         return self.__message
 
     @property
-    def exception(self) -> Optional[str]:
+    def exception(self) -> OptExcInfo:
         """
         The exception associated to this entry
         """
@@ -186,7 +186,7 @@ class LogEntryImpl(LogEntry):
         return LEVEL_TO_OSGI.get(self.__level, LOG_INFO)
 
     @property
-    def reference(self) -> Optional[pelix.framework.ServiceReference[Any]]:
+    def reference(self) -> Optional[ServiceReference[Any]]:
         """
         The reference to the service associated to this entry
         """
@@ -241,7 +241,7 @@ class LogReaderImpl(LogReader):
     The LogReader service
     """
 
-    def __init__(self, context: pelix.framework.BundleContext, max_entries: int) -> None:
+    def __init__(self, context: BundleContext, max_entries: int) -> None:
         """
         :param context: The bundle context
         :param max_entries: Maximum stored entries
@@ -323,7 +323,7 @@ class LogServiceInstance(LogService):
 
     __slots__ = ("__reader", "__bundle")
 
-    def __init__(self, reader: LogReaderImpl, bundle: pelix.framework.Bundle) -> None:
+    def __init__(self, reader: LogReaderImpl, bundle: Bundle) -> None:
         """
         :param reader: The Log Reader service
         :param bundle: Bundle associated to this instance
@@ -336,7 +336,7 @@ class LogServiceInstance(LogService):
         level: int,
         message: Optional[str],
         exc_info: OptExcInfo = None,
-        reference: Optional[pelix.framework.ServiceReference[Any]] = None,
+        reference: Optional[ServiceReference[Any]] = None,
     ) -> None:
         """
         Logs a message, possibly with an exception
@@ -346,21 +346,12 @@ class LogServiceInstance(LogService):
         :param exc_info: The exception context (sys.exc_info()), if any
         :param reference: The ServiceReference associated to the log
         """
-        if not isinstance(reference, pelix.framework.ServiceReference):
+        if not isinstance(reference, ServiceReference):
             # Ensure we have a clean Service Reference
             reference = None
 
-        if exc_info is not None:
-            # Format the exception to avoid memory leaks
-            try:
-                exception_str = "\n".join(traceback.format_exception(*exc_info))
-            except (TypeError, ValueError, AttributeError):
-                exception_str = "<Invalid exc_info>"
-        else:
-            exception_str = None
-
         # Store the LogEntry
-        entry = LogEntryImpl(level, message, exception_str, self.__bundle, reference)
+        entry = LogEntryImpl(level, message, exc_info, self.__bundle, reference)
         self.__reader._store_entry(entry)
 
 
@@ -369,7 +360,7 @@ class LogServiceFactory(logging.Handler):
     Log Service Factory: provides a logger per bundle
     """
 
-    def __init__(self, context: pelix.framework.BundleContext, reader: LogReaderImpl, level: int) -> None:
+    def __init__(self, context: BundleContext, reader: LogReaderImpl, level: int) -> None:
         """
         :param context: The bundle context
         :param reader: The Log Reader service
@@ -379,7 +370,7 @@ class LogServiceFactory(logging.Handler):
         self._framework = context.get_framework()
         self._reader = reader
 
-    def _bundle_from_module(self, module_object: Union[str, ModuleType]) -> Optional[pelix.framework.Bundle]:
+    def _bundle_from_module(self, module_object: Union[str, ModuleType]) -> Optional[Bundle]:
         """
         Find the bundle associated to a module
 
@@ -408,9 +399,7 @@ class LogServiceFactory(logging.Handler):
         entry = LogEntryImpl(record.levelno, record.getMessage(), None, bundle, None)
         self._reader._store_entry(entry)
 
-    def get_service(
-        self, bundle: pelix.framework.Bundle, registration: pelix.framework.ServiceRegistration[LogService]
-    ) -> LogService:
+    def get_service(self, bundle: Bundle, registration: ServiceRegistration[LogService]) -> LogService:
         """
         Returns an instance of the log service for the given bundle
 
@@ -421,9 +410,7 @@ class LogServiceFactory(logging.Handler):
         return LogServiceInstance(self._reader, bundle)
 
     @staticmethod
-    def unget_service(
-        bundle: pelix.framework.Bundle, registration: pelix.framework.ServiceRegistration[LogService]
-    ) -> None:
+    def unget_service(bundle: Bundle, registration: ServiceRegistration[LogService]) -> None:
         """
         Releases the service associated to the given bundle
 
@@ -439,13 +426,13 @@ class Activator(ActivatorProto):
     The bundle activator
     """
 
-    def __init__(self):
-        self.__reader_reg: Optional[pelix.framework.ServiceRegistration[LogReader]] = None
-        self.__factory_reg: Optional[pelix.framework.ServiceRegistration[Any]] = None
+    def __init__(self) -> None:
+        self.__reader_reg: Optional[ServiceRegistration[LogReader]] = None
+        self.__factory_reg: Optional[ServiceRegistration[Any]] = None
         self.__factory: Optional[LogServiceFactory] = None
 
     @staticmethod
-    def get_level(context: pelix.framework.BundleContext) -> int:
+    def get_level(context: BundleContext) -> int:
         """
         Get the log level from the bundle context (framework properties)
 
@@ -456,7 +443,8 @@ class Activator(ActivatorProto):
         level_value = context.get_property(PROPERTY_LOG_LEVEL)
 
         if level_value:
-            for converter in int, logging.getLevelName:
+            converters: Iterable[Callable[[Any], Any]] = (int, logging.getLevelName)
+            for converter in converters:
                 try:
                     parsed_level = converter(level_value)
                     if isinstance(parsed_level, int):
@@ -468,7 +456,7 @@ class Activator(ActivatorProto):
         # By default, use the INFO level
         return logging.INFO
 
-    def start(self, context: pelix.framework.BundleContext) -> None:
+    def start(self, context: BundleContext) -> None:
         """
         Bundle starting
 
@@ -495,7 +483,7 @@ class Activator(ActivatorProto):
         # ... but not for our own logs
         logger.removeHandler(self.__factory)
 
-    def stop(self, _):
+    def stop(self, _: BundleContext) -> None:
         """
         Bundle stopping
         """
