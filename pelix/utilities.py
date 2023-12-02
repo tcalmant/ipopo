@@ -32,7 +32,21 @@ import inspect
 import logging
 import threading
 import traceback
-from typing import TYPE_CHECKING, Any, Callable, Generator, Generic, Iterable, List, Optional, TypeVar, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Concatenate,
+    Generator,
+    Generic,
+    Iterable,
+    List,
+    Optional,
+    ParamSpec,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import pelix.constants
 
@@ -41,7 +55,7 @@ if TYPE_CHECKING:
     from pelix.internals.registry import ServiceReference
 
 T = TypeVar("T")
-M = TypeVar("M", bound=Callable[..., Any])
+P = ParamSpec("P")
 
 # ------------------------------------------------------------------------------
 
@@ -92,7 +106,7 @@ def use_service(
 ArgSpec = collections.namedtuple("ArgSpec", "args varargs keywords defaults")
 
 
-def get_method_arguments(method: Callable) -> ArgSpec:
+def get_method_arguments(method: Callable[..., Any]) -> ArgSpec:
     """
     inspect.signature()-based way to get the arguments of a method.
 
@@ -157,7 +171,7 @@ class Deprecated:
             logging.getLogger(self.__logger).warning("%s: %s\n%s", method_name, self.__message, stack)
             self.__already_logged = True
 
-    def __call__(self, method: M) -> M:
+    def __call__(self, method: Callable[P, T]) -> Callable[P, T]:
         """
         Applies the modifications
 
@@ -167,14 +181,14 @@ class Deprecated:
 
         # Prepare the wrapped call
         @functools.wraps(method)
-        def wrapped(*args, **kwargs):
+        def wrapped(*args: P.args, **kwargs: P.kwargs) -> T:
             """
             Wrapped deprecated method
             """
             self.__log(method.__name__)
             return method(*args, **kwargs)
 
-        return cast(M, wrapped)
+        return cast(Callable[P, T], wrapped)
 
 
 # ------------------------------------------------------------------------------
@@ -197,7 +211,7 @@ class Synchronized:
         else:
             self.__lock = lock
 
-    def __call__(self, method: M) -> M:
+    def __call__(self, method: Callable[P, T]) -> Callable[P, T]:
         """
         Sets up the decorated method
 
@@ -206,17 +220,17 @@ class Synchronized:
         """
 
         @functools.wraps(method)
-        def wrapped(*args, **kwargs):
+        def wrapped(*args: P.args, **kwargs: P.kwargs) -> T:
             """
             The wrapping method
             """
             with self.__lock:
                 return method(*args, **kwargs)
 
-        return cast(M, wrapped)
+        return cast(Callable[P, T], wrapped)
 
 
-def SynchronizedClassMethod(*locks_attr_names: str, **kwargs: Any):
+def SynchronizedClassMethod(*locks_attr_names: str, **kwargs: Any) -> Callable[..., Any]:
     # pylint: disable=C1801
     """
     A synchronizer decorator for class methods. An AttributeError can be raised
@@ -240,7 +254,7 @@ def SynchronizedClassMethod(*locks_attr_names: str, **kwargs: Any):
         locks_names = list(locks_names)
         locks_names.sort()
 
-    def wrapped(method: M) -> M:
+    def wrapped(method: Callable[Concatenate[Any, P], T]) -> Callable[P, T]:
         """
         The wrapping method
 
@@ -250,7 +264,7 @@ def SynchronizedClassMethod(*locks_attr_names: str, **kwargs: Any):
         """
 
         @functools.wraps(method)
-        def synchronized(self, *args, **kwargs):
+        def synchronized(self: Any, *args: P.args, **kwargs: P.kwargs) -> T:
             """
             Calls the wrapped method with a lock
             """
@@ -284,7 +298,7 @@ def SynchronizedClassMethod(*locks_attr_names: str, **kwargs: Any):
                 locked.clear()
                 del locks[:]
 
-        return cast(M, synchronized)
+        return cast(Callable[P, T], synchronized)
 
     # Return the wrapped method
     return wrapped
@@ -425,7 +439,7 @@ def to_bytes(data: Union[bytes, str], encoding: str = "UTF-8") -> bytes:
         # Nothing to do
         return data
 
-    return cast(str, data).encode(encoding)
+    return data.encode(encoding)
 
 
 def to_str(data: Union[bytes, bytearray, str], encoding: str = "UTF-8") -> str:
@@ -447,7 +461,7 @@ def to_str(data: Union[bytes, bytearray, str], encoding: str = "UTF-8") -> str:
 # ------------------------------------------------------------------------------
 
 
-def to_iterable(value: Any, allow_none: bool = True) -> Optional[Iterable]:
+def to_iterable(value: Any, allow_none: bool = True) -> Optional[Iterable[Any]]:
     """
     Tries to convert the given value to an iterable, if necessary.
     If the given value is a list, a list is returned; if it is a string, a list

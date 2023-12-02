@@ -140,7 +140,7 @@ class FutureResult:
         :param logger: The Logger to use in case of error (optional)
         """
         self._logger = logger or logging.getLogger(__name__)
-        self._done_event = pelix.utilities.EventData()
+        self._done_event: pelix.utilities.EventData[Any] = pelix.utilities.EventData()
         self.__callback: Optional[Callable[[Any, Optional[BaseException], Any], None]] = None
         self.__extra: Any = None
 
@@ -412,7 +412,7 @@ class ThreadPool:
         del self._threads[:]
         self.clear()
 
-    def enqueue(self, method: Callable, *args: Any, **kwargs: Any) -> FutureResult:
+    def enqueue(self, method: Callable[..., Any], *args: Any, **kwargs: Any) -> FutureResult:
         """
         Queues a task in the pool
 

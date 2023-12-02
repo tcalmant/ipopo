@@ -218,7 +218,7 @@ class LDAPCriteria:
 
         self.name = str(name)
         self.value = value
-        self.comparator = comparator
+        self.comparator: Callable[[Any, Any], bool] = comparator
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -433,7 +433,7 @@ def _comparator_eq(filter_value: Any, tested_value: Any) -> bool:
     # Standard comparison
     elif isinstance(tested_value, str):
         # String vs string
-        return filter_value == tested_value
+        return bool(filter_value == tested_value)
     else:
         # String vs string representation
         return bool(filter_value == repr(tested_value))
@@ -525,7 +525,7 @@ def _comparator_lt(filter_value: Any, tested_value: Any) -> bool:
                 # Incompatible type
                 return False
     try:
-        return tested_value < filter_value
+        return bool(tested_value < filter_value)
     except TypeError:
         # Incompatible type
         return False
@@ -563,7 +563,7 @@ def _comparator_gt(filter_value: Any, tested_value: Any) -> bool:
                 # Incompatible type
                 return False
     try:
-        return tested_value > filter_value
+        return bool(tested_value > filter_value)
     except TypeError:
         # Incompatible type
         return False

@@ -1456,7 +1456,7 @@ class BundleContext:
         self,
         listener: ServiceListener,
         ldap_filter: Union[None, LDAPCriteria, LDAPFilter, str] = None,
-        specification: Optional[Union[str, Type]] = None,
+        specification: Optional[Union[str, Type[Any]]] = None,
     ) -> bool:
         """
         Registers a service listener
@@ -1474,14 +1474,16 @@ class BundleContext:
         :param bundle_context:  This bundle context
         :param listener: The listener to register
         :param ldap_filter: Filter that must match the service properties
-                            (optional, None to accept all services)
+        (optional, None to accept all services)
         :param specification: The specification that must provide the service
-                              (optional, None to accept all services)
+        (optional, None to accept all services)
         :return: True if the listener has been successfully registered
         """
         if specification is not None and inspect.isclass(specification):
             specification = _get_class_spec(specification)
-        return self.__framework._dispatcher.add_service_listener(self, listener, specification, ldap_filter)
+        return self.__framework._dispatcher.add_service_listener(
+            self, listener, cast(Optional[str], specification), ldap_filter
+        )
 
     def get_all_service_references(
         self,
