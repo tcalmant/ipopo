@@ -35,7 +35,7 @@ import socketserver
 import sys
 import threading
 from select import select
-from typing import Any, Dict, List, Optional, Tuple, Type, cast
+from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
 
 import pelix.framework
 import pelix.ipv6utils
@@ -339,7 +339,9 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
 
         return client_stream, client_address
 
-    def process_request(self, request: socket.socket, client_address: Tuple[str, int]) -> None:
+    def process_request(
+        self, request: Union[socket.socket, tuple[bytes, socket.socket]], client_address: Tuple[str, int]
+    ) -> None:
         """
         Starts a new thread to process the request, adding the client address
         in its name.
