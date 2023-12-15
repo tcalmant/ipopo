@@ -304,6 +304,7 @@ SERVICE_EXPORT_DISTRIBUTION_PROVIDER = "pelix.rsa.exportdistributionprovider"
 # Abstract implementation of SERVICE_EXPORT_DISTRIBUTION_PROVIDER extends
 # DistributionProvider superclass
 
+
 @Specification(SERVICE_EXPORT_DISTRIBUTION_PROVIDER)
 class ExportDistributionProvider(DistributionProvider):
     """
@@ -344,6 +345,7 @@ class ExportDistributionProvider(DistributionProvider):
 # ------------------------------------------------------------------------------
 # Specification for SERVICE_IMPORT_DISTRIBUTION_PROVIDER
 SERVICE_IMPORT_DISTRIBUTION_PROVIDER = "pelix.rsa.importdistributionprovider"
+
 
 @Specification(SERVICE_IMPORT_DISTRIBUTION_PROVIDER)
 class ImportDistributionProvider(DistributionProvider):
@@ -540,6 +542,7 @@ class Container(abc.ABC):
 # Service specification for SERVICE_EXPORT_CONTAINER
 SERVICE_EXPORT_CONTAINER = "pelix.rsa.exportcontainer"
 
+
 @Specification(SERVICE_EXPORT_CONTAINER)
 class ExportContainer(Container):
     """
@@ -686,6 +689,7 @@ class ExportContainer(Container):
 # ------------------------------------------------------------------------------#
 # Service specification for SERVICE_IMPORT_CONTAINER
 SERVICE_IMPORT_CONTAINER = "pelix.rsa.importcontainer"
+
 
 @Specification(SERVICE_IMPORT_CONTAINER)
 class ImportContainer(Container, abc.ABC):

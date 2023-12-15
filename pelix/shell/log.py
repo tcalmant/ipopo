@@ -29,8 +29,7 @@ import logging
 from typing import Iterable, List, Optional, Tuple, Union
 
 from pelix.internals.registry import ServiceReference
-from pelix.ipopo.decorators import (ComponentFactory, Instantiate,
-                                    PostRegistration, Provides, Requires)
+from pelix.ipopo.decorators import ComponentFactory, Instantiate, PostRegistration, Provides, Requires
 from pelix.misc import LogReader, LogService
 from pelix.shell import ShellCommandMethod, ShellCommandsProvider
 from pelix.shell.beans import ShellSession

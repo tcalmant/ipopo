@@ -177,7 +177,9 @@ class FutureResult:
             # The execution has already finished
             self.__notify()
 
-    def execute(self, method: Callable[..., Any], args: Optional[Tuple[Any, ...]], kwargs: Optional[Dict[str, Any]]) -> None:
+    def execute(
+        self, method: Callable[..., Any], args: Optional[Tuple[Any, ...]], kwargs: Optional[Dict[str, Any]]
+    ) -> None:
         """
         Execute the given method and stores its result.
         The result is considered "done" even if the method raises an exception

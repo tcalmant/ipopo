@@ -93,6 +93,7 @@ Report command service: gives access to the report methods for a future reuse
 
 ShellCommandMethod = Callable[..., Any]
 
+
 @Specification(SERVICE_SHELL)
 class ShellService(Protocol):
     """
@@ -223,6 +224,7 @@ class ShellUtils(Protocol):
         """
         ...
 
+
 @Specification(SERVICE_SHELL_COMMAND)
 class ShellCommandsProvider(Protocol):
     """
@@ -241,6 +243,7 @@ class ShellCommandsProvider(Protocol):
         """
         ...
 
+
 @Specification(SERVICE_SHELL_REPORT)
 class ShellReport(Protocol):
     """
@@ -254,6 +257,7 @@ class ShellReport(Protocol):
         :return: The list of report levels
         """
         ...
+
 
 @Specification(SERVICE_SHELL_REMOTE)
 class RemoteShell(Protocol):

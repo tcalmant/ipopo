@@ -428,6 +428,7 @@ class IPopoService(Protocol):
         """
         ...
 
+
 @Specification(SERVICE_IPOPO_WAITING_LIST)
 class IPopoWaitingList(Protocol):
     """

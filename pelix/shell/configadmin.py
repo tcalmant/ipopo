@@ -162,7 +162,7 @@ class ConfigAdminCommands(ShellCommandsProvider):
             # Configuration was unknown
             pass
 
-    def list(self, session: "ShellSession", pid: Optional[str]=None) -> None:
+    def list(self, session: "ShellSession", pid: Optional[str] = None) -> None:
         """
         Lists known configurations
         """

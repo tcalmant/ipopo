@@ -238,7 +238,6 @@ SERVICE_IMPORT_CONTAINER_SELECTOR = "pelix.rsa.importcontainerselector"
 
 @Specification(SERVICE_IMPORT_CONTAINER_SELECTOR)
 class ImportContainerSelector(Protocol):
-
     def select_import_container(
         self, remote_configs: List[str], endpoint_description: EndpointDescription
     ) -> Optional[ImportContainer]:

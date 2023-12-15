@@ -137,7 +137,10 @@ class ServiceEvent(Generic[T]):
     """
 
     def __init__(
-        self, kind: int, reference: "ServiceReference[T]", previous_properties: Optional[Dict[str, Any]] = None
+        self,
+        kind: int,
+        reference: "ServiceReference[T]",
+        previous_properties: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Sets up the event
