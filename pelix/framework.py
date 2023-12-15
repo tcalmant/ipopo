@@ -1047,9 +1047,8 @@ class Framework(Bundle):
         bundle: Bundle,
         clazz: Union[
             str,
-            Iterable[str],
-            Iterable[Type[Any]],
             Type[T],
+            Iterable[Union[str, Type[Any]]],
         ],
         service: T,
         properties: Optional[Dict[str, Any]],
@@ -1676,9 +1675,8 @@ class BundleContext:
         self,
         clazz: Union[
             str,
-            Iterable[str],
-            Iterable[Type[Any]],
             Type[T],
+            Iterable[Union[str, Type[Any]]],
         ],
         service: T,
         properties: Optional[Dict[str, Any]],

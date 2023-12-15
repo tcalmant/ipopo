@@ -830,7 +830,12 @@ class HiddenProperty(Property):
 
 
 def _get_specifications(
-    specifications: Union[None, str, Iterable[str], Type[Any], Iterable[Type[Any]]]
+    specifications: Union[
+        None,
+        str,
+        Type[Any],
+        Iterable[Union[str, Type[Any]]],
+    ]
 ) -> List[str]:
     """
     Computes the list of strings corresponding to the given specifications
@@ -936,7 +941,12 @@ class Provides:
 
     def __init__(
         self,
-        specifications: Union[None, str, Type[Any], Iterable[Union[str, Type[Any]]]],
+        specifications: Union[
+            None,
+            str,
+            Type[Any],
+            Iterable[Union[str, Type[Any]]],
+        ],
         controller: Optional[str] = None,
         factory: bool = False,
         prototype: bool = False,
