@@ -26,6 +26,7 @@ Remote Service Admin API
     limitations under the License.
 """
 
+import imp
 import logging
 import sys
 import threading
@@ -63,12 +64,11 @@ from pelix.rsa import (
     SERVICE_EXPORTED_INTENTS_EXTRA,
     SERVICE_EXPORTED_INTERFACES,
     SERVICE_INTENTS,
-    RemoteServiceAdmin,
-    RemoteServiceAdminListener,
     ExportReference,
     ExportRegistration,
     ImportReference,
     ImportRegistration,
+    RemoteServiceAdmin,
     RemoteServiceAdminEvent,
     RemoteServiceAdminListener,
     RemoteServiceError,
@@ -83,10 +83,10 @@ from pelix.rsa import (
 from pelix.rsa.edef import EDEFWriter
 from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.rsa.providers.distribution import (
-    ExportDistributionProvider,
-    ImportDistributionProvider,
     ExportContainer,
+    ExportDistributionProvider,
     ImportContainer,
+    ImportDistributionProvider,
 )
 
 # ------------------------------------------------------------------------------
@@ -294,9 +294,9 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
     _export_container_selector: ExportContainerSelector
     _import_container_selector: ImportContainerSelector
     _rsa_event_listeners: List[RemoteServiceAdminListener]
+    _context: BundleContext
 
     def __init__(self) -> None:
-        self._context: Optional[BundleContext] = None
         self._exported_regs: List[ExportRegistrationImpl] = []
         self._exported_regs_lock = threading.RLock()
         self._imported_regs: List[ImportRegistrationImpl] = []
@@ -329,9 +329,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
     def export_service(
         self, service_ref: ServiceReference[Any], overriding_props: Optional[Dict[str, Any]] = None
     ) -> List[ExportRegistration]:
-        assert self._context is not None
         bundle = self._get_bundle()
-        assert bundle is not None
 
         if service_ref is None:
             raise RemoteServiceError("service_ref must not be None")
@@ -358,10 +356,13 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
         # was generated
         export_props[ENDPOINT_FRAMEWORK_UUID] = self._context.get_property(OSGI_FRAMEWORK_UUID)
 
-        result_regs = []
-        result_events = []
-        exporters = None
+        result_regs: List[ExportRegistrationImpl] = []
+        result_events: List[RemoteServiceAdminEvent] = []
+        exporters: List[ExportContainer] = []
+
+        # Default properties for erroneous cases
         error_props = get_edef_props_error(service_ref.get_property(OBJECTCLASS))
+
         try:
             # get list of exporters from export_container_selector service
             exporters = self._export_container_selector.select_export_containers(
@@ -392,9 +393,10 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
                 for exporter in exporters:
                     found_regs = []
                     # get exporter id
-                    exporterid = exporter.get_id()
+                    exporter_id = exporter.get_id()
+                    exporter_id_ns = exporter.get_namespace()
                     for reg in self._exported_regs:
-                        if reg.match_sr(service_ref, exporterid):
+                        if reg.match_sr(service_ref, (exporter_id_ns, exporter_id)):
                             found_regs.append(reg)
                     # if so then found_regs will be non-empty
                     if found_regs:
@@ -404,8 +406,6 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
                             result_regs.append(new_reg)
                     else:
                         # Here is where export is done
-                        export_reg = None
-                        export_event = None
                         ed_props = error_props
 
                         try:
@@ -422,17 +422,15 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
                                 export_reg = ExportRegistrationImpl.fromendpoint(
                                     self, exporter, export_ed, service_ref
                                 )
-                                export_event = RemoteServiceAdminEvent.fromexportreg(
-                                    bundle, export_reg
-                                )
+                                export_event = RemoteServiceAdminEvent.fromexportreg(bundle, export_reg)
+                            else:
+                                raise RemoteServiceError("Service couldn't be exported")
                         except Exception:
                             export_reg = ExportRegistrationImpl.fromexception(
                                 sys.exc_info(),
                                 EndpointDescription.fromprops(ed_props),
                             )
-                            export_event = RemoteServiceAdminEvent.fromexportreg(
-                                bundle, export_reg
-                            )
+                            export_event = RemoteServiceAdminEvent.fromexportreg(bundle, export_reg)
 
                         # add exported reg to exported services
                         self._add_exported_service(export_reg)
@@ -444,7 +442,9 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
         # publish events
         for e in result_events:
             self._publish_event(e)
-        return result_regs
+
+        # Explicit cast as caller doesn't have to know about the implementation
+        return cast(List[ExportRegistration], result_regs)
 
     def import_service(self, endpoint_description: EndpointDescription) -> ImportRegistration:
         if not endpoint_description:
@@ -491,6 +491,9 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
                 # Here is where new import is done
                 try:
                     svc_reg = importer.import_service(endpoint_description)
+                    if svc_reg is None:
+                        raise RemoteServiceError("Service couldn't be imported")
+
                     import_reg = ImportRegistrationImpl.fromendpoint(
                         self, importer, endpoint_description, svc_reg
                     )
@@ -503,8 +506,8 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
         self._publish_event(import_event)
         return import_reg
 
-    def _publish_event(self, event):
-        listeners = self._rsa_event_listeners
+    def _publish_event(self, event: RemoteServiceAdminEvent) -> None:
+        listeners = self._rsa_event_listeners[:]
         if listeners:
             for l in listeners:
                 try:
@@ -512,8 +515,8 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
                 except:
                     _logger.exception("Exception calling rsa event listener=%s", l)
 
-    def _get_bundle(self) -> Optional[Bundle]:
-        return self._context.get_bundle() if self._context else None
+    def _get_bundle(self) -> Bundle:
+        return self._context.get_bundle()
 
     @Validate
     def _validate(self, context: BundleContext) -> None:
@@ -522,17 +525,15 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
     @Invalidate
     def _invalidate(self, _: BundleContext) -> None:
         with self._exported_regs_lock:
-            for reg in self._exported_regs:
-                reg.close()
+            for export_reg in self._exported_regs:
+                export_reg.close()
             del self._exported_regs[:]
 
         with self._imported_regs_lock:
-            for reg in self._imported_regs:
-                reg.close()
+            for import_reg in self._imported_regs:
+                import_reg.close()
 
             del self._imported_regs[:]
-
-        self._context = None
 
     def _unexport_service(self, svc_ref: ServiceReference[Any]) -> None:
         with self._exported_regs_lock:
@@ -553,26 +554,26 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
         return True
 
     def _find_existing_export_endpoint(
-        self, svc_ref: ServiceReference[Any], cid: str
-    ) -> Optional[ExportRegistration]:
+        self, svc_ref: ServiceReference[Any], cid: Tuple[str, str]
+    ) -> Optional["ExportRegistrationImpl"]:
         for er in self._exported_regs:
             if er.match_sr(svc_ref, cid):
                 return er
         return None
 
-    def _add_exported_service(self, export_reg: ExportRegistration) -> None:
+    def _add_exported_service(self, export_reg: "ExportRegistrationImpl") -> None:
         with self._exported_regs_lock:
             self._exported_regs.append(export_reg)
 
-    def _remove_exported_service(self, export_reg: ExportRegistration) -> None:
+    def _remove_exported_service(self, export_reg: "ExportRegistrationImpl") -> None:
         with self._exported_regs_lock:
             self._exported_regs.remove(export_reg)
 
-    def _add_imported_service(self, import_reg: ImportRegistration) -> None:
+    def _add_imported_service(self, import_reg: "ImportRegistrationImpl") -> None:
         with self._imported_regs_lock:
             self._imported_regs.append(import_reg)
 
-    def _remove_imported_service(self, import_reg: ImportRegistration) -> None:
+    def _remove_imported_service(self, import_reg: "ImportRegistrationImpl") -> None:
         with self._imported_regs_lock:
             self._imported_regs.remove(import_reg)
 
@@ -635,6 +636,13 @@ class _ExportEndpoint:
 
             return self.__export_container.get_id()
 
+    def get_export_container_ns(self) -> str:
+        with self.__lock:
+            if self.__export_container is None:
+                raise Exception("Export endpoint is already closed")
+
+            return self.__export_container.get_namespace()
+
     def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
         with self.__lock:
             if self.__ed is None:
@@ -660,6 +668,10 @@ class _ExportEndpoint:
             return self.__ed
 
     def close(self, export_reg: ExportRegistration) -> bool:
+        if not isinstance(export_reg, ExportRegistrationImpl):
+            # Doesn't come from us if it's not an ExportRegistrationImpl
+            return False
+
         with self.__lock:
             if self.__rsa is None or self.__export_container is None or self.__ed is None:
                 # Already closed
@@ -682,10 +694,10 @@ class _ExportEndpoint:
                 self.__rsa._remove_exported_service(export_reg)
 
                 # Clean up
-                self.__ed = None
-                self.__export_container = None
-                self.__svc_ref = None
-                self.__rsa = None
+                self.__ed = None  # type: ignore
+                self.__export_container = None  # type: ignore
+                self.__svc_ref = None  # type: ignore
+                self.__rsa = None  # type: ignore
                 return True
 
         return False
@@ -730,19 +742,28 @@ class ExportReferenceImpl(ExportReference):
             self.__exception = None
             self.__errored = None
 
-    def get_export_container_id(self) -> Optional[str]:
+    def get_export_container_id(self) -> Tuple[str, str]:
         with self.__lock:
             if self._endpoint is not None:
-                return self._endpoint.get_export_container_id()
+                export_ns = self._endpoint.get_export_container_ns()
+                export_id = self._endpoint.get_export_container_id()
+                if export_ns is None or export_id is None:
+                    raise RemoteServiceError("Export container ID must not be None")
 
-            return None
+                return export_ns, export_id
+            elif self.__errored is not None:
+                return self.__errored.get_container_id()
+            else:
+                raise RemoteServiceError("Export container ID not set")
 
-    def get_remoteservice_id(self) -> Optional[Tuple[Tuple[str, str], int]]:
+    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
         with self.__lock:
             if self._endpoint is not None:
                 return self._endpoint.get_remoteservice_id()
-
-            return None
+            elif self.__errored is not None:
+                return self.__errored.get_remoteservice_id()
+            else:
+                raise RemoteServiceError("Remote service ID not found")
 
     def get_reference(self) -> Optional[ServiceReference[Any]]:
         with self.__lock:
@@ -751,12 +772,14 @@ class ExportReferenceImpl(ExportReference):
 
             return None
 
-    def get_description(self) -> Optional[EndpointDescription]:
+    def get_description(self) -> EndpointDescription:
         with self.__lock:
             if self._endpoint is not None:
                 return self._endpoint.get_description()
-            else:
+            elif self.__errored is not None:
                 return self.__errored
+            else:
+                raise RemoteServiceError("Endpoint description not set")
 
     def get_exception(self) -> Optional[Tuple[Any, Any, Any]]:
         with self.__lock:
@@ -799,11 +822,11 @@ class ExportRegistrationImpl(ExportRegistration):
         exporter: ExportContainer,
         ed: EndpointDescription,
         svc_ref: ServiceReference[Any],
-    ) -> ExportRegistration:
+    ) -> "ExportRegistrationImpl":
         return cls(rsa, _ExportEndpoint(rsa, exporter, ed, svc_ref))
 
     @classmethod
-    def fromexception(cls, e: Tuple[Any, Any, Any], ed: EndpointDescription) -> ExportRegistration:
+    def fromexception(cls, e: Tuple[Any, Any, Any], ed: EndpointDescription) -> "ExportRegistrationImpl":
         return cls(rsa=None, endpoint=None, exception=e, errored=ed)
 
     def __init__(
@@ -825,7 +848,7 @@ class ExportRegistrationImpl(ExportRegistration):
             self.__exportref = ExportReferenceImpl.fromendpoint(endpoint)
 
         self.__closed = False
-        self.__update_exception: Optional[BaseException] = None
+        self.__update_exception: Optional[Tuple[Any, Any, Any]] = None
         self.__lock = threading.RLock()
 
     def match_sr(self, svc_ref: ServiceReference[Any], cid: Optional[Tuple[str, str]] = None) -> bool:
@@ -875,19 +898,19 @@ class ExportRegistrationImpl(ExportRegistration):
             else:
                 return None
 
-    def get_export_container_id(self) -> Optional[str]:
+    def get_export_container_id(self) -> Tuple[str, str]:
         """
-        Returns the export container ID
+        Returns the export container namespace and ID
 
-        :return: An export container ID
+        :return: An export container namespace and ID
         """
         with self.__lock:
             if self.__closed:
-                return None
+                raise RemoteServiceError("ExportRegistration already closed")
 
             return self.__exportref.get_export_container_id()
 
-    def get_remoteservice_id(self) -> Optional[Tuple[Tuple[str, str], int]]:
+    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
         """
         Returns the remote service ID
 
@@ -895,7 +918,7 @@ class ExportRegistrationImpl(ExportRegistration):
         """
         with self.__lock:
             if self.__closed:
-                return None
+                raise RemoteServiceError("ExportRegistration already closed")
 
             return self.__exportref.get_remoteservice_id()
 
@@ -923,31 +946,40 @@ class ExportRegistrationImpl(ExportRegistration):
 
             return self.__exportref.get_exception()
 
-    def get_description(self) -> Optional[EndpointDescription]:
+    def get_description(self) -> EndpointDescription:
         """
         Returns the description of the endpoint
 
         :return: An endpoint description
         """
         with self.__lock:
-            return None if self.__closed else self.__exportref.get_description()
+            if self.__closed:
+                raise RemoteServiceError("ExportRegistration already closed")
 
-    def update(self, properties: Dict[str, Any]) -> Optional[EndpointDescription]:
+            return self.__exportref.get_description()
+
+    def update(self, properties: Optional[Dict[str, Any]]) -> Optional[EndpointDescription]:
         with self.__lock:
             if self.__closed:
-                self.__update_exception = ValueError("Update failed since ExportRegistration already closed")
+                try:
+                    raise RemoteServiceError("Update failed since ExportRegistration already closed")
+                except RemoteServiceError:
+                    self.__update_exception = sys.exc_info()
                 return None
 
             # if properties is set then copy
             props = properties.copy() if properties else dict()
             try:
                 updated_ed = self.__exportref.update(props)
-            except Exception as e:
-                self.__update_exception = e
+            except Exception:
+                self.__update_exception = sys.exc_info()
                 return None
 
             if updated_ed is None:
-                self.__update_exception = ValueError("Update failed because ExportEndpoint was None")
+                try:
+                    raise RemoteServiceError("Update failed because ExportEndpoint was None")
+                except RemoteServiceError:
+                    self.__update_exception = sys.exc_info()
                 return None
 
             self.__update_exception = None
@@ -961,37 +993,45 @@ class ExportRegistrationImpl(ExportRegistration):
         """
         Cleans up the export endpoint
         """
-        publish = False
-        exporterid = None
-        rsid = None
-        exception = None
-        export_ref = None
-        ed = None
-
         with self.__lock:
-            if not self.__closed:
-                exporterid = self.__exportref.get_export_container_id()
-                export_ref = self.__exportref
-                rsid = self.__exportref.get_remoteservice_id()
-                ed = self.__exportref.get_description()
-                exception = self.__exportref.get_exception()
-                self.__closed = True
-                publish = self.__exportref.close(self)
-                self.__exportref = None
+            if self.__closed:
+                return
 
-        # pylint: disable=W0212
-        if publish and export_ref and self.__rsa:
-            self.__rsa._publish_event(
+            exporter_id = self.__exportref.get_export_container_id()
+            export_ref = self.__exportref
+            rsid = self.__exportref.get_remoteservice_id()
+            ed = self.__exportref.get_description()
+            exception = self.__exportref.get_exception()
+
+            # Update status
+            self.__closed = True
+
+            # Close underlying reference
+            publish = self.__exportref.close(self)
+            self.__exportref = None  # type: ignore
+
+            # Keep a reference to the RSA to publish the event
+            rsa = self.__rsa
+            self.__rsa = None
+
+        if (
+            publish is not None
+            and rsa is not None
+            and export_ref is not None
+            and exporter_id is not None
+            and rsid is not None
+            and ed is not None
+        ):
+            rsa._publish_event(
                 RemoteServiceAdminEvent.fromexportunreg(
-                    self.__rsa._get_bundle(),
-                    exporterid,
+                    rsa._get_bundle(),
+                    exporter_id,
                     rsid,
                     export_ref,
                     exception,
                     ed,
                 )
             )
-            self.__rsa = None
 
 
 class _ImportEndpoint:
@@ -1034,12 +1074,19 @@ class _ImportEndpoint:
         with self.__lock:
             return self.__ed
 
-    def get_import_container_id(self) -> Optional[str]:
+    def get_import_container_id(self) -> str:
         with self.__lock:
-            if self.__importer is not None:
-                return self.__importer.get_id()
+            if self.__importer is None:
+                raise RemoteServiceError("No importer ID set")
 
-            return None
+            return self.__importer.get_id()
+
+    def get_import_container_ns(self) -> str:
+        with self.__lock:
+            if self.__importer is None:
+                raise RemoteServiceError("No importer namespce set")
+
+            return self.__importer.get_namespace()
 
     def get_export_container_id(self) -> Tuple[str, str]:
         with self.__lock:
@@ -1067,6 +1114,10 @@ class _ImportEndpoint:
             return self.__ed
 
     def close(self, import_reg: ImportRegistration) -> bool:
+        if not isinstance(import_reg, ImportRegistrationImpl):
+            # Doesn't come from us if it's not an ImportRegistrationImpl
+            return False
+
         with self.__lock:
             try:
                 self.__active_registrations.remove(import_reg)
@@ -1128,9 +1179,9 @@ class ImportReferenceImpl(ImportReference):
             if exception is None or errored is None:
                 raise RemoteServiceError("Must supply either endpoint or throwable/errorEndpointDescription")
 
-            self.__exception = exception
-            self.__errored = errored
-            self.__endpoint = None
+            self.__exception: Optional[Tuple[Any, Any, Any]] = exception
+            self.__errored: Optional[EndpointDescription] = errored
+            self.__endpoint: Optional[_ImportEndpoint] = None
         else:
             self.__endpoint = endpoint
             self.__exception = None
@@ -1147,26 +1198,42 @@ class ImportReferenceImpl(ImportReference):
 
             return False
 
-    def get_import_container_id(self) -> Optional[str]:
+    def get_import_container_id(self) -> Tuple[str, str]:
         with self.__lock:
             if self.__endpoint is not None:
-                return self.__endpoint.get_import_container_id()
+                importer_ns = self.__endpoint.get_import_container_ns()
+                importer_id = self.__endpoint.get_import_container_id()
+            elif self.__errored is not None:
+                importer_ns, importer_id = self.__errored.get_container_id()
+            else:
+                raise RemoteServiceError("No container ID found")
 
-            return None
+            return importer_ns, importer_id
 
-    def get_export_container_id(self) -> Optional[Tuple[str, str]]:
+    def get_import_container_ns(self) -> str:
+        with self.__lock:
+            if self.__endpoint is not None:
+                return self.__endpoint.get_import_container_ns()
+            elif self.__errored is not None:
+                return self.__errored.get_container_id()[0]
+            else:
+                raise RemoteServiceError("No container ID namespace found")
+
+    def get_export_container_id(self) -> Tuple[str, str]:
         with self.__lock:
             if self.__endpoint is not None:
                 return self.__endpoint.get_export_container_id()
+            elif self.__errored is not None:
+                return self.__errored.get_container_id()
+            else:
+                raise RemoteServiceError("No container ID found")
 
-            return None
-
-    def get_remoteservice_id(self) -> Optional[Tuple[Tuple[str, str], int]]:
+    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
         with self.__lock:
-            if self.__endpoint is not None:
-                return self.__endpoint.get_remoteservice_id()
+            if self.__endpoint is None:
+                raise RemoteServiceError("")
 
-            return None
+            return self.__endpoint.get_remoteservice_id()
 
     def get_reference(self) -> Optional[ServiceReference[Any]]:
         with self.__lock:
@@ -1220,11 +1287,11 @@ class ImportRegistrationImpl(ImportRegistration):
         importer: ImportContainer,
         ed: EndpointDescription,
         svc_reg: ServiceRegistration[Any],
-    ) -> ImportRegistration:
+    ) -> "ImportRegistrationImpl":
         return cls(endpoint=_ImportEndpoint(rsa, importer, ed, svc_reg))
 
     @classmethod
-    def fromexception(cls, e: Tuple[Any, Any, Any], ed: EndpointDescription) -> ImportRegistration:
+    def fromexception(cls, e: Tuple[Any, Any, Any], ed: EndpointDescription) -> "ImportRegistrationImpl":
         return cls(endpoint=None, exception=e, errored=ed)
 
     @classmethod
@@ -1250,7 +1317,7 @@ class ImportRegistrationImpl(ImportRegistration):
             self.__importref = ImportReferenceImpl.fromendpoint(endpoint)
 
         self.__closed = False
-        self.__update_exception = None
+        self.__update_exception: Optional[Tuple[Any, Any, Any]] = None
         self.__lock = threading.RLock()
 
     def _import_endpoint(self) -> Optional[_ImportEndpoint]:
@@ -1267,31 +1334,31 @@ class ImportRegistrationImpl(ImportRegistration):
 
             return self.__importref.match_ed(ed)
 
-    def get_import_reference(self) -> Optional[ImportReference]:
+    def get_import_reference(self) -> ImportReference:
         with self.__lock:
             if self.__closed:
-                return None
+                raise RemoteServiceError("ImportRegistration already closed")
 
             return self.__importref
 
-    def get_import_container_id(self) -> Optional[str]:
+    def get_import_container_id(self) -> Tuple[str, str]:
         with self.__lock:
             if self.__closed:
-                return None
+                raise RemoteServiceError("ImportRegistration already closed")
 
             return self.__importref.get_import_container_id()
 
-    def get_export_container_id(self):
+    def get_export_container_id(self) -> Tuple[str, str]:
         with self.__lock:
             if self.__closed:
-                return None
+                raise RemoteServiceError("ImportRegistration already closed")
 
             return self.__importref.get_export_container_id()
 
-    def get_remoteservice_id(self) -> Optional[Tuple[Tuple[str, str], int]]:
+    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
         with self.__lock:
             if self.__closed:
-                return None
+                raise RemoteServiceError("ImportRegistration already closed")
 
             return self.__importref.get_remoteservice_id()
 
@@ -1319,13 +1386,16 @@ class ImportRegistrationImpl(ImportRegistration):
     def update(self, endpoint_description: EndpointDescription) -> bool:
         with self.__lock:
             if self.__closed:
-                self.__update_exception = ValueError("Update failed since ImportRegistration already closed")
+                try:
+                    raise RemoteServiceError("Update failed since ImportRegistration already closed")
+                except RemoteServiceError:
+                    self.__update_exception = sys.exc_info()
                 return False
 
             try:
                 self.__importref.update(endpoint_description)
-            except Exception as e:
-                self.__update_exception = e
+            except Exception:
+                self.__update_exception = sys.exc_info()
                 return False
 
             if self.__rsa:
@@ -1338,37 +1408,44 @@ class ImportRegistrationImpl(ImportRegistration):
             return False
 
     def close(self) -> None:
-        publish = False
-        importerid = None  # type: ignore
-        rsid = None  # type: ignore
-        import_ref = None  # type: ignore
-        exception = None  # type: ignore
-        ed = None  # type: ignore
-
+        """
+        Cleans up the import endpoint
+        """
         with self.__lock:
-            if not self.__closed:
-                importerid = self.__importref.get_import_container_id()
-                rsid = self.__importref.get_remoteservice_id()
-                import_ref = self.__importref
-                exception = self.__importref.get_exception()
-                ed = self.__importref.get_description()
-                self.__closed = True
-                publish = self.__importref.close(self)
-                self.__importref = None  # type: ignore
+            if self.__closed:
+                return
 
-        if publish and import_ref and self.__rsa:
-            self.__rsa._publish_event(
+            importer_id = self.__importref.get_import_container_id()
+            rsid = self.__importref.get_remoteservice_id()
+            import_ref = self.__importref
+            exception = self.__importref.get_exception()
+            ed = self.__importref.get_description()
+            self.__closed = True
+            publish = self.__importref.close(self)
+            self.__importref = None  # type: ignore
+
+            # Keep a reference to the RSA to publish the event
+            rsa = self.__rsa
+            self.__rsa = None
+
+        if (
+            publish is not None
+            and rsa is not None
+            and import_ref is not None
+            and importer_id is not None
+            and rsid is not None
+            and ed is not None
+        ):
+            rsa._publish_event(
                 RemoteServiceAdminEvent.fromimportunreg(
-                    self.__rsa._get_bundle(),
-                    importerid,
+                    rsa._get_bundle(),
+                    importer_id,
                     rsid,
                     import_ref,
                     exception,
                     ed,
                 )
             )
-
-            self.__rsa = None
 
 
 # ------------------------------------------------------------------------------

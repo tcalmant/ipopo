@@ -153,6 +153,8 @@ ERROR_IMPORTED_CONFIGS = ["import.error.config"]
 ERROR_ECF_EP_ID = "export.error.id"
 DEFAULT_EXPORTED_CONFIGS = ["ecf.xmlrpc.server"]
 
+IPOPO_ECF_NAMESPACE = "ecf.ipopo"
+
 # ------------------------------------------------------------------------------
 ## RSA Service API
 # ------------------------------------------------------------------------------
@@ -237,7 +239,7 @@ class ExportRegistration(Protocol):
     exported service.
     """
 
-    def get_export_reference(self) -> "ExportReference":
+    def get_export_reference(self) -> Optional["ExportReference"]:
         """
         Get the ExportReference associated with this ExportRegistration.  Will
         be None if this registration has been previously closed.  See
@@ -274,7 +276,7 @@ class ExportRegistration(Protocol):
         """
         ...
 
-    def get_reference(self) -> ServiceReference[Any]:
+    def get_reference(self) -> Optional[ServiceReference[Any]]:
         """
         Get the ServiceReference associated with this ExportRegistration.  Will
         be None if the ExportRegistration has been closed, or if an exception
@@ -317,13 +319,12 @@ class ExportRegistration(Protocol):
         """
         ...
 
-    def update(self, properties: Optional[Dict[str, Any]]) -> "EndpointDescription":
+    def update(self, properties: Optional[Dict[str, Any]]) -> Optional["EndpointDescription"]:
         """
         Updates ExportRegistration with new properties.
 
         :param properties a dictionary of new properties.  May be None.
-        :return: EndpointDescription for ExportRegistration, or None if not
-        updated.
+        :return: EndpointDescription for ExportRegistration, or None if not updated.
         """
         ...
 
@@ -346,7 +347,7 @@ class ExportReference(Protocol):
     get_exported_services.
     """
 
-    def get_export_container_id(self) -> Tuple[str, str]:
+    def get_export_container_id(self) -> Optional[Tuple[str, str]]:
         """
         Get the exporting container id of form
         tuple(namespace(string),containerid(string)).
@@ -359,7 +360,7 @@ class ExportReference(Protocol):
         """
         ...
 
-    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
+    def get_remoteservice_id(self) -> Optional[Tuple[Tuple[str, str], int]]:
         """
         Get the exporting remoteservice id of form:
         tuple(containerid,rsid(int)), with containerid of form returned
@@ -375,7 +376,7 @@ class ExportReference(Protocol):
         """
         ...
 
-    def get_reference(self) -> ServiceReference[Any]:
+    def get_reference(self) -> Optional[ServiceReference[Any]]:
         """
         Get the ServiceReference associated with this ExportReference.  Will
         be None if the ExportReference has been closed, or if an exception
@@ -387,7 +388,7 @@ class ExportReference(Protocol):
         """
         ...
 
-    def get_description(self) -> "EndpointDescription":
+    def get_description(self) -> Optional["EndpointDescription"]:
         """
         Get EndpointDescription associated with this ExportReference.
         Will not be None.  See EndpointDescription class.  Will be None
@@ -398,7 +399,7 @@ class ExportReference(Protocol):
         """
         ...
 
-    def get_exception(self) -> Tuple[Any, Any, Any]:
+    def get_exception(self) -> Optional[Tuple[Any, Any, Any]]:
         """
         Get any exception associated with the attempted export.  If not None,
         will be of form:  tuple(exc_type,exc_msg,exc_stack).  For example:
@@ -410,7 +411,7 @@ class ExportReference(Protocol):
         """
         ...
 
-    def update(self, properties: Dict[str, Any]) -> "EndpointDescription":
+    def update(self, properties: Dict[str, Any]) -> Optional["EndpointDescription"]:
         """
         Update the service properties of the exported service.
 
@@ -421,7 +422,7 @@ class ExportReference(Protocol):
         """
         ...
 
-    def close(self, export_reg: ExportRegistration) -> None:
+    def close(self, export_reg: ExportRegistration) -> bool:
         """
         Close this ExportRegistration.  If called after having been previously
         called, will have no effect.
@@ -608,7 +609,7 @@ class ImportReference(Protocol):
         """
         ...
 
-    def get_reference(self) -> ServiceReference[Any]:
+    def get_reference(self) -> Optional[ServiceReference[Any]]:
         """
         Get the ServiceReference of proxy associated with this ImportReference.
         Will be None if the ImportReference has been closed, or if an exception
@@ -620,7 +621,7 @@ class ImportReference(Protocol):
         """
         ...
 
-    def get_description(self) -> "EndpointDescription":
+    def get_description(self) -> Optional["EndpointDescription"]:
         """
         Get EndpointDescription associated with this ImportReference.
         Will not be None.  See EndpointDescription class.  Will be None
@@ -653,7 +654,7 @@ class ImportReference(Protocol):
         """
         ...
 
-    def close(self, import_reg: ImportRegistration) -> None:
+    def close(self, import_reg: ImportRegistration) -> bool:
         """
         Close this ImportReference.  If called after having been previously
         called, will have no effect.
@@ -1361,7 +1362,10 @@ def get_rsa_props(
 
 
 def get_ecf_props(
-    ep_id: Optional[str], ep_id_ns: Optional[str], rsvc_id: Optional[int] = None, ep_ts: Optional[int] = None
+    ep_id: str,
+    ep_id_ns: str,
+    rsvc_id: Optional[int] = None,
+    ep_ts: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Prepares the ECF properties

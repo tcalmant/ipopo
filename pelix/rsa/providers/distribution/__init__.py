@@ -40,6 +40,7 @@ from pelix.rsa import (
     ECF_SERVICE_EXPORTED_ASYNC_INTERFACES,
     ENDPOINT_FRAMEWORK_UUID,
     ENDPOINT_ID,
+    IPOPO_ECF_NAMESPACE,
     SERVICE_BUNDLE_ID,
     SERVICE_EXPORTED_CONFIGS,
     SERVICE_EXPORTED_INTENTS,
@@ -706,6 +707,9 @@ class ImportContainer(Container, abc.ABC):
         return self._get_distribution_provider()._get_imported_configs(exported_configs)
 
     def _prepare_proxy_props(self, endpoint_description: EndpointDescription) -> Dict[str, Any]:
+        """
+        Utility method to construct the properties of the proxy of the given endpoint description
+        """
         result_props = copy_non_reserved(endpoint_description.get_properties(), dict())
         # remove these props
         result_props.pop(OBJECTCLASS, None)
@@ -727,9 +731,17 @@ class ImportContainer(Container, abc.ABC):
 
     @abc.abstractmethod
     def _prepare_proxy(self, endpoint_description: EndpointDescription) -> Any:
+        """
+        Sets up a proxy for the given endpoint description
+        """
         ...
 
     def import_service(self, endpoint_description: EndpointDescription) -> Optional[ServiceRegistration[Any]]:
+        """
+        Import a service from an Endpoint. The Remote Service Admin must use the
+        given Endpoint to create a proxy. This method can return None if
+        the service could not be imported.
+        """
         endpoint_description.update_imported_configs(
             self._get_imported_configs(endpoint_description.get_remote_configs_supported())
         )
@@ -744,4 +756,7 @@ class ImportContainer(Container, abc.ABC):
         return None
 
     def unimport_service(self, endpoint_description: EndpointDescription) -> None:
+        """
+        Free the resources used by the given imported service
+        """
         ...
