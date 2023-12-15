@@ -31,7 +31,7 @@ from threading import RLock
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 import pelix.rsa as rsa
-from pelix.constants import OBJECTCLASS, SERVICE_SCOPE
+from pelix.constants import OBJECTCLASS, SERVICE_SCOPE, Specification
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo.constants import ARG_BUNDLE_CONTEXT, ARG_PROPERTIES, IPOPO_INSTANCE_NAME, IPopoService
@@ -304,7 +304,7 @@ SERVICE_EXPORT_DISTRIBUTION_PROVIDER = "pelix.rsa.exportdistributionprovider"
 # Abstract implementation of SERVICE_EXPORT_DISTRIBUTION_PROVIDER extends
 # DistributionProvider superclass
 
-
+@Specification(SERVICE_EXPORT_DISTRIBUTION_PROVIDER)
 class ExportDistributionProvider(DistributionProvider):
     """
     Export distribution provider.
@@ -317,8 +317,6 @@ class ExportDistributionProvider(DistributionProvider):
     Note:  Subclasses MUST implement/override _prepare_container_id method
     and return a string to identify the created container instance.
     """
-
-    __SPECIFICATION__ = SERVICE_EXPORT_DISTRIBUTION_PROVIDER
 
     def supports_export(
         self,
@@ -347,14 +345,12 @@ class ExportDistributionProvider(DistributionProvider):
 # Specification for SERVICE_IMPORT_DISTRIBUTION_PROVIDER
 SERVICE_IMPORT_DISTRIBUTION_PROVIDER = "pelix.rsa.importdistributionprovider"
 
-
+@Specification(SERVICE_IMPORT_DISTRIBUTION_PROVIDER)
 class ImportDistributionProvider(DistributionProvider):
     """
     Abstract implementation of SERVICE_EXPORT_DISTRIBUTION_PROVIDER
     extends DistributionProvider superclass
     """
-
-    __SPECIFICATION__ = SERVICE_IMPORT_DISTRIBUTION_PROVIDER
 
     def _prepare_container_id(self, container_props: Dict[str, Any]) -> str:
         """
@@ -544,15 +540,13 @@ class Container(abc.ABC):
 # Service specification for SERVICE_EXPORT_CONTAINER
 SERVICE_EXPORT_CONTAINER = "pelix.rsa.exportcontainer"
 
-
+@Specification(SERVICE_EXPORT_CONTAINER)
 class ExportContainer(Container):
     """
     Abstract implementation of SERVICE_EXPORT_CONTAINER service specification
     extends Container class. New export distribution containers should use this
     class as a superclass to inherit required behavior.
     """
-
-    __SPECIFICATION__ = SERVICE_EXPORT_CONTAINER
 
     def _get_supported_intents(self) -> Optional[List[str]]:
         return self._get_distribution_provider().get_supported_intents()
@@ -693,15 +687,13 @@ class ExportContainer(Container):
 # Service specification for SERVICE_IMPORT_CONTAINER
 SERVICE_IMPORT_CONTAINER = "pelix.rsa.importcontainer"
 
-
+@Specification(SERVICE_IMPORT_CONTAINER)
 class ImportContainer(Container, abc.ABC):
     """
     Abstract implementation of SERVICE_IMPORT_CONTAINER service specification
     extends Container class.  New import container classes should
     subclass this ImportContainer class to inherit necessary functionality.
     """
-
-    __SPECIFICATION__ = SERVICE_IMPORT_CONTAINER
 
     def _get_imported_configs(self, exported_configs: List[str]) -> List[str]:
         return self._get_distribution_provider()._get_imported_configs(exported_configs)

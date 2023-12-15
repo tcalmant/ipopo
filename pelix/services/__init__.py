@@ -27,6 +27,8 @@ Pelix OSGi-like services packages
 
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Protocol, Union
 
+from pelix.constants import Specification
+
 if TYPE_CHECKING:
     import pelix.ldapfilter as ldapfilter
 
@@ -57,12 +59,11 @@ SERVICE_EVENT_HANDLER = "pelix.services.eventadmin.handler"
 """ Specification of an EventAdmin event handler """
 
 
+@Specification(SERVICE_EVENT_ADMIN)
 class EventAdmin(Protocol):
     """
     Definition of the event admin service
     """
-
-    __SPECIFICATION__: str = SERVICE_EVENT_ADMIN
 
     def send(self, topic: str, properties: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -83,12 +84,11 @@ class EventAdmin(Protocol):
         ...
 
 
+@Specification(SERVICE_EVENT_HANDLER)
 class ServiceEventHandler(Protocol):
     """
     Definition of a Service Event handler
     """
-
-    __SPECIFICATION__: str = SERVICE_EVENT_HANDLER
 
     def handle_event(self, topic: str, properties: Dict[str, Any]) -> None:
         """
@@ -270,12 +270,11 @@ class Configuration(Protocol):
         ...
 
 
+@Specification(SERVICE_CONFIGURATION_ADMIN)
 class IConfigurationAdmin(Protocol):
     """
     Specification of the configuration admin service
     """
-
-    __SPECIFICATION__:str = SERVICE_CONFIGURATION_ADMIN
 
     def create_factory_configuration(self, factory_pid: str) -> Configuration:
         """
@@ -323,12 +322,11 @@ class IConfigurationAdmin(Protocol):
         ...
 
 
+@Specification(SERVICE_CONFIGADMIN_PERSISTENCE)
 class IConfigurationAdminPersistence(Protocol):
     """
     Specification of a configuration admin persistence service
     """
-
-    __SPECIFICATION__:str = SERVICE_CONFIGADMIN_PERSISTENCE
 
     def get_pids(self) -> Iterable[str]:
         """
@@ -361,12 +359,11 @@ class IConfigurationAdminPersistence(Protocol):
         ...
 
 
+@Specification(SERVICE_CONFIGADMIN_MANAGED)
 class IManagedService(Protocol):
     """
     Specification of a service managed by configuration admin
     """
-
-    __SPECIFICATION__:str = SERVICE_CONFIGADMIN_MANAGED
 
     def updated(self, properties: Optional[Dict[str, Any]]) -> None:
         """
@@ -375,12 +372,11 @@ class IManagedService(Protocol):
         ...
 
 
+@Specification(SERVICE_CONFIGADMIN_MANAGED_FACTORY)
 class IManagedServiceFactory(Protocol):
     """
     Specification of a managed service factory
     """
-
-    __SPECIFICATION__:str = SERVICE_CONFIGADMIN_MANAGED_FACTORY
 
     def get_name(self) -> str:
         """
@@ -413,12 +409,11 @@ PROP_FILEINSTALL_FOLDER = "fileinstall.folder"
 """ Path to the folder to look after, in white board pattern """
 
 
+@Specification(SERVICE_FILEINSTALL_LISTENERS)
 class FileInstallListener(Protocol):
     """
     Specification of the FileInstall listener service
     """
-
-    __SPECIFICATION__:str = SERVICE_FILEINSTALL_LISTENERS
 
     def folder_change(
         self, folder: str, added: Iterable[str], updated: Iterable[str], deleted: Iterable[str]
@@ -434,12 +429,11 @@ class FileInstallListener(Protocol):
         ...
 
 
+@Specification(SERVICE_FILEINSTALL)
 class FileInstall(Protocol):
     """
     Specification of the FileInstall service
     """
-
-    __SPECIFICATION__:str = SERVICE_FILEINSTALL
 
     def add_listener(self, folder: str, listener: FileInstallListener) -> bool:
         """
@@ -480,12 +474,11 @@ PROP_MQTT_TOPICS = "pelix.mqtt.topics"
 """ List of the topics a listener wants to subscribes to """
 
 
+@Specification(SERVICE_MQTT_CONNECTOR_FACTORY)
 class MqttConnectorFactory(Protocol):
     """
     Specification of an MQTT connector factory
     """
-
-    __SPECIFICATION__:str = SERVICE_MQTT_CONNECTOR_FACTORY
 
     def publish(
         self, topic: str, payload: bytes, qos: int = 0, retain: bool = False, pid: Optional[str] = None
@@ -503,12 +496,11 @@ class MqttConnectorFactory(Protocol):
         ...
 
 
+@Specification(SERVICE_MQTT_LISTENER)
 class MqttListener(Protocol):
     """
     Specification of an MQTT listener
     """
-
-    __SPECIFICATION__:str = SERVICE_MQTT_LISTENER
 
     def handle_mqtt_message(self, topic: str, payload: bytes, qos: int) -> None:
         """

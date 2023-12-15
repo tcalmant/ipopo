@@ -27,6 +27,7 @@ iPOPO handlers constants and base classes
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Protocol, Tuple
+from pelix.constants import Specification
 
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceReference
@@ -272,12 +273,11 @@ class DependencyHandler(Handler, ABC):
 # ------------------------------------------------------------------------------
 
 
+@Specification(SERVICE_IPOPO_HANDLER_FACTORY)
 class HandlerFactory(Protocol):
     """
     Handler factory abstract class
     """
-
-    __SPECIFICATION__: str = SERVICE_IPOPO_HANDLER_FACTORY
 
     def get_handlers(self, component_context: "ComponentContext", instance: Any) -> Iterable[Handler]:
         """

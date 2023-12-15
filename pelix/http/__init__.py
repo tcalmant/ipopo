@@ -29,6 +29,7 @@ Defines the interfaces that must respect HTTP service implementations.
 
 from abc import ABC, abstractmethod
 from typing import IO, Any, Dict, Iterable, List, Optional, Protocol, Tuple
+from pelix.constants import Specification
 
 from pelix.utilities import to_bytes
 
@@ -366,20 +367,18 @@ class ErrorHandler(Protocol):
         ...
 
 
+@Specification(HTTP_SERVLET)
 class Servlet(Protocol):
     """
     Interface of an HTTP servlet
     """
 
-    __SPECIFICATION__: str = HTTP_SERVLET
 
-
+@Specification(HTTP_SERVICE)
 class HTTPService(Protocol):
     """
     HTTP service interface
     """
-
-    __SPECIFICATION__: str = HTTP_SERVICE
 
     def get_access(self) -> Tuple[str, int]:
         """

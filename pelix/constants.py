@@ -26,7 +26,7 @@ Constants and exceptions for Pelix.
 """
 
 import inspect
-from typing import TYPE_CHECKING, Any, Protocol, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Iterable, List, Protocol, Type, TypeVar, Union
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
@@ -142,6 +142,7 @@ This allows all bundles to have multiples objects for the same service.
 
 # ------------------------------------------------------------------------------
 
+
 class ActivatorProto(Protocol):
     """
     Interface of an activator
@@ -216,3 +217,56 @@ class FrameworkException(Exception):
         """
         Exception.__init__(self, message)
         self.needs_stop = needs_stop
+
+
+# ------------------------------------------------------------------------------
+
+# Specification field
+PELIX_SPECIFICATION_FIELD = "__SPECIFICATION__"
+
+
+class Specification:
+    """
+    Decorator that injects the Pelix specification information to the decorated class.
+
+    Should be used on protocols and classes that will be registered as service using
+    the register_service method.
+    """
+
+    __spec: Union[str, List[str]]
+
+    def __init__(self, specification: Union[str, Type[Any], Iterable[Union[str, Type[Any]]]]) -> None:
+        """
+        :param specification: Specification of the provided service
+        """
+        if isinstance(specification, (list, tuple, set)):
+            self.__spec = [self._get_name(spec) for spec in specification]
+        elif isinstance(specification, (str, type)):
+            self.__spec = [self._get_name(specification)]
+        else:
+            raise ValueError(f"Invalid specification: {specification}")
+
+    def __call__(self, cls: Type[T]) -> Type[T]:
+        """
+        Injects the specification information to the decorated class
+        """
+        existing = getattr(cls, PELIX_SPECIFICATION_FIELD, None)
+        if existing:
+            if isinstance(existing, list):
+                existing.extend(self.__spec)
+            else:
+                existing = [existing, self.__spec]
+        else:
+            existing = self.__spec
+
+        setattr(cls, PELIX_SPECIFICATION_FIELD, existing)
+        return cls
+
+    def _get_name(self, clazz: Union[str, Type[Any]]) -> str:
+        """
+        Returns the given string of the name of the class
+        """
+        if isinstance(clazz, str):
+            return clazz
+        else:
+            return clazz.__name__

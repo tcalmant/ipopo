@@ -30,6 +30,7 @@ import abc
 import logging
 from threading import RLock
 from typing import Any, Dict, List, Optional, Protocol, Tuple
+from pelix.constants import Specification
 
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import BindField, Requires, UnbindField
@@ -54,14 +55,13 @@ _logger = logging.getLogger(__name__)
 SERVICE_ENDPOINT_ADVERTISER = "pelix.rsa.discovery.endpointadvertiser"
 
 
+@Specification(SERVICE_ENDPOINT_ADVERTISER)
 class EndpointAdvertiser(abc.ABC):
     """
     Endpoint advertiser service specification.  EndpointAdvertiser services
     are used to advertise exported remote services.  See EndpointAdvertiser
     class below.
     """
-
-    __SPECIFICATION__: str = SERVICE_ENDPOINT_ADVERTISER
 
     def __init__(self) -> None:
         self._published_endpoints: Dict[str, Tuple[EndpointDescription, Any]] = {}
@@ -249,14 +249,13 @@ SERVICE_ENDPOINT_LISTENER = "pelix.rsa.discovery.endpointeventlistener"
 SERVICE_ENDPOINT_EVENT_LISTENER = SERVICE_ENDPOINT_LISTENER
 
 
+@Specification(SERVICE_ENDPOINT_EVENT_LISTENER)
 class EndpointEventListener(Protocol):
     """
     Subclasses should override the endpoint_changed method
     so that they will receive notification (via an arbitrary
     thread) when an endpoint has been added, removed or modified
     """
-
-    __SPECIFICATION__: str = SERVICE_ENDPOINT_EVENT_LISTENER
 
     # Endpoint listener scope will be consulted when a
     # discovery provider receives an endpoint event.

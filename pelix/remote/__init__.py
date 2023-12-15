@@ -26,6 +26,7 @@ Pelix remote services package
 """
 
 from typing import Any, Dict, Iterable, List, Optional, Protocol, Tuple, Union
+from pelix.constants import Specification
 
 import pelix.http
 from pelix.internals.registry import ServiceReference
@@ -250,12 +251,11 @@ class RemoteServiceError(Exception):
     pass
 
 
+@Specification(SERVICE_REGISTRY)
 class RemoteServiceRegistry(Protocol):
     """
     Specification of the remote service registry
     """
-
-    __SPECIFICATION__: str = SERVICE_REGISTRY
 
     def add(self, endpoint: ImportEndpoint) -> bool:
         """
@@ -304,12 +304,11 @@ class RemoteServiceRegistry(Protocol):
         ...
 
 
+@Specification(SERVICE_DISPATCHER)
 class RemoteServiceDispatcher(Protocol):
     """
     Remote service dispatcher
     """
-
-    __SPECIFICATION__: str = SERVICE_DISPATCHER
 
     def get_endpoints(self, kind: Optional[str] = None, name: Optional[str] = None) -> List[ExportEndpoint]:
         """
@@ -328,12 +327,11 @@ class RemoteServiceDispatcher(Protocol):
         ...
 
 
+@Specification(SERVICE_DISPATCHER_SERVLET)
 class RemoteServiceDispatcherServlet(pelix.http.Servlet, Protocol):
     """
     Remote service dispatcher servlet
     """
-
-    __SPECIFICATION__: str = SERVICE_DISPATCHER_SERVLET
 
     def get_access(self) -> Optional[Tuple[int, str]]:
         """
@@ -373,12 +371,11 @@ class RemoteServiceDispatcherServlet(pelix.http.Servlet, Protocol):
         ...
 
 
+@Specification(SERVICE_EXPORT_PROVIDER)
 class RemoteServiceExportProvider(Protocol):
     """
     Remote service exporter
     """
-
-    __SPECIFICATION__: str = SERVICE_EXPORT_PROVIDER
 
     def handles(self, configs: Iterable[str]) -> bool:
         """
@@ -425,12 +422,11 @@ class RemoteServiceExportProvider(Protocol):
         ...
 
 
+@Specification(SERVICE_EXPORT_ENDPOINT_LISTENER)
 class RemoteServiceExportEndpointListener(Protocol):
     """
     Remote service export endpoint listener
     """
-
-    __SPECIFICATION__: str = SERVICE_EXPORT_ENDPOINT_LISTENER
 
     def endpoints_added(self, endpoints: List[ExportEndpoint]) -> None:
         """
@@ -451,12 +447,11 @@ class RemoteServiceExportEndpointListener(Protocol):
         ...
 
 
+@Specification(SERVICE_IMPORT_ENDPOINT_LISTENER)
 class RemoteServiceImportEndpointListener(Protocol):
     """
     Remote service import endpoint listener
     """
-
-    __SPECIFICATION__: str = SERVICE_IMPORT_ENDPOINT_LISTENER
 
     def endpoint_added(self, endpoint: ImportEndpoint) -> None:
         """

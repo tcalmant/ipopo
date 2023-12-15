@@ -481,13 +481,11 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
 # ------------------------------------------------------------------------------
 
 
+@constants.Specification(services.SERVICE_MQTT_CONNECTION)
 class _MqttConnection:
-    # pylint: disable=R0903
     """
     Represents a connection to an MQTT server
     """
-
-    __SPECIFICATION__:str = services.SERVICE_MQTT_CONNECTION
 
     def __init__(self, connection: paho.Client):
         """

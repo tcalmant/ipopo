@@ -26,9 +26,22 @@ Defines some iPOPO constants
 """
 
 import contextlib
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Protocol, Set, Tuple, Type, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Protocol,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    cast,
+)
 
-from pelix.constants import BundleException
+from pelix.constants import BundleException, Specification
 
 if TYPE_CHECKING:
     from pelix.framework import Bundle, BundleContext
@@ -183,7 +196,6 @@ updated
 # ------------------------------------------------------------------------------
 
 
-
 class IPopoEventListener(Protocol):
     """
     Interface of iPOPO events listeners
@@ -198,12 +210,11 @@ class IPopoEventListener(Protocol):
         ...
 
 
+@Specification(SERVICE_IPOPO)
 class IPopoService(Protocol):
     """
     Interface of the iPOPO core service
     """
-
-    __SPECIFICATION__: str = SERVICE_IPOPO
 
     def instantiate(self, factory_name: str, name: str, properties: Optional[Dict[str, Any]] = None) -> Any:
         """
@@ -417,14 +428,11 @@ class IPopoService(Protocol):
         """
         ...
 
-
-
+@Specification(SERVICE_IPOPO_WAITING_LIST)
 class IPopoWaitingList(Protocol):
     """
     iPOPO instantiation waiting list
     """
-
-    __SPECIFICATION__: str = SERVICE_IPOPO_WAITING_LIST
 
     def add(self, factory: str, component: str, properties: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -446,6 +454,7 @@ class IPopoWaitingList(Protocol):
         :raise KeyError: Unknown component
         """
         ...
+
 
 # ------------------------------------------------------------------------------
 

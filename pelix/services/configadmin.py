@@ -77,12 +77,11 @@ Private version of ConfigAdmin, to handle loop-requirements ("that will do")
 """
 
 
+@pelix.constants.Specification(SERVICE_CONFIGADMIN_DIRECTORY)
 class IConfigurationAdminDirectory(Protocol):
     """
     Specification of a configuration admin directory service
     """
-
-    __SPECIFICATION__: str = SERVICE_CONFIGADMIN_DIRECTORY
 
     def list_configurations(
         self, ldap_filter: Union[None, str, ldapfilter.LdapFilterOrCriteria] = None

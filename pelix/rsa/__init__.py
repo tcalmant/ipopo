@@ -162,14 +162,13 @@ IPOPO_ECF_NAMESPACE = "ecf.ipopo"
 SERVICE_REMOTE_SERVICE_ADMIN = "pelix.rsa.remoteserviceadmin"
 
 
+@constants.Specification(SERVICE_REMOTE_SERVICE_ADMIN)
 class RemoteServiceAdmin(Protocol):
     """
     RSA service specification.  This specification is the core service
     implemented by the RSA package.  See the RemoteServiceAdmin
     class below for method documentation.
     """
-
-    __SPECIFICATION__: str = SERVICE_REMOTE_SERVICE_ADMIN
 
     def get_exported_services(self) -> List["ExportReference"]:
         """
@@ -672,6 +671,7 @@ class ImportReference(Protocol):
 SERVICE_RSA_EVENT_LISTENER = "pelix.rsa.remoteserviceadmineventlistener"
 
 
+@constants.Specification(SERVICE_RSA_EVENT_LISTENER)
 class RemoteServiceAdminListener(Protocol):
     """
     Remote service admin listener service interface.  Services
@@ -680,8 +680,6 @@ class RemoteServiceAdminListener(Protocol):
     of RSA events.  The event parameter will be of type
     RemoteServiceAdminEvent (see below).
     """
-
-    __SPECIFICATION__: str = SERVICE_RSA_EVENT_LISTENER
 
     def remote_admin_event(self, rsa_event: "RemoteServiceAdminEvent") -> None:
         """

@@ -43,6 +43,7 @@ from pelix.constants import (
     ActivatorProto,
     BundleActivator,
     BundleException,
+    Specification,
 )
 from pelix.framework import Bundle, BundleContext
 from pelix.internals.registry import ServiceReference, ServiceRegistration
@@ -157,6 +158,7 @@ class Activator(ActivatorProto):
 SERVICE_EXPORT_CONTAINER_SELECTOR = "pelix.rsa.exportcontainerselector"
 
 
+@Specification(SERVICE_EXPORT_CONTAINER_SELECTOR)
 class ExportContainerSelector(Protocol):
     """
     RSA Impl Export Container Selector service specification and default
@@ -165,8 +167,6 @@ class ExportContainerSelector(Protocol):
     export containers to handle a given call to
     RemoteServiceAdmin.export_service
     """
-
-    __SPECIFICATION__: str = SERVICE_EXPORT_CONTAINER_SELECTOR
 
     def select_export_containers(
         self, service_ref: ServiceReference[Any], exported_intfs: List[str], export_props: Dict[str, Any]
@@ -236,8 +236,8 @@ class ExportContainerSelectorImpl(ExportContainerSelector):
 SERVICE_IMPORT_CONTAINER_SELECTOR = "pelix.rsa.importcontainerselector"
 
 
+@Specification(SERVICE_IMPORT_CONTAINER_SELECTOR)
 class ImportContainerSelector(Protocol):
-    __SPECIFICATION__: str = SERVICE_IMPORT_CONTAINER_SELECTOR
 
     def select_import_container(
         self, remote_configs: List[str], endpoint_description: EndpointDescription

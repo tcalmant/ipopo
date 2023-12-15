@@ -28,6 +28,8 @@ Pelix shell package
 
 from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Protocol, Set, Tuple
 
+from pelix.constants import Specification
+
 if TYPE_CHECKING:
     from pelix.shell.beans import ShellSession
     from pelix.shell.completion import CompletionInfo
@@ -91,13 +93,11 @@ Report command service: gives access to the report methods for a future reuse
 
 ShellCommandMethod = Callable[..., Any]
 
-
+@Specification(SERVICE_SHELL)
 class ShellService(Protocol):
     """
     Shell service specification
     """
-
-    __SPECIFICATION__: str = SERVICE_SHELL
 
     def get_banner(self) -> str:
         """
@@ -197,12 +197,11 @@ class ShellService(Protocol):
         ...
 
 
+@Specification(SERVICE_SHELL_UTILS)
 class ShellUtils(Protocol):
     """
     Specification of the shell utility service
     """
-
-    __SPECIFICATION__: str = SERVICE_SHELL_UTILS
 
     @staticmethod
     def bundlestate_to_str(state: int) -> str:
@@ -224,13 +223,11 @@ class ShellUtils(Protocol):
         """
         ...
 
-
+@Specification(SERVICE_SHELL_COMMAND)
 class ShellCommandsProvider(Protocol):
     """
     Specification of a provider of shell commands
     """
-
-    __SPECIFICATION__: str = SERVICE_SHELL_COMMAND
 
     def get_namespace(self) -> str:
         """
@@ -244,13 +241,11 @@ class ShellCommandsProvider(Protocol):
         """
         ...
 
-
+@Specification(SERVICE_SHELL_REPORT)
 class ShellReport(Protocol):
     """
     Specification of the shell report service
     """
-
-    __SPECIFICATION__:str = SERVICE_SHELL_REPORT
 
     def get_levels(self) -> Set[str]:
         """
@@ -260,13 +255,11 @@ class ShellReport(Protocol):
         """
         ...
 
-
+@Specification(SERVICE_SHELL_REMOTE)
 class RemoteShell(Protocol):
     """
     Specification of the remote shell service
     """
-
-    __SPECIFICATION__: str = SERVICE_SHELL_REMOTE
 
     def get_access(self) -> Tuple[Optional[str], Optional[int]]:
         """

@@ -50,6 +50,7 @@ from typing import (
 import pelix.ldapfilter as ldapfilter
 from pelix.constants import (
     OBJECTCLASS,
+    PELIX_SPECIFICATION_FIELD,
     SCOPE_BUNDLE,
     SCOPE_PROTOTYPE,
     SCOPE_SINGLETON,
@@ -1260,7 +1261,7 @@ class ServiceRegistry:
                 clazz = ldapfilter.escape_LDAP(clazz)
             elif inspect.isclass(clazz):
                 # Escape the type name
-                clazz = ldapfilter.escape_LDAP(getattr(clazz, "__SPECIFICATION__", clazz.__name__))
+                clazz = ldapfilter.escape_LDAP(getattr(clazz, PELIX_SPECIFICATION_FIELD, clazz.__name__))
 
             if clazz is None:
                 # Directly use the given filter

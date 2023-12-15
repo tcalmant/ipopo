@@ -58,7 +58,9 @@ from pelix.constants import (
     ACTIVATOR,
     ACTIVATOR_LEGACY,
     FRAMEWORK_UID,
+    OBJECTCLASS,
     OSGI_FRAMEWORK_UUID,
+    PELIX_SPECIFICATION_FIELD,
     BundleException,
     FrameworkException,
 )
@@ -157,11 +159,11 @@ _logger = logging.getLogger("pelix.main")
 # ------------------------------------------------------------------------------
 
 
-def _get_class_spec(clazz: Type[Any]) -> str:
+def _get_class_spec(clazz: Type[Any]) -> Union[str, List[str]]:
     """
     Extract a specification from the given type
     """
-    return getattr(clazz, "__SPECIFICATION__", clazz.__name__)
+    return getattr(clazz, PELIX_SPECIFICATION_FIELD, clazz.__name__)
 
 
 class Bundle:
@@ -1092,12 +1094,13 @@ class Framework(Bundle):
                 # Get the specification field of keep the type name
                 svc_clazz = _get_class_spec(svc_clazz)
 
-            if not svc_clazz or not is_string(svc_clazz):
+            if not svc_clazz:
                 # Invalid class name
                 raise BundleException(f"Invalid class name: {svc_clazz}")
-
-            # Class OK
-            classes.append(str(svc_clazz))
+            elif isinstance(svc_clazz, str):
+                classes.append(svc_clazz)
+            elif isinstance(svc_clazz, list):
+                classes.extend(svc_clazz)
 
         # Make the service registration
         registration = self._registry.register(bundle, classes, properties, service, factory, prototype)
@@ -1455,7 +1458,7 @@ class BundleContext:
         self,
         listener: ServiceListener,
         ldap_filter: Union[None, LDAPCriteria, LDAPFilter, str] = None,
-        specification: Optional[Union[str, Type[Any]]] = None,
+        specification: Optional[Union[str, Type[Any], Iterable[Union[str, Type[Any]]]]] = None,
     ) -> bool:
         """
         Registers a service listener
@@ -1480,8 +1483,22 @@ class BundleContext:
         """
         if specification is not None and inspect.isclass(specification):
             specification = _get_class_spec(specification)
+
+        if isinstance(specification, str):
+            single_specification_filter = specification
+        elif isinstance(specification, list):
+            single_specification_filter = None
+            spec_filters = [f"({OBJECTCLASS}={spec})" for spec in specification]
+            ldap_specification_filter = f"(&{''.join(spec_filters)})"
+            if ldap_filter is None:
+                ldap_filter = ldap_specification_filter
+            else:
+                ldap_filter = f"(&{ldap_filter}{ldap_specification_filter})"
+        else:
+            single_specification_filter = None
+
         return self.__framework._dispatcher.add_service_listener(
-            self, listener, cast(Optional[str], specification), ldap_filter
+            self, listener, single_specification_filter, ldap_filter
         )
 
     def get_all_service_references(

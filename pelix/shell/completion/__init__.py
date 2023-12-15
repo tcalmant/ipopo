@@ -29,6 +29,8 @@ Pelix shell completion package
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, List, Protocol
 
+from pelix.constants import Specification
+
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
     from pelix.shell.beans import ShellSession
@@ -91,12 +93,11 @@ class CompletionInfo:
     """
 
 
+@Specification(SVC_COMPLETER)
 class Completer(Protocol):
     """
     Specification of a service providing completions
     """
-
-    __SPECIFICATION__: str = SVC_COMPLETER
 
     def complete(
         self,

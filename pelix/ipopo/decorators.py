@@ -27,6 +27,8 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 
 import inspect
 import logging
+from multiprocessing import Value
+from opcode import hasname
 import threading
 import types
 from typing import (
@@ -43,6 +45,7 @@ from typing import (
     Union,
     cast,
 )
+from pelix.constants import PELIX_SPECIFICATION_FIELD
 
 import pelix.ipopo.constants as constants
 from pelix.framework import BundleContext
@@ -847,9 +850,22 @@ def _get_specifications(
     if not specifications or specifications is object:
         raise ValueError("No specifications given")
     elif inspect.isclass(specifications):
-        if hasattr(specifications, "__SPECIFICATION__"):
+        if hasattr(specifications, PELIX_SPECIFICATION_FIELD):
             # Explicit specification
-            return [getattr(specifications, "__SPECIFICATION__")]
+            raw_spec = getattr(specifications, PELIX_SPECIFICATION_FIELD)
+            if not raw_spec:
+                raise ValueError("Empty specification given")
+            elif isinstance(raw_spec, (list, set, tuple)):
+                specs: List[str] = []
+                for spec in raw_spec:
+                    specs.extend(_get_specifications(spec))
+                if not specs:
+                    raise ValueError("Empty specification given")
+                return specs
+            elif isinstance(raw_spec, str):
+                return [raw_spec]
+            else:
+                return [getattr(specifications, PELIX_SPECIFICATION_FIELD)]
 
         if Provides.USE_MODULE_QUALNAME:
             # Get the name of the class

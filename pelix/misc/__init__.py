@@ -27,6 +27,7 @@ Pelix miscellaneous modules
 
 from types import TracebackType
 from typing import Any, Optional, Protocol, Tuple, TypeAlias
+from pelix.constants import Specification
 
 from pelix.framework import Bundle
 from pelix.internals.registry import ServiceReference
@@ -139,12 +140,11 @@ class LogEntry(Protocol):
         ...
 
 
+@Specification("pelix.log.listener")
 class LogListener(Protocol):
     """
     Specification of log listener
     """
-
-    __SPECIFICATION__: str = "pelix.log.listener"
 
     def logged(self, entry: LogEntry) -> None:
         """
@@ -154,12 +154,11 @@ class LogListener(Protocol):
         ...
 
 
+@Specification(LOG_READER_SERVICE)
 class LogReader(Protocol):
     """
     Specification of a log reader service
     """
-
-    __SPECIFICATION__: str = LOG_READER_SERVICE
 
     def add_log_listener(self, listener: LogListener) -> None:
         """
@@ -197,12 +196,11 @@ class LogReader(Protocol):
         ...
 
 
+@Specification(LOG_SERVICE)
 class LogService(Protocol):
     """
     Specification of the Log service
     """
-
-    __SPECIFICATION__: str = LOG_SERVICE
 
     def log(
         self,
