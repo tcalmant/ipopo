@@ -73,7 +73,7 @@ class AbstractCompleter(abc.ABC, Completer):
         context: "BundleContext",
     ) -> None:
         try:
-            readline.set_completion_display_matches_hook(
+            readline.set_completion_display_matches_hook(  # type: ignore
                 lambda sub, matches, longest: display_hook(prompt, session, context, matches, longest)
             )
         except AttributeError:

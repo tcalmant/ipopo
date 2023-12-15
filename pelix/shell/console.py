@@ -72,8 +72,8 @@ try:
     # Set up readline if available
     import readline
 
-    readline.parse_and_bind("tab: complete")
-    readline.set_completer(None)
+    readline.parse_and_bind("tab: complete")  # type: ignore
+    readline.set_completer(None)  # type: ignore
 
     HAS_READLINE = True
 except ImportError:
@@ -247,13 +247,13 @@ class InteractiveShell:
             # New completion, reset the list of matches and the display hook
             self._readline_matches = []
             try:
-                readline.set_completion_display_matches_hook(None)
+                readline.set_completion_display_matches_hook(None)  # type: ignore
             except AttributeError:
                 pass
 
             # Get the full line
-            full_line = readline.get_line_buffer()
-            begin_idx = readline.get_begidx()
+            full_line = readline.get_line_buffer()  # type: ignore
+            begin_idx = readline.get_begidx()  # type: ignore
 
             # Parse arguments as best as we can
             try:
@@ -389,7 +389,7 @@ class InteractiveShell:
 
             # Set the readline completer
             if HAS_READLINE:
-                readline.set_completer(self.readline_completer)
+                readline.set_completer(self.readline_completer)  # type: ignore
 
             # Set the flag
             self._shell_event.set()
@@ -406,7 +406,7 @@ class InteractiveShell:
 
             # Clear the readline completer
             if HAS_READLINE:
-                readline.set_completer(None)
+                readline.set_completer(None)  # type: ignore
                 del self._readline_matches[:]
 
             if self._shell_ref is not None:

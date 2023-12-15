@@ -95,8 +95,8 @@ class BundleCompleter(AbstractCompleter):
 
         # Print the prompt, then current line
         session.write(prompt)
-        session.write_line_no_feed(readline.get_line_buffer())
-        readline.redisplay()
+        session.write_line_no_feed(readline.get_line_buffer())  # type: ignore
+        readline.redisplay()  # type: ignore
 
     def complete(
         self,
@@ -171,8 +171,8 @@ class ServiceCompleter(AbstractCompleter):
 
             # Print the prompt, then current line
             session.write(prompt)
-            session.write_line_no_feed(readline.get_line_buffer())
-            readline.redisplay()
+            session.write_line_no_feed(readline.get_line_buffer())  # type: ignore
+            readline.redisplay()  # type: ignore
         except Exception as ex:
             session.write_line("\n{}\n\n", ex)
 

@@ -98,8 +98,8 @@ class ComponentFactoryCompleter(AbstractCompleter):
 
         # Print the prompt, then current line
         session.write(prompt)
-        session.write_line_no_feed(readline.get_line_buffer())
-        readline.redisplay()
+        session.write_line_no_feed(readline.get_line_buffer())  # type: ignore
+        readline.redisplay()  # type: ignore
 
     def complete(
         self,
@@ -169,8 +169,8 @@ class ComponentInstanceCompleter(AbstractCompleter):
 
         # Print the prompt, then current line
         session.write(prompt)
-        session.write_line_no_feed(readline.get_line_buffer())
-        readline.redisplay()
+        session.write_line_no_feed(readline.get_line_buffer())  # type: ignore
+        readline.redisplay()  # type: ignore
 
     def complete(
         self,
