@@ -1260,8 +1260,34 @@ class ServiceRegistry:
                 # Escape the class name
                 clazz = ldapfilter.escape_LDAP(clazz)
             elif inspect.isclass(clazz):
-                # Escape the type name
-                clazz = ldapfilter.escape_LDAP(getattr(clazz, PELIX_SPECIFICATION_FIELD, clazz.__name__))
+                # Extract specification
+                raw_spec = getattr(clazz, PELIX_SPECIFICATION_FIELD, clazz.__name__)
+                if isinstance(raw_spec, str):
+                    clazz = ldapfilter.escape_LDAP(raw_spec)
+                elif hasattr(raw_spec, "__name__"):
+                    clazz = ldapfilter.escape_LDAP(getattr(raw_spec, "__name__"))
+                elif isinstance(raw_spec, list):
+                    # Use the first class as main filter, add the others to the LDAP filter
+                    class_names: List[str] = []
+                    for spec in raw_spec:
+                        if isinstance(spec, str):
+                            class_names.append(f"({OBJECTCLASS}={ldapfilter.escape_LDAP(spec)})")
+                        elif hasattr(spec, "__name__"):
+                            class_names.append(
+                                f"({OBJECTCLASS}={ldapfilter.escape_LDAP(getattr(spec, '__name__'))})"
+                            )
+
+                    if class_names:
+                        clazz = class_names[0]
+                        remaining = class_names[1:]
+                        if remaining:
+                            clazz_filter = ''.join(f'({OBJECTCLASS}={name}' for name in remaining)
+                            if ldap_filter is None:
+                                ldap_filter = f"(&{clazz_filter})"
+                            else:
+                                ldap_filter = f"(&{ldap_filter}{clazz_filter})"
+                    else:
+                        clazz = None
 
             if clazz is None:
                 # Directly use the given filter
