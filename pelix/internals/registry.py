@@ -1271,17 +1271,15 @@ class ServiceRegistry:
                     class_names: List[str] = []
                     for spec in raw_spec:
                         if isinstance(spec, str):
-                            class_names.append(f"({OBJECTCLASS}={ldapfilter.escape_LDAP(spec)})")
+                            class_names.append(ldapfilter.escape_LDAP(spec))
                         elif hasattr(spec, "__name__"):
-                            class_names.append(
-                                f"({OBJECTCLASS}={ldapfilter.escape_LDAP(getattr(spec, '__name__'))})"
-                            )
+                            class_names.append(ldapfilter.escape_LDAP(getattr(spec, "__name__")))
 
                     if class_names:
                         clazz = class_names[0]
                         remaining = class_names[1:]
                         if remaining:
-                            clazz_filter = ''.join(f'({OBJECTCLASS}={name}' for name in remaining)
+                            clazz_filter = "".join(f"({OBJECTCLASS}={name}" for name in remaining)
                             if ldap_filter is None:
                                 ldap_filter = f"(&{clazz_filter})"
                             else:
