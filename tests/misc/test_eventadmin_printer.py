@@ -28,7 +28,7 @@ class EventAdminPrinterTest(unittest.TestCase):
     Tests the EventAdmin service
     """
 
-    def setUp(self):
+    def setUp(self) -> None:
         """
         Prepares a framework and a registers a service to export
         """
@@ -50,7 +50,7 @@ class EventAdminPrinterTest(unittest.TestCase):
         with use_ipopo(context) as ipopo:
             self.eventadmin = ipopo.instantiate(pelix.services.FACTORY_EVENT_ADMIN, "evtadmin", {})
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up for next test
         """
@@ -60,9 +60,9 @@ class EventAdminPrinterTest(unittest.TestCase):
 
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
-        self.framework = None
+        self.framework = None  # type: ignore
 
-    def testPrinter(self):
+    def testPrinter(self) -> None:
         """
         Tests the topics filtering
         """
@@ -98,12 +98,13 @@ class EventAdminPrinterTest(unittest.TestCase):
             output = self.log_io.getvalue()
             self.assertNotIn(topic, output)
 
-    def testParseBoolean(self):
+    def testParseBoolean(self) -> None:
         """
         Tests the parse boolean method of the printer module
         """
         # Get the module
         bundle = self.framework.get_bundle_by_name("pelix.misc.eventadmin_printer")
+        assert bundle is not None
         module = bundle.get_module()
 
         # Test false values
