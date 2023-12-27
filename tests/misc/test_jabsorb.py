@@ -8,6 +8,7 @@ Tests the Jabsorb conversion module
 
 import unittest
 import uuid
+from typing import Any
 
 import pelix.misc.jabsorb as jabsorb
 
@@ -24,7 +25,7 @@ class JabsorbConverterTest(unittest.TestCase):
     Tests the Jabsorb conversion module
     """
 
-    def testIsBuiltin(self):
+    def testIsBuiltin(self) -> None:
         """
         Tests the _is_builtin() method
         """
@@ -51,7 +52,7 @@ class JabsorbConverterTest(unittest.TestCase):
         for item in (unittest.TestCase, jabsorb, jabsorb.to_jabsorb):
             self.assertFalse(jabsorb._is_builtin(item), "Item {0} should not be built-in".format(item))
 
-    def testMirror(self):
+    def testMirror(self) -> None:
         """
         Tests the result of to_jabsorb + from_jabsorb
         """
@@ -75,16 +76,16 @@ class JabsorbConverterTest(unittest.TestCase):
         # Check content
         self.assertDictEqual(revert_value, value)
 
-    def testCustomClass(self):
+    def testCustomClass(self) -> None:
         """
         Tests the conversion of a custom class
         """
 
         # Basic class
-        class Custom(object):
+        class Custom:
             javaClass = "test.Custom"
 
-            def __init__(self):
+            def __init__(self) -> None:
                 self.value = str(uuid.uuid4())
                 self._value = str(uuid.uuid4())
                 self.__value = str(uuid.uuid4())
@@ -109,18 +110,18 @@ class JabsorbConverterTest(unittest.TestCase):
         self.assertEqual(revert.javaClass, Custom.javaClass)
         self.assertEqual(revert.value, value.value)
 
-    def testBeanInTheMiddle(self):
+    def testBeanInTheMiddle(self) -> None:
         """
         Tests the conversion of the content of a bean (half parsed stream)
         """
 
-        class Bean(object):
-            def __init__(self):
+        class Bean:
+            def __init__(self) -> None:
                 self.list = jabsorb.to_jabsorb([1, 2, 3])
                 self.tuple = jabsorb.to_jabsorb((1, 2, 3))
                 self.set = jabsorb.to_jabsorb(set((1, 2, 3)))
 
-            def __eq__(self, other):
+            def __eq__(self, other: Any) -> Any:
                 return self.list == other.list and self.tuple == other.tuple and self.set == other.set
 
         # Prepare the bean
@@ -133,7 +134,7 @@ class JabsorbConverterTest(unittest.TestCase):
         self.assertEqual(revert.tuple, (1, 2, 3))
         self.assertEqual(revert.set, {1, 2, 3})
 
-    def testHashableType(self):
+    def testHashableType(self) -> None:
         """
         Tests the behavior of hashable types
         """
@@ -156,7 +157,7 @@ class JabsorbConverterTest(unittest.TestCase):
             dico[value] = 42
         self.assertEqual(len(dico), len(hash_values))
 
-    def testDoubleConvert(self):
+    def testDoubleConvert(self) -> None:
         """
         Checks the beheavior after a second call to to_jabsorb
         """
@@ -184,7 +185,7 @@ class JabsorbConverterTest(unittest.TestCase):
         self.assertDictEqual(revert_second, value)
         self.assertDictEqual(revert_first, value)
 
-    def testJsonAndJavaClass(self):
+    def testJsonAndJavaClass(self) -> None:
         """
         Tests the conservation of the __jsonclass__ attribute
         """
