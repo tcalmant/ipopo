@@ -1,0 +1,9 @@
+version: '3'
+services:
+  xmpp:
+    image: ejabberd/ecs:latest
+    ports:
+      - "5222:5222"
+    environment:
+      - CTL_ON_CREATE=register admin localhost admin ; register user1 localhost foobar ; register user2 localhost foobar ; register user3 localhost foobar
+      - ERL_OPTS=-noshell
