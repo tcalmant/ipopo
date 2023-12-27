@@ -10,28 +10,24 @@ users (user1 and user2) with "foobar" as password.
 """
 
 import socket
-import threading
+import unittest
+from io import StringIO
+from typing import Any, Dict
 
 try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+    from slixmpp.jid import JID
 
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-try:
     import pelix.misc.xmpp as xmpp
 except ImportError:
     # Missing requirement: not a fatal error
     raise unittest.SkipTest("XMPP client dependency missing: skip test")
 
+
 from pelix.framework import FrameworkFactory
 from pelix.ipopo.constants import use_ipopo
-from pelix.shell import FACTORY_XMPP_SHELL, SERVICE_SHELL
-from pelix.shell.beans import ShellSession, IOHandler
+from pelix.shell import FACTORY_XMPP_SHELL, ShellService
+from pelix.shell.beans import IOHandler, ShellSession
+from pelix.threadpool import EventData
 
 # ------------------------------------------------------------------------------
 
@@ -45,7 +41,8 @@ class XMPPShellTest(unittest.TestCase):
     """
     Tests the XMPP shell interface
     """
-    def setUp(self):
+
+    def setUp(self) -> None:
         """
         Starts a framework and install the shell bundle
         """
@@ -59,63 +56,68 @@ class XMPPShellTest(unittest.TestCase):
         self.context.install_bundle("pelix.shell.core").start()
 
         # Get the local shell
-        self.shell = self.context.get_service(
-            self.context.get_service_reference(SERVICE_SHELL))
+        svc_ref = self.context.get_service_reference(ShellService)
+        if svc_ref is None:
+            raise AssertionError("No shell service found")
+        self.shell = self.context.get_service(svc_ref)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up the framework
         """
-        self.shell = None
-        self.framework.stop()
+        if self.framework is not None:
+            self.framework.stop()
         FrameworkFactory.delete_framework()
-        self.context = None
-        self.framework = None
+        self.shell = None  # type: ignore
+        self.context = None  # type: ignore
+        self.framework = None  # type: ignore
 
-    def test_commands(self):
+    def test_commands(self) -> None:
         """
         Tests basic commands through XMPP shell
         """
+        assert self.context is not None
+        assert self.shell is not None
+
         # Get host name
         localhost = socket.gethostbyname(socket.gethostname())
-        shell_jid = "user1@localhost"
+        shell_jid = JID("user1@localhost")
 
         # Setup the XMPP shell
         self.context.install_bundle("pelix.shell.xmpp").start()
         with use_ipopo(self.context) as ipopo:
             ipopo.instantiate(
-                FACTORY_XMPP_SHELL, "xmpp-shell",
+                FACTORY_XMPP_SHELL,
+                "xmpp-shell",
                 {
                     "shell.xmpp.server": localhost,
                     "shell.xmpp.jid": shell_jid,
-                    "shell.xmpp.password": "foobar"
-                })
+                    "shell.xmpp.password": "foobar",
+                },
+            )
 
         # Prepare a client
         client = xmpp.BasicBot("user2@localhost", "foobar")
-        client.connect(localhost, 5222)
+        self.assertTrue(client.connect(localhost, 5222))
 
         # Ensure both bots can talk to each other
-        client.update_roster("user1@localhost", subscription="both")
+        client.update_roster(JID("user1@localhost"), subscription="both")
 
         # Register the message event handler
-        client_results = []
-        msg_event = threading.Event()
+        msg_event = EventData()
 
-        def on_message(data):
-            if data['type'] in ('normal', 'chat'):
+        def on_message(data: Dict[str, Any]) -> None:
+            if data["type"] in ("normal", "chat"):
                 # Got a message
-                sender = data['from'].full
-                body = data['body'].strip()
-
-                client_results.append(body)
-                msg_event.set()
+                body = data["body"].strip()
+                msg_event.set(body)
 
         client.add_event_handler("message", on_message)
 
         # Send commands
-        for command in ('echo test 1', 'bl', 'bd 0', 'sl', 'sl 0'):
+        for command in ("echo test 1", "bl", "bd 0", "sl", "sd 1"):
             # Send command via XMPP
+            msg_event.clear()
             client.send_message(shell_jid, command)
 
             # Execute it locally, and remove the trailing newline
@@ -125,14 +127,11 @@ class XMPPShellTest(unittest.TestCase):
             local_result = str_output.getvalue().rstrip()
 
             # Wait for the XMPP result
-            msg_event.wait()
-            xmpp_result = client_results.pop()
+            self.assertTrue(msg_event.wait(5), f"Response not received for command '{command}'")
+            xmpp_result = msg_event.data
 
             # Assert results are the same
             self.assertEqual(xmpp_result, local_result)
-
-            # Clean up
-            msg_event.clear()
 
         # Disconnect local client
         client.disconnect()
