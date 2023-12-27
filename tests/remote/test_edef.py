@@ -6,14 +6,14 @@ Tests the Remote Services EDEF I/O operations
 :author: Thomas Calmant
 """
 
-from typing import Any, Dict, Optional
 import unittest
+from typing import Any, Dict, Optional
 
 import pelix.constants
 import pelix.framework
-from pelix.internals.registry import ServiceReference
 import pelix.remote
 import pelix.remote.beans as beans
+from pelix.internals.registry import ServiceReference
 from pelix.remote.edef_io import EDEFReader, EDEFWriter
 
 # ------------------------------------------------------------------------------

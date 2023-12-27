@@ -6,9 +6,9 @@ Tests the iPOPO shell commands
 :author: Thomas Calmant
 """
 
-from typing import Any
 import unittest
 from io import StringIO
+from typing import Any
 
 import pelix.framework
 import pelix.shell

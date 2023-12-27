@@ -8,23 +8,16 @@ Tests the shell core module
 
 import os
 import sys
-from typing import Any, List, Optional, Tuple, cast
 import unittest
 from io import StringIO
+from typing import Any, List, Optional, Tuple, cast
 
 import pelix.constants as constants
-from pelix.internals.registry import ServiceReference
 import pelix.shell.beans as beans
 from pelix.framework import Bundle, BundleContext, Framework, FrameworkFactory, create_framework
+from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
-from pelix.shell import (
-    SERVICE_SHELL,
-    SERVICE_SHELL_COMMAND,
-    SERVICE_SHELL_UTILS,
-    ShellCommandMethod,
-    ShellService,
-    ShellUtils,
-)
+from pelix.shell import ShellCommandMethod, ShellCommandsProvider, ShellService, ShellUtils
 
 # ------------------------------------------------------------------------------
 
@@ -412,7 +405,7 @@ class ShellCommandTest(unittest.TestCase):
         Tests commands registered by a service
         """
 
-        class CommandService:
+        class CommandService(ShellCommandsProvider):
 
             """
             Command service
@@ -438,7 +431,7 @@ class ShellCommandTest(unittest.TestCase):
         self.assertFalse(service.flag, "Bad flag value")
 
         # Register the service
-        svc_reg = self.context.register_service(SERVICE_SHELL_COMMAND, service, {})
+        svc_reg = self.context.register_service(ShellCommandsProvider, service, {})
 
         # Test execution
         self.assertTrue(self.shell.execute("test.command"), "Error in executing 'test.command'")

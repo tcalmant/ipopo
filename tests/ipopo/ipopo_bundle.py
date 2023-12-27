@@ -6,34 +6,29 @@ Bundle defining multiple component factories for iPOPO tests
 :author: Thomas Calmant
 """
 
-# Pelix
 from pelix.constants import BundleActivator, FrameworkException
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference
-
-# iPOPO
+from pelix.ipopo.constants import IPOPO_INSTANCE_NAME, IPopoEvent
 from pelix.ipopo.decorators import (
+    Bind,
     ComponentFactory,
+    HiddenProperty,
+    Instantiate,
+    Invalidate,
+    PostRegistration,
+    PostUnregistration,
     Property,
     Provides,
     Requires,
-    Validate,
-    Invalidate,
-    Unbind,
-    Bind,
-    Instantiate,
-    RequiresMap,
     RequiresBest,
-    Temporal,
-    PostRegistration,
-    PostUnregistration,
-    HiddenProperty,
-    RequiresVarFilter,
     RequiresBroadcast,
+    RequiresMap,
+    RequiresVarFilter,
+    Temporal,
+    Unbind,
+    Validate,
 )
-from pelix.ipopo.constants import IPOPO_INSTANCE_NAME, IPopoEvent
-
-# Tests
 from tests.interfaces import IEchoService
 
 # ------------------------------------------------------------------------------

@@ -30,10 +30,10 @@ import time
 import unittest
 import uuid
 from typing import Any, Iterable, Optional, Tuple
-from pelix.internals.registry import ServiceReference
 
 import pelix.remote
 from pelix.framework import Framework, FrameworkFactory, create_framework
+from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
 from tests.mqtt_utilities import find_mqtt_server
 from tests.utilities import WrappedProcess

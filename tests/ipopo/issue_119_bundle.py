@@ -4,12 +4,7 @@
 Issue 119 (late binding issue on RequiresVarFilter) use case
 """
 
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Provides,
-    Property,
-    RequiresVarFilter,
-)
+from pelix.ipopo.decorators import ComponentFactory, Property, Provides, RequiresVarFilter
 
 
 @ComponentFactory("provider-factory")
@@ -22,9 +17,7 @@ class Provider:
 
 @ComponentFactory("varservice-factory")
 @Property("search", "search")
-@RequiresVarFilter(
-    "depends", "required-service", spec_filter="(prop={search})"
-)
+@RequiresVarFilter("depends", "required-service", spec_filter="(prop={search})")
 class VarConsumer:
     def __init__(self):
         self.depends = None

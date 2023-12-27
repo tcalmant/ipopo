@@ -7,8 +7,8 @@ Tests the RSA basic methods
 """
 
 import tempfile
-from typing import cast
 import unittest
+from typing import cast
 
 import pelix.constants
 import pelix.framework

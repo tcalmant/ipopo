@@ -6,7 +6,6 @@ Tests the Remote Services abstract transport classes
 :author: Thomas Calmant
 """
 
-import sys
 import unittest
 import uuid
 from typing import Any, Dict, List, Optional, cast

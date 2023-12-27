@@ -26,8 +26,8 @@ Module checking the behaviour of iPOPO with PEP-557 Data Classes
 
 from dataclasses import dataclass
 from typing import Optional
-from pelix.ipopo.constants import IPOPO_INSTANCE_NAME
 
+from pelix.ipopo.constants import IPOPO_INSTANCE_NAME
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides, Requires
 
 

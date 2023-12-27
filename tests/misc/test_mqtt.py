@@ -11,14 +11,11 @@ import os
 import sys
 import threading
 import time
+import unittest
 import uuid
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
 
-# Pelix
 from pelix.utilities import to_str
+
 try:
     import pelix.misc.mqtt_client as mqtt
 except ImportError:
@@ -46,13 +43,14 @@ def _disconnect_client(client):
     :param client: MQTT Client
     """
     # Close the socket
-    getattr(client, '_MqttClient__mqtt')._sock.close()
+    getattr(client, "_MqttClient__mqtt")._sock.close()
 
 
 class MqttClientTest(unittest.TestCase):
     """
     Tests the MQTT client provided by Pelix
     """
+
     def test_connect(self):
         """
         Test the client connection
@@ -104,7 +102,7 @@ class MqttClientTest(unittest.TestCase):
         """
         Tests client reconnection
         """
-        if os.name == 'posix':
+        if os.name == "posix":
             # FIXME: try harder
             self.skipTest("This test doesn't work on POSIX...")
 
@@ -169,7 +167,7 @@ class MqttClientTest(unittest.TestCase):
             if result_code != 0:
                 # Disconnected unwillingly: stop the timer
                 # -- IMPLEMENTATION SPECIFIC --
-                getattr(clt, '_MqttClient__stop_timer')()
+                getattr(clt, "_MqttClient__stop_timer")()
                 # == IMPLEMENTATION SPECIFIC ==
 
         client.on_connect = on_connect
@@ -303,12 +301,11 @@ class MqttClientTest(unittest.TestCase):
 
             # Check prefix
             if prefix:
-                self.assertTrue(clt_id.startswith(prefix),
-                                "Prefix not in client ID")
+                self.assertTrue(clt_id.startswith(prefix), "Prefix not in client ID")
 
         # With a long prefix, around the maximum length
         for length in (20, 23, 25):
-            prefix = 'a' * length
+            prefix = "a" * length
             clt_id = mqtt.MqttClient.generate_id(prefix)
 
             # Check length of ID
@@ -322,8 +319,7 @@ class MqttClientTest(unittest.TestCase):
         Tests the client ID handling in the constructor
         """
         # Valid ID given
-        for client_id in ("custom_id", "other-id",
-                          mqtt.MqttClient.generate_id()):
+        for client_id in ("custom_id", "other-id", mqtt.MqttClient.generate_id()):
             client = mqtt.MqttClient(client_id)
             self.assertEqual(client.client_id, client_id)
 
@@ -344,7 +340,7 @@ class MqttClientTest(unittest.TestCase):
                 client = mqtt.MqttClient(long_id)
 
             for line in cm.output:
-                if long_id in line and 'too long' in line:
+                if long_id in line and "too long" in line:
                     break
             else:
                 self.fail("No warning for long client ID")
@@ -359,7 +355,7 @@ class MqttClientTest(unittest.TestCase):
         """
         Tests the topic_matches() method
         """
-        simple_topics = ('test', 'other_test', 'some-test', '1234')
+        simple_topics = ("test", "other_test", "some-test", "1234")
 
         # Basic test (single level)
         for topic in simple_topics:
@@ -367,51 +363,47 @@ class MqttClientTest(unittest.TestCase):
             self.assertTrue(mqtt.MqttClient.topic_matches(topic, topic), topic)
 
             # All
-            self.assertTrue(mqtt.MqttClient.topic_matches('#', topic), topic)
-            self.assertFalse(mqtt.MqttClient.topic_matches('/#', topic), topic)
+            self.assertTrue(mqtt.MqttClient.topic_matches("#", topic), topic)
+            self.assertFalse(mqtt.MqttClient.topic_matches("/#", topic), topic)
 
             # First level
-            self.assertTrue(mqtt.MqttClient.topic_matches('+', topic), topic)
-            self.assertFalse(mqtt.MqttClient.topic_matches('/+', topic), topic)
+            self.assertTrue(mqtt.MqttClient.topic_matches("+", topic), topic)
+            self.assertFalse(mqtt.MqttClient.topic_matches("/+", topic), topic)
 
         # With a starting '/'
         for topic in simple_topics:
-            topic = '/' + topic
+            topic = "/" + topic
 
             # Identity
             self.assertTrue(mqtt.MqttClient.topic_matches(topic, topic), topic)
 
             # All
-            self.assertTrue(mqtt.MqttClient.topic_matches('#', topic), topic)
+            self.assertTrue(mqtt.MqttClient.topic_matches("#", topic), topic)
 
             # Second level
-            self.assertTrue(mqtt.MqttClient.topic_matches('/+', topic), topic)
-            self.assertFalse(mqtt.MqttClient.topic_matches('+', topic), topic)
+            self.assertTrue(mqtt.MqttClient.topic_matches("/+", topic), topic)
+            self.assertFalse(mqtt.MqttClient.topic_matches("+", topic), topic)
 
         # Check wildcards
-        for topic in ('first/second/third/fourth',
-                      'first/third/second/fourth'):
-            self.assertTrue(mqtt.MqttClient.topic_matches('#', topic))
-            self.assertTrue(mqtt.MqttClient.topic_matches('first/#', topic))
-            self.assertFalse(mqtt.MqttClient.topic_matches('first/+', topic))
+        for topic in ("first/second/third/fourth", "first/third/second/fourth"):
+            self.assertTrue(mqtt.MqttClient.topic_matches("#", topic))
+            self.assertTrue(mqtt.MqttClient.topic_matches("first/#", topic))
+            self.assertFalse(mqtt.MqttClient.topic_matches("first/+", topic))
 
-            for part in topic.split('/'):
+            for part in topic.split("/"):
                 # Single part...
                 self.assertFalse(mqtt.MqttClient.topic_matches(part, topic))
 
             # Single-level wildcard
-            self.assertTrue(
-                mqtt.MqttClient.topic_matches('first/+/+/fourth', topic))
-            self.assertFalse(
-                mqtt.MqttClient.topic_matches('first/+/fourth', topic))
+            self.assertTrue(mqtt.MqttClient.topic_matches("first/+/+/fourth", topic))
+            self.assertFalse(mqtt.MqttClient.topic_matches("first/+/fourth", topic))
 
             # Invalid filters (text after wildcard
-            for invalid_filter in ('first/#/fourth', "#/second/#",
-                                   "#/third/#", "#/fourth"):
-                self.assertFalse(
-                    mqtt.MqttClient.topic_matches(invalid_filter, topic))
+            for invalid_filter in ("first/#/fourth", "#/second/#", "#/third/#", "#/fourth"):
+                self.assertFalse(mqtt.MqttClient.topic_matches(invalid_filter, topic))
+
 
 # ------------------------------------------------------------------------------
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

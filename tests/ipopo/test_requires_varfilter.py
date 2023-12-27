@@ -586,17 +586,26 @@ class RequiresVarFilterTest(unittest.TestCase):
 
         self.ipopo.instantiate("varservice-factory", "varservice-instance-1")
         self.ipopo.instantiate("varservice-factory", "varservice-instance-2")
-        service1 =  self.ipopo.get_instance("varservice-instance-1")
+        service1 = self.ipopo.get_instance("varservice-instance-1")
         service1.search = "my-service-0"
-        service2 =  self.ipopo.get_instance("varservice-instance-2")
+        service2 = self.ipopo.get_instance("varservice-instance-2")
         service2.search = "my-service-0"
-        self.assertEqual(self.ipopo.get_instance_details("varservice-instance-1")["state"], StoredInstance.INVALID)
-        self.assertEqual(self.ipopo.get_instance_details("varservice-instance-2")["state"], StoredInstance.INVALID)
+        self.assertEqual(
+            self.ipopo.get_instance_details("varservice-instance-1")["state"], StoredInstance.INVALID
+        )
+        self.assertEqual(
+            self.ipopo.get_instance_details("varservice-instance-2")["state"], StoredInstance.INVALID
+        )
 
         self.ipopo.instantiate("provider-factory", "provider-instance", {"prop": "my-service-0"})
         self.assertEqual(self.ipopo.get_instance_details("provider-instance")["state"], StoredInstance.VALID)
-        self.assertEqual(self.ipopo.get_instance_details("varservice-instance-1")["state"], StoredInstance.VALID)
-        self.assertEqual(self.ipopo.get_instance_details("varservice-instance-2")["state"], StoredInstance.VALID)
+        self.assertEqual(
+            self.ipopo.get_instance_details("varservice-instance-1")["state"], StoredInstance.VALID
+        )
+        self.assertEqual(
+            self.ipopo.get_instance_details("varservice-instance-2")["state"], StoredInstance.VALID
+        )
+
 
 # ------------------------------------------------------------------------------
 

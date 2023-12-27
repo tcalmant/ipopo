@@ -12,9 +12,9 @@ import subprocess
 import tarfile
 import tempfile
 import time
-from typing import Generator, Optional
 import unittest
 from contextlib import contextmanager
+from typing import Generator, Optional
 from urllib.request import urlopen
 
 from pelix.framework import create_framework

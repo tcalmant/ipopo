@@ -27,13 +27,13 @@ Tests remote services transports based on HTTP
 import queue
 import threading
 import time
-from typing import Any, Iterable, Optional, Tuple
 import unittest
+from typing import Any, Iterable, Optional, Tuple
 
 import pelix.http
-from pelix.internals.registry import ServiceReference
 import pelix.remote
 from pelix.framework import Framework, FrameworkFactory, create_framework
+from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
 from tests.utilities import WrappedProcess
 

@@ -6,10 +6,7 @@ Test bundle for the log service
 :author: Thomas Calmant
 """
 
-# iPOPO
 from pelix.ipopo.decorators import ComponentFactory, Requires
-
-# Log service
 from pelix.misc import LOG_SERVICE
 
 # ------------------------------------------------------------------------------
@@ -29,6 +26,7 @@ class LoggerComponent(object):
     """
     Dummy instantiated component
     """
+
     def log(self, level, message):
         """
         Logs something
@@ -43,4 +41,4 @@ class LoggerComponent(object):
         """
         Removes __name__ from globals
         """
-        del globals()['__name__']
+        del globals()["__name__"]

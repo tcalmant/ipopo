@@ -6,10 +6,8 @@ Bundle defining multiple component factories for iPOPO tests
 :author: Thomas Calmant
 """
 
-# iPOPO
-from pelix.ipopo.decorators import ComponentFactory, Provides, Validate, \
-    Invalidate, Instantiate
 from pelix.ipopo.constants import IPopoEvent
+from pelix.ipopo.decorators import ComponentFactory, Instantiate, Invalidate, Provides, Validate
 
 # ------------------------------------------------------------------------------
 
@@ -30,6 +28,7 @@ class BasicComponent(object):
     """
     Dummy instantiated component
     """
+
     def __init__(self):
         """
         Constructor

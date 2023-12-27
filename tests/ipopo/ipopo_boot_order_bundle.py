@@ -6,14 +6,10 @@ Bundle to check the loading order when instantiating with iPOPO
 :author: Thomas Calmant
 """
 
-# Pelix
 from pelix.constants import BundleActivator
 from pelix.framework import BundleEvent
-
-# iPOPO
-from pelix.ipopo.decorators import ComponentFactory, Validate, Invalidate, \
-    Instantiate
 from pelix.ipopo.constants import IPopoEvent
+from pelix.ipopo.decorators import ComponentFactory, Instantiate, Invalidate, Validate
 
 # ------------------------------------------------------------------------------
 
@@ -36,6 +32,7 @@ class BasicComponent(object):
     """
     Dummy instantiated component
     """
+
     def __init__(self):
         """
         Constructor
@@ -62,6 +59,7 @@ class ActivatorTest:
     """
     Test activator
     """
+
     def start(self, context):
         """
         Bundle started

@@ -6,11 +6,21 @@ Bundle defining multiple component factories for iPOPO tests
 :author: Thomas Calmant
 """
 
-from pelix.ipopo.decorators import ComponentFactory, Property, Provides, \
-    Requires, Validate, Invalidate, Unbind, Bind, BindField, \
-    UnbindField, Update, UpdateField
-
 from pelix.constants import OBJECTCLASS
+from pelix.ipopo.decorators import (
+    Bind,
+    BindField,
+    ComponentFactory,
+    Invalidate,
+    Property,
+    Provides,
+    Requires,
+    Unbind,
+    UnbindField,
+    Update,
+    UpdateField,
+    Validate,
+)
 
 # ------------------------------------------------------------------------------
 
@@ -50,6 +60,7 @@ class TestComponentA(object):
     """
     Provider of service A
     """
+
     def __init__(self):
         """
         Constructor
@@ -84,6 +95,7 @@ class TestComponentB(object):
     """
     Provider of service B
     """
+
     def __init__(self):
         """
         Constructor
@@ -110,6 +122,7 @@ class TestComponentB(object):
         """
         self._prop = None
 
+
 # ------------------------------------------------------------------------------
 # Consumer
 
@@ -121,8 +134,9 @@ class Consumer(object):
     """
     Sample consumer
     """
+
     def __init__(self):
-        """"
+        """ "
         Constructor
         """
         self.states = []
@@ -216,6 +230,7 @@ class Consumer(object):
         """
         self.states.append(UNBIND_FIELD_B)
 
+
 # ------------------------------------------------------------------------------
 
 # Other consumer
@@ -228,8 +243,9 @@ class ConsumerBindIfValid(object):
     """
     Sample consumer to test the "if_valid" flag
     """
+
     def __init__(self):
-        """"
+        """ "
         Constructor
         """
         self.states = []

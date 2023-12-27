@@ -15,9 +15,9 @@ import unittest
 from typing import Any, List, Optional, Tuple, Union
 
 import pelix.framework
-from pelix.misc.mqtt_client import MqttClient
 import pelix.services as services
 from pelix.internals.registry import ServiceReference
+from pelix.misc.mqtt_client import MqttClient
 from tests.mqtt_utilities import find_mqtt_server
 
 # ------------------------------------------------------------------------------

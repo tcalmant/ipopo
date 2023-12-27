@@ -6,8 +6,8 @@ Tests the Remote Services Imports Registry
 :author: Thomas Calmant
 """
 
-from typing import Any, Dict, List
 import unittest
+from typing import Any, Dict, List
 
 import pelix.constants
 import pelix.framework

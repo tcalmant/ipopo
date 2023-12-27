@@ -6,8 +6,8 @@ Tests the RSA basic topology manager
 :author: Thomas Calmant
 """
 
-from typing import cast
 import unittest
+from typing import cast
 
 import pelix.framework
 import pelix.rsa.remoteserviceadmin as rsa

@@ -7,9 +7,9 @@ Tests the ConfigurationAdmin shell commands
 """
 
 import os
-from typing import Any, Dict, Mapping, Optional
 import unittest
 from io import StringIO
+from typing import Any, Dict, Mapping, Optional
 
 import pelix.framework
 import pelix.services

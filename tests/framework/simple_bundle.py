@@ -24,6 +24,7 @@ class ActivatorTest(ActivatorProto):
     """
     Test activator
     """
+
     def __init__(self):
         """
         Constructor

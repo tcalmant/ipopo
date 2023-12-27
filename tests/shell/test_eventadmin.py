@@ -7,13 +7,13 @@ Tests the EventAdmin shell commands
 """
 
 import threading
-from typing import Any, Dict, List, Optional, Tuple, Union
 import unittest
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pelix.framework
-from pelix.internals.registry import ServiceRegistration
 import pelix.services
 import pelix.shell
+from pelix.internals.registry import ServiceRegistration
 from pelix.ipopo.constants import use_ipopo
 
 # ------------------------------------------------------------------------------

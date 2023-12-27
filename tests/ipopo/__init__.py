@@ -14,7 +14,7 @@ from pelix.ipopo.constants import get_ipopo_svc_ref, IPopoService
 # ------------------------------------------------------------------------------
 
 
-def install_bundle(framework: Framework, bundle_name: str="tests.ipopo.ipopo_bundle") -> ModuleType:
+def install_bundle(framework: Framework, bundle_name: str = "tests.ipopo.ipopo_bundle") -> ModuleType:
     """
     Installs and starts the test bundle and returns its module
 

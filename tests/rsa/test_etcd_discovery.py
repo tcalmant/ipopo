@@ -7,10 +7,8 @@ Tests the RSA discovery provider
 """
 
 import json
-import queue
 import threading
 import unittest
-from io import StringIO
 from typing import Any, TypeVar
 
 from pelix.internals.registry import ServiceReference

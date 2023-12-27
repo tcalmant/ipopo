@@ -7,7 +7,7 @@ Tests the RSA endpoint description
 """
 
 import unittest
-from typing import List, cast
+from typing import cast
 
 import pelix.constants
 import pelix.framework
