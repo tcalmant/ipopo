@@ -27,7 +27,7 @@ class EdefIOTest(unittest.TestCase):
     Tests for the Remote Services EDEF I/O operations
     """
 
-    def setUp(self):
+    def setUp(self) -> None:
         """
         Prepares a framework and a registers a service to export
         """
@@ -48,17 +48,17 @@ class EdefIOTest(unittest.TestCase):
         )
         self.svc_ref = svc_reg.get_reference()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up for next test
         """
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework()
 
-        self.framework = None
-        self.svc_ref = None
+        self.framework = None  # type: ignore
+        self.svc_ref = None  # type: ignore
 
-    def testEdefStringReload(self):
+    def testEdefStringReload(self) -> None:
         """
         Tries to convert an EndpointDescription to its XML format (EDEF) and to
         reload this string
@@ -98,7 +98,7 @@ class EdefIOTest(unittest.TestCase):
             original.get_properties(), endpoint.get_properties(), "Endpoint properties changed"
         )
 
-    def testEdefIOTypes(self):
+    def testEdefIOTypes(self) -> None:
         """
         Tests the writing and parsing of an EndpointDescription bean with
         "complex" properties
@@ -150,7 +150,7 @@ class BeansTest(unittest.TestCase):
     Tests beans methods
     """
 
-    def setUp(self):
+    def setUp(self) -> None:
         """
         Prepares a framework and a registers a service to export
         """
@@ -172,17 +172,17 @@ class BeansTest(unittest.TestCase):
         )
         self.svc_ref = svc_reg.get_reference()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up for next test
         """
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework()
 
-        self.framework = None
-        self.svc_ref = None
+        self.framework = None  # type: ignore
+        self.svc_ref = None  # type: ignore
 
-    def testConstructor(self):
+    def testConstructor(self) -> None:
         """
         Tests the behavior of the __init__ method
         """

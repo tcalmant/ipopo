@@ -14,10 +14,11 @@ import tempfile
 import time
 import unittest
 from contextlib import contextmanager
-from typing import Generator, Optional
+from typing import Any, Generator, Iterable, Optional
 from urllib.request import urlopen
 
 from pelix.framework import create_framework
+from pelix.internals.registry import ServiceReference
 
 # ------------------------------------------------------------------------------
 
@@ -54,7 +55,7 @@ def install_karaf(folder: Optional[str] = None) -> None:
             fd.seek(0)
             with tarfile.open(fileobj=fd, mode="r:gz") as tar:
 
-                def is_within_directory(directory, target):
+                def is_within_directory(directory: str, target: str) -> bool:
                     abs_directory = os.path.abspath(directory)
                     abs_target = os.path.abspath(target)
 
@@ -62,7 +63,13 @@ def install_karaf(folder: Optional[str] = None) -> None:
 
                     return prefix == abs_directory
 
-                def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+                def safe_extract(
+                    tar: tarfile.TarFile,
+                    path: str = ".",
+                    members: Optional[Iterable[tarfile.TarInfo]] = None,
+                    *,
+                    numeric_owner: bool = False
+                ) -> None:
                     for member in tar.getmembers():
                         member_path = os.path.join(path, member.name)
                         if not is_within_directory(path, member_path):
@@ -197,7 +204,7 @@ class Py4JTutorialTest(unittest.TestCase):
     """
 
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         """
         Preliminary checks
         """
@@ -213,7 +220,7 @@ class Py4JTutorialTest(unittest.TestCase):
         except OSError:
             raise unittest.SkipTest("Java is not installed.")
 
-    def test_service_import(self):
+    def test_service_import(self) -> None:
         """
         Tests the import of a service from Py4J
         """
@@ -238,7 +245,7 @@ class Py4JTutorialTest(unittest.TestCase):
 
                 for _ in range(10):
                     # Check if we find the Hello world service
-                    svc_ref = bc.get_service_reference(
+                    svc_ref: Optional[ServiceReference[Any]] = bc.get_service_reference(
                         "org.eclipse.ecf.examples.hello.IHello",
                         "(service.imported=*)",
                     )
