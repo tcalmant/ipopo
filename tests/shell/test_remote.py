@@ -20,6 +20,13 @@ from pelix.ipopo.constants import use_ipopo
 from pelix.shell import FACTORY_REMOTE_SHELL, RemoteShell, ShellService
 from pelix.utilities import to_bytes, to_str
 
+try:
+    import coverage
+
+    has_coverage = True
+except ImportError:
+    has_coverage = False
+
 # ------------------------------------------------------------------------------
 
 __version_info__ = (1, 0, 2)
@@ -143,19 +150,12 @@ else:
 
             # Start the remote shell process
             port = 9000
+            args = [sys.executable, "-m"]
+            if has_coverage:
+                args += ["coverage", "run", "-m"]
+            args += ["pelix.shell.remote", "-a", "127.0.0.1", "-p", str(port)]
             process = subprocess.Popen(
-                [
-                    sys.executable,
-                    "-m",
-                    "coverage",
-                    "run",
-                    "-m",
-                    "pelix.shell.remote",
-                    "-a",
-                    "127.0.0.1",
-                    "-p",
-                    str(port),
-                ],
+                args,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
