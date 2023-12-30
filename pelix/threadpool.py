@@ -25,15 +25,13 @@ Pelix Utilities: Cached thread pool
     limitations under the License.
 """
 
-# Standard library
-from dataclasses import dataclass
 import logging
 import queue
 import threading
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-# Pelix
-import pelix.utilities
+from pelix.utilities import EventData
 
 # ------------------------------------------------------------------------------
 
@@ -44,84 +42,7 @@ __docformat__ = "restructuredtext en"
 __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
-# ------------------------------------------------------------------------------
-
-
-class EventData:
-    """
-    A threading event with some associated data
-    """
-
-    def __init__(self) -> None:
-        """
-        Sets up the event
-        """
-        self.__event = threading.Event()
-        self.__data: Any = None
-        self.__exception: Optional[BaseException] = None
-
-    @property
-    def data(self) -> Any:
-        """
-        Returns the associated value
-        """
-        return self.__data
-
-    @property
-    def exception(self) -> Optional[BaseException]:
-        """
-        Returns the exception used to stop the wait() method
-        """
-        return self.__exception
-
-    def clear(self) -> None:
-        """
-        Clears the event
-        """
-        self.__event.clear()
-        self.__data = None
-        self.__exception = None
-
-    def is_set(self) -> bool:
-        """
-        Checks if the event is set
-        """
-        return self.__event.is_set()
-
-    def set(self, data: Any = None) -> None:
-        """
-        Sets the event
-        """
-        self.__data = data
-        self.__exception = None
-        self.__event.set()
-
-    def raise_exception(self, exception: BaseException) -> None:
-        """
-        Raises an exception in wait()
-
-        :param exception: An Exception object
-        """
-        self.__data = None
-        self.__exception = exception
-        self.__event.set()
-
-    def wait(self, timeout: Optional[float] = None) -> Any:
-        """
-        Waits for the event or for the timeout
-
-        :param timeout: Wait timeout (in seconds)
-        :return: True if the event as been set, else False
-        """
-        # The 'or' part is for Python 2.6
-        result = self.__event.wait(timeout)
-        # pylint: disable=E0702
-        # Pylint seems to miss the "is None" check below
-        if self.__exception is None:
-            return result
-        else:
-            raise self.__exception
-
+__all__ = ["EventData", "FutureResult", "ThreadPool"]
 
 # ------------------------------------------------------------------------------
 
@@ -140,7 +61,7 @@ class FutureResult:
         :param logger: The Logger to use in case of error (optional)
         """
         self._logger = logger or logging.getLogger(__name__)
-        self._done_event: pelix.utilities.EventData[Any] = pelix.utilities.EventData()
+        self._done_event: EventData[Any] = EventData()
         self.__callback: Optional[Callable[[Any, Optional[BaseException], Any], None]] = None
         self.__extra: Any = None
 
