@@ -32,7 +32,7 @@ Eclipse Foundation: see http://www.eclipse.org/paho
 import logging
 import os
 import threading
-from typing import Any, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
 
 import paho.mqtt.client as paho
 
@@ -99,6 +99,11 @@ class MqttClient:
         self.__mqtt.on_message = self.__on_message
         self.__mqtt.on_publish = self.__on_publish
 
+        # Pelix callbacks
+        self.__on_connect_cb: Optional[Callable[["MqttClient", int], None]] = None
+        self.__on_disconnect_cb: Optional[Callable[["MqttClient", int], None]] = None
+        self.__on_message_cb: Optional[Callable[["MqttClient", MqttMessage], None]] = None
+
     @property
     def raw_client(self) -> paho.Client:
         """
@@ -106,32 +111,47 @@ class MqttClient:
         """
         return self.__mqtt
 
-    def on_connect(self, client: "MqttClient", result_code: int) -> None:
+    @property
+    def on_connect(self) -> Optional[Callable[["MqttClient", int], None]]:
         """
-        User callback: called when the client is connected
+        The MQTT connection callback
+        """
+        return self.__on_connect_cb
 
-        :param client: The Pelix MQTT client which connected
-        :param result_code: The MQTT result code
+    @on_connect.setter
+    def on_connect(self, callback: Optional[Callable[["MqttClient", int], None]]) -> None:
         """
-        pass
+        Sets the MQTT connection callback
+        """
+        self.__on_connect_cb = callback
 
-    def on_disconnect(self, client: "MqttClient", result_code: int) -> None:
+    @property
+    def on_disconnect(self) -> Optional[Callable[["MqttClient", int], None]]:
         """
-        User callback: called when the client is disconnected
+        The MQTT disconnection callback
+        """
+        return self.__on_disconnect_cb
 
-        :param client: The Pelix MQTT client which disconnected
-        :param result_code: The MQTT result code
+    @on_disconnect.setter
+    def on_disconnect(self, callback: Optional[Callable[["MqttClient", int], None]]) -> None:
         """
-        pass
+        Sets the MQTT disconnection callback
+        """
+        self.__on_disconnect_cb = callback
 
-    def on_message(self, client: "MqttClient", message: MqttMessage) -> None:
+    @property
+    def on_message(self) -> Optional[Callable[["MqttClient", MqttMessage], None]]:
         """
-        User callback: called when the client has received a message
+        The MQTT message reception callback
+        """
+        return self.__on_message_cb
 
-        :param client: The Pelix MQTT client which received a message
-        :param message: The MQTT message
+    @on_message.setter
+    def on_message(self, callback: Optional[Callable[["MqttClient", MqttMessage], None]]) -> None:
         """
-        pass
+        Sets the MQTT message reception callback
+        """
+        self.__on_message_cb = callback
 
     @classmethod
     def generate_id(cls, prefix: Optional[str] = "pelix-") -> str:
@@ -261,6 +281,7 @@ class MqttClient:
         result = self.__mqtt.publish(topic, payload, qos, retain)
         if result.rc != 0:
             # No success
+            _logger.debug("Failed to publish message on %s: %d", topic, result.rc)
             return None
 
         if wait:
@@ -367,9 +388,9 @@ class MqttClient:
             self.__stop_timer()
 
         # Notify the caller, if any
-        if self.on_connect is not None:
+        if self.__on_connect_cb is not None:
             try:
-                self.on_connect(self, result_code)
+                self.__on_connect_cb(self, result_code)
             except Exception as ex:
                 _logger.exception("Error notifying MQTT listener: %s", ex)
 
@@ -395,9 +416,9 @@ class MqttClient:
             self.__start_timer(2)
 
         # Notify the caller, if any
-        if self.on_disconnect is not None:
+        if self.__on_disconnect_cb is not None:
             try:
-                self.on_disconnect(self, result_code)
+                self.__on_disconnect_cb(self, result_code)
             except Exception as ex:
                 _logger.exception("Error notifying MQTT listener: %s", ex)
 
@@ -411,9 +432,9 @@ class MqttClient:
         :param msg: A MQTTMessage bean
         """
         # Notify the caller, if any
-        if self.on_message is not None:
+        if self.__on_message_cb is not None:
             try:
-                self.on_message(self, msg)
+                self.__on_message_cb(self, msg)
             except Exception as ex:
                 _logger.exception("Error notifying MQTT listener: %s", ex)
 
