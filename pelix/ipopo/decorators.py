@@ -743,6 +743,10 @@ class Property:
             )
             return clazz
 
+        # If the initial value is not given, use the value stored in the field
+        if self._value is None:
+            self._value = getattr(clazz, self._field, None)
+
         # Set up the property in the class
         context.properties[self._name] = self._value
 
@@ -811,6 +815,10 @@ class HiddenProperty(Property):
                 get_method_description(clazz),
             )
             return clazz
+
+        # If the initial value is not given, use the value stored in the field
+        if self._value is None:
+            self._value = getattr(clazz, self._field, None)
 
         # Set up the property in the class
         context.hidden_properties[self._name] = self._value

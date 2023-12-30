@@ -77,7 +77,7 @@ class DataclassTest(unittest.TestCase):
             self.assertEqual(before.property_set, "SAMPLE-before")
             self.assertEqual(after.property_set, "SAMPLE-after")
 
-            # FIXME: fails as current set to None
+            # Ensure that the initial value is kept
             self.assertEqual(before.property_default, "Default-before")
             self.assertEqual(after.property_default, "Default-after")
         finally:
