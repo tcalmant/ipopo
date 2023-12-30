@@ -83,14 +83,28 @@ class UtilityMethodsTest(unittest.TestCase):
         """
         Tests get_method_description()
         """
+        if os.name == "nt":
+            # Caution: it seems Python mixes upper/lower case drive letters on Windows
+            file_path = __file__[:-2].lower()
+        else:
+            file_path = __file__[:-2]
+
         description = decorators.get_method_description(self._dummy)
+        if os.name == "nt":
+            # Compare in lower case on Windows
+            description = description.lower()
+
         self.assertNotIn(":-1", description)
-        self.assertIn(__file__[:-2], description)
+        self.assertIn(file_path, description)
         self.assertIn("_dummy", description)
 
         description = decorators.get_method_description(self._some_args_dummy)
+        if os.name == "nt":
+            # Compare in lower case on Windows
+            description = description.lower()
+
         self.assertNotIn(":-1", description)
-        self.assertIn(__file__[:-2], description)
+        self.assertIn(file_path, description)
         self.assertIn("_some_args_dummy", description)
 
         # Try with a compiled method
@@ -100,8 +114,12 @@ class UtilityMethodsTest(unittest.TestCase):
         foobar = local_vars["foobar"]
 
         description = decorators.get_method_description(foobar)
+        if os.name == "nt":
+            # Compare in lower case on Windows
+            description = description.lower()
+
         self.assertIn(":-1", description)
-        self.assertNotIn(__file__[:-2], description)
+        self.assertNotIn(file_path, description)
         self.assertIn("<generated>", description)
         self.assertIn("foobar", description)
 
