@@ -36,7 +36,7 @@ if not MQTT_SERVER:
 # ------------------------------------------------------------------------------
 
 
-def _disconnect_client(client):
+def _disconnect_client(client: mqtt.MqttClient) -> None:
     """
     Disconnects the client (implementation specific)
 
@@ -51,7 +51,7 @@ class MqttClientTest(unittest.TestCase):
     Tests the MQTT client provided by Pelix
     """
 
-    def test_connect(self):
+    def test_connect(self) -> None:
         """
         Test the client connection
         """
@@ -98,7 +98,7 @@ class MqttClientTest(unittest.TestCase):
         # Check client (and single call)
         self.assertListEqual(shared, [client])
 
-    def test_reconnect(self):
+    def test_reconnect(self) -> None:
         """
         Tests client reconnection
         """
@@ -108,47 +108,68 @@ class MqttClientTest(unittest.TestCase):
 
         # Create client
         client = mqtt.MqttClient()
+        client_2 = mqtt.MqttClient()
         event_connect = threading.Event()
         event_disconnect = threading.Event()
+        event_message = threading.Event()
 
-        def on_connect(clt, result_code):
+        def on_connect(clt: mqtt.MqttClient, result_code: int) -> None:
             event_connect.set()
 
-        def on_disconnect(clt, result_code):
+        def on_disconnect(clt: mqtt.MqttClient, result_code: int) -> None:
             event_disconnect.set()
+
+        def on_message(clt: mqtt.MqttClient, msg: mqtt.MqttMessage) -> None:
+            print("Test on message", msg.topic, msg.payload)
+            event_message.set()
 
         client.on_connect = on_connect
         client.on_disconnect = on_disconnect
+        client.on_message = on_message
 
         # Connect
         client.connect(MQTT_SERVER, 1883, 10)
-        if not event_connect.wait(5):
-            # Connection failed ?
+        client_2.connect(MQTT_SERVER, 1883)
+        try:
+            if not event_connect.wait(5):
+                # Connection failed ?
+                self.fail("MQTT connection timeout")
+
+            # Subscribe
+            client.subscribe("/pelix/test2", 2)
+
+            # Send something
+            mid = client.publish("/pelix/test", "dummy", wait=True)
+            client.wait_publication(mid, 5)
+
+            # Disconnect
+            event_connect.clear()
+            _disconnect_client(client)
+
+            # Disconnection/reconnection events are not received anymore
+            # Send a message after disconnection to make sure the client is reconnected
+            stop = time.time() + 30
+            while time.time() <= stop:
+                mid = client_2.publish("/pelix/test2", "dummy", wait=True)
+                client_2.wait_publication(mid, 5)
+                if event_message.is_set():
+                    break
+            else:
+                self.fail("No message received after disconnection")
+
+            # Wait for event: not received anymore
+            if not event_disconnect.is_set():
+                logging.warn("Disconnection event not received")
+
+            # Wait for reconnection
+            if not event_connect.is_set():
+                logging.warn("Reconnection event not received")
+        finally:
+            # Clean up
+            client_2.disconnect()
             client.disconnect()
-            self.fail("MQTT connection timeout")
 
-        # Send something
-        mid = client.publish("/pelix/test", "dummy", wait=True)
-        client.wait_publication(mid, 5)
-
-        # Disconnect
-        event_connect.clear()
-        _disconnect_client(client)
-
-        # Wait for event
-        if not event_disconnect.wait(30):
-            client.disconnect()
-            self.fail("No disconnection event after 30 seconds")
-
-        # Wait for reconnection
-        if not event_connect.wait(30):
-            client.disconnect()
-            self.fail("No reconnected after 30 seconds")
-
-        # Clean up
-        client.disconnect()
-
-    def test_will(self):
+    def test_will(self) -> None:
         """
         Tests the will message configuration
         """
@@ -159,11 +180,11 @@ class MqttClientTest(unittest.TestCase):
         client = mqtt.MqttClient()
         event = threading.Event()
 
-        def on_connect(clt, result_code):
+        def on_connect(clt: mqtt.MqttClient, result_code: int) -> None:
             if result_code == 0:
                 event.set()
 
-        def on_disconnect(clt, result_code):
+        def on_disconnect(clt: mqtt.MqttClient, result_code: int) -> None:
             if result_code != 0:
                 # Disconnected unwillingly: stop the timer
                 # -- IMPLEMENTATION SPECIFIC --
@@ -233,7 +254,7 @@ class MqttClientTest(unittest.TestCase):
         self.assertEqual(msg.topic, will_topic)
         self.assertEqual(to_str(msg.payload), will_value)
 
-    def test_wait_publish(self):
+    def test_wait_publish(self) -> None:
         """
         Tests the wait_publish method
         """
@@ -245,11 +266,11 @@ class MqttClientTest(unittest.TestCase):
         event = threading.Event()
         shared = []
 
-        def on_connect(clt, result_code):
+        def on_connect(clt: mqtt.MqttClient, result_code: int) -> None:
             if result_code == 0:
                 event.set()
 
-        def on_message(clt, msg):
+        def on_message(clt: mqtt.MqttClient, msg: mqtt.MqttMessage) -> None:
             shared.append(msg)
             event.set()
 
@@ -282,7 +303,7 @@ class MqttClientTest(unittest.TestCase):
         self.assertEqual(msg.topic, msg_topic)
         self.assertEqual(to_str(msg.payload), msg_value)
 
-    def test_client_id(self):
+    def test_client_id(self) -> None:
         """
         Tests the generation of a client ID
         """
@@ -314,7 +335,7 @@ class MqttClientTest(unittest.TestCase):
             # Check uniqueness
             self.assertNotEqual(clt_id, mqtt.MqttClient.generate_id(prefix))
 
-    def test_constructor(self):
+    def test_constructor(self) -> None:
         """
         Tests the client ID handling in the constructor
         """
@@ -351,7 +372,7 @@ class MqttClientTest(unittest.TestCase):
         # Client ID must be kept as is
         self.assertEqual(client.client_id, long_id)
 
-    def test_topic_matches(self):
+    def test_topic_matches(self) -> None:
         """
         Tests the topic_matches() method
         """
