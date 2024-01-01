@@ -90,6 +90,10 @@ class ZooKeeperClient:
         self._logger = logging.getLogger(log_name)
         self._queue = ThreadPool(1, 1, logname=log_name)
 
+        # Callbacks
+        self.__on_first_connection: Optional[Callable[[], None]] = None
+        self.__on_client_reconnection: Optional[Callable[[], None]] = None
+
     @property
     def prefix(self) -> str:
         """
@@ -129,10 +133,12 @@ class ZooKeeperClient:
             if not self.__connected:
                 self.__connected = True
                 self._logger.info("Connected to ZooKeeper")
-                self._queue.enqueue(self.on_first_connection)
+                if self.__on_first_connection is not None:
+                    self._queue.enqueue(self.__on_first_connection)
             else:
                 self._logger.warning("Re-connected to ZooKeeper")
-                self._queue.enqueue(self.on_client_reconnection)
+                if self.__on_client_reconnection is not None:
+                    self._queue.enqueue(self.__on_client_reconnection)
         elif state == KazooState.SUSPENDED:
             self._logger.warning("Connection suspended")
             self.__online = False
@@ -161,17 +167,33 @@ class ZooKeeperClient:
         self._queue.stop()
         self._zk.stop()
 
-    @staticmethod
-    def on_first_connection() -> None:
+    @property
+    def on_first_connection(self) -> Optional[Callable[[], None]]:
         """
         Called when the client is connected for the first time
         """
+        return self.__on_first_connection
 
-    @staticmethod
-    def on_client_reconnection() -> None:
+    @on_first_connection.setter
+    def on_first_connection(self, callback: Optional[Callable[[], None]]) -> None:
         """
-        Called when the client is reconnected to the server
+        Called when the client is connected for the first time
         """
+        self.__on_first_connection = callback
+
+    @property
+    def on_client_reconnection(self) -> Optional[Callable[[], None]]:
+        """
+        Called when the client is connected for the first time
+        """
+        return self.__on_client_reconnection
+
+    @on_client_reconnection.setter
+    def on_client_reconnection(self, callback: Optional[Callable[[], None]]) -> None:
+        """
+        Called when the client is connected for the first time
+        """
+        self.__on_client_reconnection = callback
 
     def __path(self, path: str) -> str:
         """
