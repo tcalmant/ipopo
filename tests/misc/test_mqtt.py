@@ -8,11 +8,13 @@ Tests the MQTT client module
 
 import logging
 import os
+import socket
 import sys
 import threading
 import time
 import unittest
 import uuid
+from typing import Optional, cast
 
 from pelix.utilities import to_str
 
@@ -42,8 +44,28 @@ def _disconnect_client(client: mqtt.MqttClient) -> None:
 
     :param client: MQTT Client
     """
-    # Close the socket
-    getattr(client, "_MqttClient__mqtt")._sock.close()
+    # Get all the socket references
+    sock = cast(Optional[socket.socket], getattr(client.raw_client, "_sock"))
+    pair_r = cast(Optional[socket.socket], getattr(client.raw_client, "_sockpairR"))
+    pair_w = cast(Optional[socket.socket], getattr(client.raw_client, "_sockpairW"))
+
+    # Explicitly set the them to None: Paho doesn't create new sockets if they are still set
+    setattr(client.raw_client, "_sock", None)
+    setattr(client.raw_client, "_sockpairR", None)
+    setattr(client.raw_client, "_sockpairW", None)
+
+    # Shutdown sockets (unblocks the underlying select() call) and close them
+    if sock is not None:
+        sock.shutdown(socket.SHUT_RDWR)
+        sock.close()
+
+    if pair_w is not None:
+        pair_w.shutdown(socket.SHUT_RDWR)
+        pair_w.close()
+
+    if pair_r is not None:
+        pair_r.shutdown(socket.SHUT_RDWR)
+        pair_r.close()
 
 
 class MqttClientTest(unittest.TestCase):
@@ -55,6 +77,8 @@ class MqttClientTest(unittest.TestCase):
         """
         Test the client connection
         """
+        assert MQTT_SERVER is not None
+
         # Create client
         client = mqtt.MqttClient()
         event = threading.Event()
@@ -102,68 +126,91 @@ class MqttClientTest(unittest.TestCase):
         """
         Tests client reconnection
         """
+        assert MQTT_SERVER is not None
+
         if os.name == "posix":
             # FIXME: try harder
             self.skipTest("This test doesn't work on POSIX...")
 
-        # Create client
+        # Avoid typo
+        topic = "/pelix/test"
+
+        # Create clients
         client = mqtt.MqttClient()
         client_2 = mqtt.MqttClient()
+
+        # Enable Paho logging as this test can fail easily
+        client.raw_client.enable_logger()
+
         event_connect = threading.Event()
         event_disconnect = threading.Event()
         event_message = threading.Event()
 
+        client_2_connected = threading.Event()
+
         def on_connect(clt: mqtt.MqttClient, result_code: int) -> None:
+            # Subscribe to test messages
+            clt.subscribe(topic, 2)
+
+            # Continue the test
             event_connect.set()
 
         def on_disconnect(clt: mqtt.MqttClient, result_code: int) -> None:
             event_disconnect.set()
 
         def on_message(clt: mqtt.MqttClient, msg: mqtt.MqttMessage) -> None:
-            print("Test on message", msg.topic, msg.payload)
             event_message.set()
 
         client.on_connect = on_connect
         client.on_disconnect = on_disconnect
         client.on_message = on_message
 
+        # Setup client 2
+        client_2.on_connect = lambda *_: client_2_connected.set()
+
         # Connect
         client.connect(MQTT_SERVER, 1883, 10)
         client_2.connect(MQTT_SERVER, 1883)
+
         try:
             if not event_connect.wait(5):
-                # Connection failed ?
+                # Connection failed
                 self.fail("MQTT connection timeout")
 
-            # Subscribe
-            client.subscribe("/pelix/test2", 2)
+            if not client_2_connected.wait(5):
+                self.fail("Second client connection timeout")
 
-            # Send something
-            mid = client.publish("/pelix/test", "dummy", wait=True)
-            client.wait_publication(mid, 5)
+            # Send something from client 2 to test client
+            mid = client_2.publish(topic, "dummy1", qos=2, wait=True)
+            assert mid is not None
+            client_2.wait_publication(mid, 5)
 
-            # Disconnect
+            # Ensure we get it
+            if not event_message.wait(5):
+                self.fail("Message not received")
+            event_message.clear()
+
+            # Disconnect test client
             event_connect.clear()
             _disconnect_client(client)
 
-            # Disconnection/reconnection events are not received anymore
-            # Send a message after disconnection to make sure the client is reconnected
-            stop = time.time() + 30
-            while time.time() <= stop:
-                mid = client_2.publish("/pelix/test2", "dummy", wait=True)
-                client_2.wait_publication(mid, 5)
-                if event_message.is_set():
-                    break
-            else:
-                self.fail("No message received after disconnection")
+            # Wait for the reconnection event
+            if not event_connect.wait(20):
+                self.fail("Connection event not received")
 
-            # Wait for event: not received anymore
+            # Test a new message
+            mid = client_2.publish(topic, "dummy2", qos=2, wait=True)
+            assert mid is not None
+            client_2.wait_publication(mid, 5)
+
+            # Ensure we get it
+            if not event_message.wait(5):
+                self.fail("Message not received")
+            event_message.clear()
+
+            # NOTE: Disconnection event is not received on reconnect
             if not event_disconnect.is_set():
-                logging.warn("Disconnection event not received")
-
-            # Wait for reconnection
-            if not event_connect.is_set():
-                logging.warn("Reconnection event not received")
+                logging.warning("Disconnection event not received")
         finally:
             # Clean up
             client_2.disconnect()
@@ -173,6 +220,8 @@ class MqttClientTest(unittest.TestCase):
         """
         Tests the will message configuration
         """
+        assert MQTT_SERVER is not None
+
         will_topic = "pelix/test/mqtt/will/{0}".format(str(uuid.uuid4()))
         will_value = str(uuid.uuid4())
 
@@ -258,6 +307,8 @@ class MqttClientTest(unittest.TestCase):
         """
         Tests the wait_publish method
         """
+        assert MQTT_SERVER is not None
+
         msg_topic = "pelix/test/mqtt/wait/{0}".format(str(uuid.uuid4()))
         msg_value = str(uuid.uuid4())
 
@@ -288,6 +339,7 @@ class MqttClientTest(unittest.TestCase):
         # Send message
         event.clear()
         mid = client.publish(msg_topic, msg_value, wait=True)
+        assert mid is not None
         client.wait_publication(mid)
 
         # Wait for the message to be received
