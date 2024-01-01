@@ -42,7 +42,6 @@ import pelix.ipv6utils
 import pelix.misc.ssl_wrap as ssl_wrap
 import pelix.remote
 import pelix.utilities as utilities
-from pelix.http import Servlet
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import (
     BindField,
@@ -477,14 +476,14 @@ class HttpServiceImpl(http.HTTPService):
         self._lock = threading.Lock()
 
         # Path -> (servlet, parameters)
-        self._servlets: Dict[str, Tuple[Servlet, Dict[str, Any]]] = {}
+        self._servlets: Dict[str, Tuple[http.Servlet, Dict[str, Any]]] = {}
 
         # Fields injected by iPOPO
-        self._servlets_services: List[Servlet] = []
+        self._servlets_services: List[http.Servlet] = []
         self._error_handler: Optional[http.ErrorHandler] = None
 
         # Servlet -> ServiceReference
-        self._servlets_refs: Dict[Servlet, ServiceReference[Servlet]] = {}
+        self._servlets_refs: Dict[http.Servlet, ServiceReference[http.Servlet]] = {}
         self._binding_lock = threading.Lock()
 
         # Server control
@@ -497,7 +496,7 @@ class HttpServiceImpl(http.HTTPService):
         """
         return f"BasicHttpService({self._address}, {self._port})"
 
-    def __safe_callback(self, instance: Servlet, method: str, *args: Any, **kwargs: Any) -> Any:
+    def __safe_callback(self, instance: http.Servlet, method: str, *args: Any, **kwargs: Any) -> Any:
         """
         Safely calls the given method in the given instance.
         Returns True on method absence.
@@ -533,7 +532,7 @@ class HttpServiceImpl(http.HTTPService):
         return False
 
     def __register_servlet_service(
-        self, service: Servlet, service_reference: ServiceReference[Servlet]
+        self, service: http.Servlet, service_reference: ServiceReference[http.Servlet]
     ) -> None:
         """
         Registers a servlet according to its service properties
@@ -552,7 +551,7 @@ class HttpServiceImpl(http.HTTPService):
                 self.register_servlet(path, service)
 
     @BindField("_servlets_services")
-    def _bind(self, _: str, service: Servlet, service_reference: ServiceReference[Servlet]) -> None:
+    def _bind(self, _: str, service: http.Servlet, service_reference: ServiceReference[http.Servlet]) -> None:
         """
         Called by iPOPO when a service is bound
         """
@@ -570,8 +569,8 @@ class HttpServiceImpl(http.HTTPService):
     def _update(
         self,
         _: str,
-        service: Servlet,
-        service_reference: ServiceReference[Servlet],
+        service: http.Servlet,
+        service_reference: ServiceReference[http.Servlet],
         old_properties: Dict[str, Any],
     ) -> None:
         """
@@ -596,7 +595,9 @@ class HttpServiceImpl(http.HTTPService):
                 self.__register_servlet_service(service, service_reference)
 
     @UnbindField("_servlets_services")
-    def _unbind(self, _: str, service: Servlet, service_reference: ServiceReference[Servlet]) -> None:
+    def _unbind(
+        self, _: str, service: http.Servlet, service_reference: ServiceReference[http.Servlet]
+    ) -> None:
         """
         Called by iPOPO when a service is gone
         """
@@ -645,7 +646,7 @@ class HttpServiceImpl(http.HTTPService):
         """
         return sorted(self._servlets)
 
-    def get_servlet(self, path: Optional[str]) -> Optional[Tuple[Servlet, Dict[str, Any], str]]:
+    def get_servlet(self, path: Optional[str]) -> Optional[Tuple[http.Servlet, Dict[str, Any], str]]:
         """
         Retrieves the servlet matching the given path and its parameters.
         Returns None if no servlet matches the given path.
@@ -742,7 +743,7 @@ class HttpServiceImpl(http.HTTPService):
         return page
 
     def register_servlet(
-        self, path: str, servlet: Servlet, parameters: Optional[Dict[str, Any]] = None
+        self, path: str, servlet: http.Servlet, parameters: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
         Registers a servlet
@@ -805,7 +806,7 @@ class HttpServiceImpl(http.HTTPService):
             # The servlet refused the binding
             return False
 
-    def unregister(self, path: Optional[str], servlet: Optional[Servlet] = None) -> bool:
+    def unregister(self, path: Optional[str], servlet: Optional[http.Servlet] = None) -> bool:
         """
         Unregisters the servlet for the given path
 
