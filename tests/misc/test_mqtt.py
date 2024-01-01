@@ -8,6 +8,7 @@ Tests the MQTT client module
 
 import logging
 import os
+from pydoc import cli
 import socket
 import sys
 import threading
@@ -337,11 +338,13 @@ class MqttClientTest(unittest.TestCase):
 
         # Create client 1
         client = mqtt.MqttClient()
-        event = threading.Event()
+        event_connect = EventData[None]()
 
         def on_connect(clt: mqtt.MqttClient, result_code: int) -> None:
             if result_code == 0:
-                event.set()
+                event_connect.set()
+            else:
+                event_connect.raise_exception(RuntimeError(f"Connection failed with code {result_code}"))
 
         def on_disconnect(clt: mqtt.MqttClient, result_code: int) -> None:
             if result_code != 0:
@@ -355,20 +358,26 @@ class MqttClientTest(unittest.TestCase):
 
         # Create client 2
         client_2 = mqtt.MqttClient()
-        event_2 = threading.Event()
-        shared_2 = []
+        event_connect_2 = EventData[None]()
+        event_subscribe_2 = EventData[int]()
+        event_message_2 = EventData[mqtt.MqttMessage]()
 
-        def on_connect_2(clt, result_code):
+        def on_connect_2(clt: mqtt.MqttClient, result_code: int) -> None:
             if result_code == 0:
                 # Client 2 subscribes to the will message
                 clt.subscribe(will_topic)
-                event_2.set()
+                event_connect_2.set()
+            else:
+                event_connect_2.raise_exception(RuntimeError(f"Connection failed with code {result_code}"))
 
-        def on_message_2(clt, msg):
-            event_2.set()
-            shared_2.append(msg)
+        def on_subscribe_2(clt: mqtt.MqttClient, mid: int, granted_qos: List[int]) -> None:
+            event_subscribe_2.set(mid)
+
+        def on_message_2(clt: mqtt.MqttClient, msg: mqtt.MqttMessage) -> None:
+            event_message_2.set(msg)
 
         client_2.on_connect = on_connect_2
+        client_2.on_subscribe = on_subscribe_2
         client_2.on_message = on_message_2
 
         # Check clients IDs
@@ -377,35 +386,36 @@ class MqttClientTest(unittest.TestCase):
         # Set the will for client 1
         client.set_will(will_topic, will_value)
 
-        # Connect client 1
+        # Connect clients
         client.connect(MQTT_SERVER, 1883, 10)
-        if not event.wait(5):
-            client.disconnect()
-            self.fail("Client 1 timed out")
-
-        # Connect client 2
         client_2.connect(MQTT_SERVER, 1883)
-        if not event_2.wait(5):
+        try:
+            if not event_connect.wait(5):
+                client.disconnect()
+                self.fail("Client 1 timed out")
+
+            if not event_connect_2.wait(5):
+                client_2.disconnect()
+                self.fail("Client 2 timed out")
+
+            # Wait for its subscription
+            if not event_subscribe_2.wait(5):
+                self.fail("Client 2 subscription timed out")
+
+            # Disconnect client 1
+            _disconnect_client(client)
+
+            # Check client 2
+            if not event_message_2.wait(30):
+                client_2.disconnect()
+                self.fail("Will not received within 30 seconds")
+        finally:
+            client.disconnect()
             client_2.disconnect()
-            self.fail("Client 2 timed out")
-
-        # Clear events
-        event.clear()
-        event_2.clear()
-
-        # Disconnect client 1
-        _disconnect_client(client)
-
-        # Check client 2
-        if not event_2.wait(30):
-            client_2.disconnect()
-            self.fail("Will not received within 30 seconds")
-
-        # Disconnect client 2
-        client_2.disconnect()
 
         # Check message
-        msg = shared_2[0]
+        msg = event_message_2.data
+        assert msg is not None
         self.assertEqual(msg.topic, will_topic)
         self.assertEqual(to_str(msg.payload), will_value)
 
@@ -420,19 +430,18 @@ class MqttClientTest(unittest.TestCase):
 
         # Create client
         client = mqtt.MqttClient()
-        event = EventData()
-        shared = []
+        event_connect = EventData[None]()
+        event_msg = EventData[mqtt.MqttMessage]()
 
         def on_connect(clt: mqtt.MqttClient, result_code: int) -> None:
             if result_code == 0:
                 clt.subscribe(msg_topic)
-                event.set()
+                event_connect.set()
             else:
-                event.raise_exception(RuntimeError(f"Connection failed with code {result_code}"))
+                event_connect.raise_exception(RuntimeError(f"Connection failed with code {result_code}"))
 
         def on_message(clt: mqtt.MqttClient, msg: mqtt.MqttMessage) -> None:
-            shared.append(msg)
-            event.set()
+            event_msg.set(msg)
 
         client.on_connect = on_connect
         client.on_message = on_message
@@ -440,24 +449,24 @@ class MqttClientTest(unittest.TestCase):
         # Connect
         client.connect(MQTT_SERVER)
         try:
-            if not event.wait(5):
+            if not event_connect.wait(5):
                 self.fail("Connection timeout")
 
             # Send message
-            event.clear()
             mid = client.publish(msg_topic, msg_value, wait=True)
             assert mid is not None
             client.wait_publication(mid, 30)
 
             # Wait for the message to be received
-            if not event.wait(5):
+            if not event_msg.wait(5):
                 self.fail("Message not received after publication")
         finally:
             # Disconnect
             client.disconnect()
 
         # Get the message
-        msg = shared[0]
+        msg = event_msg.data
+        assert msg is not None
         self.assertEqual(msg.topic, msg_topic)
         self.assertEqual(to_str(msg.payload), msg_value)
 
@@ -497,6 +506,8 @@ class MqttClientTest(unittest.TestCase):
         """
         Tests the client ID handling in the constructor
         """
+        client_id: Optional[str]
+
         # Valid ID given
         for client_id in ("custom_id", "other-id", mqtt.MqttClient.generate_id()):
             client = mqtt.MqttClient(client_id)
