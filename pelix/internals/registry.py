@@ -25,7 +25,6 @@ Service registry and event dispatcher for Pelix.
     limitations under the License.
 """
 
-# Standard library
 import bisect
 import inspect
 import logging
@@ -1270,10 +1269,18 @@ class ServiceRegistry:
                     # Use the first class as main filter, add the others to the LDAP filter
                     class_names: List[str] = []
                     for spec in raw_spec:
+                        if spec is None:
+                            continue
+
                         if isinstance(spec, str):
-                            class_names.append(ldapfilter.escape_LDAP(spec))
+                            escaped = ldapfilter.escape_LDAP(spec)
                         elif hasattr(spec, "__name__"):
-                            class_names.append(ldapfilter.escape_LDAP(getattr(spec, "__name__")))
+                            escaped = ldapfilter.escape_LDAP(getattr(spec, "__name__"))
+                        else:
+                            continue
+
+                        if escaped is not None:
+                            class_names.append(escaped)
 
                     if class_names:
                         clazz = class_names[0]
