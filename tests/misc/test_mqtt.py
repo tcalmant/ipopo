@@ -11,12 +11,11 @@ import os
 import socket
 import sys
 import threading
-import time
 import unittest
 import uuid
 from typing import Optional, cast
 
-from pelix.utilities import to_str
+from pelix.utilities import EventData, to_str
 
 try:
     import pelix.misc.mqtt_client as mqtt
@@ -250,6 +249,8 @@ class MqttClientTest(unittest.TestCase):
 
         def on_connect_2(clt, result_code):
             if result_code == 0:
+                # Client 2 subscribes to the will message
+                clt.subscribe(will_topic)
                 event_2.set()
 
         def on_message_2(clt, msg):
@@ -281,12 +282,6 @@ class MqttClientTest(unittest.TestCase):
         event.clear()
         event_2.clear()
 
-        # Client 2 subscribes to the will message
-        client_2.subscribe(will_topic)
-
-        # Wait a little, so that the subscription is activated
-        time.sleep(5)
-
         # Disconnect client 1
         _disconnect_client(client)
 
@@ -314,12 +309,15 @@ class MqttClientTest(unittest.TestCase):
 
         # Create client
         client = mqtt.MqttClient()
-        event = threading.Event()
+        event = EventData()
         shared = []
 
         def on_connect(clt: mqtt.MqttClient, result_code: int) -> None:
             if result_code == 0:
+                clt.subscribe(msg_topic)
                 event.set()
+            else:
+                event.raise_exception(RuntimeError(f"Connection failed with code {result_code}"))
 
         def on_message(clt: mqtt.MqttClient, msg: mqtt.MqttMessage) -> None:
             shared.append(msg)
@@ -330,25 +328,22 @@ class MqttClientTest(unittest.TestCase):
 
         # Connect
         client.connect(MQTT_SERVER)
-        client.subscribe(msg_topic)
+        try:
+            if not event.wait(5):
+                self.fail("Connection timeout")
 
-        if not event.wait(5):
+            # Send message
+            event.clear()
+            mid = client.publish(msg_topic, msg_value, wait=True)
+            assert mid is not None
+            client.wait_publication(mid, 30)
+
+            # Wait for the message to be received
+            if not event.wait(5):
+                self.fail("Message not received after publication")
+        finally:
+            # Disconnect
             client.disconnect()
-            self.fail("Connection timeout")
-
-        # Send message
-        event.clear()
-        mid = client.publish(msg_topic, msg_value, wait=True)
-        assert mid is not None
-        client.wait_publication(mid)
-
-        # Wait for the message to be received
-        if not event.wait(5):
-            client.disconnect()
-            self.fail("Message not received after publication")
-
-        # Disconnect
-        client.disconnect()
 
         # Get the message
         msg = shared[0]
