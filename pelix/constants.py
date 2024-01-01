@@ -26,7 +26,7 @@ Constants and exceptions for Pelix.
 """
 
 import inspect
-from typing import TYPE_CHECKING, Any, Iterable, List, Protocol, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, List, Protocol, Type, TypeVar, Union
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
@@ -221,6 +221,40 @@ class FrameworkException(Exception):
 
 # ------------------------------------------------------------------------------
 
+
+def is_from_parent(cls: Type[Any], attribute_name: str, value: Any = None) -> bool:
+    """
+    Tests if the current attribute value is shared by a parent of the given
+    class.
+
+    Returns None if the attribute value is None.
+
+    :param cls: Child class with the requested attribute
+    :param attribute_name: Name of the attribute to be tested
+    :param value: The exact value in the child class (optional)
+    :return: True if the attribute value is shared with a parent class
+    """
+    if value is None:
+        try:
+            # Get the current value
+            value = getattr(cls, attribute_name)
+        except AttributeError:
+            # No need to go further: the attribute does not exist
+            return False
+
+    for base in cls.__bases__:
+        # Look for the value in each parent class
+        try:
+            return getattr(base, attribute_name) is value
+        except AttributeError:
+            pass
+
+    # Attribute value not found in parent classes
+    return False
+
+
+# ------------------------------------------------------------------------------
+
 # Specification field
 PELIX_SPECIFICATION_FIELD = "__SPECIFICATION__"
 
@@ -233,33 +267,54 @@ class Specification:
     the register_service method.
     """
 
-    __spec: Union[str, List[str]]
-
-    def __init__(self, specification: Union[str, Type[Any], Iterable[Union[str, Type[Any]]]]) -> None:
+    def __init__(
+        self,
+        *specifications: Union[str, Type[Any], List[Union[str, Type[Any]]]],
+        ignore_parent: bool = False,
+    ) -> None:
         """
         :param specification: Specification of the provided service
         """
-        if isinstance(specification, (list, tuple, set)):
-            self.__spec = [self._get_name(spec) for spec in specification]
-        elif isinstance(specification, (str, type)):
-            self.__spec = [self._get_name(specification)]
-        else:
-            raise ValueError(f"Invalid specification: {specification}")
+        self.__ignore_parent: bool = ignore_parent
+        self.__spec: List[str] = []
+        for spec in specifications:
+            if isinstance(spec, list):
+                self.__spec.extend(self._get_name(s) for s in spec)
+            else:
+                self.__spec.append(self._get_name(spec))
 
     def __call__(self, cls: Type[T]) -> Type[T]:
         """
         Injects the specification information to the decorated class
         """
-        existing = getattr(cls, PELIX_SPECIFICATION_FIELD, None)
-        if existing:
-            if isinstance(existing, list):
-                existing.extend(self.__spec)
-            else:
-                existing = [existing, self.__spec]
-        else:
-            existing = self.__spec
+        if not self.__spec:
+            # No specification: use the class name
+            self.__spec = [self._get_name(cls)]
 
-        setattr(cls, PELIX_SPECIFICATION_FIELD, existing)
+        existing = getattr(cls, PELIX_SPECIFICATION_FIELD, None)
+        if not existing:
+            prepared = self.__spec
+        elif is_from_parent(cls, PELIX_SPECIFICATION_FIELD, existing):
+            # Specification already defined in a parent class
+            if self.__ignore_parent:
+                # Ignore the parent specification
+                prepared = self.__spec
+            else:
+                # Add the specification to the existing one
+                prepared = self.__spec + existing
+        else:
+            if isinstance(existing, list):
+                prepared = self.__spec + existing
+            else:
+                prepared = self.__spec + [existing]
+
+        # Filter to avoid duplicates
+        injected: List[str] = []
+        for spec in prepared:
+            if spec not in injected:
+                injected.append(spec)
+
+        setattr(cls, PELIX_SPECIFICATION_FIELD, injected)
         return cls
 
     def _get_name(self, clazz: Union[str, Type[Any]]) -> str:

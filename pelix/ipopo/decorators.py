@@ -27,8 +27,6 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 
 import inspect
 import logging
-from multiprocessing import Value
-from opcode import hasname
 import threading
 import types
 from typing import (
@@ -45,9 +43,9 @@ from typing import (
     Union,
     cast,
 )
-from pelix.constants import PELIX_SPECIFICATION_FIELD
 
 import pelix.ipopo.constants as constants
+from pelix.constants import PELIX_SPECIFICATION_FIELD, is_from_parent
 from pelix.framework import BundleContext
 from pelix.internals.registry import PrototypeServiceFactory, ServiceFactory, ServiceReference
 from pelix.ipopo.contexts import FactoryContext, Requirement
@@ -72,37 +70,6 @@ __docformat__ = "restructuredtext en"
 _logger = logging.getLogger("ipopo.decorators")
 
 # ------------------------------------------------------------------------------
-
-
-def is_from_parent(cls: Type[Any], attribute_name: str, value: Any = None) -> bool:
-    """
-    Tests if the current attribute value is shared by a parent of the given
-    class.
-
-    Returns None if the attribute value is None.
-
-    :param cls: Child class with the requested attribute
-    :param attribute_name: Name of the attribute to be tested
-    :param value: The exact value in the child class (optional)
-    :return: True if the attribute value is shared with a parent class
-    """
-    if value is None:
-        try:
-            # Get the current value
-            value = getattr(cls, attribute_name)
-        except AttributeError:
-            # No need to go further: the attribute does not exist
-            return False
-
-    for base in cls.__bases__:
-        # Look for the value in each parent class
-        try:
-            return getattr(base, attribute_name) is value
-        except AttributeError:
-            pass
-
-    # Attribute value not found in parent classes
-    return False
 
 
 def get_factory_context(cls: Type[Any]) -> FactoryContext:
