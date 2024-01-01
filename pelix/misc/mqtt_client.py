@@ -32,7 +32,7 @@ Eclipse Foundation: see http://www.eclipse.org/paho
 import logging
 import os
 import threading
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import paho.mqtt.client as paho
 
@@ -51,7 +51,11 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+# Ensure we export the Paho constants we use in parameters
 MqttMessage = paho.MQTTMessage
+MQTTv31 = paho.MQTTv31
+MQTTv311 = paho.MQTTv311
+MQTTv5 = paho.MQTTv5
 
 
 class MqttClient:
@@ -59,11 +63,18 @@ class MqttClient:
     Remote Service discovery provider based on MQTT
     """
 
-    def __init__(self, client_id: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        client_id: Optional[str] = None,
+        clean_session: bool = False,
+        protocol: int = MQTTv311,
+        transport: str = "tcp",
+    ) -> None:
         """
-        Sets up members
-
         :param client_id: ID of the MQTT client
+        :param clean_session: If True, the broker will clean the client session on disconnect
+        :param protocol: MQTT protocol version (MQTTv31, MQTTv311 or MQTTv5)
+        :param transport: Transport protocol (tcp or websockets)
         """
         # No ID
         if not client_id:
@@ -88,7 +99,13 @@ class MqttClient:
         self.__in_flight: Dict[int, threading.Event] = {}
 
         # MQTT client
-        self.__mqtt = paho.Client(self._client_id)
+        self.__mqtt = paho.Client(
+            self._client_id,
+            clean_session=clean_session,
+            protocol=protocol,
+            transport=transport,
+            reconnect_on_failure=True,
+        )
 
         # Give access to Paho methods to configure TLS
         self.tls_set = self.__mqtt.tls_set
@@ -99,10 +116,20 @@ class MqttClient:
         self.__mqtt.on_message = self.__on_message
         self.__mqtt.on_publish = self.__on_publish
 
+        if protocol == paho.MQTTv5:
+            self.__mqtt.on_subscribe = self.__on_subscribe_v5
+            self.__mqtt.on_unsubscribe = self.__on_unsubscribe_v5
+        else:
+            self.__mqtt.on_subscribe = self.__on_subscribe_v3
+            self.__mqtt.on_unsubscribe = self.__on_unsubscribe_v3
+
         # Pelix callbacks
         self.__on_connect_cb: Optional[Callable[["MqttClient", int], None]] = None
         self.__on_disconnect_cb: Optional[Callable[["MqttClient", int], None]] = None
+        self.__on_subscribe_cb: Optional[Callable[["MqttClient", int, List[int]], None]] = None
+        self.__on_unsubscribe_cb: Optional[Callable[["MqttClient", int], None]] = None
         self.__on_message_cb: Optional[Callable[["MqttClient", MqttMessage], None]] = None
+        self.__on_publish_cb: Optional[Callable[["MqttClient", int], None]] = None
 
     @property
     def raw_client(self) -> paho.Client:
@@ -140,6 +167,34 @@ class MqttClient:
         self.__on_disconnect_cb = callback
 
     @property
+    def on_subscribe(self) -> Optional[Callable[["MqttClient", int, List[int]], None]]:
+        """
+        The MQTT connection callback
+        """
+        return self.__on_subscribe_cb
+
+    @on_subscribe.setter
+    def on_subscribe(self, callback: Optional[Callable[["MqttClient", int, List[int]], None]]) -> None:
+        """
+        Sets the MQTT connection callback
+        """
+        self.__on_subscribe_cb = callback
+
+    @property
+    def on_unsubscribe(self) -> Optional[Callable[["MqttClient", int], None]]:
+        """
+        The MQTT connection callback
+        """
+        return self.__on_unsubscribe_cb
+
+    @on_unsubscribe.setter
+    def on_unsubscribe(self, callback: Optional[Callable[["MqttClient", int], None]]) -> None:
+        """
+        Sets the MQTT connection callback
+        """
+        self.__on_unsubscribe_cb = callback
+
+    @property
     def on_message(self) -> Optional[Callable[["MqttClient", MqttMessage], None]]:
         """
         The MQTT message reception callback
@@ -152,6 +207,20 @@ class MqttClient:
         Sets the MQTT message reception callback
         """
         self.__on_message_cb = callback
+
+    @property
+    def on_publish(self) -> Optional[Callable[["MqttClient", int], None]]:
+        """
+        The MQTT message reception callback
+        """
+        return self.__on_publish_cb
+
+    @on_publish.setter
+    def on_publish(self, callback: Optional[Callable[["MqttClient", int], None]]) -> None:
+        """
+        Sets the MQTT message reception callback
+        """
+        self.__on_publish_cb = callback
 
     @classmethod
     def generate_id(cls, prefix: Optional[str] = "pelix-") -> str:
@@ -306,26 +375,41 @@ class MqttClient:
         :return: True if the message was published, False if timeout was raised
         :raise KeyError: Unknown waiting local message ID
         """
-        return self.__in_flight[mid].wait(timeout)
+        event = self.__in_flight[mid]
+        if event.wait(timeout):
+            # Message published: no need to wait for it anymore
+            self.__in_flight.pop(mid)
+            return True
 
-    def subscribe(self, topic: str, qos: int = 0) -> None:
+        # Publication not sent yet
+        return False
+
+    def subscribe(self, topic: str, qos: int = 0) -> Optional[int]:
         """
         Subscribes to a topic on the server
 
         :param topic: Topic filter string(s)
         :param qos: Desired quality of service
+        :return: The local message ID, None on error
         :raise ValueError: Invalid topic or QoS
         """
-        self.__mqtt.subscribe(topic, qos)
+        result = self.__mqtt.subscribe(topic, qos)
+        if result is not None:
+            return result[1]
+        return None
 
-    def unsubscribe(self, topic: str) -> None:
+    def unsubscribe(self, topic: str) -> Optional[int]:
         """
         Unscribes from a topic on the server
 
         :param topic: Topic(s) to unsubscribe from
+        :return: The local message ID, None on error
         :raise ValueError: Invalid topic parameter
         """
-        self.__mqtt.unsubscribe(topic)
+        result = self.__mqtt.unsubscribe(topic)
+        if result is not None:
+            return result[1]
+        return None
 
     def __start_timer(self, delay: float) -> None:
         """
@@ -453,7 +537,106 @@ class MqttClient:
         :param userdata: User data (unused)
         :param mid: Message ID
         """
+        # Unblock wait_publication, if any
         try:
             self.__in_flight[mid].set()
         except KeyError:
             pass
+
+        # Notify the explicit callback, if any
+        if self.__on_publish_cb is not None:
+            try:
+                self.__on_publish_cb(self, mid)
+            except Exception as ex:
+                _logger.exception("Error notifying MQTT publish listener: %s", ex)
+
+    def __on_subscribe_v3(
+        self, client: paho.Client, userdata: Any, mid: int, granted_qos: Tuple[int]
+    ) -> None:
+        # pylint: disable=W0613
+        """
+        A subscription has been accepted by the server
+
+        :param client: Client that received the message
+        :param userdata: User data (unused)
+        :param mid: Message ID
+        :param granted_qos: List of granted QoS
+        """
+        self.__on_subscribe(mid, list(granted_qos))
+
+    def __on_subscribe_v5(
+        self,
+        client: paho.Client,
+        userdata: Any,
+        mid: int,
+        reasonCodes: List[paho.ReasonCodes],
+        properties: paho.Properties,
+    ) -> None:
+        # pylint: disable=W0613
+        """
+        A subscription has been accepted by the server
+
+        :param client: Client that received the message
+        :param userdata: User data (unused)
+        :param mid: Message ID
+        :param granted_qos: List of granted QoS
+        :param reasonCodes: the MQTT v5.0 reason codes received from the broker for each subscribe topic
+        :param properties: the MQTT v5.0 properties received from the broker
+        """
+        self.__on_subscribe(mid, [r.value for r in reasonCodes])
+
+    def __on_subscribe(self, mid: int, granted_qos: List[int]) -> None:
+        """
+        Common handler of MQTT v3 and v5 subscriptions notifications
+        """
+        # Notify the caller, if any
+        if self.__on_subscribe_cb is not None:
+            try:
+                self.__on_subscribe_cb(self, mid, granted_qos)
+            except Exception as ex:
+                _logger.exception("Error executing MQTT subscribe callback: %s", ex)
+
+
+    def __on_unsubscribe_v3(
+        self,
+        client: paho.Client,
+        userdata: Any,
+        mid: int,
+    ) -> None:
+        # pylint: disable=W0613
+        """
+        A subscription has been accepted by the server
+
+        :param client: Client that received the message
+        :param userdata: User data (unused)
+        :param mid: Message ID
+        :param properties: the MQTT v5.0 properties received from the broker
+        :param reasonCodes: the MQTT v5.0 reason codes received from the broker for each unsubscribe topic
+        """
+        # Notify the caller, if any
+        if self.__on_unsubscribe_cb is not None:
+            try:
+                self.__on_unsubscribe_cb(self, mid)
+            except Exception as ex:
+                _logger.exception("Error executing MQTT unsubscribe callback: %s", ex)
+
+
+    def __on_unsubscribe_v5(
+        self,
+        client: paho.Client,
+        userdata: Any,
+        mid: int,
+        properties: paho.Properties,
+        reasonCodes: Union[paho.ReasonCodes, List[paho.ReasonCodes]],
+    ) -> None:
+        # pylint: disable=W0613
+        """
+        A subscription has been accepted by the server
+
+        :param client: Client that received the message
+        :param userdata: User data (unused)
+        :param mid: Message ID
+        :param properties: the MQTT v5.0 properties received from the broker
+        :param reasonCodes: the MQTT v5.0 reason codes received from the broker for each unsubscribe topic
+        """
+        self.__on_unsubscribe_v3(client, userdata, mid)

@@ -13,7 +13,7 @@ import sys
 import threading
 import unittest
 import uuid
-from typing import Optional, cast
+from typing import List, Optional, Tuple, cast
 
 from pelix.utilities import EventData, to_str
 
@@ -80,18 +80,25 @@ class MqttClientTest(unittest.TestCase):
 
         # Create client
         client = mqtt.MqttClient()
-        event = threading.Event()
-        shared = []
+        event = EventData[mqtt.MqttClient]()
 
-        def on_connect(clt, result_code):
-            if result_code == 0:
-                shared.append(clt)
-                event.set()
+        def on_connect(clt: mqtt.MqttClient, result_code: int) -> None:
+            if event.is_set():
+                event.raise_exception(RuntimeError("Unexpected connection callback"))
 
-        def on_disconnect(clt, result_code):
             if result_code == 0:
-                shared.append(clt)
-                event.set()
+                event.set(clt)
+            else:
+                event.raise_exception(RuntimeError(f"Connection failed with code {result_code}"))
+
+        def on_disconnect(clt: mqtt.MqttClient, result_code: int) -> None:
+            if event.is_set():
+                event.raise_exception(RuntimeError("Unexpected disconnection callback"))
+
+            if result_code == 0:
+                event.set(clt)
+            else:
+                event.raise_exception(RuntimeError(f"Disconnection failed with code {result_code}"))
 
         client.on_connect = on_connect
         client.on_disconnect = on_disconnect
@@ -107,10 +114,10 @@ class MqttClientTest(unittest.TestCase):
             self.fail("MQTT connection timeout")
 
         # Check client (and single call)
-        self.assertListEqual(shared, [client])
+        assert event.data is not None
+        self.assertEqual(event.data, client)
 
-        # Clear
-        del shared[:]
+        # Clear event
         event.clear()
 
         # Disconnect
@@ -118,8 +125,112 @@ class MqttClientTest(unittest.TestCase):
         if not event.wait(5):
             self.fail("MQTT disconnection timeout")
 
-        # Check client (and single call)
-        self.assertListEqual(shared, [client])
+        # Check client
+        assert event.data is not None
+        self.assertEqual(event.data, client)
+
+    def test_events(self) -> None:
+        """
+        Tests notifications from client for different protocol versions
+
+        This test tests all the possible callbacks of the Pelix MQTT client
+        """
+        assert MQTT_SERVER is not None
+
+        for protocol in (mqtt.MQTTv31, mqtt.MQTTv311, mqtt.MQTTv5):
+            with self.subTest(protocol=protocol):
+                # Create client
+                client = mqtt.MqttClient()
+                event_connected = EventData[None]()
+                event_disconnected = EventData[None]()
+                event_message = EventData[mqtt.MqttMessage]()
+                event_publish = EventData[int]()
+                event_subscribe = EventData[Tuple[int, List[int]]]()
+                event_unsubscribe = EventData[int]()
+
+                def on_connect(clt: mqtt.MqttClient, result_code: int) -> None:
+                    if result_code == 0:
+                        event_connected.set()
+                    else:
+                        event_connected.raise_exception(
+                            RuntimeError(f"Connection failed with code {result_code}")
+                        )
+
+                def on_disconnect(clt: mqtt.MqttClient, result_code: int) -> None:
+                    if result_code == 0:
+                        event_disconnected.set()
+                    else:
+                        event_disconnected.raise_exception(
+                            RuntimeError(f"Disconnection failed with code {result_code}")
+                        )
+
+                def on_message(clt: mqtt.MqttClient, msg: mqtt.MqttMessage) -> None:
+                    event_message.set(msg)
+
+                def on_publish(clt: mqtt.MqttClient, mid: int) -> None:
+                    event_publish.set(mid)
+
+                def on_subscribe(clt: mqtt.MqttClient, mid: int, granted_qos: List[int]) -> None:
+                    event_subscribe.set((mid, granted_qos))
+
+                def on_unsubscribe(clt: mqtt.MqttClient, mid: int) -> None:
+                    event_unsubscribe.set(mid)
+
+                client.on_connect = on_connect
+                client.on_disconnect = on_disconnect
+                client.on_message = on_message
+                client.on_publish = on_publish
+                client.on_subscribe = on_subscribe
+                client.on_unsubscribe = on_unsubscribe
+
+                # Connect
+                client.connect(MQTT_SERVER)
+                try:
+                    if not event_connected.wait(5):
+                        # Connection failed
+                        self.fail("MQTT connection timeout")
+
+                    # Subscribe
+                    mid = client.subscribe("/pelix/test", 2)
+                    if not event_subscribe.wait(5):
+                        self.fail("MQTT subscription timeout")
+
+                    if mid is None:
+                        self.fail("Subscription failed")
+
+                    # Check parameters
+                    assert event_subscribe.data is not None
+                    self.assertListEqual(list(event_subscribe.data), [mid, [2]])
+
+                    # Publish
+                    mid = client.publish("/pelix/test", "dummy", 2)
+                    if not event_publish.wait(5):
+                        self.fail("MQTT publication timeout")
+
+                    # Check publication event
+                    assert event_publish.data is not None
+                    self.assertEqual(event_publish.data, mid)
+
+                    # Wait for the reception event
+                    if not event_message.wait(5):
+                        self.fail("MQTT reception timeout")
+                    assert event_message.data is not None
+                    self.assertEqual(event_message.data.topic, "/pelix/test")
+                    self.assertEqual(to_str(event_message.data.payload), "dummy")
+                    self.assertEqual(event_message.data.qos, 2)
+
+                    # Unsubscribe
+                    mid = client.unsubscribe("/pelix/test")
+                    if not event_unsubscribe.wait(5):
+                        self.fail("MQTT unsubscription timeout")
+                    assert event_unsubscribe.data is not None
+                    self.assertEqual(event_unsubscribe.data, mid)
+                finally:
+                    # Disconnect
+                    client.disconnect()
+
+                if not event_disconnected.wait(5):
+                    self.fail("MQTT disconnection timeout")
 
     def test_reconnect(self) -> None:
         """
