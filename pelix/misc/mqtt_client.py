@@ -204,7 +204,9 @@ class MqttClient:
         """
         self.__mqtt.username_pw_set(username, password)
 
-    def set_will(self, topic: str, payload: bytes, qos: int = 0, retain: bool = False) -> None:
+    def set_will(
+        self, topic: str, payload: Union[None, bytes, bytearray, str], qos: int = 0, retain: bool = False
+    ) -> None:
         """
         Sets up the will message
 
@@ -266,7 +268,12 @@ class MqttClient:
         thread.join(4)
 
     def publish(
-        self, topic: str, payload: Union[bytes, str], qos: int = 0, retain: bool = False, wait: bool = False
+        self,
+        topic: str,
+        payload: Union[None, bytes, str],
+        qos: int = 0,
+        retain: bool = False,
+        wait: bool = False,
     ) -> Optional[int]:
         """
         Sends a message through the MQTT connection
@@ -287,7 +294,6 @@ class MqttClient:
         if wait:
             # Publish packet sent, wait for it to return
             self.__in_flight[result.mid] = threading.Event()
-            _logger.debug("Waiting for publication of %s", topic)
 
         return result.mid
 
@@ -392,7 +398,7 @@ class MqttClient:
             try:
                 self.__on_connect_cb(self, result_code)
             except Exception as ex:
-                _logger.exception("Error notifying MQTT listener: %s", ex)
+                _logger.exception("Error executing MQTT connection callback: %s", ex)
 
     def __on_disconnect(self, client: paho.Client, userdata: Any, result_code: int) -> None:
         # pylint: disable=W0613
@@ -420,7 +426,7 @@ class MqttClient:
             try:
                 self.__on_disconnect_cb(self, result_code)
             except Exception as ex:
-                _logger.exception("Error notifying MQTT listener: %s", ex)
+                _logger.exception("Error executing MQTT disconnection callback: %s", ex)
 
     def __on_message(self, client: paho.Client, userdata: Any, msg: MqttMessage) -> None:
         # pylint: disable=W0613
@@ -436,7 +442,7 @@ class MqttClient:
             try:
                 self.__on_message_cb(self, msg)
             except Exception as ex:
-                _logger.exception("Error notifying MQTT listener: %s", ex)
+                _logger.exception("Error notifying MQTT message listener: %s", ex)
 
     def __on_publish(self, client: paho.Client, userdata: Any, mid: int) -> None:
         # pylint: disable=W0613
