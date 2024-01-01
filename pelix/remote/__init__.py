@@ -26,9 +26,9 @@ Pelix remote services package
 """
 
 from typing import Any, Dict, Iterable, List, Optional, Protocol, Tuple, Union
-from pelix.constants import Specification
 
 import pelix.http
+from pelix.constants import Specification
 from pelix.internals.registry import ServiceReference
 from pelix.remote.beans import ExportEndpoint, ImportEndpoint
 

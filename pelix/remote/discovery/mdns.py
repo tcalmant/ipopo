@@ -30,7 +30,7 @@ This module depends on the zeroconf package
 import json
 import logging
 import socket
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Protocol, Union, cast
 
 import zeroconf
 
@@ -59,13 +59,40 @@ _logger = logging.getLogger(__name__)
 DEFAULT_ZEROCONF_TYPE = "_pelix-rs._tcp.local."
 
 
+class _ZeroConfServiceListener(Protocol):
+    """
+    Protocol of a Zeroconf service listener, as it is not defined in the zeroconf
+    package package anymore
+    """
+
+    def add_service(self, zc: zeroconf.Zeroconf, type_: str, name: str) -> None:
+        """
+        Called by Zeroconf when a record is updated
+
+        :param zc: The Zeroconf instance than notifies of the modification
+        :param type_: Service type
+        :param name: Service name
+        """
+        ...
+
+    def remove_service(self, zc: zeroconf.Zeroconf, type_: str, name: str) -> None:
+        """
+        Called by Zeroconf when a record is removed
+
+        :param zc: The Zeroconf instance than notifies of the modification
+        :param type_: Service type
+        :param name: Service name
+        """
+        ...
+
+
 @ComponentFactory(pelix.remote.FACTORY_DISCOVERY_ZEROCONF)
 @Provides(pelix.remote.RemoteServiceExportEndpointListener)
 @Property("_rs_type", pelix.remote.PROP_ZEROCONF_TYPE, DEFAULT_ZEROCONF_TYPE)
 @Property("_ttl", "zeroconf.ttl", 60)
-@Requires("_access", pelix.remote.RemoteServiceDispatcherServlet)
+@Requires("_access", pelix.remote.SERVICE_DISPATCHER_SERVLET)
 @Requires("_registry", pelix.remote.RemoteServiceRegistry)
-class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, zeroconf.ServiceListener):
+class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroConfServiceListener):
     """
     Remote services discovery and notification using the module zeroconf
     """
@@ -240,16 +267,13 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, zeroco
         # Prepare the service type
         svc_name = f"{self._fw_uid}.{ZeroconfDiscovery.DNS_DISPATCHER_TYPE}"
 
-        # Prepare "list" of access addresses
-        addresses = [self._address] if self._address else []
-
         # Prepare the mDNS entry
         info = zeroconf.ServiceInfo(
             ZeroconfDiscovery.DNS_DISPATCHER_TYPE,  # Type
             svc_name,  # Name
-            access[0],  # Access port
+            address=self._address,  # Access address
+            port=access[0],  # Access port
             properties=properties,
-            parsed_addresses=addresses,  # Access address
         )
 
         # Register the service
@@ -300,16 +324,13 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, zeroco
         # Prepare the service name
         svc_name = f"{endpoint.get_id().replace('-', '')}.{self._rs_type}"
 
-        # Prepare "list" of access addresses
-        addresses = [self._address] if self._address else []
-
         # Prepare the mDNS entry
         info = zeroconf.ServiceInfo(
             self._rs_type,  # Type
             svc_name,  # Name
-            access_port,  # Access port
+            address=self._address,  # Access address
+            port=access_port,  # Access port
             properties=properties,
-            parsed_addresses=addresses,  # Access address
         )
 
         self._export_infos[exp_endpoint.uid] = info
@@ -405,8 +426,8 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, zeroco
                 return
 
             address: Optional[str] = None
-            if info.addresses:
-                address = socket.inet_ntoa(info.addresses[0])
+            if info.address:
+                address = socket.inet_ntoa(info.address)
             elif info.server:
                 address = info.server
 
