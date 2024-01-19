@@ -202,6 +202,9 @@ class ZooKeeperClient:
         :param path: Z-Path
         :return: Prefixed Z-Path
         """
+        if not path:
+            return ""
+
         if path.startswith(self.__prefix):
             return path
 
