@@ -11,18 +11,24 @@ Cached thread pool tests
 import threading
 import time
 import unittest
+from typing import Any, List, Optional, Tuple, TypeVar
 
 import pelix.threadpool as threadpool
+from pelix.utilities import EventData
 
 # ------------------------------------------------------------------------------
 
 __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
+T = TypeVar("T")
+
 # ------------------------------------------------------------------------------
 
 
-def _slow_call(wait, result=None, event=None):
+def _slow_call(
+    wait: float, result: Optional[T] = None, event: Optional[EventData[Any]] = None
+) -> Optional[T]:
     """
     Method that returns after the given time (in seconds)
     """
@@ -33,7 +39,7 @@ def _slow_call(wait, result=None, event=None):
     return result
 
 
-def _trace_call(result_list, result):
+def _trace_call(result_list: List[T], result: T) -> None:
     """
     Methods stores the result in the result list
     """
@@ -48,19 +54,19 @@ class FutureTest(unittest.TestCase):
     Tests the Future utility class
     """
 
-    def _simple_call(self, pos1, pos2, result):
+    def _simple_call(self, pos1: Any, pos2: Any, result: Any) -> Tuple[Any, Any, Any]:
         """
         Method that returns the 3 given arguments in a tuple
         """
         return pos1, pos2, result
 
-    def _raise_call(self):
+    def _raise_call(self) -> None:
         """
         Method that raises a ValueError exception
         """
         raise ValueError("Buggy method")
 
-    def _callback(self, data, exception, event):
+    def _callback(self, data: Any, exception: Optional[BaseException], event: EventData[Any]) -> None:
         """
         Sets up an EventData
         """
@@ -69,7 +75,7 @@ class FutureTest(unittest.TestCase):
         else:
             event.set(data)
 
-    def testSimple(self):
+    def testSimple(self) -> None:
         """
         Simple, error-less execution
         """
@@ -88,7 +94,7 @@ class FutureTest(unittest.TestCase):
         self.assertTrue(future.done(), "Execution flag not updated")
         self.assertEqual(future.result(), (result1, result2, result3), "Invalid result")
 
-    def testRaise(self):
+    def testRaise(self) -> None:
         """
         Tests the traversal of an exception
         """
@@ -111,7 +117,7 @@ class FutureTest(unittest.TestCase):
         else:
             self.fail("Result didn't propagate the error")
 
-    def testTimeout(self):
+    def testTimeout(self) -> None:
         """
         Checks the timeout exit of result()
         """
@@ -135,12 +141,12 @@ class FutureTest(unittest.TestCase):
         self.assertIs(future.result(2), result, "Invalid result")
         self.assertTrue(future.done(), "Execution flag not updated")
 
-    def testCallback(self):
+    def testCallback(self) -> None:
         """
         Tests the callback method
         """
         # Set the callback before calling the method
-        flag = threadpool.EventData()
+        flag = threadpool.EventData[Any]()
         future = threadpool.FutureResult()
         future.set_callback(self._callback, flag)
         self.assertFalse(flag.is_set(), "Flag already set")
@@ -164,12 +170,12 @@ class FutureTest(unittest.TestCase):
         self.assertIsNone(flag.exception, "Exception set")
         self.assertEqual(flag.data, args, "Data not set")
 
-    def testCallbackException(self):
+    def testCallbackException(self) -> None:
         """
         Tests the callback method in case of exception
         """
         # Set the callback before calling the method
-        flag = threadpool.EventData()
+        flag = threadpool.EventData[Any]()
         future = threadpool.FutureResult()
         future.set_callback(self._callback, flag)
         self.assertFalse(flag.is_set(), "Flag already set")
@@ -198,26 +204,26 @@ class FutureTest(unittest.TestCase):
         self.assertIs(flag.exception, exception, "Exception not set")
         self.assertIsNone(flag.data, "Data set")
 
-    def testBadCallback(self):
+    def testBadCallback(self) -> None:
         """
         Tests behavior on callback error
         """
         future = threadpool.FutureResult()
         args = (1, 2, 3)
-        flag = threadpool.EventData()
+        flag = threadpool.EventData[Any]()
 
-        def dummy():
+        def dummy() -> None:
             """
             Callback without arguments
             """
             flag.set()
 
         # Bad number of arguments: no exception must be raised
-        future.set_callback(dummy)
+        future.set_callback(dummy)  # type: ignore
         future.execute(self._simple_call, args, None)
         self.assertFalse(flag.is_set(), "Flag shouldn't be set...")
 
-        def raising(data, exception, ex):
+        def raising(data: Any, exception: Optional[BaseException], ex: Any) -> None:
             """
             Callback raising an exception
             """
@@ -237,14 +243,14 @@ class ThreadPoolTest(unittest.TestCase):
     Tests the thread pool utility class
     """
 
-    def setUp(self):
+    def setUp(self) -> None:
         """
         Sets up the test
         """
         # Pool member
-        self.pool = None
+        self.pool: threadpool.ThreadPool = None  # type: ignore
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         Cleans up the test
         """
@@ -252,7 +258,7 @@ class ThreadPoolTest(unittest.TestCase):
         if self.pool is not None:
             self.pool.stop()
 
-    def testInitParameters(self):
+    def testInitParameters(self) -> None:
         """
         Tests the validity checks on thread pool creation
         """
@@ -275,15 +281,15 @@ class ThreadPoolTest(unittest.TestCase):
 
         # Check queue size
         for queue_size in (-1, 0, 0.1, "abc"):
-            pool = threadpool.ThreadPool(10, queue_size=queue_size)
+            pool = threadpool.ThreadPool(10, queue_size=queue_size)  # type: ignore
             self.assertLessEqual(pool._queue.maxsize, 0)
 
-    def testDoubleStartStop(self):
+    def testDoubleStartStop(self) -> None:
         """
         Check double call to start() and stop()
         """
         self.pool = threadpool.ThreadPool(1)
-        result_list = []
+        result_list: List[Any] = []
 
         # Enqueue the call
         future = self.pool.enqueue(_trace_call, result_list, None)
@@ -302,7 +308,7 @@ class ThreadPoolTest(unittest.TestCase):
         self.pool.stop()
         self.pool.stop()
 
-    def testPreStartEnqueue(self):
+    def testPreStartEnqueue(self) -> None:
         """
         Tests the late start of the poll
         """
@@ -344,7 +350,7 @@ class ThreadPoolTest(unittest.TestCase):
         # Stop the pool
         self.pool.stop()
 
-    def testPreRestartEnqueue(self):
+    def testPreRestartEnqueue(self) -> None:
         """
         Tests the restart of the poll
         """
@@ -375,13 +381,13 @@ class ThreadPoolTest(unittest.TestCase):
         self.assertIs(future.result(5), result, "Invalid result")
         self.assertTrue(future.done(), "Execution flag not updated")
 
-    def testException(self):
+    def testException(self) -> None:
         """
         Tests if an exception is correctly hidden
         """
 
         # Define the exception
-        def thrower(ex):
+        def thrower(ex: Exception) -> None:
             raise ex
 
         exception = ValueError("Some error")
@@ -405,7 +411,7 @@ class ThreadPoolTest(unittest.TestCase):
             # result() must raise the exact exception
             self.assertIs(catched_ex, exception)
 
-    def testJoin(self):
+    def testJoin(self) -> None:
         """
         Tests the join() method
         """
@@ -454,7 +460,7 @@ class ThreadPoolTest(unittest.TestCase):
         # Really join
         self.pool.join()
 
-    def testMaxThread(self):
+    def testMaxThread(self) -> None:
         """
         Checks if the maximum number of threads is respected
         """
@@ -466,7 +472,7 @@ class ThreadPoolTest(unittest.TestCase):
         for _ in range(10):
             time.sleep(0.1)
             self.pool.enqueue(_slow_call, 0.8, None)
-            self.assertLessEqual(self.pool._ThreadPool__nb_threads, self.pool._max_threads)
+            self.assertLessEqual(self.pool._ThreadPool__nb_threads, self.pool._max_threads)  # type: ignore
 
         self.pool.join()
 

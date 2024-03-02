@@ -42,7 +42,7 @@ try:
     import coverage
 
     class WrappedProcess(Process):
-        def _bootstrap(self, *args: Any, **kwargs: Any):
+        def _bootstrap(self, *args: Any, **kwargs: Any) -> int:
             cov = coverage.Coverage(data_suffix=True)
             cov.start()
             try:
@@ -50,6 +50,5 @@ try:
             finally:
                 cov.stop()
                 cov.save()
-
 except ImportError:
     WrappedProcess = Process
