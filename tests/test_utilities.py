@@ -16,10 +16,10 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 import random
-import sys
 import threading
 import time
 import unittest
+from typing import Any, Dict, List
 
 import pelix.constants
 import pelix.framework
@@ -36,13 +36,13 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
 
     lock: threading.Lock
 
-    def setUp(self):
+    def setUp(self) -> None:
         """
         Sets up the test
         """
         self.lock = threading.Lock()
 
-    def testIsLock(self):
+    def testIsLock(self) -> None:
         """
         Tests the is_lock method
         """
@@ -60,21 +60,21 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
             )
 
     @utilities.SynchronizedClassMethod("lock")
-    def testSynchronizedClassMethod(self):
+    def testSynchronizedClassMethod(self) -> None:
         """
         Tests the @SynchronizedClassMethod decorator
         """
         # Just test if the lock is really locked
         self.assertFalse(self.lock.acquire(False), "Method is not locked")
 
-    def testSynchronizedMethod(self, no_lock=False):
+    def testSynchronizedMethod(self, no_lock: bool = False) -> None:
         """
         Tests the @Synchronized decorator, with or without a given lock
 
         :param no_lock: If True, create the lock, else let the decorator do it
         """
         # Thread results: ID -> starting time
-        result = {}
+        result: Dict[int, float] = {}
 
         # Synchronization lock
         if no_lock:
@@ -83,7 +83,7 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
             lock = threading.Lock()
 
         @utilities.Synchronized(lock)
-        def sleeper(wait, sleep_id):
+        def sleeper(wait: float, sleep_id: int) -> None:
             """
             Sleeps during *wait* seconds
             """
@@ -129,13 +129,13 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         # .. Thread 2 must not have blocked the main thread
         self.assertGreater(result[2], interm, "Thread 2 blocked the main thread")
 
-    def testSynchronizedMethod2(self):
+    def testSynchronizedMethod2(self) -> None:
         """
         Tests the @Synchronized decorator, without a given lock
         """
         self.testSynchronizedMethod(True)
 
-    def testNoLockException(self):
+    def testNoLockException(self) -> None:
         """
         Verifies that @SynchronizedClassMethod raises an error when no lock
         is given
@@ -143,7 +143,7 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         try:
 
             @utilities.SynchronizedClassMethod()
-            def dummy():
+            def dummy() -> None:
                 pass
 
             self.fail("@SynchronizedClassMethod() should raise a ValueError")
@@ -153,8 +153,8 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
 
         try:
 
-            @utilities.SynchronizedClassMethod(None)
-            def dummy():
+            @utilities.SynchronizedClassMethod(None)  # type: ignore
+            def dummy() -> None:
                 pass
 
             self.fail("@SynchronizedClassMethod(None) should raise a " "ValueError")
@@ -162,12 +162,12 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
             # We must be there to succeed
             pass
 
-    def testNoneLockException(self):
+    def testNoneLockException(self) -> None:
         """
         Verifies that @SynchronizedClassMethod raises an error when a None lock
         is used for locking
         """
-        self.lock = None
+        self.lock = None  # type: ignore
         self.assertRaises(AttributeError, self.testSynchronizedClassMethod)
 
 
@@ -179,7 +179,7 @@ class UtilitiesTest(unittest.TestCase):
     Tests for utility module methods
     """
 
-    def testReadOnlyProperty(self):
+    def testReadOnlyProperty(self) -> None:
         """
         Tests the read only property generator
         """
@@ -190,45 +190,43 @@ class UtilitiesTest(unittest.TestCase):
         class Dummy(object):
             inside = utilities.read_only_property(value_1)
 
-        Dummy.outside = utilities.read_only_property(value_2)
+        Dummy.outside = utilities.read_only_property(value_2)  # type: ignore
 
         # Work on an instance
         instance = Dummy()
 
         # Test read values
         self.assertEqual(instance.inside, value_1, "Invalid initial value (in)")
-        self.assertEqual(instance.outside, value_2, "Invalid initial value (out)")
+        self.assertEqual(instance.outside, value_2, "Invalid initial value (out)")  # type: ignore
 
         # Test set values
         try:
             instance.inside = random.random()
             self.fail("Instance value (in) must not be modified.")
-
         except AttributeError:
             # We must be there
             pass
 
         try:
-            instance.outside = random.random()
+            instance.outside = random.random()  # type: ignore
             self.fail("Instance value (out) must not be modified.")
-
         except AttributeError:
             # We must be there
             pass
 
         # Test final values (just in case)
         self.assertEqual(instance.inside, value_1, "Invalid final value (in)")
-        self.assertEqual(instance.outside, value_2, "Invalid final value (out)")
+        self.assertEqual(instance.outside, value_2, "Invalid final value (out)")  # type: ignore
 
-    def testRemoveAllOccurrences(self):
+    def testRemoveAllOccurrences(self) -> None:
         """
         Tests the remove_all_occurrences() method
         """
         try:
             # Must not raise an exception
-            utilities.remove_all_occurrences(None, 12)
+            utilities.remove_all_occurrences(None, 12)  # type: ignore
         except:
-            self.fail("remove_all_occurrences(None) must not raise an " "exception")
+            self.fail("remove_all_occurrences(None) must not raise an exception")
 
         min_value = -1
         max_value = 4
@@ -259,31 +257,24 @@ class UtilitiesTest(unittest.TestCase):
             # The new length must be len_base - count_base
             self.assertEqual(len(list_copy), len_base - count_base, "Incorrect new list size")
 
-    def testIsString(self):
+    def testIsString(self) -> None:
         """
         Tests the is_string() method
         """
         valid = ["", "aaa", str(42)]
-        invalid = [42, None, [], {}, tuple()]
-
-        if sys.version_info[0] >= 3:
-            # Python 3: test bytes
-            invalid.extend((b"", b"aaa"))
-        else:
-            # Python 2: test unicode
-            valid.extend((unicode(""), unicode("aaa"), unicode(42)))
+        invalid = [42, None, [], {}, tuple(), b"", b"aaa"]  # type: ignore
 
         for value in valid:
-            self.assertTrue(utilities.is_string(value), "'{0}' is a string".format(value))
+            self.assertTrue(utilities.is_string(value), f"'{value}' is a string")
 
-        for value in invalid:
-            self.assertFalse(utilities.is_string(value), "'{0}' is not a string".format(value))
+        for value in invalid:  # type: ignore
+            self.assertFalse(utilities.is_string(value), f"'{value}' is not a string")
 
-    def testAddRemoveListener(self):
+    def testAddRemoveListener(self) -> None:
         """
         Tests add/remove listener methods
         """
-        registry = []
+        registry: List[Any] = []
         values = (42, "test", (1, 2, 3))
 
         # None value
@@ -312,68 +303,79 @@ class UtilitiesTest(unittest.TestCase):
             # Second removal
             self.assertFalse(utilities.remove_listener(registry, value), "Value has been removed twice")
 
-    def testUseService(self):
+    def testUseService(self) -> None:
         """
         Tests utilities.use_service()
         """
         framework = pelix.framework.create_framework([])
-        framework.start()
-        context = framework.get_bundle_context()
+        try:
+            framework.start()
+            context = framework.get_bundle_context()
 
-        # Try without the service reference: TypeError
-        self.assertRaises(TypeError, utilities.use_service(context, None).__enter__)
+            # Try without the service reference: TypeError
+            self.assertRaises(TypeError, utilities.use_service(context, None).__enter__)  # type: ignore
 
-        # Start the service bundle
-        bundle = context.install_bundle("tests.framework.service_bundle")
-        bundle.start()
+            # Start the service bundle
+            bundle = context.install_bundle("tests.framework.service_bundle")
+            bundle.start()
 
-        # Get the service reference
-        svc_ref = context.get_service_reference(IEchoService)
+            # Get the service reference
+            svc_ref = context.get_service_reference(IEchoService)
+            assert svc_ref is not None
 
-        # Use it
-        with utilities.use_service(context, svc_ref) as service:
+            # Use it
+            with utilities.use_service(context, svc_ref) as service:
+                # Test the usage information
+                self.assertIn(
+                    context.get_bundle(), svc_ref.get_using_bundles(), "Bundles using the service not updated"
+                )
+
+                # Get the service the Pelix way
+                got_service = context.get_service(svc_ref)
+
+                # Test the service object
+                self.assertIs(service, got_service, "Found a different service.")
+
+                # Clean up the test usage
+                context.unget_service(svc_ref)
+                got_service = None  # type: ignore
+
+                # Re-test the usage information
+                self.assertIn(
+                    context.get_bundle(), svc_ref.get_using_bundles(), "Bundles using service not kept"
+                )
+
             # Test the usage information
-            self.assertIn(
-                context.get_bundle(), svc_ref.get_using_bundles(), "Bundles using the service not updated"
+            self.assertNotIn(
+                context.get_bundle(), svc_ref.get_using_bundles(), "Bundles using service kept after block"
             )
 
-            # Get the service the Pelix way
-            got_service = context.get_service(svc_ref)
+            # Stop the iPOPO bundle
+            bundle.stop()
 
-            # Test the service object
-            self.assertIs(service, got_service, "Found a different service.")
+            # Ensure the service is not accessible anymore
+            self.assertRaises(
+                pelix.constants.BundleException, utilities.use_service(context, svc_ref).__enter__
+            )
 
-            # Clean up the test usage
-            context.unget_service(svc_ref)
-            got_service = None
+            # Uninstall the bundle
+            bundle.uninstall()
 
-            # Re-test the usage information
-            self.assertIn(context.get_bundle(), svc_ref.get_using_bundles(), "Bundles using service not kept")
+            # Ensure the service is not accessible anymore
+            self.assertRaises(
+                pelix.constants.BundleException, utilities.use_service(context, svc_ref).__enter__
+            )
+        finally:
+            framework.stop()
+            framework.delete(True)
 
-        # Test the usage information
-        self.assertNotIn(
-            context.get_bundle(), svc_ref.get_using_bundles(), "Bundles using service kept after block"
-        )
-
-        # Stop the iPOPO bundle
-        bundle.stop()
-
-        # Ensure the service is not accessible anymore
-        self.assertRaises(pelix.constants.BundleException, utilities.use_service(context, svc_ref).__enter__)
-
-        # Uninstall the bundle
-        bundle.uninstall()
-
-        # Ensure the service is not accessible anymore
-        self.assertRaises(pelix.constants.BundleException, utilities.use_service(context, svc_ref).__enter__)
-
-    def testToIterable(self):
+    def testToIterable(self) -> None:
         """
         Tests the to_iterable() method
         """
         # None value
         self.assertIsNone(utilities.to_iterable(None, True), "None value refused")
-        self.assertListEqual(utilities.to_iterable(None, False), [], "None value accepted")
+        self.assertListEqual(utilities.to_iterable(None, False), [], "None value accepted")  # type: ignore
 
         # Check iterable types
         for clazz in (list, tuple, set, frozenset):
@@ -385,7 +387,7 @@ class UtilitiesTest(unittest.TestCase):
         # Check other types
         for value in ("hello", 123, {1: 2}, object()):
             self.assertListEqual(
-                utilities.to_iterable(value), [value], "to_iterable() didn't returned a list"
+                utilities.to_iterable(value), [value], "to_iterable() didn't returned a list"  # type: ignore
             )
 
 
@@ -397,14 +399,14 @@ class CountdownEventTest(unittest.TestCase):
     Tests for the CountdownEvent class
     """
 
-    def testInitCheck(self):
+    def testInitCheck(self) -> None:
         """
         Tests the value check when creating the event
         """
         for invalid in (-1, 0):
             self.assertRaises(ValueError, utilities.CountdownEvent, invalid)
 
-    def testSteps(self):
+    def testSteps(self) -> None:
         """
         Tests the count down event behavior
         """
@@ -423,7 +425,7 @@ class CountdownEventTest(unittest.TestCase):
         self.assertRaises(ValueError, event.step)
         self.assertTrue(event.is_set(), "Not set after last step...")
 
-    def testWait(self):
+    def testWait(self) -> None:
         """
         Tests the wait() method
         """
@@ -448,12 +450,12 @@ class EventDataTest(unittest.TestCase):
     Tests for the EventData class
     """
 
-    def testSetClear(self):
+    def testSetClear(self) -> None:
         """
         Tests set() and clear() operations
         """
         # Initial condition
-        event = utilities.EventData()
+        event = utilities.EventData[Any]()
         self.assertFalse(event.is_set(), "Event initially set")
         self.assertIsNone(event.data, "Non-None data")
         self.assertIsNone(event.exception, "Non-None exception")
@@ -483,11 +485,11 @@ class EventDataTest(unittest.TestCase):
         self.assertIsNone(event.data, "Non-None data")
         self.assertIsNone(event.exception, "Non-None exception")
 
-    def testException(self):
+    def testException(self) -> None:
         """
         Tests the exception storage
         """
-        event = utilities.EventData()
+        event = utilities.EventData[Any]()
 
         # "Raise" an exception
         exception = Exception("Some dummy exception")
@@ -513,11 +515,11 @@ class EventDataTest(unittest.TestCase):
         self.assertIsNone(event.data, "Non-None data")
         self.assertIsNone(event.exception, "Non-None exception")
 
-    def testWait(self):
+    def testWait(self) -> None:
         """
         Tests the wait() method
         """
-        event = utilities.EventData()
+        event = utilities.EventData[Any]()
         self.assertFalse(event.wait(0.1), "Timed out wait must return False")
 
         start = time.time()
@@ -529,11 +531,11 @@ class EventDataTest(unittest.TestCase):
         self.assertTrue(event.wait(0.5), "Already set event shoudn't block wait()")
         self.assertTrue(event.wait(), "Already set event shoudn't block wait()")
 
-    def testWaitException(self):
+    def testWaitException(self) -> None:
         """
         Tests the exception effect on wait()
         """
-        event = utilities.EventData()
+        event = utilities.EventData[Any]()
         exception = Exception("Some dummy exception")
 
         # "Raise" an exception
