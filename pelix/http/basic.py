@@ -473,7 +473,7 @@ class HttpServiceImpl(http.HTTPService):
         self._logger: Optional[logging.Logger] = None
 
         # Servlets registry lock
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
         # Path -> (servlet, parameters)
         self._servlets: Dict[str, Tuple[http.Servlet, Dict[str, Any]]] = {}
@@ -484,7 +484,7 @@ class HttpServiceImpl(http.HTTPService):
 
         # Servlet -> ServiceReference
         self._servlets_refs: Dict[http.Servlet, ServiceReference[http.Servlet]] = {}
-        self._binding_lock = threading.Lock()
+        self._binding_lock = threading.RLock()
 
         # Server control
         self._server: Optional[HTTPServer] = None
@@ -609,7 +609,10 @@ class HttpServiceImpl(http.HTTPService):
             self.unregister(None, service)
 
             # Remove the service reference
-            del self._servlets_refs[service]
+            try:
+                del self._servlets_refs[service]
+            except KeyError:
+                self.log(logging.DEBUG, "Tried to remove an unknown servlet: %s", service)
 
     def get_access(self) -> Tuple[str, int]:
         """
@@ -846,7 +849,10 @@ class HttpServiceImpl(http.HTTPService):
                 self.__safe_callback(servlet_info[0], "unbound_from", path, servlet_info[1])
 
                 # Remove the servlet
-                del self._servlets[path]
+                try:
+                    del self._servlets[path]
+                except KeyError:
+                    self.log(logging.DEBUG, "Tried to remove an unknown servlet path: %s", path)
                 return True
 
     def log(self, level: int, message: str, *args: Any, **kwargs: Any) -> None:
