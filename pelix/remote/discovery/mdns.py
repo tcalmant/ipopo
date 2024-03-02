@@ -120,7 +120,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         self._fw_uid: Optional[str] = None
 
         # Address of this framework
-        self._address: Optional[str] = None
+        self._address: Optional[bytes] = None
 
         # Zeroconf
         self._zeroconf: Optional[zeroconf.Zeroconf] = None
@@ -141,7 +141,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
         # Get the host address
-        self._address = socket.gethostbyname(socket.gethostname())
+        self._address = socket.inet_aton(socket.gethostbyname(socket.gethostname()))
 
         # Prepare Zeroconf
         self._zeroconf = zeroconf.Zeroconf()
