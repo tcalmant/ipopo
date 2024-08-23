@@ -46,6 +46,7 @@ from pelix.rsa.topologymanagers import TopologyManager
 from tests.utilities import WrappedProcess
 
 TEST_ETCD_HOSTNAME = "localhost"
+TEST_ETCD_PORT = 12379
 TEST_ETCD_TOPPATH = "/etcddiscovery.tests"
 
 ENDPOINT_LISTENER_SCOPE = f"({ECF_ENDPOINT_CONTAINERID_NAMESPACE}=*)"
@@ -85,6 +86,7 @@ def start_framework_for_advertise(state_queue):
             {
                 "ecf.xmlrpc.server.hostname": "localhost",
                 "etcd.hostname": TEST_ETCD_HOSTNAME,
+                "etcd.port": TEST_ETCD_PORT,
                 "etcd.toppath": TEST_ETCD_TOPPATH,
             },
         )
@@ -160,6 +162,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
             ],
             {
                 "etcd.hostname": TEST_ETCD_HOSTNAME,
+                "etcd.port": TEST_ETCD_PORT,
                 "etcd.toppath": TEST_ETCD_TOPPATH,
             },
         )
@@ -275,6 +278,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
             {
                 "ecf.xmlrpc.server.hostname": "localhost",
                 "etcd.hostname": TEST_ETCD_HOSTNAME,
+                "etcd.port": TEST_ETCD_PORT,
                 "etcd.toppath": TEST_ETCD_TOPPATH,
             },
         )
