@@ -1,5 +1,5 @@
 .. _refcard_component:
-.. module:: pelix.framework
+.. module:: pelix.ipopo
 
 iPOPO Components
 ================
@@ -85,7 +85,7 @@ A word on Data classes
 ======================
 
 These indications have to be taken into account when using iPOPO decorators on
-`data classes <https://www.python.org/dev/peps/pep-0557/>`_.
+`data classes <https://peps.python.org/pep-0557/>`_.
 
 Important notes
 ---------------

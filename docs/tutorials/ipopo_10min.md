@@ -20,7 +20,7 @@ iPOPO aims to simplify service-oriented programming on OSGi frameworks
 in Python language; the name iPOPO is an abbreviation for *injected POPO*,
 where *POPO* would stand for Plain Old Python Object.
 The name is in fact a simple modification of the
-[Apache iPOJO project](http://felix.apache.org/documentation/subprojects/apache-felix-ipojo.html),
+[Apache iPOJO project](https://web.archive.org/web/20210616112915/http://felix.apache.org/documentation/subprojects/apache-felix-ipojo.html),
 which stands for *injected Plain Old Java Object*
 
 iPOPO provides a new way to develop OSGi/iPOJO-like service components

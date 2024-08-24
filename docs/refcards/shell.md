@@ -322,36 +322,6 @@ shell.
    .. note:: This class is instantiated by Shell UI implementations and its
              instances shouldn't be shared nor stored by command providers.
 
-   .. method:: prompt(prompt=None)
-
-        Waits for a line to be written by the user
-
-        :param prompt: An optional prompt message
-        :return: The read line, after a conversion to str
-
-   .. method:: write_line(line=None, *args, **kwargs)
-
-        Formats and writes a line to the output. This method has the same
-        signature as ``str.format``.
-        If necessary, a new-line marker (``\n``) is added at the end of the
-        given string.
-        The output stream is flushed to ensure that the text is written.
-
-        :param line: A line for ``str.format`` markers
-        :param args: Content for the positional markers
-        :param kwargs: Content for the keyword markers
-
-   .. method:: write_line_no_feed(line=None, *args, **kwargs)
-
-        Formats and writes a line to the output. This method has the same
-        signature as ``str.format``.
-        If the given line ended with a new-line marker, the latter is removed.
-        The output stream is flushed to ensure that the text is written.
-
-        :param line: A line for ``str.format`` markers
-        :param args: Content for the positional markers
-        :param kwargs: Content for the keyword markers
-
 .. autoclass:: pelix.shell.ShellUtils
    :members:
 

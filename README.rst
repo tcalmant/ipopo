@@ -36,7 +36,7 @@ Component Model (SOCM) based on Pelix, a dynamic service platform.
 They are inspired on two popular Java technologies for the development of
 long-lived applications: the
 `iPOJO <http://felix.apache.org/documentation/subprojects/apache-felix-ipojo.html>`_
-component model and the `OSGi <http://osgi.org/>`_ Service Platform.
+component model and the `OSGi <https://www.osgi.org/>`_ Service Platform.
 iPOPO enables to conceive long-running and modular IT services.
 
 See https://ipopo.readthedocs.io/ for documentation and more information.
@@ -483,7 +483,7 @@ All contributions are welcome!
 #. Enjoy!
 
 Please note that your contributions will be released under the project's
-license, which is the `Apache Software License 2.0 <http://www.apache.org/licenses/LICENSE-2.0>`__.
+license, which is the `Apache Software License 2.0 <https://www.apache.org/licenses/LICENSE-2.0>`__.
 
 
 Compatibility
@@ -501,4 +501,4 @@ You can then use Remote Services to allow interactions between iPOPO v1 and v3.
 License
 #######
 
-iPOPO is released under the `Apache Software License 2.0 <http://www.apache.org/licenses/LICENSE-2.0>`__.
+iPOPO is released under the `Apache Software License 2.0 <https://www.apache.org/licenses/LICENSE-2.0>`__.

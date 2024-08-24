@@ -12,8 +12,8 @@ split into two parts:
 * iPOPO, the SOCM framework, hence the name.
 
 Both are inspired on two popular Java technologies for the development
-of long-lived applications: the [OSGi Service Platform](http://osgi.org/) and the
-[iPOJO component model](http://felix.apache.org/documentation/subprojects/apache-felix-ipojo.html).
+of long-lived applications: the [OSGi Service Platform](https://www.osgi.org/) and the
+[iPOJO component model](https://web.archive.org/web/20210616112915/http://felix.apache.org/documentation/subprojects/apache-felix-ipojo.html).
 
 iPOPO allows to conceive long-running and modular IT services in Python.
 

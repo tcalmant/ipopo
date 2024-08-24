@@ -22,7 +22,7 @@ Two kinds of managed services exist:
 
 .. note:: Even if iPOPO doesn't fully respect it, you can find details about
    the Configuration Admin Service Specification in the
-   `chapter 104 <https://docs.osgi.org/specification/osgi.cmpn/8.1.0/service.cm.html/>`_
+   `chapter 104 <https://docs.osgi.org/specification/osgi.cmpn/8.1.0/service.cm.html>`_
    of the OSGi Compendium Services Specification.
 
 .. note:: This page is highly inspired from the

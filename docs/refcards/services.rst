@@ -202,6 +202,7 @@ A consumer can check the properties of a service through this object, before
 consuming it.
 
 .. autoclass:: ServiceReference
+   :noindex:
    :members: get_bundle, get_properties, get_property, get_property_keys,
              get_using_bundles, is_factory, is_prototype
 

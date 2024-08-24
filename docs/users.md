@@ -11,7 +11,7 @@ If you want to add your name here, send a mail on the
 sponsor and user of iPOPO. It uses iPOPO as the basis of all its core
 developments, like the [Cohorte Framework](http://cohorte.github.io/).
 
-## G2ELab / G-Scop
+## G2ELab / G-SCOP
 
 
 ```{image} /_static/users/logo_g2elab.jpg

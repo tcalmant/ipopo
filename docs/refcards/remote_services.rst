@@ -218,7 +218,7 @@ information to the arguments and results.
 As long as a Java interface is correctly implementing, this protocol allows a
 Python service to be used by a remote OSGi Java framework, and vice-versa.
 The OSGi framework must host the
-`Java implementation <https://github.com/isandlaTech/cohorte-remote-services>`_
+`Java implementation <https://github.com/cohorte/cohorte-remote-services>`_
 of the Pelix Remote Services.
 
 All those protocols require the HTTP service to be up and running to work.
@@ -250,7 +250,7 @@ the ``pelix.remote.discovery.multicast`` bundle.
 This is the original discovery protocol of Pelix/iPOPO and the most reliable
 one in small local area networks.
 A Java version of this protocol is provided by the
-`Cohorte Remote Services implementation <https://github.com/isandlaTech/cohorte-remote-services>`_.
+`Cohorte Remote Services implementation <https://github.com/cohorte/cohorte-remote-services>`_.
 
 This protocol consists in minimalist packets on remote service registration,
 update and unregistration.
@@ -365,7 +365,7 @@ Redis Discovery
 :Bundle: pelix.remote.discovery.redis
 :Factory: pelix-remote-discovery-redis-factory
 :Requires: *nothing* (all is stored in the Redis database)
-:Libraries: `redis <https://pypi.python.org/pypi/redis>`__
+:Libraries: `redis <https://pypi.org/project/redis/>`__
 
 The Redis discovery is the only one working well in Docker (Swarm) networks.
 It uses a `Redis database <https://redis.io/>`__ to store the host name of each
@@ -524,7 +524,7 @@ Jabsorb-RPC Transport
 
 The JABSORB-RPC transport is based on a variant of the JSON-RPC protocol.
 It adds Java typing hints to ease unmarshalling on Java clients, like the
-`Cohorte Remote Services implementation <https://github.com/isandlaTech/cohorte-remote-services>`_.
+`Cohorte Remote Services implementation <https://github.com/cohorte/cohorte-remote-services>`_.
 The additional information comes at small cost, but this transport shouldn't be
 used when no Java frameworks are expected: it doesn't provide more features
 than JSON-RPC in a 100% Python environment.
@@ -594,7 +594,7 @@ to communicate, but they won't be updated without new contributions
 (pull requests, ...).
 
 They rely on the `Eclipse Paho <https://eclipse.dev/paho/>`_ library,
-previously known as the `Mosquitto <http://mosquitto.org/>`_ library.
+previously known as the `Mosquitto <https://mosquitto.org/>`_ library.
 
 The discovery instance can be configured with the following properties:
 

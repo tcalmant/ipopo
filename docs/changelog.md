@@ -105,7 +105,7 @@ Work in progress
 * Fixed unit tests for `pelix.threadpool`
 * Added a word about Python 3.7 dataclasses in the iPOPO reference card
 * All the source code has been reformatted with
-  [black](https://github.com/ambv/black) (`black -l 80 pelix`)
+  [black](https://github.com/psf/black) (`black -l 80 pelix`)
 
 ### Remote Services
 
@@ -433,7 +433,7 @@ Work in progress
 * The XMPP bot class now supports anonymous connections using SSL or
   StartTLS. This is a workaround for
   [#351](https://github.com/fritzy/SleekXMPP/issues/351) of
-  [SleekXMPP](http://sleekxmpp.com/).
+  [SleekXMPP](https://github.com/fritzy/SleekXMPP).
 
 ## iPOPO 0.5.9
 
@@ -526,7 +526,7 @@ Work in progress
 ### Project
 
 * Code review to be more PEP-8 compliant
-* [jsonrpclib-pelix](https://pypi.python.org/pypi/jsonrpclib-pelix) is
+* [jsonrpclib-pelix](https://pypi.org/project/jsonrpclib-pelix/) is
   now an install requirement (instead of an optional one)
 
 ### Framework
@@ -564,7 +564,7 @@ Work in progress
 ### XMPP
 
 * Added base classes to write a XMPP client based on
-  [SleekXMPP](http://sleekxmpp.com/)
+  [SleekXMPP](https://github.com/fritzy/SleekXMPP)
 * Added a XMPP shell interface, to control Pelix/iPOPO from XMPP
 
 ### Miscellaneous
@@ -623,9 +623,9 @@ Work in progress
 * Added an MQTT-RPC protocol, based on Node.js
   [MQTT-RPC module](https://github.com/wolfeidau/mqtt-rpc)
 * Added a Jabsorb-RPC transport. Pelix can now use Java services and vice-versa, using:
-    * [Cohorte Remote Services](https://github.com/isandlaTech/cohorte-remote-services)
-    * [Eclipse ECF](http://wiki.eclipse.org/ECF) and the
-      [Jabsorb-RPC provider](https://github.com/isandlaTech/cohorte-remote-services/tree/master/org.cohorte.ecf.provider.jabsorb)
+    * [Cohorte Remote Services](https://github.com/cohorte/cohorte-remote-services)
+    * [Eclipse ECF](https://wiki.eclipse.org/ECF/) and the
+      [Jabsorb-RPC provider](https://github.com/cohorte/cohorte-remote-services/tree/master/deprecated/org.cohorte.ecf.provider.jabsorb)
 
 ### Shell
 
@@ -649,7 +649,7 @@ Work in progress
   * `eventadmin_printer`: an EventAdmin handler that prints
     or logs the events it receives
   * `jabsorb`: converts dictionary from and to the Jabsorb-RPC format
-  * `mqtt_client`: a wrapper for the [Paho](http://www.eclipse.org/paho/)
+  * `mqtt_client`: a wrapper for the [Paho](https://eclipse.dev/paho/)
      MQTT client, used in MQTT discovery and MQTT-RPC.
 
 ## iPOPO 0.5.5
@@ -663,7 +663,7 @@ Work in progress
 ### Project
 
 The license of the iPOPO project is now the
-[Apache Software License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
+[Apache Software License 2.0](https://www.apache.org/licenses/LICENSE-2.0.html).
 
 ### Framework
 

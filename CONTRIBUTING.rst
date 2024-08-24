@@ -31,7 +31,7 @@ contributing both of them will increase the changes of your pull request to be
 accepted.
 
 Note that your contributions must be released under the project's license,
-which is the `Apache Software License 2.0 <http://www.apache.org/licenses/LICENSE-2.0>`_.
+which is the `Apache Software License 2.0 <https://www.apache.org/licenses/LICENSE-2.0>`_.
 
 
 Code Style

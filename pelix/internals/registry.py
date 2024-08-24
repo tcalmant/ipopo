@@ -16,7 +16,7 @@ Service registry and event dispatcher for Pelix.
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
 
-        http://www.apache.org/licenses/LICENSE-2.0
+        https://www.apache.org/licenses/LICENSE-2.0
 
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
@@ -529,7 +529,7 @@ class ServiceReference(Generic[T]):
         Recomputes the sort key, based on the service ranking and ID
 
         See
-        https://docs.osgi.org/javadoc/osgi.core/8.0.0/org/osgi/framework/ServiceReference.html#compareTo-java.lang.Object-
+        <https://docs.osgi.org/javadoc/osgi.core/8.0.0/org/osgi/framework/ServiceReference.html#compareTo-java.lang.Object->
         """
         self.__sort_key = self.__compute_key()
 

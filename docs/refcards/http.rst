@@ -84,12 +84,13 @@ The HTTP service provides the following interface:
 
 .. autoclass:: HTTPService
    :members: get_access, get_hostname, is_https, get_registered_paths,
-                 get_servlet, register_servlet, unregister
+             get_servlet, register_servlet, unregister
 
 The service also provides two utility methods to ease the display of error
 pages:
 
 .. autoclass:: HTTPService
+   :noindex:
    :members: make_not_found_page, make_exception_page
 
 
