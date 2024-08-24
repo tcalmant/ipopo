@@ -19,13 +19,13 @@ Initialization must be done in the bundle activator (see below).
 Life-cycle
 ----------
 
-Unlike a module, a bundle has a life-cycle and can be in one of the following
-states:
-
 .. image:: ../_static/bundle_lifecycle.png
    :alt: Bundle life-cycle graph
-   :width: 30%
-   :align: right
+   :width: 40%
+
+
+Unlike a module, a bundle has a life-cycle and can be in one of the following
+states:
 
 =========== ===================================================================
 State       Description
@@ -40,53 +40,52 @@ UNINSTALLED The bundle has been removed from the framework (only visible by rema
 
 The update process of a bundle is simple:
 
-* if it was active, the bundle is stopped: other bundles are notified of this
-  transition, and its services are unregistered
-* the module is updated, using the
-  `importlib.reload() <https://docs.python.org/3/library/importlib.html#importlib.reload>`_
-  method (or `imp.reload() <https://docs.python.org/3/library/imp.html#imp.reload>`_
-  when not available)
-* if the update fails, the previous version of the module is kept, but the
-  bundle is not restarted.
+* if it was active, the bundle is stopped: other bundles are notified of this transition, and its services are unregistered
+* the module is updated, using the `importlib.reload() <https://docs.python.org/3/library/importlib.html#importlib.reload>`_ method
+* if the update fails, the previous version of the module is kept, but the bundle is not restarted.
 * if the update succeeds and the bundle was active, the bundle its restarted
 
 Bundle Activator
 ----------------
 
-A bundle activator is a class defining the
+A bundle activator is a class providing the
 :meth:`~pelix.constants.BundleActivator.start` and
 :meth:`~pelix.constants.BundleActivator.stop` methods, which are called by the
 framework according to the bundle life-cycle.
 
-The framework is locked during transitions in bundles states, which means
-during the calls to :meth:`~pelix.constants.BundleActivator.start` and
-:meth:`~pelix.constants.BundleActivator.stop`.
-Therefore, it is heavily recommended to return fast from those methods.
-For example, it may be necessary to use threads to complete the initialization
-before registering services when the bundle starts.
-On the other hand, it is recommended to wait for all resources to be released
-before exiting the :meth:`~pelix.constants.BundleActivator.stop` , *e.g.* to
-wait for all threads started by the bundle to terminate.
+
+.. warning::
+
+   The framework is locked during transitions in bundles states, which means
+   during the calls to :meth:`~pelix.constants.BundleActivator.start` and
+   :meth:`~pelix.constants.BundleActivator.stop`.
+   Therefore, it is **highly recommended** to return quickly from those methods.
+   For example, it may be necessary to use threads to complete the initialization
+   before registering services when the bundle starts.
+   On the other hand, it is recommended to wait for all resources to be released
+   before exiting the :meth:`~pelix.constants.BundleActivator.stop` , *e.g.* to
+   wait for all threads started by the bundle to terminate.
+
 
 .. class:: pelix.constants.BundleActivator
 
    This decorator must be applied to the class that will be notified of the
    life-cycle events concerning the bundle.
-   A bundle can only have one activator, which must implement the following
+   A bundle can only have one activator, which can implement the following
    methods:
 
-   .. py:method:: start(context)
+   .. py:method:: start(context: ~pelix.framework.BundleContext) -> None
 
       This method is called when the bundle is in *STARTING* state. If this
-      method doesn't raise an exception, the bundle goes immediately into the
-      *ACTIVE* state.
+      method returns without raising an exception, the bundle goes immediately
+      into the *ACTIVE* state.
       If an exception is raised, the bundle is stopped.
 
       During the call of this method, the framework is locked. It is therefore
       necessary that this method returns as soon as possible: all time-consuming
-      tasks should be executed in a new thread.
+      tasks should be executed in a new thread or queued.
 
-   .. py:method:: stop(context)
+   .. py:method:: stop(context: ~pelix.framework.BundleContext) -> None
 
       This method is called when the bundle is in *STOPPING* state.
       After this method returns or raises an exception, the bundle goes into the
@@ -95,15 +94,24 @@ wait for all threads started by the bundle to terminate.
       All resources consumed by the bundle should be released before this method
       returns.
 
+.. warning::
+
+   A bundle activator must be instantiable without constructor argument,
+   *i.e.* not have arguments other than ``self`` in its ``__init__`` method.
+
+
 A class is defined as the bundle activator if it is decorated with
-``@BundleActivator``, as shown in the following snippet:
+``@BundleActivator``, as shown in the following snippet.
+It is also recommended to let that class inherit from ``ActivatorProto`` to
+benefit from its typing.
 
 .. code-block:: python
 
-   import pelix.constants
+   from pelix.constants import ActivatorProto, BundleActivator
+   from pelix.framework import BundleContext
 
-   @pelix.constants.BundleActivator
-   class Activator:
+   @BundleActivator
+   class Activator(ActivatorProto):
        """
        Bundle activator template
        """
@@ -143,5 +151,20 @@ Here are the most used ones concerning the handling of bundles:
 
 .. autoclass:: pelix.framework.BundleContext
    :noindex:
-   :members: get_bundle, get_bundles, install_bundle, add_bundle_listener,
-             remove_bundle_listener, install_package, install_visiting
+   :members: get_bundle, get_bundles, install_bundle, install_package, install_visiting
+
+
+Listening to bundle events
+**************************
+
+The bundle context can be used to register to bundle events, using the following
+methods:
+
+.. autoclass:: pelix.framework.BundleContext
+   :noindex:
+   :members: add_bundle_listener, remove_bundle_listener
+
+A bundle listener must implement the following interface:
+
+.. autoclass:: pelix.internals.registry.BundleListener
+   :members:

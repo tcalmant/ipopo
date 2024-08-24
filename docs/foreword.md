@@ -39,7 +39,7 @@ translated to Python. At first, it was only a set of scripts without any
 relations, but as the project grown, it was necessary to develop a
 framework to handle those various parts and to link them together. In
 order to be consistent, I decided to develop a component model similar
-to what was used used in Java, *i.e.* iPOJO, and keeping the concepts of
+to what my employer used in Java, iPOJO, and keeping the concepts of
 OSGi.
 
 A first draft, called `python.injections` was developed in December 2011.
@@ -52,10 +52,11 @@ license. In November 2013, iPOPO adopts the Apache Software License 2.0
 with release 0.5.5.
 
 On March 2015, release 0.6 dropped support for Python 2.6. Since then,
-the development slowed down as the core framework is considered stable.
+the development slowed down as the core framework reached a stable state.
 
-iPOPO 1.0 was released in January 2020, after a long period without updates nor
-user requests since 2018. It was therefore considered mature enough to step up.
+After a long period without updates nor user requests since 2018, iPOPO was
+considered mature enough to earn its new major version: iPOPO 1.0 was released
+in January 2020
 
 An iPOPO 2.0 branch was started contributors in 2020, trying to bring an
 asynchronous approach to the framework. The branch stalled as the requirement
@@ -69,7 +70,9 @@ on currently maintained ones. Retro-compatibility can be achieved by using
 iPOPO 1.x on older Python versions and communicate with newer deployments using
 Remote Services or Remote Services Admin.
 
-iPOPO v3 is a work in progress, hopefully to be released by the end of 2024.
+iPOPO 3 is the current framework version, first released in August 2024.
+It dropped support for Python versions older than 3.10 and started to use type
+hints to help developers working on very large projects.
 
 ## SOA and SOCM in Python
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-XMPP bot classes: Small classes inheriting from SleekXMPP to ease the
+XMPP bot classes: Small classes inheriting from SliXMPP to ease the
 development of bots in Pelix
 
-This module depends on the sleekxmpp package: http://sleekxmpp.com/
+This module depends on the slixmpp package: https://slixmpp.readthedocs.io/
 
 :author: Thomas Calmant
 :copyright: Copyright 2024, Thomas Calmant
@@ -171,7 +171,7 @@ class BasicBot(ClientXMPP):
         :return: True if connection succeeded
         """
         if not self._expected_server_name:
-            # We seem to connect the server anonymously, so SleekXMPP
+            # We seem to connect the server anonymously, so SliXMPP
             # couldn't find the server host name from the JID
             # => give it the given server host name as the expected one
             self._expected_server_name = host

@@ -10,7 +10,7 @@ environment or to identify the host machine.
 ## Setup
 
 This feature requires an active Pelix Shell (`pelix.shell.core`) and a
-UI. See `refcard_shell` for more information on this subject. The iPOPO
+UI. See [](./shell.md) for more information on this subject. The iPOPO
 service is not required for this feature to work.
 
 It can therefore be started programmatically using the following

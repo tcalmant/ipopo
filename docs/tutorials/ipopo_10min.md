@@ -143,6 +143,9 @@ different components.
 :::{note}
 Depending on your own code style, you might to easer provide explicit types
 on specification methods methods or let them be inherited from the protocol.
+
+Also note that the specification module must be importable by the bundles,
+but doesn't need to be installed as a bundle itself.
 :::
 
 ### The English dictionary bundle: Providing a service

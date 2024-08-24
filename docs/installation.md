@@ -8,9 +8,14 @@ It relies on other libraries for extended features, which are listed in the
 
 To install iPOPO, you will need Python 3.10 or newer.
 
-Support for Python 2.7 and below 3.10 has been dropped with iPOPO 3.0.
+:::{note}
+iPOPO v3 only works with Python 3.10+.
 
-There are many ways to install iPOPO, so let's have a look to some of them.
+If you need support for Python 2.7 or an earlier version of Python 3, please
+use [iPOPO v1](https://github.com/tcalmant/ipopo/tree/v1).
+:::
+
+There are many ways to install iPOPO, let's have a look to some of them.
 
 ## System-Wide Installation
 
@@ -99,8 +104,6 @@ $ git clone https://github.com/tcalmant/ipopo.git
 # Cloning into 'ipopo'...
 $ cd ipopo
 $ python3 -m venv ipopo-venv
-New python executable in ipopo-venv/bin/python
-Installing setuptools, pip............done.
 $ . ipopo-venv/bin/activate
 $ python setup.py develop
 # ...

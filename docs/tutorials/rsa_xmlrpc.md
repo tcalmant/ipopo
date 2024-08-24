@@ -1,3 +1,5 @@
+(rsa_tutorial_xmlrpc)=
+
 # RSA Remote Services using XmlRpc transport
 
 :::{admonition} Authors
@@ -68,7 +70,7 @@ time (in milliseconds) that the consumer will wait for a response before
 timing out.
 
 The **`service.exported.interfaces`** property is a
-[required property for remote service export](https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html#i1710847).
+[required property for remote service export](https://docs.osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html#i1710847).
 If one wants to have a remote service exported immediately upon
 instantiation and registration as an iPOPO service, this property can be
 set to value `*` which means to export all service interfaces.
@@ -108,7 +110,7 @@ Go to the pelix home directory and start the `run_rsa_xmlrpc.py` main
 program
 
 ```
-ipopo-1.0.0$ python -m samples.run_rsa_xmlrpc
+bash$ python -m samples.run_rsa_xmlrpc
 ** Pelix Shell prompt **
 $
 ```
@@ -224,7 +226,7 @@ the endpoint description (XML) for the newly-created endpoint.
 Also as indicated in the `exportservice` command output, a file
 *edef.xml* has also been written to the filesystem containing the
 endpoint description XML known as EDEF.
-[EDEF is a standardized XML format](https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteserviceadmin.html#i1889341)
+[EDEF is a standardized XML format](https://docs.osgi.org/specification/osgi.cmpn/7.0.0/service.remoteserviceadmin.html#i1889341)
 that gives all of the remote service meta-data required for a consumer
 to import an endpoint. The *edef.xml* file will contain the same XML
 printed to the console via the
@@ -236,7 +238,7 @@ For a consumer to use this remote service, another python process should
 be started using the same command:
 
 ```
-ipopo-1.0.0$ python -m samples.run_rsa_xmlrpc
+bash$ python -m samples.run_rsa_xmlrpc
 ** Pelix Shell prompt **
 $
 ```
@@ -326,7 +328,7 @@ filter
 "(service.imported=*)"
 ```
 
-As per the [Remote Service spec](https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html#i1710847)
+As per the [Remote Service spec](https://docs.osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html#i1710847)
 this requires that the `IHello` service is a remote service, as all
 proxies must have the **service.imported** property set, indicating that
 it was imported.
@@ -385,7 +387,7 @@ Rather than importing remote services manually via the `importservice`
 command, it's also possible to import using supported network discovery
 protocols. One discovery mechanism used in systems like
 [kubernetes](https://kubernetes.io/) is
-[etcd](https://github.com/coreos/etcd), and there is an etcd discovery
+[etcd](https://github.com/etcd-io/etcd), and there is an etcd discovery
 provider available in the `pelix.rsa.providers.discovery.discovery_etcd`
 module.
 

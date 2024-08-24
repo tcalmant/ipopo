@@ -16,16 +16,18 @@ The Configuration Admin service handles the persistence of configurations and
 distributes them to their target services.
 
 Two kinds of managed services exist:
+
 * Managed Services, which handle the configuration as is
 * Managed Service Factories, which can handle multiple configuration of a kind
 
 .. note:: Even if iPOPO doesn't fully respect it, you can find details about
-   the Configuration Admin Service Specification in the chapter 104 of the
-   OSGi Compendium Services Specification.
+   the Configuration Admin Service Specification in the
+   `chapter 104 <https://docs.osgi.org/specification/osgi.cmpn/8.1.0/service.cm.html/>`_
+   of the OSGi Compendium Services Specification.
 
 .. note:: This page is highly inspired from the
-   `Configuration Admin tutorial <http://felix.apache.org/documentation/subprojects/apache-felix-config-admin.html>`_
-   from the `Apache Felix project <http://felix.apache.org/>`_.
+   `Configuration Admin tutorial <https://web.archive.org/web/20200229033154/http://felix.apache.org/documentation/subprojects/apache-felix-config-admin.html>`_
+   from the `Apache Felix project <https://felix.apache.org/documentation/index.html>`_.
 
 
 Basic Usage

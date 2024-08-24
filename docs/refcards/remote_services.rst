@@ -576,11 +576,12 @@ MQTT discovery and MQTT-RPC Transport
 :Factories: pelix-remote-discovery-mqtt-factory,
             pelix-mqttrpc-exporter-factory, pelix-mqttrpc-importer-factory
 :Requires: *nothing* (everything goes through MQTT messages)
-:Libraries: `paho <https://www.eclipse.org/paho/>`_
+:Libraries: `paho-mqtt <https://eclipse.dev/paho/>`_
 
 Finally, the MQTT discovery and transport protocols have been developed as a
-proof of concept with the `fabMSTIC <http://fabmstic.liglab.fr/>`_ fablab of the
-Grenoble Alps University.
+proof of concept with the
+`fabMSTIC <https://2007-2020.liglab.fr/fr/la-recherche/plates-formes-du-lig/fablab-campus-recherche-pole-mstic.html>`_
+fablab of the Grenoble Alps University.
 
 The idea was to rely on the lightweight MQTT messages to provide both discovery
 and transport mechanisms, and to let them be handled by low-power devices like
@@ -592,7 +593,7 @@ Those providers are kept in Pelix/iPOPO as they work and provide a non-HTTP way
 to communicate, but they won't be updated without new contributions
 (pull requests, ...).
 
-They rely on the `Eclipse Paho <https://www.eclipse.org/paho/>`_ library,
+They rely on the `Eclipse Paho <https://eclipse.dev/paho/>`_ library,
 previously known as the `Mosquitto <http://mosquitto.org/>`_ library.
 
 The discovery instance can be configured with the following properties:

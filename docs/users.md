@@ -1,7 +1,7 @@
 # Who uses iPOPO ?
 
 If you want to add your name here, send a mail on the
-[ipopo-users mailing list](http://groups.google.com/group/ipopo-users).
+[ipopo-users mailing list](https://groups.google.com/g/ipopo-users).
 
 ## Cohorte Technologies (isandlaTech)
 
@@ -16,13 +16,13 @@ developments, like the [Cohorte Framework](http://cohorte.github.io/).
 
 ```{image} /_static/users/logo_g2elab.jpg
    :alt: G2ELab
-   :target: http://www.g2elab.grenoble-inp.fr/
+   :target: https://g2elab.grenoble-inp.fr/
    :width: 33%
 ```
 
 ```{image} /_static/users/logo_gscop.jpg
-   :alt: G2ELab
-   :target: http://www.g-scop.grenoble-inp.fr/
+   :alt: G-SCOP
+   :target: https://g-scop.grenoble-inp.fr/
    :width: 33%
    :align: right
 ```
@@ -39,8 +39,8 @@ and quality, and with the sustainable development and country planning.
 The [PREDIS Smart Building platform](https://g2elab.grenoble-inp.fr/fr/plateformes/predis)
 is mainly focused on energy management in buildings such as offices. Two
 laboratories are developing their research activities in Predis, the
-[Grenoble Electrical Engineering lab (G2Elab)](http://www.g2elab.grenoble-inp.fr/) and the
-[Design and Production Sciences laboratories (G-Scop)](http://www.g-scop.grenoble-inp.fr/).
+[Grenoble Electrical Engineering lab (G2Elab)](https://g2elab.grenoble-inp.fr/) and the
+[Design and Production Sciences laboratories (G-SCOP)](https://g-scop.grenoble-inp.fr/).
 
 The main topics studied in PREDIS SB are:
 
@@ -54,18 +54,18 @@ The main topics studied in PREDIS SB are:
 
 ```{image} /_static/users/logo_polytech.png
    :alt: Polytech Grenoble
-   :target: http://www.polytech-grenoble.fr/
+   :target: https://polytech.grenoble-inp.fr/
    :width: 33%
 ```
 
 ```{image} /_static/users/logo_air_1.png
    :alt: Ambient Intelligence Room
-   :target: http://air.imag.fr/
+   :target: https://air.imag.fr/index.php/Main_Page
    :width: 15%
    :align: right
 ```
 
-[AIR](http://air.imag.fr/) means Ambient Intelligence Room.
+[AIR](https://air.imag.fr/index.php/Main_Page) means Ambient Intelligence Room.
 
 Ambient intelligence (AmI) is now part of the everyday world of users.
 It is found in all areas of activity: intelligent building with energy
@@ -87,6 +87,6 @@ areas. The experiments can achieve scaled in specialized rooms.
 The AIR platform is a *fablab* ([Fabrication Laboratory](https://en.wikipedia.org/wiki/Fab_lab)) for engineering
 students and Grenoble students to invent, create and implement projects
 and application objects ambient intelligence through their training. The
-platform of the [Grenoble Alps University](http://www.univ-grenoble-alpes.fr/) is housed in the
-[Polytech Grenoble](http://www.polytech-grenoble.fr/) building. AIR is
-an educational platform of the [labex Persyval](http://www.persyval-lab.org/).
+platform of the [Grenoble Alps University](https://www.univ-grenoble-alpes.fr/) is housed in the
+[Polytech Grenoble](https://polytech.grenoble-inp.fr/) building. AIR is
+an educational platform of the [labex Persyval](https://persyval-lab.org/).

@@ -456,8 +456,8 @@ Feedback
 Feel free to send feedback on your experience of Pelix/iPOPO, via the mailing
 lists:
 
-* User list:          http://groups.google.com/group/ipopo-users
-* Development list:   http://groups.google.com/group/ipopo-dev
+* User list:          https://groups.google.com/g/ipopo-users
+* Development list:   https://groups.google.com/g/ipopo-dev
 * GitHub Discussions: https://github.com/tcalmant/ipopo/discussions
 
 Bugs and features requests can be submitted using the

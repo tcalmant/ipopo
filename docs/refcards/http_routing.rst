@@ -96,12 +96,9 @@ Sample
 
       @HttpPost("/form/<form_id:uuid>")
       def handle_form(self, request, response, form_id):
-         response.send_content(200, "<p>Handled {}</p>".format(form_id))
+         response.send_content(200, f"<p>Handled {form_id}</p>")
 
       @HttpPut("/upload/<some_id:int>/<filename:path>")
       @HttpPut("/upload/<filename:path>")
-      def handle_upload(
-      self, request, response,
-                        some_id=None, filename=None):
-         response.send_content(200, "<p>Handled {} : {}</p>" \
-            .format(some_id, filename))
+      def handle_upload(self, request, response, some_id=None, filename=None):
+         response.send_content(200, f"<p>Handled {some_id} : {filename}</p>")

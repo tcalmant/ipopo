@@ -1473,7 +1473,6 @@ class BundleContext:
                '''
                # ...
 
-        :param bundle_context:  This bundle context
         :param listener: The listener to register
         :param ldap_filter: Filter that must match the service properties
                             (optional, None to accept all services)
@@ -1627,10 +1626,6 @@ class BundleContext:
         path (``sys.path``). All modules loaded alongside this bundle, *i.e.*
         by this bundle or its dependencies, will be looked after in this path
         in priority.
-
-        .. note::
-            Before Pelix 0.5.0, this method returned the ID of the installed
-            bundle, instead of the Bundle object.
 
         .. warning::
             The behavior of the loading process is subject to changes, as it
