@@ -153,6 +153,7 @@ def start_karaf(karaf_root: pathlib.Path) -> Generator[subprocess.Popen, None, N
             karaf.wait(1)
             karaf = None
 
+
 def wait_for_prompt(process: subprocess.Popen, prompt: str = "karaf@root()>") -> None:
     """
     Reads the stdout of a process until a prompt is seen

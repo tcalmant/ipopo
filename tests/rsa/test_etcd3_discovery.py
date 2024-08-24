@@ -133,7 +133,6 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
 
 
 class EtcdDiscoveryListenerTest(unittest.TestCase):
-
     def setUp(self):
         """
         Starts a local framework to register the
@@ -282,7 +281,6 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
 
 
 class EtcdDiscoveryPublishTest(unittest.TestCase):
-
     def setUp(self):
         """
         Prepares a framework

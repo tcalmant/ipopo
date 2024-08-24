@@ -54,5 +54,6 @@ try:
             finally:
                 cov.stop()
                 cov.save()
+
 except ImportError:
     WrappedProcess = Process
