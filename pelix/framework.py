@@ -1068,7 +1068,7 @@ class Framework(Bundle):
         :param send_event: If not, doesn't trigger a service registered event
         :param factory: If True, the given service is a service factory
         :param prototype: If True, the given service is a prototype service
-        factory (the factory argument is considered True)
+                          factory (the factory argument is considered True)
         :return: A ServiceRegistration object
         :raise BundleException: An error occurred while registering the service
         """
@@ -1476,9 +1476,9 @@ class BundleContext:
         :param bundle_context:  This bundle context
         :param listener: The listener to register
         :param ldap_filter: Filter that must match the service properties
-        (optional, None to accept all services)
+                            (optional, None to accept all services)
         :param specification: The specification that must provide the service
-        (optional, None to accept all services)
+                              (optional, None to accept all services)
         :return: True if the listener has been successfully registered
         """
         if specification is not None and inspect.isclass(specification):

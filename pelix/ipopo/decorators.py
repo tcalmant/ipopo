@@ -926,8 +926,8 @@ class Provides:
     USE_MODULE_QUALNAME = False
     """
     Selects the methodology to generate a specification from a class.
-    A value of False uses __name__ (legacy), while True enables
-    __name__ + '.' + __qualname__
+    A value of False uses ``__name__`` (legacy), while True enables
+    ``__name__ + '.' + __qualname__``
     """
 
     def __init__(
@@ -944,7 +944,7 @@ class Provides:
     ) -> None:
         """
         :param specifications: A list of provided specification(s), or the
-        single provided specification (can't be empty)
+                               single provided specification (can't be empty)
         :param controller: The name of the service controller class field (optional)
         :param factory: If True, this service is a service factory (False by default)
         :param prototype: If True, this service is prototype service factory (False by default)

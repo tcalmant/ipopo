@@ -25,7 +25,7 @@ Pelix remote services: Specifications handling utility methods
     limitations under the License.
 """
 
-from typing import Any, Dict, Generic, Iterable, List, Optional, Set, Tuple, TypeVar, Union, cast
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, TypeVar, Union, cast
 from urllib.parse import urlparse
 
 import pelix.constants
@@ -78,7 +78,7 @@ class ExportEndpoint:
         :param service: Instance of the exported service
         :param properties: Extra properties
         :raise ValueError: Invalid UID or the end point exports nothing
-        (all specifications have been filtered)
+                           (all specifications have been filtered)
         """
         if not uid:
             raise ValueError("Invalid UID")
