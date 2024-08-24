@@ -18,7 +18,7 @@ from pelix.shell import ShellReport, ShellService
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (1, 0, 2)
+__version_info__ = (3, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

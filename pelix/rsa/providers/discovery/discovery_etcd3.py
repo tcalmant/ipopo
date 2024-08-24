@@ -7,7 +7,7 @@ Etcd Discovery Provider
 :author: Scott Lewis
 :copyright: Copyright 2024, Scott Lewis
 :license: Apache License 2.0
-:version: 1.0.0
+:version: 3.0.0
 
 ..
 
@@ -52,7 +52,7 @@ import uuid
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (1, 0, 2)
+__version_info__ = (3, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -99,7 +99,7 @@ class RepeatedTimer(object):
         self._timer.cancel()
         self.is_running = False
 
-        
+
 @ComponentFactory("etcd-endpoint-discovery-factory")
 @Provides(EndpointAdvertiser)
 @Property(
@@ -240,7 +240,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         with self._client_lock:
             if self._client:
                 _logger.debug("sessid=%s disconnecting", self._sessionid)
-                # cancel watch    
+                # cancel watch
                 if self._watch_id != None:
                     try:
                         self._client.cancel_watch(self._watch_id)
@@ -254,27 +254,27 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                         self._lease_scheduler = None
                     self._lease.revoke()
                     self._lease = None
-                
+
                 if self._client:
                     self._client = None
                 _logger.debug("sessid=%s disconnected", self._sessionid)
 
     def _get_key_prefix(self):
         return self._top_path
-    
+
     def _get_session_key(self):
         return "/".join([self._get_key_prefix(), self._sessionid])
-    
+
     class EndpointKey(object):
-        
+
         def __init__(self, sessionid: str, ed_id: str) -> None:
             self.sessionid = sessionid
             self.ed_id = ed_id
             self.fullkey = "/".join([self.sessionid, self.ed_id])
-            
+
         def __str__(self) -> str:
             return "[EndpointKey sessionid={} ed_id={} fullKey={}]".format(self.sessionid, self.ed_id, self.fullkey)
-    
+
     def _create_endpoint_key(self, key: str) -> EndpointKey:
         split_key = [x for x in key.split("/") if x != '']
         split_key_len = len(split_key)
@@ -298,10 +298,10 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 _logger.debug("_create_endpoint_key error, GUID creation failed for sessionId=%s", session_key)
                 return None
             return self.EndpointKey(session_key, endpoint_key)
-    
-    def _get_full_key(self, endpoint_fk): 
+
+    def _get_full_key(self, endpoint_fk):
         return "/".join([self._get_key_prefix(), endpoint_fk])
-    
+
     def _remove_endpoint(self, endpoint_key: EndpointKey):
         _logger.debug("sessid=%s removing endpoint_key=%s", self._sessionid, endpoint_key)
         removed_ep = self._remove_discovered_endpoint(endpoint_key.ed_id)
@@ -313,7 +313,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
 
     def _add_or_modify_endpoint(self, endpoint_key: EndpointKey, value: str):
         _logger.debug("sessid=%s adding endpoint_key=%s value=%s", self._sessionid, endpoint_key, value)
-        # get actual value from endpoint key 
+        # get actual value from endpoint key
         json_value = json.loads(value)
         json_properties = json_value["properties"]
         # get the name and value from each entry
@@ -344,7 +344,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                     _logger.debug("sessid=%s modified endpoint_key=%s value=%s", self._sessionid, endpoint_key, value)
         # fire event outside lock
         self._fire_endpoint_event(event_type, new_ed)
-            
+
     def _process_kv(self, key: str, value: str, add_remove: bool):
         endpoint_key = self._create_endpoint_key(key)
         # only do anything if valid endpoint_key and not our sessionid
@@ -356,7 +356,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 # handle remove
                 self._remove_endpoint(endpoint_key)
 
-    # declare callback   
+    # declare callback
     def _callback(self, resp: WatchResponse):
                 with self._client_lock:
                     if not self._client:
@@ -373,11 +373,11 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                         self._process_kv(key, value, True)
                     elif isinstance(event, etcd3.events.DeleteEvent):
                         self._process_kv(key, value, False)
-                    
+
     def _connect(self) -> None:
         """
         Connects to etcd
-        """ 
+        """
         _logger.debug("connecting sessid=%s to etcd3 host=%s port=%s", self._sessionid, self._hostname, self._port)
         with self._client_lock:
             if self._client:
@@ -392,7 +392,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 raise e
             # start lease scheduler
             self._lease_scheduler = RepeatedTimer(self._session_ttl - 5, self._lease.refresh)
-            # add watch  
+            # add watch
             self._watch_id = self._client.add_watch_callback(self._get_key_prefix(), self._callback, "true\\0")
             # put our session key
             self._client.put(self._get_session_key(), self._sessionid, self._lease)
@@ -401,7 +401,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 key=self._top_path,
                 range_end="true\\0"
             )
-            # make the actual call 
+            # make the actual call
             resp = self._client.kvstub.Range(
                 range_request,
                 self._client.timeout,

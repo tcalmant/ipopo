@@ -6,13 +6,13 @@ iPOPO package
 iPOPO is a component-based application framework
 
 :author: Thomas Calmant
-:copyright: Copyright 2023, Thomas Calmant
+:copyright: Copyright 2024, Thomas Calmant
 :license: Apache License 2.0
-:version: 1.0.2
+:version: 3.0.0
 
 ..
 
-    Copyright 2023 Thomas Calmant
+    Copyright 2024 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ iPOPO is a component-based application framework
 """
 
 # Module version
-__version_info__ = (1, 0, 2)
+__version_info__ = (3, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
