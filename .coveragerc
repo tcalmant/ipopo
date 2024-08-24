@@ -1,5 +1,4 @@
 [run]
-source = pelix/
 parallel = True
 
 [report]
