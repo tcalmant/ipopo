@@ -1,9 +1,10 @@
-jsonrpclib-pelix>=0.4.3
-redis>=2.10
-kazoo==2.8.0
-paho-mqtt>=2
-zeroconf==0.19.1
-osgiservicebridge>=1.5.7
-pyyaml>=6.0
 etcd3>=0.12.0
+jsonrpclib-pelix>=0.4.3
+kazoo==2.8.0
+osgiservicebridge>=1.5.7
+paho-mqtt>=2.1
 python-etcd==0.4.5
+pyyaml>=6.0
+redis>=2.10
+slixmpp>=1.8.4
+zeroconf==0.19.1
