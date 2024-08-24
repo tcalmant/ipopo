@@ -169,6 +169,7 @@ class ActivatorProto(Protocol):
 
 
 def BundleActivator(clazz: Type[ActivatorProto]) -> Type[ActivatorProto]:
+    # pylint: disable=C0103
     """
     Decorator to declare the bundle activator
 
@@ -323,5 +324,5 @@ class Specification:
         """
         if isinstance(clazz, str):
             return clazz
-        else:
-            return clazz.__name__
+
+        return clazz.__name__

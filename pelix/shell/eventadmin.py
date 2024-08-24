@@ -61,8 +61,7 @@ class EventAdminCommands(ShellCommandsProvider):
     # Injected services
     _events: pelix.services.EventAdmin
 
-    @staticmethod
-    def get_namespace() -> str:
+    def get_namespace(self) -> str:
         """
         Retrieves the name space of this command handler
         """

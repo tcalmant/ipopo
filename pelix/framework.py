@@ -75,7 +75,6 @@ from pelix.internals.registry import (
     ServiceRegistry,
 )
 from pelix.ldapfilter import LDAPCriteria, LDAPFilter
-from pelix.utilities import is_string
 
 # Generic type var
 T = TypeVar("T")
@@ -334,7 +333,7 @@ class Bundle:
         :raise BundleException: If the bundle has been uninstalled
         """
         if self._state == Bundle.UNINSTALLED:
-            raise BundleException("Can't call 'get_registered_services' on an " "uninstalled bundle")
+            raise BundleException("Can't call 'get_registered_services' on an uninstalled bundle")
         return self.__framework._registry.get_bundle_registered_services(self)
 
     def get_services_in_use(self) -> List[ServiceReference[Any]]:
@@ -807,10 +806,9 @@ class Framework(Bundle):
         """
         if reference is None:
             raise ValueError("No service reference given")
-
         if not isinstance(bundle, Bundle):
             raise TypeError("First argument must be a Bundle object")
-        elif not isinstance(reference, ServiceReference):
+        if not isinstance(reference, ServiceReference):
             raise TypeError("Second argument must be a ServiceReference object")
 
         try:
@@ -1097,7 +1095,8 @@ class Framework(Bundle):
             if not svc_clazz:
                 # Invalid class name
                 raise BundleException(f"Invalid class name: {svc_clazz}")
-            elif isinstance(svc_clazz, str):
+
+            if isinstance(svc_clazz, str):
                 classes.append(svc_clazz)
             elif isinstance(svc_clazz, list):
                 classes.extend(svc_clazz)
@@ -1530,7 +1529,8 @@ class BundleContext:
         if bundle_id is None:
             # Current bundle
             return self.__bundle
-        elif isinstance(bundle_id, Bundle):
+
+        if isinstance(bundle_id, Bundle):
             # Got a bundle (compatibility with older install_bundle())
             bundle_id = bundle_id.get_bundle_id()
 
@@ -1907,8 +1907,8 @@ def _package_exists(path: str) -> bool:
     while path:
         if os.path.exists(path):
             return True
-        else:
-            path = os.path.dirname(path)
+
+        path = os.path.dirname(path)
 
     return False
 

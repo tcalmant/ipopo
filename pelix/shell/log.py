@@ -72,8 +72,7 @@ class ShellLogCommand(ShellCommandsProvider):
         """
         self.__svc_ref = svc_ref
 
-    @staticmethod
-    def get_namespace() -> str:
+    def get_namespace(self) -> str:
         """
         Returns the name space of the commands
         """

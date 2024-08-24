@@ -228,8 +228,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
             "debug": ("standard", "pelix_services", "ipopo_instances"),
         }
 
-    @staticmethod
-    def get_namespace() -> str:
+    def get_namespace(self) -> str:
         """
         Retrieves the name space of this command handler
         """
@@ -664,7 +663,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
             return
 
         try:
-            with open(filename, "w+") as out_file:
+            with open(filename, "w+", encoding="utf8") as out_file:
                 out_file.write(self.to_json(self.__report))
         except IOError as ex:
             session.write_line(f"Error writing to file: {ex}")

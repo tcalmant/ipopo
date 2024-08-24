@@ -90,8 +90,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
     _ipopo: IPopoService
     _utils: pelix.shell.ShellUtils
 
-    @staticmethod
-    def get_namespace() -> str:
+    def get_namespace(self) -> str:
         """
         Retrieves the name space of this command handler
         """

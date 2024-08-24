@@ -82,7 +82,7 @@ class ComponentFactoryCompleter(AbstractCompleter):
         :param longest_match_len: Length of the largest match
         """
         # Prepare a line pattern for each match (-1 for the trailing space)
-        match_pattern = "{{0: <{}}} from {{1}}".format(longest_match_len - 1)
+        match_pattern = f"{{0: <{longest_match_len - 1}}} from {{1}}"
 
         # Sort matching names
         matches = sorted(match for match in matches)
@@ -152,7 +152,7 @@ class ComponentInstanceCompleter(AbstractCompleter):
         :param longest_match_len: Length of the largest match
         """
         # Prepare a line pattern for each match (-1 for the trailing space)
-        match_pattern = "{{0: <{}}} from {{1}}".format(longest_match_len - 1)
+        match_pattern = f"{{0: <{longest_match_len - 1}}} from {{1}}"
 
         # Sort matching names
         matches = sorted(match for match in matches)
@@ -164,7 +164,7 @@ class ComponentInstanceCompleter(AbstractCompleter):
                 # Remove the spaces added for the completion
                 name = name.strip()
                 details = ipopo.get_instance_details(name)
-                description = "of {factory} ({state})".format(**details)
+                description = f"of {details['factory']} ({details['state']})"
                 session.write_line(match_pattern, name, description)
 
         # Print the prompt, then current line

@@ -35,7 +35,7 @@ https://github.com/cohorte/cohorte-org.jabsorb.ng
 import builtins
 import inspect
 import re
-from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, cast
+from typing import Any, Dict, List, Optional, Tuple, TypeVar, cast
 
 # ------------------------------------------------------------------------------
 

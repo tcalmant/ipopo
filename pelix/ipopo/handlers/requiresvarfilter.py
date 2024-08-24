@@ -27,7 +27,7 @@
 
 import logging
 import string
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional
 
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants

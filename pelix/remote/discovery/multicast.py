@@ -40,7 +40,7 @@ import select
 import socket
 import struct
 import threading
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import pelix.constants
 import pelix.remote

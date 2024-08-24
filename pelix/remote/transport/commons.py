@@ -30,7 +30,6 @@ Pelix remote services: Abstract RPC implementation
 
 from abc import abstractmethod
 import abc
-import logging
 import threading
 import uuid
 from typing import Any, Dict, Iterable, List, Optional, Union

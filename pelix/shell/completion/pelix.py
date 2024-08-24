@@ -26,7 +26,7 @@ Defines the shell completion handlers for Pelix concepts
     limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Any, List, Optional, cast
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from pelix.constants import SERVICE_ID, ActivatorProto, BundleActivator
 from pelix.internals.registry import ServiceReference
@@ -82,7 +82,7 @@ class BundleCompleter(AbstractCompleter):
         assert readline is not None
 
         # Prepare a line pattern for each match
-        match_pattern = "{{0: >{}}}: {{1}}".format(longest_match_len)
+        match_pattern = f"{{0: >{longest_match_len}}}: {{1}}"
 
         # Sort matching IDs
         matching_ids = sorted(int(match) for match in matches)
@@ -156,7 +156,7 @@ class ServiceCompleter(AbstractCompleter):
         """
         try:
             # Prepare a line pattern for each match
-            match_pattern = "{{0: >{}}}: {{1}}".format(longest_match_len)
+            match_pattern = f"{{0: >{longest_match_len}}}: {{1}}"
 
             # Sort matching IDs
             matching_ids = sorted(int(match) for match in matches)

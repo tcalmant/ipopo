@@ -56,9 +56,8 @@ def ipproto_ipv6() -> int:
         if os.name == "nt":
             # Known bug: http://bugs.python.org/issue6926
             return 41
-        else:
-            # Unknown value
-            raise
+
+        raise
 
 
 def set_double_stack(socket_obj: socket.socket, double_stack: bool = True) -> None:

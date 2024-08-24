@@ -32,6 +32,7 @@ from . import ATTR_COMPLETERS, CompletionInfo
 
 try:
     # Everything here relies on readline
+    # pylint: disable=W0611
     import readline
 
     HAS_READLINE = True

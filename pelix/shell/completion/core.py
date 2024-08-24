@@ -72,6 +72,9 @@ class AbstractCompleter(abc.ABC, Completer):
         session: "ShellSession",
         context: "BundleContext",
     ) -> None:
+        """
+        Sets up the readline completion hook, if available
+        """
         try:
             readline.set_completion_display_matches_hook(  # type: ignore
                 lambda sub, matches, longest: display_hook(prompt, session, context, matches, longest)
