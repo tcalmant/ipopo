@@ -31,7 +31,7 @@ Pelix includes 3 main user interfaces:
 
 Before looking at the available user interfaces, note that all of them
 support arguments to handle the Initial Configuration files (see
-`refcard_init_config`).
+[](./init_config.rst)).
 
 In addition to their specific arguments, the scripts starting the user
 interfaces also accept the following ones:
@@ -89,7 +89,8 @@ interface (*localhost*) on port 9000. It is possible to enforce the
 server by setting up OpenSSL certificates. The server will have its own
 certificate, which should be checked by the clients, and each client
 will have to connect with its own certificate, signed by an authority
-recognized by the server. See `certificates_setup` for more information
+recognized by the server.
+See [](#how-to-prepare-certificates-for-the-remote-shell) for more information
 on how to setup this kind of certificates.
 
 :::{note}
@@ -138,7 +139,7 @@ This factory accepts the following properties:
 ### XMPP Shell
 
 The XMPP shell interface allows to communicate with a Pelix framework
-using an XMPP client, e.g. [Pidgin](http://pidgin.im/),
+using an XMPP client, e.g. [Pidgin](https://pidgin.im/),
 [Psi](https://psi-im.org/). The biggest advantages of this interface are
 the possibility to use TLS to encrypt conversations and the fact that it
 is an output-only communication. This allows to protect Pelix
@@ -148,7 +149,7 @@ XMPP server.
 It requires an XMPP account to connect an XMPP server. Early tests of
 this bundle were made against Google Talk (with a GMail account, not to
 be confused with Google Hangout) and a private
-[OpenFire](http://www.igniterealtime.org/projects/openfire/) server.
+[OpenFire](https://www.igniterealtime.org/projects/openfire/) server.
 
 #### Script startup
 
@@ -169,11 +170,11 @@ In addition to the common parameters, the script accepts the following ones:
 
 #### Programmatic startup
 
-This UI depends on the `sleekxmpp` third-party package, which can be
+This UI depends on the `slixmpp` third-party package, which can be
 installed using the following command:
 
 ```bash
-pip install sleekxmpp
+pip install slixmpp
 ```
 
 The XMPP shell is provided as the `ipopo-xmpp-shell-factory` component
@@ -204,17 +205,17 @@ usage information.
 | Bundle name | Description |
 |----|----|
 | `pelix.shell.ipopo` | Handles iPOPO factories and instances. |
-| `pelix.shell.configadmin` | Handles the Configuration Admin service (provided by `pelix.misc.configadmin`). See `configadmin`. |
-| `pelix.shell.eventadmin` | Handles the Event Admin service (provided by `pelix.misc.eventadmin`). See `refcard_eventadmin`. |
-| `pelix.shell.log` | Looks into the Log Service (provided by `pelix.misc.log`). See `refcard_log`. |
-| `pelix.shell.report` | Generates framework state reports. See `refcard_report`. |
+| `pelix.shell.configadmin` | Handles the Configuration Admin service (provided by `pelix.misc.configadmin`). See [](./configadmin.rst). |
+| `pelix.shell.eventadmin` | Handles the Event Admin service (provided by `pelix.misc.eventadmin`). See [](./eventadmin.rst). |
+| `pelix.shell.log` | Looks into the Log Service (provided by `pelix.misc.log`). See [](./log.rst). |
+| `pelix.shell.report` | Generates framework state reports. See [](./shell_report.md). |
 
 ## How to provide commands
 
 ### Shell Command service
 
 Shell commands are detected by the Shell Core Service when a Shell
-Command service (use the `pelix.shell.SERVICE_SHELL_COMMAND` constant)
+Command service ([`pelix.shell.ShellCommandsProvider`](#pelix.shell.ShellCommandsProvider))
 is registered.
 
 First, the Shell Core calls the `get_namespace()` method of the new
@@ -237,10 +238,10 @@ Note that the Python *docstring* of the method will be what is shown by the
 core *help* command.
 
 The shell core bundle also provides a utility service,
-`pelix.shell.SERVICE_SHELL_UTILS <pelix.shell.core._ShellUtils>`, which
+[`pelix.shell.ShellUtils`](#pelix.shell.ShellUtils), which
 can be used to generate ASCII tables to print out to the user. This is
 the service used by the core method to print the list of bundles,
-services, iPOPO instances, etc..
+services, iPOPO instances, etc.
 
 Here is an example of a simple command service providing the *echo* and
 *hello* shell commands. *echo* accepts an unlimited list of arguments
@@ -250,16 +251,16 @@ as parameter then says hello.
 ```python
 from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate
 import pelix.shell
+from pelix.shell.beans import ShellSession
 
 @ComponentFactory("sample-commands-factory")
-@Provides(pelix.shell.SERVICE_SHELL_COMMAND)
+@Provides(pelix.shell.ShellCommandsProvider)
 @Instantiate("sample-shell-commands")
-class SampleCommands:
+class SampleCommands(pelix.shell.ShellCommandsProvider):
     """
     Sample shell commands
     """
-    @staticmethod
-    def get_namespace():
+    def get_namespace(self):
         """
         Retrieves the name space of this command handler
         """
@@ -271,7 +272,7 @@ class SampleCommands:
         """
         return [("echo", self.echo), ("hello", self.hello)]
 
-    def hello(self, session, name=None):
+    def hello(self, session: ShellSession, name: str|None=None) -> None:
         """
         Says hello
         """
@@ -281,7 +282,7 @@ class SampleCommands:
 
         session.write_line("Hello, {0} !", name)
 
-    def echo(self, session, *words):
+    def echo(self, session: ShellSession, *words: str) -> None:
         """
         Prints back the words it has been given
         """
@@ -321,42 +322,14 @@ shell.
    .. note:: This class is instantiated by Shell UI implementations and its
              instances shouldn't be shared nor stored by command providers.
 
-   .. method:: prompt(prompt=None)
-
-        Waits for a line to be written by the user
-
-        :param prompt: An optional prompt message
-        :return: The read line, after a conversion to str
-
-   .. method:: write_line(line=None, *args, **kwargs)
-
-        Formats and writes a line to the output. This method has the same
-        signature as ``str.format``.
-        If necessary, a new-line marker (``\n``) is added at the end of the
-        given string.
-        The output stream is flushed to ensure that the text is written.
-
-        :param line: A line for ``str.format`` markers
-        :param args: Content for the positional markers
-        :param kwargs: Content for the keyword markers
-
-   .. method:: write_line_no_feed(line=None, *args, **kwargs)
-
-        Formats and writes a line to the output. This method has the same
-        signature as ``str.format``.
-        If the given line ended with a new-line marker, the latter is removed.
-        The output stream is flushed to ensure that the text is written.
-
-        :param line: A line for ``str.format`` markers
-        :param args: Content for the positional markers
-        :param kwargs: Content for the keyword markers
-
-.. autoclass:: pelix.shell.core._ShellUtils
+.. autoclass:: pelix.shell.ShellUtils
    :members:
 
-   .. note:: This class shouldn't be instantiated directly. The developer must
-             instead look for and the ``pelix.shell.SERVICE_SHELL_UTILS``
-             service.
+   .. note:: This class shouldn't be instantiated directly and should be used
+             as a service.
+
+.. autoclass:: pelix.shell.ShellCommandsProvider
+   :members:
 ```
 
 ## How to prepare certificates for the Remote Shell

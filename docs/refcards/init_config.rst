@@ -13,6 +13,11 @@ This configuration allows to setup environment variables, additional Python
 paths, framework properties, a list of bundles to start with the framework
 and a list of components to instantiate.
 
+.. note::
+
+   The initial configuration file is expected to be in JSON format, but it can
+   also be given in YAML format if the PyYAML library is installed.
+
 
 File Format
 -----------

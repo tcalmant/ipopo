@@ -7,7 +7,7 @@ EndpointDescription class API
 :author: Scott Lewis
 :copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
-:version: 1.0.2
+:version: 3.0.0
 
 ..
 
@@ -17,7 +17,7 @@ EndpointDescription class API
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
 
-        http://www.apache.org/licenses/LICENSE-2.0
+        https://www.apache.org/licenses/LICENSE-2.0
 
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
@@ -66,7 +66,7 @@ from pelix.rsa import (
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (1, 0, 2)
+__version_info__ = (3, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

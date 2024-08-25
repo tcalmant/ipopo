@@ -9,9 +9,14 @@ iPOPO is a Python-based Service-Oriented Component Model (SOCM) based on Pelix,
 a dynamic service platform.
 They are inspired by two popular Java technologies for the development of
 long-lived applications: the
-[iPOJO](http://felix.apache.org/documentation/subprojects/apache-felix-ipojo.html)
-component model and the [OSGi](http://osgi.org/) Service Platform.
+[iPOJO](https://web.archive.org/web/20210616112915/http://felix.apache.org/documentation/subprojects/apache-felix-ipojo.html)
+component model and the [OSGi](https://www.osgi.org/) Service Platform.
 iPOPO enables the conception of long-running and modular IT services.
+The iPOJO component model was designed by Clément Escoffier in his
+[PhD Thesis](https://theses.hal.science/tel-00347935/document) (in French),
+while the iPOPO component model was designed by Thomas Calmant in his
+[PhD Thesis](https://theses.hal.science/tel-01254286/file/CALMANT_2015_archivage.pdf)
+(in French).
 
 This documentation is divided into three main parts.
 The [quickstart](./quickstart.md) will guide you to install iPOPO and write your
@@ -30,23 +35,19 @@ named [`jsonrpclib-pelix`](https://github.com/tcalmant/jsonrpclib).
 The documentation of this library is available on
 [GitHub](https://github.com/tcalmant/jsonrpclib).
 
-## About this documentation
-
-The previous documentation was provided as a wiki, which has been shut down
-for various reasons.
-A copy of the previous content is available in the
-[`convert_doc`](https://github.com/tcalmant/ipopo/tree/convert_doc) branch,
-even though it's starting to age.
-The documentation is now hosted on [Read the Docs](https://readthedocs.org/).
-The main advantages are that it is now included in the Git repository of the
-project, and it can include *docstrings* directly from the source code.
+## Support
 
 If you have any question which hasn't been answered in the documentation,
 please ask on the
-[users' mailing list](https://groups.google.com/forum/#!forum/ipopo-users).
+[users' mailing list](https://groups.google.com/forum/#!forum/ipopo-users) or
+in the [GitHub Discussions](https://github.com/tcalmant/ipopo/discussions).
 
 As always, all contributions to the documentation and the code are very
-appreciated.
+appreciated: bugs and features requests can be submitted using the
+[Issue Tracker](https://github.com/tcalmant/ipopo/issues) on GitHub.
+Questions about the development of iPOPO itself should be asked on the
+[developers' mailing list](https://groups.google.com/g/ipopo-dev) or
+in the [GitHub Discussions](https://github.com/tcalmant/ipopo/discussions).
 
 ```{include} contents.md.inc
 ```

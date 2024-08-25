@@ -1,5 +1,5 @@
 .. _refcard_component:
-.. module:: pelix.framework
+.. module:: pelix.ipopo
 
 iPOPO Components
 ================
@@ -11,14 +11,12 @@ its life-cycle, dependencies, etc. are handled by iPOPO.
 In iPOPO, a component is an instance of component factory, *i.e.* a Python
 class manipulated with the iPOPO decorators.
 
-.. note::
-
-   Due to the use of Python properties, all component factories must be
-   new-style classes. It is the case of all Python 3 classes, but Python 2.x
-   classes must explicitly inherit from the ``object`` class.
-
 Life-cycle
 ----------
+
+.. image:: ../_static/component_lifecycle.png
+   :alt: iPOPO component life-cycle graph
+   :width: 40%
 
 The component life cycle is handled by an instance manager created by the
 iPOPO service.
@@ -26,11 +24,6 @@ This instance manager will inject control methods, run-time dependencies,
 and will register the component services.
 All changes will be notified to the component using the callback methods it
 decorated.
-
-.. image:: ../_static/component_lifecycle.png
-   :alt: iPOPO component life-cycle graph
-   :width: 30%
-   :align: right
 
 ============ ==================================================================
 State        Description
@@ -68,21 +61,34 @@ The core service provides the ``pelix.ipopo.core`` specification.
 Here are the most commonly used methods from the iPOPO core service to handle
 components and factories:
 
-.. autoclass:: pelix.ipopo.core._IPopoService
-   :members: add_listener, remove_listener, get_instances, get_instance_details,
-             get_factories, get_factory_details, instantiate, kill,
-             retry_erroneous
+.. autoclass:: pelix.ipopo.constants.IPopoService
+   :members: get_instances, get_instance_details, get_factories,
+             get_factory_details, instantiate, kill, retry_erroneous
 
-A word on Python 3.7 Data classes
-=================================
+Listening to components events
+******************************
+
+The iPOPO service can be used to register to component events, using the
+following methods:
+
+.. autoclass:: pelix.ipopo.constants.IPopoService
+   :noindex:
+   :members: add_listener, remove_listener
+
+A component listener must implement the following interface:
+
+.. autoclass:: pelix.ipopo.constants.IPopoEventListener
+   :members:
+
+
+A word on Data classes
+----------------------
 
 These indications have to be taken into account when using iPOPO decorators on
-`data classes <https://www.python.org/dev/peps/pep-0557/>`_.
-They are also valid when using the
-`dataclasses <https://pypi.org/project/dataclasses/>`_ package for Python 3.6.
+`data classes <https://peps.python.org/pep-0557/>`_.
 
 Important notes
----------------
+***************
 
 * **All** fields of the Data Class **must** have a default value.
   This will let the ``@dataclass`` decorator generate an ``__init__`` method
@@ -93,10 +99,32 @@ Important notes
   methods like ``__repr__`` won't work.
 
 Good to know
-------------
+************
 
 * Injected fields (``@Property``, ``@Requires``, ...) will lose the default
   value given in the class definition, in favor to the ones given to the iPOPO
   decorators. This is due to the redefinition of the fields by those decorators.
   Other fields are not touched at all.
 * The ``@dataclass`` decorator can be used before or after the iPOPO decorators
+
+
+iPOPO Waiting List
+------------------
+
+iPOPO provides a utility service to register components to a waiting list, which
+will try to instantiate them when a new iPOPO component factory or a new iPOPO
+handler is available.
+This is useful for softwares using a composition described in a configuration
+file: add an instant to the list and let iPOPO instantiate it when possible.
+
+This feature is provided by the ``pelix.ipopo.waiting`` bundle, which must be
+installed and active. Note that the ``pelix.ipopo.core`` bundle can be installed
+and started later: the waiting list will try to instantiate components as
+soon as the iPOPO service is found.
+
+To use the iPOPO waiting list, get the :class:`pelix.ipopo.constants.IPopoWaitingList`
+service (or by its name: ``pelix.ipopo.waiting_list``) which provides the
+following methods:
+
+.. autoclass:: pelix.ipopo.constants.IPopoWaitingList
+   :members:

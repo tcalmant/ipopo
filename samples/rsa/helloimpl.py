@@ -17,7 +17,7 @@ class HelloImpl:
     milliseconds.
 
     See the OSGi Remote Services specification at:
-    https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html
+    https://docs.osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html
 
     The specification defines the standard properties given above.
     """

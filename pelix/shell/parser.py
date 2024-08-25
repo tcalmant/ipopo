@@ -4,20 +4,20 @@
 Common parser for shell implementations
 
 :author: Thomas Calmant
-:copyright: Copyright 2023, Thomas Calmant
+:copyright: Copyright 2024, Thomas Calmant
 :license: Apache License 2.0
-:version: 1.0.2
+:version: 3.0.0
 :status: Alpha
 
 ..
 
-    Copyright 2023 Thomas Calmant
+    Copyright 2024 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
 
-        http://www.apache.org/licenses/LICENSE-2.0
+        https://www.apache.org/licenses/LICENSE-2.0
 
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (1, 0, 2)
+__version_info__ = (3, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -365,9 +365,9 @@ class Shell:
             if not spaces:
                 # Unknown command
                 raise ValueError(f"Unknown command {command}")
-            else:
-                # Return a sorted list of tuples
-                return sorted((namespace, command) for namespace in spaces)
+
+            # Return a sorted list of tuples
+            return sorted((namespace, command) for namespace in spaces)
 
         # Single match
         return [(namespace, command)]
@@ -388,7 +388,8 @@ class Shell:
             if not spaces:
                 # Unknown command
                 raise ValueError(f"Unknown command {command}")
-            elif len(spaces) > 1:
+
+            if len(spaces) > 1:
                 # Multiple possibilities
                 if spaces[0] == DEFAULT_NAMESPACE:
                     # Default name space has priority
@@ -514,9 +515,9 @@ class Shell:
             # Add the other arguments
             for name, value in zip(arg_spec.args[-nb_optional:], arg_spec.defaults[-nb_optional:]):
                 if value is not None:
-                    args.append("[<{0}>={1}]".format(name, value))
+                    args.append(f"[<{name}>={value}]")
                 else:
-                    args.append("[<{0}>]".format(name))
+                    args.append(f"[<{name}>]")
         else:
             # All arguments are mandatory
             args = [f"<{arg}>" for arg in arg_spec.args[start_arg:]]
@@ -567,7 +568,7 @@ class Shell:
 
         # Get all commands in this name space
         if cmd_name is None:
-            names = [command for command in self._commands[namespace]]
+            names = list(self._commands[namespace])
             names.sort()
         else:
             names = [cmd_name]
@@ -668,11 +669,10 @@ class Shell:
         name = name.strip()
         try:
             session.unset(name)
+            session.write_line(f"Variable {name} unset.")
         except KeyError:
-            session.write_line("Unknown variable: {0}", name)
+            session.write_line(f"Unknown variable: {name}")
             return False
-        else:
-            session.write_line("Variable {0} unset.", name)
 
         return None
 
@@ -681,7 +681,7 @@ class Shell:
         Runs the given "script" file
         """
         try:
-            with open(filename, "r") as filep:
+            with open(filename, "r", encoding="utf8") as filep:
                 for lineno, line in enumerate(filep):
                     line = line.strip()
                     if not line or line.startswith("#"):

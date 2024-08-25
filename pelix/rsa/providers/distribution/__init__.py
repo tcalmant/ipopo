@@ -7,7 +7,7 @@ Distribution Provider API
 :author: Scott Lewis
 :copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
-:version: 1.0.2
+:version: 3.0.0
 
 ..
 
@@ -17,7 +17,7 @@ Distribution Provider API
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
 
-        http://www.apache.org/licenses/LICENSE-2.0
+        https://www.apache.org/licenses/LICENSE-2.0
 
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,9 +28,10 @@ Distribution Provider API
 
 import abc
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 import pelix.rsa as rsa
+import pelix.rsa.remoteserviceadmin as rsa_impl
 from pelix.constants import OBJECTCLASS, SERVICE_SCOPE, Specification
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference, ServiceRegistration
@@ -40,7 +41,6 @@ from pelix.rsa import (
     ECF_SERVICE_EXPORTED_ASYNC_INTERFACES,
     ENDPOINT_FRAMEWORK_UUID,
     ENDPOINT_ID,
-    IPOPO_ECF_NAMESPACE,
     SERVICE_BUNDLE_ID,
     SERVICE_EXPORTED_CONFIGS,
     SERVICE_EXPORTED_INTENTS,
@@ -60,13 +60,10 @@ from pelix.rsa import (
 )
 from pelix.rsa.endpointdescription import EndpointDescription
 
-if TYPE_CHECKING:
-    import pelix.rsa.remoteserviceadmin as rsa_impl
-
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (1, 0, 2)
+__version_info__ = (3, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

@@ -19,7 +19,7 @@ be an etcd3 server/service running on localhost/2379 (default etcd3 port)
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
 
-        http://www.apache.org/licenses/LICENSE-2.0
+        https://www.apache.org/licenses/LICENSE-2.0
 
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
@@ -50,7 +50,7 @@ ETCD_HOSTNAME = "localhost"
 
 
 def main() -> None:
-    
+
     import logging
     logging.basicConfig(level=logging.DEBUG)
     # Define the initial bundles
@@ -93,7 +93,7 @@ def main() -> None:
     # in export via xmlrpc distribution provider and advertisement of endpoint
     # description via etcd3
     framework.get_bundle_context().install_bundle("samples.rsa.helloimpl_xmlrpc").start()
-    
+
     try:
         framework.wait_for_stop()
     except KeyboardInterrupt:

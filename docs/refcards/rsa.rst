@@ -4,20 +4,14 @@ Remote Service Admin
 ####################
 
 Pelix/iPOPO now includes an implementation of the
-`Remote Service Admin OSGi specification <https://osgi.org/specification/osgi.cmpn/7.0.0/service.remoteserviceadmin.html>`_.
-It has been contributed by `Scott Lewis <https://github.com/scottslewis>`_,
-leader of the `Eclipse Communication Framework <http://www.eclipse.org/ecf/>`_
+`Remote Service Admin OSGi specification <https://docs.osgi.org/specification/osgi.cmpn/7.0.0/service.remoteserviceadmin.html>`__.
+It has been contributed by `Scott Lewis <https://github.com/scottslewis>`__,
+leader of the `Eclipse Communication Framework <https://eclipse.dev/ecf/>`__
 project.
 
 This feature can be use to let multiple iPOPO and OSGi frameworks share their
 services.
-Note that Java is not mandatory when used only between iPOPO frameworks.
-
-.. note:: This is a brand new feature, which might still contain some bugs and
-   might not work with all versions of Python (especially 2.7).
-
-   As always, feedback is welcome: don't hesitate to report bugs on
-   `GitHub <https://github.com/tcalmant/ipopo/issues>`_.
+Note that Java is **not** mandatory when used only between iPOPO frameworks.
 
 Links to ECF
 ============
@@ -27,15 +21,15 @@ similar to the Eclipse Communication Framework (implemented in Java).
 Most of the concepts have been kept in the Python implementation, it is
 therefore useful to check the documentation of this Eclipse project.
 
-* `ECF project page <http://www.eclipse.org/ecf/>`_, the formal project page
-* `ECF wiki <https://wiki.eclipse.org/Eclipse_Communication_Framework_Project>`_,
+* `ECF project page <https://eclipse.dev/ecf/>`__, the formal project page
+* `ECF wiki <https://wiki.eclipse.org/Eclipse_Communication_Framework_Project>`__,
   where most of the documentation can be found
-* `ECF blog <http://eclipseecf.blogspot.com/>`_, providing news and description
+* `ECF blog <http://eclipseecf.blogspot.com/>`__, providing news and description
   of new features
 
 Some pages of the wiki are related to the links between Java and Python worlds:
 
-* `OSGi R7 Remote Services between Python and Java <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java>`_
+* `OSGi R7 Remote Services between Python and Java <https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java>`__
   describes how to share remote services between an iPOPO Framework and an OSGi
   Framework.
 
@@ -69,11 +63,11 @@ etcd Discovery
 
 :Bundle: pelix.rsa.providers.discovery.discovery_etcd
 :Requires: *none*
-:Libraries: `python-etcd <https://github.com/jplana/python-etcd>`_
+:Libraries: `python-etcd <https://github.com/jplana/python-etcd>`__
 
-This discovery provider uses `etcd <http://etcd.readthedocs.io/en/latest/>`_ as
+This discovery provider uses `etcd <https://etcd.io/docs/v2.3/>`__ as
 a store of descriptions of endpoints.
-It depends on the `python-etcd <https://github.com/jplana/python-etcd>`_
+It depends on the `python-etcd <https://github.com/jplana/python-etcd>`__
 third-party package.
 
 This discovery provider is instantiated immediately as the bundle is
@@ -91,6 +85,34 @@ Property                Default value                                         De
 ``etcd.toppath``        /org.eclipse.ecf.provider.etcd.EtcdDiscoveryContainer Path in etcd where to store endpoints
 ``etcd.sessionttl``     30                                                    Session Time To Live
 ======================= ===================================================== =========================================
+
+etcd3 Discovery
+---------------
+
+:Bundle: pelix.rsa.providers.discovery.discovery_etcd3
+:Requires: *none*
+:Libraries: `etcd3 <https://github.com/kragniz/python-etcd3>`__
+
+This discovery provider uses `etcd3 <https://etcd.io/docs/v3.5/>`__ as
+a store of descriptions of endpoints.
+It depends on the `etcd3 <https://github.com/kragniz/python-etcd3>`__
+third-party package.
+
+This discovery provider is instantiated immediately as the bundle is
+started. The instance configuration must therefore be given as Framework
+properties. Another solution is to kill the ``etcd-endpoint-discovery``
+component and restart it with custom properties.
+
+This provider can be configured with the following properties:
+
+======================= ====================================================== =========================================
+Property                Default value                                          Description
+======================= ====================================================== =========================================
+``etcd.hostname``       localhost                                              Address of the etcd server
+``etcd.port``           2379                                                   Port of the etcd server
+``etcd.toppath``        org.eclipse.ecf.provider.etcd3.Etcd3DiscoveryContainer Path in etcd where to store endpoints
+``etcd.sessionttl``     30                                                     Session Time To Live
+======================= ====================================================== =========================================
 
 
 XML-RPC Distribution
@@ -122,7 +144,7 @@ Property                       Default value Description
 Other properties are available but not presented here as they describe constants
 used to mimic the Java side configuration.
 
-A sample usage of this provider can be found in the tutorial section:
+A sample usage of this provider can be found in the tutorial
 :ref:`rsa_tutorial_xmlrpc`.
 
 Py4J Distribution
@@ -130,10 +152,8 @@ Py4J Distribution
 
 :Bundle: pelix.rsa.providers.transport.py4j
 :Requires: HTTP Service
-:Libraries: `py4j <https://www.py4j.org/>`_,
-   `osgiservicebridge <https://github.com/ECF/Py4j-RemoteServicesProvider>`_
-
-.. note:: This provider works only in Python 3
+:Libraries: `py4j <https://www.py4j.org/>`__,
+   `osgiservicebridge <https://github.com/ECF/Py4j-RemoteServicesProvider>`__
 
 This provider allows to discover and share a Python service with its Py4J
 gateway and vice versa.
@@ -148,5 +168,5 @@ Property                           Default value Description
 ``ecf.py4j.defaultservicetimeout`` 30            Timeout before gateway timeout
 ================================== ============= ==============================
 
-A sample usage of this provider can be found in the tutorial section:
+A sample usage of this provider can be found in the tutorial
 :ref:`rsa_tutorial_py4j`.

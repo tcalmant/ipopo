@@ -4,19 +4,19 @@
 Defines some iPOPO constants
 
 :author: Thomas Calmant
-:copyright: Copyright 2023, Thomas Calmant
+:copyright: Copyright 2024, Thomas Calmant
 :license: Apache License 2.0
-:version: 1.0.2
+:version: 3.0.0
 
 ..
 
-    Copyright 2023 Thomas Calmant
+    Copyright 2024 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
 
-        http://www.apache.org/licenses/LICENSE-2.0
+        https://www.apache.org/licenses/LICENSE-2.0
 
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,31 +26,16 @@ Defines some iPOPO constants
 """
 
 import contextlib
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    Generator,
-    List,
-    Optional,
-    Protocol,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-    cast,
-)
+from typing import Any, Dict, Generator, List, Optional, Protocol, Set, Tuple, Type, cast
 
 from pelix.constants import BundleException, Specification
-
-if TYPE_CHECKING:
-    from pelix.framework import Bundle, BundleContext
-    from pelix.internals.registry import ServiceReference
+from pelix.framework import Bundle, BundleContext
+from pelix.internals.registry import ServiceReference
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (1, 0, 2)
+__version_info__ = (3, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -196,12 +181,78 @@ updated
 # ------------------------------------------------------------------------------
 
 
+class IPopoEvent:
+    """
+    An iPOPO event descriptor.
+    """
+
+    REGISTERED = 1
+    """ A component factory has been registered """
+
+    INSTANTIATED = 2
+    """ A component has been instantiated, but not yet validated """
+
+    VALIDATED = 3
+    """ A component has been validated """
+
+    INVALIDATED = 4
+    """ A component has been invalidated """
+
+    BOUND = 5
+    """ A reference has been injected in the component """
+
+    UNBOUND = 6
+    """ A reference has been removed from the component """
+
+    KILLED = 9
+    """ A component has been killed (removed from the list of instances) """
+
+    UNREGISTERED = 10
+    """ A component factory has been unregistered """
+
+    def __init__(self, kind: int, factory_name: str, component_name: Optional[str]) -> None:
+        """
+        Sets up the iPOPO event
+
+        :param kind: Kind of event
+        :param factory_name: Name of the factory associated to the event
+        :param component_name: Name of the component instance associated to the event
+        """
+        self.__kind = kind
+        self.__factory_name = factory_name
+        self.__component_name = component_name
+
+    def get_component_name(self) -> Optional[str]:
+        """
+        Retrieves the name of the component associated to the event
+
+        :return: the name of the component
+        """
+        return self.__component_name
+
+    def get_factory_name(self) -> str:
+        """
+        Retrieves the name of the factory associated to the event
+
+        :return: the name of the component factory
+        """
+        return self.__factory_name
+
+    def get_kind(self) -> int:
+        """
+        Retrieves the kind of event
+
+        :return: the kind of event
+        """
+        return self.__kind
+
+
 class IPopoEventListener(Protocol):
     """
     Interface of iPOPO events listeners
     """
 
-    def handle_ipopo_event(self, event: "IPopoEvent") -> None:
+    def handle_ipopo_event(self, event: IPopoEvent) -> None:
         """
         Handles an iPOPO event
 
@@ -226,7 +277,7 @@ class IPopoService(Protocol):
         :return: The component instance
         :raise TypeError: The given factory is unknown
         :raise ValueError: The given name or factory name is invalid, or an
-        instance with the given name already exists
+                           instance with the given name already exists
         :raise Exception: Something wrong occurred in the factory
         """
         ...
@@ -540,72 +591,3 @@ def use_waiting_list(bundle_context: "BundleContext") -> Generator["IPopoWaiting
         except BundleException:
             # Service might have already been unregistered
             pass
-
-
-# ------------------------------------------------------------------------------
-
-
-class IPopoEvent:
-    """
-    An iPOPO event descriptor.
-    """
-
-    REGISTERED = 1
-    """ A component factory has been registered """
-
-    INSTANTIATED = 2
-    """ A component has been instantiated, but not yet validated """
-
-    VALIDATED = 3
-    """ A component has been validated """
-
-    INVALIDATED = 4
-    """ A component has been invalidated """
-
-    BOUND = 5
-    """ A reference has been injected in the component """
-
-    UNBOUND = 6
-    """ A reference has been removed from the component """
-
-    KILLED = 9
-    """ A component has been killed (removed from the list of instances) """
-
-    UNREGISTERED = 10
-    """ A component factory has been unregistered """
-
-    def __init__(self, kind: int, factory_name: str, component_name: Optional[str]) -> None:
-        """
-        Sets up the iPOPO event
-
-        :param kind: Kind of event
-        :param factory_name: Name of the factory associated to the event
-        :param component_name: Name of the component instance associated to the event
-        """
-        self.__kind = kind
-        self.__factory_name = factory_name
-        self.__component_name = component_name
-
-    def get_component_name(self) -> Optional[str]:
-        """
-        Retrieves the name of the component associated to the event
-
-        :return: the name of the component
-        """
-        return self.__component_name
-
-    def get_factory_name(self) -> str:
-        """
-        Retrieves the name of the factory associated to the event
-
-        :return: the name of the component factory
-        """
-        return self.__factory_name
-
-    def get_kind(self) -> int:
-        """
-        Retrieves the kind of event
-
-        :return: the kind of event
-        """
-        return self.__kind

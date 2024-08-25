@@ -33,7 +33,7 @@ unittest.skip("Skipping Py4J tests due to issues with Karaf not starting correct
 
 KARAF_URL = "https://archive.apache.org/dist/karaf/4.4.6/apache-karaf-4.4.6.tar.gz"
 
-__version_info__ = (1, 0, 2)
+__version_info__ = (3, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -152,6 +152,7 @@ def start_karaf(karaf_root: pathlib.Path) -> Generator[subprocess.Popen, None, N
             karaf.kill()
             karaf.wait(1)
             karaf = None
+
 
 def wait_for_prompt(process: subprocess.Popen, prompt: str = "karaf@root()>") -> None:
     """

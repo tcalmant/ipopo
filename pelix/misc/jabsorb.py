@@ -10,19 +10,19 @@ This module is compatible with the fork of Jabsorb available at
 https://github.com/cohorte/cohorte-org.jabsorb.ng
 
 :author: Thomas Calmant
-:copyright: Copyright 2023, Thomas Calmant
+:copyright: Copyright 2024, Thomas Calmant
 :license: Apache License 2.0
-:version: 1.0.2
+:version: 3.0.0
 
 ..
 
-    Copyright 2023 Thomas Calmant
+    Copyright 2024 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
 
-        http://www.apache.org/licenses/LICENSE-2.0
+        https://www.apache.org/licenses/LICENSE-2.0
 
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,12 +35,12 @@ https://github.com/cohorte/cohorte-org.jabsorb.ng
 import builtins
 import inspect
 import re
-from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, cast
+from typing import Any, Dict, List, Optional, Tuple, TypeVar, cast
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (1, 0, 2)
+__version_info__ = (3, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

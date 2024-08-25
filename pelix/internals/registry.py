@@ -4,19 +4,19 @@
 Service registry and event dispatcher for Pelix.
 
 :author: Thomas Calmant
-:copyright: Copyright 2023, Thomas Calmant
+:copyright: Copyright 2024, Thomas Calmant
 :license: Apache License 2.0
-:version: 1.0.2
+:version: 3.0.0
 
 ..
 
-    Copyright 2023 Thomas Calmant
+    Copyright 2024 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
 
-        http://www.apache.org/licenses/LICENSE-2.0
+        https://www.apache.org/licenses/LICENSE-2.0
 
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
@@ -59,20 +59,19 @@ from pelix.constants import (
     SERVICE_SCOPE,
     BundleException,
 )
-from pelix.internals.events import ServiceEvent
+from pelix.internals.events import BundleEvent, ServiceEvent
 from pelix.internals.hooks import ListenerInfo, ShrinkableList, ShrinkableMap
 from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 
 if TYPE_CHECKING:
     from pelix.framework import Bundle, BundleContext, Framework
-    from pelix.internals.events import BundleEvent
 
 T = TypeVar("T")
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (1, 0, 2)
+__version_info__ = (3, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -530,7 +529,7 @@ class ServiceReference(Generic[T]):
         Recomputes the sort key, based on the service ranking and ID
 
         See
-        http://www.osgi.org/javadoc/r4v43/org/osgi/framework/ServiceReference.html#compareTo%28java.lang.Object%29
+        <https://docs.osgi.org/javadoc/osgi.core/8.0.0/org/osgi/framework/ServiceReference.html#compareTo-java.lang.Object->
         """
         self.__sort_key = self.__compute_key()
 
@@ -653,7 +652,12 @@ class BundleListener(Protocol):
     Protocol that must be implemented by a bundle listener
     """
 
-    def bundle_changed(self, event: "BundleEvent") -> None:
+    def bundle_changed(self, event: BundleEvent) -> None:
+        """
+        Notified when a bundle event occurred
+
+        :param event: Bundle event
+        """
         ...
 
 
@@ -662,7 +666,12 @@ class ServiceListener(Protocol):
     Protocol that must be implemented by a service listener
     """
 
-    def service_changed(self, event: "ServiceEvent[Any]") -> None:
+    def service_changed(self, event: ServiceEvent[Any]) -> None:
+        """
+        Notified when a service event occurred
+
+        :param event: Service event
+        """
         ...
 
 
@@ -672,6 +681,9 @@ class FrameworkStoppingListener(Protocol):
     """
 
     def framework_stopping(self) -> None:
+        """
+        Notified when the framework is stopping
+        """
         ...
 
 

@@ -6,19 +6,19 @@ Core module for Pelix.
 Pelix is a Python framework that aims to act as OSGi as much as possible
 
 :author: Thomas Calmant
-:copyright: Copyright 2023, Thomas Calmant
+:copyright: Copyright 2024, Thomas Calmant
 :license: Apache License 2.0
-:version: 1.0.2
+:version: 3.0.0
 
 ..
 
-    Copyright 2023 Thomas Calmant
+    Copyright 2024 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
 
-        http://www.apache.org/licenses/LICENSE-2.0
+        https://www.apache.org/licenses/LICENSE-2.0
 
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
@@ -75,7 +75,6 @@ from pelix.internals.registry import (
     ServiceRegistry,
 )
 from pelix.ldapfilter import LDAPCriteria, LDAPFilter
-from pelix.utilities import is_string
 
 # Generic type var
 T = TypeVar("T")
@@ -147,7 +146,7 @@ def walk_modules(path: pathlib.Path) -> Generator[Tuple[str, bool], None, None]:
 
 
 # Module version
-__version_info__ = (1, 0, 2)
+__version_info__ = (3, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -334,7 +333,7 @@ class Bundle:
         :raise BundleException: If the bundle has been uninstalled
         """
         if self._state == Bundle.UNINSTALLED:
-            raise BundleException("Can't call 'get_registered_services' on an " "uninstalled bundle")
+            raise BundleException("Can't call 'get_registered_services' on an uninstalled bundle")
         return self.__framework._registry.get_bundle_registered_services(self)
 
     def get_services_in_use(self) -> List[ServiceReference[Any]]:
@@ -807,10 +806,9 @@ class Framework(Bundle):
         """
         if reference is None:
             raise ValueError("No service reference given")
-
         if not isinstance(bundle, Bundle):
             raise TypeError("First argument must be a Bundle object")
-        elif not isinstance(reference, ServiceReference):
+        if not isinstance(reference, ServiceReference):
             raise TypeError("Second argument must be a ServiceReference object")
 
         try:
@@ -1068,7 +1066,7 @@ class Framework(Bundle):
         :param send_event: If not, doesn't trigger a service registered event
         :param factory: If True, the given service is a service factory
         :param prototype: If True, the given service is a prototype service
-        factory (the factory argument is considered True)
+                          factory (the factory argument is considered True)
         :return: A ServiceRegistration object
         :raise BundleException: An error occurred while registering the service
         """
@@ -1097,7 +1095,8 @@ class Framework(Bundle):
             if not svc_clazz:
                 # Invalid class name
                 raise BundleException(f"Invalid class name: {svc_clazz}")
-            elif isinstance(svc_clazz, str):
+
+            if isinstance(svc_clazz, str):
                 classes.append(svc_clazz)
             elif isinstance(svc_clazz, list):
                 classes.extend(svc_clazz)
@@ -1473,12 +1472,11 @@ class BundleContext:
                '''
                # ...
 
-        :param bundle_context:  This bundle context
         :param listener: The listener to register
         :param ldap_filter: Filter that must match the service properties
-        (optional, None to accept all services)
+                            (optional, None to accept all services)
         :param specification: The specification that must provide the service
-        (optional, None to accept all services)
+                              (optional, None to accept all services)
         :return: True if the listener has been successfully registered
         """
         if specification is not None and inspect.isclass(specification):
@@ -1531,7 +1529,8 @@ class BundleContext:
         if bundle_id is None:
             # Current bundle
             return self.__bundle
-        elif isinstance(bundle_id, Bundle):
+
+        if isinstance(bundle_id, Bundle):
             # Got a bundle (compatibility with older install_bundle())
             bundle_id = bundle_id.get_bundle_id()
 
@@ -1627,10 +1626,6 @@ class BundleContext:
         path (``sys.path``). All modules loaded alongside this bundle, *i.e.*
         by this bundle or its dependencies, will be looked after in this path
         in priority.
-
-        .. note::
-            Before Pelix 0.5.0, this method returned the ID of the installed
-            bundle, instead of the Bundle object.
 
         .. warning::
             The behavior of the loading process is subject to changes, as it
@@ -1912,8 +1907,8 @@ def _package_exists(path: str) -> bool:
     while path:
         if os.path.exists(path):
             return True
-        else:
-            path = os.path.dirname(path)
+
+        path = os.path.dirname(path)
 
     return False
 

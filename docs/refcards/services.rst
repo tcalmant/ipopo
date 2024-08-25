@@ -19,7 +19,7 @@ A consumer can look for a service that matches a specification and a set of
 properties, using its :class:`~BundleContext`.
 The framework will return a :class:`~ServiceReference` object, which provides a
 read-only access to the description of its associated service:
-properties, registering bundle, bundles using it, etc..
+properties, registering bundle, bundles using it, etc.
 
 Properties
 ----------
@@ -27,15 +27,16 @@ Properties
 When registered and while it is available, the properties of a service can be
 set and updated by its provider.
 
-Although, some properties are reserved for the framework; each service has at
+Although, some properties are reserved for the framework, each service has at
 least the following properties:
 
-=========== =========== =======================================================
-Name        Type        Description
-=========== =========== =======================================================
-objectClass list of str List of the specifications implemented by this service
-service.id  int         Identifier of the service. Unique in a framework instance
-=========== =========== =======================================================
+============= =========== =======================================================
+Name          Type        Description
+============= =========== =======================================================
+objectClass   list of str List of the specifications implemented by this service
+service.id    int         Identifier of the service. Unique in a framework instance
+service.scope str         OSGi service scope: singleton, prototype or factory
+============= =========== =======================================================
 
 The framework also uses the following property to sort the result of a service look up:
 
@@ -49,10 +50,6 @@ service.ranking int  The rank/priority of the service. The lower the rank, the m
 
 Service Factory
 ---------------
-
-.. warning:: Service factories are a very recent feature of iPOPO and might be
-   prone to bugs: please report any bug encounter on
-   the `project GitHub <https://github.com/tcalmant/ipopo/issues>`_.
 
 A service factory is a pseudo-service with a specific flag, which can create
 individual instances of service objects for different bundles.
@@ -114,10 +111,6 @@ A simple service factory example
 Prototype Service Factory
 -------------------------
 
-.. warning:: Prototype Service factories are a very recent feature of iPOPO
-   and might be prone to bugs: please report any bug encounter on
-   the `project GitHub <https://github.com/tcalmant/ipopo/issues>`_.
-
 A prototype service factory is a pseudo-service with a specific flag, which can
 create multiple instances of service objects for different bundles.
 
@@ -129,7 +122,7 @@ service.
 This allows a single factory to be registered for multiple services.
 
 Note that there is no Prototype Service Factory implemented in the core
-Pelix/iPOPO Framework (unlike the *Log Service* *simple* service factory).
+Pelix/iPOPO Framework.
 
 A Prototype Service Factory is registered in exactly the same way as a normal
 service, using :meth:`~pelix.framework.BundleContext.register_service`,
@@ -209,6 +202,7 @@ A consumer can check the properties of a service through this object, before
 consuming it.
 
 .. autoclass:: ServiceReference
+   :noindex:
    :members: get_bundle, get_properties, get_property, get_property_keys,
              get_using_bundles, is_factory, is_prototype
 
@@ -218,6 +212,21 @@ class that can be used to handle services:
 
 .. autoclass:: BundleContext
    :noindex:
-   :members: add_service_listener, remove_service_listener,
-             get_all_service_references, get_service, get_service_reference,
+   :members: get_all_service_references, get_service, get_service_reference,
              get_service_references, register_service, unget_service
+
+
+Listening to service events
+***************************
+
+The bundle context can be used to register to service events, using the
+following methods:
+
+.. autoclass:: pelix.framework.BundleContext
+   :noindex:
+   :members: add_service_listener, remove_service_listener
+
+A bundle listener must implement the following interface:
+
+.. autoclass:: pelix.internals.registry.ServiceListener
+   :members:

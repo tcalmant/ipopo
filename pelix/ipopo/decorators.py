@@ -4,19 +4,19 @@
 Defines the iPOPO decorators classes to manipulate component factory classes
 
 :author: Thomas Calmant
-:copyright: Copyright 2023, Thomas Calmant
+:copyright: Copyright 2024, Thomas Calmant
 :license: Apache License 2.0
-:version: 1.0.2
+:version: 3.0.0
 
 ..
 
-    Copyright 2023 Thomas Calmant
+    Copyright 2024 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
 
-        http://www.apache.org/licenses/LICENSE-2.0
+        https://www.apache.org/licenses/LICENSE-2.0
 
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
@@ -58,7 +58,7 @@ P = ParamSpec("P")
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (1, 0, 2)
+__version_info__ = (3, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -410,7 +410,7 @@ class Instantiate:
         @Property('_name', 'name', 'foo')
         @Instantiate('component-1')
         @Instantiate('component-2', {'name': 'bar'})
-        class Foo(object):
+        class Foo:
             def call(self):
                 # component-1 will print "foo" (default value)
                 # component-2 will print "bar"
@@ -420,7 +420,7 @@ class Instantiate:
         @Provides("thermometer")
         @Property('_value', 'value', 1)
         @Instantiate('component-3', {'unit': 'K'})
-        class Bar(object):
+        class Bar:
             def call(self):
                 # We don't have access to the "unit" property value, but it
                 # will be visible in the service properties
@@ -492,23 +492,23 @@ class ComponentFactory:
 
     :Example:
 
-    .. code-block:: python
+      .. code-block:: python
 
-        @ComponentFactory()
-        class Foo(object):
-            def __init__(self):
-                pass
+          @ComponentFactory()
+          class Foo:
+              def __init__(self):
+                  pass
 
-        @ComponentFactory('my-factory')
-        class Bar(object):
-           pass
+          @ComponentFactory('my-factory')
+          class Bar:
+             pass
 
-        @ComponentFactory()
-        class FooBar(object):
-            def __init__(self, managed=True):
-                # The argument has a default value: it can be instantiated by
-                # iPOPO
-                pass
+          @ComponentFactory()
+          class FooBar:
+              def __init__(self, managed=True):
+                  # The argument has a default value: it can be instantiated by
+                  # iPOPO
+                  pass
     """
 
     def __init__(self, name: Optional[str] = None, excluded: Optional[Union[str, List[str]]] = None) -> None:
@@ -591,16 +591,18 @@ class SingletonFactory(ComponentFactory):
     If the factory is instantiated while another already exist, a
     ``ValueError`` will be raised.
 
-    .. code-block:: python
+    :Example:
 
-        @SingletonFactory()
-        class Foo(object):
-            def __init__(self):
-                pass
+      .. code-block:: python
 
-        @SingletonFactory('my-factory')
-        class Bar(object):
-            pass
+          @SingletonFactory()
+          class Foo:
+              def __init__(self):
+                  pass
+
+          @SingletonFactory('my-factory')
+          class Bar:
+              pass
     """
 
     def __call__(self, factory_class: Type[T]) -> Type[T]:
@@ -634,24 +636,21 @@ class Property:
     If no initial value is given in the decorator, the value stored in the
     injected field in the ``__init__()`` method will be used.
 
-    .. warning:: In Python 2, it is required that the component class inherits
-                 ``object`` for properties to work.
-
     :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_PROPERTY`
 
     :Example:
 
-    .. code-block:: python
+      .. code-block:: python
 
-        @ComponentFactory()
-        @Property('_answer', 'some.answer', 42)
-        class Foo(object):
-            def call(self):
-                print(self._answer)  # Prints 42
+          @ComponentFactory()
+          @Property('_answer', 'some.answer', 42)
+          class Foo:
+              def call(self):
+                  print(self._answer)  # Prints 42
 
-                # The properties of the services provided by this component
-                # instance would be updated during this assignation
-                self._answer = 100
+                  # The properties of the services provided by this component
+                  # instance would be updated during this assignation
+                  self._answer = 100
     """
 
     HANDLER_ID = constants.HANDLER_PROPERTY
@@ -749,16 +748,16 @@ class HiddenProperty(Property):
 
     :Example:
 
-    .. code-block:: python
+      .. code-block:: python
 
-        @ComponentFactory()
-        @HiddenProperty('_password', 'some.password', "secret")
-        class Foo(object):
-            def call(self):
-                print(self._password)  # I think we're missing the point
+          @ComponentFactory()
+          @HiddenProperty('_password', 'some.password', "secret")
+          class Foo:
+              def call(self):
+                  print(self._password)  # I think we're missing the point
 
-                # Service properties won't be affected by this change
-                self._password = "UpdatedSecret"
+                  # Service properties won't be affected by this change
+                  self._password = "UpdatedSecret"
     """
 
     def __call__(self, clazz: Type[T]) -> Type[T]:
@@ -871,7 +870,9 @@ class Provides:
     # pylint: disable=R0903
     """
     The ``@Provides`` decorator defines a service to be exposed by component
-    instances.
+    instances. A service can have one or more specifications. The specifications
+    can be given by name (string) or by type (class/protocol).
+
     This service will be registered (visible) in the Pelix service registry
     while the component is valid and its service controller is set to ``True``.
 
@@ -887,38 +888,38 @@ class Provides:
 
     :Example:
 
-    .. code-block:: python
+      .. code-block:: python
 
-        @ComponentFactory()
-        # "answer.prefix" will be a property of the service
-        @Property("_answer", "answer.prefix", "Hello")
-        @Provides("hello.world")
-        class Foo(object):
-            # The component instance will publish a "hello.world" service as
-            # long as it is valid
-            def greet(self, name):
-                print(self._answer, name, "!")
+          @ComponentFactory()
+          # "answer.prefix" will be a property of the service
+          @Property("_answer", "answer.prefix", "Hello")
+          @Provides("hello.world")
+          class Foo:
+              # The component instance will publish a "hello.world" service as
+              # long as it is valid
+              def greet(self, name):
+                  print(self._answer, name, "!")
 
-        @ComponentFactory()
-        # This service will provide multiple specifications
-        @Provides(["hello.world", "hello.world.extended"], "_svc_flag")
-        @Provides("reset")
-        class Bar(object):
-            def greet(self, name):
-                # Implementation of hello.world
-                print("Hello,", name, "!")
+          @ComponentFactory()
+          # This service will provide multiple specifications
+          @Provides(["hello.world", "hello.world.extended"], "_svc_flag")
+          @Provides("reset")
+          class Bar:
+              def greet(self, name):
+                  # Implementation of hello.world
+                  print("Hello,", name, "!")
 
-            def adieu(self, name):
-                print("So long,", name, "!")
+              def adieu(self, name):
+                  print("So long,", name, "!")
 
-                # Sets the controller to False: the service won't be published
-                # anymore until the controller is set back to True
-                self._svc_flag = False
+                  # Sets the controller to False: the service won't be published
+                  # anymore until the controller is set back to True
+                  self._svc_flag = False
 
-            def reset(self):
-                # Implementation of the "reset" service: publish the service
-                # again
-                self._svc_flag = True
+              def reset(self):
+                  # Implementation of the "reset" service: publish the service
+                  # again
+                  self._svc_flag = True
     """
     HANDLER_ID = constants.HANDLER_PROVIDES
     """ ID of the handler configured by this decorator """
@@ -926,8 +927,8 @@ class Provides:
     USE_MODULE_QUALNAME = False
     """
     Selects the methodology to generate a specification from a class.
-    A value of False uses __name__ (legacy), while True enables
-    __name__ + '.' + __qualname__
+    A value of False uses ``__name__`` (legacy), while True enables
+    ``__name__ + '.' + __qualname__``
     """
 
     def __init__(
@@ -944,7 +945,8 @@ class Provides:
     ) -> None:
         """
         :param specifications: A list of provided specification(s), or the
-        single provided specification (can't be empty)
+                               single provided specification (can't be empty).
+                               The specifications can be either names (strings) or classes (types)
         :param controller: The name of the service controller class field (optional)
         :param factory: If True, this service is a service factory (False by default)
         :param prototype: If True, this service is prototype service factory (False by default)
@@ -1065,22 +1067,24 @@ class Requires:
     # pylint: disable=R0903
     """
     The ``@Requires`` decorator defines the requirement of a service.
+    A specification of requirement can be given by its name (string) or type (class/protocol).
 
     :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_REQUIRES`
 
     :Example:
 
-    .. code-block:: python
+      .. code-block:: python
 
-        @ComponentFactory()
-        @Requires('_hello', 'hello.world')
-        class Foo(object):
-            pass
+          @ComponentFactory()
+          @Requires('_hello', 'hello.world')
+          class Foo:
+              pass
 
-        @ComponentFactory()
-        @Requires('_hello', 'hello.world', aggregate=True, optional=False, spec_filter='(language=fr)')
-        class Bar(object):
-            pass
+          @ComponentFactory()
+          @Requires('_hello', 'hello.world', aggregate=True,
+                    optional=False, spec_filter='(language=fr)')
+          class Bar:
+              pass
     """
     HANDLER_ID = constants.HANDLER_REQUIRES
     """ ID of the handler configured by this decorator """
@@ -1096,7 +1100,7 @@ class Requires:
     ):
         """
         :param field: The field where to inject the requirement
-        :param specification: The specification of the service to inject
+        :param specification: The specification of the service to inject, given by name or type
         :param aggregate: If True, injects a list of services, else the first matching service
         :param optional: If True, this injection is optional: the component can be valid without it
         :param spec_filter: An LDAP query to filter injected services according
@@ -1109,8 +1113,6 @@ class Requires:
         The ``field`` and ``specification`` parameters are mandatory.
         By default, a requirement is neither aggregated nor optional
         (both are set to ``False``) and no specification filter is used.
-
-        .. note:: Since iPOPO 0.5.4, only one specification can be given.
         """
         if not field:
             raise ValueError("Empty field name.")
@@ -1194,26 +1196,27 @@ class RequiresVarFilter(Requires):
 
     :Example:
 
-    .. code-block:: python
+      .. code-block:: python
 
-        @ComponentFactory()
-        @Property("_lang", "lang", "fr")
-        @RequiresVarFilter("_hello", "hello.world", optional=True, spec_filter="(language={lang})")
-        class Bar(object):
-            def call(self):
-                # The dependency is optional
-                if self._hello is not None:
-                    # Default "lang" instance property is set to "fr"
-                    self._hello.greet("le Monde")  # Bonjour le Monde
+          @ComponentFactory()
+          @Property("_lang", "lang", "fr")
+          @RequiresVarFilter("_hello", "hello.world",
+                             optional=True, spec_filter="(language={lang})")
+          class Bar:
+              def call(self):
+                  # The dependency is optional
+                  if self._hello is not None:
+                      # Default "lang" instance property is set to "fr"
+                      self._hello.greet("le Monde")  # Bonjour le Monde
 
-                # Change the property to have another service
-                self._lang = "en"
+                  # Change the property to have another service
+                  self._lang = "en"
 
-                # We can call the new service immediately as the dependency is
-                # optional (no risk of invalidation), but we have to check if
-                # such a service exists
-                if self._hello is not None:
-                    self._hello.greet("World")  # Hello World
+                  # We can call the new service immediately as the dependency is
+                  # optional (no risk of invalidation), but we have to check if
+                  # such a service exists
+                  if self._hello is not None:
+                      self._hello.greet("World")  # Hello World
     """
     HANDLER_ID = constants.HANDLER_REQUIRES_VARIABLE_FILTER
     """ ID of the handler configured by this decorator """
@@ -1237,31 +1240,32 @@ class RequiresBest(Requires):
 
     :Example:
 
-    .. code-block:: python
+      .. code-block:: python
 
-        @ComponentFactory()
-        @RequiresBest('_hello', 'hello.world', immediate_rebind=True)
-        class Foo(object):
-            def call(self):
-                # First call, with the current best service
-                self._hello.greet("World")  # prints "Hello, World!"
+          @ComponentFactory()
+          @RequiresBest('_hello', 'hello.world', immediate_rebind=True)
+          class Foo:
+              def call(self):
+                  # First call, with the current best service
+                  self._hello.greet("World")  # prints "Hello, World!"
 
-                # Something happens, the rank of "hello.world" services changes
-                # For example, locale changed and French now has a higher rank
-                time.sleep(1)
+                  # Something happens, the rank of "hello.world" services changes
+                  # For example, locale changed and French now has a higher rank
+                  time.sleep(1)
 
-                # Second call without waiting for re-validation as we have set
-                # immediate_rebind=True for this example
-                self._hello.greet("World")  # prints "Bonjour, World !"
+                  # Second call without waiting for re-validation as we have set
+                  # immediate_rebind=True for this example
+                  self._hello.greet("World")  # prints "Bonjour, World !"
 
-        # We can also use a specification filter or make the service optional
-        @ComponentFactory()
-        @RequiresBest('_hello', 'hello.world', optional=True, spec_filter='(language=fr)')
-        class Bar(object):
-            def call(self):
-                if self._hello is not None:
-                    # First call, with the current best service
-                    self._hello.greet("World")  # prints "Hello, World!"
+          # We can also use a specification filter or make the service optional
+          @ComponentFactory()
+          @RequiresBest('_hello', 'hello.world',
+                        optional=True, spec_filter='(language=fr)')
+          class Bar:
+              def call(self):
+                  if self._hello is not None:
+                      # First call, with the current best service
+                      self._hello.greet("World")  # prints "Hello, World!"
     """
     HANDLER_ID = constants.HANDLER_REQUIRES_BEST
     """ ID of the handler configured by this decorator """
@@ -1302,14 +1306,14 @@ class RequiresMap(Requires):
 
     :Example:
 
-    .. code-block:: python
+      .. code-block:: python
 
-        @ComponentFactory()
-        @RequiresMap("_hello", "hello.world", "language")
-        class Bar(object):
-            def call(self):
-                self._hello["en"].hello("World")
-                self._hello["fr"].hello("le Monde")
+          @ComponentFactory()
+          @RequiresMap("_hello", "hello.world", "language")
+          class Bar:
+              def call(self):
+                  self._hello["en"].hello("World")
+                  self._hello["fr"].hello("le Monde")
     """
     HANDLER_ID = constants.HANDLER_REQUIRES_MAP
     """ ID of the handler configured by this decorator """
@@ -1389,15 +1393,15 @@ class RequiresBroadcast(Requires):
 
     :Example:
 
-    .. code-block:: python
+      .. code-block:: python
 
-        @ComponentFactory()
-        @RequiresBroadcast("_notifier", "some.notifier")
-        class Bar(object):
-            def trace(self, message):
-                # We can use the service as a single object, without taking
-                # care of the number of services matching our requirement:
-                self._notifier.notify("Hello, world")
+          @ComponentFactory()
+          @RequiresBroadcast("_notifier", "some.notifier")
+          class Bar:
+              def trace(self, message):
+                  # We can use the service as a single object, without taking
+                  # care of the number of services matching our requirement:
+                  self._notifier.notify("Hello, world")
     """
     HANDLER_ID = constants.HANDLER_REQUIRES_BROADCAST
     """ ID of the handler configured by this decorator """
@@ -1477,22 +1481,22 @@ class Temporal(Requires):
 
     :Example:
 
-    .. code-block:: python
+      .. code-block:: python
 
-        @ComponentFactory()
-        @Temporal('_hello', 'hello.world', timeout=5)
-        class Bar(object):
-            def call(self):
-                # If the service is injected: this call is immediate
-                # If the service has gone away, this call will hold for
-                # 5 seconds (timeout parameter)
-                # - if a service is injected during the grace period, the call
-                #   will be done
-                try:
-                    self._hello.greet("World")
-                except pelix.ipopo.handlers.temporal.TemporalException:
-                    # - else, a TemporalException is raised
-                    print("Service disappeared")
+          @ComponentFactory()
+          @Temporal('_hello', 'hello.world', timeout=5)
+          class Bar:
+              def call(self):
+                  # If the service is injected: this call is immediate
+                  # If the service has gone away, this call will hold for
+                  # 5 seconds (timeout parameter)
+                  # - if a service is injected during the grace period, the call
+                  #   will be done
+                  try:
+                      self._hello.greet("World")
+                  except pelix.ipopo.handlers.temporal.TemporalException:
+                      # - else, a TemporalException is raised
+                      print("Service disappeared")
     """
     HANDLER_ID = constants.HANDLER_TEMPORAL
     """ ID of the handler configured by this decorator """

@@ -54,7 +54,7 @@ ENDPOINT_LISTENER_SCOPE = f"({ECF_ENDPOINT_CONTAINERID_NAMESPACE}=*)"
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (1, 0, 2)
+__version_info__ = (3, 0, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 T = TypeVar("T")
@@ -133,7 +133,6 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
 
 
 class EtcdDiscoveryListenerTest(unittest.TestCase):
-
     def setUp(self):
         """
         Starts a local framework to register the
@@ -282,7 +281,6 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
 
 
 class EtcdDiscoveryPublishTest(unittest.TestCase):
-
     def setUp(self):
         """
         Prepares a framework
