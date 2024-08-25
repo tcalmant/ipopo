@@ -3,10 +3,35 @@
 ## iPOPO 3.0.0
 
 :::{admonition} Release Date
-:class: attention
+:class: info
 
-Work in progress
+2024-08-26
 :::
+
+### Project
+
+* Dropped support for Python 2.7 and versions earlier than 3.10
+* Kept compability with iPOPO 1.0 on API level
+* Moved from Travis-CI to GitHub actions to test project against Python 3.10, 3.11 and 3.12
+* Added type hints where possible
+* Support types in specifications
+* Documentation updates
+* Fixed most deprecation warnings from Python 3.12
+
+### Dependencies
+
+* Upgraded Eclipse Paho to 2.1
+* Replaced [SleekXMPP](https://github.com/fritzy/SleekXMPP)
+  by [SliXMPP](https://pypi.org/project/slixmpp/)
+
+### Remote Services Admin
+
+* Added an etcd3 discovery provider
+* Updated `osgiservicebridge` to 1.5.7 because of `protobuf` version issues
+
+### Tests
+
+* Fixed link to Karaf
 
 ## iPOPO 1.0.2
 
