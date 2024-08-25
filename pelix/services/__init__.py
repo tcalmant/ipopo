@@ -505,5 +505,9 @@ class MqttListener(Protocol):
     def handle_mqtt_message(self, topic: str, payload: bytes, qos: int) -> None:
         """
         Notification of a new message
+
+        :param topic: Message topic
+        :param payload: Raw message payload
+        :param qos: Message Quality of Service
         """
         ...
