@@ -82,13 +82,13 @@ A component listener must implement the following interface:
 
 
 A word on Data classes
-======================
+----------------------
 
 These indications have to be taken into account when using iPOPO decorators on
 `data classes <https://peps.python.org/pep-0557/>`_.
 
 Important notes
----------------
+***************
 
 * **All** fields of the Data Class **must** have a default value.
   This will let the ``@dataclass`` decorator generate an ``__init__`` method
@@ -99,10 +99,32 @@ Important notes
   methods like ``__repr__`` won't work.
 
 Good to know
-------------
+************
 
 * Injected fields (``@Property``, ``@Requires``, ...) will lose the default
   value given in the class definition, in favor to the ones given to the iPOPO
   decorators. This is due to the redefinition of the fields by those decorators.
   Other fields are not touched at all.
 * The ``@dataclass`` decorator can be used before or after the iPOPO decorators
+
+
+iPOPO Waiting List
+------------------
+
+iPOPO provides a utility service to register components to a waiting list, which
+will try to instantiate them when a new iPOPO component factory or a new iPOPO
+handler is available.
+This is useful for softwares using a composition described in a configuration
+file: add an instant to the list and let iPOPO instantiate it when possible.
+
+This feature is provided by the ``pelix.ipopo.waiting`` bundle, which must be
+installed and active. Note that the ``pelix.ipopo.core`` bundle can be installed
+and started later: the waiting list will try to instantiate components as
+soon as the iPOPO service is found.
+
+To use the iPOPO waiting list, get the :class:`pelix.ipopo.constants.IPopoWaitingList`
+service (or by its name: ``pelix.ipopo.waiting_list``) which provides the
+following methods:
+
+.. autoclass:: pelix.ipopo.constants.IPopoWaitingList
+   :members:
