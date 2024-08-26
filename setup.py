@@ -56,6 +56,7 @@ setup(
     license_file="LICENSE",
     description="A service-oriented component model framework",
     long_description=read("README.rst"),
+    long_description_content_type="text/x-rst",
     author="Thomas Calmant",
     author_email="thomas.calmant@gmail.com",
     url="https://github.com/tcalmant/ipopo/",
