@@ -1,5 +1,5 @@
 include LICENSE
 include README.rst
 include docs/changelog.md
-include CONTRIBUTING.rst
+include CONTRIBUTING.md
 include _imgs/ipopo_logo.png
