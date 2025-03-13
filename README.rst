@@ -491,7 +491,7 @@ Compatibility
 
 Pelix and iPOPO are tested using
 `GitHub actions <https://github.com/tcalmant/ipopo/actions>`_
-targetting Python 3.10, 3.11 and 3.12.
+targetting Python 3.10, 3.11, 3.12 and 3.13.
 
 iPOPO v3 doesn't support Python 2 neither versions earlier than 3.10.
 If you need to work with those versions of Python, please use iPOPO v1.
