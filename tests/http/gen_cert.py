@@ -95,8 +95,8 @@ x509_extensions = v3_ca
 [ v3_ca ]
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always,issuer:always
-#basicConstraints = critical,CA:true
-basicConstraints = CA:true
+basicConstraints = critical, CA:true
+keyUsage = critical, keyCertSign, cRLSign
 """
         )
 
