@@ -511,7 +511,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
                 try:
                     l.remote_admin_event(event)
                 except:
-                    _logger.exception("Exception calling rsa event listener=%s", l)
+                    _logger.error("Exception calling rsa event listener=%s", l)
 
     def _get_bundle(self) -> Bundle:
         return self._context.get_bundle()
@@ -684,7 +684,7 @@ class _ExportEndpoint:
                 try:
                     self.__export_container.unexport_service(self.__ed)
                 except:
-                    _logger.exception(
+                    _logger.error(
                         "get_exception in exporter.unexport_service ed=%s",
                         self.__ed,
                     )
@@ -1058,15 +1058,12 @@ class _ImportEndpoint:
         with self.__lock:
             if len(self.__active_registrations) == 0:
                 return False
-
             return self.__ed.is_same_service(ed)
 
     def get_reference(self) -> Optional[ServiceReference[Any]]:
         with self.__lock:
-            if self.__importer is not None and self.__svc_reg is not None:
+            if self.__importer and self.__svc_reg:
                 return self.__svc_reg.get_reference()
-
-            return None
 
     def get_description(self) -> EndpointDescription:
         with self.__lock:
@@ -1074,17 +1071,13 @@ class _ImportEndpoint:
 
     def get_import_container_id(self) -> str:
         with self.__lock:
-            if self.__importer is None:
-                raise RemoteServiceError("No importer ID set")
-
-            return self.__importer.get_id()
+            if self.__importer:
+                return self.__importer.get_id()
 
     def get_import_container_ns(self) -> str:
         with self.__lock:
-            if self.__importer is None:
-                raise RemoteServiceError("No importer namespce set")
-
-            return self.__importer.get_namespace()
+            if self.__importer:
+                return self.__importer.get_namespace()
 
     def get_export_container_id(self) -> Tuple[str, str]:
         with self.__lock:
@@ -1123,14 +1116,14 @@ class _ImportEndpoint:
                 pass
 
             if not self.__active_registrations:
-                if self.__svc_reg is not None:
+                if self.__svc_reg:
                     try:
                         self.__svc_reg.unregister()
                     except BundleException:
                         # The service might already have unregistered
                         pass
                     except:
-                        _logger.exception(
+                        _logger.error(
                             "Exception unregistering local proxy=%s",
                             self.__svc_reg.get_reference(),
                         )
@@ -1138,7 +1131,7 @@ class _ImportEndpoint:
                 try:
                     self.__importer.unimport_service(self.__ed)
                 except:
-                    _logger.exception(
+                    _logger.error(
                         "Exception calling importer.unimport_service with ed=%s",
                         self.__ed,
                     )
@@ -1174,9 +1167,6 @@ class ImportReferenceImpl(ImportReference):
     ) -> None:
         self.__lock = threading.RLock()
         if endpoint is None:
-            if exception is None or errored is None:
-                raise RemoteServiceError("Must supply either endpoint or throwable/errorEndpointDescription")
-
             self.__exception: Optional[Tuple[Any, Any, Any]] = exception
             self.__errored: Optional[EndpointDescription] = errored
             self.__endpoint: Optional[_ImportEndpoint] = None
@@ -1191,60 +1181,48 @@ class ImportReferenceImpl(ImportReference):
 
     def match_ed(self, ed: EndpointDescription) -> bool:
         with self.__lock:
-            if self.__endpoint is not None:
+            if self.__endpoint:
                 return self.__endpoint.match_ed(ed)
-
             return False
 
     def get_import_container_id(self) -> Tuple[str, str]:
         with self.__lock:
-            if self.__endpoint is not None:
+            if self.__endpoint:
                 importer_ns = self.__endpoint.get_import_container_ns()
                 importer_id = self.__endpoint.get_import_container_id()
-            elif self.__errored is not None:
+            elif self.__errored:
                 importer_ns, importer_id = self.__errored.get_container_id()
-            else:
-                raise RemoteServiceError("No container ID found")
 
             return importer_ns, importer_id
 
     def get_import_container_ns(self) -> str:
         with self.__lock:
-            if self.__endpoint is not None:
+            if self.__endpoint:
                 return self.__endpoint.get_import_container_ns()
-            elif self.__errored is not None:
+            elif self.__errored:
                 return self.__errored.get_container_id()[0]
-            else:
-                raise RemoteServiceError("No container ID namespace found")
 
-    def get_export_container_id(self) -> Tuple[str, str]:
+    def get_export_container_id(self) -> str:
         with self.__lock:
-            if self.__endpoint is not None:
+            if self.__endpoint:
                 return self.__endpoint.get_export_container_id()
-            elif self.__errored is not None:
+            elif self.__errored:
                 return self.__errored.get_container_id()
-            else:
-                raise RemoteServiceError("No container ID found")
 
     def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
         with self.__lock:
-            if self.__endpoint is None:
-                raise RemoteServiceError("")
-
-            return self.__endpoint.get_remoteservice_id()
+            if self.__endpoint:
+                return self.__endpoint.get_remoteservice_id()
 
     def get_reference(self) -> Optional[ServiceReference[Any]]:
         with self.__lock:
-            if self.__endpoint is not None:
+            if self.__endpoint:
                 return self.__endpoint.get_reference()
-
-            return None
 
     def get_description(self) -> Optional[EndpointDescription]:
         with self.__lock:
-            if self.__endpoint is not None:
+            if self.__endpoint:
                 return self.__endpoint.get_description()
-
             return self.__errored
 
     def get_exception(self) -> Optional[Tuple[Any, Any, Any]]:
@@ -1253,16 +1231,13 @@ class ImportReferenceImpl(ImportReference):
 
     def update(self, endpoint: EndpointDescription) -> Optional[EndpointDescription]:
         with self.__lock:
-            if self.__endpoint is not None:
+            if self.__endpoint:
                 return self.__endpoint.update(endpoint)
-
-            return None
 
     def close(self, import_reg: ImportRegistration) -> bool:
         with self.__lock:
-            if self.__endpoint is None:
+            if not self.__endpoint:
                 return False
-
             result = self.__endpoint.close(import_reg)
             self.__endpoint = None
             return result

@@ -89,10 +89,8 @@ class BasicTopologyManager(TopologyManager):
             exc = imported_reg.get_exception()
             # if there was exception on import, print out messages
             if exc:
-                _logger.exception(
-                    "BasicTopologyManager import failed for endpoint.id=%s",
-                    ed_id,
-                )
+                _logger.error(
+                    "BasicTopologyManager import failed for endpoint.id=%s", ed_id)
             else:
                 _logger.debug(
                     "BasicTopologyManager: service imported! " "endpoint.id=%s, service_ref=%s",

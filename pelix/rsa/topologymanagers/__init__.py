@@ -166,7 +166,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
             try:
                 adv.advertise_endpoint(ed)
             except:
-                _logger.exception(
+                _logger.error(
                     "Exception in advertise_endpoint for " "advertiser=%s endpoint=%s",
                     adv,
                     ed,
@@ -177,7 +177,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
             try:
                 adv.update_endpoint(ed)
             except:
-                _logger.exception(
+                _logger.error(
                     "Exception in update_endpoint for advertiser=%s " "endpoint=%s",
                     adv,
                     ed,
@@ -188,7 +188,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
             try:
                 adv.unadvertise_endpoint(ed.get_id())
             except:
-                _logger.exception(
+                _logger.error(
                     "Exception in unadvertise_endpoint for advertiser=%s " "endpoint=%s",
                     adv,
                     ed,
