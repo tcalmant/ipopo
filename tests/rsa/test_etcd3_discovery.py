@@ -16,7 +16,7 @@ from pelix.utilities import EventData
 try:
     # Try to import modules
     import multiprocessing
-    from multiprocessing import Process, Queue
+    from multiprocessing import Queue
 
     # IronPython fails when creating a queue
     Queue()
@@ -27,14 +27,6 @@ except ImportError:
     # Some interpreters don't have support for multiprocessing
     raise unittest.SkipTest("Interpreter doesn't support multiprocessing")
 
-try:
-    # Try to import modules
-    import etcd3
-except ImportError:
-    # Some interpreters don't have support for multiprocessing
-    raise unittest.SkipTest("etcd3 module not available")
-
-import pelix
 import pelix.framework
 import pelix.rsa as rsa
 from pelix.framework import create_framework
@@ -81,7 +73,7 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
                 # xmlrpc distribution provider (opt)
                 "pelix.rsa.providers.distribution.xmlrpc",
                 # etcd discovery provider (opt)
-                "pelix.rsa.providers.discovery.discovery_etcd3",
+                "pelix.rsa.providers.discovery.etcd3",
                 "pelix.rsa.topologymanagers.basic",
                 "samples.rsa.helloimpl_xmlrpc",
             ],
@@ -147,7 +139,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
                 "pelix.ipopo.core",
                 "pelix.rsa.remoteserviceadmin",  # RSA implementation
                 "tests.rsa.endpoint_event_listener",
-                "pelix.rsa.providers.discovery.discovery_etcd3",
+                "pelix.rsa.providers.discovery.etcd3",
             ],
             {
                 "etcd.hostname": TEST_ETCD_HOSTNAME,
@@ -293,7 +285,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
                 "pelix.http.basic",
                 "pelix.rsa.remoteserviceadmin",
                 "pelix.rsa.providers.distribution.xmlrpc",
-                "pelix.rsa.providers.discovery.discovery_etcd3",
+                "pelix.rsa.providers.discovery.etcd3",
             ],
             {
                 "ecf.xmlrpc.server.hostname": "localhost",
@@ -404,12 +396,9 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
     def test_etcd_session(self):
         self.assertIsNotNone(self._get_advertiser()._sessionid, "etcd._sessionid is null")
 
-    def test_etcd_client(self):
-        self.assertIsNotNone(self._get_advertiser()._client, "etcd._client is null")
-
     def test_etcd_remote_exists(self):
         adv = self._get_advertiser()
-        adv._client.get(adv._get_session_path())
+        adv._get_value(adv._get_session_path())
 
     def test_etcd_advertise(self):
         adv = self._get_advertiser()
@@ -420,7 +409,9 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         self.assertTrue(ep_adv, "advertise_endpoint failed")
         ep_key = adv._get_session_path() + "/" + ed_id
         # test for existence of ep id key
-        adv._client.get(ep_key)
+        ed_val = adv._get_value(ep_key)
+        ep_dict = json.loads(ed_val)
+        self.assertTrue(ep_dict['location'].startswith('ecfosgisvc'), 'retrieved endpoing does not have proper location field')
         # get advertised endpoints
         eps = adv.get_advertised_endpoints()
         # should be of length 1
@@ -428,7 +419,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         # now unadvertise
         adv.unadvertise_endpoint(ed_id)
         try:
-            adv._client.get(ep_key)
+            adv._get_value(ep_key)
             self.fail("endpoint={0} still advertised after being removed".format(ed_id))
         except Exception:  # exception expected
             pass
@@ -448,7 +439,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         # advertise it
         adv.advertise_endpoint(ed)
         # get the string directly via http and key
-        ed_val_str = list(adv._client.get(adv._get_session_path() + "/" + ed_id))[0]
+        ed_val_str = adv._get_value("".join([adv._get_session_path(),"/",ed_id]))
         # decode the string into json object (dict)
         val_encoded = json.loads(ed_val_str)
         # compare the original dict with the one returned

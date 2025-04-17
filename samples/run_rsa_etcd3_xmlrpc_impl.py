@@ -64,7 +64,7 @@ def main() -> None:
         # Basic topology manager (opt)
         "pelix.rsa.topologymanagers.basic",
         # etcd discovery provider (opt)
-        "pelix.rsa.providers.discovery.discovery_etcd3",
+        "pelix.rsa.providers.discovery.etcd3",
         # HTTP Service
         "pelix.http.basic",
         # XML-RPC distribution provider (opt)

@@ -1,4 +1,3 @@
-etcd3>=0.12.0
 jsonrpclib-pelix>=0.4.3
 kazoo==2.8.0
 osgiservicebridge>=1.5.7

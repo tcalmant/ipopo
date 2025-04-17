@@ -2,16 +2,18 @@
 # -- Content-Encoding: UTF-8 --
 """
 
-Run RSA with etcd-based discovery module
+Run RSA with etcd3-based discovery module and xmlrpc distribution module and export
+samples.rsa.helloimpl_xmlrpc. NOTE:  For the etcd3 discovery to work, there must
+be an etcd3 server/service running on localhost/2379 (default etcd3 port)
 
 :author: Scott Lewis
-:copyright: Copyright 2020, Scott Lewis
+:copyright: Copyright 2024, Scott Lewis
 :license: Apache License 2.0
 :version: 1.0.2
 
 ..
 
-    Copyright 2020 Scott Lewis
+    Copyright 2024 Scott Lewis
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -40,14 +42,17 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 # ------- Main constants for the sample
 HTTP_HOSTNAME = "127.0.0.1"
-HTTP_PORT = 8181
+HTTP_PORT = 8182
 
-ETCD_HOSTNAME = "disco.ecf-project.org"
+ETCD_HOSTNAME = "localhost"
 
 # ------------------------------------------------------------------------------
 
 
 def main() -> None:
+
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
     # Define the initial bundles
     bundles = (
         "pelix.ipopo.core",
@@ -56,18 +61,16 @@ def main() -> None:
         "pelix.shell.console",
         # RSA implementation
         "pelix.rsa.remoteserviceadmin",
+        # Basic topology manager (opt)
+        "pelix.rsa.topologymanagers.basic",
+        # etcd discovery provider (opt)
+        "pelix.rsa.providers.discovery.etcd3",
         # HTTP Service
         "pelix.http.basic",
         # XML-RPC distribution provider (opt)
         "pelix.rsa.providers.distribution.xmlrpc",
-        # etcd discovery provider (opt)
-        "pelix.rsa.providers.discovery.discovery_etcd",
-        # Basic topology manager (opt)
-        "pelix.rsa.topologymanagers.basic",
         # RSA shell commands (opt)
         "pelix.rsa.shell",
-        # Example helloconsumer. Only uses remote proxies
-        "samples.rsa.helloconsumer_xmlrpc",
     )
 
     # Use the utility method to create, run and delete the framework
@@ -79,13 +82,18 @@ def main() -> None:
         },
     )
     framework.start()
-
+    # start httpservice, required by the xmlrpc distribution provider
     with use_ipopo(framework.get_bundle_context()) as ipopo:
         ipopo.instantiate(
             "pelix.http.service.basic.factory",
             "http-server",
             {"pelix.http.address": HTTP_HOSTNAME, "pelix.http.port": HTTP_PORT},
         )
+    # install helloimpl_xmlrpc module, instantiate component and should result
+    # in export via xmlrpc distribution provider and advertisement of endpoint
+    # description via etcd3
+    framework.get_bundle_context().install_bundle("samples.rsa.helloimpl_xmlrpc").start()
+
     try:
         framework.wait_for_stop()
     except KeyboardInterrupt:
