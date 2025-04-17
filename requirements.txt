@@ -7,6 +7,5 @@ pyyaml>=6.0
 redis>=2.10
 slixmpp>=1.8.4
 zeroconf==0.19.1
-protobuf>=5.29.4
 grpcio>=1.71.0
 grpcio-tools>=1.71.0
