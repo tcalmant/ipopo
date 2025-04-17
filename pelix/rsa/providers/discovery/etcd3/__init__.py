@@ -65,7 +65,7 @@ __docformat__ = "restructuredtext en"
 
 # Standard logging
 _logger = logging.getLogger(__name__)
-_logger.setLevel(logging.DEBUG)
+
 # ------------------------------------------------------------------------------
 
 ETCD_NAME_PROP = "etcd"
