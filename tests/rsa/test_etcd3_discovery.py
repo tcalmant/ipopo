@@ -394,7 +394,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         self.assertDictEqual(eps, {}, "advertised endpoints not empty eps={0}".format(eps))
 
     def test_etcd_session(self):
-        self.assertIsNotNone(self._get_advertiser()._sessionid, "etcd._sessionid is null")
+        self.assertIsNotNone(self._get_advertiser()._session_id, "etcd._sessionid is null")
 
     def test_etcd_remote_exists(self):
         adv = self._get_advertiser()
