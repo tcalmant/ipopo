@@ -1,7 +1,6 @@
 jsonrpclib-pelix>=0.4.3
 kazoo==2.8.0
 osgiservicebridge>=1.5.8
-protobuf>=6.30.2
 paho-mqtt>=2.1
 python-etcd==0.4.5
 pyyaml>=6.0
