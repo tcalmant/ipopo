@@ -71,7 +71,8 @@ ETCD_WATCHSTART_WAIT_PROP = "watchstartwait"
 
 # ------------------------------------------------------------------------------
 
-
+from warnings import deprecated
+@deprecated("etcd2 is no longer in common usage.  Use pelix.rsa.providers.discovery.etcd3.discovery_etcd3 instead")
 @ComponentFactory("etcd-endpoint-discovery-factory")
 @Provides(EndpointAdvertiser)
 @Property(
