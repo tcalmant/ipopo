@@ -73,7 +73,7 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
                 # xmlrpc distribution provider (opt)
                 "pelix.rsa.providers.distribution.xmlrpc",
                 # etcd discovery provider (opt)
-                "pelix.rsa.providers.discovery.etcd3",
+                "pelix.rsa.providers.discovery.etcd3.discovery_etcd3",
                 "pelix.rsa.topologymanagers.basic",
                 "samples.rsa.helloimpl_xmlrpc",
             ],
@@ -139,7 +139,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
                 "pelix.ipopo.core",
                 "pelix.rsa.remoteserviceadmin",  # RSA implementation
                 "tests.rsa.endpoint_event_listener",
-                "pelix.rsa.providers.discovery.etcd3",
+                "pelix.rsa.providers.discovery.etcd3.discovery_etcd3",
             ],
             {
                 "etcd.hostname": TEST_ETCD_HOSTNAME,
@@ -285,7 +285,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
                 "pelix.http.basic",
                 "pelix.rsa.remoteserviceadmin",
                 "pelix.rsa.providers.distribution.xmlrpc",
-                "pelix.rsa.providers.discovery.etcd3",
+                "pelix.rsa.providers.discovery.etcd3.discovery_etcd3",
             ],
             {
                 "ecf.xmlrpc.server.hostname": "localhost",
