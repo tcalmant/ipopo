@@ -2,18 +2,16 @@
 # -- Content-Encoding: UTF-8 --
 """
 
-Run RSA with etcd3-based discovery module and xmlrpc distribution module and export
-samples.rsa.helloimpl_xmlrpc. NOTE:  For the etcd3 discovery to work, there must
-be an etcd3 server/service running on localhost/2379 (default etcd3 port)
+Run RSA with py4java distribution and discovery module
 
 :author: Scott Lewis
-:copyright: Copyright 2024, Scott Lewis
+:copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
 :version: 1.0.2
 
 ..
 
-    Copyright 2024 Scott Lewis
+    Copyright 2020 Scott Lewis
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -38,20 +36,9 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-# ------------------------------------------------------------------------------
-# ------- Main constants for the sample
-HTTP_HOSTNAME = "127.0.0.1"
-HTTP_PORT = 8181
-
-ETCD_HOSTNAME = "localhost"
-
-# ------------------------------------------------------------------------------
-
 
 def main() -> None:
-    import logging
-    logging.basicConfig(level=logging.DEBUG)
-    # Define the initial bundles
+    # Set the initial bundles
     bundles = (
         "pelix.ipopo.core",
         "pelix.shell.core",
@@ -59,20 +46,18 @@ def main() -> None:
         "pelix.shell.console",
         # RSA implementation
         "pelix.rsa.remoteserviceadmin",
-        # XML-RPC distribution provider (opt)
-        "pelix.rsa.providers.distribution.xmlrpc",
         # Basic topology manager (opt)
         "pelix.rsa.topologymanagers.basic",
         # RSA shell commands (opt)
         "pelix.rsa.shell",
-        # Example helloconsumer. Only uses remote proxies
-        "samples.rsa.helloconsumer_xmlrpc",
-        # etcd discovery provider (opt)
-        "pelix.rsa.providers.discovery.etcd3.discovery_etcd3",
+        "pelix.rsa.providers.distribution.py4j",
+        "samples.rsa.pbhelloimpl",
     )
 
     # Use the utility method to create, run and delete the framework
-    framework = pelix.create_framework(bundles)
+    framework = pelix.create_framework(
+        bundles, {"ecf.py4j.javaport": 25333, "ecf.py4j.pythonport": 25334}
+    )
     framework.start()
 
     try:
