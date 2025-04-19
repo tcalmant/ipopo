@@ -68,7 +68,7 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
-ETCD_NAME_PROP = "etcd3"
+ETCD_NAME_PROP = "etcd"
 ETCD_HOSTNAME_PROP = "hostname"
 ETCD_PORT_PROP = "port"
 ETCD_TOPKEY_PROP = "top_key"
@@ -121,10 +121,11 @@ def to_bytes(bytes_or_str):
 @Instantiate("etcd3-endpoint-discovery")
 class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     """
-    Etcd-based endpoint discovery.  Extends both EndpointAdvertiser
+    Etcd3-based remote service endpoint discovery.  Extends both EndpointAdvertiser
     and EndpointSubscriber so can be called to advertise/unadvertise
-    exported endpoints, and will notify SERVICE_ENDPOINT_LISTENERs
-    when an endpoint has been discovered via the etcd server/cluster.
+    exported endpoints (typically via the topology manager), and will notify 
+    SERVICE_ENDPOINT_LISTENERs (also typically topology manager)
+    when an endpoint has been discovered via the etcd3 server/cluster watch.
 
     """
 
