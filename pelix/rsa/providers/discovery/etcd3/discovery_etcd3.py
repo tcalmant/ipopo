@@ -32,17 +32,17 @@ import threading
 import socket
 
 from typing import Any, Optional, Tuple, Iterable, Sequence, Dict
+from collections.abc import Callable
 
 from pelix.framework import BundleContext
 from pelix.ipopo.decorators import (
     ComponentFactory,
-    Instantiate,
     Invalidate,
     Property,
     Provides,
     ValidateComponent
 )
-from pelix.rsa import create_uuid, prop_dot_suffix
+from pelix.rsa import create_uuid
 from pelix.rsa.endpointdescription import EndpointDescription, decode_endpoint_props, encode_endpoint_props
 from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent, EndpointSubscriber
 import uuid
@@ -67,16 +67,6 @@ __docformat__ = "restructuredtext en"
 _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
-
-ETCD_NAME_PROP = "etcd3"
-ETCD_HOSTNAME_PROP = "hostname"
-ETCD_PORT_PROP = "port"
-ETCD_TOPKEY_PROP = "top_key"
-ETCD_GRPCCREDENTIALS_PROP = "grpc_credentials"
-ETCD_GRPCOPTIONS_PROP = "grpc_options"
-ETCD_GRPCCOMPRESSION_PROP = "grpc_compression"
-ETCD_SESSIONID_PROP = "session_id"
-
 # ------------------------------------------------------------------------------
 
 def to_bytes(bytes_or_str):
@@ -85,121 +75,178 @@ def to_bytes(bytes_or_str):
     else:
         return bytes_or_str.encode('utf-8')
 
+#etcd3endpoint discovery properties.  see Etcd3Endpoint
+ETCD_NAME_PREFIX = "etcd"
+
+# etcd.hostname prop; type: str; Default: "localhost"
+ETCD_HOSTNAME_PROP = ".".join([ETCD_NAME_PREFIX, "hostname"])
+ETCD_HOSTNAME_DEFAULT = "localhost"
+# etcd.port prop; type: int;  Default: 2379
+ETCD_PORT_PROP = ".".join([ETCD_NAME_PREFIX, "port"])
+ETCD_PORT_DEFAULT = 2379
+# etcd.top_key prop; type: str; 
+# Default: "org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer"
+# NOTE:  the top_path must be set to some unique string that 
+# all etcd3 endpoint description discovery clients can share
+# it should have only no forward slashes ('/') as that is used 
+# as a a separator character
+ETCD_TOPKEY_PROP = ".".join([ETCD_NAME_PREFIX, "top_key"])
+ETCD_TOPKEY_DEFAULT = "org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer"
+# etcd.grpc_credentials prop; type: Optional[grpc.ChannelCredentials]; Default: None
+# if credentials is not None then a secure channel will be created.  If None then insecure channel will
+# be created
+ETCD_GRPCCREDENTIALS_PROP = ".".join([ETCD_NAME_PREFIX, "grpc_credentials"])
+ETCD_GRPCCREDENTIALS_DEFAULT = None
+# etcd.grpc_options prop; type: Optional[Sequence[Tuple[str, Any]]]; Default: None
+# See grpc documentation for 'options' and 'compression' argument at following
+# https://grpc.github.io/grpc/python/grpc_asyncio.html#grpc.aio.insecure_channel
+ETCD_GRPCOPTIONS_PROP = ".".join([ETCD_NAME_PREFIX, "grpc_options"])
+ETCD_GRPCOPTIONS_DEFAULT = None
+# etcd.grpc_compression prop; type: Optional[grpc.Compression]; Default: None
+ETCD_GRPCCOMPRESSION_PROP = ".".join([ETCD_NAME_PREFIX, "grpc_compression"])
+ETCD_GRPCCOMPRESSION_DEFAULT = None
+# etcd.session_id prop; type: str; Default: value returned from call to create_uuid()
+# upon __init_
+ETCD_SESSIONID_PROP = ".".join([ETCD_NAME_PREFIX, "session_id"])
+ETCD_SESSIONID_DEFAULT = create_uuid()
+# etcd.session_id prop; type: str; Default: None
+ETCD_CONNECTED_CALLBACK_PROP = ".".join([ETCD_NAME_PREFIX, "connected_callback"])
+ETCD_CONNECTED_CALLBACK_DEFAULT = None
+# etcd.lease_ttl prop; type: int;  Default: 30 seconds
+# When a lease is request for the client, a ttl of the value of etcd.lease_ttl will
+# be requests
+ETCD_LEASETTL_PROP = ".".join([ETCD_NAME_PREFIX, "lease_ttl"])
+ETCD_LEASETTL_DEFAULT = 30
+# etcd.keepalive_interval prop; type: int;  Default: 25 seconds
+# Once a lease is granted, an  etcd lease keepalive request will be sent every
+# etcd.keepalive_interval seconds.  This value should be a few seconds
+# less than the value of etcd.lease_ttl value
+# be requests
+ETCD_KEEPALIVEINTERVAL_PROP = ".".join([ETCD_NAME_PREFIX, "keepalive_interval"])
+ETCD_KEEPALIVEINTERVAL_DEFAULT = 25
+# etcd.call_timeout prop; type: int;  Default: 3 seconds
+# When making blocking calls to advertise/unadvertise or _get,
+# these calls will timeout (and raise TimeoutError
+ETCD_CALLTIMEOUT_PROP = ".".join([ETCD_NAME_PREFIX, "call_timeout"])
+ETCD_CALLTIMEOUT_DEFAULT = 3
+# etcd.disconnect_timeout prop; type: int;  Default: 5 seconds
+# When disconnect is called, it will wait block the calling thread
+# until disconnect is complete and wait etcd.disconnect_timeout before
+# raising a TimeoutError
+ETCD_DISCONNECTTIMEOUT_PROP = ".".join([ETCD_NAME_PREFIX, "disconnect_timeout"])
+ETCD_DISCONNECTTIMEOUT_DEFAULT = 5
+# etcd.hostip prop; type: str;  Default: string returned from call to 
+# socket.gethostbyname(socket.gethostname())
+ETCD_HOSTIP_PROP = ".".join([ETCD_NAME_PREFIX, "hostip"])
+ETCD_HOSTIP_DEFAULT = socket.gethostbyname(socket.gethostname())
+# etcd._call_executor; type: Optional[ThreadPoolExecutor]; Default: None (uses asyncio ThreadPoolExecutor
+ETCD_CALLEXECUTOR_PROP = ".".join([ETCD_NAME_PREFIX, "call_executor"])
+ETCD_CALLEXECUTOR_DEFAULT = None
+
 @ComponentFactory("etcd3-endpoint-discovery-factory")
 @Provides(EndpointAdvertiser)
 @Property(
     "_hostname",
-    prop_dot_suffix(ETCD_NAME_PROP, ETCD_HOSTNAME_PROP),
-    "localhost",
+    ETCD_HOSTNAME_PROP, 
+    ETCD_HOSTNAME_DEFAULT
 )
-@Property("_port", prop_dot_suffix(ETCD_NAME_PROP, ETCD_PORT_PROP), 2379)
+@Property("_port", 
+    ETCD_PORT_PROP, 
+    ETCD_PORT_DEFAULT
+)
 @Property(
     "_top_key",
-    prop_dot_suffix(ETCD_NAME_PROP, ETCD_TOPKEY_PROP),
-    "org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer",
+    ETCD_TOPKEY_PROP,
+    ETCD_TOPKEY_DEFAULT,
 )
 @Property(
     "_grpc_credentials",
-    prop_dot_suffix(ETCD_NAME_PROP, ETCD_GRPCCREDENTIALS_PROP),
-    None,
+    ETCD_GRPCCREDENTIALS_PROP,
+    ETCD_GRPCCREDENTIALS_DEFAULT,
 )
 @Property(
     "_grpc_options",
-    prop_dot_suffix(ETCD_NAME_PROP, ETCD_GRPCOPTIONS_PROP),
-    None,
+    ETCD_GRPCOPTIONS_PROP,
+    ETCD_GRPCOPTIONS_DEFAULT,
 )
 @Property(
     "_grpc_compression",
-    prop_dot_suffix(ETCD_NAME_PROP, ETCD_GRPCCOMPRESSION_PROP),
-    None,
+    ETCD_GRPCCOMPRESSION_PROP,
+    ETCD_GRPCCOMPRESSION_DEFAULT
 )
 @Property(
     "_session_id",
-    prop_dot_suffix(ETCD_NAME_PROP, ETCD_SESSIONID_PROP),
-    create_uuid(),
+    ETCD_SESSIONID_PROP,
+    ETCD_SESSIONID_DEFAULT
 )
-@Instantiate("etcd3-endpoint-discovery")
+@Property(
+    "_connected_callback",
+    ETCD_CONNECTED_CALLBACK_PROP,
+    ETCD_CONNECTED_CALLBACK_DEFAULT,
+)
+@Property("_lease_ttl", 
+    ETCD_LEASETTL_PROP, 
+    ETCD_LEASETTL_DEFAULT
+)
+@Property("_keepalive_interval", 
+    ETCD_KEEPALIVEINTERVAL_PROP, 
+    ETCD_KEEPALIVEINTERVAL_DEFAULT
+)
+@Property("_call_timeout", 
+    ETCD_CALLTIMEOUT_PROP, 
+    ETCD_CALLTIMEOUT_DEFAULT
+)
+@Property("_disconnect_timeout", 
+    ETCD_DISCONNECTTIMEOUT_PROP, 
+    ETCD_DISCONNECTTIMEOUT_DEFAULT
+)
+@Property("_hostip", 
+    ETCD_HOSTIP_PROP, 
+    ETCD_HOSTIP_DEFAULT
+)
+@Property(
+    "_call_executor",
+    ETCD_CALLEXECUTOR_PROP,
+    ETCD_CALLEXECUTOR_DEFAULT,
+)
 class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     """
-    Etcd-based endpoint discovery.  Extends both EndpointAdvertiser
+    Etcd3-based remote service endpoint discovery.  Extends both EndpointAdvertiser
     and EndpointSubscriber so can be called to advertise/unadvertise
-    exported endpoints, and will notify SERVICE_ENDPOINT_LISTENERs
-    when an endpoint has been discovered via the etcd server/cluster.
+    exported endpoints (typically via the topology manager), and will notify 
+    SERVICE_ENDPOINT_LISTENERs (also typically topology manager)
+    when an endpoint has been discovered via the etcd3 server/cluster watch.
 
     """
+    _hostname: str
+    _port: int
+    _top_key: str
+    _grpc_credentials: Optional[grpc.ChannelCredentials]
+    _grpc_options: Optional[Sequence[Tuple[str, Any]]]
+    _grpc_compression: Optional[grpc.Compression]
+    _channel: Optional[grpc.Channel]
+    _lease_ttl: int  
+    _keepalive_interval: int 
+    _call_timeout: int
+    _disconnect_timeout: int
+    _session_id: str = None
+    _connected_callback: Optional[Callable]
+    _hostip: str
+    _call_executor: Optional[ThreadPoolExecutor]
+    _encoding: str = "utf-8"
 
-    def __init__(self, hostname: str = "localhost", 
-                 port: int = 2379,
-                 # NOTE:  the top_path should be set to some unique string that 
-                 # all etcd3 endpoint description discovery clients can share
-                 # it should have only no forward slashes ('/') as that is used 
-                 # as a a separator character
-                 top_key: str = "org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer",
-                 # if credentials is set then a secure channel will be created
-                 grpc_credentials: Optional[grpc.ChannelCredentials] = None,
-                 # See grpc documentation for 'options' and 'compression' argument at following
-                 # https://grpc.github.io/grpc/python/grpc_asyncio.html#grpc.aio.insecure_channel
-                 grpc_options: Optional[Sequence[Tuple[str, Any]]] = None, 
-                 grpc_compression: Optional[grpc.Compression] = None,
-                 # lease ttl and keepalive interval.  The keepalive_interval should be a few seconds
-                 # less than the lease_ttl
-                 lease_ttl: int = 30, #etcd lease ttl in seconds
-                 keepalive_interval:int = 25, # sleep interval before next keepalive request is sent
-                 call_timeout: int = 3000, # timeout for individual calls
-                 disconnect_timeout: int = 5000,
-                 # if not set a ThreadPoolExecutor is used by the asyncio loop
-                 executor: Optional[ThreadPoolExecutor] = None,
-                 session_id: str = None,
-                 host_ip: str = None
-                 ) -> None:
+    def __init__(self) -> None:
         EndpointAdvertiser.__init__(self)
         EndpointSubscriber.__init__(self)
-        self._hostname: hostname
-        self._port: int = port
-        self._top_key: str = top_key
-        self._grpc_credentials: Optional[grpc.ChannelCredentials] = grpc_credentials
-        self._grpc_options: Optional[Sequence[Tuple[str, Any]]] = grpc_options
-        self._grpc_compression: Optional[grpc.Compression] = grpc_compression
-        # created/set in _connect
-        self._channel: Optional[grpc.Channel] = None
-        # used in lease create request during connect 
-        self._lease_ttl: int = lease_ttl  # in seconds
-        # used in to sleep before sending next lease keepalive request
-        self._keepalive_interval: int = keepalive_interval  # in seconds
-        # timeouts
-        self._call_timeout: int = call_timeout
-        self._disconnect_timeout: int = disconnect_timeout # in ms
-        # executor used in _fire_endpoint_event
-        self._executor: Optional[ThreadPoolExecutor] = executor
-        # sessionid must be set to globally uniuqe value to be used as client-specific key
-        # for etcd3. If not explicitly specified, a UUID is created via create_uuid()
-        self._session_id: str = create_uuid() if not session_id else session_id
-        # set by entry point thread see _validate_component
+        # asyncio loop set in validate
         self._loop: Optional[asyncio.AbstractEventLoop] = None
-        # values set during connection
-        self._watch_id: Optional[int] = None
+        # lease_id and watch_id set during connection
         self._lease_id: Optional[int] = None
-        # task for doing keepalive is kept here so can be canceled in disconnect
+        self._watch_id: Optional[int] = None
+        # task for doing keepalive requests setup during connect
         self._keepalive_task: Optional[asyncio.Task] = None
         # event is set in _connect and waited on by endpoint advertisers
         self._connected_event = asyncio.Event()
-        self._encoding = "utf-8"
-        # vars set in connect
-        servicename = f"osgirsvc_{create_uuid()}"
-        hostip = socket.gethostbyname(socket.gethostname()) if not host_ip else host_ip
-        self._service_props = {
-            "location": f"ecfosgisvc://{hostip}:32565/{servicename}",
-            "priority": 0,
-            "weight": 0,
-            "servicename": servicename,
-            "ttl": 0,
-            "servicetype": {
-                "services": ["ecfosgirsvc"],
-                "scopes": ["default"],
-                "protocols": ["default"],
-                "namingauth": "iana",
-            },
-        }
 
     def _get_session_path(self) -> str:
         return f"{self._top_key}/{self._session_id}"
@@ -240,18 +287,38 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     # entry point method
     @ValidateComponent()
     def _validate_component(self) -> None:
+        # setup service name and service_props
+        servicename = f"osgirsvc_{self._session_id}"
+        self._service_props = {
+            "location": f"ecfosgisvc://{self._hostip}:32565/{servicename}",
+            "priority": 0,
+            "weight": 0,
+            "servicename": servicename,
+            "ttl": 0,
+            "servicetype": {
+                "services": ["ecfosgirsvc"],
+                "scopes": ["default"],
+                "protocols": ["default"],
+                "namingauth": "iana",
+            },
+        }
+        # create new event loop
         self._loop = asyncio.new_event_loop()
-        async def connected_callback():
+        # setup connected callback for asyncio thread
+        async def connected():
             # wait until we get thec onnected event set
             await self._connected_event.wait()
             _logger.debug("CONNECTED etcd3 session_id=%s to host=%s port=%s", self._session_id, self._hostname, self._port)
+            if self._connected_callback:
+                self._connected_callback()
+        # define working for our asyncio thread
         def worker():
             asyncio.set_event_loop(self._loop)
             self._loop_thread_id = threading.current_thread().ident
-            asyncio.run_coroutine_threadsafe(connected_callback(), self._loop)
+            asyncio.run_coroutine_threadsafe(connected(), self._loop)
             self._loop.run_until_complete(self._connect())  
-        t = threading.Thread(target=worker, name="etcd3[{}]".format(self._session_id), daemon=True)
-        t.start()
+        # create and start thread
+        threading.Thread(target=worker, name="etcd3[{}]".format(self._session_id), daemon=True).start()
 
     @Invalidate
     def _invalidate(self, _: BundleContext) -> None:
@@ -364,7 +431,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
 
     def _fire_endpoint_event(self, event_type:int, ed:EndpointDescription)-> None:#
         # send notifications via thread so doesn't block asyncio loop thread
-        self._loop.run_in_executor(self._executor, EndpointSubscriber._fire_endpoint_event, self, event_type, ed)
+        self._loop.run_in_executor(self._call_executor, EndpointSubscriber._fire_endpoint_event, self, event_type, ed)
         
     async def _putKV(self, key, value) -> rpc_pb2.PutResponse:
         return await rpc_pb2_grpc.KVStub(self._channel).Put(rpc_pb2.PutRequest(key = to_bytes(key), value = to_bytes(value), lease = self._lease_id))
