@@ -41,13 +41,14 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 # ------- Main constants for the sample
+# etcd3 discovery hostname and port
+ETCD_HOSTNAME = "localhost"
+ETCD_PORT = 2379
+
 HTTP_HOSTNAME = "127.0.0.1"
 HTTP_PORT = 8182
 
-ETCD_HOSTNAME = "localhost"
-
 # ------------------------------------------------------------------------------
-
 
 def main() -> None:
 
@@ -72,16 +73,22 @@ def main() -> None:
         # RSA shell commands (opt)
         "pelix.rsa.shell",
     )
-
     # Use the utility method to create, run and delete the framework
     framework = pelix.create_framework(
         bundles,
         {
-            "etcd.hostname": ETCD_HOSTNAME,
             "ecf.xmlrpc.server.hostname": HTTP_HOSTNAME,
         },
     )
     framework.start()
+    # start etcd3 discovery service client
+    with use_ipopo(framework.get_bundle_context()) as ipopo:
+        ipopo.instantiate(
+            "etcd3-endpoint-discovery-factory",
+            "etcd3-endpoint-discovery",
+            {"etcd.hostname": ETCD_HOSTNAME, "etcd.port": ETCD_PORT},
+        )
+
     # start httpservice, required by the xmlrpc distribution provider
     with use_ipopo(framework.get_bundle_context()) as ipopo:
         ipopo.instantiate(

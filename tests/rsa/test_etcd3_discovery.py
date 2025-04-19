@@ -79,8 +79,6 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
             ],
             {
                 "ecf.xmlrpc.server.hostname": "localhost",
-                "etcd.hostname": TEST_ETCD_HOSTNAME,
-                "etcd.toppath": TEST_ETCD_TOPPATH,
             },
         )
         framework.start()
@@ -92,6 +90,15 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
                 "pelix.http.service.basic.factory",
                 "http-server",
                 {"pelix.http.address": "localhost", "pelix.http.port": 0},
+            )
+        # start etcd3 discovery service client
+        with use_ipopo(framework.get_bundle_context()) as ipopo:
+            ipopo.instantiate(
+                "etcd3-endpoint-discovery-factory",
+                "etcd3-endpoint-discovery",
+                {"etcd.hostname": TEST_ETCD_HOSTNAME, 
+                 "etcd.top_key": TEST_ETCD_TOPPATH,
+                 },
             )
 
         bc = framework.get_bundle_context()
@@ -141,15 +148,21 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
                 "tests.rsa.endpoint_event_listener",
                 "pelix.rsa.providers.discovery.etcd3.discovery_etcd3",
             ],
-            {
-                "etcd.hostname": TEST_ETCD_HOSTNAME,
-                "etcd.toppath": TEST_ETCD_TOPPATH,
-            },
+            {},
         )
         self.framework.start()
+        # start etcd3 discovery service client
+        with use_ipopo(self.framework.get_bundle_context()) as ipopo:
+            ipopo.instantiate(
+                "etcd3-endpoint-discovery-factory",
+                "etcd3-endpoint-discovery",
+                {"etcd.hostname": TEST_ETCD_HOSTNAME, 
+                 "etcd.top_key": TEST_ETCD_TOPPATH,
+                 },
+            )
+
         # Start the framework and return TestEndpointEventListener
         context = self.framework.get_bundle_context()
-        # Start an HTTP server, required by XML-RPC
         with use_ipopo(context) as ipopo:
             #  create endpoint event listener
             self.listener = ipopo.instantiate(
@@ -289,8 +302,6 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
             ],
             {
                 "ecf.xmlrpc.server.hostname": "localhost",
-                "etcd.hostname": TEST_ETCD_HOSTNAME,
-                "etcd.toppath": TEST_ETCD_TOPPATH,
             },
         )
         self.framework.start()
@@ -302,6 +313,15 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
                 "pelix.http.service.basic.factory",
                 "http-server",
                 {"pelix.http.address": "localhost", "pelix.http.port": 0},
+            )
+        # start etcd3 discovery service client
+        with use_ipopo(self.framework.get_bundle_context()) as ipopo:
+            ipopo.instantiate(
+                "etcd3-endpoint-discovery-factory",
+                "etcd3-endpoint-discovery",
+                {"etcd.hostname": TEST_ETCD_HOSTNAME, 
+                 "etcd.top_key": TEST_ETCD_TOPPATH,
+                 },
             )
 
         self.advertiser = None

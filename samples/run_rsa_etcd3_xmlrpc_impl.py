@@ -40,15 +40,18 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
+# etcd3 discovery hostname and port
+ETCD_HOSTNAME = "localhost"
+ETCD_PORT = 2379
+
 # ------- Main constants for the sample
 HTTP_HOSTNAME = "127.0.0.1"
 HTTP_PORT = 8181
 
-ETCD_HOSTNAME = "localhost"
-
 # ------------------------------------------------------------------------------
-
-
+def connected_cb():
+    print("Etcd3 connected!")
+    
 def main() -> None:
 
     import logging
@@ -61,9 +64,9 @@ def main() -> None:
         "pelix.shell.console",
         # RSA implementation
         "pelix.rsa.remoteserviceadmin",
-        # Basic topology manager (opt)
+        # topology manager 
         "pelix.rsa.topologymanagers.basic",
-        # etcd discovery provider (opt)
+        # etcd3 discovery  
         "pelix.rsa.providers.discovery.etcd3.discovery_etcd3",
         # HTTP Service
         "pelix.http.basic",
@@ -77,7 +80,6 @@ def main() -> None:
     framework = pelix.create_framework(
         bundles,
         {
-            "etcd.hostname": ETCD_HOSTNAME,
             "ecf.xmlrpc.server.hostname": HTTP_HOSTNAME,
         },
     )
@@ -88,6 +90,13 @@ def main() -> None:
             "pelix.http.service.basic.factory",
             "http-server",
             {"pelix.http.address": HTTP_HOSTNAME, "pelix.http.port": HTTP_PORT},
+        )
+    # start etcd3 discovery service client
+    with use_ipopo(framework.get_bundle_context()) as ipopo:
+        ipopo.instantiate(
+            "etcd3-endpoint-discovery-factory",
+            "etcd3-endpoint-discovery",
+            {"etcd.hostname": ETCD_HOSTNAME, "etcd.port": ETCD_PORT, "etcd.connected_callback": connected_cb},
         )
     # install helloimpl_xmlrpc module, instantiate component and should result
     # in export via xmlrpc distribution provider and advertisement of endpoint

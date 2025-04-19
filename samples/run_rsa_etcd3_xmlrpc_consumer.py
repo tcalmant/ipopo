@@ -29,6 +29,7 @@ be an etcd3 server/service running on localhost/2379 (default etcd3 port)
 """
 
 import pelix.framework as pelix
+from pelix.ipopo.constants import use_ipopo
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -40,13 +41,10 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 # ------- Main constants for the sample
-HTTP_HOSTNAME = "127.0.0.1"
-HTTP_PORT = 8181
-
+# etcd3 discovery hostname and port
 ETCD_HOSTNAME = "localhost"
-
+ETCD_PORT = 2379
 # ------------------------------------------------------------------------------
-
 
 def main() -> None:
     import logging
@@ -74,6 +72,13 @@ def main() -> None:
     # Use the utility method to create, run and delete the framework
     framework = pelix.create_framework(bundles)
     framework.start()
+    # start etcd3 discovery service client
+    with use_ipopo(framework.get_bundle_context()) as ipopo:
+        ipopo.instantiate(
+            "etcd3-endpoint-discovery-factory",
+            "etcd3-endpoint-discovery",
+            {"etcd.hostname": ETCD_HOSTNAME, "etcd.port": ETCD_PORT},
+        )
 
     try:
         framework.wait_for_stop()
