@@ -47,7 +47,6 @@ from pelix.ipopo.decorators import (
 from pelix.rsa import create_uuid, prop_dot_suffix
 from pelix.rsa.endpointdescription import EndpointDescription, decode_endpoint_props, encode_endpoint_props
 from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent, EndpointSubscriber
-import warnings
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -72,7 +71,6 @@ ETCD_WATCHSTART_WAIT_PROP = "watchstartwait"
 
 # ------------------------------------------------------------------------------
 
-@warnings.deprecated("etcd2 is no longer in common usage.  Use pelix.rsa.providers.discovery.etcd3.discovery_etcd3 instead")
 @ComponentFactory("etcd-endpoint-discovery-factory")
 @Provides(EndpointAdvertiser)
 @Property(
@@ -107,6 +105,9 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     ADD_ACTIONS: List[str] = ["set", "create"]
 
     def __init__(self) -> None:
+        import warnings
+        warnings.warn("etcd2 is no longer in common usage.  Use pelix.rsa.providers.discovery.etcd3.discovery_etcd3 instead", DeprecationWarning)
+        
         EndpointAdvertiser.__init__(self)
         EndpointSubscriber.__init__(self)
         self._hostname: str = "localhost"
