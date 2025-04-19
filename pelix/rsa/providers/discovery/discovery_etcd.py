@@ -71,7 +71,6 @@ ETCD_WATCHSTART_WAIT_PROP = "watchstartwait"
 
 # ------------------------------------------------------------------------------
 
-
 @ComponentFactory("etcd-endpoint-discovery-factory")
 @Provides(EndpointAdvertiser)
 @Property(
@@ -106,6 +105,9 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     ADD_ACTIONS: List[str] = ["set", "create"]
 
     def __init__(self) -> None:
+        import warnings
+        warnings.warn("etcd2 is no longer in common usage.  Use pelix.rsa.providers.discovery.etcd3.discovery_etcd3 instead", DeprecationWarning)
+        
         EndpointAdvertiser.__init__(self)
         EndpointSubscriber.__init__(self)
         self._hostname: str = "localhost"
