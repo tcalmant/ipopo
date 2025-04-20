@@ -381,70 +381,111 @@ Unlike in the example above, when this service is instantiated and
 registered, it will also be automatically exported, making unnecessary
 to use the `exportservice` command.
 
-## Using Etcd Discovery
+## Using Etcd3 Discovery
 
 Rather than importing remote services manually via the `importservice`
-command, it's also possible to import using supported network discovery
-protocols. One discovery mechanism used in systems like
+command, it's also possible to import remote services via network discovery
+protocols. One popular discovery protocol used in systems like
 [kubernetes](https://kubernetes.io/) is
-[etcd](https://github.com/etcd-io/etcd), and there is an etcd discovery
-provider available in the `pelix.rsa.providers.discovery.discovery_etcd`
-module.
+[etcd3](https://github.com/etcd-io/etcd).  There is an etcd3 endpoint discovery
+provider available in the `pelix.rsa.providers.discovery.etcd3.discovery_etcd3`
+module.  Note that the use of this provider requires a configured and running [etcd3](https://github.com/etcd-io/etcd) server.
 
-This is the list of bundles included in the
-`samples.run_rsa_etcd_xmlrpc` program:
-
-```
-bundles = ['pelix.ipopo.core',
-           'pelix.shell.core',
-           'pelix.shell.ipopo',
-           'pelix.shell.console',
-           'pelix.rsa.remoteserviceadmin',  # RSA implementation
-           'pelix.http.basic',  # httpservice
-           # xmlrpc distribution provider (opt)
-           'pelix.rsa.providers.distribution.xmlrpc',
-           # etcd discovery provider (opt)
-           'pelix.rsa.providers.discovery.discovery_etcd',
-           # basic topology manager (opt)
-           'pelix.rsa.topologymanagers.basic',
-           'pelix.rsa.shell',  # RSA shell commands (opt)
-           'samples.rsa.helloconsumer_xmlrpc']  # Example helloconsumer.  Only uses remote proxies
-```
-
-Note the presence of the etcd discovery provider:
-`pelix.rsa.providers.discovery.discovery_etcd`
-
-To start a consumer with etcd discovery run the
-`samples.run_rsa_etcd_xmlrpc` program:
+The sample program `samples.run_rsa_etcd3_xmlrpc_impl` (remote service implementation/server, using etcd3 discovery and xmlrpc distribution) contains the following [set of bundles](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L60))
 
 ```
-$ python -m samples.run_rsa_etcd_xmlrpc
+    bundles = (
+        "pelix.ipopo.core",
+        "pelix.shell.core",
+        "pelix.shell.ipopo",
+        "pelix.shell.console",
+        # RSA implementation
+        "pelix.rsa.remoteserviceadmin",
+        # topology manager 
+        "pelix.rsa.topologymanagers.basic",
+        # etcd3 discovery  
+        "pelix.rsa.providers.discovery.etcd3.discovery_etcd3",
+        # HTTP Service
+        "pelix.http.basic",
+        # XML-RPC distribution provider (opt)
+        "pelix.rsa.providers.distribution.xmlrpc",
+        # RSA shell commands (opt)
+        "pelix.rsa.shell",
+    )
+```
+
+The framework is then [created and started](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L80)
+
+```
+    framework = pelix.create_framework(
+        bundles,
+        {
+            "ecf.xmlrpc.server.hostname": HTTP_HOSTNAME,
+        },
+    )
+    framework.start()
+
+```
+
+the httpservice server (used by xmlrpc distribution provider) and etcd3 endpoint discovery services are then [configured by specifying the hostname and port and started](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L88)
+
+```
+    # start etcd3 discovery service client
+    with use_ipopo(framework.get_bundle_context()) as ipopo:
+        ipopo.instantiate(
+            "etcd3-endpoint-discovery-factory",
+            "etcd3-endpoint-discovery",
+            {"etcd.hostname": ETCD_HOSTNAME, "etcd.port": ETCD_PORT, "etcd.connected_callback": connected_cb},
+        )
+    # start httpservice, required by the xmlrpc distribution provider
+    with use_ipopo(framework.get_bundle_context()) as ipopo:
+        ipopo.instantiate(
+            "pelix.http.service.basic.factory",
+            "http-server",
+            {"pelix.http.address": HTTP_HOSTNAME, "pelix.http.port": HTTP_PORT},
+        )
+```
+
+After these two services are up and running, the helloworld_xmlrpc bundle can be [loaded and started](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L101), which
+will instantiate a helloworld impl, triggering the remote service export, and endpoint description advertising via the etcd3 endpoint discovery
+
+```
+    # install helloimpl_xmlrpc module, instantiate component and should result
+    # in export via xmlrpc distribution provider and advertisement of endpoint
+    # description via etcd3
+    framework.get_bundle_context().install_bundle("samples.rsa.helloimpl_xmlrpc").start()
+```
+
+Let's run the samples.run_rsa_etcd3_xmlrpc_impl program
+
+```
+$ python -m samples.run_rsa_etcd3_xmlrpc_impl
 ** Pelix Shell prompt **
-$ start samples.rsa.helloimpl_xmlrpc
-Bundle ID: 19
-Starting bundle 19 (samples.rsa.helloimpl_xmlrpc)...
+DEBUG:asyncio:Using proactor: IocpProactor
+$ INFO:http-server:Starting HTTP server: [127.0.0.1]:8181 ...
+DEBUG:grpc._cython.cygrpc:Using AsyncIOEngine.POLLER as I/O engine
+INFO:http-server:HTTP server started: [127.0.0.1]:8181
+DEBUG:pelix.rsa.providers.discovery.etcd3.discovery_etcd3:CONNECTED etcd3 session_id=4469111c-91c2-4dba-b64f-750d14243fda to host=localhost port=2379
+Etcd3 connected!
 $ sl org.eclipse.ecf.examples.hello.IHello
 +----+-------------------------------------------+--------------------------------------------------+---------+
 | ID |              Specifications               |                      Bundle                      | Ranking |
 +====+===========================================+==================================================+=========+
-| 21 | ['org.eclipse.ecf.examples.hello.IHello'] | Bundle(ID=19, Name=samples.rsa.helloimpl_xmlrpc) | 0       |
+| 22 | ['org.eclipse.ecf.examples.hello.IHello'] | Bundle(ID=19, Name=samples.rsa.helloimpl_xmlrpc) | 0       |
 +----+-------------------------------------------+--------------------------------------------------+---------+
 1 services registered
-$ exportservice 21
-Service=ServiceReference(ID=21, Bundle=19, Specs=['org.eclipse.ecf.examples.hello.IHello']) exported by 1 providers. EDEF written to file=edef.xml
-$ lexps
+$ listexports
 +--------------------------------------+-------------------------------+------------+
 |             Endpoint ID              |         Container ID          | Service ID |
 +======================================+===============================+============+
-| 0b5a6bf1-494e-41ef-861c-4c302ae75141 | http://127.0.0.1:8181/xml-rpc | 21         |
+| 9c808ee4-dd85-4077-93db-1bf93859c34a | http://127.0.0.1:8181/xml-rpc | 22         |
 +--------------------------------------+-------------------------------+------------+
-$
 ```
 
-Then start a consumer process
+Then to discover the remote service endpoint via etc3, we start a consumer process in a separate shell
 
 ```
-$ python -m samples.run_rsa_etcd_xmlrpc
+$ python -m samples.run_rsa_etcd3_xmlrpc_consumer
 ** Pelix Shell prompt **
 $ Python IHello service consumer received sync response: PythonSync says: Howdy PythonSync that's a nice runtime you got there
 done with sayHelloAsync method
@@ -453,20 +494,25 @@ async response: PythonAsync says: Howdy PythonAsync that's a nice runtime you go
 promise response: PythonPromise says: Howdy PythonPromise that's a nice runtime you got there
 ```
 
-This consumer uses etcd to discover the `IHello` remote service, a proxy
-is created and injected into the consumer (using the same consumer code
-shown above), and the consumer calls this proxy producing the text
+This consumer uses etcd3 to discover the `IHello` remote service (advertised by the previously-started run_rsa_etcd3_xmlrpc_impl program), a proxy
+is injected into the consumer and the consumer calls this proxy producing the text
 output above on the consumer and this output on the remote service
 implementation:
 
 ```
-$ Python.sayHello called by: PythonSync with message: 'Hello Java'
-Python.sayHelloAsync called by: PythonAsync with message: 'Hello Java'
-Python.sayHelloPromise called by: PythonPromise with message: 'Hello Java'
+Consumer IHello service consumer received sync response: PythonSync says: Howdy ConsumerSync that's a nice runtime you got there
+done with sayHelloAsync method
+done with sayHelloPromise method
 ```
 
 The consumer discovered the `org.eclipse.ecf.examples.hello.IHello`
-service published via etcd discovery, injected it into the consumer and
-the consumer called the methods on the `IHello` remote service,
-producing output on both the consumer and the remote service
-implementation.
+service published via etcd3 discovery, created and injected the proxy into the consumer, and
+the consumer [called the proxy's methods](https://github.com/tcalmant/ipopo/blob/v3/samples/rsa/helloconsumer_xmlrpc.py#L41) on the `IHello` remote service,
+producing text output on both the consumer and above, and the remote service
+implementation as below
+
+```
+$ Python.sayHello called by: ConsumerSync with message: 'Hello Impl'
+Python.sayHelloAsync called by: ConsumerAsync with message: 'Hello Impl'
+Python.sayHelloPromise called by: ConsumerPromise with message: 'Hello Impl'
+```
