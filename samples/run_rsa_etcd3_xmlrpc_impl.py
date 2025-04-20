@@ -84,19 +84,19 @@ def main() -> None:
         },
     )
     framework.start()
-    # start httpservice, required by the xmlrpc distribution provider
-    with use_ipopo(framework.get_bundle_context()) as ipopo:
-        ipopo.instantiate(
-            "pelix.http.service.basic.factory",
-            "http-server",
-            {"pelix.http.address": HTTP_HOSTNAME, "pelix.http.port": HTTP_PORT},
-        )
     # start etcd3 discovery service client
     with use_ipopo(framework.get_bundle_context()) as ipopo:
         ipopo.instantiate(
             "etcd3-endpoint-discovery-factory",
             "etcd3-endpoint-discovery",
             {"etcd.hostname": ETCD_HOSTNAME, "etcd.port": ETCD_PORT, "etcd.connected_callback": connected_cb},
+        )
+    # start httpservice, required by the xmlrpc distribution provider
+    with use_ipopo(framework.get_bundle_context()) as ipopo:
+        ipopo.instantiate(
+            "pelix.http.service.basic.factory",
+            "http-server",
+            {"pelix.http.address": HTTP_HOSTNAME, "pelix.http.port": HTTP_PORT},
         )
     # install helloimpl_xmlrpc module, instantiate component and should result
     # in export via xmlrpc distribution provider and advertisement of endpoint
