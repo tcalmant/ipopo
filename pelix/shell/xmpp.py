@@ -6,13 +6,13 @@ XMPP shell: XMPP interface for the Pelix shell
 This module depends on the sleekxmpp package: http://sleekxmpp.com/
 
 :author: Thomas Calmant
-:copyright: Copyright 2024, Thomas Calmant
+:copyright: Copyright 2025, Thomas Calmant
 :license: Apache License 2.0
 :version: 3.0.0
 
 ..
 
-    Copyright 2024 Thomas Calmant
+    Copyright 2025 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -32,16 +32,14 @@ import collections
 import logging
 import sys
 from io import StringIO
-from typing import Any, Deque, Dict, List, Optional, cast
+from typing import IO, Any, Deque, Dict, List, Optional, cast
 
-from slixmpp.clientxmpp import ClientXMPP
 from slixmpp.jid import JID
 
 import pelix.framework
 import pelix.misc.xmpp
 import pelix.shell
 import pelix.shell.beans as beans
-import pelix.utilities
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, HiddenProperty, Invalidate, Property, Requires, Validate
 from pelix.shell.console import handle_common_arguments, make_common_parser
@@ -65,24 +63,31 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class _XmppOutStream:
+class _XmppOutStream(IO[str]):
     """
     File-like XMPP output. For shell IOHandler use only
     """
 
-    def __init__(self, client: ClientXMPP, target: JID) -> None:
+    def __init__(self, client: pelix.misc.xmpp.BasicBot, target: JID) -> None:
         """
         Sets up the stream
 
         :param client: XMPP client
         :param target: Output target JID
         """
-        self._client: ClientXMPP = client
+        self._client: pelix.misc.xmpp.BasicBot = client
         self._target: JID = target
         self._buffer: StringIO = StringIO()
 
         # Indicate to the I/O handler that we want strings, not bytes
         self.encoding: str = "utf-8"
+
+    @property
+    def mode(self) -> str:
+        """
+        Indicate we're not in binary mode
+        """
+        return "w"
 
     def write(self, data: str) -> None:
         """
@@ -107,7 +112,7 @@ class _XmppOutStream:
                 raise ex
 
 
-class _XmppInStream:
+class _XmppInStream(IO[str]):
     """
     File-like XMPP input. For shell IOHandler use only
     """
@@ -121,6 +126,13 @@ class _XmppInStream:
         """
         self._ui = xmpp_ui
         self._jid = source_jid
+
+    @property
+    def mode(self) -> str:
+        """
+        Indicate we're not in binary mode
+        """
+        return "r"
 
     def readline(self) -> Optional[str]:
         """
