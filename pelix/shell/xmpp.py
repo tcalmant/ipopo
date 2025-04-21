@@ -32,7 +32,7 @@ import collections
 import logging
 import sys
 from io import StringIO
-from typing import Any, Deque, Dict, List, Optional, cast
+from typing import IO, Any, Deque, Dict, List, Optional, cast
 
 from slixmpp.clientxmpp import ClientXMPP
 from slixmpp.jid import JID
@@ -65,7 +65,7 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class _XmppOutStream:
+class _XmppOutStream(IO[str]):
     """
     File-like XMPP output. For shell IOHandler use only
     """
@@ -107,7 +107,7 @@ class _XmppOutStream:
                 raise ex
 
 
-class _XmppInStream:
+class _XmppInStream(IO[str]):
     """
     File-like XMPP input. For shell IOHandler use only
     """
