@@ -495,5 +495,4 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     # Run the entry point
-    logging.basicConfig(level=logging.DEBUG)
     sys.exit(main())
