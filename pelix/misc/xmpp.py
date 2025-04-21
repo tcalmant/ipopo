@@ -315,14 +315,19 @@ class BasicBot:
     """
 
     def __init__(
-        self, jid: Union[str, JID], password: str, initial_priority: int = 0, ssl_verify: bool = False
+        self,
+        jid: Union[str, JID],
+        password: str,
+        initial_priority: int = 0,
+        ssl_verify: bool = False,
+        bot_class: type[XMPPBotClient] = XMPPBotClient,
     ) -> None:
         self.__loop: AbstractEventLoop | None = None
         self.__thread_stop_event: threading.Event = threading.Event()
         init_call_event: EventData[XMPPBotClient] = EventData()
         self.__thread = threading.Thread(
             target=self.__thread_loop,
-            args=(init_call_event, jid, password, initial_priority, ssl_verify),
+            args=(init_call_event, bot_class, jid, password, initial_priority, ssl_verify),
             name=f"XMPP client {jid}",
             daemon=True,
         )
@@ -346,6 +351,7 @@ class BasicBot:
     def __thread_loop(
         self,
         event: EventData[XMPPBotClient],
+        bot_class: type[XMPPBotClient],
         jid: Union[str, JID],
         password: str,
         initial_priority: int,
@@ -358,7 +364,7 @@ class BasicBot:
         asyncio.set_event_loop(self.__loop)
 
         try:
-            bot = XMPPBotClient(jid, password, initial_priority, ssl_verify)
+            bot = bot_class(jid, password, initial_priority, ssl_verify)
             event.set(bot)
         except Exception as e:
             _logger.exception("Error creating XMPP bot")
