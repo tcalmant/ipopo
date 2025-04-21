@@ -6,13 +6,13 @@ XMPP shell: XMPP interface for the Pelix shell
 This module depends on the sleekxmpp package: http://sleekxmpp.com/
 
 :author: Thomas Calmant
-:copyright: Copyright 2024, Thomas Calmant
+:copyright: Copyright 2025, Thomas Calmant
 :license: Apache License 2.0
 :version: 3.0.0
 
 ..
 
-    Copyright 2024 Thomas Calmant
+    Copyright 2025 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -82,6 +82,13 @@ class _XmppOutStream(IO[str]):
         # Indicate to the I/O handler that we want strings, not bytes
         self.encoding: str = "utf-8"
 
+    @property
+    def mode(self) -> str:
+        """
+        Indicate we're not in binary mode
+        """
+        return "w"
+
     def write(self, data: str) -> None:
         """
         Writes data to a buffer
@@ -119,6 +126,13 @@ class _XmppInStream(IO[str]):
         """
         self._ui = xmpp_ui
         self._jid = source_jid
+
+    @property
+    def mode(self) -> str:
+        """
+        Indicate we're not in binary mode
+        """
+        return "r"
 
     def readline(self) -> Optional[str]:
         """
@@ -481,4 +495,5 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     # Run the entry point
+    logging.basicConfig(level=logging.DEBUG)
     sys.exit(main())
