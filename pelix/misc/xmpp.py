@@ -170,6 +170,11 @@ class BasicBot(ClientXMPP):
         :param use_ssl: Server connection is encrypted
         :return: True if connection succeeded
         """
+        # Setup SSL and TLS
+        self.enable_plaintext = not use_ssl and not use_tls
+        self.enable_starttls = use_tls
+        self.enable_direct_tls = use_ssl
+
         if not self._expected_server_name:
             # We seem to connect the server anonymously, so SliXMPP
             # couldn't find the server host name from the JID
@@ -210,9 +215,11 @@ class BasicBot(ClientXMPP):
         self.__thread_id = thread.ident
 
         self._connected_event.clear()
-        self.loop.call_soon_threadsafe(super().connect, (host, port), use_ssl, use_tls)
+        self.loop.call_soon_threadsafe(super().connect, host, port)
         # Wait for the connection to be established
         if not self._connected_event.wait(5):
+            # Setting this to None will stop the loop
+            self.__loop_stop = None
             raise IOError("XMPP connection timeout")
 
         return True
@@ -268,7 +275,6 @@ class BasicBot(ClientXMPP):
             if self.__loop_stop is not None:
                 self.__loop_stop.set_result(True)
 
-            self.__thread = None
             self.__thread_id = None
 
         fut = super().disconnect(wait, reason, ignore_send_queue)
@@ -372,7 +378,9 @@ class InviteMixIn(BaseXMPP):
             self._nick = self.boundjid.node
 
         # Join the room
-        self.plugin["xep_0045"].joinMUC(data["from"], self._nick)
+        plugin = self.plugin["xep_0045"]
+        if plugin is not None:
+            plugin.join_muc(data["from"], self._nick)
 
 
 # ------------------------------------------------------------------------------
