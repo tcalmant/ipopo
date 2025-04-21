@@ -1,0 +1,40 @@
+services:
+  etcd3:
+    image: bitnami/etcd
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+    ports:
+      - "2379:2379"
+
+  etcd2:
+    build: etcd2
+    ports:
+      - "12379:12379"
+
+  mqtt-broker:
+    image: eclipse-mosquitto
+    volumes:
+      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    ports:
+      - "1883:1883"
+
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+
+  xmpp:
+    image: ejabberd/ecs:latest
+    ports:
+      - "5222:5222"
+    environment:
+      - ERL_OPTS=-noshell
+    volumes:
+      - ./xmpp/register_users.sh:/opt/register_users.sh:ro
+    # post_start:
+    #   - command: /bin/sh /opt/register_users.sh
+
+  zookeeper:
+    image: zookeeper
+    ports:
+      - "2181:2181"
