@@ -7,13 +7,13 @@ development of bots in Pelix
 This module depends on the slixmpp package: https://slixmpp.readthedocs.io/
 
 :author: Thomas Calmant
-:copyright: Copyright 2024, Thomas Calmant
+:copyright: Copyright 2025, Thomas Calmant
 :license: Apache License 2.0
 :version: 3.0.0
 
 ..
 
-    Copyright 2024 Thomas Calmant
+    Copyright 2025 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -29,19 +29,17 @@ This module depends on the slixmpp package: https://slixmpp.readthedocs.io/
 """
 
 import asyncio
-import inspect
 import logging
-import os
-import selectors
 import ssl
 import threading
-from asyncio import Future
-from typing import Any, AsyncGenerator, Dict, Optional, Union
+from asyncio import AbstractEventLoop, Future
+from typing import Any, AsyncGenerator, Dict, Optional, Union, cast
 
 # XMPP, based on slixmpp, replacing sleekxmpp
 from slixmpp.basexmpp import BaseXMPP
 from slixmpp.clientxmpp import ClientXMPP
 from slixmpp.jid import JID
+from slixmpp.types import MessageTypes
 from slixmpp.xmlstream import JID
 
 from pelix.utilities import EventData
@@ -60,7 +58,7 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class BasicBot(ClientXMPP):
+class XMPPBotClient(ClientXMPP):
     """
     Basic bot: connects to a server with the given credentials
     """
@@ -74,14 +72,8 @@ class BasicBot(ClientXMPP):
         :param initial_priority: Initial presence priority
         :param ssl_verify: If true, verify the server certificate
         """
-        # ID of the loop thread
-        self.__thread_id: Optional[int] = None
-
         # Set up the client
         ClientXMPP.__init__(self, jid, password)
-
-        # End of loop marker
-        self.__loop_stop: Optional[asyncio.Future[bool]] = None
 
         # Store parameters
         self._initial_priority: int = initial_priority
@@ -90,7 +82,8 @@ class BasicBot(ClientXMPP):
         self.__ssl_verify: bool = ssl_verify
 
         # Connection event
-        self._connected_event: EventData[Any] = EventData()
+        self._connected_event: EventData[bool] = EventData()
+        self._disconnected_event: EventData[bool] = EventData()
 
         # Register the plug-ins: Form and Ping
         self.register_plugin("xep_0004")
@@ -99,43 +92,11 @@ class BasicBot(ClientXMPP):
         # Register to session start event
         self.add_event_handler("session_start", self.on_session_start)
 
-    def _run_loop(self) -> None:
-        """
-        Runs the XMPP asyncio loop in a thread
-        """
-        try:
-            asyncio.set_event_loop(self.loop)
-            self.__loop_stop = self.loop.create_future()
-            try:
-                while self.__loop_stop is not None and not self.__loop_stop.done():
-                    try:
-                        self.loop.run_until_complete(asyncio.wait_for(asyncio.shield(self.__loop_stop), 60))
-                    except asyncio.TimeoutError:
-                        pass
-
-                _logger.debug("XMPP loop stopped - %s", self.boundjid)
-                pending = asyncio.all_tasks(self.loop)
-                for p in pending:
-                    # Cancel all pending tasks
-                    p.cancel()
-
-                if pending:
-                    # Consume cancelled tasks
-                    self.loop.run_until_complete(asyncio.wait(pending))
-            except Exception:
-                _logger.exception("Error in XMPP loop")
-            finally:
-                self.loop.close()
-                self.__loop_stop = None
-        except Exception:
-            _logger.exception("Error in XMPP loop")
-
     def __del__(self) -> None:
         """
         Ensure we are disconnected when the bot is deleted
         """
-        if self.__loop_stop is not None:
-            self.disconnect()
+        self.disconnect()
 
     def get_ssl_context(self) -> ssl.SSLContext:
         """
@@ -156,7 +117,7 @@ class BasicBot(ClientXMPP):
         port: int = 5222,
         use_tls: bool = True,
         use_ssl: bool = False,
-    ) -> bool:
+    ) -> Future[Any]:
         # pylint: disable=W0221
         """
         Connects to the server.
@@ -191,101 +152,15 @@ class BasicBot(ClientXMPP):
         self.add_event_handler("ssl_invalid_chain", self.on_ssl_error)
         self.add_event_handler("message_error", self.on_message_error)
 
-        if os.name == "nt":
-            # On Windows, use the SelectSelector
-            class EventLoopPolicy(asyncio.DefaultEventLoopPolicy):
-                """
-                Event loop policy that uses a SelectSelector on Windows
-                """
-
-                def new_event_loop(self) -> asyncio.AbstractEventLoop:
-                    """
-                    Creates a new event loop
-                    """
-                    selector = selectors.SelectSelector()
-                    return asyncio.SelectorEventLoop(selector)
-
-            _logger.debug("Using a SelectSelector on Windows")
-            asyncio.set_event_loop_policy(EventLoopPolicy())
-
-        self.loop = asyncio.new_event_loop()
-        self.loop.set_debug(True)
-        thread = threading.Thread(target=self._run_loop, name=f"XMPP loop {self.boundjid.bare}")
-        thread.start()
-        self.__thread_id = thread.ident
-
-        self._connected_event.clear()
-        self.loop.call_soon_threadsafe(super().connect, host, port)
-        # Wait for the connection to be established
-        if not self._connected_event.wait(5):
-            # Setting this to None will stop the loop
-            self.__loop_stop = None
-            raise IOError("XMPP connection timeout")
-
-        return True
-
-    def __getattribute__(self, __name: str) -> Any:
-        """
-        Wraps all non-coroutine methods to ensure they are called in the loop thread
-        """
-        attr = super().__getattribute__(__name)
-
-        if (
-            (inspect.ismethod(attr) or inspect.isfunction(attr))
-            and not asyncio.iscoroutine(attr)
-            and not asyncio.iscoroutinefunction(attr)
-            and self.__thread_id is not None
-            and threading.current_thread().ident != self.__thread_id
-            and not self.loop.is_closed()
-        ):
-            # Ensure that the method is called in the loop thread
-            def wrapped(*args: Any, **kwds: Any) -> Any:
-                """
-                Wraps the method call
-                """
-                event = EventData[Any]()
-
-                def underwrapped() -> None:
-                    """
-                    Effectively calls the method and stores its result in an event
-                    """
-                    try:
-                        event.set(attr(*args, **kwds))
-                    except Exception as ex:
-                        _logger.exception("Calling %s in the XMPP loop failed", __name)
-                        event.raise_exception(ex)
-
-                self.loop.call_soon_threadsafe(underwrapped)
-                return event.wait()
-
-            return wrapped
-        return attr
-
-    def disconnect(
-        self, wait: Union[float, int] = 2, reason: Optional[str] = None, ignore_send_queue: bool = False
-    ) -> Future[Any]:
-        """
-        Calls the parent disconnect method and stops the event loop
-        """
-
-        def end_of_loop(future: Future[Any]) -> None:
-            """
-            Called when the disconnection is done, stops the loop
-            """
-            if self.__loop_stop is not None:
-                self.__loop_stop.set_result(True)
-
-            self.__thread_id = None
-
-        fut = super().disconnect(wait, reason, ignore_send_queue)
-        fut.add_done_callback(end_of_loop)
-        return fut
+        _logger.critical(f"Connect to {host}:{port}, jid='{self.boundjid}' - pass='{self.password}'")
+        return super().connect(host, port)
 
     def __on_connect(self, data: Dict[Any, Any]) -> None:
         """
         XMPP client connected: unblock the connect() method
         """
         _logger.debug("XMPP client connected")
+        self._disconnected_event.clear()
         self._connected_event.set()
 
     def __on_connect_error(self, data: Dict[Any, Any]) -> None:
@@ -301,6 +176,7 @@ class BasicBot(ClientXMPP):
         """
         _logger.debug("XMPP client disconnected")
         self._connected_event.clear()
+        self._disconnected_event.set()
 
     async def on_session_start(self, data: Any) -> None:
         # pylint: disable=W0613
@@ -431,3 +307,171 @@ class ServiceDiscoveryMixin(BaseXMPP):
                 if feature in info["disco_info"]["features"]:
                     # The service provides the required feature
                     yield item[0]
+
+
+class BasicBot:
+    """
+    Basic bot provided by this service
+    """
+
+    def __init__(
+        self, jid: Union[str, JID], password: str, initial_priority: int = 0, ssl_verify: bool = False
+    ) -> None:
+        self.__loop: AbstractEventLoop | None = None
+        self.__thread_stop_event: threading.Event = threading.Event()
+        init_call_event: EventData[XMPPBotClient] = EventData()
+        self.__thread = threading.Thread(
+            target=self.__thread_loop,
+            args=(init_call_event, jid, password, initial_priority, ssl_verify),
+            name=f"XMPP client {jid}",
+            daemon=True,
+        )
+        self.__thread.start()
+
+        if init_call_event.wait(30) and init_call_event.data is not None:
+            self.__bot: XMPPBotClient = init_call_event.data
+        else:
+            raise RuntimeError("Failed to create XMPP bot")
+
+    def stop(self) -> None:
+        self.__thread_stop_event.set()
+
+        if self.__thread is not None:
+            self.__thread.join()
+            self.__thread = None
+
+    def __del__(self) -> None:
+        self.stop()
+
+    def __thread_loop(
+        self,
+        event: EventData[XMPPBotClient],
+        jid: Union[str, JID],
+        password: str,
+        initial_priority: int,
+        ssl_verify: bool,
+    ) -> None:
+        """
+        Runs the XMPP asyncio loop in a thread
+        """
+        self.__loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.__loop)
+
+        try:
+            bot = XMPPBotClient(jid, password, initial_priority, ssl_verify)
+            event.set(bot)
+        except Exception as e:
+            _logger.exception("Error creating XMPP bot")
+            event.raise_exception(e)
+            return
+
+        try:
+            while not self.__thread_stop_event.is_set():
+                # Run the loop until the stop event is set
+                self.__loop.run_until_complete(asyncio.shield(asyncio.sleep(0.1)))
+        except Exception:
+            _logger.exception("Error in XMPP loop")
+        finally:
+            self.__loop.stop()
+
+    @property
+    def boundjid(self) -> JID:
+        """
+        Returns the JID of the bot
+        """
+        return self.__bot.boundjid
+
+    @property
+    def auto_authorize(self) -> bool | None:
+        """
+        Returns the auto-authorize flag
+        """
+        return self.__bot.auto_authorize
+
+    @auto_authorize.setter
+    def auto_authorize(self, value: bool | None) -> None:
+        """
+        Sets the auto-authorize flag
+        """
+        self.__bot.auto_authorize = value
+
+    def connect(
+        self,
+        host: str,
+        port: int = 5222,
+        use_tls: bool = True,
+        use_ssl: bool = False,
+    ) -> bool:
+        if self.__loop is None:
+            raise RuntimeError("XMPP bot not initialized")
+
+        run_handle = self.__loop.call_soon_threadsafe(self.__bot.connect, host, port, use_tls, use_ssl)
+        if not self.__bot._connected_event.wait(5):
+            run_handle.cancel()
+            return False
+
+        return True
+
+    def add_event_handler(self, event: str, handler: Any) -> None:
+        """
+        Adds an event handler to the bot
+        """
+        self.__bot.add_event_handler(event, handler)
+
+    def update_roster(self, jid: Union[str, JID], **kwargs) -> None:
+        """
+        Updates the roster for the given JID
+        """
+        if self.__loop is None:
+            raise RuntimeError("XMPP bot not initialized")
+
+        def call_update_roster():
+            return self.__bot.update_roster(JID(jid), **kwargs)
+
+        self.__loop.call_soon_threadsafe(call_update_roster)
+
+    def send_presence(self, **kwargs) -> None:
+        """
+        Sends a presence to the server
+        """
+        if self.__loop is None:
+            raise RuntimeError("XMPP bot not initialized")
+
+        def call_send_presence():
+            return self.__bot.send_presence(**kwargs)
+
+        self.__loop.call_soon_threadsafe(call_send_presence)
+
+    def send_message(
+        self,
+        mto: JID | str,
+        mbody: str | None = None,
+        msubject: str | None = None,
+        mtype: str | None = None,
+        mhtml: str | None = None,
+        mfrom: JID | str | None = None,
+        mnick: str | None = None,
+    ) -> None:
+        """
+        Sends a message to the given JID
+        """
+        if self.__loop is None:
+            raise RuntimeError("XMPP bot not initialized")
+
+        self.__loop.call_soon_threadsafe(
+            self.__bot.send_message, JID(mto), mbody, msubject, cast(MessageTypes, mtype), mhtml, mfrom, mnick
+        )
+
+    def disconnect(self) -> bool:
+        """
+        Disconnects the bot
+        """
+        if self.__loop is None:
+            raise RuntimeError("XMPP bot not initialized")
+
+        run_handle = self.__loop.call_soon_threadsafe(self.__bot.disconnect)
+        if not self.__bot._connected_event.wait(5):
+            run_handle.cancel()
+            return False
+
+        return True
