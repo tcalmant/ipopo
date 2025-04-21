@@ -34,14 +34,12 @@ import sys
 from io import StringIO
 from typing import IO, Any, Deque, Dict, List, Optional, cast
 
-from slixmpp.clientxmpp import ClientXMPP
 from slixmpp.jid import JID
 
 import pelix.framework
 import pelix.misc.xmpp
 import pelix.shell
 import pelix.shell.beans as beans
-import pelix.utilities
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, HiddenProperty, Invalidate, Property, Requires, Validate
 from pelix.shell.console import handle_common_arguments, make_common_parser
@@ -70,14 +68,14 @@ class _XmppOutStream(IO[str]):
     File-like XMPP output. For shell IOHandler use only
     """
 
-    def __init__(self, client: ClientXMPP, target: JID) -> None:
+    def __init__(self, client: pelix.misc.xmpp.BasicBot, target: JID) -> None:
         """
         Sets up the stream
 
         :param client: XMPP client
         :param target: Output target JID
         """
-        self._client: ClientXMPP = client
+        self._client: pelix.misc.xmpp.BasicBot = client
         self._target: JID = target
         self._buffer: StringIO = StringIO()
 
