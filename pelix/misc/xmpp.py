@@ -470,7 +470,7 @@ class BasicBot:
             raise RuntimeError("XMPP bot not initialized")
 
         run_handle = self.__loop.call_soon_threadsafe(self.__bot.disconnect)
-        if not self.__bot._connected_event.wait(5):
+        if not self.__bot._disconnected_event.wait(5):
             run_handle.cancel()
             return False
 
