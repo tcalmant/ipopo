@@ -5,7 +5,7 @@ paho-mqtt>=2.1
 python-etcd==0.4.5
 pyyaml>=6.0
 redis>=2.10
-slixmpp>=1.8.4
+slixmpp==1.10
 zeroconf==0.19.1
 grpcio>=1.71.0
 grpcio-tools>=1.71.0
