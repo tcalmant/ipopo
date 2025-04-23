@@ -6,7 +6,7 @@ Scott Lewis
 
 ## Introduction
 
-As part of recent work on [iPOPO RSA](https://github.com/tcalmant/ipopo), an implementation of a python import hook [pep-302](https://peps.python.org/pep-0302/) was created so using remote services java bundles could resolve python packages.  On the java side, the [https://github.com/ECF/Py4j-RemoteServicesProvider/blob/master/bundles/org.eclipse.ecf.provider.direct/src/org/eclipse/ecf/provider/direct/ModuleResolver.java](ModuleResolver) service interface exposes the methods called by a python import hook to resolve a python module.
+As part of recent work on [iPOPO RSA](https://github.com/tcalmant/ipopo), an implementation of a python import hook [pep-302](https://peps.python.org/pep-0302/) was created so using remote services java bundles could resolve python packages.  On the java side, the [ModuleResolver](https://github.com/ECF/Py4j-RemoteServicesProvider/blob/master/bundles/org.eclipse.ecf.provider.direct/src/org/eclipse/ecf/provider/direct/ModuleResolver.java) service interface exposes the methods called by a python import hook to resolve a python module.
 
 [Here](examples/org.eclipse.ecf.examples.importhook.module/src/org/eclipse/ecf/examples/importhook/module/ExampleBundleModuleResolver.java) is an example ModuleResolver service implementation for a python package named 'foo'.  Note that the PATH_PREFIX component property points to ['/python-src'](https://github.com/ECF/Py4j-RemoteServicesProvider/tree/master/examples/org.eclipse.ecf.examples.importhook.module/python-src/) inside built bundle.
 
