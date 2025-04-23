@@ -38,7 +38,8 @@ jobs:
 
       - name: Start test infrastructure
         run: |
-          find tests-infra -name compose.yaml -exec docker compose -f {} up -d \;
+          docker compose -f tests-infra/compose.yaml up -d
+          sh ./tests-infra/xmpp/docker_register_users.sh
 
       - name: Run unit tests
         run: |

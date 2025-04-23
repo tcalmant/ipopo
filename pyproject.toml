@@ -57,7 +57,7 @@ RSA = [
   "osgiservicebridge>=1.5.7"
 ]
 XMPP = [
-  "slixmpp>=1.8.4"
+  "slixmpp==1.10"
 ]
 zeroconf = [
   "zeroconf==0.19"
