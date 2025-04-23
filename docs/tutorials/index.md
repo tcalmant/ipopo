@@ -9,4 +9,5 @@ ipopo_10min
 rsa_xmlrpc
 rsa_etcd3_discovery
 rsa_pythonjava
+rsa_pythonjava_importhook
 ```
