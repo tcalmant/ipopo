@@ -25,7 +25,7 @@ these are the defaults in the etcd3 discovery provider (along with other configu
 
 This tutorial sample requires Python 3.10+, and version 3.0.0+ of iPOPO.
 
-##Using Etcd3 to Advertise an Endpoint Description
+## Using Etcd3 to Advertise an Endpoint Description
 
 The sample program `samples.run_rsa_etcd3_xmlrpc_impl` (remote service implementation/server, using etcd3 discovery and xmlrpc distribution) contains the following [set of bundles](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L60))
 
@@ -74,7 +74,7 @@ service proxy.
     framework.get_bundle_context().install_bundle("samples.rsa.helloimpl_xmlrpc").start()
 ```
 
-##Running the Exporter/Advertiser Sample App
+## Running the Exporter/Advertiser Sample App
 
 To show the whole process, first run the [samples.run_rsa_etcd3_xmlrpc_impl](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py) sample application
 
@@ -110,7 +110,7 @@ If you have debugging turned on for the etcd3 console (./etcd --debug), you shou
 ```
 The last line (Put request) is the advertisement of the IHello service endpoint description
 
-##Running the Discoverer/Importer/Consumer Sample App
+## Running the Discoverer/Importer/Consumer Sample App
 
 After running the exporter process (as above), start the [consumer application](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_consumer.py)
 
