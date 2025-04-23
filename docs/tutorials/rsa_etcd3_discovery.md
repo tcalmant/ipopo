@@ -74,7 +74,9 @@ service proxy.
     framework.get_bundle_context().install_bundle("samples.rsa.helloimpl_xmlrpc").start()
 ```
 
-To show the whole process, run the samples.run_rsa_etcd3_xmlrpc_impl program
+##Running the Exporter/Advertiser Sample App
+
+To show the whole process, first run the [samples.run_rsa_etcd3_xmlrpc_impl](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py) sample application
 
 ```
 $ python -m samples.run_rsa_etcd3_xmlrpc_impl
@@ -99,8 +101,18 @@ $ listexports
 | 9c808ee4-dd85-4077-93db-1bf93859c34a | http://127.0.0.1:8181/xml-rpc | 22         |
 +--------------------------------------+-------------------------------+------------+
 ```
+If you have debugging turned on for the etcd3 console (./etcd --debug), you should see something like this output
+```
+2025-04-23 11:39:14.935171 D | etcdserver/api/v3rpc: start time = 2025-04-23 11:39:14.927221335 -0700 PDT m=+218.646195160, time spent = 7.93516ms, remote = 127.0.0.1:38726, response type = /etcdserverpb.Lease/LeaseGrant, request count = -1, request size = -1, response count = -1, response size = -1, request content =
+2025-04-23 11:39:14.938040 D | etcdserver/api/v3rpc: start time = 2025-04-23 11:39:14.937579953 -0700 PDT m=+218.656553734, time spent = 397.094µs, remote = 127.0.0.1:38726, response type = /etcdserverpb.KV/Range, request count = 0, request size = 134, response count = 0, response size = 29, request content = key:"org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer" range_end:"org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer\\0"
+2025-04-23 11:39:14.939135 D | etcdserver/api/v3rpc: start time = 2025-04-23 11:39:14.938841484 -0700 PDT m=+218.657815267, time spent = 246.662µs, remote = 127.0.0.1:38726, response type = /etcdserverpb.KV/Put, request count = 1, request size = 151, response count = 0, response size = 29, request content = key:"org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer/51600bf3-37f1-4870-aeeb-98c23ecb85a0" value_size:36 lease:7587886303146547715
+2025-04-23 11:39:14.964578 D | etcdserver/api/v3rpc: start time = 2025-04-23 11:39:14.964363827 -0700 PDT m=+218.683337613, time spent = 188.423µs, remote = 127.0.0.1:38726, response type = /etcdserverpb.KV/Put, request count = 1, request size = 1469, response count = 0, response size = 29, request content = key:"org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer/51600bf3-37f1-4870-aeeb-98c23ecb85a0/763b7e97-e87b-4489-a686-fbc11a015bfa" value_size:1315 lease:7587886303146547715
+```
+The last line (Put request) is the advertisement of the IHello service endpoint description
 
-Then start the [consumer application](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_consumer.py)
+##Running the Discoverer/Importer/Consumer Sample App
+
+After running the exporter process (as above), start the [consumer application](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_consumer.py)
 
 ```
 $ python -m samples.run_rsa_etcd3_xmlrpc_consumer
