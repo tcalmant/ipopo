@@ -81,7 +81,7 @@ Instead, for this tutorial the export is performed via iPOPO console
 commands. If these comments were to be removed, the RSA impl will export
 this service as soon as it is instantiated and registered, making it
 unnecessary to explicitly export the service as shown in the
-[](#xml_rpc_hello_export) section below.
+Exporting the XmlRpcHelloImpl as a Remote Servicesection below.
 
 ## The HelloImpl Implementation
 
@@ -382,6 +382,8 @@ registered, it will also be automatically exported, making unnecessary
 to use the `exportservice` command.
 
 ## Using Etcd3 Discovery
+
+See the new tutorial 
 
 Rather than importing remote services manually via the `importservice`
 command, it's also possible to import remote services via network discovery

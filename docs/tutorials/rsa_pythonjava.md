@@ -17,12 +17,12 @@ iPOPO process.
 
 ## Requirements
 
-This sample requires Python 3 and launching the Java sample prior to
+This sample requires Python >=3.10 and launching the Java sample prior to
 proceeding with Starting the Python Sample below.
 
 It is also required to have installed the
 [osgiservicebridge](https://pypi.org/project/osgiservicebridge/) package
-before continuing.
+before continuing.  This package should have been installed by iPOPO setup.
 
 This [ECF tutorial page](https://wiki.eclipse.org/OSGi_R7_Remote_Services_between_Python_and_Java)
 describes how to launch the Java-side sample.
