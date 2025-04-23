@@ -25,6 +25,8 @@ these are the defaults in the etcd3 discovery provider (along with other configu
 
 This tutorial sample requires Python 3.10+, and version 3.0.0+ of iPOPO.
 
+##Using Etcd3 to Advertise an Endpoint Description
+
 The sample program `samples.run_rsa_etcd3_xmlrpc_impl` (remote service implementation/server, using etcd3 discovery and xmlrpc distribution) contains the following [set of bundles](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L60))
 
 ```
@@ -48,20 +50,7 @@ The sample program `samples.run_rsa_etcd3_xmlrpc_impl` (remote service implement
     )
 ```
 
-The framework is then [created and started](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L80)
-
-```
-    framework = pelix.create_framework(
-        bundles,
-        {
-            "ecf.xmlrpc.server.hostname": HTTP_HOSTNAME,
-        },
-    )
-    framework.start()
-
-```
-
-the etcd3 endpoint discovery service is then [configured by specifying the etcd.hostname, etcd.por, etcd.connected_callbackt and started](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L88)
+After starting the framework, the etcd3 endpoint discovery service is [configured and connected by specifying the etcd.hostname, etcd.por, etcd.connected_callbackt and started](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L88)
 
 ```
     # start etcd3 discovery service client
@@ -73,7 +62,7 @@ the etcd3 endpoint discovery service is then [configured by specifying the etcd.
         )
 ```
 
-After the discovery provider is configured and started/connected to the etcd3 server, the example [starts the helloworld_xmlrpc bundle](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L101), which
+Once the etcd3 compontent is instantiated/connected to the etcd3 server, the example [starts the helloworld_xmlrpc bundle](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L101), which
 will instantiate a helloworld impl component, and trigger the rsa remote services export, that will trigger the etd3 endpoint advertising.  Other clients
 connected to this etdc3 server will then be notified of the new endpoint, and have the opportunity to import and use a remote
 service proxy.
@@ -85,17 +74,17 @@ service proxy.
     framework.get_bundle_context().install_bundle("samples.rsa.helloimpl_xmlrpc").start()
 ```
 
-Let's run the samples.run_rsa_etcd3_xmlrpc_impl program
+To show the whole process, run the samples.run_rsa_etcd3_xmlrpc_impl program
 
 ```
 $ python -m samples.run_rsa_etcd3_xmlrpc_impl
 ** Pelix Shell prompt **
 DEBUG:asyncio:Using proactor: IocpProactor
-$ INFO:http-server:Starting HTTP server: [127.0.0.1]:8181 ...
+INFO:http-server:Starting HTTP server: [127.0.0.1]:8181 ...
 DEBUG:grpc._cython.cygrpc:Using AsyncIOEngine.POLLER as I/O engine
 INFO:http-server:HTTP server started: [127.0.0.1]:8181
 DEBUG:pelix.rsa.providers.discovery.etcd3.discovery_etcd3:CONNECTED etcd3 session_id=4469111c-91c2-4dba-b64f-750d14243fda to host=localhost port=2379
-Etcd3 connected!
+Etcd3 connected!  <-- this is provided via the connected_cb callback function 
 $ sl org.eclipse.ecf.examples.hello.IHello
 +----+-------------------------------------------+--------------------------------------------------+---------+
 | ID |              Specifications               |                      Bundle                      | Ranking |
@@ -111,7 +100,7 @@ $ listexports
 +--------------------------------------+-------------------------------+------------+
 ```
 
-Then start a consumer to discover and import the remote service endpoint via etc3
+Then start the [consumer application](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_consumer.py)
 
 ```
 $ python -m samples.run_rsa_etcd3_xmlrpc_consumer
@@ -142,5 +131,5 @@ Python.sayHelloAsync called by: ConsumerAsync with message: 'Hello Impl'
 Python.sayHelloPromise called by: ConsumerPromise with message: 'Hello Impl'
 ```
 
-Note that if the remote service exposes async apis (e.g. sayHelloAsync and sayHelloPromise) then the calling of these methods
-will not block the calling thread.
+Note that if the remote service exposes async apis (e.g. sayHelloAsync and sayHelloPromise in the IHello service) then the calling of these methods
+will not block the consumer's calling thread.
