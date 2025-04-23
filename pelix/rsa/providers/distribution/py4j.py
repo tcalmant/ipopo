@@ -116,17 +116,13 @@ ECF_PY4JPB_SUPPORTED_INTENTS = [
     "osgi.private",
 ]
 
-ECF_PY4J_JAVA_PORT_PROP = "javaport"
-ECF_PY4J_PYTHON_PORT_PROP = "pythonport"
-ECF_PY4J_DEFAULT_SERVICE_TIMEOUT = "defaultservicetimeout"
 
 # ------------------------------------------------------------------------------
-
-
 @ComponentFactory(ECF_PY4J_CONTAINER_CONFIG_TYPE)
 @Provides([ExportContainer, ImportContainer])
 class Py4jContainer(ExportContainer, ImportContainer):
-    def __init__(self, max_workers: int = 5) -> None:
+
+    def __init__(self, max_workers: int=5) -> None:
         ExportContainer.__init__(self)
         ImportContainer.__init__(self)
         self._max_workers = max_workers
@@ -216,6 +212,21 @@ class Py4jContainer(ExportContainer, ImportContainer):
         ImportContainer.unimport_service(self, endpoint_description)
 
 
+# Distribution Provider property names
+ECF_PY4J_JAVA_PORT_PROP = ".".join([ECF_PY4J_CONTAINER_CONFIG_TYPE, "javaport"])
+ECF_PY4J_JAVA_PORT_DEFAULT = DEFAULT_PORT
+ECF_PY4J_PYTHON_PORT_PROP = ".".join([ECF_PY4J_CONTAINER_CONFIG_TYPE, "pythonport"])
+ECF_PY4J_PYTHON_PORT_DEFAULT = DEFAULT_PYTHON_PROXY_PORT
+ECF_PY4J_SERVICE_TIMEOUT_PROP = ".".join([ECF_PY4J_CONTAINER_CONFIG_TYPE, "defaultservicetimeout"])
+ECF_PY4J_SERVICE_TIMEOUT_DEFAULT = 30
+ECF_PY4J_USE_IMPORT_HOOK_PROP = ".".join([ECF_PY4J_CONTAINER_CONFIG_TYPE, "useimporthook"])
+ECF_PY4J_USE_IMPORT_HOOK_DEFAULT = False
+ECF_PY4J_GATEWAY_PARAMS_PROP = ".".join([ECF_PY4J_CONTAINER_CONFIG_TYPE, "gatewayparams"])
+ECF_PY4J_GATEWAY_PARAMS_DEFAULT = None
+ECF_PY4J_CALLBACKSERVER_PARAMS_PROP = ".".join([ECF_PY4J_CONTAINER_CONFIG_TYPE, "callbackserverparams"])
+ECF_PY4J_CALLBACKSERVER_PARAMS_DEFAULT = None
+
+
 @ComponentFactory("py4j-distribution-provider-factory")
 @Provides([ExportDistributionProvider, ImportDistributionProvider])
 @Property("_config_name", "config_name", ECF_PY4J_CONTAINER_CONFIG_TYPE)
@@ -233,23 +244,45 @@ class Py4jContainer(ExportContainer, ImportContainer):
 )
 @Property(
     "_java_port",
-    prop_dot_suffix(ECF_PY4J_CONTAINER_CONFIG_TYPE, ECF_PY4J_JAVA_PORT_PROP),
-    DEFAULT_PORT,
+    ECF_PY4J_JAVA_PORT_PROP,
+    ECF_PY4J_JAVA_PORT_DEFAULT,
 )
 @Property(
     "_python_port",
-    prop_dot_suffix(ECF_PY4J_CONTAINER_CONFIG_TYPE, ECF_PY4J_PYTHON_PORT_PROP),
-    DEFAULT_PYTHON_PROXY_PORT,
+    ECF_PY4J_PYTHON_PORT_PROP,
+    ECF_PY4J_PYTHON_PORT_DEFAULT,
 )
 @Property(
     "_default_service_timeout",
-    prop_dot_suffix(ECF_PY4J_CONTAINER_CONFIG_TYPE, ECF_PY4J_DEFAULT_SERVICE_TIMEOUT),
-    30,
+    ECF_PY4J_SERVICE_TIMEOUT_PROP,
+    ECF_PY4J_SERVICE_TIMEOUT_DEFAULT,
+)
+@Property(
+    "_import_hook",
+    ECF_PY4J_USE_IMPORT_HOOK_PROP,
+    ECF_PY4J_USE_IMPORT_HOOK_DEFAULT
+)
+@Property(
+    "_gateway_params",
+    ECF_PY4J_GATEWAY_PARAMS_PROP,
+    ECF_PY4J_GATEWAY_PARAMS_DEFAULT
+)
+@Property(
+    "_callback_server_params",
+    ECF_PY4J_CALLBACKSERVER_PARAMS_PROP,
+    ECF_PY4J_CALLBACKSERVER_PARAMS_DEFAULT
 )
 @Instantiate("py4j-distribution-provider")
 class Py4jDistributionProvider(
     ExportDistributionProvider, ImportDistributionProvider, Py4jServiceBridgeEventListener
 ):
+    _java_port: Optional[int]
+    _python_port: Optional[int]
+    _default_service_timeout: Optional[float]
+    _import_hook: bool
+    _gateway_params: Optional[GatewayParameters]
+    _callback_server_params: Optional[CallbackServerParameters]
+    
     def __init__(self) -> None:
         ExportDistributionProvider.__init__(self)
         ImportDistributionProvider.__init__(self)
@@ -260,14 +293,10 @@ class Py4jDistributionProvider(
         self._queue: Queue[
             Tuple[Optional[str], Optional[Dict[str, Any]], Optional[Callable[[EndpointDescription], Any]]]
         ] = Queue()
-        self._thread = Thread(target=self._worker)
-        self._thread.daemon = True
+        self._thread = Thread(target=self._worker, daemon=True)
         self._done = False
         self._lock = RLock()
         self._supported_pb_intents = None
-        self._java_port: Optional[int] = None
-        self._python_port: Optional[int] = None
-        self._default_service_timeout: Optional[float] = None
 
     def _get_bridge(self) -> Py4jServiceBridge:
         if self._bridge is None:
@@ -328,19 +357,22 @@ class Py4jDistributionProvider(
         try:
             self._bridge = Py4jServiceBridge(
                 service_listener=self,
-                gateway_parameters=GatewayParameters(port=self._java_port or DEFAULT_PORT),
+                gateway_parameters=GatewayParameters(
+                    port=self._java_port or DEFAULT_PORT
+                    ) if not self._gateway_params else self._gateway_params,
                 callback_server_parameters=CallbackServerParameters(
                     port=self._python_port or DEFAULT_PYTHON_PROXY_PORT
-                ),
+                ) if not self._callback_server_params else self._callback_server_params,
             )
-            self._bridge.connect()
+            from osgiservicebridge.bridge import OSGIPythonModulePathHook
+            self._bridge.connect(path_hook=OSGIPythonModulePathHook(self._bridge) if self._import_hook else None)
         except Exception as e:
             self._bridge = None
             raise e
         # Once bridge is connected, instantiate container using bridge id
         container_props = self._prepare_container_props(self._supported_intents, {})
         if self._default_service_timeout:
-            container_props[ECF_PY4J_DEFAULT_SERVICE_TIMEOUT] = self._default_service_timeout
+            container_props[ECF_PY4J_SERVICE_TIMEOUT_DEFAULT] = self._default_service_timeout
         self._container = self._ipopo.instantiate(self._config_name, self._bridge.get_id(), container_props)
 
     @Invalidate
