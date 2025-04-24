@@ -10,13 +10,13 @@ As part of recent work on [iPOPO RSA](https://github.com/tcalmant/ipopo), an imp
 
 [Here](examples/org.eclipse.ecf.examples.importhook.module/src/org/eclipse/ecf/examples/importhook/module/ExampleBundleModuleResolver.java) is an example ModuleResolver service implementation for a python package named 'foo'.  Note that the PATH_PREFIX component property points to ['/python-src'](https://github.com/ECF/Py4j-RemoteServicesProvider/tree/master/examples/org.eclipse.ecf.examples.importhook.module/python-src/) inside built bundle.
 
-## Requirements
+### Requirements
 
 This tutorial sample requires Karaf 4.4.6+ on Java 17 or higher for the server process and Python 3.10+ for the iPOPO sample application process, and 3.0.0+ of iPOPO
 
-### To run this 'foo' package ModuleResolver in [Karaf 4.4.6+](https://karaf.apache.org/download)
+## To run this 'foo' ModuleResolver in [Karaf 4.4.6+](https://karaf.apache.org/download)
 
-To download karaf
+Download download karaf
 
 ```bash
 # Download Karaf from https://karaf.apache.org/download.html
@@ -26,9 +26,13 @@ tar xzf apache-karaf-4.4.6.tar.gz
 cd apache-karaf-4.4.6.tar.gz
 ./bin/karaf
 ```
-# add ECF Remote Services Karaf Features
+
+# ECF Remote Services Features to Karaf
+
+```
 karaf@root()> repo-add https://download.eclipse.org/rt/ecf/latest/karaf-features.xml
 Adding feature url https://download.eclipse.org/rt/ecf/latest/karaf-features.xml
+```
 
 ### Install the feature that exposing the 'foo' package Module Resolver example
 
@@ -40,9 +44,10 @@ karaf@root()>
 By default, a Python.Java gateway will be started and be listening for python connections on localhost:25333 (unless configured otherwise).  The 'foo' package ModuleResolver remote service will be available for resolving the 'foo' package.
 
 ### Start iPopo Example ImportHook Application
+
 The iPOPO project has a python-side Python.Java Distribution Provider, and a sample application to connect to the Java server at localhost:25333 and then resolve and run the code in the 'foo' package.  This sample application is [here](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_py4j_importhook.py).
 
-To start from shell (python 3.10+):
+To start the sample from a shell (python 3.10+):
 
 ```
 python -m samples.run_rsa_py4j_importhook
