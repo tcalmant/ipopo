@@ -14,12 +14,12 @@ to use/consume that remote service.
 
 A popular industry service discovery protocol used in [kubernetes](https://kubernetes.io/) is
 [etcd3](https://github.com/etcd-io/etcd).  ipopo has an etcd3 endpoint discovery
-client provider available in the [pelix.rsa.providers.discovery.etcd3.discovery_etcd3](https://github.com/tcalmant/ipopo/blob/v3/pelix/rsa/providers/discovery/etcd3/discovery_etcd3.py)
+client provider available in the [pelix.rsa.providers.discovery.etcd3](https://github.com/tcalmant/ipopo/blob/v3/pelix/rsa/providers/discovery/etcd3/__init__.py)
 module.  This etcd3 client discovery provider uses the etd3 protocol to advertise and discovery endpoint descriptions.
 
 The use of this provider for running this tutorial requires a configured and running [etcd3](https://github.com/etcd-io/etcd) server
-for the discovery client provider to connect to. Without any custom config, the default hostname and port for etcd3 servers are 'localhost' and 2379, and 
-these are the defaults in the etcd3 discovery provider (along with other configuration properties) documented [here](https://github.com/tcalmant/ipopo/blob/v3/pelix/rsa/providers/discovery/etcd3/discovery_etcd3.py#L82).
+for the discovery client provider to connect to. Without any custom config, the default hostname and port for etcd3 servers are etcd.hostname=localhost and etcd.port=2379, and 
+these are the defaults in the etcd3 discovery provider (along with other configuration properties) documented [here](https://github.com/tcalmant/ipopo/blob/v3/pelix/rsa/providers/discovery/etcd3/__init__.py#L82).
 
 ## Requirements
 
@@ -40,7 +40,7 @@ The sample program `samples.run_rsa_etcd3_xmlrpc_impl` (remote service implement
         # topology manager 
         "pelix.rsa.topologymanagers.basic",
         # etcd3 discovery  
-        "pelix.rsa.providers.discovery.etcd3.discovery_etcd3",
+        "pelix.rsa.providers.discovery.etcd3",
         # HTTP Service
         "pelix.http.basic",
         # XML-RPC distribution provider (opt)
@@ -50,29 +50,23 @@ The sample program `samples.run_rsa_etcd3_xmlrpc_impl` (remote service implement
     )
 ```
 
-After starting the framework, the etcd3 endpoint discovery service is [configured and connected by specifying the etcd.hostname, etcd.por, etcd.connected_callbackt and started](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L88)
+After starting the framework and creating a basic topology manager, the etcd3 endpoint discovery service is [configured and connected by specifying the etcd.hostname, etcd.por, etcd.connected_callbackt and started](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L88)
 
 ```
-    # start etcd3 discovery service client
-    with use_ipopo(framework.get_bundle_context()) as ipopo:
-        ipopo.instantiate(
-            "etcd3-endpoint-discovery-factory",
-            "etcd3-endpoint-discovery",
-            {"etcd.hostname": ETCD_HOSTNAME, "etcd.port": ETCD_PORT, "etcd.connected_callback": connected_cb},
-        )
+    # start etcd3 discovery service client now that the basic_topology_manager is running
+    from pelix.rsa.providers.discovery.etcd3 import ETCD_HOSTNAME_PROP, \
+        ETCD_PORT_PROP, ETCD_CONNECTED_CALLBACK_PROP
+    instantiate_etcd3_discovery_provider(context,
+                                         {ETCD_HOSTNAME_PROP: ETCD_HOSTNAME,
+                                          ETCD_PORT_PROP: ETCD_PORT,
+                                          ETCD_CONNECTED_CALLBACK_PROP: connected_cb})
 ```
 
-Once the etcd3 compontent is instantiated/connected to the etcd3 server, the example [starts the helloworld_xmlrpc bundle](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L101), which
-will instantiate a helloworld impl component, and trigger the rsa remote services export, that will trigger the etd3 endpoint advertising.  Other clients
-connected to this etdc3 server will then be notified of the new endpoint, and have the opportunity to import and use a remote
-service proxy.
-
-```
-    # install helloimpl_xmlrpc module, instantiate component and should result
-    # in export via xmlrpc distribution provider and advertisement of endpoint
-    # description via etcd3
-    framework.get_bundle_context().install_bundle("samples.rsa.helloimpl_xmlrpc").start()
-```
+Once the etcd3 component is instantiated and connected to the etcd3 server, the example [starts the helloworld_xmlrpc bundle](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L101), which
+will instantiate a helloworld impl remote service, and trigger the rsa distribution to export, and the creation 
+and advertisement via etcd3 of an endpoint description.  Other clients
+connected to this etdc3 server will be notified of the new endpoint, and have the opportunity to import a proxy
+and use the IHello service.
 
 ## Running the Exporter/Advertiser Sample App
 
@@ -85,7 +79,7 @@ DEBUG:asyncio:Using proactor: IocpProactor
 INFO:http-server:Starting HTTP server: [127.0.0.1]:8181 ...
 DEBUG:grpc._cython.cygrpc:Using AsyncIOEngine.POLLER as I/O engine
 INFO:http-server:HTTP server started: [127.0.0.1]:8181
-DEBUG:pelix.rsa.providers.discovery.etcd3.discovery_etcd3:CONNECTED etcd3 session_id=4469111c-91c2-4dba-b64f-750d14243fda to host=localhost port=2379
+DEBUG:pelix.rsa.providers.discovery.etcd3:CONNECTED etcd3 session_id=4469111c-91c2-4dba-b64f-750d14243fda to host=localhost port=2379
 Etcd3 connected!  <-- this is provided via the connected_cb callback function 
 $ sl org.eclipse.ecf.examples.hello.IHello
 +----+-------------------------------------------+--------------------------------------------------+---------+
@@ -101,7 +95,7 @@ $ listexports
 | 9c808ee4-dd85-4077-93db-1bf93859c34a | http://127.0.0.1:8181/xml-rpc | 22         |
 +--------------------------------------+-------------------------------+------------+
 ```
-If you have debugging turned on for the etcd3 console (./etcd --debug), you should see something like this output
+If you have debugging turned on for the etcd3 localhost server (start with ./etcd --debug), you will see something like this output to the etcd3 console
 ```
 2025-04-23 11:39:14.935171 D | etcdserver/api/v3rpc: start time = 2025-04-23 11:39:14.927221335 -0700 PDT m=+218.646195160, time spent = 7.93516ms, remote = 127.0.0.1:38726, response type = /etcdserverpb.Lease/LeaseGrant, request count = -1, request size = -1, response count = -1, response size = -1, request content =
 2025-04-23 11:39:14.938040 D | etcdserver/api/v3rpc: start time = 2025-04-23 11:39:14.937579953 -0700 PDT m=+218.656553734, time spent = 397.094µs, remote = 127.0.0.1:38726, response type = /etcdserverpb.KV/Range, request count = 0, request size = 134, response count = 0, response size = 29, request content = key:"org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer" range_end:"org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer\\0"

@@ -69,6 +69,9 @@ def main() -> None:
     )
     framework.start()
 
+    from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+    instantiate_basic_topology_manager(framework.get_bundle_context())
+    
     try:
         framework.wait_for_stop()
     except KeyboardInterrupt:

@@ -89,7 +89,7 @@ Property                Default value                                         De
 etcd3 Discovery
 ---------------
 
-:Bundle: pelix.rsa.providers.discovery.discovery_etcd3
+:Bundle: pelix.rsa.providers.discovery.etcd3
 :Requires: *none*
 :Libraries: `etcd3 <https://github.com/kragniz/python-etcd3>`__
 

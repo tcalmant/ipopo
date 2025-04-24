@@ -69,13 +69,15 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
 
+
 def to_bytes(bytes_or_str):
     if isinstance(bytes_or_str, bytes):
         return bytes_or_str
     else:
         return bytes_or_str.encode('utf-8')
 
-#etcd3endpoint discovery properties.  see Etcd3Endpoint
+
+# etcd3endpoint discovery properties.  see Etcd3Endpoint
 ETCD_NAME_PREFIX = "etcd"
 
 # etcd.hostname prop; type: str; Default: "localhost"
@@ -143,15 +145,19 @@ ETCD_HOSTIP_DEFAULT = socket.gethostbyname(socket.gethostname())
 ETCD_CALLEXECUTOR_PROP = ".".join([ETCD_NAME_PREFIX, "call_executor"])
 ETCD_CALLEXECUTOR_DEFAULT = None
 
-@ComponentFactory("etcd3-endpoint-discovery-factory")
+ETCD_FACTORY_NAME = "etcd3-endpoint-discovery-factory"
+ETCD_INSTANCE_NAME = "etcd3-endpoint-discovery"
+
+
+@ComponentFactory(ETCD_FACTORY_NAME)
 @Provides(EndpointAdvertiser)
 @Property(
     "_hostname",
-    ETCD_HOSTNAME_PROP, 
+    ETCD_HOSTNAME_PROP,
     ETCD_HOSTNAME_DEFAULT
 )
-@Property("_port", 
-    ETCD_PORT_PROP, 
+@Property("_port",
+    ETCD_PORT_PROP,
     ETCD_PORT_DEFAULT
 )
 @Property(
@@ -184,24 +190,24 @@ ETCD_CALLEXECUTOR_DEFAULT = None
     ETCD_CONNECTED_CALLBACK_PROP,
     ETCD_CONNECTED_CALLBACK_DEFAULT,
 )
-@Property("_lease_ttl", 
-    ETCD_LEASETTL_PROP, 
+@Property("_lease_ttl",
+    ETCD_LEASETTL_PROP,
     ETCD_LEASETTL_DEFAULT
 )
-@Property("_keepalive_interval", 
-    ETCD_KEEPALIVEINTERVAL_PROP, 
+@Property("_keepalive_interval",
+    ETCD_KEEPALIVEINTERVAL_PROP,
     ETCD_KEEPALIVEINTERVAL_DEFAULT
 )
-@Property("_call_timeout", 
-    ETCD_CALLTIMEOUT_PROP, 
+@Property("_call_timeout",
+    ETCD_CALLTIMEOUT_PROP,
     ETCD_CALLTIMEOUT_DEFAULT
 )
-@Property("_disconnect_timeout", 
-    ETCD_DISCONNECTTIMEOUT_PROP, 
+@Property("_disconnect_timeout",
+    ETCD_DISCONNECTTIMEOUT_PROP,
     ETCD_DISCONNECTTIMEOUT_DEFAULT
 )
-@Property("_hostip", 
-    ETCD_HOSTIP_PROP, 
+@Property("_hostip",
+    ETCD_HOSTIP_PROP,
     ETCD_HOSTIP_DEFAULT
 )
 @Property(
@@ -277,7 +283,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         
     async def _get_key_value(self, key: str) -> str:
         await self._connected_event.wait()
-        resp = await rpc_pb2_grpc.KVStub(self._channel).Range(rpc_pb2.RangeRequest(key = to_bytes(key)))
+        resp = await rpc_pb2_grpc.KVStub(self._channel).Range(rpc_pb2.RangeRequest(key=to_bytes(key)))
         if resp.kvs and len(resp.kvs) > 0:
             return str(resp.kvs.pop().value, self._encoding)
          
@@ -304,6 +310,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         }
         # create new event loop
         self._loop = asyncio.new_event_loop()
+
         # setup connected callback for asyncio thread
         async def connected():
             # wait until we get thec onnected event set
@@ -311,12 +318,14 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             _logger.debug("CONNECTED etcd3 session_id=%s to host=%s port=%s", self._session_id, self._hostname, self._port)
             if self._connected_callback:
                 self._connected_callback()
+
         # define working for our asyncio thread
         def worker():
             asyncio.set_event_loop(self._loop)
             self._loop_thread_id = threading.current_thread().ident
             asyncio.run_coroutine_threadsafe(connected(), self._loop)
             self._loop.run_until_complete(self._connect())  
+
         # create and start thread
         threading.Thread(target=worker, name="etcd3[{}]".format(self._session_id), daemon=True).start()
 
@@ -326,7 +335,6 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             asyncio.run_coroutine_threadsafe(self._disconnect(), self._loop).result(self._disconnect_timeout)
         except:
             pass
-        
 
     # implementation of EndpointAdvertiser service.  These methods
     # are called when (e.g.) RSA asks us to advertise/unadvertise
@@ -347,6 +355,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         return "/".join([self._get_key_prefix(), self._session_id])
 
     class EndpointKey(object):
+
         def __init__(self, sessionid: str, ed_id: str) -> None:
             self.sessionid = sessionid
             self.ed_id = ed_id
@@ -429,12 +438,12 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             else:
                 self._remove_endpoint(endpoint_key)
 
-    def _fire_endpoint_event(self, event_type:int, ed:EndpointDescription)-> None:#
+    def _fire_endpoint_event(self, event_type:int, ed:EndpointDescription) -> None:  #
         # send notifications via thread so doesn't block asyncio loop thread
         self._loop.run_in_executor(self._call_executor, EndpointSubscriber._fire_endpoint_event, self, event_type, ed)
         
     async def _putKV(self, key, value) -> rpc_pb2.PutResponse:
-        return await rpc_pb2_grpc.KVStub(self._channel).Put(rpc_pb2.PutRequest(key = to_bytes(key), value = to_bytes(value), lease = self._lease_id))
+        return await rpc_pb2_grpc.KVStub(self._channel).Put(rpc_pb2.PutRequest(key=to_bytes(key), value=to_bytes(value), lease=self._lease_id))
     
     def _create_async_channel(self) -> grpc.Channel:
         target = "{}:{}".format(self._hostname, self._port)
@@ -444,13 +453,15 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             return grpc.aio.insecure_channel(target, self._grpc_options, self._grpc_compression)
 
     async def _request_lease(self) -> None:
-        resp = await rpc_pb2_grpc.LeaseStub(self._channel).LeaseGrant(rpc_pb2.LeaseGrantRequest(TTL = self._lease_ttl))
+        resp = await rpc_pb2_grpc.LeaseStub(self._channel).LeaseGrant(rpc_pb2.LeaseGrantRequest(TTL=self._lease_ttl))
         if resp.error:
             _logger.error("session_id={} request_lease error={}".format(self._session_id, resp.error))
             await self._disconnect()
         self._lease_id = resp.ID
         self._lease_ttl = resp.TTL
+
         async def keepalive():
+
             async def generate_ka_request():
                 while True:
                     try:
@@ -458,36 +469,37 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                     except asyncio.exceptions.CancelledError:
                         return
                     if self._lease_id:
-                        yield rpc_pb2.LeaseKeepAliveRequest(ID = self._lease_id)
+                        yield rpc_pb2.LeaseKeepAliveRequest(ID=self._lease_id)
                     else:
                         return 
                     
             async for resp in rpc_pb2_grpc.LeaseStub(self._channel).LeaseKeepAlive(generate_ka_request()):
                 if resp.ID == self._lease_id and resp.TTL:
                     self._lease_ttl = resp.TTL
+
         # keep alive task is created  here
         if not self._keepalive_task:
             self._keepalive_task = self._loop.create_task(keepalive())
 
     def _generate_watch_request(self, create_request: rpc_pb2.WatchCreateRequest, cancel_request: rpc_pb2.WatchCancelRequest) -> Iterable[rpc_pb2.WatchRequest]:
-        yield rpc_pb2.WatchRequest(create_request = create_request, cancel_request = None)
+        yield rpc_pb2.WatchRequest(create_request=create_request, cancel_request=None)
           
     async def _connect(self) -> None:
-        #create channel
+        # create channel
         self._channel = self._create_async_channel()
         # create lease and start keepalive
         await self._request_lease()
         # we are now connected so notify by setting self._connected_event
         kp = self._get_key_prefix()
         kp_bytes = to_bytes(kp)
-        kp_range_end_bytes = to_bytes("".join([kp,"\\0"]))
-        range_resp = await rpc_pb2_grpc.KVStub(self._channel).Range(rpc_pb2.RangeRequest(key=kp_bytes, range_end = kp_range_end_bytes))
+        kp_range_end_bytes = to_bytes("".join([kp, "\\0"]))
+        range_resp = await rpc_pb2_grpc.KVStub(self._channel).Range(rpc_pb2.RangeRequest(key=kp_bytes, range_end=kp_range_end_bytes))
         for kv in range_resp.kvs:
             self._process_kv(str(kv.key, self._encoding), str(kv.value, self._encoding), True)
-        #Now announce us as present by putting key on etcd server    
+        # Now announce us as present by putting key on etcd server    
         await self._putKV(self._get_session_key(), self._session_id)
              
-        async for watch_response in rpc_pb2_grpc.WatchStub(self._channel).Watch(self._generate_watch_request(rpc_pb2.WatchCreateRequest(key = kp_bytes, range_end = kp_range_end_bytes), None)):
+        async for watch_response in rpc_pb2_grpc.WatchStub(self._channel).Watch(self._generate_watch_request(rpc_pb2.WatchCreateRequest(key=kp_bytes, range_end=kp_range_end_bytes), None)):
             if watch_response.created:
                 self._watch_id = watch_response.watch_id
                 self._connected_event.set()
@@ -507,7 +519,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         
     async def _delete_range(self, key: str) -> rpc_pb2.DeleteRangeResponse:
         await self._connected_event.wait()
-        return await rpc_pb2_grpc.KVStub(self._channel).Range(rpc_pb2.DeleteRangeRequest(key=to_bytes(key), range_end = to_bytes("".join([key, "\\0"]))))
+        return await rpc_pb2_grpc.KVStub(self._channel).Range(rpc_pb2.DeleteRangeRequest(key=to_bytes(key), range_end=to_bytes("".join([key, "\\0"]))))
             
     async def _disconnect(self) -> None:
         """
@@ -522,7 +534,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
 
             await self._delete_range(self._get_session_path())
             _logger.debug("session_id={} range deleted".format(self._session_id))
-            await rpc_pb2_grpc.LeaseStub(self._channel).LeaseRevoke(rpc_pb2.LeaseRevokeRequest(ID = self._lease_id))
+            await rpc_pb2_grpc.LeaseStub(self._channel).LeaseRevoke(rpc_pb2.LeaseRevokeRequest(ID=self._lease_id))
             _logger.debug("session_id={} lease_id={} revoked".format(self._session_id, self._lease_id))
             self._lease_id = None
                             
@@ -530,5 +542,8 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             _logger.debug("session_id={} closed channel".format(self._session_id))
             self._channel = None
 
-                       
+      
+def instantiate_etcd3_discovery_provider(context: BundleContext, properties: Optional[Dict[str, Any]]=None):
+    from pelix.rsa import instantiate_rsa_component
+    return instantiate_rsa_component(context, ETCD_FACTORY_NAME, ETCD_INSTANCE_NAME, properties)
         

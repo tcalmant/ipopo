@@ -73,7 +73,7 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
                 # xmlrpc distribution provider (opt)
                 "pelix.rsa.providers.distribution.xmlrpc",
                 # etcd discovery provider (opt)
-                "pelix.rsa.providers.discovery.etcd3.discovery_etcd3",
+                "pelix.rsa.providers.discovery.etcd3",
                 "pelix.rsa.topologymanagers.basic",
                 "samples.rsa.helloimpl_xmlrpc",
             ],
@@ -82,26 +82,23 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
             },
         )
         framework.start()
-
-        context = framework.get_bundle_context()
+        # start etcd3 discovery service client
+        bc = framework.get_bundle_context()
         # Start an HTTP server, required by XML-RPC
-        with use_ipopo(context) as ipopo:
+        with use_ipopo(bc) as ipopo:
             ipopo.instantiate(
                 "pelix.http.service.basic.factory",
                 "http-server",
                 {"pelix.http.address": "localhost", "pelix.http.port": 0},
             )
-        # start etcd3 discovery service client
-        with use_ipopo(framework.get_bundle_context()) as ipopo:
-            ipopo.instantiate(
-                "etcd3-endpoint-discovery-factory",
-                "etcd3-endpoint-discovery",
-                {"etcd.hostname": TEST_ETCD_HOSTNAME, 
-                 "etcd.top_key": TEST_ETCD_TOPPATH,
-                 },
-            )
+        from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+        instantiate_basic_topology_manager(bc)
+        # instantiate and connect etcd3 discovery
+        from pelix.rsa.providers.discovery.etcd3 import instantiate_etcd3_discovery_provider
+        instantiate_etcd3_discovery_provider(bc,
+                {"etcd.hostname": TEST_ETCD_HOSTNAME, \
+                 "etcd.top_key": TEST_ETCD_TOPPATH})
 
-        bc = framework.get_bundle_context()
         svc_ref = bc.get_service_reference(RemoteServiceAdmin, None)
         assert svc_ref is not None
         rsa = bc.get_service(svc_ref)
@@ -132,6 +129,7 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
 
 
 class EtcdDiscoveryListenerTest(unittest.TestCase):
+
     def setUp(self):
         """
         Starts a local framework to register the
@@ -146,23 +144,20 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
                 "pelix.ipopo.core",
                 "pelix.rsa.remoteserviceadmin",  # RSA implementation
                 "tests.rsa.endpoint_event_listener",
-                "pelix.rsa.providers.discovery.etcd3.discovery_etcd3",
+                "pelix.rsa.providers.discovery.etcd3",
             ],
             {},
         )
         self.framework.start()
-        # start etcd3 discovery service client
-        with use_ipopo(self.framework.get_bundle_context()) as ipopo:
-            ipopo.instantiate(
-                "etcd3-endpoint-discovery-factory",
-                "etcd3-endpoint-discovery",
-                {"etcd.hostname": TEST_ETCD_HOSTNAME, 
-                 "etcd.top_key": TEST_ETCD_TOPPATH,
-                 },
-            )
-
-        # Start the framework and return TestEndpointEventListener
+                # Start the framework and return TestEndpointEventListener
         context = self.framework.get_bundle_context()
+
+        # start etcd3 discovery service client
+        from pelix.rsa.providers.discovery.etcd3 import instantiate_etcd3_discovery_provider
+        instantiate_etcd3_discovery_provider(context,
+                {"etcd.hostname": TEST_ETCD_HOSTNAME, \
+                 "etcd.top_key": TEST_ETCD_TOPPATH})
+
         with use_ipopo(context) as ipopo:
             #  create endpoint event listener
             self.listener = ipopo.instantiate(
@@ -286,6 +281,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
 
 
 class EtcdDiscoveryPublishTest(unittest.TestCase):
+
     def setUp(self):
         """
         Prepares a framework
@@ -298,7 +294,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
                 "pelix.http.basic",
                 "pelix.rsa.remoteserviceadmin",
                 "pelix.rsa.providers.distribution.xmlrpc",
-                "pelix.rsa.providers.discovery.etcd3.discovery_etcd3",
+                "pelix.rsa.providers.discovery.etcd3",
             ],
             {
                 "ecf.xmlrpc.server.hostname": "localhost",
@@ -314,16 +310,10 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
                 "http-server",
                 {"pelix.http.address": "localhost", "pelix.http.port": 0},
             )
-        # start etcd3 discovery service client
-        with use_ipopo(self.framework.get_bundle_context()) as ipopo:
-            ipopo.instantiate(
-                "etcd3-endpoint-discovery-factory",
-                "etcd3-endpoint-discovery",
-                {"etcd.hostname": TEST_ETCD_HOSTNAME, 
+        from pelix.rsa.providers.discovery.etcd3 import instantiate_etcd3_discovery_provider
+        instantiate_etcd3_discovery_provider(context, {"etcd.hostname": TEST_ETCD_HOSTNAME,
                  "etcd.top_key": TEST_ETCD_TOPPATH,
-                 },
-            )
-
+                 })
         self.advertiser = None
         self.rsa = None
         self.svc_reg = None
@@ -459,7 +449,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         # advertise it
         adv.advertise_endpoint(ed)
         # get the string directly via http and key
-        ed_val_str = adv._get_value("".join([adv._get_session_path(),"/",ed_id]))
+        ed_val_str = adv._get_value("".join([adv._get_session_path(), "/", ed_id]))
         # decode the string into json object (dict)
         val_encoded = json.loads(ed_val_str)
         # compare the original dict with the one returned

@@ -60,6 +60,9 @@ def main() -> None:
     )
     framework.start()
 
+    from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+    instantiate_basic_topology_manager(framework.get_bundle_context())
+
     print("If the py4j localhost connect above succeeds, the code import for package foo.bar.baz")
     print("will be resolved by the OSGi server with an a active instance of a ModuleResolver")
     print("service implementation from the example in this bundle: org.eclipse.ecf.examples.importhook.module")

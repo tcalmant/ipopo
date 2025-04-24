@@ -27,7 +27,7 @@ BasicTopologyManager implements TopologyManager API
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from pelix.internals.events import ServiceEvent
 
 from pelix.ipopo.decorators import ComponentFactory, Instantiate
@@ -35,6 +35,7 @@ from pelix.ipopo.decorators import ComponentFactory, Instantiate
 from pelix.rsa import ECF_ENDPOINT_CONTAINERID_NAMESPACE
 from pelix.rsa.providers.discovery import EndpointEvent
 from pelix.rsa.topologymanagers import TopologyManager
+from pelix.framework import BundleContext
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -50,13 +51,12 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+BASIC_TOPOLOGY_MANAGER_FACTORY = "basic-topology-manager-factory"
+BASIC_TOPOLOGY_MANAGER_NAME = "basic-topology-manager"
+BASIC_TOPOLOGY_MANAGER_DEFAULT_PROPS = {TopologyManager.ENDPOINT_LISTENER_SCOPE: f"({ECF_ENDPOINT_CONTAINERID_NAMESPACE}=*)"}
 
-@ComponentFactory("basic-topology-manager-factory")
-# Tell iPOPO to instantiate a component instance as soon as the file is loaded
-@Instantiate(
-    "basic-topology-manager",
-    {TopologyManager.ENDPOINT_LISTENER_SCOPE: f"({ECF_ENDPOINT_CONTAINERID_NAMESPACE}=*)"},
-)
+
+@ComponentFactory(BASIC_TOPOLOGY_MANAGER_FACTORY)
 class BasicTopologyManager(TopologyManager):
     """
     BasicTopologyManager extends TopologyManager api
@@ -103,3 +103,10 @@ class BasicTopologyManager(TopologyManager):
         elif event_type == EndpointEvent.MODIFIED:
             self._update_imported_endpoint(ed)
             _logger.debug("BasicTopologyManager: endpoint updated. endpoint.id=%s", ed_id)
+
+
+def instantiate_basic_topology_manager(context: BundleContext, properties: Optional[Dict[str, Any]]=None):
+    if not properties:
+        properties = BASIC_TOPOLOGY_MANAGER_DEFAULT_PROPS
+    from pelix.rsa import instantiate_rsa_component
+    return instantiate_rsa_component(context, BASIC_TOPOLOGY_MANAGER_FACTORY, BASIC_TOPOLOGY_MANAGER_NAME, properties)

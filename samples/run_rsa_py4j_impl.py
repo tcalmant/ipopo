@@ -51,7 +51,6 @@ def main() -> None:
         # RSA shell commands (opt)
         "pelix.rsa.shell",
         "pelix.rsa.providers.distribution.py4j",
-        "samples.rsa.pbhelloimpl",
     )
 
     # Use the utility method to create, run and delete the framework
@@ -59,6 +58,11 @@ def main() -> None:
         bundles, {"ecf.py4j.javaport": 25333, "ecf.py4j.pythonport": 25334}
     )
     framework.start()
+    
+    from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+    instantiate_basic_topology_manager(framework.get_bundle_context())
+
+    framework.get_bundle_context().install_bundle("samples.rsa.pbhelloimpl").start()
 
     try:
         framework.wait_for_stop()
