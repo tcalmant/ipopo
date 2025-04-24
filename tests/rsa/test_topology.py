@@ -69,7 +69,8 @@ class TopologyManagerTest(unittest.TestCase):
         # Install the topology manager
         context = self.framework.get_bundle_context()
         context.install_bundle("pelix.rsa.topologymanagers.basic").start()
-
+        from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+        instantiate_basic_topology_manager(context)
         # Register a service to be exported
         spec = "test.svc"
         svc = object()
