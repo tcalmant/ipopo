@@ -29,8 +29,9 @@ cd apache-karaf-4.4.6.tar.gz
 # add ECF Remote Services Karaf Features
 karaf@root()> repo-add https://download.eclipse.org/rt/ecf/latest/karaf-features.xml
 Adding feature url https://download.eclipse.org/rt/ecf/latest/karaf-features.xml
-```
+
 ### Install the feature that exposing the 'foo' package Module Resolver example
+
 ```
 karaf@root()> feature:install ecf-rs-examples-python-importhook
 (few seconds pass for download and install)
@@ -75,12 +76,12 @@ Bar.init
 
 ...Bar instance created.  The print output between the lines starting with '...' is from foo package code
 ```
+
 The messages 'foo imported, imported bar' are produced from running the python code returned by the ModuleResolver service from [/python-src](https://github.com/ECF/Py4j-RemoteServicesProvider/tree/master/examples/org.eclipse.ecf.examples.importhook.module/python-src).
 
 If the Karaf server is not running/listening on localhost:25333, the python attempt to connect will produce a connect error
 
 ```
-...
 py4j.protocol.Py4JNetworkError: An error occurred while trying to connect to the Java server (127.0.0.1:25333)
 
 ```
