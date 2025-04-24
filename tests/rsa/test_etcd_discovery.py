@@ -94,6 +94,8 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
         framework.start()
 
         context = framework.get_bundle_context()
+        from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+        instantiate_basic_topology_manager(context)
         # Start an HTTP server, required by XML-RPC
         with use_ipopo(context) as ipopo:
             ipopo.instantiate(
@@ -133,6 +135,7 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
 
 
 class EtcdDiscoveryListenerTest(unittest.TestCase):
+
     def setUp(self):
         """
         Starts a framework in separate process to advertise a helloimpl
@@ -282,6 +285,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
 
 
 class EtcdDiscoveryPublishTest(unittest.TestCase):
+
     def setUp(self):
         """
         Prepares a framework

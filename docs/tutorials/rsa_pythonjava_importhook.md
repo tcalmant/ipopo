@@ -15,14 +15,22 @@ As part of recent work on [iPOPO RSA](https://github.com/tcalmant/ipopo), an imp
 This tutorial sample requires Karaf 4.4.6+ on Java 17 or higher for the server process and Python 3.10+ for the iPOPO sample application process, and 3.0.0+ of iPOPO
 
 ### To run this 'foo' package ModuleResolver in [Karaf 4.4.6+](https://karaf.apache.org/download)
+
+To download karaf
+
+```bash
+# Download Karaf from https://karaf.apache.org/download.html
+wget http://archive.apache.org/dist/karaf/4.4.6/apache-karaf-4.4.6.tar.gz
+tar xzf apache-karaf-4.4.6.tar.gz
+# start karaf
+cd apache-karaf-4.4.6.tar.gz
+./bin/karaf
 ```
-install and start karaf console
-...
-# add ECF Karaf repo
+# add ECF Remote Services Karaf Features
 karaf@root()> repo-add https://download.eclipse.org/rt/ecf/latest/karaf-features.xml
 Adding feature url https://download.eclipse.org/rt/ecf/latest/karaf-features.xml
 ```
-### Install the Karaf feature that has the 'foo' package example Module Resolver
+### Install the feature that exposing the 'foo' package Module Resolver example
 ```
 karaf@root()> feature:install ecf-rs-examples-python-importhook
 (few seconds pass for download and install)
@@ -69,13 +77,9 @@ Bar.init
 ```
 The messages 'foo imported, imported bar' are produced from running the python code returned by the ModuleResolver service from [/python-src](https://github.com/ECF/Py4j-RemoteServicesProvider/tree/master/examples/org.eclipse.ecf.examples.importhook.module/python-src).
 
-If the Karaf server is not running/listening on localhost:25333, it will produce a connect error
+If the Karaf server is not running/listening on localhost:25333, the python attempt to connect will produce a connect error
 
 ```
-Attempting connect to Python.Java OSGi server listening at 25333...
-** Pelix Shell prompt **
-$ Component 'py4j-distribution-provider': error calling @ValidateComponent callback
-Traceback (most recent call last):
 ...
 py4j.protocol.Py4JNetworkError: An error occurred while trying to connect to the Java server (127.0.0.1:25333)
 

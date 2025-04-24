@@ -52,6 +52,7 @@ from pelix.rsa.providers.discovery import (
     EndpointEventListener,
 )
 from pelix.services import SERVICE_EVENT_LISTENER_HOOK
+from pelix.ipopo.constants import use_ipopo
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -211,3 +212,4 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
 
     def endpoint_changed(self, endpoint_event: EndpointEvent, matched_filter: Any) -> None:
         _logger.debug("TopologyManager.endpoint_event called. You probably want to override this method")
+

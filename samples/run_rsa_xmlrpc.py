@@ -73,6 +73,9 @@ def main() -> None:
     )
     framework.start()
 
+    from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+    instantiate_basic_topology_manager(framework.get_bundle_context())
+    
     with use_ipopo(framework.get_bundle_context()) as ipopo:
         ipopo.instantiate(
             "pelix.http.service.basic.factory",

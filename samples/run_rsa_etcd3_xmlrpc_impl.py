@@ -48,9 +48,11 @@ ETCD_PORT = 2379
 HTTP_HOSTNAME = "127.0.0.1"
 HTTP_PORT = 8181
 
-# ------------------------------------------------------------------------------
+
+# callback called when etcd3 discovery provider is connected
 def connected_cb():
     print("Etcd3 connected!")
+
     
 def main() -> None:
 
@@ -67,7 +69,7 @@ def main() -> None:
         # topology manager 
         "pelix.rsa.topologymanagers.basic",
         # etcd3 discovery  
-        "pelix.rsa.providers.discovery.etcd3.discovery_etcd3",
+        "pelix.rsa.providers.discovery.etcd3",
         # HTTP Service
         "pelix.http.basic",
         # XML-RPC distribution provider (opt)
@@ -84,13 +86,18 @@ def main() -> None:
         },
     )
     framework.start()
-    # start etcd3 discovery service client
-    with use_ipopo(framework.get_bundle_context()) as ipopo:
-        ipopo.instantiate(
-            "etcd3-endpoint-discovery-factory",
-            "etcd3-endpoint-discovery",
-            {"etcd.hostname": ETCD_HOSTNAME, "etcd.port": ETCD_PORT, "etcd.connected_callback": connected_cb},
-        )
+    context = framework.get_bundle_context()
+    # instantiate topology manager
+    from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+    instantiate_basic_topology_manager(context)
+    # start etcd3 discovery service client now that the basic_topology_manager is running
+    from pelix.rsa.providers.discovery.etcd3 import ETCD_HOSTNAME_PROP, \
+        ETCD_PORT_PROP, ETCD_CONNECTED_CALLBACK_PROP, instantiate_etcd3_discovery_provider
+    instantiate_etcd3_discovery_provider(context,
+                                         {ETCD_HOSTNAME_PROP: ETCD_HOSTNAME,
+                                          ETCD_PORT_PROP: ETCD_PORT,
+                                          ETCD_CONNECTED_CALLBACK_PROP: connected_cb})
+    
     # start httpservice, required by the xmlrpc distribution provider
     with use_ipopo(framework.get_bundle_context()) as ipopo:
         ipopo.instantiate(

@@ -30,6 +30,11 @@ be an etcd3 server/service running on localhost/2379 (default etcd3 port)
 
 import pelix.framework as pelix
 from pelix.ipopo.constants import use_ipopo
+from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+from pelix.rsa.providers.discovery.etcd3 import ETCD_HOSTNAME_PROP, \
+    ETCD_PORT_PROP, \
+    ETCD_CONNECTED_CALLBACK_PROP, \
+    instantiate_etcd3_discovery_provider
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -45,6 +50,12 @@ __docformat__ = "restructuredtext en"
 ETCD_HOSTNAME = "localhost"
 ETCD_PORT = 2379
 # ------------------------------------------------------------------------------
+
+
+# callback called when etcd3 discovery provider is connected
+def connected_cb():
+    print("Etcd3 connected!")
+
 
 def main() -> None:
     import logging
@@ -66,19 +77,19 @@ def main() -> None:
         # Example helloconsumer. Only uses remote proxies
         "samples.rsa.helloconsumer_xmlrpc",
         # etcd discovery provider (opt)
-        "pelix.rsa.providers.discovery.etcd3.discovery_etcd3",
+        "pelix.rsa.providers.discovery.etcd3",
     )
-
     # Use the utility method to create, run and delete the framework
     framework = pelix.create_framework(bundles)
     framework.start()
-    # start etcd3 discovery service client
-    with use_ipopo(framework.get_bundle_context()) as ipopo:
-        ipopo.instantiate(
-            "etcd3-endpoint-discovery-factory",
-            "etcd3-endpoint-discovery",
-            {"etcd.hostname": ETCD_HOSTNAME, "etcd.port": ETCD_PORT},
-        )
+    context = framework.get_bundle_context()
+    # instantiate topology manager
+    instantiate_basic_topology_manager(context)
+    # start etcd3 discovery service client now that the basic_topology_manager is running
+    instantiate_etcd3_discovery_provider(context,
+                                         {ETCD_HOSTNAME_PROP: ETCD_HOSTNAME,
+                                          ETCD_PORT_PROP: ETCD_PORT,
+                                          ETCD_CONNECTED_CALLBACK_PROP: connected_cb})
 
     try:
         framework.wait_for_stop()
