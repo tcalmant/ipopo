@@ -7,7 +7,7 @@ Etcd Discovery Provider
 :author: Scott Lewis
 :copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
-:version: 3.0.0
+:version: 3.1.0
 
 ..
 
@@ -51,7 +51,7 @@ from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent, End
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (3, 0, 0)
+__version_info__ = (3, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -108,7 +108,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     def __init__(self) -> None:
         import warnings
         warnings.warn("etcd2 is no longer in common usage.  Use pelix.rsa.providers.discovery.etcd3 instead", DeprecationWarning)
-        
+
         EndpointAdvertiser.__init__(self)
         EndpointSubscriber.__init__(self)
         self._hostname: str = "localhost"

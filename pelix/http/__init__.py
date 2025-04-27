@@ -6,13 +6,13 @@ Pelix HTTP package.
 Defines the interfaces that must respect HTTP service implementations.
 
 :author: Thomas Calmant
-:copyright: Copyright 2024, Thomas Calmant
+:copyright: Copyright 2025, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.0.0
+:version: 3.1.0
 
 ..
 
-    Copyright 2024 Thomas Calmant
+    Copyright 2025 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ from pelix.utilities import to_bytes
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 0, 0)
+__version_info__ = (3, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

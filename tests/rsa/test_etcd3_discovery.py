@@ -46,7 +46,7 @@ ENDPOINT_LISTENER_SCOPE = f"({ECF_ENDPOINT_CONTAINERID_NAMESPACE}=*)"
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 0, 0)
+__version_info__ = (3, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 T = TypeVar("T")

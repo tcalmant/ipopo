@@ -4,13 +4,13 @@
 iPOPO installation script
 
 :author: Thomas Calmant
-:copyright: Copyright 2024, Thomas Calmant
+:copyright: Copyright 2025, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.0.0
+:version: 3.1.0
 
 ..
 
-    Copyright 2024 Thomas Calmant
+    Copyright 2025 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -88,7 +88,7 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
-        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "Topic :: Software Development :: Libraries :: Application Frameworks",
     ],
     install_requires=["jsonrpclib-pelix>=0.4.3"],
@@ -96,8 +96,8 @@ setup(
         "etcd2": ["python-etcd==0.4.5", "osgiservicebridge>=1.5.8"],
         "MQTT": ["paho-mqtt>=2.1"],
         "Redis": ["redis>=2.10"],
-        "RSA": [ "osgiservicebridge>=1.5.8"],
-        "XMPP": ["slixmpp>=1.8.4"],
+        "RSA": ["osgiservicebridge>=1.5.8", "grpcio>=1.71.0", "grpcio-tools>=1.71.0"],
+        "XMPP": ["slixmpp==1.10"],
         "zeroconf": ["zeroconf==0.19"],
         "ZooKeeper": ["kazoo==2.8.0"],
         "yaml": ["pyyaml>=6.0"],

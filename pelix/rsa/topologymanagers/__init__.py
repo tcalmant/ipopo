@@ -7,7 +7,7 @@ Topology Manager API
 :author: Scott Lewis
 :copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
-:version: 3.0.0
+:version: 3.1.0
 
 ..
 
@@ -57,7 +57,7 @@ from pelix.ipopo.constants import use_ipopo
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (3, 0, 0)
+__version_info__ = (3, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -212,4 +212,3 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
 
     def endpoint_changed(self, endpoint_event: EndpointEvent, matched_filter: Any) -> None:
         _logger.debug("TopologyManager.endpoint_event called. You probably want to override this method")
-

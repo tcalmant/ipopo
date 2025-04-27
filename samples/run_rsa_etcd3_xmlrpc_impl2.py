@@ -7,13 +7,13 @@ samples.rsa.helloimpl_xmlrpc. NOTE:  For the etcd3 discovery to work, there must
 be an etcd3 server/service running on localhost/2379 (default etcd3 port)
 
 :author: Scott Lewis
-:copyright: Copyright 2024, Scott Lewis
+:copyright: Copyright 2025, Scott Lewis
 :license: Apache License 2.0
 :version: 1.0.2
 
 ..
 
-    Copyright 2024 Scott Lewis
+    Copyright 2025 Scott Lewis
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.

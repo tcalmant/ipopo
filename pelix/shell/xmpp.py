@@ -8,7 +8,7 @@ This module depends on the sleekxmpp package: http://sleekxmpp.com/
 :author: Thomas Calmant
 :copyright: Copyright 2025, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.0.0
+:version: 3.1.0
 
 ..
 
@@ -49,7 +49,7 @@ from pelix.utilities import EventData, remove_duplicates
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 0, 0)
+__version_info__ = (3, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

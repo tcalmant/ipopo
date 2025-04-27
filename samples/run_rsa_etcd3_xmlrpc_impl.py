@@ -7,13 +7,13 @@ samples.rsa.helloimpl_xmlrpc. NOTE:  For the etcd3 discovery to work, there must
 be an etcd3 server/service running on localhost/2379 (default etcd3 port)
 
 :author: Scott Lewis
-:copyright: Copyright 2024, Scott Lewis
+:copyright: Copyright 2025, Scott Lewis
 :license: Apache License 2.0
 :version: 1.0.2
 
 ..
 
-    Copyright 2024 Scott Lewis
+    Copyright 2025 Scott Lewis
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@ HTTP_PORT = 8181
 def connected_cb():
     print("Etcd3 connected!")
 
-    
+
 def main() -> None:
 
     import logging
@@ -66,9 +66,9 @@ def main() -> None:
         "pelix.shell.console",
         # RSA implementation
         "pelix.rsa.remoteserviceadmin",
-        # topology manager 
+        # topology manager
         "pelix.rsa.topologymanagers.basic",
-        # etcd3 discovery  
+        # etcd3 discovery
         "pelix.rsa.providers.discovery.etcd3",
         # HTTP Service
         "pelix.http.basic",
@@ -97,7 +97,7 @@ def main() -> None:
                                          {ETCD_HOSTNAME_PROP: ETCD_HOSTNAME,
                                           ETCD_PORT_PROP: ETCD_PORT,
                                           ETCD_CONNECTED_CALLBACK_PROP: connected_cb})
-    
+
     # start httpservice, required by the xmlrpc distribution provider
     with use_ipopo(framework.get_bundle_context()) as ipopo:
         ipopo.instantiate(
