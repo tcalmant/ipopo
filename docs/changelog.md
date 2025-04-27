@@ -1,5 +1,45 @@
 # Release Notes
 
+## iPOPO 3.1.0
+
+:::{admonition} Release Date
+:class: info
+
+2025-04-27
+:::
+
+### Project
+
+* Addition of the `pyproject.toml` file
+
+### Dependencies
+
+* Updated and fixed [SliXMPP](https://pypi.org/project/slixmpp/) to 1.10
+* Updated `osgiservicebridge` to 1.5.8
+* Removed `etcd3` dependency
+
+### Remote Services Admin
+
+* Scott Lewis (@scottslewis) replaced the etcd3 implementation by a custom one
+  (see issue [#143](https://github.com/tcalmant/ipopo/issues/143)
+  and pull request [#145](https://github.com/tcalmant/ipopo/pull/145))
+* The etcd2 endpoint discovery is now **deprecated**.
+  Removal is expected in next minor version (3.2) or when it breaks.
+
+
+### XMPP client
+
+* `pelix.misc.xmpp.BasicBot` doesn't inherit `slixmpp.ClientXMPP` anymore,
+  but is the class to call to create an XMPP client.
+  This ensures that the client will run in a specific thread with a valid
+  asyncio loop and will forward common methods to that thread.
+  Its main purpose is to provide a non-async API toward the underlying bot.
+
+* XMPP bots should now inherit `pelix.misc.xmpp.XMPPBotClient` which behaves
+  like the previous `BasicBot` class (without asyncio loop handling)
+  and inherits `slixmpp.ClientXMPP`.
+
+
 ## iPOPO 3.0.0
 
 :::{admonition} Release Date
