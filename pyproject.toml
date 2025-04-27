@@ -14,9 +14,6 @@ authors = [
 requires-python = ">=3.10"
 description = "A service-oriented component model framework"
 readme = "README.rst"
-author = "Thomas Calmant"
-author_email = "thomas.calmant@gmail.com"
-url = "https://github.com/tcalmant/ipopo/"
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
