@@ -5,13 +5,13 @@
 Etcd Discovery Provider
 
 :author: Scott Lewis
-:copyright: Copyright 2024, Scott Lewis
+:copyright: Copyright 2025, Scott Lewis
 :license: Apache License 2.0
-:version: 3.0.0
+:version: 3.1.0
 
 ..
 
-    Copyright 2024 Scott Lewis
+    Copyright 2025 Scott Lewis
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@ from concurrent.futures.thread import ThreadPoolExecutor
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (3, 0, 0)
+__version_info__ = (3, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -86,11 +86,11 @@ ETCD_HOSTNAME_DEFAULT = "localhost"
 # etcd.port prop; type: int;  Default: 2379
 ETCD_PORT_PROP = ".".join([ETCD_NAME_PREFIX, "port"])
 ETCD_PORT_DEFAULT = 2379
-# etcd.top_key prop; type: str; 
+# etcd.top_key prop; type: str;
 # Default: "org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer"
-# NOTE:  the top_path must be set to some unique string that 
+# NOTE:  the top_path must be set to some unique string that
 # all etcd3 endpoint description discovery clients can share
-# it should have only no forward slashes ('/') as that is used 
+# it should have only no forward slashes ('/') as that is used
 # as a a separator character
 ETCD_TOPKEY_PROP = ".".join([ETCD_NAME_PREFIX, "top_key"])
 ETCD_TOPKEY_DEFAULT = "org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer"
@@ -137,7 +137,7 @@ ETCD_CALLTIMEOUT_DEFAULT = 3
 # raising a TimeoutError
 ETCD_DISCONNECTTIMEOUT_PROP = ".".join([ETCD_NAME_PREFIX, "disconnect_timeout"])
 ETCD_DISCONNECTTIMEOUT_DEFAULT = 5
-# etcd.hostip prop; type: str;  Default: string returned from call to 
+# etcd.hostip prop; type: str;  Default: string returned from call to
 # socket.gethostbyname(socket.gethostname())
 ETCD_HOSTIP_PROP = ".".join([ETCD_NAME_PREFIX, "hostip"])
 ETCD_HOSTIP_DEFAULT = socket.gethostbyname(socket.gethostname())
@@ -219,7 +219,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     """
     Etcd3-based remote service endpoint discovery.  Extends both EndpointAdvertiser
     and EndpointSubscriber so can be called to advertise/unadvertise
-    exported endpoints (typically via the topology manager), and will notify 
+    exported endpoints (typically via the topology manager), and will notify
     SERVICE_ENDPOINT_LISTENERs (also typically topology manager)
     when an endpoint has been discovered via the etcd3 server/cluster watch.
 
@@ -231,8 +231,8 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     _grpc_options: Optional[Sequence[Tuple[str, Any]]]
     _grpc_compression: Optional[grpc.Compression]
     _channel: Optional[grpc.Channel]
-    _lease_ttl: int  
-    _keepalive_interval: int 
+    _lease_ttl: int
+    _keepalive_interval: int
     _call_timeout: int
     _disconnect_timeout: int
     _session_id: str = None
@@ -267,7 +267,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         await self._connected_event.wait()
         service_props = self._encode_description(endpoint_description)
         return await self._putKV(self._get_endpoint_path(endpoint_description.get_id()), json.dumps(service_props))
-    
+
     def _encode_description(self, endpoint_description: EndpointDescription) -> Dict[str, Any]:
         encoded_props = encode_endpoint_props(endpoint_description)
         # get copy of service props
@@ -280,13 +280,13 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
 
     def _run_coroutine(self, coro) -> Any:
         return asyncio.run_coroutine_threadsafe(coro, self._loop).result(self._call_timeout)
-        
+
     async def _get_key_value(self, key: str) -> str:
         await self._connected_event.wait()
         resp = await rpc_pb2_grpc.KVStub(self._channel).Range(rpc_pb2.RangeRequest(key=to_bytes(key)))
         if resp.kvs and len(resp.kvs) > 0:
             return str(resp.kvs.pop().value, self._encoding)
-         
+
     def _get_value(self, endpoint_id: str) -> str:
         return self._run_coroutine(self._get_key_value(endpoint_id))
 
@@ -324,7 +324,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             asyncio.set_event_loop(self._loop)
             self._loop_thread_id = threading.current_thread().ident
             asyncio.run_coroutine_threadsafe(connected(), self._loop)
-            self._loop.run_until_complete(self._connect())  
+            self._loop.run_until_complete(self._connect())
 
         # create and start thread
         threading.Thread(target=worker, name="etcd3[{}]".format(self._session_id), daemon=True).start()
@@ -401,7 +401,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         raw_props = {entry["name"]: entry["value"] for entry in json_properties if entry["type"] == "string"}
         # create new EndpointDescription from deserialized properties
         return EndpointDescription(properties=decode_endpoint_props(raw_props))
-            
+
     def _add_or_modify_endpoint(self, endpoint_key: EndpointKey, value: str):
         new_ed = self._decode_endpoint_description(value)
         event_type = EndpointEvent.ADDED
@@ -441,10 +441,10 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     def _fire_endpoint_event(self, event_type:int, ed:EndpointDescription) -> None:  #
         # send notifications via thread so doesn't block asyncio loop thread
         self._loop.run_in_executor(self._call_executor, EndpointSubscriber._fire_endpoint_event, self, event_type, ed)
-        
+
     async def _putKV(self, key, value) -> rpc_pb2.PutResponse:
         return await rpc_pb2_grpc.KVStub(self._channel).Put(rpc_pb2.PutRequest(key=to_bytes(key), value=to_bytes(value), lease=self._lease_id))
-    
+
     def _create_async_channel(self) -> grpc.Channel:
         target = "{}:{}".format(self._hostname, self._port)
         if self._grpc_credentials:
@@ -471,8 +471,8 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                     if self._lease_id:
                         yield rpc_pb2.LeaseKeepAliveRequest(ID=self._lease_id)
                     else:
-                        return 
-                    
+                        return
+
             async for resp in rpc_pb2_grpc.LeaseStub(self._channel).LeaseKeepAlive(generate_ka_request()):
                 if resp.ID == self._lease_id and resp.TTL:
                     self._lease_ttl = resp.TTL
@@ -483,7 +483,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
 
     def _generate_watch_request(self, create_request: rpc_pb2.WatchCreateRequest, cancel_request: rpc_pb2.WatchCancelRequest) -> Iterable[rpc_pb2.WatchRequest]:
         yield rpc_pb2.WatchRequest(create_request=create_request, cancel_request=None)
-          
+
     async def _connect(self) -> None:
         # create channel
         self._channel = self._create_async_channel()
@@ -496,16 +496,16 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         range_resp = await rpc_pb2_grpc.KVStub(self._channel).Range(rpc_pb2.RangeRequest(key=kp_bytes, range_end=kp_range_end_bytes))
         for kv in range_resp.kvs:
             self._process_kv(str(kv.key, self._encoding), str(kv.value, self._encoding), True)
-        # Now announce us as present by putting key on etcd server    
+        # Now announce us as present by putting key on etcd server
         await self._putKV(self._get_session_key(), self._session_id)
-             
+
         async for watch_response in rpc_pb2_grpc.WatchStub(self._channel).Watch(self._generate_watch_request(rpc_pb2.WatchCreateRequest(key=kp_bytes, range_end=kp_range_end_bytes), None)):
             if watch_response.created:
                 self._watch_id = watch_response.watch_id
                 self._connected_event.set()
             elif watch_response.canceled:
                 _logger.error("session_id={} watch_cancelled ".format(self._session_id))
-                return 
+                return
             else:
                 for event in watch_response.events:
                     key = str(event.kv.key, self._encoding)
@@ -516,11 +516,11 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                             self._process_kv(key, value, True)
                         elif event.type == Event.EventType.DELETE:
                             self._process_kv(key, value, False)
-        
+
     async def _delete_range(self, key: str) -> rpc_pb2.DeleteRangeResponse:
         await self._connected_event.wait()
         return await rpc_pb2_grpc.KVStub(self._channel).Range(rpc_pb2.DeleteRangeRequest(key=to_bytes(key), range_end=to_bytes("".join([key, "\\0"]))))
-            
+
     async def _disconnect(self) -> None:
         """
         Disconnects the etcd3 client
@@ -537,13 +537,12 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             await rpc_pb2_grpc.LeaseStub(self._channel).LeaseRevoke(rpc_pb2.LeaseRevokeRequest(ID=self._lease_id))
             _logger.debug("session_id={} lease_id={} revoked".format(self._session_id, self._lease_id))
             self._lease_id = None
-                            
+
             await self._channel.close()
             _logger.debug("session_id={} closed channel".format(self._session_id))
             self._channel = None
 
-      
+
 def instantiate_etcd3_discovery_provider(context: BundleContext, properties: Optional[Dict[str, Any]]=None):
     from pelix.rsa import instantiate_rsa_component
     return instantiate_rsa_component(context, ETCD_FACTORY_NAME, ETCD_INSTANCE_NAME, properties)
-        

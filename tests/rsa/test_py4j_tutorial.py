@@ -33,7 +33,7 @@ unittest.skip("Skipping Py4J tests due to issues with Karaf not starting correct
 
 KARAF_URL = "https://archive.apache.org/dist/karaf/4.4.6/apache-karaf-4.4.6.tar.gz"
 
-__version_info__ = (3, 0, 0)
+__version_info__ = (3, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -287,7 +287,7 @@ class Py4JTutorialTest(unittest.TestCase):
 
                 from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
                 instantiate_basic_topology_manager(bc)
- 
+
                 for _ in range(10):
                     # Check if we find the Hello world service
                     svc_ref: Optional[ServiceReference[Any]] = bc.get_service_reference(

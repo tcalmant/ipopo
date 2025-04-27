@@ -20,7 +20,7 @@ from tests.http.test_basic import get_http_code, get_http_page, install_ipopo, i
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 0, 0)
+__version_info__ = (3, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 DEFAULT_HOST = "127.0.0.1"

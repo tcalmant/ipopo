@@ -13,7 +13,7 @@ from pelix.ipopo.decorators import ComponentFactory, Property, Provides
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 0, 0)
+__version_info__ = (3, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 SIMPLE_SERVLET_FACTORY = "simple.servlet.factory"
