@@ -96,7 +96,7 @@ setup(
         "etcd2": ["python-etcd==0.4.5", "osgiservicebridge>=1.5.8"],
         "MQTT": ["paho-mqtt>=2.1"],
         "Redis": ["redis>=2.10"],
-        "RSA": ["osgiservicebridge>=1.5.8"],
+        "RSA": ["osgiservicebridge>=1.5.8", "grpcio>=1.71.0", "grpcio-tools>=1.71.0"],
         "XMPP": ["slixmpp==1.10"],
         "zeroconf": ["zeroconf==0.19"],
         "ZooKeeper": ["kazoo==2.8.0"],
