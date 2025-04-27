@@ -32,7 +32,7 @@ from setuptools import setup
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 0, 0)
+__version_info__ = (3, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -88,14 +88,15 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.12",
         "Topic :: Software Development :: Libraries :: Application Frameworks",
     ],
     install_requires=["jsonrpclib-pelix>=0.4.3"],
     extras_require={
-        "etcd2": ["python-etcd==0.4.5", "osgiservicebridge>=1.5.7"],
+        "etcd2": ["python-etcd==0.4.5", "osgiservicebridge>=1.5.8"],
         "MQTT": ["paho-mqtt>=2.1"],
         "Redis": ["redis>=2.10"],
-        "RSA": ["etcd3>=0.12.0", "osgiservicebridge>=1.5.7"],
+        "RSA": [ "osgiservicebridge>=1.5.8"],
         "XMPP": ["slixmpp>=1.8.4"],
         "zeroconf": ["zeroconf==0.19"],
         "ZooKeeper": ["kazoo==2.8.0"],
