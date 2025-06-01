@@ -83,6 +83,8 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 # Note:  These must match the Java-side constants recored in Java interface
 # class: org.eclipse.ecf.provider.py4j.Py4jConstants
+ECF_PY4J_DEFAULT_TIMEOUT = 15  # seconds
+
 ECF_PY4J_CONTAINER_CONFIG_TYPE = "ecf.py4j"
 ECF_PY4J_NAMESPACE = "ecf.namespace.py4j"
 
@@ -147,7 +149,7 @@ class Py4jContainer(ExportContainer, ImportContainer):
         # modify svc class to have appropriate metadata for py4j
         timeout = ed.get_osgi_basic_timeout()
         if not timeout:
-            timeout = 30
+            timeout = ECF_PY4J_DEFAULT_TIMEOUT
 
         dp = cast(Py4jDistributionProvider, self._get_distribution_provider())
 
@@ -186,7 +188,7 @@ class Py4jContainer(ExportContainer, ImportContainer):
         proxy = bridge.get_import_endpoint(endpoint_description.get_id())[0]
         timeout = endpoint_description.get_osgi_basic_timeout()
         if not timeout:
-            timeout = self._container_props.get(ECF_PY4J_DEFAULT_SERVICE_TIMEOUT, 30)
+            timeout = 30
 
         args = [
             bridge.get_jvm(),
