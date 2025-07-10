@@ -720,7 +720,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         if args.no_input:
             # No input required: just print the access to the shell
-            print("Remote shell bound to:", host, "- port:", port)
+            print("Remote shell bound to:", host, "- port:", port, file=sys.stderr)
 
             try:
                 while not framework.wait_for_stop(1):
@@ -728,7 +728,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                     # exception to raise
                     pass
             except KeyboardInterrupt:
-                print("Got Ctrl+C: exiting.")
+                print("Got Ctrl+C: exiting.", file=sys.stderr)
                 return 127
         else:
             # Prepare interpreter variables
