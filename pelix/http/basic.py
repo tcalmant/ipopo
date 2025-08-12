@@ -94,7 +94,7 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         Sets up the request helper
 
         :param request_handler: The basic request handler
-        :param prefix: Teh path to the servlet root
+        :param prefix: The path to the servlet root
         """
         self._handler = request_handler
         self._prefix = prefix
@@ -913,7 +913,7 @@ class HttpServiceImpl(http.HTTPService):
 
         # Set up the logger
         if self._logger_name is not None:
-            if not self._logger:
+            if not self._logger_name:
                 # Empty name, use the instance name
                 self._logger_name = self._instance_name
 
