@@ -88,6 +88,9 @@ HTTP_ERROR_PAGES = "pelix.http.error.pages"
 FACTORY_HTTP_BASIC = "pelix.http.service.basic.factory"
 """ Name of the HTTP service component factory """
 
+FACTORY_HTTP_ASYNC = "pelix.http.service.async.factory"
+""" Name of the Async HTTP service component factory """
+
 # ------------------------------------------------------------------------------
 
 PARAM_NAME = "http.name"
