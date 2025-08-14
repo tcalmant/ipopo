@@ -37,6 +37,7 @@ Issues = "http://github.com/tcalmant/ipopo/issues"
 Source = "http://github.com/tcalmant/ipopo/"
 
 [project.optional-dependencies]
+aoihttp = ["aiohttp~=3.12.15"]
 etcd2 = ["python-etcd==0.4.5", "osgiservicebridge>=1.5.8"]
 MQTT = ["paho-mqtt>=2.1"]
 Redis = ["redis>=2.10"]
