@@ -443,7 +443,7 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         """
         return self._response
 
-    async def set_response(self, code: int, message: Optional[str] = None) -> None:
+    def set_response(self, code: int, message: Optional[str] = None) -> None:
         """
         Sets the response line.
         This method should be the first called when sending an answer.
