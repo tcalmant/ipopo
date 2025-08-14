@@ -566,7 +566,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
                 assert self._cert_file is not None, "Certificate file must be set for HTTPS"
 
                 # Create the SSL context
-                ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+                ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
                 ssl_context.load_cert_chain(
                     certfile=self._cert_file, keyfile=self._key_file, password=self._key_password
                 )
