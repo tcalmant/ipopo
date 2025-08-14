@@ -746,7 +746,11 @@ class HttpServiceImpl(http.HTTPService):
         return page
 
     def register_servlet(
-        self, path: str, servlet: http.Servlet, parameters: Optional[Dict[str, Any]] = None
+        self,
+        path: str,
+        servlet: http.Servlet,
+        parameters: Optional[Dict[str, Any]] = None,
+        async_mode: bool = False,
     ) -> bool:
         """
         Registers a servlet
@@ -754,9 +758,13 @@ class HttpServiceImpl(http.HTTPService):
         :param path: Path handled by this servlet
         :param servlet: The servlet instance
         :param parameters: The parameters associated to this path
+        :param async_mode: Not supported
         :return: True if the servlet has been registered, False if it refused the binding.
         :raise ValueError: Invalid path or handler
         """
+        if async_mode:
+            raise ValueError("Asynchronous mode is not supported")
+
         if servlet is None:
             raise ValueError("Invalid servlet instance")
 

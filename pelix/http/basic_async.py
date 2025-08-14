@@ -40,6 +40,7 @@ from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
 
 import aiohttp.web
 
+import pelix.constants as fw_constants
 import pelix.http as http
 import pelix.ipopo.constants as constants
 import pelix.remote
@@ -94,7 +95,7 @@ class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
         """
         Sets up the request helper
 
-        :param request: The asyncio Request object
+        :param request: The aiohttp Request object
         :param full_path: The full request path, including the prefix
         :param prefix: The path to the servlet root
         :parma content: The request content
@@ -223,7 +224,7 @@ class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
         """
         Sets up the response helper
 
-        :param request: The asyncio Request object
+        :param request: The aiohttp Request object
         :param loop: The asyncio event loop
         """
         self._request = request
@@ -319,9 +320,202 @@ class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
 # ------------------------------------------------------------------------------
 
 
+class _AsyncHTTPServletRequest(http.AbstractAsyncHTTPServletRequest):
+    """
+    HTTP Servlet request helper
+    """
+
+    def __init__(self, request: aiohttp.web.Request, full_path: str, prefix: str) -> None:
+        """
+        Sets up the request helper
+
+        :param request: The aiohttp Request object
+        :param full_path: The full request path, including the prefix
+        :param prefix: The path to the servlet root
+        """
+        self._request = request
+        self._prefix = prefix
+
+        # Compute the sub path
+        self._sub_path = full_path[len(prefix) :]
+        if not self._sub_path.startswith("/"):
+            self._sub_path = f"/{self._sub_path}"
+
+        self._sub_path = re.sub("/+", "/", self._sub_path)
+
+    def get_command(self) -> str:
+        """
+        Returns the HTTP verb (GET, POST, ...) used for the request
+        """
+        return self._request.method.upper()
+
+    def get_client_address(self) -> Tuple[str, int]:
+        """
+        Retrieves the address of the client
+
+        :return: A (host, port) tuple
+        """
+        if self._request.transport is None:
+            # No transport, no address
+            raise IOError("No transport available for the request")
+
+        return self._request.transport.get_extra_info("peername")[:2]
+
+    async def get_header(self, name: str, default: Optional[Any] = None) -> Any:
+        """
+        Retrieves the value of a header
+        """
+        return self._request.headers.get(name, default)
+
+    async def get_headers(self) -> Dict[str, Any]:
+        """
+        Retrieves all headers
+        """
+        return cast(Dict[str, Any], self._request.headers)
+
+    def get_path(self) -> str:
+        """
+        Retrieves the request full path
+        """
+        return self._request.path
+
+    def get_prefix_path(self) -> str:
+        """
+        Returns the path to the servlet root
+
+        :return: A request path (string)
+        """
+        return self._prefix
+
+    def get_sub_path(self) -> str:
+        """
+        Returns the servlet-relative path, i.e. after the prefix
+
+        :return: A request path (string)
+        """
+        return self._sub_path
+
+    def get_rfile(self) -> asyncio.StreamReader:
+        """
+        Retrieves the input as a file stream
+        """
+        # aiohttp StreamReader is compatible with the asyncio one
+        return cast(asyncio.StreamReader, self._request.content)
+
+
+class _AioHttpWriter(http.AbstractAsyncWriter):
+    """
+    Wrapper for aiohttp StreamResponse
+    """
+
+    def __init__(self, response: aiohttp.web.StreamResponse) -> None:
+        self._response = response
+
+    async def write(self, raw: bytes) -> int:
+        await self._response.write(raw)
+        return len(raw)
+
+    async def flush(self) -> None:
+        await self._response.drain()
+
+
+class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
+    """
+    HTTP Servlet response helper
+    """
+
+    def __init__(self, request: aiohttp.web.Request) -> None:
+        """
+        Sets up the response helper
+
+        :param request: The aiohttp Request object
+        """
+        self._request = request
+        self._headers_set: bool = False
+        self._response = aiohttp.web.StreamResponse()
+
+    def to_aiohttp_response(self) -> aiohttp.web.StreamResponse:
+        """
+        Converts the response to an aiohttp StreamResponse object.
+        This method should be called after all headers have been set.
+
+        :return: The aiohttp StreamResponse object
+        """
+        return self._response
+
+    async def set_response(self, code: int, message: Optional[str] = None) -> None:
+        """
+        Sets the response line.
+        This method should be the first called when sending an answer.
+
+        :param code: HTTP result code
+        :param message: Associated message
+        """
+        if self._headers_set:
+            raise IOError("Headers have already been set, cannot change the response code")
+
+        self._response.set_status(code, message)
+
+    def set_header(self, name: str, value: Any) -> None:
+        """
+        Sets the value of a header.
+        This method should not be called after ``end_headers()``.
+
+        :param name: Header name
+        :param value: Header value
+        """
+        if self._headers_set:
+            raise IOError("Headers have already been set, cannot change them")
+
+        if value is None:
+            self._response.headers.popall(name.lower(), None)
+        else:
+            self._response.headers.add(name.lower(), str(value))
+
+    def is_header_set(self, name: str) -> bool:
+        """
+        Checks if the given header has already been set
+
+        :param name: Header name
+        :return: True if it has already been set
+        """
+        return self._response.headers.get(name.lower(), None) is not None
+
+    async def end_headers(self) -> None:
+        """
+        Ends the headers part
+        """
+        self._headers_set = True
+        await self._response.prepare(self._request)
+
+    def get_wfile(self) -> http.AbstractAsyncWriter:
+        """
+        Retrieves the output as a writer.
+        ``end_headers()`` should have been called before.
+
+        :return: A writer for the output stream
+        """
+        return _AioHttpWriter(self._response)
+
+    async def write(self, data: bytes) -> None:
+        """
+        Writes the given data.
+        ``end_headers()`` should have been called before, except if you want
+        to write your own headers.
+
+        :param data: Data to be written
+        """
+        await self._response.write(data)
+        await self._response.drain()
+
+
+# ------------------------------------------------------------------------------
+
+
 @ComponentFactory(http.FACTORY_HTTP_ASYNC)
 @Provides(http.HTTP_SERVICE)
 @Requires("_servlets_services", http.Servlet, True, True)
+@Requires("_servlets_async_services", http.AsyncServlet, True, True)
 @Requires("_error_handler", http.ErrorHandler, optional=True)
 @Property("_address", http.HTTP_SERVICE_ADDRESS, DEFAULT_BIND_ADDRESS)
 @Property("_port", http.HTTP_SERVICE_PORT, 8080)
@@ -362,15 +556,18 @@ class AsyncHttpServiceImpl(http.HTTPService):
         # Servlets registry lock
         self._lock = threading.RLock()
 
-        # Path -> (servlet, parameters)
-        self._servlets: Dict[str, Tuple[http.Servlet, Dict[str, Any]]] = {}
+        # Path -> (servlet, parameters, async)
+        self._servlets: Dict[str, Tuple[http.Servlet | http.AsyncServlet, Dict[str, Any], bool]] = {}
 
         # Fields injected by iPOPO
         self._servlets_services: List[http.Servlet] = []
+        self._servlets_async_services: List[http.AsyncServlet] = []
         self._error_handler: Optional[http.ErrorHandler] = None
 
         # Servlet -> ServiceReference
-        self._servlets_refs: Dict[http.Servlet, ServiceReference[http.Servlet]] = {}
+        self._servlets_refs: Dict[
+            http.Servlet | http.AsyncServlet, ServiceReference[http.Servlet | http.AsyncServlet]
+        ] = {}
         self._binding_lock = threading.RLock()
 
         # Server control
@@ -620,28 +817,41 @@ class AsyncHttpServiceImpl(http.HTTPService):
         # Get the corresponding servlet
         found_servlet = self.get_servlet(path)
         if found_servlet is not None:
-            method_name = f"do_{request.method.upper()}"
-            servlet, _, prefix = found_servlet
-            if hasattr(servlet, f"do_{request.method.upper()}"):
-                # Read the request content
-                # FIXME: find a better way to handle the content, wrapping the request
-                #        in a file-like object
-                content = await request.read()
+            servlet, _, prefix, async_mode = found_servlet
 
-                # Prepare the helpers
-                servlet_request = _SyncHTTPServletRequest(request, path, prefix, content)
-                servlet_response = _SyncHTTPServletResponse(request, self._loop)
+            async_name = f"do_async_{request.method.upper()}"
+            sync_name = f"do_{request.method.upper()}"
 
-                try:
+            try:
+                if async_mode and hasattr(servlet, async_name):
+                    # Prepare the helpers
+                    servlet_request = _AsyncHTTPServletRequest(request, path, prefix)
+                    servlet_response = _AsyncHTTPServletResponse(request)
+
                     # Handle the request
-                    handler_method = getattr(servlet, method_name)
+                    handler_method = getattr(servlet, async_name)
+                    await handler_method(servlet_request, servlet_response)
+                    return servlet_response.to_aiohttp_response()
+                elif not async_mode and hasattr(servlet, sync_name):
+                    # Read the request content
+                    # FIXME: find a better way to handle the content, wrapping the request
+                    #        in a file-like object
+                    content = await request.read()
+
+                    # Prepare the helpers
+                    servlet_request = _SyncHTTPServletRequest(request, path, prefix, content)
+                    servlet_response = _SyncHTTPServletResponse(request, self._loop)
+
+                    # Handle the request in the executor
+                    handler_method = getattr(servlet, sync_name)
                     await self._loop.run_in_executor(
                         self._executor, handler_method, servlet_request, servlet_response
                     )
                     return servlet_response.to_aiohttp_response()
-                except:
-                    # Send a 500 error page on error
-                    return self.send_exception(path)
+            except:
+                # Send a 500 error page on error
+                self._logger.exception("Error handling %s request to %s", request.method, path)
+                return self.send_exception(path)
 
         # Return the super implementation if needed
         return aiohttp.web.Response(status=404, body=self.make_not_found_page(path), content_type="text/html")
@@ -698,7 +908,9 @@ class AsyncHttpServiceImpl(http.HTTPService):
         return False
 
     def __register_servlet_service(
-        self, service: http.Servlet, service_reference: ServiceReference[http.Servlet]
+        self,
+        service: http.Servlet | http.AsyncServlet,
+        service_reference: ServiceReference[http.Servlet | http.AsyncServlet],
     ) -> None:
         """
         Registers a servlet according to its service properties
@@ -706,18 +918,40 @@ class AsyncHttpServiceImpl(http.HTTPService):
         :param service: A servlet service
         :param service_reference: The associated ServiceReference
         """
-        # Servlet bound
-        paths = service_reference.get_property(http.HTTP_SERVLET_PATH)
-        if utilities.is_string(paths):
-            # Register the servlet to a single path
-            self.register_servlet(paths, service)
-        elif isinstance(paths, (list, tuple)):
-            # Register the servlet to multiple paths
-            for path in paths:
-                self.register_servlet(path, service)
+        spec = cast(list[str], service_reference.get_property(fw_constants.OBJECTCLASS))
+        if http.HTTP_SERVLET in spec:
+            # Servlet bound
+            sync_servlet = cast(http.Servlet, service)
+            paths = service_reference.get_property(http.HTTP_SERVLET_PATH)
+            if utilities.is_string(paths):
+                # Register the servlet to a single path
+                self.register_servlet(paths, sync_servlet, {}, False)
+            elif isinstance(paths, (list, tuple)):
+                # Register the servlet to multiple paths
+                for path in paths:
+                    self.register_servlet(path, sync_servlet, {}, False)
+
+        # No else here: a service could implement both specifications
+        if http.HTTP_SERVLET_ASYNC in spec:
+            # Asynchronous servlet bound
+            async_servlet = cast(http.AsyncServlet, service)
+            paths = service_reference.get_property(http.HTTP_SERVLET_ASYNC_PATH)
+            if utilities.is_string(paths):
+                # Register the servlet to a single path
+                self.register_servlet(paths, async_servlet, {}, True)
+            elif isinstance(paths, (list, tuple)):
+                # Register the servlet to multiple paths
+                for path in paths:
+                    self.register_servlet(path, async_servlet, {}, True)
 
     @BindField("_servlets_services")
-    def _bind(self, _: str, service: http.Servlet, service_reference: ServiceReference[http.Servlet]) -> None:
+    @BindField("_servlets_async_services")
+    def _bind_servlet(
+        self,
+        _: str,
+        service: http.Servlet | http.AsyncServlet,
+        service_reference: ServiceReference[http.Servlet | http.AsyncServlet],
+    ) -> None:
         """
         Called by iPOPO when a service is bound
         """
@@ -734,11 +968,12 @@ class AsyncHttpServiceImpl(http.HTTPService):
                 self.__register_servlet_service(service, service_reference)
 
     @UpdateField("_servlets_services")
-    def _update(
+    @UpdateField("_servlets_async_services")
+    def _update_servlet(
         self,
         _: str,
-        service: http.Servlet,
-        service_reference: ServiceReference[http.Servlet],
+        service: http.Servlet | http.AsyncServlet,
+        service_reference: ServiceReference[http.Servlet | http.AsyncServlet],
         old_properties: Dict[str, Any],
     ) -> None:
         """
@@ -750,7 +985,11 @@ class AsyncHttpServiceImpl(http.HTTPService):
         # Check if the property concerns the registration
         old_path = old_properties.get(http.HTTP_SERVLET_PATH)
         new_path = service_reference.get_property(http.HTTP_SERVLET_PATH)
-        if old_path == new_path:
+
+        old_async_path = old_properties.get(http.HTTP_SERVLET_ASYNC_PATH)
+        new_async_path = service_reference.get_property(http.HTTP_SERVLET_ASYNC_PATH)
+
+        if old_path == new_path and old_async_path == new_async_path:
             # Nothing to do
             return
 
@@ -763,8 +1002,12 @@ class AsyncHttpServiceImpl(http.HTTPService):
                 self.__register_servlet_service(service, service_reference)
 
     @UnbindField("_servlets_services")
-    def _unbind(
-        self, _: str, service: http.Servlet, service_reference: ServiceReference[http.Servlet]
+    @UnbindField("_servlets_async_services")
+    def _unbind_servlet(
+        self,
+        _: str,
+        service: http.Servlet | http.AsyncServlet,
+        service_reference: ServiceReference[http.Servlet | http.AsyncServlet],
     ) -> None:
         """
         Called by iPOPO when a service is gone
@@ -815,13 +1058,15 @@ class AsyncHttpServiceImpl(http.HTTPService):
         """
         return sorted(self._servlets)
 
-    def get_servlet(self, path: Optional[str]) -> Optional[Tuple[http.Servlet, Dict[str, Any], str]]:
+    def get_servlet(
+        self, path: Optional[str]
+    ) -> Optional[Tuple[http.Servlet | http.AsyncServlet, Dict[str, Any], str, bool]]:
         """
         Retrieves the servlet matching the given path and its parameters.
         Returns None if no servlet matches the given path.
 
         :param path: A request URI
-        :return: A tuple (servlet, parameters, prefix) or None
+        :return: A tuple (servlet, parameters, prefix, async) or None
         """
         if not path or path[0] != "/":
             # No path, nothing to return
@@ -855,8 +1100,8 @@ class AsyncHttpServiceImpl(http.HTTPService):
                 return None
 
             # Retrieve the stored information
-            servlet, params = self._servlets[longest_match]
-            return servlet, params, longest_match
+            servlet, params, async_mode = self._servlets[longest_match]
+            return servlet, params, longest_match, async_mode
 
     def make_not_found_page(self, path: str) -> str:
         """
@@ -912,7 +1157,11 @@ class AsyncHttpServiceImpl(http.HTTPService):
         return page
 
     def register_servlet(
-        self, path: str, servlet: http.Servlet, parameters: Optional[Dict[str, Any]] = None
+        self,
+        path: str,
+        servlet: http.Servlet | http.AsyncServlet,
+        parameters: Optional[Dict[str, Any]] = None,
+        async_mode: bool = False,
     ) -> bool:
         """
         Registers a servlet
@@ -920,6 +1169,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
         :param path: Path handled by this servlet
         :param servlet: The servlet instance
         :param parameters: The parameters associated to this path
+        :param async_mode: True if the servlet is asynchronous
         :return: True if the servlet has been registered, False if it refused the binding.
         :raise ValueError: Invalid path or handler
         """
@@ -955,6 +1205,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
             parameters[http.PARAM_HTTPS] = self._uses_ssl
             parameters[http.PARAM_NAME] = self._instance_name
             parameters[http.PARAM_EXTRA] = self._extra.copy() if self._extra else None
+            parameters[http.PARAM_ASYNC] = async_mode
 
             # The servlet might refuse to be bound to this server
             if not self.__safe_callback(servlet, "accept_binding", path, parameters):
@@ -969,7 +1220,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
             # Tell the servlet it can be bound to the path
             if self.__safe_callback(servlet, "bound_to", path, parameters):
                 # Store the servlet
-                self._servlets[path] = (servlet, parameters)
+                self._servlets[path] = (servlet, parameters, async_mode)
                 return True
 
             # The servlet refused the binding
