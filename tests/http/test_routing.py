@@ -6,17 +6,20 @@ Pelix HTTP routing test module.
 :author: Thomas Calmant
 """
 
+import logging
 import random
 import unittest
 import uuid
 from typing import Any, List, Optional
 
+import pelix.http as http
 import pelix.http.routing as routing
 from pelix.framework import Framework, FrameworkFactory, create_framework
 from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse
 from pelix.ipopo.constants import IPopoService
 from pelix.utilities import to_str
 from tests.http.test_basic import get_http_code, get_http_page, install_ipopo, instantiate_server
+from tests.http.utils import kill_server
 
 # ------------------------------------------------------------------------------
 
@@ -39,6 +42,10 @@ class HttpRoutingTests(unittest.TestCase):
     framework: Framework
     ipopo: IPopoService
 
+    http_bundle = "pelix.http.basic"
+    http_factory: str = http.FACTORY_HTTP_BASIC
+    instance_name: str = "test-http-service"
+
     def setUp(self) -> None:
         """
         Sets up the test environment
@@ -47,15 +54,36 @@ class HttpRoutingTests(unittest.TestCase):
         self.framework = create_framework(["pelix.http.basic"])
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
-        self.http = instantiate_server(self.ipopo)
+        self.http = self.instantiate_server()
 
     def tearDown(self) -> None:
         """
         Cleans up the test environment
         """
+        # Kill the server component
+        self.kill_server()
+
         # Stop the framework
         FrameworkFactory.delete_framework(self.framework)
         self.framework = None  # type: ignore
+
+    def instantiate_server(self):
+        """
+        Instantiates a server component
+        """
+        return instantiate_server(
+            self.ipopo, self.http_factory, self.instance_name, DEFAULT_HOST, DEFAULT_PORT
+        )
+
+    def kill_server(self) -> None:
+        """
+        Kills the server component
+        """
+        try:
+            kill_server(self.ipopo, self.instance_name)
+        except:
+            logging.exception("Error while killing the server component")
+            raise
 
     def test_decorator_type_check(self) -> None:
         """
