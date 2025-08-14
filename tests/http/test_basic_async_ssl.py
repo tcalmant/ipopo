@@ -12,7 +12,6 @@ from typing import cast
 
 import pelix.http as http
 import tests.http.test_basic_ssl as basic_tests_ssl
-from tests.http.test_basic_async import make_test_class
 
 # ------------------------------------------------------------------------------
 
