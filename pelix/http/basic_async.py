@@ -28,6 +28,7 @@ Provides an implementation of the Pelix HTTP service based on aiohttp.
 """
 
 import asyncio
+import concurrent.futures
 import io
 import logging
 import re
@@ -376,6 +377,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
         self._bound_address: tuple[str, int] | None = None
         self._app: aiohttp.web.Application | None = None
         self._thread: threading.Thread | None = None
+        self._executor: concurrent.futures.ThreadPoolExecutor | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._stop_event: asyncio.Event = asyncio.Event()
         self._stop_done_event: threading.Event = threading.Event()
@@ -550,32 +552,35 @@ class AsyncHttpServiceImpl(http.HTTPService):
         # Create the site
         site = aiohttp.web.TCPSite(runner, self._address, self._port, ssl_context=ssl_context)
 
-        # Start the site
-        await site.start()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            self._executor = executor
 
-        # Get bound address and port
-        sock = cast(asyncio.Server, site._server).sockets[0]
-        host, port = sock.getsockname()[:2]
-        self._bound_address = (host, port)
-        self._port = port
+            # Start the site
+            await site.start()
 
-        self.log(
-            logging.INFO,
-            "HTTP%s server bound to: [%s]:%d ...",
-            "S" if self._uses_ssl else "",
-            self._address,
-            self._port,
-        )
+            # Get bound address and port
+            sock = cast(asyncio.Server, site._server).sockets[0]
+            host, port = sock.getsockname()[:2]
+            self._bound_address = (host, port)
+            self._port = port
 
-        # Keep the thread alive until the server is stopped
-        await self._stop_event.wait()
+            self.log(
+                logging.INFO,
+                "HTTP%s server bound to: [%s]:%d ...",
+                "S" if self._uses_ssl else "",
+                self._address,
+                self._port,
+            )
 
-        # Clean up the server
-        await site.stop()
-        await runner.shutdown()
-        await runner.cleanup()
-        await self._app.shutdown()
-        await self._app.cleanup()
+            # Keep the thread alive until the server is stopped
+            await self._stop_event.wait()
+
+            # Clean up the server
+            await site.stop()
+            await runner.shutdown()
+            await runner.cleanup()
+            await self._app.shutdown()
+            await self._app.cleanup()
         self._logger.debug("HTTP server stopped")
 
     async def __global_handler(self, request: aiohttp.web.Request) -> aiohttp.web.StreamResponse:
@@ -586,6 +591,10 @@ class AsyncHttpServiceImpl(http.HTTPService):
         :return: The response to send
         """
         assert self._loop is not None, "EventLoop must be initialized before handling requests"
+
+        if self._executor is None:
+            # No executor available, cannot handle the request
+            return aiohttp.web.Response(status=503, text="Service unavailable")
 
         # Remove the double-slashes in the request path
         path = re.sub("/+", "/", request.path)
@@ -607,7 +616,10 @@ class AsyncHttpServiceImpl(http.HTTPService):
 
                 try:
                     # Handle the request
-                    getattr(servlet, method_name)(servlet_request, servlet_response)
+                    handler_method = getattr(servlet, method_name)
+                    await self._loop.run_in_executor(
+                        self._executor, handler_method, servlet_request, servlet_response
+                    )
                     return servlet_response.to_aiohttp_response()
                 except:
                     # Send a 500 error page on error
