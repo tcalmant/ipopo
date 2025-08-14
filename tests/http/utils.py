@@ -16,7 +16,6 @@ import pelix.http as http
 from pelix.framework import BundleContext, Framework
 from pelix.ipopo.constants import IPopoService
 
-
 TMP_DIR = pathlib.Path(tempfile.mkdtemp(prefix="ipopo-tests-http"))
 
 
@@ -26,6 +25,8 @@ def get_tmp_dir() -> pathlib.Path:
 
     :return: The temporary directory
     """
+    if not TMP_DIR.exists():
+        TMP_DIR.mkdir(parents=True, exist_ok=True)
     return TMP_DIR
 
 
