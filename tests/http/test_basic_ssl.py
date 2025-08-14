@@ -18,7 +18,7 @@ import pelix.http as http
 from pelix.framework import Framework, FrameworkFactory
 from pelix.ipopo.constants import IPopoService
 from tests.http.gen_cert import make_certs
-from tests.http.utils import install_bundle, install_ipopo, instantiate_server, kill_server
+from tests.http.utils import get_file, get_tmp_dir, install_bundle, install_ipopo, instantiate_server, kill_server
 
 try:
     from ssl import SSLContext, create_default_context
@@ -34,21 +34,8 @@ DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 8043
 
 PASSWORD = "test_password"
-TMP_DIR = tempfile.mkdtemp(prefix="ipopo-tests-https")
 
 # ------------------------------------------------------------------------------
-
-
-def get_file(name: Optional[str]) -> Optional[str]:
-    """
-    Returns the path to the given certificate file
-
-    :param name: File name
-    :return: Full path to the file
-    """
-    if name and not os.path.exists(name):
-        name = os.path.join(TMP_DIR, name)
-    return name
 
 
 def get_https_code(
@@ -107,14 +94,14 @@ class BasicHTTPSTest(unittest.TestCase):
         """
         Setup the certificates
         """
-        make_certs(TMP_DIR, PASSWORD)
+        make_certs(get_tmp_dir(), PASSWORD)
 
     @classmethod
     def tearDownClass(cls) -> None:
         """
         Clears the certificates
         """
-        shutil.rmtree(TMP_DIR)
+        shutil.rmtree(get_tmp_dir())
 
     def setUp(self) -> None:
         """
@@ -152,7 +139,9 @@ class BasicHTTPSTest(unittest.TestCase):
         """
         Instantiates a basic server component
         """
-        return instantiate_server(self.ipopo, self.http_factory, self.instance_name, address, port)
+        return instantiate_server(
+            self.ipopo, self.http_factory, self.instance_name, address, port, cert_file, key_file, password
+        )
 
     def kill_server(self) -> None:
         """

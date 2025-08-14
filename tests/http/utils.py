@@ -20,6 +20,15 @@ from pelix.ipopo.constants import IPopoService
 TMP_DIR = pathlib.Path(tempfile.mkdtemp(prefix="ipopo-tests-http"))
 
 
+def get_tmp_dir() -> pathlib.Path:
+    """
+    Returns the temporary directory used by the tests
+
+    :return: The temporary directory
+    """
+    return TMP_DIR
+
+
 def get_file(name: str | None) -> str | None:
     """
     Returns the path to the given certificate file
@@ -31,7 +40,7 @@ def get_file(name: str | None) -> str | None:
         return None
 
     if not pathlib.Path(name).exists():
-        name = str(TMP_DIR / name)
+        name = str(get_tmp_dir() / name)
     return name
 
 
