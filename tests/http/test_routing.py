@@ -51,7 +51,7 @@ class HttpRoutingTests(unittest.TestCase):
         Sets up the test environment
         """
         # Start a framework
-        self.framework = create_framework(["pelix.http.basic"])
+        self.framework = create_framework([self.http_bundle])
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
         self.http = self.instantiate_server()
