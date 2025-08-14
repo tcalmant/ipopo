@@ -97,6 +97,7 @@ def instantiate_server(
             factory,
             name,
             {
+                "pelix.http.logger.level": "DEBUG",
                 http.HTTP_SERVICE_ADDRESS: address,
                 http.HTTP_SERVICE_PORT: port,
                 http.HTTPS_CERT_FILE: cert_file,
