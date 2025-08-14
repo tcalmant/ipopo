@@ -506,7 +506,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
         self._thread = None
 
         # Close the event loop
-        if self._loop is not None and self._loop.is_closed():
+        if self._loop is not None and not self._loop.is_closed():
             self._loop.close()
 
         # Clear references
