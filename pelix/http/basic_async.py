@@ -428,7 +428,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
         elif isinstance(self._logger_level, int):
             level = self._logger_level
         else:
-            level = logging.getLevelNamesMapping().get(self._logger_level)
+            level = utilities.get_log_level(self._logger_level)
             if level is None:
                 try:
                     level = int(self._logger_level)

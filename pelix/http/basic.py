@@ -912,17 +912,27 @@ class HttpServiceImpl(http.HTTPService):
             self._extra = {}
 
         # Set up the logger
-        if self._logger_name is not None:
-            if not self._logger_name:
-                # Empty name, use the instance name
-                self._logger_name = self._instance_name
+        if not self._logger_name:
+            # Empty name, use the instance name
+            self._logger_name = self._instance_name
 
-            self._logger = logging.getLogger(self._logger_name)
+        self._logger = logging.getLogger(self._logger_name)
 
-            if self._logger_level is None:
-                self._logger.level = logging.INFO
-            else:
-                self._logger.level = int(self._logger_level)
+        level: int | None = None
+        if self._logger_level is None:
+            self._logger.level = logging.INFO
+        elif isinstance(self._logger_level, int):
+            level = self._logger_level
+        else:
+            level = utilities.get_log_level(self._logger_level)
+            if level is None:
+                try:
+                    level = int(self._logger_level)
+                except ValueError:
+                    # Invalid level
+                    level = None
+
+        self._logger.level = level if level is not None else logging.INFO
 
         self.log(
             logging.INFO,
