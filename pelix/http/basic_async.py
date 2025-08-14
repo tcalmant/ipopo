@@ -379,6 +379,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
         self._thread: threading.Thread | None = None
         self._executor: concurrent.futures.ThreadPoolExecutor | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
+        self._start_done_event: utilities.EventData[tuple[str, int]] = utilities.EventData()
         self._stop_event: asyncio.Event = asyncio.Event()
         self._stop_done_event: threading.Event = threading.Event()
 
@@ -453,9 +454,29 @@ class AsyncHttpServiceImpl(http.HTTPService):
         # Start the server in a separate thread
         self._stop_event.clear()
         self._stop_done_event.clear()
+        self._start_done_event.clear()
         self._thread = threading.Thread(target=self._run_server_thread, name="Pelix Async HTTP Server Thread")
         self._thread.daemon = True
         self._thread.start()
+
+        # Wait for the server to be ready
+        if not self._start_done_event.wait(10):
+            self._logger.error("HTTP server did not start in time")
+            raise IOError("HTTP server did not start in time")
+
+        if self._start_done_event.data is None:
+            self._logger.error("HTTP server did not bind to an address")
+            raise IOError("HTTP server did not bind to an address")
+
+        host, port = self._start_done_event.data
+        self._bound_address = (host, port)
+        self._port = port
+        self._logger.info(
+            "HTTP%s server bound to: [%s]:%d ...",
+            "S" if self._uses_ssl else "",
+            self._address,
+            self._port,
+        )
 
         with self._binding_lock:
             # Set the validation flag up, once the server is ready
@@ -532,56 +553,53 @@ class AsyncHttpServiceImpl(http.HTTPService):
             self._stop_done_event.set()
 
     async def _run_server(self) -> None:
-        assert self._app is not None, "Application must be initialized before running the server"
+        try:
+            assert self._app is not None, "Application must be initialized before running the server"
 
-        # Create the server
-        runner = aiohttp.web.AppRunner(self._app)
-        await runner.setup()
+            # Create the server
+            runner = aiohttp.web.AppRunner(self._app)
+            await runner.setup()
 
-        # Prepare SSL context if needed
-        ssl_context: ssl.SSLContext | None = None
-        if self._uses_ssl:
-            assert self._cert_file is not None, "Certificate file must be set for HTTPS"
+            # Prepare SSL context if needed
+            ssl_context: ssl.SSLContext | None = None
+            if self._uses_ssl:
+                assert self._cert_file is not None, "Certificate file must be set for HTTPS"
 
-            # Create the SSL context
-            ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-            ssl_context.load_cert_chain(
-                certfile=self._cert_file, keyfile=self._key_file, password=self._key_password
-            )
+                # Create the SSL context
+                ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+                ssl_context.load_cert_chain(
+                    certfile=self._cert_file, keyfile=self._key_file, password=self._key_password
+                )
 
-        # Create the site
-        site = aiohttp.web.TCPSite(runner, self._address, self._port, ssl_context=ssl_context)
+            # Create the site
+            site = aiohttp.web.TCPSite(runner, self._address, self._port, ssl_context=ssl_context)
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            self._executor = executor
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                self._executor = executor
 
-            # Start the site
-            await site.start()
+                # Start the site
+                await site.start()
 
-            # Get bound address and port
-            sock = cast(asyncio.Server, site._server).sockets[0]
-            host, port = sock.getsockname()[:2]
-            self._bound_address = (host, port)
-            self._port = port
+                # Get bound address and port
+                sock = cast(asyncio.Server, site._server).sockets[0]
+                host, port = sock.getsockname()[:2]
 
-            self.log(
-                logging.INFO,
-                "HTTP%s server bound to: [%s]:%d ...",
-                "S" if self._uses_ssl else "",
-                self._address,
-                self._port,
-            )
+                # We're ready
+                self._start_done_event.set((host, port))
 
-            # Keep the thread alive until the server is stopped
-            await self._stop_event.wait()
+                # Keep the thread alive until the server is stopped
+                await self._stop_event.wait()
 
-            # Clean up the server
-            await site.stop()
-            await runner.shutdown()
-            await runner.cleanup()
-            await self._app.shutdown()
-            await self._app.cleanup()
-        self._logger.debug("HTTP server stopped")
+                # Clean up the server
+                await site.stop()
+                await runner.shutdown()
+                await runner.cleanup()
+                await self._app.shutdown()
+                await self._app.cleanup()
+        except Exception as ex:
+            # Anything went wrong, log the error
+            self._logger.error("Error running the HTTP server: %s", ex)
+            self._start_done_event.raise_exception(ex)
 
     async def __global_handler(self, request: aiohttp.web.Request) -> aiohttp.web.StreamResponse:
         """
