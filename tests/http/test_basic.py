@@ -8,14 +8,15 @@ Pelix basic HTTP service test module.
 
 import http.client as httplib
 import logging
+import socket
 import unittest
-from types import ModuleType
 from typing import Any, Dict, Optional, Tuple, cast
 
 import pelix.http as http
-from pelix.framework import BundleContext, Framework, FrameworkFactory
+from pelix.framework import Framework, FrameworkFactory
 from pelix.ipopo.constants import IPopoService
 from tests import log_off, log_on
+from tests.http.utils import install_bundle, install_ipopo, instantiate_server, kill_server
 
 # ------------------------------------------------------------------------------
 
@@ -26,68 +27,6 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
 
 # ------------------------------------------------------------------------------
-
-
-def install_bundle(framework: Framework, bundle_name: str) -> ModuleType:
-    """
-    Installs and starts the test bundle and returns its module
-
-    :param framework: A Pelix framework instance
-    :param bundle_name: A bundle name
-    :return: The installed bundle Python module
-    """
-    context = framework.get_bundle_context()
-
-    bundle = context.install_bundle(bundle_name)
-    bundle.start()
-
-    return bundle.get_module()
-
-
-def install_ipopo(framework: Framework) -> IPopoService:
-    """
-    Installs and starts the iPOPO bundle. Returns the iPOPO service
-
-    :param framework: A Pelix framework instance
-    :return: The iPOPO service
-    :raise Exception: The iPOPO service cannot be found
-    """
-    context = framework.get_bundle_context()
-    assert isinstance(context, BundleContext)
-
-    # Install & start the bundle
-    bundle = context.install_bundle("pelix.ipopo.core")
-    bundle.start()
-
-    # Get the service
-    ref = context.get_service_reference(IPopoService)
-    if ref is None:
-        raise Exception("iPOPO Service not found")
-
-    return context.get_service(ref)
-
-
-def instantiate_server(
-    ipopo_svc: IPopoService, address: Optional[str] = DEFAULT_HOST, port: Optional[int] = DEFAULT_PORT
-) -> http.HTTPService:
-    """
-    Instantiates a basic server component
-    """
-    return cast(
-        http.HTTPService,
-        ipopo_svc.instantiate(
-            http.FACTORY_HTTP_BASIC,
-            "test-http-service",
-            {http.HTTP_SERVICE_ADDRESS: address, http.HTTP_SERVICE_PORT: port},
-        ),
-    )
-
-
-def kill_server(ipopo_svc: IPopoService) -> None:
-    """
-    Kills the basic server component
-    """
-    ipopo_svc.kill("test-http-service")
 
 
 def get_http_page(
@@ -158,6 +97,10 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
     framework: Framework
     ipopo: IPopoService
 
+    http_bundle = "pelix.http.basic"
+    http_factory: str = http.FACTORY_HTTP_BASIC
+    instance_name: str = "test-http-service"
+
     def setUp(self) -> None:
         """
         Sets up the test environment
@@ -170,7 +113,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         self.ipopo = install_ipopo(self.framework)
 
         # Install HTTP service
-        install_bundle(self.framework, "pelix.http.basic")
+        install_bundle(self.framework, self.http_bundle)
 
         # Install test bundle
         self.servlets = install_bundle(self.framework, "tests.http.servlets_bundle")
@@ -179,22 +122,43 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         """
         Cleans up the test environment
         """
+        # Kill the server component
+        self.kill_server()
+
         # Stop the framework
         FrameworkFactory.delete_framework()
         self.framework = None  # type: ignore
+
+    def instantiate_server(self):
+        """
+        Instantiates a server component
+        """
+        return instantiate_server(
+            self.ipopo, self.http_factory, self.instance_name, DEFAULT_HOST, DEFAULT_PORT
+        )
+
+    def kill_server(self) -> None:
+        """
+        Kills the server component
+        """
+        try:
+            kill_server(self.ipopo, self.instance_name)
+        except:
+            logging.exception("Error while killing the server component")
+            raise
 
     def testBlank(self) -> None:
         """
         Tests the server when no servlet is active
         """
-        instantiate_server(self.ipopo)
+        self.instantiate_server()
         self.assertEqual(get_http_code(), 404, "Received something other than a 404")
 
     def testRegisteredServlet(self) -> None:
         """
         Tests the registration of a servlet object
         """
-        http_svc = instantiate_server(self.ipopo)
+        http_svc = self.instantiate_server()
 
         # Register the servlet
         servlet = self.servlets.SimpleServlet()
@@ -248,7 +212,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         Tests the behavior of the HTTP service when a bound_to() method raises
         an exception
         """
-        http_svc = instantiate_server(self.ipopo)
+        http_svc = self.instantiate_server()
 
         # Make the servlet raise an exception
         servlet = self.servlets.SimpleServlet(True)
@@ -267,7 +231,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         Tests the behavior of the HTTP service when a bound_to() method raises
         an exception
         """
-        http_svc = instantiate_server(self.ipopo)
+        http_svc = self.instantiate_server()
 
         # Make the servlet to not raise an exception
         servlet = self.servlets.SimpleServlet(False)
@@ -292,7 +256,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         Tests the behavior of the HTTP service when a bound_to() method raises
         an exception
         """
-        http_svc = instantiate_server(self.ipopo)
+        http_svc = self.instantiate_server()
 
         # Make the first servlet
         servlet = self.servlets.SimpleServlet(False)
@@ -335,7 +299,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         """
         Tests the whiteboard pattern with a simple path
         """
-        http_svc = instantiate_server(self.ipopo)
+        http_svc = self.instantiate_server()
 
         # Instantiate the servlet component
         servlet_name = "test-whiteboard-simple"
@@ -380,7 +344,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         """
         Tests the whiteboard pattern with a multiple paths
         """
-        http_svc = instantiate_server(self.ipopo)
+        http_svc = self.instantiate_server()
 
         # Instantiate the servlet component
         servlet_name = "test-whiteboard-multiple"
@@ -426,7 +390,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         Tests the whiteboard pattern with a simple path, which path property
         is updated
         """
-        http_svc = instantiate_server(self.ipopo)
+        http_svc = self.instantiate_server()
 
         # Instantiate the servlet component
         servlet_name = "test-whiteboard-simple"
@@ -492,6 +456,10 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
     framework: Framework
     ipopo: IPopoService
 
+    http_bundle = "pelix.http.basic"
+    http_factory: str = http.FACTORY_HTTP_BASIC
+    instance_name: str = "test-http-service"
+
     def setUp(self) -> None:
         """
         Sets up the test environment
@@ -504,8 +472,8 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         self.ipopo = install_ipopo(self.framework)
 
         # Install HTTP service
-        install_bundle(self.framework, "pelix.http.basic")
-        self.http_svc = instantiate_server(self.ipopo)
+        install_bundle(self.framework, self.http_bundle)
+        self.http_svc = self.instantiate_server()
 
         # Install test bundle
         self.servlets = install_bundle(self.framework, "tests.http.servlets_bundle")
@@ -518,6 +486,24 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         FrameworkFactory.delete_framework()
         self.framework = None  # type: ignore
 
+    def instantiate_server(
+        self, address: str | None = DEFAULT_HOST, port: int | None = DEFAULT_PORT
+    ) -> http.HTTPService:
+        """
+        Instantiates a basic server component
+        """
+        return instantiate_server(self.ipopo, self.http_factory, self.instance_name, address, port)
+
+    def kill_server(self) -> None:
+        """
+        Kills the server component
+        """
+        try:
+            kill_server(self.ipopo, self.instance_name)
+        except:
+            logging.exception("Error while killing the server component")
+            raise
+
     def testGetServerInfo(self) -> None:
         """
         Test server information methods
@@ -526,10 +512,8 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         address = "127.0.0.1"
         port = 8090
 
-        kill_server(self.ipopo)
-        http_svc = instantiate_server(self.ipopo, address, port)
-
-        import socket
+        self.kill_server()
+        http_svc = self.instantiate_server(address, port)
 
         self.assertEqual(http_svc.get_hostname(), socket.gethostname(), "Different host names found")
 
@@ -538,16 +522,16 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         # Given no address -> must be in a standard localhost representation
         # (depends on test system)
         localhost_names = ("localhost", "127.0.0.1", "127.0.1.1", "::1")
-        kill_server(self.ipopo)
-        http_svc = instantiate_server(self.ipopo, None, port)
+        self.kill_server()
+        http_svc = self.instantiate_server(None, port)
 
         access = http_svc.get_access()
         self.assertIn(access[0], localhost_names, "Address is not localhost")
         self.assertEqual(access[1], port, "Different ports found")
 
         # Given no port -> random port
-        kill_server(self.ipopo)
-        http_svc = instantiate_server(self.ipopo, None, None)
+        self.kill_server()
+        http_svc = self.instantiate_server(None, None)
 
         address, port = http_svc.get_access()
         self.assertEqual(get_http_code(address, port), 404, "HTTP Service not stated with a random port")
