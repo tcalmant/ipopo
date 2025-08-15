@@ -29,7 +29,8 @@ Defines the interfaces that must respect HTTP service implementations.
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import IO, Any, Dict, Iterable, List, Optional, Protocol, Tuple
+from enum import Enum
+from typing import IO, Any, Dict, Iterable, List, Optional, Protocol, Tuple, runtime_checkable
 
 from pelix.constants import Specification
 from pelix.utilities import to_bytes
@@ -89,6 +90,13 @@ HTTP_SERVLET_ASYNC = "pelix.http.servlet.async"
 HTTP_SERVLET_ASYNC_PATH = "pelix.http.path.async"
 """ HTTP Asynchronous Servlet path(s) (string or list or tuple of strings) """
 
+# WebSocket handler service specification
+HTTP_WEBSOCKET_HANDLER = "pelix.http.websocket.handler"
+""" WebSocket handler service specification """
+
+# ... WebSocket handler path (string or list of strings)
+HTTP_WEBSOCKET_PATH = "pelix.http.websocket.path"
+""" WebSocket handler path(s) (string or list or tuple of strings) """
 
 # Service to provide custom 404 and 500 error pages
 HTTP_ERROR_PAGES = "pelix.http.error.pages"
@@ -633,6 +641,149 @@ class AsyncServlet(Protocol):
     """
 
 
+class WebSocketSession(Protocol):
+    """
+    Websocket session helper
+    """
+
+    def get_client_address(self) -> Tuple[str, int]:
+        """
+        Returns the address of the client
+
+        :return: A (host, port) tuple
+        """
+        ...
+
+    async def send_binary(self, message: bytes) -> None:
+        """
+        Sends a binary message to the client
+
+        :param message: Binary message to send
+        """
+        ...
+
+    async def send_text(self, message: str) -> None:
+        """
+        Sends a message to the client
+
+        :param message: Message to send
+        """
+        ...
+
+    async def close(self, code: int = 1000, reason: str | None = None) -> None:
+        """
+        Closes the WebSocket session
+
+        :param code: Close code (default is 1000, normal closure)
+        :param reason: Optional reason for the closure
+        """
+        ...
+
+
+@Specification(HTTP_WEBSOCKET_HANDLER)
+@runtime_checkable
+class WebSocketHandler(Protocol):
+    """
+    Interface of a WebSocket handler
+
+    WebSocket handlers are classes with `on_open`, `on_message`, `on_close`
+    and `on_error` methods.
+    """
+
+    async def ws_accept(self, request: AbstractAsyncHTTPServletRequest) -> bool:
+        """
+        Called when a new WebSocket connection is requested.
+
+        :param request: The HTTP request that initiates the WebSocket connection
+        :return: True if the connection is accepted, False to reject it
+        """
+        ...
+
+    async def ws_open(self, session: WebSocketSession, request: AbstractAsyncHTTPServletRequest) -> None:
+        """
+        Called when a new WebSocket connection is opened
+        """
+        ...
+
+    async def ws_binary(self, session: WebSocketSession, message: bytes) -> None:
+        """
+        Called when a binary message is received from the client
+        """
+        ...
+
+    async def ws_message(self, session: WebSocketSession, message: str) -> None:
+        """
+        Called when a message is received from the client
+        """
+        ...
+
+    async def ws_close(self, session: WebSocketSession, code: int, reason: str) -> None:
+        """
+        Called when the WebSocket connection is closed
+        """
+        ...
+
+    async def ws_error(self, session: WebSocketSession, error: str) -> None:
+        """
+        Called when an error occurs
+        """
+        ...
+
+
+class AbstractWebSocketHandler(WebSocketHandler):
+    """
+    Abstract class for WebSocket handlers
+
+    This class can be used to implement a WebSocket handler with default methods.
+    """
+
+    async def ws_accept(self, request: AbstractAsyncHTTPServletRequest) -> bool:
+        """
+        Accepts all WebSocket connections by default
+        """
+        return True
+
+    async def ws_open(self, session: WebSocketSession, request: AbstractAsyncHTTPServletRequest) -> None:
+        """
+        Default implementation does nothing
+        """
+
+    async def ws_binary(self, session: WebSocketSession, message: bytes) -> None:
+        """
+        Default implementation does nothing
+        """
+
+    async def ws_message(self, session: WebSocketSession, message: str) -> None:
+        """
+        Default implementation does nothing
+        """
+
+    async def ws_close(self, session: WebSocketSession, code: int, reason: str) -> None:
+        """
+        Default implementation does nothing
+        """
+
+    async def ws_error(self, session: WebSocketSession, error: Exception) -> None:
+        """
+        Default implementation does nothing
+        """
+
+
+class ServletType(Enum):
+    """
+    Type of servlet
+    """
+
+    SYNC = "sync"
+    """ Synchronous servlet """
+
+    ASYNC = "async"
+    """ Asynchronous servlet """
+
+    WEBSOCKET = "websocket"
+    """ WebSocket handler """
+
+
 @Specification(HTTP_SERVICE)
 class HTTPService(Protocol):
     """
@@ -669,13 +820,13 @@ class HTTPService(Protocol):
         """
         ...
 
-    def get_servlet(self, path: Optional[str]) -> Optional[Tuple[Servlet, Dict[str, Any], str]]:
+    def get_servlet(self, path: Optional[str]) -> Optional[Tuple[Servlet, Dict[str, Any], str, ServletType]]:
         """
         Retrieves the servlet matching the given path and its parameters.
         Returns None if no servlet matches the given path.
 
         :param path: A request URI
-        :return: A tuple (servlet, parameters, prefix) or None
+        :return: A tuple (servlet, parameters, prefix, type) or None
         """
         ...
 
@@ -703,7 +854,7 @@ class HTTPService(Protocol):
         path: str,
         servlet: Servlet,
         parameters: Optional[Dict[str, Any]] = None,
-        async_mode: bool = False,
+        servlet_type: ServletType = ServletType.SYNC,
     ) -> bool:
         """
         Registers a servlet
@@ -711,7 +862,7 @@ class HTTPService(Protocol):
         :param path: Path handled by this servlet
         :param servlet: The servlet instance
         :param parameters: The parameters associated to this path
-        :param async_mode: If True, use an asynchronous method to handle a query on that path
+        :param servlet_type: The type of servlet (sync, async, websocket, ...)
         :return: True if the servlet has been registered, False if it refused the binding.
         :raise ValueError: Invalid path or handler
         """

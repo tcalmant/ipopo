@@ -509,6 +509,65 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         await self._response.drain()
 
 
+class WSSession(http.WebSocketSession):
+    def __init__(
+        self,
+        ws_handler: http.WebSocketHandler,
+        servlet_request: _AsyncHTTPServletRequest,
+        ws_response: aiohttp.web.WebSocketResponse,
+    ) -> None:
+        """
+        Initializes the WebSocket session
+
+        :param ws_handler: The WebSocket handler
+        :param servlet_request: The servlet request
+        :param ws_response: The WebSocket response
+        """
+        self._handler = ws_handler
+        self._request = servlet_request
+        self._response = ws_response
+
+    def get_client_address(self) -> Tuple[str, int]:
+        """
+        Returns the address of the client
+
+        :return: A (host, port) tuple
+        """
+        return self._request.get_client_address()
+
+    async def send_binary(self, message: bytes) -> None:
+        """
+        Sends a binary message to the client
+
+        :param message: Binary message to send
+        """
+        if self._response.closed:
+            raise IOError("WebSocket session is closed")
+
+        await self._response.send_bytes(message)
+
+    async def send_text(self, message: str) -> None:
+        """
+        Sends a message to the client
+
+        :param message: Message to send
+        """
+        if self._response.closed:
+            raise IOError("WebSocket session is closed")
+
+        await self._response.send_str(message)
+
+    async def close(self, code: int = 1000, reason: str | None = None) -> None:
+        """
+        Closes the WebSocket session
+
+        :param code: Close code (default is 1000, normal closure)
+        :param reason: Optional reason for the closure
+        """
+        if not self._response.closed:
+            await self._response.close(code=code, message=(reason or "").encode("utf-8"))
+
+
 # ------------------------------------------------------------------------------
 
 
@@ -516,6 +575,7 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
 @Provides(http.HTTP_SERVICE)
 @Requires("_servlets_services", http.Servlet, True, True)
 @Requires("_servlets_async_services", http.AsyncServlet, True, True)
+@Requires("_websocket_handler_services", http.WebSocketHandler, True, True)
 @Requires("_error_handler", http.ErrorHandler, optional=True)
 @Property("_address", http.HTTP_SERVICE_ADDRESS, DEFAULT_BIND_ADDRESS)
 @Property("_port", http.HTTP_SERVICE_PORT, 8080)
@@ -556,12 +616,15 @@ class AsyncHttpServiceImpl(http.HTTPService):
         # Servlets registry lock
         self._lock = threading.RLock()
 
-        # Path -> (servlet, parameters, async)
-        self._servlets: Dict[str, Tuple[http.Servlet | http.AsyncServlet, Dict[str, Any], bool]] = {}
+        # Path -> (servlet, parameters, type)
+        self._servlets: Dict[
+            str, Tuple[http.Servlet | http.AsyncServlet, Dict[str, Any], http.ServletType]
+        ] = {}
 
         # Fields injected by iPOPO
         self._servlets_services: List[http.Servlet] = []
         self._servlets_async_services: List[http.AsyncServlet] = []
+        self._websocket_handler_services: List[http.WebSocketHandler] = []
         self._error_handler: Optional[http.ErrorHandler] = None
 
         # Servlet -> ServiceReference
@@ -817,37 +880,87 @@ class AsyncHttpServiceImpl(http.HTTPService):
         # Get the corresponding servlet
         found_servlet = self.get_servlet(path)
         if found_servlet is not None:
-            servlet, _, prefix, async_mode = found_servlet
+            servlet, _, prefix, servlet_type = found_servlet
 
             async_name = f"do_async_{request.method.upper()}"
             sync_name = f"do_{request.method.upper()}"
 
             try:
-                if async_mode and hasattr(servlet, async_name):
-                    # Prepare the helpers
-                    servlet_request = _AsyncHTTPServletRequest(request, path, prefix)
-                    servlet_response = _AsyncHTTPServletResponse(request)
+                match servlet_type:
+                    case http.ServletType.ASYNC if hasattr(servlet, async_name):
+                        # Prepare the helpers
+                        servlet_request = _AsyncHTTPServletRequest(request, path, prefix)
+                        servlet_response = _AsyncHTTPServletResponse(request)
 
-                    # Handle the request
-                    handler_method = getattr(servlet, async_name)
-                    await handler_method(servlet_request, servlet_response)
-                    return servlet_response.to_aiohttp_response()
-                elif not async_mode and hasattr(servlet, sync_name):
-                    # Read the request content
-                    # FIXME: find a better way to handle the content, wrapping the request
-                    #        in a file-like object
-                    content = await request.read()
+                        # Handle the request
+                        handler_method = getattr(servlet, async_name)
+                        await handler_method(servlet_request, servlet_response)
+                        return servlet_response.to_aiohttp_response()
 
-                    # Prepare the helpers
-                    servlet_request = _SyncHTTPServletRequest(request, path, prefix, content)
-                    servlet_response = _SyncHTTPServletResponse(request, self._loop)
+                    case http.ServletType.SYNC if hasattr(servlet, sync_name):
+                        # Read the request content
+                        # FIXME: find a better way to handle the content, wrapping the request
+                        #        in a file-like object
+                        content = await request.read()
 
-                    # Handle the request in the executor
-                    handler_method = getattr(servlet, sync_name)
-                    await self._loop.run_in_executor(
-                        self._executor, handler_method, servlet_request, servlet_response
-                    )
-                    return servlet_response.to_aiohttp_response()
+                        # Prepare the helpers
+                        servlet_request = _SyncHTTPServletRequest(request, path, prefix, content)
+                        servlet_response = _SyncHTTPServletResponse(request, self._loop)
+
+                        # Handle the request in the executor
+                        handler_method = getattr(servlet, sync_name)
+                        await self._loop.run_in_executor(
+                            self._executor, handler_method, servlet_request, servlet_response
+                        )
+                        return servlet_response.to_aiohttp_response()
+
+                    case http.ServletType.WEBSOCKET if isinstance(servlet, http.WebSocketHandler):
+                        # Prepare the WebSocket handler
+                        ws_handler = cast(http.WebSocketHandler, servlet)
+                        servlet_request = _AsyncHTTPServletRequest(request, path, prefix)
+
+                        # Prepare the WebSocket response
+                        ws_response = aiohttp.web.WebSocketResponse()
+
+                        # Prepare a session
+                        ws_session = WSSession(ws_handler, servlet_request, ws_response)
+
+                        # Early check
+                        if not await ws_handler.ws_accept(servlet_request):
+                            # The handler does not accept the WebSocket connection
+                            return aiohttp.web.Response(status=400, text="WebSocket connection refused")
+
+                        # Prepare the WebSocket response
+                        await ws_response.prepare(request)
+
+                        # Notify the WebSocket handler of the new connection
+                        await ws_handler.ws_open(ws_session, servlet_request)
+
+                        async for msg in ws_response:
+                            # Handle incoming messages
+                            match msg.type:
+                                case aiohttp.WSMsgType.ERROR:
+                                    # Error message received
+                                    self._logger.error("WebSocket error: %s", ws_response.exception())
+                                    await ws_handler.ws_error(ws_session, msg.data)
+
+                                case aiohttp.WSMsgType.PING:
+                                    # Ping message received
+                                    await ws_response.pong(msg.data)
+
+                                case aiohttp.WSMsgType.BINARY:
+                                    # Binary message received
+                                    await ws_handler.ws_binary(ws_session, msg.data)
+
+                                case aiohttp.WSMsgType.TEXT:
+                                    # Text message received
+                                    await ws_handler.ws_message(ws_session, msg.data)
+                        else:
+                            code = ws_response.close_code or aiohttp.WSCloseCode.GOING_AWAY
+                            await ws_handler.ws_close(ws_session, code, "Session closed")
+
+                        await ws_response.close()
+                        return ws_response
             except:
                 # Send a 500 error page on error
                 self._logger.exception("Error handling %s request to %s", request.method, path)
@@ -909,8 +1022,8 @@ class AsyncHttpServiceImpl(http.HTTPService):
 
     def __register_servlet_service(
         self,
-        service: http.Servlet | http.AsyncServlet,
-        service_reference: ServiceReference[http.Servlet | http.AsyncServlet],
+        service: http.Servlet | http.AsyncServlet | http.WebSocketHandler,
+        service_reference: ServiceReference[http.Servlet | http.AsyncServlet | http.WebSocketHandler],
     ) -> None:
         """
         Registers a servlet according to its service properties
@@ -925,11 +1038,11 @@ class AsyncHttpServiceImpl(http.HTTPService):
             paths = service_reference.get_property(http.HTTP_SERVLET_PATH)
             if utilities.is_string(paths):
                 # Register the servlet to a single path
-                self.register_servlet(paths, sync_servlet, {}, False)
+                self.register_servlet(paths, sync_servlet, {}, http.ServletType.SYNC)
             elif isinstance(paths, (list, tuple)):
                 # Register the servlet to multiple paths
                 for path in paths:
-                    self.register_servlet(path, sync_servlet, {}, False)
+                    self.register_servlet(path, sync_servlet, {}, http.ServletType.SYNC)
 
         # No else here: a service could implement both specifications
         if http.HTTP_SERVLET_ASYNC in spec:
@@ -938,11 +1051,24 @@ class AsyncHttpServiceImpl(http.HTTPService):
             paths = service_reference.get_property(http.HTTP_SERVLET_ASYNC_PATH)
             if utilities.is_string(paths):
                 # Register the servlet to a single path
-                self.register_servlet(paths, async_servlet, {}, True)
+                self.register_servlet(paths, async_servlet, {}, http.ServletType.ASYNC)
             elif isinstance(paths, (list, tuple)):
                 # Register the servlet to multiple paths
                 for path in paths:
-                    self.register_servlet(path, async_servlet, {}, True)
+                    self.register_servlet(path, async_servlet, {}, http.ServletType.ASYNC)
+
+        # No else here: a service could implement both specifications
+        if http.HTTP_WEBSOCKET_HANDLER in spec:
+            # WebSocket handler bound
+            websocket_handler = cast(http.WebSocketHandler, service)
+            paths = service_reference.get_property(http.HTTP_WEBSOCKET_PATH)
+            if utilities.is_string(paths):
+                # Register the WebSocket handler to a single path
+                self.register_servlet(paths, websocket_handler, {}, http.ServletType.WEBSOCKET)
+            elif isinstance(paths, (list, tuple)):
+                # Register the WebSocket handler to multiple paths
+                for path in paths:
+                    self.register_servlet(path, websocket_handler, {}, http.ServletType.WEBSOCKET)
 
     @BindField("_servlets_services")
     @BindField("_servlets_async_services")
@@ -1060,13 +1186,13 @@ class AsyncHttpServiceImpl(http.HTTPService):
 
     def get_servlet(
         self, path: Optional[str]
-    ) -> Optional[Tuple[http.Servlet | http.AsyncServlet, Dict[str, Any], str, bool]]:
+    ) -> Optional[Tuple[http.Servlet | http.AsyncServlet, Dict[str, Any], str, http.ServletType]]:
         """
         Retrieves the servlet matching the given path and its parameters.
         Returns None if no servlet matches the given path.
 
         :param path: A request URI
-        :return: A tuple (servlet, parameters, prefix, async) or None
+        :return: A tuple (servlet, parameters, prefix, type) or None
         """
         if not path or path[0] != "/":
             # No path, nothing to return
@@ -1100,8 +1226,8 @@ class AsyncHttpServiceImpl(http.HTTPService):
                 return None
 
             # Retrieve the stored information
-            servlet, params, async_mode = self._servlets[longest_match]
-            return servlet, params, longest_match, async_mode
+            servlet, params, servlet_type = self._servlets[longest_match]
+            return servlet, params, longest_match, servlet_type
 
     def make_not_found_page(self, path: str) -> str:
         """
@@ -1161,7 +1287,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
         path: str,
         servlet: http.Servlet | http.AsyncServlet,
         parameters: Optional[Dict[str, Any]] = None,
-        async_mode: bool = False,
+        servlet_type: http.ServletType = http.ServletType.SYNC,
     ) -> bool:
         """
         Registers a servlet
@@ -1169,7 +1295,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
         :param path: Path handled by this servlet
         :param servlet: The servlet instance
         :param parameters: The parameters associated to this path
-        :param async_mode: True if the servlet is asynchronous
+        :param servlet_type: The type of servlet (sync, async, websocket, ...)
         :return: True if the servlet has been registered, False if it refused the binding.
         :raise ValueError: Invalid path or handler
         """
@@ -1205,7 +1331,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
             parameters[http.PARAM_HTTPS] = self._uses_ssl
             parameters[http.PARAM_NAME] = self._instance_name
             parameters[http.PARAM_EXTRA] = self._extra.copy() if self._extra else None
-            parameters[http.PARAM_ASYNC] = async_mode
+            parameters[http.PARAM_ASYNC] = servlet_type != http.ServletType.SYNC
 
             # The servlet might refuse to be bound to this server
             if not self.__safe_callback(servlet, "accept_binding", path, parameters):
@@ -1220,7 +1346,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
             # Tell the servlet it can be bound to the path
             if self.__safe_callback(servlet, "bound_to", path, parameters):
                 # Store the servlet
-                self._servlets[path] = (servlet, parameters, async_mode)
+                self._servlets[path] = (servlet, parameters, servlet_type)
                 return True
 
             # The servlet refused the binding
