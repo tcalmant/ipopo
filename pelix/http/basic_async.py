@@ -691,7 +691,8 @@ class AsyncHttpServiceImpl(http.HTTPService):
 
         # Servlet -> ServiceReference
         self._servlets_refs: Dict[
-            http.Servlet | http.AsyncServlet, ServiceReference[http.Servlet | http.AsyncServlet]
+            http.Servlet | http.AsyncServlet | http.WebSocketHandler,
+            ServiceReference[http.Servlet | http.AsyncServlet | http.WebSocketHandler],
         ] = {}
         self._binding_lock = threading.RLock()
 
@@ -793,12 +794,6 @@ class AsyncHttpServiceImpl(http.HTTPService):
         host, port = self._start_done_event.data
         self._bound_address = (host, port)
         self._port = port
-        self._logger.info(
-            "HTTP%s server bound to: [%s]:%d ...",
-            "S" if self._uses_ssl else "",
-            self._address,
-            self._port,
-        )
 
         with self._binding_lock:
             # Set the validation flag up, once the server is ready
@@ -807,6 +802,13 @@ class AsyncHttpServiceImpl(http.HTTPService):
             # Register bound servlets
             for service, svc_ref in self._servlets_refs.items():
                 self.__register_servlet_service(service, svc_ref)
+
+        self._logger.info(
+            "HTTP%s server bound to: [%s]:%d ...",
+            "S" if self._uses_ssl else "",
+            self._address,
+            self._port,
+        )
 
     @Invalidate
     def invalidate(self, context: "BundleContext") -> None:
@@ -1134,11 +1136,12 @@ class AsyncHttpServiceImpl(http.HTTPService):
 
     @BindField("_servlets_services")
     @BindField("_servlets_async_services")
+    @BindField("_websocket_handler_services")
     def _bind_servlet(
         self,
         _: str,
-        service: http.Servlet | http.AsyncServlet,
-        service_reference: ServiceReference[http.Servlet | http.AsyncServlet],
+        service: http.Servlet | http.AsyncServlet | http.WebSocketHandler,
+        service_reference: ServiceReference[http.Servlet | http.AsyncServlet | http.WebSocketHandler],
     ) -> None:
         """
         Called by iPOPO when a service is bound
@@ -1157,11 +1160,12 @@ class AsyncHttpServiceImpl(http.HTTPService):
 
     @UpdateField("_servlets_services")
     @UpdateField("_servlets_async_services")
+    @UpdateField("_websocket_handler_services")
     def _update_servlet(
         self,
         _: str,
-        service: http.Servlet | http.AsyncServlet,
-        service_reference: ServiceReference[http.Servlet | http.AsyncServlet],
+        service: http.Servlet | http.AsyncServlet | http.WebSocketHandler,
+        service_reference: ServiceReference[http.Servlet | http.AsyncServlet | http.WebSocketHandler],
         old_properties: Dict[str, Any],
     ) -> None:
         """
@@ -1177,7 +1181,10 @@ class AsyncHttpServiceImpl(http.HTTPService):
         old_async_path = old_properties.get(http.HTTP_SERVLET_ASYNC_PATH)
         new_async_path = service_reference.get_property(http.HTTP_SERVLET_ASYNC_PATH)
 
-        if old_path == new_path and old_async_path == new_async_path:
+        old_ws_path = old_properties.get(http.HTTP_WEBSOCKET_PATH)
+        new_ws_path = service_reference.get_property(http.HTTP_WEBSOCKET_PATH)
+
+        if old_path == new_path and old_async_path == new_async_path and old_ws_path == new_ws_path:
             # Nothing to do
             return
 
@@ -1191,11 +1198,12 @@ class AsyncHttpServiceImpl(http.HTTPService):
 
     @UnbindField("_servlets_services")
     @UnbindField("_servlets_async_services")
+    @UnbindField("_websocket_handler_services")
     def _unbind_servlet(
         self,
         _: str,
-        service: http.Servlet | http.AsyncServlet,
-        service_reference: ServiceReference[http.Servlet | http.AsyncServlet],
+        service: http.Servlet | http.AsyncServlet | http.WebSocketHandler,
+        service_reference: ServiceReference[http.Servlet | http.AsyncServlet | http.WebSocketHandler],
     ) -> None:
         """
         Called by iPOPO when a service is gone
@@ -1212,7 +1220,8 @@ class AsyncHttpServiceImpl(http.HTTPService):
             try:
                 del self._servlets_refs[service]
             except KeyError:
-                self.log(logging.DEBUG, "Tried to remove an unknown servlet: %s", service)
+                # Service reference not found, nothing to do
+                pass
 
     def get_access(self) -> Tuple[str, int]:
         """
