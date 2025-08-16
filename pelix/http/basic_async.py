@@ -483,15 +483,17 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         """
         return self._response.headers.get(name.lower(), None) is not None
 
-    def setup_sse(self) -> None:
+    def setup_sse(self, strict: bool = True) -> None:
         """
         Sets up the response for Server-Sent Events (SSE)
+
+        :param strict: If True, raises an error if the request is not for SSE
         """
         if self._sse_set:
             # Already set up for SSE
             return
 
-        if not any(
+        if strict and not any(
             "text/event-stream" in accepted for accepted in self._request.headers.getall("accept", "")
         ):
             raise ValueError("Cannot set up SSE for a non-SSE request")
@@ -529,7 +531,6 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         :param data: Data to be written
         """
         await self._response.write(data)
-        await self._response.drain()
 
     async def send_sse(self, data: str, event: str | None = None, id: str | None = None) -> None:
         """

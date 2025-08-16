@@ -519,10 +519,11 @@ class AbstractAsyncHTTPServletResponse(ABC):
         ...
 
     @abstractmethod
-    def setup_sse(self) -> None:
+    def setup_sse(self, strict: bool = True) -> None:
         """
-        Sets up the response for Server-Sent Events (SSE).
-        This method mist be called before `end_headers()`.
+        Sets up the response for Server-Sent Events (SSE)
+
+        :param strict: If True, raises an error if the request is not for SSE
         """
         raise NotImplementedError
 
