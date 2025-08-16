@@ -519,6 +519,14 @@ class AbstractAsyncHTTPServletResponse(ABC):
         ...
 
     @abstractmethod
+    def setup_sse(self) -> None:
+        """
+        Sets up the response for Server-Sent Events (SSE).
+        This method mist be called before `end_headers()`.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     async def end_headers(self) -> None:
         """
         Ends the headers part
@@ -546,6 +554,19 @@ class AbstractAsyncHTTPServletResponse(ABC):
         out = self.get_wfile()
         await out.write(data)
         await out.flush()
+
+    @abstractmethod
+    async def send_sse(
+        self, event: str | None = None, data: str | None = None, id: str | None = None
+    ) -> None:
+        """
+        Sends a Server-Sent Event (SSE) message.
+
+        :param event: The event name (optional)
+        :param data: The event data (optional)
+        :param id: The event ID (optional)
+        """
+        raise NotImplementedError
 
     async def send_content(
         self,

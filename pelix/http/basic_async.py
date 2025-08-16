@@ -38,6 +38,7 @@ import threading
 import traceback
 from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
 
+import aiohttp.client_exceptions
 import aiohttp.web
 
 import pelix.constants as fw_constants
@@ -432,6 +433,7 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         """
         self._request = request
         self._headers_set: bool = False
+        self._sse_set: bool = False
         self._response = aiohttp.web.StreamResponse()
 
     def to_aiohttp_response(self) -> aiohttp.web.StreamResponse:
@@ -481,6 +483,27 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         """
         return self._response.headers.get(name.lower(), None) is not None
 
+    def setup_sse(self) -> None:
+        """
+        Sets up the response for Server-Sent Events (SSE)
+        """
+        if self._sse_set:
+            # Already set up for SSE
+            return
+
+        if not any(
+            "text/event-stream" in accepted for accepted in self._request.headers.getall("accept", "")
+        ):
+            raise ValueError("Cannot set up SSE for a non-SSE request")
+
+        if self._headers_set:
+            raise IOError("Headers have already been set, cannot change them")
+
+        self._response.headers["Content-Type"] = "text/event-stream"
+        self._response.headers["Cache-Control"] = "no-cache"
+        self._response.headers["Connection"] = "keep-alive"
+        self._sse_set = True
+
     async def end_headers(self) -> None:
         """
         Ends the headers part
@@ -507,6 +530,45 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         """
         await self._response.write(data)
         await self._response.drain()
+
+    async def send_sse(self, data: str, event: str | None = None, id: str | None = None) -> None:
+        """
+        Sends a Server-Sent Event (SSE) message.
+
+        :param data: The event data (without newline characters)
+        :param event: Optional event type (e.g., "message", "update")
+        :param id: Optional event ID (set to "" to reset the ID)
+        """
+        if not self._sse_set:
+            raise IOError("SSE not set up, call setup_sse() first")
+
+        # Prepare the SSE message
+        parts: list[str] = []
+        if id:
+            parts.append(f"id: {id}")
+        elif id is not None:
+            # Reset ID
+            parts.append("id")
+
+        if event:
+            parts.append(f"event: {event}")
+        elif event is not None:
+            parts.append(f"event")
+
+        if data:
+            parts.append(f"data: {data}")
+        else:
+            # Empty data line
+            parts.append("data")
+
+        # End of the event
+        parts.append("")
+        parts.append("")
+
+        try:
+            await self.write("\n".join(parts).encode("utf-8"))
+        except aiohttp.client_exceptions.ClientConnectionResetError:
+            raise IOError("Client connection reset during SSE send") from None
 
 
 class WSSession(http.WebSocketSession):
