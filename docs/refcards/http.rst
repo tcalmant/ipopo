@@ -255,3 +255,80 @@ To test this snippet, install and start this bundle and the HTTP service bundle
 in a framework, then open a browser to the servlet URL.
 If you used the HTTP service instantiation sample, this URL should be
 http://localhost:9000/servlet.
+
+Asynchronous HTTP Servlets
+--------------------------
+
+Pelix provides support for asynchronous HTTP servlets through the ``pelix.http.servlet.async`` specification.
+These servlets allow handling HTTP requests asynchronously, enabling better scalability for long-running operations.
+
+To create an asynchronous servlet, inherit from ``pelix.http.AsyncServlet`` and implement the required ``do_async_XXX`` methods, such as ``do_async_GET`` or ``do_async_POST``.
+Here is an example:
+
+.. code-block:: python
+
+    from pelix.http import AsyncServlet, HTTP_SERVLET_ASYNC_PATH, \
+         AbstractAsyncHTTPServletRequest, AbstractAsyncHTTPServletResponse
+    from pelix.ipopo.decorators import ComponentFactory, Provides, Property
+
+    @ComponentFactory()
+    @Provides(AsyncServlet)
+    @Property("_path", HTTP_SERVLET_ASYNC_PATH, "/async")
+    class MyAsyncServlet(AsyncServlet):
+        async def do_async_GET(self, request: AbstractAsyncHTTPServletRequest, response: AbstractAsyncHTTPServletResponse):
+            await response.send_content(200, "Hello, Async World!", mime_type="text/plain")
+
+
+WebSocket Server Endpoints
+---------------------------
+
+Pelix also supports WebSocket server endpoints through the `pelix.http.websocket.handler` specification. To create a WebSocket handler, inherit from `pelix.http.AbstractWebSocketHandler` and implement the required methods, such as `ws_open`, `ws_message`, and `ws_close`.
+
+Here is an example:
+
+.. code-block:: python
+
+    from pelix.http import AbstractWebSocketHandler, HTTP_WEBSOCKET_PATH, \
+         AbstractAsyncHTTPServletRequest, WebSocketSession
+    from pelix.ipopo.decorators import ComponentFactory, Provides, Property
+
+    @ComponentFactory()
+    @Provides(AbstractWebSocketHandler)
+    @Property("_path", HTTP_WEBSOCKET_PATH, "/ws")
+    class MyWebSocketHandler(AbstractWebSocketHandler):
+        async def ws_open(self, session: WebSocketSession, request: AbstractAsyncHTTPServletRequest):
+            print("WebSocket connection opened")
+
+        async def ws_message(self, session: WebSocketSession, message: str):
+            print("Received message:", message)
+            await session.send_text(f"Echo: {message}")
+
+        async def ws_close(self, session: WebSocketSession, code: int, reason: str):
+            print("WebSocket connection closed")
+
+
+Server-Sent Events (SSE) Endpoints
+----------------------------------
+
+Server-Sent Events (SSE) allow servers to push updates to clients over HTTP.
+Pelix supports SSE through the ``setup_sse`` and ``send_sse`` methods of the ``AbstractAsyncHTTPServletResponse`` class.
+
+Here is an example of an SSE endpoint:
+
+.. code-block:: python
+
+    from pelix.http import AsyncServlet, HTTP_SERVLET_ASYNC_PATH, \
+         AbstractAsyncHTTPServletRequest, AbstractAsyncHTTPServletResponse
+    from pelix.ipopo.decorators import ComponentFactory, Provides, Property
+
+    @ComponentFactory()
+    @Provides(AsyncServlet)
+    @Property("_path", HTTP_SERVLET_ASYNC_PATH, "/sse")
+    class MySSEServlet(AsyncServlet):
+        async def do_async_GET(self, request: AbstractAsyncHTTPServletRequest, response: AbstractAsyncHTTPServletResponse):
+            response.setup_sse()
+            await response.end_headers()
+
+            for i in range(5):
+                await response.send_sse(f"Message {i}", event="update")
+                await asyncio.sleep(1)
