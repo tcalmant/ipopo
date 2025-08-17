@@ -8,6 +8,7 @@ Tests the remote shell with the TLS feature
 
 import ipaddress
 import os
+import pathlib
 import socket
 import sys
 import tempfile
@@ -44,12 +45,13 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 PASSWORD = "test_password"
-TMP_DIR = tempfile.mkdtemp(prefix="ipopo-tests-shell-tls")
+TMP_DIR = pathlib.Path(tempfile.mkdtemp(prefix="ipopo-tests-shell-tls"))
+TMP_DIR.mkdir(parents=True, exist_ok=True)
 
 # ------------------------------------------------------------------------------
 
 
-def make_certs(out_dir: str, key_password: str) -> None:
+def make_certs(out_dir: pathlib.Path, key_password: str) -> None:
     """
     Generates a certificate chain and server and client certificates
 
@@ -375,7 +377,7 @@ else:
             Tests the remote shell 'main' method
             """
             # Prepare certificates
-            certs_dir = tempfile.mkdtemp(prefix="ipopo-tests-shell-tls")
+            certs_dir = pathlib.Path(tempfile.mkdtemp(prefix="ipopo-tests-shell-tls"))
             make_certs(certs_dir, PASSWORD)
             ca_chain = os.path.join(certs_dir, "ca.crt")
             srv_cert = os.path.join(certs_dir, "server.crt")
