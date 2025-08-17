@@ -277,7 +277,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
         # Get the corresponding servlet
         found_servlet = self._service.get_servlet(parsed_path)
         if found_servlet is not None:
-            servlet, _, prefix = found_servlet
+            servlet, _, prefix, _ = found_servlet
             if hasattr(servlet, name):
                 # Prepare the helpers
                 request = _HTTPServletRequest(self, prefix)
@@ -649,7 +649,7 @@ class HttpServiceImpl(http.HTTPService):
         """
         return sorted(self._servlets)
 
-    def get_servlet(self, path: Optional[str]) -> Optional[Tuple[http.Servlet, Dict[str, Any], str]]:
+    def get_servlet(self, path: Optional[str]) -> Optional[Tuple[http.Servlet, Dict[str, Any], str, http.ServletType]]:
         """
         Retrieves the servlet matching the given path and its parameters.
         Returns None if no servlet matches the given path.
@@ -690,7 +690,7 @@ class HttpServiceImpl(http.HTTPService):
 
             # Retrieve the stored information
             servlet, params = self._servlets[longest_match]
-            return servlet, params, longest_match
+            return servlet, params, longest_match, http.ServletType.SYNC
 
     def make_not_found_page(self, path: str) -> str:
         """
@@ -750,7 +750,7 @@ class HttpServiceImpl(http.HTTPService):
         path: str,
         servlet: http.Servlet,
         parameters: Optional[Dict[str, Any]] = None,
-        async_mode: bool = False,
+        servlet_type: http.ServletType = http.ServletType.SYNC,
     ) -> bool:
         """
         Registers a servlet
@@ -758,11 +758,11 @@ class HttpServiceImpl(http.HTTPService):
         :param path: Path handled by this servlet
         :param servlet: The servlet instance
         :param parameters: The parameters associated to this path
-        :param async_mode: Not supported
+        :param servlet_type: The type of servlet (sync, async, websocket, ...)
         :return: True if the servlet has been registered, False if it refused the binding.
         :raise ValueError: Invalid path or handler
         """
-        if async_mode:
+        if servlet_type != http.ServletType.SYNC:
             raise ValueError("Asynchronous mode is not supported")
 
         if servlet is None:
