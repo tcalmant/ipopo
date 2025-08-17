@@ -7,14 +7,15 @@ Pelix async HTTP service SSE test module.
 """
 
 import asyncio
-from typing import cast
 import unittest
+from typing import cast
 
 import aiohttp
 
 import pelix.http as http
-from pelix.framework import create_framework
+from pelix.framework import FrameworkFactory, create_framework
 from pelix.ipopo.constants import use_ipopo
+from tests.http.utils import async_test
 
 
 class SSETestCase(unittest.TestCase):
@@ -51,6 +52,7 @@ class SSETestCase(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.framework.stop()
+        FrameworkFactory.delete_framework(cls.framework)
 
     def setUp(self):
         self.sse_state = {"clients": set(), "disconnects": 0}
@@ -90,19 +92,13 @@ class SSETestCase(unittest.TestCase):
             self.http_service.unregister(None, self.sse_handler)
             self.sse_handler = None
 
-    @staticmethod
-    def async_test(f):
-        def wrapper(self, *args, **kwargs):
-            return asyncio.get_event_loop().run_until_complete(f(self, *args, **kwargs))
-
-        return wrapper
-
     @async_test
     async def test_two_clients_parallel(self):
         """
         Test that two clients can connect to the SSE endpoint simultaneously
         and receive messages without issues.
         """
+
         async def client():
             async with aiohttp.ClientSession() as session:
                 session.headers.update({"Accept": "text/event-stream"})
@@ -122,6 +118,7 @@ class SSETestCase(unittest.TestCase):
         Test that the server correctly detects when a client disconnects
         and updates the disconnect count.
         """
+
         async def client():
             async with aiohttp.ClientSession() as session:
                 session.headers.update({"Accept": "text/event-stream"})
@@ -187,6 +184,7 @@ class SSETestCase(unittest.TestCase):
         """
         Test that a client can reconnect to the SSE endpoint after disconnecting.
         """
+
         async def client():
             async with aiohttp.ClientSession() as session:
                 session.headers.update({"Accept": "text/event-stream"})

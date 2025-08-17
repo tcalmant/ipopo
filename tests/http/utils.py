@@ -7,14 +7,22 @@ Utility methods for Pelix HTTP services tests.
 """
 
 
+import asyncio
+import http.client as httplib
 import pathlib
 import tempfile
 from types import ModuleType
-from typing import cast
+from typing import Any, cast
 
 import pelix.http as http
 from pelix.framework import BundleContext, Framework
 from pelix.ipopo.constants import IPopoService
+
+DEFAULT_HOST = "localhost"
+
+SIMPLE_SERVLET_FACTORY = "simple.servlet.factory"
+ASYNC_SERVLET_FACTORY = "async.servlet.factory"
+MULTIPLE_SERVLET_FACTORY = "multiple.servlet.factory"
 
 TMP_DIR = pathlib.Path(tempfile.mkdtemp(prefix="ipopo-tests-http"))
 
@@ -123,3 +131,128 @@ def kill_server(ipopo_svc: IPopoService, name: str) -> None:
     Kills the basic server component
     """
     ipopo_svc.kill(name)
+
+
+def async_test(f):
+    """
+    Decorator to run a test function in the event loop
+    """
+
+    def wrapper(*args, **kwargs):
+        return asyncio.get_event_loop().run_until_complete(f(*args, **kwargs))
+
+    return wrapper
+
+
+def get_http_page(
+    port: int,
+    host: str = DEFAULT_HOST,
+    uri: str = "/",
+    method: str = "GET",
+    headers: dict[str, Any] | None = None,
+    content: Any = None,
+) -> tuple[int, bytes]:
+    """
+    Retrieves the result of an HTTP request
+
+    :param port: Server port
+    :param host: Server host name
+    :param uri: Request URI
+    :param method: Request HTTP method (GET, POST, ...)
+    :param headers: Request headers
+    :param content: POST request content
+    :return: A (code, content) tuple
+    """
+    conn = httplib.HTTPConnection(host, port)
+    conn.connect()
+    conn.request(method, uri, content, headers or {})
+    result = conn.getresponse()
+    data = result.read()
+    conn.close()
+    return result.status, data
+
+
+def get_http_code(
+    port: int,
+    host: str = DEFAULT_HOST,
+    uri: str = "/",
+    method: str = "GET",
+    headers: dict[str, Any] | None = None,
+    content: Any = None,
+) -> int:
+    """
+    Retrieves the status code of an HTTP request
+
+    :param port: Server port
+    :param host: Server host name
+    :param uri: Request URI
+    :param method: Request HTTP method (GET, POST, ...)
+    :param headers: Request headers
+    :param content: POST request content
+    :return: A status code
+    """
+    return get_http_page(port, host, uri, method, headers, content)[0]
+
+
+def ensure_get_servlet(
+    http_svc: http.HTTPService, path: str
+) -> tuple[http.Servlet, dict[str, Any], str, http.ServletType]:
+    """
+    Returns the servlet for the given path, or raises a KeyError if not found
+    """
+    found = http_svc.get_servlet(path)
+    if found is None:
+        raise KeyError(f"Servlet not found: {path}")
+    return found
+
+
+class TestServlet:
+    """
+    Common fields to all test servlets
+    """
+
+    def __init__(self, raiser: bool = False) -> None:
+        """
+        Sets up the servlet
+
+        :param raiser: If True, the servlet will raise an exception on bound_to
+        """
+        self.raiser = raiser
+        self.accept = True
+        self.bound: list[str] = []
+        self.unbound: list[str] = []
+
+    def reset(self) -> None:
+        """
+        Resets the servlet data
+        """
+        del self.bound[:]
+        del self.unbound[:]
+
+    def accept_binding(self, path: str, params: dict[str, Any]) -> bool:
+        """
+        Tests if the HTTP server can be accepted
+        """
+        return self.accept
+
+    def bound_to(self, path: str, params: dict[str, Any]) -> bool:
+        """
+        Servlet bound to a path
+        """
+        self.bound.append(path)
+
+        if self.raiser:
+            raise Exception("Some exception")
+
+        return True
+
+    def unbound_from(self, path: str, params: dict[str, Any]) -> None:
+        """
+        Servlet unbound from a path
+        """
+        self.unbound.append(path)
+
+        if self.raiser:
+            raise Exception("Some exception")
+
+        return None

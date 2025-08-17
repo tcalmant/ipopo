@@ -14,9 +14,10 @@ import aiohttp
 from aiohttp import ClientSession, WSMsgType
 
 import pelix.http as http
-from pelix.framework import create_framework
+from pelix.framework import FrameworkFactory, create_framework
 from pelix.ipopo.constants import use_ipopo
 from pelix.utilities import EventData
+from tests.http.utils import async_test
 
 
 def wait_for_service(framework, svc_name, timeout=5.0):
@@ -32,13 +33,6 @@ def wait_for_service(framework, svc_name, timeout=5.0):
             return svc_ref
         time.sleep(0.1)
     raise RuntimeError("Service '{}' not available after {} seconds".format(svc_name, timeout))
-
-
-def async_test(f):
-    def wrapper(*args, **kwargs):
-        return asyncio.get_event_loop().run_until_complete(f(*args, **kwargs))
-
-    return wrapper
 
 
 class WebSocketTestCase(unittest.TestCase):
@@ -80,6 +74,7 @@ class WebSocketTestCase(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.framework.stop()
+        FrameworkFactory.delete_framework(cls.framework)
 
     def tearDown(self):
         # Ensure the WebSocket handler is unregistered after each test
@@ -257,9 +252,7 @@ class WebSocketTestCase(unittest.TestCase):
                     self.assertEqual(msg.data, f"Echo: {send_msg}")
 
         # Launch 100 clients simultaneously
-        await asyncio.gather(
-            *(client(f"client{i}", f"message {i}") for i in range(100))
-        )
+        await asyncio.gather(*(client(f"client{i}", f"message {i}") for i in range(100)))
 
         self.assertEqual(len(messages), 100)
         for i in range(100):

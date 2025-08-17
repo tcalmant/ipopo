@@ -102,6 +102,7 @@ class BasicHTTPSTest(unittest.TestCase):
         Clears the certificates
         """
         shutil.rmtree(get_tmp_dir())
+        FrameworkFactory.delete_framework()
 
     def setUp(self) -> None:
         """
