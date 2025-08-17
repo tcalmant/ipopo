@@ -7,6 +7,7 @@ Pelix async HTTP service SSE test module.
 """
 
 import asyncio
+import time
 import unittest
 from typing import cast
 
@@ -99,18 +100,44 @@ class SSETestCase(unittest.TestCase):
         and receive messages without issues.
         """
 
-        async def client():
-            async with aiohttp.ClientSession() as session:
-                session.headers.update({"Accept": "text/event-stream"})
-                async with session.get(f"http://localhost:{self.SSE_PORT}{self.SSE_ENDPOINT}") as resp:
-                    self.assertEqual(resp.status, 200)
-                    line = await resp.content.readline()
-                    self.assertTrue(line.startswith(b"data: hello"))
+        times: dict[int, tuple[float, float]] = {}
 
-        await asyncio.gather(client(), client())
-        # Give the server a moment to register both clients
-        await asyncio.sleep(0.1)
-        self.assertEqual(len(self.sse_state["clients"]), 2)
+        async def client(x: int):
+            async with aiohttp.ClientSession() as session:
+                expected = f"message for {x}"
+                session.headers.update({"Accept": "text/event-stream", "X-Custom-Header": expected})
+                async with session.get(f"http://localhost:{self.SSE_PORT}{self.SSE_ENDPOINT}") as resp:
+                    start = time.time()
+                    self.assertEqual(resp.status, 200)
+
+                    # Read the first block
+                    line = await resp.content.readline()
+                    while not line.strip():
+                        line = await resp.content.readline()
+
+                    self.assertEqual(line.strip(), f"data: {expected}".encode())
+                    await asyncio.sleep(1)
+
+                    # Read the second block
+                    line = await resp.content.readline()
+                    while not line.strip():
+                        line = await resp.content.readline()
+
+                    self.assertEqual(line.strip(), f"data: {expected}".encode())
+                    end = time.time()
+                    times[x] = (start, end)
+
+        tasks = [asyncio.create_task(client(i)) for i in range(3)]
+        await asyncio.gather(*tasks)
+        self.assertEqual(len(times), 3)
+        self.assertTrue(
+            all(end - start for start, end in times.values()) < 2, "Clients took too long to respond"
+        )
+        # Ensure that the start time of each client is less than the end time of the last client
+        self.assertTrue(
+            max(start for start, _ in times.values()) < max(end for _, end in times.values()),
+            "Clients did not start in parallel",
+        )
 
     @async_test
     async def test_server_detects_client_disconnect(self):
@@ -167,17 +194,15 @@ class SSETestCase(unittest.TestCase):
             ):
                 raise RuntimeError("Simulated server error")
 
-        faulty_handler = FaultySSEHandler()
+        self.sse_handler = FaultySSEHandler()
         self.http_service.register_servlet(
-            self.SSE_ENDPOINT, faulty_handler, servlet_type=http.ServletType.ASYNC
+            self.SSE_ENDPOINT, self.sse_handler, servlet_type=http.ServletType.ASYNC
         )
 
         async with aiohttp.ClientSession() as session:
             session.headers.update({"Accept": "text/event-stream"})
             async with session.get(f"http://localhost:{self.SSE_PORT}{self.SSE_ENDPOINT}") as resp:
                 self.assertEqual(resp.status, 500)
-
-        self.http_service.unregister(None, faulty_handler)
 
     @async_test
     async def test_client_reconnect(self):
