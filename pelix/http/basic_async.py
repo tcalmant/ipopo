@@ -34,6 +34,7 @@ import logging
 import re
 import socket
 import ssl
+import sys
 import threading
 import traceback
 from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
@@ -865,6 +866,10 @@ class AsyncHttpServiceImpl(http.HTTPService):
         """
         try:
             # Set the event loop for this thread
+            if sys.platform.startswith("win"):
+                # aiodns requires a specific event loop on Windows
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
             self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._loop)
 
