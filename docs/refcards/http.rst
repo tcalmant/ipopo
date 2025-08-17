@@ -25,7 +25,7 @@ on more robust requests handlers.
 Configuration properties
 ------------------------
 
-All implementations of the HTTP service must support the following property:
+All implementations of the HTTP service must support the following properties:
 
 ================== ======= ====================================================
 Property           Default Description
@@ -77,6 +77,8 @@ errors.
 API
 ---
 
+.. _http_service_api:
+
 HTTP service
 ^^^^^^^^^^^^
 
@@ -117,7 +119,9 @@ Note that their content and liability is implementation-dependent:
 * ``http.name``: the name (*str*) of the server. If the server is an iPOPO
   component, it should be the instance name;
 * ``http.extra``: an implementation dependent set of properties.
-
+* ``http.async``: a boolean flag indicating if the servlet is asynchronous
+  (True) or synchronous (False). In the case of the basic HTTP service,
+  this is always False, as it only supports synchronous servlets.
 
 A servlet for the Pelix HTTP service has the following methods:
 
@@ -255,197 +259,3 @@ To test this snippet, install and start this bundle and the HTTP service bundle
 in a framework, then open a browser to the servlet URL.
 If you used the HTTP service instantiation sample, this URL should be
 http://localhost:9000/servlet.
-
-Asynchronous HTTP Servlets
---------------------------
-
-Pelix provides support for asynchronous HTTP servlets through the ``pelix.http.servlet.async`` specification.
-These servlets allow handling HTTP requests asynchronously, enabling better scalability for long-running operations.
-
-AsyncServlet service
-^^^^^^^^^^^^^^^^^^^^
-
-To use the whiteboard pattern, a servlet can be registered as a service
-providing the ``pelix.http.servlet.async`` specification.
-It must also have a valid ``pelix.http.path.async`` property, or it will be ignored.
-
-Like synchronous servlets, the binding methods described below have a
-``parameters`` argument, which represents a set of properties of the server,
-given as a dictionary.
-Some parameters can also be given when using the
-:meth:`~HTTPService.register_servlet` method, with the ``parameters`` argument.
-
-In any case, the following entries must be set by all implementations of the
-HTTP service and can't be overridden when register a servlet.
-Note that their content and liability is implementation-dependent:
-
-* ``http.address``: the binding address (*str*) of the HTTP server;
-* ``http.port``: the real listening port (*int*) of the HTTP server;
-* ``http.https``: a boolean flag indicating if the server is listening
-  to HTTP (False) or HTTPS (True) requests;
-* ``http.name``: the name (*str*) of the server. If the server is an iPOPO
-  component, it should be the instance name;
-* ``http.extra``: an implementation dependent set of properties.
-* ``http.async``: a boolean flag indicating if the servlet is asynchronous
-  (True) or synchronous (False). This is set automatically by the HTTP service
-  when registering the servlet.
-
-
-A servlet for the Pelix asynchronous HTTP service can have the following methods:
-
-.. py:class:: pelix.http.AsyncServlet
-   :module:
-
-   These are the methods that the HTTP service can call in a servlet. Note that
-   it is not necessary to implement them all: the service has a default
-   behaviour for missing methods.
-
-   .. py:method:: accept_binding(path: str, parameters: Dict[str, Any]) -> bool | None
-
-      This method is called before trying to bind the servlet.
-      If it returns False, the servlet won't be bound to the server.
-      This allows a servlet service to be bound to a specific server.
-
-      If this method doesn't exist or returns None or anything else but False,
-      the calling HTTP service will consider that the servlet accepts to be
-      bound to it.
-
-      :param str path: The path of the servlet in the server
-      :param dict parameters: The parameters of the server
-
-   .. py:method:: bound_to(path: str, parameters: Dict[str, Any]) -> bool | None
-
-      This method is called when the servlet is bound to a path.
-      If it returns False or raises an Exception, the registration is aborted.
-
-      :param str path: The path of the servlet in the server
-      :param dict parameters: The parameters of the server
-
-   .. py:method:: unbound_from(path: str, parameters: Dict[str, Any]) -> None
-
-      This method is called when the servlet is bound to a path.
-      The parameters are the ones given in :meth:`~HttpServlet.accept_binding`
-      and :meth:`~HttpServlet.bound_to`.
-
-      :param str path: The path of the servlet in the server
-      :param dict parameters: The parameters of the server
-
-   .. py:method:: do_async_XXX(request: ~pelix.http.AbstractAsyncHTTPServletRequest, response: ~pelix.http.AbstractAsyncHTTPServletResponse) -> None
-
-      Each request is handled by the coroutine call ``do_async_XXX`` where ``XXX`` is
-      the name of an HTTP method (``do_async_GET``, ``do_async_POST``, ``do_async_PUT``,
-      ``do_async_HEAD``, ...).
-
-      If it raises an exception, the server automatically sends an HTTP 500
-      error page.
-      In nominal behaviour, the method must use the ``response`` argument to
-      send a reply to the client.
-
-      :param request: A :class:`~pelix.http.AbstractAsyncHTTPServletRequest`
-                      representation of the request
-      :param response: The :class:`~pelix.http.AbstractAsyncHTTPServletResponse`
-                       object to use to reply to the client
-
-Asynchronous HTTP request
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Each request method has a request helper argument, which implements the
-:class:`~pelix.http.AbstractAsyncHTTPServletRequest` abstract class.
-
-.. autoclass:: pelix.http.AbstractAsyncHTTPServletRequest
-   :members: get_command, get_client_address, get_header, get_headers, get_path,
-               get_prefix_path, get_sub_path, get_rfile, read_data
-
-Asynchronous HTTP response
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Each request method also has a response helper argument, which implements the
-:class:`~pelix.http.AbstractAsyncHTTPServletResponse` abstract class.
-
-.. autoclass:: pelix.http.AbstractAsyncHTTPServletResponse
-   :members: set_response, set_header, is_header_set, setup_sse, end_headers, get_wfile,
-               write, send_sse, send_content
-
-Write an asynchronous servlet
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-To create an asynchronous servlet, inherit from ``pelix.http.AsyncServlet`` and implement the required ``do_async_XXX`` methods, such as ``do_async_GET`` or ``do_async_POST``.
-Here is an example:
-
-.. code-block:: python
-
-    from pelix.http import AsyncServlet, HTTP_SERVLET_ASYNC_PATH, \
-         AbstractAsyncHTTPServletRequest, AbstractAsyncHTTPServletResponse
-    from pelix.ipopo.decorators import ComponentFactory, Provides, Property
-
-    @ComponentFactory()
-    @Provides(AsyncServlet)
-    @Property("_path", HTTP_SERVLET_ASYNC_PATH, "/async")
-    class SampleAsyncServlet(AsyncServlet):
-        async def do_async_GET(self, request: AbstractAsyncHTTPServletRequest, response: AbstractAsyncHTTPServletResponse):
-            await response.send_content(200, "Hello, Async World!", mime_type="text/plain")
-
-
-Server-Sent Events (SSE) Endpoint
----------------------------------
-
-Server-Sent Events (SSE) allow servers to push updates to clients over HTTP and are support by the asynchronous HTTP service.
-The servlet must call :py:func:`~pelix.http.AbstractAsyncHTTPServletResponse.setup_sse` to set up the response for SSE,
-before calling :py:func:`~pelix.http.AbstractAsyncHTTPServletResponse.end_headers` to finalize the headers.
-The servlet can then use :py:func:`~pelix.http.AbstractAsyncHTTPServletResponse.send_sse` to send events.
-
-Here is an example of an SSE endpoint:
-
-.. code-block:: python
-
-    from pelix.http import AsyncServlet, HTTP_SERVLET_ASYNC_PATH, \
-         AbstractAsyncHTTPServletRequest, AbstractAsyncHTTPServletResponse
-    from pelix.ipopo.decorators import ComponentFactory, Provides, Property
-
-    @ComponentFactory()
-    @Provides(AsyncServlet)
-    @Property("_path", HTTP_SERVLET_ASYNC_PATH, "/sse")
-    class SSEServlet(AsyncServlet):
-        async def do_async_GET(self, request: AbstractAsyncHTTPServletRequest, response: AbstractAsyncHTTPServletResponse):
-            response.setup_sse()
-            await response.end_headers()
-
-            for i in range(5):
-                await response.send_sse(f"Message {i}", event="update")
-                await asyncio.sleep(1)
-
-
-WebSocket Server Endpoints
---------------------------
-
-Pelix also supports WebSocket server endpoints through the ``pelix.http.websocket.handler`` specification.
-To create a WebSocket handler, inherit from the :py:class:`~pelix.http.AbstractWebSocketHandler` abstract class and implement the required methods.
-
-
-.. autoclass:: pelix.http.AbstractWebSocketHandler
-   :members: ws_accept, ws_open, ws_binary, ws_message, ws_close, ws_error
-
-.. autoclass:: pelix.http.WebSocketSession
-   :members: send_text, send_binary, close, get_client_address
-
-Here is an example:
-
-.. code-block:: python
-
-    from pelix.http import AbstractWebSocketHandler, HTTP_WEBSOCKET_PATH, \
-         AbstractAsyncHTTPServletRequest, WebSocketSession
-    from pelix.ipopo.decorators import ComponentFactory, Provides, Property
-
-    @ComponentFactory()
-    @Provides(AbstractWebSocketHandler)
-    @Property("_path", HTTP_WEBSOCKET_PATH, "/ws")
-    class MyWebSocketHandler(AbstractWebSocketHandler):
-        async def ws_open(self, session: WebSocketSession, request: AbstractAsyncHTTPServletRequest):
-            print("WebSocket connection opened")
-
-        async def ws_message(self, session: WebSocketSession, message: str):
-            print("Received message:", message)
-            await session.send_text(f"Echo: {message}")
-
-        async def ws_close(self, session: WebSocketSession, code: int, reason: str):
-            print("WebSocket connection closed")
