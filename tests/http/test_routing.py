@@ -61,8 +61,8 @@ class HttpRoutingTests(unittest.TestCase):
         self.framework = create_framework([self.http_bundle])
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
+        self._port = 0
         self.http = self.instantiate_server()
-        self._port: int = 0
 
     def tearDown(self) -> None:
         """
