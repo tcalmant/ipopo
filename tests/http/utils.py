@@ -211,6 +211,9 @@ class TestServlet:
     Common fields to all test servlets
     """
 
+    # Do not consider this class as a test case
+    __test__ = False
+
     def __init__(self, raiser: bool = False) -> None:
         """
         Sets up the servlet
