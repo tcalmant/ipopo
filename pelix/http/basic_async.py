@@ -213,6 +213,7 @@ class _WriteWrapper(IO[bytes]):
     def seekable(self) -> bool:
         return False
 
+    @property
     def closed(self) -> bool:
         return self._closed
 
@@ -555,10 +556,12 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         if event:
             parts.append(f"event: {event}")
         elif event is not None:
-            parts.append(f"event")
+            parts.append("event")
 
         if data:
-            parts.append(f"data: {data}")
+            # Split the data into lines and prefix each line with "data: "
+            for line in data.splitlines() or [""]:
+                parts.append(f"data: {line}")
         else:
             # Empty data line
             parts.append("data")
