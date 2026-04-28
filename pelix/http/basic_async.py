@@ -1053,7 +1053,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
                 return self.send_exception(path)
 
         # Return the super implementation if needed
-        return aiohttp.web.Response(status=404, body=self.make_not_found_page(path), content_type="text/html")
+        return aiohttp.web.Response(status=404, text=self.make_not_found_page(path), content_type="text/html")
 
     def send_exception(self, path: str) -> aiohttp.web.Response:
         """
