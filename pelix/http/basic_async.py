@@ -759,7 +759,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
 
         level: int | None = None
         if self._logger_level is None:
-            self._logger.level = logging.INFO
+            level = logging.INFO
         elif isinstance(self._logger_level, int):
             level = self._logger_level
         else:
