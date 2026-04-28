@@ -303,7 +303,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
                     try:
                         # Handle the request
                         getattr(servlet, name)(request, response)
-                    except:
+                    except Exception:
                         # Send a 500 error page on error
                         self.send_exception(response)
 
