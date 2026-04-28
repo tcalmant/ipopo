@@ -385,7 +385,7 @@ class Bundle:
         # Convert the __version_info__ entry
         info = cast(Optional[Tuple[str, ...]], getattr(self.__module, "__version_info__", None))
         if info:
-            return ".".join(str(part) for part in __version_info__)
+            return ".".join(str(part) for part in info)
 
         # No version
         return "0.0.0"
