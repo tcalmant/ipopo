@@ -29,6 +29,7 @@ Provides an implementation of the Pelix HTTP service based on aiohttp.
 
 import asyncio
 import concurrent.futures
+import html
 import io
 import logging
 import re
@@ -1327,7 +1328,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
 <body>
 <h1>Page not found</h1>
 <p>No servlet is associated to this path:</p>
-<pre>{path}</pre>
+<code>{html.escape(path)}</code>
 <h2>Registered paths:</h2>
 {http.make_html_list(self.get_registered_paths())}
 </body>
@@ -1353,9 +1354,9 @@ class AsyncHttpServiceImpl(http.HTTPService):
 </head>
 <body>
 <h1>Internal Server Error</h1>
-<p>Error handling request upon: {path}</p>
+<p>Error handling request upon: <code>{html.escape(path)}</code></p>
 <pre>
-{stack}
+{html.escape(stack)}
 </pre>
 </body>
 </html>"""

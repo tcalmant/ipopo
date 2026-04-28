@@ -28,13 +28,25 @@ Python library.
     limitations under the License.
 """
 
+import html
 import logging
 import socket
 import threading
 import traceback
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import TCPServer, ThreadingMixIn
-from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union, cast
+from typing import (
+    IO,
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 import pelix.http as http
 import pelix.ipopo.constants as constants
@@ -711,7 +723,7 @@ class HttpServiceImpl(http.HTTPService):
 <body>
 <h1>Page not found</h1>
 <p>No servlet is associated to this path:</p>
-<pre>{path}</pre>
+<code>{html.escape(path)}</code>
 <h2>Registered paths:</h2>
 {http.make_html_list(self.get_registered_paths())}
 </body>
@@ -737,9 +749,9 @@ class HttpServiceImpl(http.HTTPService):
 </head>
 <body>
 <h1>Internal Server Error</h1>
-<p>Error handling request upon: {path}</p>
+<p>Error handling request upon: <code>{html.escape(path)}</code></p>
 <pre>
-{stack}
+{html.escape(stack)}
 </pre>
 </body>
 </html>"""
