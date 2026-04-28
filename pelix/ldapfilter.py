@@ -327,7 +327,7 @@ def unescape_LDAP(ldap_string: Optional[str]) -> Optional[str]:
         return ldap_string
 
     escaped = False
-    result = ""
+    result = []
 
     for character in ldap_string:
         if not escaped and character == ESCAPE_CHARACTER:
@@ -336,9 +336,9 @@ def unescape_LDAP(ldap_string: Optional[str]) -> Optional[str]:
         else:
             # Copy the character
             escaped = False
-            result += character
+            result.append(character)
 
-    return result
+    return "".join(result)
 
 
 # ------------------------------------------------------------------------------
