@@ -8,7 +8,6 @@ Tests the MQTT client module
 
 import logging
 import os
-from pydoc import cli
 import socket
 import sys
 import threading

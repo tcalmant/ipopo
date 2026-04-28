@@ -8,9 +8,7 @@ Pelix basic HTTP service test module.
 
 import http.client as httplib
 import logging
-import os
 import shutil
-import tempfile
 import unittest
 from typing import Any, Dict, Optional
 

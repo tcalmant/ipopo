@@ -59,7 +59,6 @@ from pelix.ipopo.decorators import (
     Validate,
     ValidateComponent,
 )
-from pelix.rsa import prop_dot_suffix
 from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.rsa.providers.distribution import (
     Container,
