@@ -102,7 +102,7 @@ class AsyncSimpleServlet(http.AsyncServlet, TestServlet):
 </body>
 </html>""".format(
             clt_addr=request.get_client_address(),
-            host=request.get_header("host", 0),
+            host=await request.get_header("host", 0),
             keys=(await request.get_headers()).keys(),
         )
 
