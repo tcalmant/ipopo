@@ -101,7 +101,7 @@ class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
         :param request: The aiohttp Request object
         :param full_path: The full request path, including the prefix
         :param prefix: The path to the servlet root
-        :parma content: The request content
+        :param content: The request content
         """
         self._request = request
         self._prefix = prefix
@@ -130,7 +130,10 @@ class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
             # No transport, no address
             raise IOError("No transport available for the request")
 
-        return self._request.transport.get_extra_info("peername")[:2]
+        peer_name = self._request.transport.get_extra_info("peername")
+        if not peer_name:
+            raise IOError("No peer name available for the request")
+        return peer_name[:2]
 
     def get_header(self, name: str, default: Optional[Any] = None) -> Any:
         """
@@ -363,7 +366,10 @@ class _AsyncHTTPServletRequest(http.AbstractAsyncHTTPServletRequest):
             # No transport, no address
             raise IOError("No transport available for the request")
 
-        return self._request.transport.get_extra_info("peername")[:2]
+        peer_name = self._request.transport.get_extra_info("peername")
+        if not peer_name:
+            raise IOError("No peer name available for the request")
+        return peer_name[:2]
 
     async def get_header(self, name: str, default: Optional[Any] = None) -> Any:
         """
