@@ -287,13 +287,14 @@ class LDAPCriteriaTest(unittest.TestCase):
         Tests __init__() behavior on invalid values
         """
         for name in (None, "", "name"):
-            for value in (None, "", "value"):
+            for value in (None, "", "value", 0):
                 for comparator in (None, True, lambda x: True):
                     # name must be a non-empty string; value must not be None;
                     # comparator must be a callable function/method.
                     invalid = (
                         not name
                         or value is None
+                        or value == ""
                         or not (inspect.isfunction(comparator) or inspect.ismethod(comparator))
                     )
                     if invalid:
