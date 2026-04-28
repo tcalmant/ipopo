@@ -785,7 +785,7 @@ class AbstractWebSocketHandler(WebSocketHandler):
         Default implementation does nothing
         """
 
-    async def ws_error(self, session: WebSocketSession, error: Exception) -> None:
+    async def ws_error(self, session: WebSocketSession, error: str) -> None:
         """
         Default implementation does nothing
         """

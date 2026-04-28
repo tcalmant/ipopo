@@ -534,12 +534,12 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         """
         await self._response.write(data)
 
-    async def send_sse(self, data: str, event: str | None = None, id: str | None = None) -> None:
+    async def send_sse(self, event: str | None = None, data: str | None = None, id: str | None = None) -> None:
         """
         Sends a Server-Sent Event (SSE) message.
 
-        :param data: The event data (without newline characters)
         :param event: Optional event type (e.g., "message", "update")
+        :param data: The event data (without newline characters)
         :param id: Optional event ID (set to "" to reset the ID)
         """
         if not self._sse_set:
@@ -1239,8 +1239,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
         assert self._bound_address is not None, "Server must be started before accessing its address"
         return self._bound_address
 
-    @staticmethod
-    def get_hostname() -> str:
+    def get_hostname(self) -> str:
         """
         Retrieves the server host name
 
