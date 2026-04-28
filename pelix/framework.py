@@ -106,7 +106,7 @@ def walk_modules(path: pathlib.Path) -> Generator[Tuple[str, bool], None, None]:
     yielded: Set[str] = set()
     try:
         # Handle packages before same-named modules
-        files = sorted(path.iterdir(), key=lambda p: (not p.is_dir, p.name))
+        files = sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name))
     except OSError:
         # Ignore unreadable directories like import does
         return
