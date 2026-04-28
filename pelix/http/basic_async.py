@@ -1060,7 +1060,8 @@ class AsyncHttpServiceImpl(http.HTTPService):
         Sends an exception page with a 500 error code.
         Must be called from inside the exception handling block.
 
-        :param response: The response handler
+        :param path: Erroneous request path
+        :return: The aiohttp Response to send
         """
         # Get a formatted stack trace
         stack = traceback.format_exc()
