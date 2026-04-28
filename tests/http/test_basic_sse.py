@@ -75,7 +75,7 @@ class SSETestCase(unittest.TestCase):
                 data = await request.get_header("X-Custom-Header", "hello")
                 try:
                     while True:
-                        await response.send_sse(data)
+                        await response.send_sse(data=data)
                         await asyncio.sleep(0.1)
                 except Exception:
                     parent.sse_state["disconnects"] += 1
