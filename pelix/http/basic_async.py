@@ -1007,35 +1007,41 @@ class AsyncHttpServiceImpl(http.HTTPService):
                         # Prepare the WebSocket response
                         await ws_response.prepare(request)
 
-                        # Notify the WebSocket handler of the new connection
-                        await ws_handler.ws_open(ws_session, servlet_request)
+                        try:
+                            # Notify the WebSocket handler of the new connection
+                            await ws_handler.ws_open(ws_session, servlet_request)
 
-                        async for msg in ws_response:
-                            # Handle incoming messages
-                            match msg.type:
-                                case aiohttp.WSMsgType.ERROR:
-                                    # Error message received
-                                    self._logger.error("WebSocket error: %s", ws_response.exception())
-                                    await ws_handler.ws_error(ws_session, msg.data)
+                            async for msg in ws_response:
+                                # Handle incoming messages
+                                match msg.type:
+                                    case aiohttp.WSMsgType.ERROR:
+                                        # Error message received
+                                        self._logger.error("WebSocket error: %s", ws_response.exception())
+                                        await ws_handler.ws_error(ws_session, msg.data)
 
-                                case aiohttp.WSMsgType.PING:
-                                    # Ping message received
-                                    await ws_response.pong(msg.data)
+                                    case aiohttp.WSMsgType.PING:
+                                        # Ping message received
+                                        await ws_response.pong(msg.data)
 
-                                case aiohttp.WSMsgType.BINARY:
-                                    # Binary message received
-                                    await ws_handler.ws_binary(ws_session, msg.data)
+                                    case aiohttp.WSMsgType.BINARY:
+                                        # Binary message received
+                                        await ws_handler.ws_binary(ws_session, msg.data)
 
-                                case aiohttp.WSMsgType.TEXT:
-                                    # Text message received
-                                    await ws_handler.ws_message(ws_session, msg.data)
-                        else:
-                            code = ws_response.close_code or aiohttp.WSCloseCode.GOING_AWAY
-                            await ws_handler.ws_close(ws_session, code, "Session closed")
+                                    case aiohttp.WSMsgType.TEXT:
+                                        # Text message received
+                                        await ws_handler.ws_message(ws_session, msg.data)
+                            else:
+                                code = ws_response.close_code or aiohttp.WSCloseCode.GOING_AWAY
+                                await ws_handler.ws_close(ws_session, code, "Session closed")
+                        except Exception as ex:
+                            self._logger.exception("Error handling WebSocket connection: %s", ex)
+                            await ws_handler.ws_error(ws_session, str(ex))
+                        finally:
+                            if not ws_response.closed:
+                                await ws_response.close()
 
-                        await ws_response.close()
                         return ws_response
-            except:
+            except Exception:
                 # Send a 500 error page on error
                 self._logger.exception("Error handling %s request to %s", request.method, path)
                 return self.send_exception(path)
