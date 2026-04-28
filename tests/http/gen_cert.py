@@ -27,6 +27,7 @@ A utility script to generate test certificates for HTTPS
 
 import argparse
 import os
+import pathlib
 import subprocess
 from typing import Any, List, Optional
 
@@ -75,14 +76,14 @@ def call_openssl(*args: Any) -> None:
     subprocess.check_output([find_openssl()] + [str(arg) for arg in args], stderr=subprocess.STDOUT)
 
 
-def write_conf(out_dir: str) -> str:
+def write_conf(out_dir: pathlib.Path) -> str:
     """
     Writes the configuration file for OpenSSL
 
     :param out_dir: Output directory
     :return: The path to the configuration file
     """
-    config_file = os.path.join(out_dir, "openssl.cnf")
+    config_file = str(out_dir / "openssl.cnf")
     with open(config_file, "w+") as fp:
         fp.write(
             """[ req ]
@@ -117,7 +118,7 @@ def make_subj(common_name: str, encrypted: bool = False) -> str:
     )
 
 
-def make_certs(out_dir: str, key_password: Optional[str]) -> None:
+def make_certs(out_dir: pathlib.Path, key_password: Optional[str]) -> None:
     """
     Generates a certificate chain and two certificates: one with a password and
     one without
@@ -139,9 +140,9 @@ def make_certs(out_dir: str, key_password: Optional[str]) -> None:
         "-subj",
         make_subj("iPOPO Test CA"),
         "-keyout",
-        os.path.join(out_dir, "ca.key"),
+        str(out_dir / "ca.key"),
         "-out",
-        os.path.join(out_dir, "ca.crt"),
+        str(out_dir / "ca.crt"),
         "-config",
         config_file,
         "-nodes",
@@ -149,13 +150,13 @@ def make_certs(out_dir: str, key_password: Optional[str]) -> None:
 
     # Make server keys
     print("--- Preparing Server keys ---")
-    call_openssl("genrsa", "-out", os.path.join(out_dir, "server.key"), 2048)
+    call_openssl("genrsa", "-out", str(out_dir / "server.key"), 2048)
 
     if key_password:
         call_openssl(
             "genrsa",
             "-out",
-            os.path.join(out_dir, "server_enc.key"),
+            str(out_dir / "server_enc.key"),
             "-des3",
             "-passout",
             "pass:" + key_password,
@@ -169,9 +170,9 @@ def make_certs(out_dir: str, key_password: Optional[str]) -> None:
         "-subj",
         make_subj("localhost"),
         "-out",
-        os.path.join(out_dir, "server.csr"),
+        str(out_dir / "server.csr"),
         "-key",
-        os.path.join(out_dir, "server.key"),
+        str(out_dir / "server.key"),
         "-config",
         config_file,
         "-new",
@@ -183,9 +184,9 @@ def make_certs(out_dir: str, key_password: Optional[str]) -> None:
             "-subj",
             make_subj("localhost", True),
             "-out",
-            os.path.join(out_dir, "server_enc.csr"),
+            str(out_dir / "server_enc.csr"),
             "-key",
-            os.path.join(out_dir, "server_enc.key"),
+            str(out_dir / "server_enc.key"),
             "-passin",
             "pass:" + key_password,
             "-config",
@@ -199,14 +200,14 @@ def make_certs(out_dir: str, key_password: Optional[str]) -> None:
         "x509",
         "-req",
         "-in",
-        os.path.join(out_dir, "server.csr"),
+        str(out_dir / "server.csr"),
         "-CA",
-        os.path.join(out_dir, "ca.crt"),
+        str(out_dir / "ca.crt"),
         "-CAkey",
-        os.path.join(out_dir, "ca.key"),
+        str(out_dir / "ca.key"),
         "-CAcreateserial",
         "-out",
-        os.path.join(out_dir, "server.crt"),
+        str(out_dir / "server.crt"),
         "-days",
         1,
     )
@@ -216,14 +217,14 @@ def make_certs(out_dir: str, key_password: Optional[str]) -> None:
             "x509",
             "-req",
             "-in",
-            os.path.join(out_dir, "server_enc.csr"),
+            str(out_dir / "server_enc.csr"),
             "-CA",
-            os.path.join(out_dir, "ca.crt"),
+            str(out_dir / "ca.crt"),
             "-CAkey",
-            os.path.join(out_dir, "ca.key"),
+            str(out_dir / "ca.key"),
             "-CAcreateserial",
             "-out",
-            os.path.join(out_dir, "server_enc.crt"),
+            str(out_dir / "server_enc.crt"),
             "-days",
             1,
         )

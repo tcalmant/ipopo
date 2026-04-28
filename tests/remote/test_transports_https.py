@@ -24,7 +24,7 @@ Tests remote services transports based on HTTPS
     limitations under the License.
 """
 
-import os
+import pathlib
 import shutil
 import ssl
 import tempfile
@@ -118,7 +118,8 @@ def export_framework(state_queue: Queue, transport: str, components: Iterable[Tu
     :param transport: Name of the transport bundle to install
     :param components: Tuples (factory, name) of instances to start
     """
-    tmp_dir = tempfile.mkdtemp(prefix="ipopo-tests-https")
+    tmp_dir = pathlib.Path(tempfile.mkdtemp(prefix="ipopo-tests-https"))
+    tmp_dir.mkdir(parents=True, exist_ok=True)
 
     try:
         # Load the framework
@@ -132,8 +133,10 @@ def export_framework(state_queue: Queue, transport: str, components: Iterable[Tu
         # Setup the HTTPS server
         instantiate_server(
             ipopo,
-            cert_file=os.path.join(tmp_dir, "server.crt"),
-            key_file=os.path.join(tmp_dir, "server.key"),
+            pelix.http.FACTORY_HTTP_BASIC,
+            "https-server",
+            cert_file=str(tmp_dir / "server.crt"),
+            key_file=str(tmp_dir / "server.key"),
             address="0.0.0.0",
             port=0,
         )

@@ -208,7 +208,7 @@ class LDAPCriteria:
 
         :raise ValueError: If one of the parameters is empty
         """
-        if not name or not value or comparator is None:
+        if not name or value is None or value == "" or comparator is None:
             # Refuse empty values
             raise ValueError(f"Invalid criterion parameter ({name}, {value}, {comparator})")
 
@@ -327,7 +327,7 @@ def unescape_LDAP(ldap_string: Optional[str]) -> Optional[str]:
         return ldap_string
 
     escaped = False
-    result = ""
+    result = []
 
     for character in ldap_string:
         if not escaped and character == ESCAPE_CHARACTER:
@@ -336,9 +336,9 @@ def unescape_LDAP(ldap_string: Optional[str]) -> Optional[str]:
         else:
             # Copy the character
             escaped = False
-            result += character
+            result.append(character)
 
-    return result
+    return "".join(result)
 
 
 # ------------------------------------------------------------------------------

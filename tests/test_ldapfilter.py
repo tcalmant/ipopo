@@ -287,14 +287,18 @@ class LDAPCriteriaTest(unittest.TestCase):
         Tests __init__() behavior on invalid values
         """
         for name in (None, "", "name"):
-            for value in (None, "", "value"):
+            for value in (None, "", "value", 0):
                 for comparator in (None, True, lambda x: True):
-                    if not all((name, value, comparator)) or (
-                        not inspect.isfunction(comparator) and not inspect.ismethod(comparator)
-                    ):
-                        # One value is None
+                    # name must be a non-empty string; value must not be None;
+                    # comparator must be a callable function/method.
+                    invalid = (
+                        not name
+                        or value is None
+                        or value == ""
+                        or not (inspect.isfunction(comparator) or inspect.ismethod(comparator))
+                    )
+                    if invalid:
                         self.assertRaises(ValueError, pelix.ldapfilter.LDAPCriteria, name, value, comparator)
-
                     else:
                         # All values are OK
                         criteria = pelix.ldapfilter.LDAPCriteria(name, value, comparator)  # type: ignore
@@ -429,6 +433,53 @@ class LDAPCriteriaTest(unittest.TestCase):
         props["valid"] = "True"
         self.assertTrue(
             ldap_filter.matches(props), "Filter '{0}' should match {1}".format(ldap_filter, props)
+        )
+
+    def testZeroValueCriteria(self) -> None:
+        """
+        Tests that a criteria with 0 as value is correctly parsed and matched.
+        """
+        props: Dict[str, Any] = {}
+
+        # Parsed filter
+        ldap_filter = get_ldap_filter("(count=0)")
+        self.assertIsNotNone(ldap_filter, "Filter '(count=0)' should not be None")
+        assert ldap_filter is not None
+
+        props["count"] = 0
+        self.assertTrue(
+            ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}"
+        )
+
+        props["count"] = "0"
+        self.assertTrue(
+            ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}"
+        )
+
+        props["count"] = 1
+        self.assertFalse(
+            ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}"
+        )
+
+        # Direct construction with 0 integer
+        criteria = pelix.ldapfilter.LDAPCriteria("count", 0, pelix.ldapfilter._comparator_eq)
+        self.assertEqual(criteria.value, 0, "Criteria value must be 0")
+
+        # Direct construction with False boolean
+        criteria_false = pelix.ldapfilter.LDAPCriteria("flag", False, pelix.ldapfilter._comparator_eq)
+        self.assertEqual(criteria_false.value, False, "Criteria value must be False")
+
+        # Direct construction with empty list
+        criteria_list = pelix.ldapfilter.LDAPCriteria("items", [], pelix.ldapfilter._comparator_eq)
+        self.assertEqual(criteria_list.value, [], "Criteria value must be []")
+
+        # None value is not allowed
+        self.assertRaises(
+            ValueError,
+            pelix.ldapfilter.LDAPCriteria,
+            "count",
+            None,
+            pelix.ldapfilter._comparator_eq,
         )
 
     def testPresenceCriteria(self) -> None:

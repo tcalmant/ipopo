@@ -25,7 +25,7 @@ on more robust requests handlers.
 Configuration properties
 ------------------------
 
-All implementations of the HTTP service must support the following property:
+All implementations of the HTTP service must support the following properties:
 
 ================== ======= ====================================================
 Property           Default Description
@@ -77,6 +77,8 @@ errors.
 API
 ---
 
+.. _http_service_api:
+
 HTTP service
 ^^^^^^^^^^^^
 
@@ -117,7 +119,9 @@ Note that their content and liability is implementation-dependent:
 * ``http.name``: the name (*str*) of the server. If the server is an iPOPO
   component, it should be the instance name;
 * ``http.extra``: an implementation dependent set of properties.
-
+* ``http.async``: a boolean flag indicating if the servlet is asynchronous
+  (True) or synchronous (False). In the case of the basic HTTP service,
+  this is always False, as it only supports synchronous servlets.
 
 A servlet for the Pelix HTTP service has the following methods:
 

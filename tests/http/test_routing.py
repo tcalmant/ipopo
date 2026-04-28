@@ -6,25 +6,31 @@ Pelix HTTP routing test module.
 :author: Thomas Calmant
 """
 
+import logging
 import random
 import unittest
 import uuid
 from typing import Any, List, Optional
 
+import pelix.http as http
 import pelix.http.routing as routing
 from pelix.framework import Framework, FrameworkFactory, create_framework
 from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse
 from pelix.ipopo.constants import IPopoService
 from pelix.utilities import to_str
-from tests.http.test_basic import get_http_code, get_http_page, install_ipopo, instantiate_server
+from tests.http.utils import (
+    get_http_code,
+    get_http_page,
+    install_ipopo,
+    instantiate_server,
+    kill_server,
+    DEFAULT_HOST,
+)
 
 # ------------------------------------------------------------------------------
 
 __version_info__ = (3, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
-
-DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 8080
 
 HTTP_METHODS = ("GET", "HEAD", "POST", "PUT", "DELETE")
 
@@ -39,23 +45,84 @@ class HttpRoutingTests(unittest.TestCase):
     framework: Framework
     ipopo: IPopoService
 
+    http_bundle = "pelix.http.basic"
+    http_factory: str = http.FACTORY_HTTP_BASIC
+    instance_name: str = "test-http-service"
+
+    @classmethod
+    def tearDownClass(cls):
+        FrameworkFactory.delete_framework()
+
     def setUp(self) -> None:
         """
         Sets up the test environment
         """
         # Start a framework
-        self.framework = create_framework(["pelix.http.basic"])
+        self.framework = create_framework([self.http_bundle])
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
-        self.http = instantiate_server(self.ipopo)
+        self._port = 0
+        self.http = self.instantiate_server()
 
     def tearDown(self) -> None:
         """
         Cleans up the test environment
         """
+        # Kill the server component
+        self.kill_server()
+
         # Stop the framework
         FrameworkFactory.delete_framework(self.framework)
         self.framework = None  # type: ignore
+
+    def instantiate_server(self):
+        """
+        Instantiates a server component
+        """
+        srv = instantiate_server(self.ipopo, self.http_factory, self.instance_name, DEFAULT_HOST, 0)
+        self._port = srv.get_access()[1]
+        return srv
+
+    def kill_server(self) -> None:
+        """
+        Kills the server component
+        """
+        try:
+            kill_server(self.ipopo, self.instance_name)
+        except:
+            logging.exception("Error while killing the server component")
+            raise
+
+    def get_http_code(
+        self, uri: str = "/", method: str = "GET", headers: dict[str, Any] | None = None, content: Any = None
+    ) -> int:
+        """
+        Retrieves the status code of an HTTP request
+        :param uri: Request URI
+        :param method: Request HTTP method (GET, POST, ...)
+        :param headers: Request headers
+        :return: The HTTP status code
+        """
+        if self._port == 0:
+            self.fail("Server not instantiated")
+
+        return get_http_code(self._port, DEFAULT_HOST, uri, method, headers, content)
+
+    def get_http_page(
+        self, uri: str = "/", method: str = "GET", headers: dict[str, Any] | None = None, content: Any = None
+    ) -> tuple[int, bytes]:
+        """
+        Retrieves the content of an HTTP request
+        :param uri: Request URI
+        :param method: Request HTTP method (GET, POST, ...)
+        :param headers: Request headers
+        :param content: Request content
+        :return: The HTTP status code and the response content
+        """
+        if self._port == 0:
+            self.fail("Server not instantiated")
+
+        return get_http_page(self._port, DEFAULT_HOST, uri, method, headers, content)
 
     def test_decorator_type_check(self) -> None:
         """
@@ -124,7 +191,7 @@ class HttpRoutingTests(unittest.TestCase):
         self.http.register_servlet("/routing", router)
 
         for method in HTTP_METHODS:
-            code = get_http_code(uri="/routing/", method=method)
+            code = self.get_http_code(uri="/routing/", method=method)
             # Ensure 404 (not 500)
             self.assertEqual(code, 404)
 
@@ -191,7 +258,7 @@ class HttpRoutingTests(unittest.TestCase):
         # Route path
         for path in ("", "/", "/test", "/test/a", "/test/b"):
             router.reset()
-            code, data = get_http_page(uri=f"{prefix}{path}")
+            code, data = self.get_http_page(uri=f"{prefix}{path}")
             self.assertEqual(code, 200)
             self.assertEqual(to_str(data), "OK")
             self.assertEqual(router.called_path, path or "/")
@@ -256,7 +323,7 @@ class HttpRoutingTests(unittest.TestCase):
         # Try basic filtering
         for method in HTTP_METHODS:
             router.reset()
-            code, data = get_http_page(uri=f"{prefix}/{method.lower()}", method=method)
+            code, data = self.get_http_page(uri=f"{prefix}/{method.lower()}", method=method)
             self.assertEqual(code, 200, method)
             self.assertEqual(router.verb, method)
             if method != "HEAD":
@@ -266,20 +333,20 @@ class HttpRoutingTests(unittest.TestCase):
             for other_method in HTTP_METHODS:
                 if other_method != method:
                     # Ensure that other HTTP methods are filtered
-                    code = get_http_code(uri=f"{prefix}/{method.lower()}", method=other_method)
+                    code = self.get_http_code(uri=f"{prefix}/{method.lower()}", method=other_method)
                     self.assertEqual(code, 404)
 
         # Try with multi-commands methods
         for method in ("GET", "HEAD"):
             router.reset()
-            code = get_http_code(uri=f"{prefix}/get-head", method=method)
+            code = self.get_http_code(uri=f"{prefix}/get-head", method=method)
             self.assertEqual(code, 200, method)
             self.assertEqual(router.verb, method)
 
         # All methods
         for method in HTTP_METHODS:
             router.reset()
-            code = get_http_code(uri=f"{prefix}/all", method=method)
+            code = self.get_http_code(uri=f"{prefix}/all", method=method)
             self.assertEqual(code, 200, method)
             self.assertEqual(router.verb, method)
 
@@ -382,7 +449,7 @@ class HttpRoutingTests(unittest.TestCase):
             for val in ("titi", "123", "a-b", "a.c", "a123"):
                 path = pattern.format(val)
                 router.reset()
-                code = get_http_code(uri="{0}/{1}".format(prefix, path))
+                code = self.get_http_code(uri="{0}/{1}".format(prefix, path))
                 self.assertEqual(code, 200, path)
                 self.assertEqual(router.args[0], val, path)
                 self.assertIsInstance(router.args[0], str, path)
@@ -392,7 +459,7 @@ class HttpRoutingTests(unittest.TestCase):
             for val in (0, 123, -456):
                 path = pattern.format(val)
                 router.reset()
-                code = get_http_code(uri="{0}/{1}".format(prefix, path))
+                code = self.get_http_code(uri="{0}/{1}".format(prefix, path))
                 self.assertEqual(code, 200, path)
                 self.assertEqual(router.args[0], val, path)
                 self.assertIsInstance(router.args[0], int, path)
@@ -402,7 +469,7 @@ class HttpRoutingTests(unittest.TestCase):
             for val in (0.0, 0.5, 12.34, -56.78):
                 path = pattern.format(val)
                 router.reset()
-                code = get_http_code(uri="{0}/{1}".format(prefix, path))
+                code = self.get_http_code(uri="{0}/{1}".format(prefix, path))
                 self.assertEqual(code, 200, path)
                 self.assertEqual(router.args[0], val, path)
                 self.assertIsInstance(router.args[0], float, path)
@@ -411,7 +478,7 @@ class HttpRoutingTests(unittest.TestCase):
         for val in ("simple", "root/sub", "A/B/C", "123/456/789"):
             path = "/path/{0}".format(val)
             router.reset()
-            code = get_http_code(uri="{0}/{1}".format(prefix, path))
+            code = self.get_http_code(uri="{0}/{1}".format(prefix, path))
             self.assertEqual(code, 200, path)
             self.assertEqual(router.args[0], val, path)
             self.assertIsInstance(router.args[0], str, path)
@@ -425,7 +492,7 @@ class HttpRoutingTests(unittest.TestCase):
         ):
             path = "/uuid/{0}".format(val)
             router.reset()
-            code = get_http_code(uri="{0}/{1}".format(prefix, path))
+            code = self.get_http_code(uri="{0}/{1}".format(prefix, path))
             self.assertEqual(code, 200, path)
             self.assertEqual(router.args[0], val, path)
             self.assertIsInstance(router.args[0], uuid.UUID, path)
@@ -437,7 +504,7 @@ class HttpRoutingTests(unittest.TestCase):
             ("opt/toto/titi", "toto", "titi"),
         ):
             router.reset()
-            code = get_http_code(uri="{0}/{1}".format(prefix, path))
+            code = self.get_http_code(uri="{0}/{1}".format(prefix, path))
             self.assertEqual(code, 200, path)
             self.assertListEqual(router.args, [toto, titi], path)
 
@@ -448,7 +515,7 @@ class HttpRoutingTests(unittest.TestCase):
             ("opt/toto/titi", "toto", "titi"),
         ):
             router.reset()
-            code = get_http_code(uri="{0}/{1}".format(prefix, path))
+            code = self.get_http_code(uri="{0}/{1}".format(prefix, path))
             self.assertEqual(code, 200, path)
             self.assertListEqual(router.args, [toto, titi], path)
 

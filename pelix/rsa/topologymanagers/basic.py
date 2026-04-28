@@ -30,7 +30,7 @@ import logging
 from typing import Any, Dict, Optional
 from pelix.internals.events import ServiceEvent
 
-from pelix.ipopo.decorators import ComponentFactory, Instantiate
+from pelix.ipopo.decorators import ComponentFactory
 
 from pelix.rsa import ECF_ENDPOINT_CONTAINERID_NAMESPACE
 from pelix.rsa.providers.discovery import EndpointEvent

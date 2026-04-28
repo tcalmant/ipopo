@@ -13,6 +13,7 @@ ipopo_decorators
 init_config
 log
 http
+http_async
 http_routing
 remote_services
 rsa

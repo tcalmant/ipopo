@@ -106,7 +106,7 @@ def walk_modules(path: pathlib.Path) -> Generator[Tuple[str, bool], None, None]:
     yielded: Set[str] = set()
     try:
         # Handle packages before same-named modules
-        files = sorted(path.iterdir(), key=lambda p: (not p.is_dir, p.name))
+        files = sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name))
     except OSError:
         # Ignore unreadable directories like import does
         return
@@ -385,7 +385,7 @@ class Bundle:
         # Convert the __version_info__ entry
         info = cast(Optional[Tuple[str, ...]], getattr(self.__module, "__version_info__", None))
         if info:
-            return ".".join(str(part) for part in __version_info__)
+            return ".".join(str(part) for part in info)
 
         # No version
         return "0.0.0"

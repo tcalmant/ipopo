@@ -546,7 +546,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
 
         object_class = svc_ref.get_property(constants.OBJECTCLASS)
         for item in intfs:
-            if not item in object_class:
+            if item not in object_class:
                 return False
 
         return True

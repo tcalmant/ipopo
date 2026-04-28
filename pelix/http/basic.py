@@ -28,13 +28,25 @@ Python library.
     limitations under the License.
 """
 
+import html
 import logging
 import socket
 import threading
 import traceback
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import TCPServer, ThreadingMixIn
-from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union, cast
+from typing import (
+    IO,
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 import pelix.http as http
 import pelix.ipopo.constants as constants
@@ -94,7 +106,7 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         Sets up the request helper
 
         :param request_handler: The basic request handler
-        :param prefix: Teh path to the servlet root
+        :param prefix: The path to the servlet root
         """
         self._handler = request_handler
         self._prefix = prefix
@@ -277,7 +289,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
         # Get the corresponding servlet
         found_servlet = self._service.get_servlet(parsed_path)
         if found_servlet is not None:
-            servlet, _, prefix = found_servlet
+            servlet, _, prefix, _ = found_servlet
             if hasattr(servlet, name):
                 # Prepare the helpers
                 request = _HTTPServletRequest(self, prefix)
@@ -291,7 +303,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
                     try:
                         # Handle the request
                         getattr(servlet, name)(request, response)
-                    except:
+                    except Exception:
                         # Send a 500 error page on error
                         self.send_exception(response)
 
@@ -649,7 +661,7 @@ class HttpServiceImpl(http.HTTPService):
         """
         return sorted(self._servlets)
 
-    def get_servlet(self, path: Optional[str]) -> Optional[Tuple[http.Servlet, Dict[str, Any], str]]:
+    def get_servlet(self, path: Optional[str]) -> Optional[Tuple[http.Servlet, Dict[str, Any], str, http.ServletType]]:
         """
         Retrieves the servlet matching the given path and its parameters.
         Returns None if no servlet matches the given path.
@@ -690,7 +702,7 @@ class HttpServiceImpl(http.HTTPService):
 
             # Retrieve the stored information
             servlet, params = self._servlets[longest_match]
-            return servlet, params, longest_match
+            return servlet, params, longest_match, http.ServletType.SYNC
 
     def make_not_found_page(self, path: str) -> str:
         """
@@ -711,7 +723,7 @@ class HttpServiceImpl(http.HTTPService):
 <body>
 <h1>Page not found</h1>
 <p>No servlet is associated to this path:</p>
-<pre>{path}</pre>
+<code>{html.escape(path)}</code>
 <h2>Registered paths:</h2>
 {http.make_html_list(self.get_registered_paths())}
 </body>
@@ -737,16 +749,20 @@ class HttpServiceImpl(http.HTTPService):
 </head>
 <body>
 <h1>Internal Server Error</h1>
-<p>Error handling request upon: {path}</p>
+<p>Error handling request upon: <code>{html.escape(path)}</code></p>
 <pre>
-{stack}
+{html.escape(stack)}
 </pre>
 </body>
 </html>"""
         return page
 
     def register_servlet(
-        self, path: str, servlet: http.Servlet, parameters: Optional[Dict[str, Any]] = None
+        self,
+        path: str,
+        servlet: http.Servlet,
+        parameters: Optional[Dict[str, Any]] = None,
+        servlet_type: http.ServletType = http.ServletType.SYNC,
     ) -> bool:
         """
         Registers a servlet
@@ -754,9 +770,13 @@ class HttpServiceImpl(http.HTTPService):
         :param path: Path handled by this servlet
         :param servlet: The servlet instance
         :param parameters: The parameters associated to this path
+        :param servlet_type: The type of servlet (sync, async, websocket, ...)
         :return: True if the servlet has been registered, False if it refused the binding.
         :raise ValueError: Invalid path or handler
         """
+        if servlet_type != http.ServletType.SYNC:
+            raise ValueError("Asynchronous mode is not supported")
+
         if servlet is None:
             raise ValueError("Invalid servlet instance")
 
@@ -912,17 +932,27 @@ class HttpServiceImpl(http.HTTPService):
             self._extra = {}
 
         # Set up the logger
-        if self._logger_name is not None:
-            if not self._logger:
-                # Empty name, use the instance name
-                self._logger_name = self._instance_name
+        if not self._logger_name:
+            # Empty name, use the instance name
+            self._logger_name = self._instance_name
 
-            self._logger = logging.getLogger(self._logger_name)
+        self._logger = logging.getLogger(self._logger_name)
 
-            if self._logger_level is None:
-                self._logger.level = logging.INFO
-            else:
-                self._logger.level = int(self._logger_level)
+        level: int | None = None
+        if self._logger_level is None:
+            self._logger.level = logging.INFO
+        elif isinstance(self._logger_level, int):
+            level = self._logger_level
+        else:
+            level = utilities.get_log_level(self._logger_level)
+            if level is None:
+                try:
+                    level = int(self._logger_level)
+                except ValueError:
+                    # Invalid level
+                    level = None
+
+        self._logger.level = level if level is not None else logging.INFO
 
         self.log(
             logging.INFO,

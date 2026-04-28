@@ -622,6 +622,10 @@ class CountdownEvent:
         return self.__event.wait(timeout)
 
 
+# ------------------------------------------------------------------------------
+
+
+
 def str2bool(value: Optional[str]) -> bool:
     """
     Translates a string to a boolean.
@@ -635,3 +639,30 @@ def str2bool(value: Optional[str]) -> bool:
         return False
 
     return value.lower().strip() in ("true", "yes", "y", "on", "1")
+
+
+def get_log_level(level: str | int) -> int | None:
+    """
+    Converts a string log level to an integer log level.
+    If the given level is already an integer, it is returned as-is.
+
+    :param level: A log level name or an integer
+    :return: The corresponding log level, None if unknown
+    """
+    if isinstance(level, int):
+        return level
+
+    try:
+        return logging.getLevelNamesMapping().get(level)
+    except AttributeError:
+        # Fallback for older Python versions
+        return {
+            'CRITICAL': logging.CRITICAL,
+            'FATAL': logging.FATAL,
+            'ERROR': logging.ERROR,
+            'WARN': logging.WARNING,
+            'WARNING': logging.WARNING,
+            'INFO': logging.INFO,
+            'DEBUG': logging.DEBUG,
+            'NOTSET': logging.NOTSET,
+        }.get(level.upper(), None)

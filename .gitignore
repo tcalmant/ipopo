@@ -7,6 +7,8 @@ __pycache__/
 .mypy_cache/
 .cache/
 .pytest_cache/
+.ruff_cache/
+uv.lock
 
 # IDE
 .project
@@ -16,6 +18,7 @@ __pycache__/
 .vscode
 
 # Python build
+.venv/
 build/
 dist/
 iPOPO.egg-info/

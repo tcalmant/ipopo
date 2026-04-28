@@ -4,6 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+aiohttp = "==3.12.15"
 grpcio-tools = ">=1.71.0"
 grpcio = ">=1.71.0"
 jsonrpclib-pelix = ">=0.4.3"

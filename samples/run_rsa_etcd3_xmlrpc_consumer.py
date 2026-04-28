@@ -29,7 +29,6 @@ be an etcd3 server/service running on localhost/2379 (default etcd3 port)
 """
 
 import pelix.framework as pelix
-from pelix.ipopo.constants import use_ipopo
 from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
 from pelix.rsa.providers.discovery.etcd3 import ETCD_HOSTNAME_PROP, \
     ETCD_PORT_PROP, \

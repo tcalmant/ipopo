@@ -8,17 +8,15 @@ Pelix basic HTTP service test module.
 
 import http.client as httplib
 import logging
-import os
 import shutil
-import tempfile
 import unittest
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, Optional
 
 import pelix.http as http
 from pelix.framework import Framework, FrameworkFactory
 from pelix.ipopo.constants import IPopoService
 from tests.http.gen_cert import make_certs
-from tests.http.test_basic import install_bundle, install_ipopo
+from tests.http.utils import get_file, get_tmp_dir, install_bundle, install_ipopo, instantiate_server, kill_server
 
 try:
     from ssl import SSLContext, create_default_context
@@ -34,58 +32,8 @@ DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 8043
 
 PASSWORD = "test_password"
-TMP_DIR = tempfile.mkdtemp(prefix="ipopo-tests-https")
 
 # ------------------------------------------------------------------------------
-
-
-def get_file(name: Optional[str]) -> Optional[str]:
-    """
-    Returns the path to the given certificate file
-
-    :param name: File name
-    :return: Full path to the file
-    """
-    if name and not os.path.exists(name):
-        name = os.path.join(TMP_DIR, name)
-    return name
-
-
-def instantiate_server(
-    ipopo_svc: IPopoService,
-    cert_file: Optional[str],
-    key_file: Optional[str],
-    password: Optional[str] = None,
-    address: str = DEFAULT_HOST,
-    port: int = DEFAULT_PORT,
-) -> http.HTTPService:
-    """
-    Instantiates a basic server component
-    """
-    cert_file = get_file(cert_file)
-    key_file = get_file(key_file)
-
-    return cast(
-        http.HTTPService,
-        ipopo_svc.instantiate(
-            http.FACTORY_HTTP_BASIC,
-            "test-https-service",
-            {
-                http.HTTP_SERVICE_ADDRESS: address,
-                http.HTTP_SERVICE_PORT: port,
-                http.HTTPS_CERT_FILE: cert_file,
-                http.HTTPS_KEY_FILE: key_file,
-                http.HTTPS_KEY_PASSWORD: password,
-            },
-        ),
-    )
-
-
-def kill_server(ipopo_svc: IPopoService) -> None:
-    """
-    Kills the basic server component
-    """
-    ipopo_svc.kill("test-https-service")
 
 
 def get_https_code(
@@ -135,19 +83,24 @@ class BasicHTTPSTest(unittest.TestCase):
     framework: Framework
     ipopo: IPopoService
 
+    http_bundle = "pelix.http.basic"
+    http_factory: str = http.FACTORY_HTTP_BASIC
+    instance_name: str = "test-https-service"
+
     @classmethod
     def setUpClass(cls) -> None:
         """
         Setup the certificates
         """
-        make_certs(TMP_DIR, PASSWORD)
+        make_certs(get_tmp_dir(), PASSWORD)
 
     @classmethod
     def tearDownClass(cls) -> None:
         """
         Clears the certificates
         """
-        shutil.rmtree(TMP_DIR)
+        shutil.rmtree(get_tmp_dir())
+        FrameworkFactory.delete_framework()
 
     def setUp(self) -> None:
         """
@@ -161,7 +114,7 @@ class BasicHTTPSTest(unittest.TestCase):
         self.ipopo = install_ipopo(self.framework)
 
         # Install HTTP service
-        install_bundle(self.framework, "pelix.http.basic")
+        install_bundle(self.framework, self.http_bundle)
 
         # Install test bundle
         self.servlets = install_bundle(self.framework, "tests.http.servlets_bundle")
@@ -174,22 +127,43 @@ class BasicHTTPSTest(unittest.TestCase):
         FrameworkFactory.delete_framework()
         self.framework = None  # type: ignore
 
+    def instantiate_server(
+        self,
+        cert_file: str | None = None,
+        key_file: str | None = None,
+        password: str | None = None,
+        address: str | None = DEFAULT_HOST,
+        port: int | None = DEFAULT_PORT,
+    ) -> http.HTTPService:
+        """
+        Instantiates a basic server component
+        """
+        return instantiate_server(
+            self.ipopo, self.http_factory, self.instance_name, address, port, cert_file, key_file, password
+        )
+
+    def kill_server(self) -> None:
+        """
+        Kills the server component
+        """
+        try:
+            kill_server(self.ipopo, self.instance_name)
+        except:
+            logging.exception("Error while killing the server component")
+            raise
+
     def testSimpleCertificate(self) -> None:
         """
         Tests the use of a certificate without password
         """
-        instantiate_server(self.ipopo, cert_file="server.crt", key_file="server.key")
-
+        self.instantiate_server(cert_file="server.crt", key_file="server.key")
         self.assertEqual(get_https_code(), 404, "Received something other than a 404")
 
     def testPasswordCertificate(self) -> None:
         """
         Tests the use of a certificate with a password
         """
-        instantiate_server(
-            self.ipopo, cert_file="server_enc.crt", key_file="server_enc.key", password=PASSWORD
-        )
-
+        self.instantiate_server(cert_file="server_enc.crt", key_file="server_enc.key", password=PASSWORD)
         self.assertEqual(get_https_code(), 404, "Received something other than a 404")
 
 
