@@ -1,6 +1,6 @@
 services:
   etcd3:
-    image: bitnami/etcd
+    image: bitnamilegacy/etcd
     environment:
       - ALLOW_NONE_AUTHENTICATION=yes
     ports:
