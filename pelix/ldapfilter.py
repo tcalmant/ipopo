@@ -208,7 +208,7 @@ class LDAPCriteria:
 
         :raise ValueError: If one of the parameters is empty
         """
-        if not name or not value or comparator is None:
+        if not name or value is None or comparator is None:
             # Refuse empty values
             raise ValueError(f"Invalid criterion parameter ({name}, {value}, {comparator})")
 
