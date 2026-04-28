@@ -56,6 +56,3 @@ _build/
 # Jupyter Notebooks
 .ipynb_checkpoints/
 *.ipynb
-
-# uv lock
-uv.lock
