@@ -31,32 +31,60 @@ iPOPO: A Service-Oriented Component Model for Python
    :target: https://coveralls.io/github/tcalmant/ipopo?branch=v3
    :alt: Coveralls status
 
-`iPOPO <https://ipopo.readthedocs.io/>`_ is a Python-based Service-Oriented
-Component Model (SOCM) based on Pelix, a dynamic service platform.
-They are inspired on two popular Java technologies for the development of
-long-lived applications: the
-`iPOJO <https://web.archive.org/web/20210616112915/http://felix.apache.org/documentation/subprojects/apache-felix-ipojo.html>`_
-component model and the `OSGi <https://www.osgi.org/>`_ Service Platform.
-iPOPO enables to conceive long-running and modular IT services.
+`iPOPO <https://ipopo.readthedocs.io/>`_ is a Python-based
+Service-Oriented Component Model (SOCM) built on top of Pelix,
+a dynamic service platform. It helps building modular, long-running
+applications from loosely coupled components and services, with explicit
+lifecycle management and runtime composition.
 
-See https://ipopo.readthedocs.io/ for documentation and more information.
+It is especially relevant for software engineers building gateways,
+automation stacks, distributed backends and extensible platforms that need
+runtime composition, operational visibility and controlled evolution over time.
+
+The framework adapts to Python ideas popularized by
+`iPOJO <https://web.archive.org/web/20210616112915/http://felix.apache.org/documentation/subprojects/apache-felix-ipojo.html>`_
+and `OSGi <https://www.osgi.org/>`_.
+iPOPO enables the conception of long-running and modular IT services.
+
+Why iPOPO
+=========
+
+* Runtime-managed components with explicit lifecycle and dependency injection.
+* A service registry with dynamic binding between providers and consumers.
+* Built-in operational tooling such as the Pelix shell, Configuration Admin,
+    Event Admin, HTTP services and remote service support.
+* A Python-first developer experience with regular modules, type hints and
+    Protocol-based service specifications.
+
+Documentation
+=============
+
+See `Read the Docs <https://ipopo.readthedocs.io/>`_ for the full
+documentation.
+
+* `Quickstart <https://ipopo.readthedocs.io/en/latest/quickstart.html>`_
+* `Reference cards <https://ipopo.readthedocs.io/en/latest/refcards/index.html>`_
+* `Tutorials <https://ipopo.readthedocs.io/en/latest/tutorials/index.html>`_
+* `Who uses iPOPO? <https://ipopo.readthedocs.io/en/latest/users.html>`_
+* `Release notes <https://ipopo.readthedocs.io/en/latest/changelog.html>`_
 
 
 Note on this version
 ====================
 
 This is the 3.x branch of iPOPO, which is intended to work with Python 3.10+.
-The iPOPO API didn't change much between v1 and v3: all code working with iPOPO
-v1 should be compatible with iPOPO v3 (as long as the Python syntax and
-packages are compatible with newer Python versions).
-If that's not the case, please fill in a bug report on
+The iPOPO API didn't change much between v1 and v3: code written for iPOPO v1
+should generally remain compatible with iPOPO v3 as long as the Python syntax
+and dependencies are also compatible with newer Python versions.
+If that is not the case, please fill in a bug report on
 `GitHub issues <https://github.com/tcalmant/ipopo/issues>`_.
 
-If you are working with Python between 2.7 and 3.7, you must instead use the
-[1.x branch](https://github.com/tcalmant/ipopo/tree/v1) of iPOPO.
+If you are working with Python 2.7 or versions earlier than 3.10, you must
+instead use the `1.x branch <https://github.com/tcalmant/ipopo/tree/v1>`_ of
+iPOPO.
 Note that iPOPO has not been tested with versions 3.8 and 3.9.
 
-[Version 2.x](https://github.com/tcalmant/ipopo/tree/v2) was a trial to
+`Version 2.x <https://github.com/tcalmant/ipopo/tree/v2>`_ was a trial to
 implement iPOPO with ``asyncio`` for Python 3.7, but has been stalled due to
 various issues and lack of contributions.
 
@@ -83,11 +111,14 @@ installed using ``pip``:
 
 .. code-block:: bash
 
-    # Install system-wide
-    $ sudo pip install iPOPO
+    $ python -m pip install --upgrade pip
+    $ python -m pip install iPOPO
 
-    # ... or user-wide installation
-    $ pip install --user iPOPO
+Optional integrations are available through extras:
+
+.. code-block:: bash
+
+    $ python -m pip install "iPOPO[RSA,MQTT]"
 
 
 Option 2: From source
@@ -97,7 +128,10 @@ Option 2: From source
 
     $ git clone https://github.com/tcalmant/ipopo.git
     $ cd ipopo
-    $ python setup.py install
+    $ python -m venv .venv
+    $ . .venv/bin/activate
+    $ python -m pip install --upgrade pip
+    $ python -m pip install -e .
 
 
 Check install
@@ -108,7 +142,7 @@ To check if Pelix is installed correctly, run the following command:
 .. code-block:: bash
 
     $ python -m pelix.shell --version
-    Pelix 3.0.0 from /home/tcalmant/git/ipopo/pelix/__init__.py
+        Pelix 3.1.0 from /path/to/ipopo/pelix/__init__.py
 
 Concepts
 ########
