@@ -6,6 +6,7 @@ Tests the remote shell
 :author: Thomas Calmant
 """
 
+import importlib.util
 import socket
 import sys
 import threading
@@ -21,9 +22,7 @@ from pelix.shell import FACTORY_REMOTE_SHELL, RemoteShell, ShellService
 from pelix.utilities import to_bytes, to_str
 
 try:
-    import coverage
-
-    has_coverage = True
+    has_coverage = importlib.util.find_spec("coverage") is not None
 except ImportError:
     has_coverage = False
 

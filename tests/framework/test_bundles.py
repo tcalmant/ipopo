@@ -33,6 +33,7 @@ class BundlesTest(unittest.TestCase):
         Called before each test. Initiates a framework.
         """
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
         self.context = self.framework.get_bundle_context()
 
@@ -285,7 +286,7 @@ class BundlesTest(unittest.TestCase):
         self.assertRaises(BundleException, self.framework.get_bundle_by_id, bid)
 
         found_bundle = self.framework.get_bundle_by_name(self.test_bundle_name)
-        self.assertIsNone(found_bundle, "Bundle is still accessible by name " "through the framework")
+        self.assertIsNone(found_bundle, "Bundle is still accessible by name through the framework")
 
     def testUpdate(self):
         """
@@ -401,6 +402,7 @@ class LocalBundleTest(unittest.TestCase):
         Called before each test. Initiates a framework.
         """
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
     def tearDown(self):

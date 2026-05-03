@@ -42,6 +42,7 @@ class LogShellTest(unittest.TestCase):
         self.framework = pelix.framework.create_framework(
             ("pelix.ipopo.core", "pelix.shell.core", "pelix.misc.log", "pelix.shell.log")
         )
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         # Get the Shell service

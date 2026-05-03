@@ -11,7 +11,10 @@ import time
 import unittest
 from typing import cast
 
-import aiohttp
+try:
+    import aiohttp
+except ImportError:
+    raise unittest.SkipTest("aiohttp library not available")
 
 import pelix.http as http
 from pelix.framework import FrameworkFactory, create_framework
@@ -20,7 +23,6 @@ from tests.http.utils import async_test
 
 
 class SSETestCase(unittest.TestCase):
-
     SSE_ENDPOINT = "/sse"
     SSE_PORT = 8081
 

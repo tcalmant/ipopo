@@ -34,6 +34,7 @@ class WaitingListTest(unittest.TestCase):
         """
         # Prepare the framework
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
         context = self.framework.get_bundle_context()
 

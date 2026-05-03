@@ -619,11 +619,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         group.add_argument("--cert", help="Path to the server certificate file")
         group.add_argument(
             "--key",
-            help="Path to the server key file " "(can be omitted if the key is in the certificate)",
+            help="Path to the server key file (can be omitted if the key is in the certificate)",
         )
         group.add_argument(
             "--key-password",
-            help="Password of the server key." "Set to '-' for a password request.",
+            help="Password of the server key.Set to '-' for a password request.",
         )
         group.add_argument(
             "--ca-chain",

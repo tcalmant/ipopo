@@ -19,12 +19,12 @@ from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse
 from pelix.ipopo.constants import IPopoService
 from pelix.utilities import to_str
 from tests.http.utils import (
+    DEFAULT_HOST,
     get_http_code,
     get_http_page,
     install_ipopo,
     instantiate_server,
     kill_server,
-    DEFAULT_HOST,
 )
 
 # ------------------------------------------------------------------------------
@@ -59,6 +59,7 @@ class HttpRoutingTests(unittest.TestCase):
         """
         # Start a framework
         self.framework = create_framework([self.http_bundle])
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
         self._port = 0
@@ -73,7 +74,6 @@ class HttpRoutingTests(unittest.TestCase):
 
         # Stop the framework
         FrameworkFactory.delete_framework(self.framework)
-        self.framework = None  # type: ignore
 
     def instantiate_server(self):
         """

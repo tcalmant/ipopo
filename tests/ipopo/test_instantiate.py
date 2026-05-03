@@ -32,6 +32,7 @@ class InstantiateTest(unittest.TestCase):
         Called before each test. Initiates a framework.
         """
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
 
@@ -112,7 +113,7 @@ class InstantiateTest(unittest.TestCase):
 
         self.assertFalse(
             self.ipopo.is_registered_instance(name),
-            "Instance registered while the bundle has been " "stopped",
+            "Instance registered while the bundle has been stopped",
         )
 
         # Ensure the service has been unregistered properly

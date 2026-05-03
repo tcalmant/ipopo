@@ -40,7 +40,7 @@ from tests.utilities import WrappedProcess
 try:
     # Try to import modules
     import multiprocessing
-    from multiprocessing import Process, Queue
+    from multiprocessing import Process, Queue  # noqa: F401
 
     # IronPython fails when creating a queue
     Queue()

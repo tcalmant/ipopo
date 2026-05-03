@@ -28,10 +28,10 @@ Pelix remote services: Abstract RPC implementation
 * "system" methods (list, help, ...)
 """
 
-from abc import abstractmethod
 import abc
 import threading
 import uuid
+from abc import abstractmethod
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import pelix.constants as constants
@@ -241,7 +241,7 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
         :return: A dictionary of extra endpoint properties
         """
         raise NotImplementedError(
-            "make_endpoint_properties() not " f"implemented by class {type(self).__name__}"
+            f"make_endpoint_properties() not implemented by class {type(self).__name__}"
         )
 
     @Validate

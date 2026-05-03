@@ -27,8 +27,8 @@ Pelix miscellaneous modules
 
 from types import TracebackType
 from typing import Any, Optional, Protocol, Tuple, TypeAlias
-from pelix.constants import Specification
 
+from pelix.constants import Specification
 from pelix.framework import Bundle
 from pelix.internals.registry import ServiceReference
 

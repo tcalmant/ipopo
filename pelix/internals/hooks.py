@@ -76,12 +76,10 @@ class ShrinkableList(MutableSequence[T]):
         return len(self._delegate)
 
     @overload
-    def __getitem__(self, index: int) -> T:
-        ...
+    def __getitem__(self, index: int) -> T: ...
 
     @overload
-    def __getitem__(self, index: slice) -> MutableSequence[T]:
-        ...
+    def __getitem__(self, index: slice) -> MutableSequence[T]: ...
 
     def __getitem__(self, index):  # type: ignore
         return self._delegate[index]
@@ -90,12 +88,10 @@ class ShrinkableList(MutableSequence[T]):
         del self._delegate[index]
 
     @overload
-    def __setitem__(self, index: int, value: T) -> None:
-        ...
+    def __setitem__(self, index: int, value: T) -> None: ...
 
     @overload
-    def __setitem__(self, index: slice, values: Iterable[T]) -> None:
-        ...
+    def __setitem__(self, index: slice, values: Iterable[T]) -> None: ...
 
     def __setitem__(self, index, value) -> None:  # type: ignore
         raise IndexError

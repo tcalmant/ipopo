@@ -1,8 +1,13 @@
-from google.protobuf.internal import containers as _containers
-from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
+from typing import ClassVar as _ClassVar
+from typing import Iterable as _Iterable
+from typing import Mapping as _Mapping
+from typing import Optional as _Optional
+from typing import Union as _Union
+
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -14,7 +19,12 @@ class User(_message.Message):
     name: bytes
     password: bytes
     roles: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, name: _Optional[bytes] = ..., password: _Optional[bytes] = ..., roles: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(
+        self,
+        name: _Optional[bytes] = ...,
+        password: _Optional[bytes] = ...,
+        roles: _Optional[_Iterable[str]] = ...,
+    ) -> None: ...
 
 class Permission(_message.Message):
     __slots__ = ("permType", "key", "range_end")
@@ -23,6 +33,7 @@ class Permission(_message.Message):
         READ: _ClassVar[Permission.Type]
         WRITE: _ClassVar[Permission.Type]
         READWRITE: _ClassVar[Permission.Type]
+
     READ: Permission.Type
     WRITE: Permission.Type
     READWRITE: Permission.Type
@@ -32,7 +43,12 @@ class Permission(_message.Message):
     permType: Permission.Type
     key: bytes
     range_end: bytes
-    def __init__(self, permType: _Optional[_Union[Permission.Type, str]] = ..., key: _Optional[bytes] = ..., range_end: _Optional[bytes] = ...) -> None: ...
+    def __init__(
+        self,
+        permType: _Optional[_Union[Permission.Type, str]] = ...,
+        key: _Optional[bytes] = ...,
+        range_end: _Optional[bytes] = ...,
+    ) -> None: ...
 
 class Role(_message.Message):
     __slots__ = ("name", "keyPermission")
@@ -40,4 +56,8 @@ class Role(_message.Message):
     KEYPERMISSION_FIELD_NUMBER: _ClassVar[int]
     name: bytes
     keyPermission: _containers.RepeatedCompositeFieldContainer[Permission]
-    def __init__(self, name: _Optional[bytes] = ..., keyPermission: _Optional[_Iterable[_Union[Permission, _Mapping]]] = ...) -> None: ...
+    def __init__(
+        self,
+        name: _Optional[bytes] = ...,
+        keyPermission: _Optional[_Iterable[_Union[Permission, _Mapping]]] = ...,
+    ) -> None: ...

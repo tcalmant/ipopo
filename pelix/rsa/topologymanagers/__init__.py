@@ -52,7 +52,6 @@ from pelix.rsa.providers.discovery import (
     EndpointEventListener,
 )
 from pelix.services import SERVICE_EVENT_LISTENER_HOOK
-from pelix.ipopo.constants import use_ipopo
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -124,8 +123,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
             for export_reg in export_regs:
                 if export_reg.match_sr(service_ref):
                     _logger.debug(
-                        "handle_service_unregistering. closing "
-                        "export_registration for service reference=%s",
+                        "handle_service_unregistering. closing export_registration for service reference=%s",
                         service_ref,
                     )
                     export_reg.close()
@@ -137,14 +135,14 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
             for export_reg in export_regs:
                 if export_reg.match_sr(service_ref):
                     _logger.debug(
-                        "_handle_service_modified. updating " "export_registration for service reference=%s",
+                        "_handle_service_modified. updating export_registration for service reference=%s",
                         service_ref,
                     )
 
                     # actually update the export_reg here
                     if not export_reg.update(None):
                         _logger.warning(
-                            "_handle_service_modified. updating" "update for service_ref=%s failed",
+                            "_handle_service_modified. updatingupdate for service_ref=%s failed",
                             service_ref,
                         )
 
@@ -168,7 +166,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
                 adv.advertise_endpoint(ed)
             except:
                 _logger.error(
-                    "Exception in advertise_endpoint for " "advertiser=%s endpoint=%s",
+                    "Exception in advertise_endpoint for advertiser=%s endpoint=%s",
                     adv,
                     ed,
                 )
@@ -179,7 +177,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
                 adv.update_endpoint(ed)
             except:
                 _logger.error(
-                    "Exception in update_endpoint for advertiser=%s " "endpoint=%s",
+                    "Exception in update_endpoint for advertiser=%s endpoint=%s",
                     adv,
                     ed,
                 )
@@ -190,7 +188,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
                 adv.unadvertise_endpoint(ed.get_id())
             except:
                 _logger.error(
-                    "Exception in unadvertise_endpoint for advertiser=%s " "endpoint=%s",
+                    "Exception in unadvertise_endpoint for advertiser=%s endpoint=%s",
                     adv,
                     ed,
                 )

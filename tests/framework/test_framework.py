@@ -430,7 +430,7 @@ class FrameworkTest(unittest.TestCase):
         framework = FrameworkFactory.get_framework()
 
         # No need to wait for the framework...
-        self.assertTrue(framework.wait_for_stop(), "wait_for_stop() must return True " "on stopped framework")
+        self.assertTrue(framework.wait_for_stop(), "wait_for_stop() must return True on stopped framework")
 
         # Start the framework
         framework.start()

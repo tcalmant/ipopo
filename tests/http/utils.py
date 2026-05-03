@@ -6,7 +6,6 @@ Utility methods for Pelix HTTP services tests.
 :author: Thomas Calmant
 """
 
-
 import asyncio
 import http.client as httplib
 import pathlib

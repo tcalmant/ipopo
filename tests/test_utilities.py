@@ -157,7 +157,7 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
             def dummy() -> None:
                 pass
 
-            self.fail("@SynchronizedClassMethod(None) should raise a " "ValueError")
+            self.fail("@SynchronizedClassMethod(None) should raise a ValueError")
         except ValueError:
             # We must be there to succeed
             pass
@@ -387,7 +387,9 @@ class UtilitiesTest(unittest.TestCase):
         # Check other types
         for value in ("hello", 123, {1: 2}, object()):
             self.assertListEqual(
-                utilities.to_iterable(value), [value], "to_iterable() didn't returned a list"  # type: ignore
+                utilities.to_iterable(value),
+                [value],
+                "to_iterable() didn't returned a list",  # type: ignore
             )
 
 

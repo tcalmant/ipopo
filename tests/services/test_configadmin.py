@@ -58,6 +58,7 @@ class ConfigurationAdminTest(unittest.TestCase):
         self.framework = pelix.framework.create_framework(
             ("pelix.ipopo.core", "pelix.services.configadmin"), {"configuration.folder": conf_folder}
         )
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
         context = self.framework.get_bundle_context()
 
@@ -268,6 +269,7 @@ class ManagedServiceTest(unittest.TestCase):
         self.framework = pelix.framework.create_framework(
             ("pelix.ipopo.core", "pelix.services.configadmin"), {"configuration.folder": conf_folder}
         )
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
         context = self.framework.get_bundle_context()
 
@@ -494,6 +496,7 @@ class FileInstallTest(unittest.TestCase):
         self.framework = pelix.framework.create_framework(
             ("pelix.ipopo.core", "pelix.services.configadmin"), {"configuration.folder": conf_folder}
         )
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
         context = self.framework.get_bundle_context()
 

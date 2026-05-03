@@ -122,8 +122,7 @@ ECF_PY4JPB_SUPPORTED_INTENTS = [
 @ComponentFactory(ECF_PY4J_CONTAINER_CONFIG_TYPE)
 @Provides([ExportContainer, ImportContainer])
 class Py4jContainer(ExportContainer, ImportContainer):
-
-    def __init__(self, max_workers: int=5) -> None:
+    def __init__(self, max_workers: int = 5) -> None:
         ExportContainer.__init__(self)
         ImportContainer.__init__(self)
         self._max_workers = max_workers
@@ -258,20 +257,10 @@ ECF_PY4J_CALLBACKSERVER_PARAMS_DEFAULT = None
     ECF_PY4J_SERVICE_TIMEOUT_PROP,
     ECF_PY4J_SERVICE_TIMEOUT_DEFAULT,
 )
+@Property("_import_hook", ECF_PY4J_USE_IMPORT_HOOK_PROP, ECF_PY4J_USE_IMPORT_HOOK_DEFAULT)
+@Property("_gateway_params", ECF_PY4J_GATEWAY_PARAMS_PROP, ECF_PY4J_GATEWAY_PARAMS_DEFAULT)
 @Property(
-    "_import_hook",
-    ECF_PY4J_USE_IMPORT_HOOK_PROP,
-    ECF_PY4J_USE_IMPORT_HOOK_DEFAULT
-)
-@Property(
-    "_gateway_params",
-    ECF_PY4J_GATEWAY_PARAMS_PROP,
-    ECF_PY4J_GATEWAY_PARAMS_DEFAULT
-)
-@Property(
-    "_callback_server_params",
-    ECF_PY4J_CALLBACKSERVER_PARAMS_PROP,
-    ECF_PY4J_CALLBACKSERVER_PARAMS_DEFAULT
+    "_callback_server_params", ECF_PY4J_CALLBACKSERVER_PARAMS_PROP, ECF_PY4J_CALLBACKSERVER_PARAMS_DEFAULT
 )
 @Instantiate("py4j-distribution-provider")
 class Py4jDistributionProvider(
@@ -358,15 +347,20 @@ class Py4jDistributionProvider(
         try:
             self._bridge = Py4jServiceBridge(
                 service_listener=self,
-                gateway_parameters=GatewayParameters(
-                    port=self._java_port or DEFAULT_PORT
-                    ) if not self._gateway_params else self._gateway_params,
+                gateway_parameters=GatewayParameters(port=self._java_port or DEFAULT_PORT)
+                if not self._gateway_params
+                else self._gateway_params,
                 callback_server_parameters=CallbackServerParameters(
                     port=self._python_port or DEFAULT_PYTHON_PROXY_PORT
-                ) if not self._callback_server_params else self._callback_server_params,
+                )
+                if not self._callback_server_params
+                else self._callback_server_params,
             )
             from osgiservicebridge.bridge import OSGIPythonModulePathHook
-            self._bridge.connect(path_hook=OSGIPythonModulePathHook(self._bridge) if self._import_hook else None)
+
+            self._bridge.connect(
+                path_hook=OSGIPythonModulePathHook(self._bridge) if self._import_hook else None
+            )
         except Exception as e:
             self._bridge = None
             raise e

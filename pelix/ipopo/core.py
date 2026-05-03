@@ -37,7 +37,7 @@ import pelix.ipopo.handlers.constants as handlers_const
 from pelix.constants import SERVICE_ID, ActivatorProto, BundleActivator, BundleException
 from pelix.framework import Bundle, BundleContext
 from pelix.internals.events import BundleEvent, ServiceEvent
-from pelix.internals.registry import ServiceRegistration, ServiceReference
+from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo.constants import IPopoEventListener, IPopoService
 from pelix.ipopo.contexts import ComponentContext, FactoryContext, Requirement
 from pelix.ipopo.instance import StoredInstance
@@ -424,7 +424,7 @@ class _IPopoService(IPopoService):
                 except Exception as ex:
                     # Log error, but continue to work
                     _logger.exception(
-                        "Error restarting component '%s' ('%s') " "from bundle %s (%d): %s",
+                        "Error restarting component '%s' ('%s') from bundle %s (%d): %s",
                         name,
                         factory,
                         bundle.get_symbolic_name(),

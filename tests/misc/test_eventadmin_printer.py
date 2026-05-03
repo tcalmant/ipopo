@@ -36,6 +36,7 @@ class EventAdminPrinterTest(unittest.TestCase):
         self.framework = pelix.framework.create_framework(
             ("pelix.ipopo.core", "pelix.services.eventadmin", "pelix.misc.eventadmin_printer")
         )
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         # Add a log handler

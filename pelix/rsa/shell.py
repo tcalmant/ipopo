@@ -538,7 +538,7 @@ class RSACommandHandler(ShellCommandsProvider):
         )
         if not svc_ref:
             io_handler.write_line(
-                "Service with id={0} cannot be found so no service " "can be exported",
+                "Service with id={0} cannot be found so no service can be exported",
                 service_id,
             )
             return

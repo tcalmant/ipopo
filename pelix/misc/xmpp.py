@@ -40,7 +40,6 @@ from slixmpp.basexmpp import BaseXMPP
 from slixmpp.clientxmpp import ClientXMPP
 from slixmpp.jid import JID
 from slixmpp.types import MessageTypes
-from slixmpp.xmlstream import JID
 
 from pelix.utilities import EventData
 
@@ -152,7 +151,9 @@ class XMPPBotClient(ClientXMPP):
         self.add_event_handler("ssl_invalid_chain", self.on_ssl_error)
         self.add_event_handler("message_error", self.on_message_error)
 
-        _logger.critical(f"Connect to {host}:{port}, jid='{self.boundjid}' - pass={'SET' if self.password else 'NOT SET'}")
+        _logger.critical(
+            f"Connect to {host}:{port}, jid='{self.boundjid}' - pass={'SET' if self.password else 'NOT SET'}"
+        )
         return super().connect(host, port)
 
     def __on_connect(self, data: Dict[Any, Any]) -> None:

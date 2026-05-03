@@ -48,6 +48,7 @@ class ConfigAdminShellTest(unittest.TestCase):
             ("pelix.ipopo.core", "pelix.shell.core", "pelix.services.configadmin", "pelix.shell.configadmin"),
             {"configuration.folder": conf_folder},
         )
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         # Get the Shell service

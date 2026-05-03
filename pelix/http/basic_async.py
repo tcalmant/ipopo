@@ -541,7 +541,9 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         """
         await self._response.write(data)
 
-    async def send_sse(self, event: str | None = None, data: str | None = None, id: str | None = None) -> None:
+    async def send_sse(
+        self, event: str | None = None, data: str | None = None, id: str | None = None
+    ) -> None:
         """
         Sends a Server-Sent Event (SSE) message.
 

@@ -209,8 +209,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener, abc.ABC):
         self._field = None
 
     @abc.abstractmethod
-    def get_bindings(self) -> List[ServiceReference[Any]]:
-        ...
+    def get_bindings(self) -> List[ServiceReference[Any]]: ...
 
     def get_field(self) -> Optional[str]:
         return self._field

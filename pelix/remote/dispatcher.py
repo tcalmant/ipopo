@@ -824,7 +824,7 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
             if result.status != 200:
                 # Not a valid result
                 _logger.warning(
-                    "Got an HTTP code %d when contacting a " "discovered framework: %s",
+                    "Got an HTTP code %d when contacting a discovered framework: %s",
                     result.status,
                     data,
                 )

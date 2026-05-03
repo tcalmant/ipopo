@@ -148,8 +148,7 @@ class ActivatorProto(Protocol):
     Interface of an activator
     """
 
-    def __init__(self) -> None:
-        ...
+    def __init__(self) -> None: ...
 
     def start(self, context: "BundleContext") -> None:
         """

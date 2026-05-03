@@ -76,7 +76,7 @@ else:
                 char = to_str(process.stdout.read(1))
                 if not char:
                     if sys.version_info[0] == 2:
-                        self.skipTest("Shell console test doesn't work on " "Python 2.7 with Travis")
+                        self.skipTest("Shell console test doesn't work on Python 2.7 with Travis")
                     else:
                         if process.poll():
                             output = to_str(process.stdout.read())

@@ -10,8 +10,11 @@ import asyncio
 import unittest
 from typing import cast
 
-import aiohttp
-from aiohttp import ClientSession, WSMsgType
+try:
+    import aiohttp
+    from aiohttp import ClientSession, WSMsgType
+except ImportError:
+    raise unittest.SkipTest("aiohttp library not available")
 
 import pelix.http as http
 from pelix.framework import FrameworkFactory, create_framework
@@ -36,7 +39,6 @@ def wait_for_service(framework, svc_name, timeout=5.0):
 
 
 class WebSocketTestCase(unittest.TestCase):
-
     http_server: http.HTTPService
     handler: http.WebSocketHandler | None = None
     ws_url: str

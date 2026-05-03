@@ -121,7 +121,7 @@ class _ShellUtils(ShellUtils):
 
             except IndexError:
                 # Line too small/big
-                raise ValueError("Different sizes for header and lines " "(line {0})".format(idx + 1))
+                raise ValueError("Different sizes for header and lines (line {0})".format(idx + 1))
 
             except (TypeError, AttributeError):
                 # Invalid type of line
@@ -130,7 +130,7 @@ class _ShellUtils(ShellUtils):
             else:
                 if column != nb_columns:
                     # Check if all lines have the same number of columns
-                    raise ValueError("Different sizes for header and lines " "(line {0})".format(idx + 1))
+                    raise ValueError("Different sizes for header and lines (line {0})".format(idx + 1))
 
         # Prepare the head (centered text)
         format_str = f"{prefix}|"

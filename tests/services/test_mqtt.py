@@ -17,8 +17,12 @@ from typing import Any, List, Optional, Tuple, Union
 import pelix.framework
 import pelix.services as services
 from pelix.internals.registry import ServiceReference
-from pelix.misc.mqtt_client import MqttClient
-from tests.mqtt_utilities import find_mqtt_server
+
+try:
+    from pelix.misc.mqtt_client import MqttClient
+    from tests.mqtt_utilities import find_mqtt_server
+except ImportError:
+    raise unittest.SkipTest("MQTT client library not available")
 
 # ------------------------------------------------------------------------------
 
@@ -71,6 +75,7 @@ class MqttServiceTest(unittest.TestCase):
             ("pelix.ipopo.core", "pelix.services.configadmin", "pelix.services.mqtt"),
             {"configuration.folder": self.conf_dir},
         )
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         # Get the configuration admin service

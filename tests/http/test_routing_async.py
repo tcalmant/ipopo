@@ -6,12 +6,18 @@ Pelix async HTTP service test module.
 :author: Thomas Calmant
 """
 
+import importlib.util
 import logging
 import unittest
 from typing import cast
 
 import pelix.http as http
 import tests.http.test_routing as routing_tests
+
+try:
+    assert importlib.util.find_spec("aiohttp") is not None
+except Exception:
+    raise unittest.SkipTest("aiohttp library not available")
 
 # ------------------------------------------------------------------------------
 

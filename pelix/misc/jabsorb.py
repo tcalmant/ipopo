@@ -31,7 +31,6 @@ https://github.com/cohorte/cohorte-org.jabsorb.ng
     limitations under the License.
 """
 
-
 import builtins
 import inspect
 import re

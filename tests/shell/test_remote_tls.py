@@ -6,6 +6,7 @@ Tests the remote shell with the TLS feature
 :author: Thomas Calmant
 """
 
+import importlib.util
 import ipaddress
 import os
 import pathlib
@@ -30,9 +31,7 @@ from pelix.utilities import to_bytes, to_str
 from tests.http.gen_cert import call_openssl, make_subj, write_conf
 
 try:
-    import coverage
-
-    has_coverage = True
+    has_coverage = importlib.util.find_spec("coverage") is not None
 except ImportError:
     has_coverage = False
 

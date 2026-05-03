@@ -33,12 +33,12 @@ from typing import Any, Callable, Dict, Iterable, Optional, Union
 from xmlrpc.server import SimpleXMLRPCDispatcher
 
 import pelix.http
-from pelix.internals.registry import ServiceReference
 import pelix.remote
-from pelix.remote.beans import ImportEndpoint
 import pelix.remote.transport.commons as commons
 from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
+from pelix.remote.beans import ImportEndpoint
 from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------

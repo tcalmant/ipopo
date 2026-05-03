@@ -6,6 +6,7 @@ Tests the RSA discovery provider
 :author: Scott Lewis
 """
 
+import importlib.util
 import json
 import unittest
 from typing import Any, TypeVar
@@ -16,7 +17,7 @@ from pelix.utilities import EventData
 try:
     # Try to import modules
     import multiprocessing
-    from multiprocessing import Process, Queue
+    from multiprocessing import Process, Queue  # noqa: F401
 
     # IronPython fails when creating a queue
     Queue()
@@ -29,8 +30,8 @@ except ImportError:
 
 try:
     # Try to import modules
-    import etcd
-except ImportError:
+    assert importlib.util.find_spec("etcd") is not None
+except Exception:
     # Some interpreters don't have support for multiprocessing
     raise unittest.SkipTest("etcd module not available")
 
@@ -95,6 +96,7 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
 
         context = framework.get_bundle_context()
         from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+
         instantiate_basic_topology_manager(context)
         # Start an HTTP server, required by XML-RPC
         with use_ipopo(context) as ipopo:
@@ -135,7 +137,6 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
 
 
 class EtcdDiscoveryListenerTest(unittest.TestCase):
-
     def setUp(self):
         """
         Starts a framework in separate process to advertise a helloimpl
@@ -161,6 +162,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
                 "etcd.toppath": TEST_ETCD_TOPPATH,
             },
         )
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
         # Start the framework and return TestEndpointEventListener
         context = self.framework.get_bundle_context()
@@ -285,7 +287,6 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
 
 
 class EtcdDiscoveryPublishTest(unittest.TestCase):
-
     def setUp(self):
         """
         Prepares a framework
@@ -307,6 +308,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
                 "etcd.toppath": TEST_ETCD_TOPPATH,
             },
         )
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
 
         context = self.framework.get_bundle_context()

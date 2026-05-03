@@ -6,6 +6,7 @@ Tests the RSA discovery provider
 :author: Scott Lewis
 """
 
+import importlib.util
 import json
 import unittest
 from typing import Any, TypeVar
@@ -36,6 +37,12 @@ from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent
 from pelix.rsa.topologymanagers import TopologyManager
 from tests.utilities import WrappedProcess
+
+try:
+    assert importlib.util.find_spec("grpc") is not None
+except Exception:
+    raise unittest.SkipTest("grpc library not available")
+
 
 TEST_ETCD_HOSTNAME = "localhost"
 TEST_ETCD_TOPPATH = (
@@ -92,12 +99,14 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
                 {"pelix.http.address": "localhost", "pelix.http.port": 0},
             )
         from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+
         instantiate_basic_topology_manager(bc)
         # instantiate and connect etcd3 discovery
         from pelix.rsa.providers.discovery.etcd3 import instantiate_etcd3_discovery_provider
-        instantiate_etcd3_discovery_provider(bc,
-                {"etcd.hostname": TEST_ETCD_HOSTNAME, \
-                 "etcd.top_key": TEST_ETCD_TOPPATH})
+
+        instantiate_etcd3_discovery_provider(
+            bc, {"etcd.hostname": TEST_ETCD_HOSTNAME, "etcd.top_key": TEST_ETCD_TOPPATH}
+        )
 
         svc_ref = bc.get_service_reference(RemoteServiceAdmin, None)
         assert svc_ref is not None
@@ -129,7 +138,6 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
 
 
 class EtcdDiscoveryListenerTest(unittest.TestCase):
-
     def setUp(self):
         """
         Starts a local framework to register the
@@ -148,15 +156,17 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
             ],
             {},
         )
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
-                # Start the framework and return TestEndpointEventListener
+        # Start the framework and return TestEndpointEventListener
         context = self.framework.get_bundle_context()
 
         # start etcd3 discovery service client
         from pelix.rsa.providers.discovery.etcd3 import instantiate_etcd3_discovery_provider
-        instantiate_etcd3_discovery_provider(context,
-                {"etcd.hostname": TEST_ETCD_HOSTNAME, \
-                 "etcd.top_key": TEST_ETCD_TOPPATH})
+
+        instantiate_etcd3_discovery_provider(
+            context, {"etcd.hostname": TEST_ETCD_HOSTNAME, "etcd.top_key": TEST_ETCD_TOPPATH}
+        )
 
         with use_ipopo(context) as ipopo:
             #  create endpoint event listener
@@ -281,7 +291,6 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
 
 
 class EtcdDiscoveryPublishTest(unittest.TestCase):
-
     def setUp(self):
         """
         Prepares a framework
@@ -300,6 +309,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
                 "ecf.xmlrpc.server.hostname": "localhost",
             },
         )
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
 
         context = self.framework.get_bundle_context()
@@ -311,9 +321,14 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
                 {"pelix.http.address": "localhost", "pelix.http.port": 0},
             )
         from pelix.rsa.providers.discovery.etcd3 import instantiate_etcd3_discovery_provider
-        instantiate_etcd3_discovery_provider(context, {"etcd.hostname": TEST_ETCD_HOSTNAME,
-                 "etcd.top_key": TEST_ETCD_TOPPATH,
-                 })
+
+        instantiate_etcd3_discovery_provider(
+            context,
+            {
+                "etcd.hostname": TEST_ETCD_HOSTNAME,
+                "etcd.top_key": TEST_ETCD_TOPPATH,
+            },
+        )
         self.advertiser = None
         self.rsa = None
         self.svc_reg = None
@@ -421,7 +436,10 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         # test for existence of ep id key
         ed_val = adv._get_value(ep_key)
         ep_dict = json.loads(ed_val)
-        self.assertTrue(ep_dict['location'].startswith('ecfosgisvc'), 'retrieved endpoing does not have proper location field')
+        self.assertTrue(
+            ep_dict["location"].startswith("ecfosgisvc"),
+            "retrieved endpoing does not have proper location field",
+        )
         # get advertised endpoints
         eps = adv.get_advertised_endpoints()
         # should be of length 1

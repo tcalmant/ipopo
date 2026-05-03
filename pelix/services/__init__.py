@@ -25,7 +25,7 @@ Pelix OSGi-like services packages
     limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Protocol, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Protocol, Union
 
 from pelix.constants import Specification
 

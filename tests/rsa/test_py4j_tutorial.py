@@ -6,9 +6,11 @@ Tests the RSA Py4J provider, using the tutorial
 :author: Thomas Calmant
 """
 
+import importlib.util
 import io
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tarfile
@@ -23,15 +25,13 @@ from pelix.framework import create_framework
 from pelix.internals.registry import ServiceReference
 
 try:
-    import osgiservicebridge
-except ImportError:
-    unittest.skip("OSGi Service Bridge not available")
-
-unittest.skip("Skipping Py4J tests due to issues with Karaf not starting correctly")
+    assert importlib.util.find_spec("osgiservicebridge") is not None
+except Exception:
+    raise unittest.SkipTest("OSGi Service Bridge not available")
 
 # ------------------------------------------------------------------------------
 
-KARAF_URL = "https://archive.apache.org/dist/karaf/4.4.6/apache-karaf-4.4.6.tar.gz"
+KARAF_URL = "https://archive.apache.org/dist/karaf/4.4.11/apache-karaf-4.4.11.tar.gz"
 
 __version_info__ = (3, 1, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -39,7 +39,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # ------------------------------------------------------------------------------
 
 
-def install_karaf(folder_str: Optional[str]=None) -> pathlib.Path:
+def install_karaf(folder_str: Optional[str] = None) -> pathlib.Path:
     """
     Downloads & decompress Karaf tar file
 
@@ -76,10 +76,10 @@ def install_karaf(folder_str: Optional[str]=None) -> pathlib.Path:
 
                 def safe_extract(
                     tar: tarfile.TarFile,
-                    path: str=".",
-                    members: Optional[Iterable[tarfile.TarInfo]]=None,
+                    path: str = ".",
+                    members: Optional[Iterable[tarfile.TarInfo]] = None,
                     *,
-                    numeric_owner: bool=False
+                    numeric_owner: bool = False,
                 ) -> None:
                     for member in tar.getmembers():
                         member_path = os.path.join(path, member.name)
@@ -102,7 +102,7 @@ def install_karaf(folder_str: Optional[str]=None) -> pathlib.Path:
             return folder
 
 
-def find_karaf_root(folder: Optional[pathlib.Path]=None) -> pathlib.Path:
+def find_karaf_root(folder: Optional[pathlib.Path] = None) -> pathlib.Path:
     """
     Looks for the Karaf root folder in the given directory
 
@@ -154,7 +154,7 @@ def start_karaf(karaf_root: pathlib.Path) -> Generator[subprocess.Popen, None, N
             karaf = None
 
 
-def wait_for_prompt(process: subprocess.Popen, prompt: str="karaf@root()>") -> None:
+def wait_for_prompt(process: subprocess.Popen, prompt: str = "karaf@root()>") -> None:
     """
     Reads the stdout of a process until a prompt is seen
 
@@ -199,6 +199,38 @@ def use_karaf() -> Generator[subprocess.Popen, None, None]:
     A context that prepares a Karaf installation before giving the hand
     """
     karaf_dir = os.environ.get("KARAF_DIR")
+    java_home = os.environ.get("JAVA_HOME")
+
+    # Check Java version
+    if java_home:
+        java_bin = os.path.join(java_home, "bin", "java" if os.name != "nt" else "java.exe")
+    else:
+        java_bin = "java"
+
+    try:
+        version_output = subprocess.run(
+            [java_bin, "-version"],
+            capture_output=True,
+        )
+        assert version_output.returncode == 0, "Java is not installed or not working"
+
+        match = re.search(r'version "(?P<version>\d+)\.\d+', version_output.stderr.decode("utf-8"))
+        if match:
+            major_version = int(match.group("version"))
+            if major_version < 11:
+                raise unittest.SkipTest(
+                    "Java version is too old ({}), need at least Java 11".format(major_version)
+                )
+            elif major_version > 21:
+                raise unittest.SkipTest(
+                    "Java version is too new ({}), need at most Java 21".format(major_version)
+                )
+        else:
+            raise unittest.SkipTest("Can't determine Java version")
+    except OSError:
+        raise unittest.SkipTest("Java is not installed.")
+    except AssertionError as e:
+        raise unittest.SkipTest(str(e))
 
     # Start Karaf
     start = time.time()
@@ -237,6 +269,7 @@ def use_karaf() -> Generator[subprocess.Popen, None, None]:
             except Exception as e:
                 print("Error while exiting Karaf:", e)
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -244,23 +277,6 @@ class Py4JTutorialTest(unittest.TestCase):
     """
     Tests the Py4J Tutorial
     """
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """
-        Preliminary checks
-        """
-        # Check if Java is installed
-        try:
-            java = subprocess.Popen(
-                ["java -version"],
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-            )
-            java.wait()
-        except OSError:
-            raise unittest.SkipTest("Java is not installed.")
 
     def test_service_import(self) -> None:
         """
@@ -280,12 +296,14 @@ class Py4JTutorialTest(unittest.TestCase):
                 bundles,
                 {"ecf.py4j.javaport": 25333, "ecf.py4j.pythonport": 25334},
             )
+            self.addCleanup(fw.delete, True)
 
             try:
                 fw.start()
                 bc = fw.get_bundle_context()
 
                 from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+
                 instantiate_basic_topology_manager(bc)
 
                 for _ in range(10):

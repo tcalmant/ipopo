@@ -33,6 +33,7 @@ class EdefIOTest(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(["pelix.ipopo.core"])
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
 
         # Register an exported service
@@ -156,6 +157,7 @@ class BeansTest(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(["pelix.ipopo.core"])
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
 
         # Register an exported service

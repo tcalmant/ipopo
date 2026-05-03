@@ -625,7 +625,6 @@ class CountdownEvent:
 # ------------------------------------------------------------------------------
 
 
-
 def str2bool(value: Optional[str]) -> bool:
     """
     Translates a string to a boolean.
@@ -657,12 +656,12 @@ def get_log_level(level: str | int) -> int | None:
     except AttributeError:
         # Fallback for older Python versions
         return {
-            'CRITICAL': logging.CRITICAL,
-            'FATAL': logging.FATAL,
-            'ERROR': logging.ERROR,
-            'WARN': logging.WARNING,
-            'WARNING': logging.WARNING,
-            'INFO': logging.INFO,
-            'DEBUG': logging.DEBUG,
-            'NOTSET': logging.NOTSET,
+            "CRITICAL": logging.CRITICAL,
+            "FATAL": logging.FATAL,
+            "ERROR": logging.ERROR,
+            "WARN": logging.WARNING,
+            "WARNING": logging.WARNING,
+            "INFO": logging.INFO,
+            "DEBUG": logging.DEBUG,
+            "NOTSET": logging.NOTSET,
         }.get(level.upper(), None)

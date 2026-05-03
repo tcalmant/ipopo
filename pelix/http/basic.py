@@ -661,7 +661,9 @@ class HttpServiceImpl(http.HTTPService):
         """
         return sorted(self._servlets)
 
-    def get_servlet(self, path: Optional[str]) -> Optional[Tuple[http.Servlet, Dict[str, Any], str, http.ServletType]]:
+    def get_servlet(
+        self, path: Optional[str]
+    ) -> Optional[Tuple[http.Servlet, Dict[str, Any], str, http.ServletType]]:
         """
         Retrieves the servlet matching the given path and its parameters.
         Returns None if no servlet matches the given path.

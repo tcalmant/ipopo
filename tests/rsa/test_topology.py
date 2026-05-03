@@ -40,6 +40,7 @@ class TopologyManagerTest(unittest.TestCase):
             ],
             {"ecf.xmlrpc.server.hostname": "localhost"},
         )
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
 
         # Get the RSA service
@@ -70,6 +71,7 @@ class TopologyManagerTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
         context.install_bundle("pelix.rsa.topologymanagers.basic").start()
         from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+
         instantiate_basic_topology_manager(context)
         # Register a service to be exported
         spec = "test.svc"

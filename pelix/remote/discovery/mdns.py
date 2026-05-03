@@ -210,7 +210,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
 
     @staticmethod
     def _deserialize_properties(
-        props: Dict[Union[str, bytes], Optional[Union[str, bytes]]]
+        props: Dict[Union[str, bytes], Optional[Union[str, bytes]]],
     ) -> Dict[str, Any]:
         """
         Converts properties values into their type

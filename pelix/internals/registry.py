@@ -81,11 +81,9 @@ __docformat__ = "restructuredtext en"
 
 
 class ServiceFactory(Protocol):
-    def get_service(self, bundle: "Bundle", service_registration: "ServiceRegistration[T]") -> T:
-        ...
+    def get_service(self, bundle: "Bundle", service_registration: "ServiceRegistration[T]") -> T: ...
 
-    def unget_service(self, bundle: "Bundle", service_registration: "ServiceRegistration[T]") -> T:
-        ...
+    def unget_service(self, bundle: "Bundle", service_registration: "ServiceRegistration[T]") -> T: ...
 
 
 class PrototypeServiceFactory(ServiceFactory, Protocol):
@@ -95,8 +93,7 @@ class PrototypeServiceFactory(ServiceFactory, Protocol):
 
     def unget_service_instance(
         self, bundle: "Bundle", service_registration: "ServiceRegistration[T]", service: T
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 # ------------------------------------------------------------------------------
@@ -883,7 +880,7 @@ class EventDispatcher:
             try:
                 listener.framework_stopping()
             except:
-                self._logger.exception("An error occurred calling one of the " "framework stop listeners")
+                self._logger.exception("An error occurred calling one of the framework stop listeners")
 
     def fire_service_event(self, event: ServiceEvent[Any]) -> None:
         """

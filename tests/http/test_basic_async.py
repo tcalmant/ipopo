@@ -6,6 +6,7 @@ Pelix async HTTP service test module.
 :author: Thomas Calmant
 """
 
+import importlib.util
 import logging
 import unittest
 from typing import cast
@@ -13,6 +14,11 @@ from typing import cast
 import pelix.http as http
 import tests.http.test_basic as basic_tests
 from tests.http.utils import ASYNC_SERVLET_FACTORY, SIMPLE_SERVLET_FACTORY
+
+try:
+    assert importlib.util.find_spec("aiohttp") is not None
+except Exception:
+    raise unittest.SkipTest("aiohttp library not available")
 
 # ------------------------------------------------------------------------------
 

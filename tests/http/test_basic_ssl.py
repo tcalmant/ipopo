@@ -16,10 +16,17 @@ import pelix.http as http
 from pelix.framework import Framework, FrameworkFactory
 from pelix.ipopo.constants import IPopoService
 from tests.http.gen_cert import make_certs
-from tests.http.utils import get_file, get_tmp_dir, install_bundle, install_ipopo, instantiate_server, kill_server
+from tests.http.utils import (
+    get_file,
+    get_tmp_dir,
+    install_bundle,
+    install_ipopo,
+    instantiate_server,
+    kill_server,
+)
 
 try:
-    from ssl import SSLContext, create_default_context
+    from ssl import SSLContext, create_default_context  # noqa: F401
 except ImportError:
     raise unittest.SkipTest("SSLContext not supported")
 
@@ -108,6 +115,7 @@ class BasicHTTPSTest(unittest.TestCase):
         """
         # Start a framework
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         # Install iPOPO

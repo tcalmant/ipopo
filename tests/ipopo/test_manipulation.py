@@ -80,6 +80,7 @@ class ManipulatedClassTest(unittest.TestCase):
         """
         # Start the framework
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
         ipopo = install_ipopo(self.framework)
         module = install_bundle(self.framework)
@@ -120,6 +121,7 @@ class ManipulatedClassTest(unittest.TestCase):
         """
         # Start the framework
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
         ipopo = install_ipopo(self.framework)
 

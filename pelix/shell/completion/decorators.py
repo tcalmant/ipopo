@@ -26,6 +26,7 @@ Defines the decorators associated shell completion handlers to a shell function
     limitations under the License.
 """
 
+import importlib.util
 from typing import List, TypeVar
 
 from . import ATTR_COMPLETERS, CompletionInfo
@@ -33,9 +34,7 @@ from . import ATTR_COMPLETERS, CompletionInfo
 try:
     # Everything here relies on readline
     # pylint: disable=W0611
-    import readline
-
-    HAS_READLINE = True
+    HAS_READLINE = importlib.util.find_spec("readline") is not None
 except ImportError:
     HAS_READLINE = False
 

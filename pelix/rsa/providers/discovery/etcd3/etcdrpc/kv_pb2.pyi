@@ -1,7 +1,11 @@
-from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
+from typing import ClassVar as _ClassVar
+from typing import Mapping as _Mapping
+from typing import Optional as _Optional
+from typing import Union as _Union
+
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -19,7 +23,15 @@ class KeyValue(_message.Message):
     version: int
     value: bytes
     lease: int
-    def __init__(self, key: _Optional[bytes] = ..., create_revision: _Optional[int] = ..., mod_revision: _Optional[int] = ..., version: _Optional[int] = ..., value: _Optional[bytes] = ..., lease: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        key: _Optional[bytes] = ...,
+        create_revision: _Optional[int] = ...,
+        mod_revision: _Optional[int] = ...,
+        version: _Optional[int] = ...,
+        value: _Optional[bytes] = ...,
+        lease: _Optional[int] = ...,
+    ) -> None: ...
 
 class Event(_message.Message):
     __slots__ = ("type", "kv", "prev_kv")
@@ -27,6 +39,7 @@ class Event(_message.Message):
         __slots__ = ()
         PUT: _ClassVar[Event.EventType]
         DELETE: _ClassVar[Event.EventType]
+
     PUT: Event.EventType
     DELETE: Event.EventType
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -35,4 +48,9 @@ class Event(_message.Message):
     type: Event.EventType
     kv: KeyValue
     prev_kv: KeyValue
-    def __init__(self, type: _Optional[_Union[Event.EventType, str]] = ..., kv: _Optional[_Union[KeyValue, _Mapping]] = ..., prev_kv: _Optional[_Union[KeyValue, _Mapping]] = ...) -> None: ...
+    def __init__(
+        self,
+        type: _Optional[_Union[Event.EventType, str]] = ...,
+        kv: _Optional[_Union[KeyValue, _Mapping]] = ...,
+        prev_kv: _Optional[_Union[KeyValue, _Mapping]] = ...,
+    ) -> None: ...

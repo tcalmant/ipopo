@@ -18,13 +18,13 @@ from tests import log_off, log_on
 from tests.http.utils import (
     DEFAULT_HOST,
     SIMPLE_SERVLET_FACTORY,
+    TestServlet,
     ensure_get_servlet,
     get_http_code,
     install_bundle,
     install_ipopo,
     instantiate_server,
     kill_server,
-    TestServlet,
 )
 
 # ------------------------------------------------------------------------------
@@ -61,6 +61,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         """
         # Start a framework
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         # Install iPOPO
@@ -459,6 +460,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         """
         # Start a framework
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         # Install iPOPO

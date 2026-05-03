@@ -105,9 +105,7 @@ if os.name == "nt":
             size = ctypes.c_int(ctypes.sizeof(sockaddr_in6))
 
             # Second call
-            result = winsock.WSAStringToAddressA(
-                addr_ptr, family, 0, ctypes.byref(out_address), ctypes.byref(size)
-            )
+            winsock.WSAStringToAddressA(addr_ptr, family, 0, ctypes.byref(out_address), ctypes.byref(size))
             return bytearray(out_address.sin6_addr)
         else:
             raise ValueError(f"Unhandled socket family: {family}")

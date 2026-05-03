@@ -97,6 +97,7 @@ class ContextsTests(unittest.TestCase):
         Called before each test. Initiates a framework.
         """
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
         self.ipopo_bundle = install_bundle(self.framework, "pelix.ipopo.core")
 
