@@ -1,4 +1,4 @@
-(rsa_tutorial_xmlrpc)=
+(rsa_tutorial_etcd3)=
 
 # Using Etcd3 Endpoint Discovery
 
@@ -8,65 +8,78 @@ Scott Lewis, Thomas Calmant
 
 ## Introduction
 
-This tutorial shows how to use an etd3 server to advertise remote service endpoints via a [OSGI-specified meta-data format called an endpoint description](https://docs.osgi.org/specification/osgi.cmpn/7.0.0/service.remoteserviceadmin.html#service.remoteserviceadmin.endpointdescription).
-A discovery provider can advertise 'endpoint descriptions' on remote service export, and immediately discovered and imported by a consumer process
-to use/consume that remote service.
+This tutorial shows how to use an etcd3 server to advertise remote service
+endpoints via an [OSGi-specified metadata format called an endpoint description](https://docs.osgi.org/specification/osgi.cmpn/7.0.0/service.remoteserviceadmin.html#service.remoteserviceadmin.endpointdescription).
+A discovery provider can advertise endpoint descriptions when a remote service
+is exported, so that consumer processes can discover and import that service.
 
-A popular industry service discovery protocol used in [kubernetes](https://kubernetes.io/) is
-[etcd3](https://github.com/etcd-io/etcd).  ipopo has an etcd3 endpoint discovery
+A popular industry service discovery protocol used in [Kubernetes](https://kubernetes.io/) is
+[etcd3](https://github.com/etcd-io/etcd). iPOPO has an etcd3 endpoint discovery
 client provider available in the [pelix.rsa.providers.discovery.etcd3](https://github.com/tcalmant/ipopo/blob/v3/pelix/rsa/providers/discovery/etcd3/__init__.py)
-module.  This etcd3 client discovery provider uses the etd3 protocol to advertise and discovery endpoint descriptions.
+module. This discovery provider uses etcd3 to advertise and discover endpoint
+descriptions.
 
-The use of this provider for running this tutorial requires a configured and running [etcd3](https://github.com/etcd-io/etcd) server
-for the discovery client provider to connect to. Without any custom config, the default hostname and port for etcd3 servers are etcd.hostname=localhost and etcd.port=2379, and 
-these are the defaults in the etcd3 discovery provider (along with other configuration properties) documented [here](https://github.com/tcalmant/ipopo/blob/v3/pelix/rsa/providers/discovery/etcd3/__init__.py#L82).
+Using this provider in the tutorial requires a configured and running
+[etcd3](https://github.com/etcd-io/etcd) server for the discovery client
+provider to connect to. Without custom configuration, the default connection
+properties are `etcd.hostname=localhost` and `etcd.port=2379`. These defaults,
+along with the other supported properties, are documented [in the provider module](https://github.com/tcalmant/ipopo/blob/v3/pelix/rsa/providers/discovery/etcd3/__init__.py#L82).
 
 ## Requirements
 
-This tutorial sample requires Python 3.10+, and version 3.0.0+ of iPOPO.
+This tutorial sample requires Python 3.10+ and iPOPO 3.x.
 
 ## Using Etcd3 to Advertise an Endpoint Description
 
 The sample program `samples.run_rsa_etcd3_xmlrpc_impl` (remote service implementation/server, using etcd3 discovery and xmlrpc distribution) contains the following [set of bundles](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L60))
 
 ```
-    bundles = (
-        "pelix.ipopo.core",
-        "pelix.shell.core",
-        "pelix.shell.ipopo",
-        "pelix.shell.console",
-        # RSA implementation
-        "pelix.rsa.remoteserviceadmin",
-        # topology manager 
-        "pelix.rsa.topologymanagers.basic",
-        # etcd3 discovery  
-        "pelix.rsa.providers.discovery.etcd3",
-        # HTTP Service
-        "pelix.http.basic",
-        # XML-RPC distribution provider (opt)
-        "pelix.rsa.providers.distribution.xmlrpc",
-        # RSA shell commands (opt)
-        "pelix.rsa.shell",
-    )
+bundles = (
+    "pelix.ipopo.core",
+    "pelix.shell.core",
+    "pelix.shell.ipopo",
+    "pelix.shell.console",
+    # RSA implementation
+    "pelix.rsa.remoteserviceadmin",
+    # topology manager
+    "pelix.rsa.topologymanagers.basic",
+    # etcd3 discovery
+    "pelix.rsa.providers.discovery.etcd3",
+    # HTTP Service
+    "pelix.http.basic",
+    # XML-RPC distribution provider (opt)
+    "pelix.rsa.providers.distribution.xmlrpc",
+    # RSA shell commands (opt)
+    "pelix.rsa.shell",
+)
 ```
 
-After starting the framework and creating a basic topology manager, the etcd3 endpoint discovery service is [configured and connected by specifying the etcd.hostname, etcd.por, etcd.connected_callbackt and started](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L88)
+After starting the framework and creating a basic topology manager, the etcd3
+endpoint discovery service is [configured and connected by specifying `etcd.hostname`, `etcd.port` and `etcd.connected_callback`, then started](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L88)
 
-```
-    # start etcd3 discovery service client now that the basic_topology_manager is running
-    from pelix.rsa.providers.discovery.etcd3 import ETCD_HOSTNAME_PROP, \
-        ETCD_PORT_PROP, ETCD_CONNECTED_CALLBACK_PROP
-    instantiate_etcd3_discovery_provider(context,
-                                         {ETCD_HOSTNAME_PROP: ETCD_HOSTNAME,
-                                          ETCD_PORT_PROP: ETCD_PORT,
-                                          ETCD_CONNECTED_CALLBACK_PROP: connected_cb})
+```python
+# start etcd3 discovery service client now that the basic_topology_manager is running
+from pelix.rsa.providers.discovery.etcd3 import (
+    ETCD_HOSTNAME_PROP,
+    ETCD_PORT_PROP,
+    ETCD_CONNECTED_CALLBACK_PROP,
+)
+
+instantiate_etcd3_discovery_provider(
+    context,
+    {
+        ETCD_HOSTNAME_PROP: ETCD_HOSTNAME,
+        ETCD_PORT_PROP: ETCD_PORT,
+        ETCD_CONNECTED_CALLBACK_PROP: connected_cb,
+    },
+)
 ```
 
 Once the etcd3 component is instantiated and connected to the etcd3 server, the example [starts the helloworld_xmlrpc bundle](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_etcd3_xmlrpc_impl.py#L101), which
-will instantiate a helloworld impl remote service, and trigger the rsa distribution to export, and the creation 
-and advertisement via etcd3 of an endpoint description.  Other clients
-connected to this etdc3 server will be notified of the new endpoint, and have the opportunity to import a proxy
-and use the IHello service.
+will instantiate a hello world remote service, trigger RSA export and create
+an endpoint description advertised via etcd3. Other clients connected to this
+etcd3 server will be notified of the new endpoint, and will have the
+opportunity to import a proxy and use the `IHello` service.
 
 ## Running the Exporter/Advertiser Sample App
 
@@ -80,7 +93,7 @@ INFO:http-server:Starting HTTP server: [127.0.0.1]:8181 ...
 DEBUG:grpc._cython.cygrpc:Using AsyncIOEngine.POLLER as I/O engine
 INFO:http-server:HTTP server started: [127.0.0.1]:8181
 DEBUG:pelix.rsa.providers.discovery.etcd3:CONNECTED etcd3 session_id=4469111c-91c2-4dba-b64f-750d14243fda to host=localhost port=2379
-Etcd3 connected!  <-- this is provided via the connected_cb callback function 
+Etcd3 connected!  <-- this is provided via the connected_cb callback function
 $ sl org.eclipse.ecf.examples.hello.IHello
 +----+-------------------------------------------+--------------------------------------------------+---------+
 | ID |              Specifications               |                      Bundle                      | Ranking |
