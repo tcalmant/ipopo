@@ -3,8 +3,11 @@ from _thread import RLock
 from threading import Thread
 from typing import Annotated, Any, Callable, List
 
+from mcp.server.auth.provider import OAuthAuthorizationServerProvider
 from mcp.server.fastmcp.exceptions import InvalidSignature
-from mcp.server.fastmcp.server import FastMCP
+from mcp.server.fastmcp.prompts import PromptManager
+from mcp.server.fastmcp.resources import ResourceManager
+from mcp.server.fastmcp.server import FastMCP, Settings, lifespan_wrapper
 from mcp.server.fastmcp.tools.base import Tool
 from mcp.server.fastmcp.tools.tool_manager import ToolManager
 from mcp.server.fastmcp.utilities.func_metadata import (
@@ -12,10 +15,16 @@ from mcp.server.fastmcp.utilities.func_metadata import (
     FuncMetadata,
     _get_typed_annotation,
 )
+from mcp.server.fastmcp.utilities.logging import configure_logging
+from mcp.server.lowlevel.server import Server as MCPServer
+from mcp.server.lowlevel.server import lifespan as default_lifespan
+from mcp.server.streamable_http import EventStore
+from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from mcp.types import ToolAnnotations
 from pydantic import Field, WithJsonSchema, create_model
 from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
+from starlette.routing import Route
 
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference
@@ -128,18 +137,6 @@ class RemoteToolManager(ToolManager):
             return self._tools.pop(name, None)
 
 
-from mcp.server.auth.provider import OAuthAuthorizationServerProvider
-from mcp.server.fastmcp.prompts import PromptManager
-from mcp.server.fastmcp.resources import ResourceManager
-from mcp.server.fastmcp.server import Settings, lifespan_wrapper
-from mcp.server.fastmcp.utilities.logging import configure_logging
-from mcp.server.lowlevel.server import Server as MCPServer
-from mcp.server.lowlevel.server import lifespan as default_lifespan
-from mcp.server.streamable_http import EventStore
-from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
-from starlette.routing import Route
-
-
 # Subclass of FastMCP server.  Subclassing allows adding of add_tools_from_service
 # and remove_tools_from_service, which are methods that dynamically adds and remove
 # remote tools, implemented in Java as OSGi remote services
@@ -219,7 +216,7 @@ class RemoteToolFastMCP(FastMCP):
 # annotation will be called.  This corresponds to the fully qualified name of the java
 # interface located here:
 # https://github.com/ECF/Py4j-RemoteServicesProvider/blob/master/examples/org.eclipse.ecf.examples.ai.mcp.toolservice.api/src/org/eclipse/ecf/examples/ai/mcp/toolservice/api/ArithmeticTools.java
-ARITMETIC_TOOLS_SERVICE_INTERFACE = "org.eclipse.ecf.examples.ai.mcp.toolservice.api.ArithmeticTools"
+ARITHMETIC_TOOL_SERVICE_INTERFACE = "org.eclipse.ecf.examples.ai.mcp.toolservice.api.ArithmeticTools"
 
 
 # Component that is created and started by framework.  Once validated
@@ -232,7 +229,7 @@ ARITMETIC_TOOLS_SERVICE_INTERFACE = "org.eclipse.ecf.examples.ai.mcp.toolservice
 @Instantiate("remote-tools-fastmcp-server")
 @Requires(
     "_tools_services",
-    ARITMETIC_TOOLS_SERVICE_INTERFACE,
+    ARITHMETIC_TOOL_SERVICE_INTERFACE,
     True,
     True,
     None,
@@ -242,8 +239,8 @@ ARITMETIC_TOOLS_SERVICE_INTERFACE = "org.eclipse.ecf.examples.ai.mcp.toolservice
 @Property("_instructions", "remotetoolsfastmpcserver.instructions", "RemoteToolsFastMCPServer")
 class RemoteToolsFastMCPServer:
     _tools_services: List[Any]
-    _name: str | None = (None,)
-    _instructions: str | None = (None,)
+    _name: str | None = None
+    _instructions: str | None = None
 
     def __init__(self):
         self._mcp = None
@@ -260,8 +257,8 @@ class RemoteToolsFastMCPServer:
 
     @Bind
     def _bind_tool_service(self, service_proxy: Any, service_reference: ServiceReference):
-        self._mcp.add_tools_from_service(service_proxy, ARITMETIC_TOOLS_SERVICE_INTERFACE)
+        self._mcp.add_tools_from_service(service_proxy, ARITHMETIC_TOOL_SERVICE_INTERFACE)
 
     @Unbind
     def _unbind_tool_service(self, service_proxy: Any, service_reference: ServiceReference):
-        self._mcp.remove_tools_from_service(service_proxy, ARITMETIC_TOOLS_SERVICE_INTERFACE)
+        self._mcp.remove_tools_from_service(service_proxy, ARITHMETIC_TOOL_SERVICE_INTERFACE)
