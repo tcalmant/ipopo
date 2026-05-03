@@ -69,7 +69,6 @@ class DummyEventHandler(pelix.services.ServiceEventHandler):
 
 
 class EventAdminShellTest(unittest.TestCase):
-
     """
     Tests the EventAdmin shell commands
     """

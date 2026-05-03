@@ -109,7 +109,7 @@ class PackagesTest(unittest.TestCase):
             expected.remove(os.path.splitext(os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. " "Remaining: {}".format(expected))
+            self.fail("All bundles should have been installed. Remaining: {}".format(expected))
 
     def test_install_recursive(self):
         """
@@ -131,7 +131,7 @@ class PackagesTest(unittest.TestCase):
             expected.remove(os.path.splitext(os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. " "Remaining: {}".format(expected))
+            self.fail("All bundles should have been installed. Remaining: {}".format(expected))
 
     def test_install_fail(self):
         """
@@ -163,7 +163,7 @@ class PackagesTest(unittest.TestCase):
             expected.remove(os.path.splitext(os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. " "Remaining: {}".format(expected))
+            self.fail("All bundles should have been installed. Remaining: {}".format(expected))
 
     def test_install_fail_recursive(self):
         """
@@ -195,7 +195,7 @@ class PackagesTest(unittest.TestCase):
             expected.remove(os.path.splitext(os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. " "Remaining: {}".format(expected))
+            self.fail("All bundles should have been installed. Remaining: {}".format(expected))
 
     def test_first_install_fail(self):
         """

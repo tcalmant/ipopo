@@ -9,7 +9,7 @@ Test package for iPOPO
 from types import ModuleType
 
 from pelix.framework import Framework
-from pelix.ipopo.constants import get_ipopo_svc_ref, IPopoService
+from pelix.ipopo.constants import IPopoService, get_ipopo_svc_ref
 
 # ------------------------------------------------------------------------------
 

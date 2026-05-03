@@ -36,7 +36,6 @@ def wait_for_service(framework, svc_name, timeout=5.0):
 
 
 class WebSocketTestCase(unittest.TestCase):
-
     http_server: http.HTTPService
     handler: http.WebSocketHandler | None = None
     ws_url: str

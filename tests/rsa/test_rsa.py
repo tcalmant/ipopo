@@ -177,7 +177,7 @@ class RSABasicFeatures(unittest.TestCase):
             import_reg = self.rsa.import_service(parsed_endpoint)
             if import_reg:
                 exp = import_reg.get_exception()
-                endpoint_desc = import_reg.get_description()
+                _ = import_reg.get_description()
 
                 if exp:
                     self.fail("Error importing service: {}".format(exp))

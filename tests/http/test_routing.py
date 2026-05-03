@@ -19,12 +19,12 @@ from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse
 from pelix.ipopo.constants import IPopoService
 from pelix.utilities import to_str
 from tests.http.utils import (
+    DEFAULT_HOST,
     get_http_code,
     get_http_page,
     install_ipopo,
     instantiate_server,
     kill_server,
-    DEFAULT_HOST,
 )
 
 # ------------------------------------------------------------------------------

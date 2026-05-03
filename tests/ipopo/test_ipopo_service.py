@@ -225,7 +225,6 @@ class IPopoServiceTest(unittest.TestCase):
             pass
 
         class Listener(object):
-
             """
             iPOPO event listener
             """

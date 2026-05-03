@@ -112,7 +112,7 @@ class InstantiateTest(unittest.TestCase):
 
         self.assertFalse(
             self.ipopo.is_registered_instance(name),
-            "Instance registered while the bundle has been " "stopped",
+            "Instance registered while the bundle has been stopped",
         )
 
         # Ensure the service has been unregistered properly

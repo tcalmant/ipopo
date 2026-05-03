@@ -223,7 +223,8 @@ class LDAPUtilitiesTest(unittest.TestCase):
         # No filter given
         for empty in (None, [], tuple(), (None, None, None)):  # type: ignore
             self.assertIsNone(
-                pelix.ldapfilter.combine_filters(empty), "Can't combine an empty list of filters"  # type: ignore
+                pelix.ldapfilter.combine_filters(empty),
+                "Can't combine an empty list of filters",  # type: ignore
             )
 
         # Invalid types
@@ -447,19 +448,13 @@ class LDAPCriteriaTest(unittest.TestCase):
         assert ldap_filter is not None
 
         props["count"] = 0
-        self.assertTrue(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}"
-        )
+        self.assertTrue(ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}")
 
         props["count"] = "0"
-        self.assertTrue(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}"
-        )
+        self.assertTrue(ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}")
 
         props["count"] = 1
-        self.assertFalse(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}"
-        )
+        self.assertFalse(ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}")
 
         # Direct construction with 0 integer
         criteria = pelix.ldapfilter.LDAPCriteria("count", 0, pelix.ldapfilter._comparator_eq)

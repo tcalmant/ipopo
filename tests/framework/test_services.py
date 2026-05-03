@@ -95,7 +95,7 @@ class ServicesTest(unittest.TestCase):
         refs = context.get_all_service_references(IEchoService, svc_filter)
 
         # Assert we found only one reference
-        self.assertIsNotNone(refs, "get_all_service_reference filtered " "found nothing")
+        self.assertIsNotNone(refs, "get_all_service_reference filtered found nothing")
 
         # Assert that the first found reference is the first of "all"
         # references

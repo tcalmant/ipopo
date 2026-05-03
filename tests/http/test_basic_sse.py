@@ -20,7 +20,6 @@ from tests.http.utils import async_test
 
 
 class SSETestCase(unittest.TestCase):
-
     SSE_ENDPOINT = "/sse"
     SSE_PORT = 8081
 

@@ -285,7 +285,7 @@ class BundlesTest(unittest.TestCase):
         self.assertRaises(BundleException, self.framework.get_bundle_by_id, bid)
 
         found_bundle = self.framework.get_bundle_by_name(self.test_bundle_name)
-        self.assertIsNone(found_bundle, "Bundle is still accessible by name " "through the framework")
+        self.assertIsNone(found_bundle, "Bundle is still accessible by name through the framework")
 
     def testUpdate(self):
         """

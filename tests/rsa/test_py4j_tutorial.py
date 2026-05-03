@@ -6,6 +6,7 @@ Tests the RSA Py4J provider, using the tutorial
 :author: Thomas Calmant
 """
 
+import importlib.util
 import io
 import os
 import pathlib
@@ -23,8 +24,8 @@ from pelix.framework import create_framework
 from pelix.internals.registry import ServiceReference
 
 try:
-    import osgiservicebridge
-except ImportError:
+    assert importlib.util.find_spec("osgiservicebridge") is not None
+except Exception:
     unittest.skip("OSGi Service Bridge not available")
 
 unittest.skip("Skipping Py4J tests due to issues with Karaf not starting correctly")
@@ -39,7 +40,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # ------------------------------------------------------------------------------
 
 
-def install_karaf(folder_str: Optional[str]=None) -> pathlib.Path:
+def install_karaf(folder_str: Optional[str] = None) -> pathlib.Path:
     """
     Downloads & decompress Karaf tar file
 
@@ -76,10 +77,10 @@ def install_karaf(folder_str: Optional[str]=None) -> pathlib.Path:
 
                 def safe_extract(
                     tar: tarfile.TarFile,
-                    path: str=".",
-                    members: Optional[Iterable[tarfile.TarInfo]]=None,
+                    path: str = ".",
+                    members: Optional[Iterable[tarfile.TarInfo]] = None,
                     *,
-                    numeric_owner: bool=False
+                    numeric_owner: bool = False,
                 ) -> None:
                     for member in tar.getmembers():
                         member_path = os.path.join(path, member.name)
@@ -102,7 +103,7 @@ def install_karaf(folder_str: Optional[str]=None) -> pathlib.Path:
             return folder
 
 
-def find_karaf_root(folder: Optional[pathlib.Path]=None) -> pathlib.Path:
+def find_karaf_root(folder: Optional[pathlib.Path] = None) -> pathlib.Path:
     """
     Looks for the Karaf root folder in the given directory
 
@@ -154,7 +155,7 @@ def start_karaf(karaf_root: pathlib.Path) -> Generator[subprocess.Popen, None, N
             karaf = None
 
 
-def wait_for_prompt(process: subprocess.Popen, prompt: str="karaf@root()>") -> None:
+def wait_for_prompt(process: subprocess.Popen, prompt: str = "karaf@root()>") -> None:
     """
     Reads the stdout of a process until a prompt is seen
 
@@ -237,6 +238,7 @@ def use_karaf() -> Generator[subprocess.Popen, None, None]:
             except Exception as e:
                 print("Error while exiting Karaf:", e)
 
+
 # ------------------------------------------------------------------------------
 
 
@@ -286,6 +288,7 @@ class Py4JTutorialTest(unittest.TestCase):
                 bc = fw.get_bundle_context()
 
                 from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+
                 instantiate_basic_topology_manager(bc)
 
                 for _ in range(10):

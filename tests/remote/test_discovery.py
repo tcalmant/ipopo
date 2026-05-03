@@ -24,6 +24,7 @@ Tests remote services discovery using the JSON-RPC transport
     limitations under the License.
 """
 
+import importlib.util
 import queue
 import threading
 import time
@@ -41,7 +42,7 @@ from tests.utilities import WrappedProcess
 try:
     # Try to import modules
     import multiprocessing
-    from multiprocessing import Process, Queue
+    from multiprocessing import Process, Queue  # noqa: F401
 
     # IronPython fails when creating a queue
     Queue()
@@ -305,8 +306,8 @@ class HttpTransportsTest(unittest.TestCase):
         Tests the mDNS/Zeroconf discovery
         """
         try:
-            import zeroconf
-        except ImportError:
+            assert importlib.util.find_spec("zeroconf") is not None
+        except Exception:
             self.skipTest("zeroconf is missing: can't test mDNS discovery")
 
         try:
@@ -322,8 +323,8 @@ class HttpTransportsTest(unittest.TestCase):
         Tests the MQTT discovery
         """
         try:
-            import paho
-        except ImportError:
+            assert importlib.util.find_spec("paho") is not None
+        except Exception:
             self.skipTest("paho is missing: can't test MQTT discovery")
 
         try:
@@ -337,8 +338,8 @@ class HttpTransportsTest(unittest.TestCase):
         Tests the Redis discovery
         """
         try:
-            import redis
-        except ImportError:
+            assert importlib.util.find_spec("redis") is not None
+        except Exception:
             self.skipTest("redis is missing: can't test Redis discovery")
 
         try:
@@ -352,8 +353,8 @@ class HttpTransportsTest(unittest.TestCase):
         Tests the ZooKeeper discovery
         """
         try:
-            import kazoo
-        except ImportError:
+            assert importlib.util.find_spec("kazoo") is not None
+        except Exception:
             self.skipTest("Kazoo is missing: can't test ZooKeeper discovery")
 
         try:

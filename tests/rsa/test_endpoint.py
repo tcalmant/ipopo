@@ -75,7 +75,7 @@ class EndpointDescriptionTests(unittest.TestCase):
         """
         # Encode
         for empty in (None, [], {}, ()):
-            self.assertEqual({}, rsa_ed.encode_list("toto", empty))
+            self.assertEqual({}, rsa_ed.encode_list("toto", empty))  # type: ignore
 
         list_ = [1, 2, 3, 4]
         res = rsa_ed.encode_list("toto", list_)
@@ -84,8 +84,8 @@ class EndpointDescriptionTests(unittest.TestCase):
 
         # Decode
         res_2 = rsa_ed.decode_list(res, "toto")
-        for l, r in zip(list_, res_2):
-            self.assertEqual(r, str(l))
+        for item, result in zip(list_, res_2):
+            self.assertEqual(result, str(item))
 
     def test_package_name(self):
         """

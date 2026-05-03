@@ -207,7 +207,8 @@ class ShellCoreTest(unittest.TestCase):
 
         # Invalid method
         self.assertFalse(
-            self.shell.register_command("test", "invalid", None), "Invalid method registered"  # type: ignore
+            self.shell.register_command("test", "invalid", None),
+            "Invalid method registered",  # type: ignore
         )
 
     def testExecute(self) -> None:
@@ -406,7 +407,6 @@ class ShellCommandTest(unittest.TestCase):
         """
 
         class CommandService(ShellCommandsProvider):
-
             """
             Command service
             """
@@ -847,7 +847,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         try:
             sys._current_frames
         except AttributeError:
-            self.skipTest("sys._current_frames() isn't supported in this " "interpreter")
+            self.skipTest("sys._current_frames() isn't supported in this interpreter")
 
         output = self._run_command("threads")
 
