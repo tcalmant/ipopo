@@ -27,8 +27,8 @@ iPOPO handlers constants and base classes
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Protocol, Tuple
-from pelix.constants import Specification
 
+from pelix.constants import Specification
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceReference
 

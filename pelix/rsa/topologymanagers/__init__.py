@@ -34,6 +34,7 @@ from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
 from pelix.internals.hooks import EventListenerHook
 from pelix.internals.registry import ServiceReference
+from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import Invalidate, Provides, Requires, Validate
 from pelix.rsa import (
     SERVICE_EXPORTED_INTERFACES,
@@ -52,7 +53,6 @@ from pelix.rsa.providers.discovery import (
     EndpointEventListener,
 )
 from pelix.services import SERVICE_EVENT_LISTENER_HOOK
-from pelix.ipopo.constants import use_ipopo
 
 # ------------------------------------------------------------------------------
 # Module version

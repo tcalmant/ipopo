@@ -26,33 +26,25 @@ Etcd Discovery Provider
     limitations under the License.
 """
 
+import asyncio
 import json
 import logging
-import threading
 import socket
-
-from typing import Any, Optional, Tuple, Iterable, Sequence, Dict
+import threading
+import uuid
 from collections.abc import Callable
+from concurrent.futures.thread import ThreadPoolExecutor
+from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
+
+import grpc
 
 from pelix.framework import BundleContext
-from pelix.ipopo.decorators import (
-    ComponentFactory,
-    Invalidate,
-    Property,
-    Provides,
-    ValidateComponent
-)
+from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, ValidateComponent
 from pelix.rsa import create_uuid
 from pelix.rsa.endpointdescription import EndpointDescription, decode_endpoint_props, encode_endpoint_props
 from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent, EndpointSubscriber
-import uuid
-import grpc
 
-from .etcdrpc import rpc_pb2
-from .etcdrpc import rpc_pb2_grpc
-
-import asyncio
-from concurrent.futures.thread import ThreadPoolExecutor
+from .etcdrpc import rpc_pb2, rpc_pb2_grpc
 
 # ------------------------------------------------------------------------------
 # Module version

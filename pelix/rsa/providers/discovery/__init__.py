@@ -30,8 +30,8 @@ import abc
 import logging
 from threading import RLock
 from typing import Any, Dict, List, Optional, Protocol, Tuple
-from pelix.constants import Specification
 
+from pelix.constants import Specification
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import BindField, Requires, UnbindField
 from pelix.rsa import get_string_plus_property_value

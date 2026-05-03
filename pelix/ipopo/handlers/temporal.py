@@ -27,13 +27,13 @@ Temporal dependency handler
 
 import threading
 from typing import Any, Callable, Dict, Generic, Iterable, Optional, Tuple, TypeVar, cast
-from pelix.framework import BundleContext
 
 import pelix.ipopo.constants as ipopo_constants
 import pelix.ipopo.handlers.constants as constants
 import pelix.ipopo.handlers.requires as requires
 import pelix.utilities as utilities
 from pelix.constants import ActivatorProto, BundleActivator
+from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo.contexts import ComponentContext, Requirement
 

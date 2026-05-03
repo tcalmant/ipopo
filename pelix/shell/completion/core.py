@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Callable, List
 
 from pelix.utilities import use_service
 
-from . import PROP_COMPLETER_ID, Completer, DUMMY
+from . import DUMMY, PROP_COMPLETER_ID, Completer
 
 try:
     import readline

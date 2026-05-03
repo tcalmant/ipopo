@@ -28,10 +28,10 @@ Pelix remote services: Abstract RPC implementation
 * "system" methods (list, help, ...)
 """
 
-from abc import abstractmethod
 import abc
 import threading
 import uuid
+from abc import abstractmethod
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import pelix.constants as constants

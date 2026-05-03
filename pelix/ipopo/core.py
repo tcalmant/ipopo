@@ -37,7 +37,7 @@ import pelix.ipopo.handlers.constants as handlers_const
 from pelix.constants import SERVICE_ID, ActivatorProto, BundleActivator, BundleException
 from pelix.framework import Bundle, BundleContext
 from pelix.internals.events import BundleEvent, ServiceEvent
-from pelix.internals.registry import ServiceRegistration, ServiceReference
+from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo.constants import IPopoEventListener, IPopoService
 from pelix.ipopo.contexts import ComponentContext, FactoryContext, Requirement
 from pelix.ipopo.instance import StoredInstance
