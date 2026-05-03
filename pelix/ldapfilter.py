@@ -859,7 +859,7 @@ def _parse_ldap(ldap_filter: str) -> Optional[Union[LDAPCriteria, LDAPFilter]]:
 
 
 def get_ldap_filter(
-    ldap_filter: Union[None, str, LDAPCriteria, LDAPFilter]
+    ldap_filter: Union[None, str, LDAPCriteria, LDAPFilter],
 ) -> Union[None, LDAPCriteria, LDAPFilter]:
     """
     Retrieves the LDAP filter object corresponding to the given filter.

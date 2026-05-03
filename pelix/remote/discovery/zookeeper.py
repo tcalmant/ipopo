@@ -428,7 +428,7 @@ class ZooKeeperDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         hostname = socket.gethostname()
         if hostname == "localhost":
             logging.warning(
-                "Hostname is '%s': this will be a problem for " "multi-host remote services",
+                "Hostname is '%s': this will be a problem for multi-host remote services",
                 hostname,
             )
 

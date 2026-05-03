@@ -107,7 +107,11 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
 
     def __init__(self) -> None:
         import warnings
-        warnings.warn("etcd2 is no longer in common usage.  Use pelix.rsa.providers.discovery.etcd3 instead", DeprecationWarning)
+
+        warnings.warn(
+            "etcd2 is no longer in common usage.  Use pelix.rsa.providers.discovery.etcd3 instead",
+            DeprecationWarning,
+        )
 
         EndpointAdvertiser.__init__(self)
         EndpointSubscriber.__init__(self)
@@ -269,7 +273,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         return int(self._session_ttl - (self._session_ttl / 10))
 
     def _handle_add_dir(self, dir_node: etcd.EtcdResult) -> None:
-        sessionid = dir_node.key[len(self._top_path) + 1:]
+        sessionid = dir_node.key[len(self._top_path) + 1 :]
         _logger.debug("_handle_add_dir sessionid=%s", sessionid)
         self._handle_add_nodes(
             sessionid,
@@ -360,7 +364,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                         return
                 else:
                     # split id into [sessionid] or [sessionid,endpointid]
-                    splitid = key[len(self._top_path) + 1:].split("/")
+                    splitid = key[len(self._top_path) + 1 :].split("/")
                     sessionid = splitid[0]
                     # only process sessionids that are not ours
                     if self._sessionid != sessionid:

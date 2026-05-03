@@ -52,7 +52,9 @@ _logger = logging.getLogger(__name__)
 
 BASIC_TOPOLOGY_MANAGER_FACTORY = "basic-topology-manager-factory"
 BASIC_TOPOLOGY_MANAGER_NAME = "basic-topology-manager"
-BASIC_TOPOLOGY_MANAGER_DEFAULT_PROPS = {TopologyManager.ENDPOINT_LISTENER_SCOPE: f"({ECF_ENDPOINT_CONTAINERID_NAMESPACE}=*)"}
+BASIC_TOPOLOGY_MANAGER_DEFAULT_PROPS = {
+    TopologyManager.ENDPOINT_LISTENER_SCOPE: f"({ECF_ENDPOINT_CONTAINERID_NAMESPACE}=*)"
+}
 
 
 @ComponentFactory(BASIC_TOPOLOGY_MANAGER_FACTORY)
@@ -88,11 +90,10 @@ class BasicTopologyManager(TopologyManager):
             exc = imported_reg.get_exception()
             # if there was exception on import, print out messages
             if exc:
-                _logger.error(
-                    "BasicTopologyManager import failed for endpoint.id=%s", ed_id)
+                _logger.error("BasicTopologyManager import failed for endpoint.id=%s", ed_id)
             else:
                 _logger.debug(
-                    "BasicTopologyManager: service imported! " "endpoint.id=%s, service_ref=%s",
+                    "BasicTopologyManager: service imported! endpoint.id=%s, service_ref=%s",
                     ed_id,
                     imported_reg.get_reference(),
                 )
@@ -104,8 +105,11 @@ class BasicTopologyManager(TopologyManager):
             _logger.debug("BasicTopologyManager: endpoint updated. endpoint.id=%s", ed_id)
 
 
-def instantiate_basic_topology_manager(context: BundleContext, properties: Optional[Dict[str, Any]]=None):
+def instantiate_basic_topology_manager(context: BundleContext, properties: Optional[Dict[str, Any]] = None):
     if not properties:
         properties = BASIC_TOPOLOGY_MANAGER_DEFAULT_PROPS
     from pelix.rsa import instantiate_rsa_component
-    return instantiate_rsa_component(context, BASIC_TOPOLOGY_MANAGER_FACTORY, BASIC_TOPOLOGY_MANAGER_NAME, properties)
+
+    return instantiate_rsa_component(
+        context, BASIC_TOPOLOGY_MANAGER_FACTORY, BASIC_TOPOLOGY_MANAGER_NAME, properties
+    )

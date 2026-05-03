@@ -369,7 +369,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
             # if none returned then report as warning at return empty list
             if not exporters:
                 _logger.warning(
-                    "No exporting containers found to export " "service_ref=%s;export_props=%s",
+                    "No exporting containers found to export service_ref=%s;export_props=%s",
                     service_ref,
                     export_props,
                 )
@@ -507,11 +507,11 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
     def _publish_event(self, event: RemoteServiceAdminEvent) -> None:
         listeners = self._rsa_event_listeners[:] if self._rsa_event_listeners else None
         if listeners:
-            for l in listeners:
+            for listener in listeners:
                 try:
-                    l.remote_admin_event(event)
+                    listener.remote_admin_event(event)
                 except:
-                    _logger.error("Exception calling rsa event listener=%s", l)
+                    _logger.error("Exception calling rsa event listener=%s", listener)
 
     def _get_bundle(self) -> Bundle:
         return self._context.get_bundle()
@@ -729,9 +729,7 @@ class ExportReferenceImpl(ExportReference):
         self.__lock = threading.RLock()
         if endpoint is None:
             if exception is None or errored is None:
-                raise RemoteServiceError(
-                    "Must supply either endpoint or " "throwable/error EndpointDescription"
-                )
+                raise RemoteServiceError("Must supply either endpoint or throwable/error EndpointDescription")
             self.__exception: Optional[Tuple[Any, Any, Any]] = exception
             self.__errored: Optional[EndpointDescription] = errored
             self._endpoint: Optional[_ExportEndpoint] = None

@@ -26,7 +26,6 @@ Defines the shell completion handlers for iPOPO concepts
     limitations under the License.
 """
 
-
 from typing import TYPE_CHECKING, Dict, List, Type
 
 from pelix.constants import ActivatorProto, BundleActivator

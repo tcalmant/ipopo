@@ -424,7 +424,7 @@ class _IPopoService(IPopoService):
                 except Exception as ex:
                     # Log error, but continue to work
                     _logger.exception(
-                        "Error restarting component '%s' ('%s') " "from bundle %s (%d): %s",
+                        "Error restarting component '%s' ('%s') from bundle %s (%d): %s",
                         name,
                         factory,
                         bundle.get_symbolic_name(),

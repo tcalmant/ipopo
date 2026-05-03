@@ -87,7 +87,7 @@ class MqttClient:
         elif len(client_id) > 23:
             # ID too large
             _logger.warning(
-                "MQTT Client ID '%s' is too long (23 chars max): " "generating a random one",
+                "MQTT Client ID '%s' is too long (23 chars max): generating a random one",
                 client_id,
             )
             # Keep the client ID as it might be accepted

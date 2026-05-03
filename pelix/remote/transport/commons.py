@@ -241,7 +241,7 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
         :return: A dictionary of extra endpoint properties
         """
         raise NotImplementedError(
-            "make_endpoint_properties() not " f"implemented by class {type(self).__name__}"
+            f"make_endpoint_properties() not implemented by class {type(self).__name__}"
         )
 
     @Validate

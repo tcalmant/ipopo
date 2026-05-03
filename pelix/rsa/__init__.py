@@ -185,12 +185,12 @@ class RemoteServiceAdmin(Protocol):
         Get services previously imported by this RSA implementation.  Will
         not return None, but may return empty list.
 
-        :return list of ImportReference instances.  See ImpportReference class.
+        :return list of ImportReference instances.  See ImportReference class.
         """
         ...
 
     def export_service(
-        self, service_ref: ServiceReference[Any], overriding_props: Optional[Dict[str, Any]]=None
+        self, service_ref: ServiceReference[Any], overriding_props: Optional[Dict[str, Any]] = None
     ) -> List["ExportRegistration"]:
         """
         Export a given service_ref (ServiceReference) using overriding_props
@@ -227,6 +227,7 @@ class RemoteServiceAdmin(Protocol):
         endpoint_description.  See ImportRegistration class
         """
         ...
+
 
 # ------------------------------------------------------------------------------
 
@@ -308,7 +309,7 @@ class ExportRegistration(Protocol):
         """
         ...
 
-    def match_sr(self, svc_ref: ServiceReference[Any], cid: Optional[Tuple[str, str]]=None) -> bool:
+    def match_sr(self, svc_ref: ServiceReference[Any], cid: Optional[Tuple[str, str]] = None) -> bool:
         """
         Checks if this export registration matches the given service reference
 
@@ -333,6 +334,7 @@ class ExportRegistration(Protocol):
         called, will have no effect.
         """
         ...
+
 
 # ------------------------------------------------------------------------------
 
@@ -426,6 +428,7 @@ class ExportReference(Protocol):
         called, will have no effect.
         """
         ...
+
 
 # ------------------------------------------------------------------------------
 
@@ -547,6 +550,7 @@ class ImportRegistration(Protocol):
         Checks if this registration matches the given endpoint description
         """
         ...
+
 
 # ------------------------------------------------------------------------------
 
@@ -928,9 +932,9 @@ class RemoteServiceAdminEvent:
         cid: Tuple[str, str],
         rsid: Tuple[Tuple[str, str], int],
         endpoint: Optional["EndpointDescription"],
-        import_ref: Optional[ImportReference]=None,
-        export_ref: Optional[ExportReference]=None,
-        exception: Optional[Tuple[Any, Any, Any]]=None,
+        import_ref: Optional[ImportReference] = None,
+        export_ref: Optional[ExportReference] = None,
+        exception: Optional[Tuple[Any, Any, Any]] = None,
     ) -> None:
         self._type = typ
         self._bundle = bundle
@@ -1082,7 +1086,7 @@ def get_matching_interfaces(
     return exported_intfs
 
 
-def get_prop_value(name: str, props: Optional[Dict[str, Any]], default: Any=None) -> Any:
+def get_prop_value(name: str, props: Optional[Dict[str, Any]], default: Any = None) -> Any:
     """
     Returns the value of a property or the default one
 
@@ -1158,7 +1162,7 @@ def parse_string_plus_value(value: str) -> List[str]:
 
 
 def get_string_plus_property(
-    name: str, props: Dict[str, Any], default: Optional[List[str]]=None
+    name: str, props: Dict[str, Any], default: Optional[List[str]] = None
 ) -> Optional[List[str]]:
     """
     Returns the value of the given property or the default value
@@ -1182,7 +1186,7 @@ def get_current_time_millis() -> int:
 
 
 def get_exported_interfaces(
-    svc_ref: ServiceReference[Any], overriding_props: Optional[Dict[str, Any]]=None
+    svc_ref: ServiceReference[Any], overriding_props: Optional[Dict[str, Any]] = None
 ) -> Optional[List[str]]:
     """
     Looks for the interfaces exported by a service
@@ -1307,11 +1311,11 @@ def merge_overriding_props(
 def get_rsa_props(
     object_class: List[str],
     exported_cfgs: Optional[List[str]],
-    remote_intents: Optional[List[str]]=None,
-    ep_svc_id: Optional[int]=None,
-    fw_id: Optional[str]=None,
-    pkg_vers: Union[None, Tuple[str, str], List[Tuple[str, str]]]=None,
-    service_intents: Optional[List[str]]=None,
+    remote_intents: Optional[List[str]] = None,
+    ep_svc_id: Optional[int] = None,
+    fw_id: Optional[str] = None,
+    pkg_vers: Union[None, Tuple[str, str], List[Tuple[str, str]]] = None,
+    service_intents: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """
     Constructs a dictionary of RSA properties from the given arguments
@@ -1359,8 +1363,8 @@ def get_rsa_props(
 def get_ecf_props(
     ep_id: str,
     ep_id_ns: str,
-    rsvc_id: Optional[int]=None,
-    ep_ts: Optional[int]=None,
+    rsvc_id: Optional[int] = None,
+    ep_ts: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Prepares the ECF properties
@@ -1411,10 +1415,10 @@ def get_edef_props(
     ecf_ep_id: str,
     ep_rsvc_id: int,
     ep_ts: int,
-    remote_intents: Optional[List[str]]=None,
-    fw_id: Optional[str]=None,
-    pkg_ver: Union[None, Tuple[str, str], List[Tuple[str, str]]]=None,
-    service_intents: Optional[List[str]]=None,
+    remote_intents: Optional[List[str]] = None,
+    fw_id: Optional[str] = None,
+    pkg_ver: Union[None, Tuple[str, str], List[Tuple[str, str]]] = None,
+    service_intents: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """
     Prepares the EDEF properties of an endpoint, merge of RSA and ECF
@@ -1457,7 +1461,7 @@ def get_dot_properties(prefix: str, props: Dict[str, Any], remove_prefix: bool) 
         dot_keys = [x for x in props.keys() if x.startswith(prefix + ".")]
         for dot_key in dot_keys:
             if remove_prefix:
-                new_key = dot_key[len(prefix) + 1:]
+                new_key = dot_key[len(prefix) + 1 :]
             else:
                 new_key = dot_key
             result_props[new_key] = props.get(dot_key)
@@ -1556,13 +1560,14 @@ def rsid_to_string(rsid: Tuple[Tuple[str, str], int]) -> str:
     return "{0}:{1}".format(cid_to_string(rsid[0]), rsid[1])
 
 
-def prop_dot_suffix(prop_name: str, suffix: Optional[str]=None) -> str:
+def prop_dot_suffix(prop_name: str, suffix: Optional[str] = None) -> str:
     """
     Joins both strings with a dot (".")
     """
     if not suffix:
         suffix = ""
     return f"{prop_name}.{suffix}"
+
 
 # ------------------------------------------------------------------------------
 # Exception classes
@@ -1592,7 +1597,9 @@ class RemoteServiceError(Exception):
     ...
 
 
-def instantiate_rsa_component(context: BundleContext, factory_name: str, instance_name: str, properties: Optional[Dict[str, Any]]=None) -> Any:
+def instantiate_rsa_component(
+    context: BundleContext, factory_name: str, instance_name: str, properties: Optional[Dict[str, Any]] = None
+) -> Any:
     with use_ipopo(context) as ipopo:
         return ipopo.instantiate(
             factory_name,

@@ -326,9 +326,9 @@ class EndpointSubscriber(abc.ABC):
     ) -> List[Tuple[EndpointEventListener, str]]:
         result = []
         with self._discovered_endpoints_lock:
-            ls = self._endpoint_event_listeners[:]
-        for l in ls:
-            svc_ref = l[1]
+            listeners = self._endpoint_event_listeners[:]
+        for listener in listeners:
+            svc_ref = listener[1]
             filters = get_string_plus_property_value(
                 svc_ref.get_property(EndpointEventListener.ENDPOINT_LISTENER_SCOPE)
             )
@@ -339,7 +339,7 @@ class EndpointSubscriber(abc.ABC):
                         matching_filter = f
                         break
             if matching_filter:
-                result.append((l[0], matching_filter))
+                result.append((listener[0], matching_filter))
         return result
 
     def _has_discovered_endpoint(self, ed_id: str) -> Optional[EndpointDescription]:
@@ -388,8 +388,7 @@ class EndpointSubscriber(abc.ABC):
                 listener[0].endpoint_changed(event, listener[1])
             except Exception:
                 _logger.exception(
-                    "Exception calling endpoint event "
-                    "listener.endpoint_changed for listener=%s and event=%s",
+                    "Exception calling endpoint event listener.endpoint_changed for listener=%s and event=%s",
                     listener,
                     event,
                 )

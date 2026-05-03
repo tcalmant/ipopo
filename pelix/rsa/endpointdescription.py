@@ -282,7 +282,7 @@ class EndpointDescription:
         self, svc_ref: Optional[ServiceReference[Any]] = None, properties: Optional[Dict[str, Any]] = None
     ) -> None:
         if svc_ref is None and properties is None:
-            raise ValueError("Either service reference or properties argument must be " "non-null")
+            raise ValueError("Either service reference or properties argument must be non-null")
 
         all_properties: Dict[str, Any] = {}
 

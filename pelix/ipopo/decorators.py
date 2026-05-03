@@ -265,9 +265,7 @@ def _ipopo_setup_field_callback(cls, context):
 
             if kind in fields_cbs and not is_from_parent(cls, fields_cbs[kind][0].__name__):
                 _logger.warning(
-                    "Redefining the callback %s in '%s'. "
-                    "Previous callback : '%s' (%s). "
-                    "New callback : %s",
+                    "Redefining the callback %s in '%s'. Previous callback : '%s' (%s). New callback : %s",
                     kind,
                     name,
                     fields_cbs[kind][0].__name__,
@@ -574,7 +572,7 @@ class ComponentFactory:
         else:
             # Manipulation already applied: do nothing more
             _logger.error(
-                "%s has already been manipulated with the name '%s'." " Keeping the old name.",
+                "%s has already been manipulated with the name '%s'. Keeping the old name.",
                 get_method_description(factory_class),
                 context.name,
             )
@@ -812,7 +810,7 @@ def _get_specifications(
         str,
         Type[Any],
         Iterable[Union[str, Type[Any]]],
-    ]
+    ],
 ) -> List[str]:
     """
     Computes the list of strings corresponding to the given specifications
@@ -921,6 +919,7 @@ class Provides:
                   # again
                   self._svc_flag = True
     """
+
     HANDLER_ID = constants.HANDLER_PROVIDES
     """ ID of the handler configured by this decorator """
 
@@ -1086,6 +1085,7 @@ class Requires:
           class Bar:
               pass
     """
+
     HANDLER_ID = constants.HANDLER_REQUIRES
     """ ID of the handler configured by this decorator """
 
@@ -1218,6 +1218,7 @@ class RequiresVarFilter(Requires):
                   if self._hello is not None:
                       self._hello.greet("World")  # Hello World
     """
+
     HANDLER_ID = constants.HANDLER_REQUIRES_VARIABLE_FILTER
     """ ID of the handler configured by this decorator """
 
@@ -1267,6 +1268,7 @@ class RequiresBest(Requires):
                       # First call, with the current best service
                       self._hello.greet("World")  # prints "Hello, World!"
     """
+
     HANDLER_ID = constants.HANDLER_REQUIRES_BEST
     """ ID of the handler configured by this decorator """
 
@@ -1315,6 +1317,7 @@ class RequiresMap(Requires):
                   self._hello["en"].hello("World")
                   self._hello["fr"].hello("le Monde")
     """
+
     HANDLER_ID = constants.HANDLER_REQUIRES_MAP
     """ ID of the handler configured by this decorator """
 
@@ -1403,6 +1406,7 @@ class RequiresBroadcast(Requires):
                   # care of the number of services matching our requirement:
                   self._notifier.notify("Hello, world")
     """
+
     HANDLER_ID = constants.HANDLER_REQUIRES_BROADCAST
     """ ID of the handler configured by this decorator """
 
@@ -1498,6 +1502,7 @@ class Temporal(Requires):
                       # - else, a TemporalException is raised
                       print("Service disappeared")
     """
+
     HANDLER_ID = constants.HANDLER_TEMPORAL
     """ ID of the handler configured by this decorator """
 
@@ -1521,7 +1526,7 @@ class Temporal(Requires):
         """
         super().__init__(field, specification, False, optional, spec_filter, True)
         if timeout <= 0:
-            _logger.warning("@Temporal timeout must be greater than 0. " "Using default value.")
+            _logger.warning("@Temporal timeout must be greater than 0. Using default value.")
             self._timeout: float = 10
         else:
             self._timeout = timeout
@@ -1749,7 +1754,7 @@ class UnbindField:
 
 
 def Bind(
-    method: Callable[[Any, T, ServiceReference[T]], None]
+    method: Callable[[Any, T, ServiceReference[T]], None],
 ) -> Callable[[Any, T, ServiceReference[T]], None]:
     # pylint: disable=C0103
     """
@@ -1795,7 +1800,7 @@ def Bind(
 
 
 def Update(
-    method: Callable[[Any, T, ServiceReference[T], Dict[str, Any]], None]
+    method: Callable[[Any, T, ServiceReference[T], Dict[str, Any]], None],
 ) -> Callable[[Any, T, ServiceReference[T], Dict[str, Any]], None]:
     # pylint: disable=C0103
     """
@@ -1842,7 +1847,7 @@ def Update(
 
 
 def Unbind(
-    method: Callable[[Any, T, ServiceReference[T]], None]
+    method: Callable[[Any, T, ServiceReference[T]], None],
 ) -> Callable[[Any, T, ServiceReference[T]], None]:
     # pylint: disable=C0103
     """
@@ -2105,7 +2110,7 @@ def Invalidate(method: Callable[[T, BundleContext], None]) -> Callable[[T, Bundl
 
 
 def PostRegistration(
-    method: Callable[[T, ServiceReference[Any]], None]
+    method: Callable[[T, ServiceReference[Any]], None],
 ) -> Callable[[T, ServiceReference[Any]], None]:
     # pylint: disable=C0103
     """
@@ -2150,7 +2155,7 @@ def PostRegistration(
 
 
 def PostUnregistration(
-    method: Callable[[T, ServiceReference[Any]], None]
+    method: Callable[[T, ServiceReference[Any]], None],
 ) -> Callable[[T, ServiceReference[Any]], None]:
     # pylint: disable=C0103
     """

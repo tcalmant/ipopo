@@ -564,14 +564,14 @@ def make_common_parser() -> argparse.ArgumentParser:
         "--conf",
         dest="init_conf",
         metavar="FILE",
-        help="Name of an initial configuration file to use " "(default configuration is also loaded)",
+        help="Name of an initial configuration file to use (default configuration is also loaded)",
     )
     group.add_argument(
         "-C",
         "--exclusive-conf",
         dest="init_conf_exclusive",
         metavar="FILE",
-        help="Name of an initial configuration file to use " "(without the default configuration)",
+        help="Name of an initial configuration file to use (without the default configuration)",
     )
     group.add_argument(
         "-e",

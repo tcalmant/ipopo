@@ -25,7 +25,6 @@ Pelix shell package
     limitations under the License.
 """
 
-
 from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Protocol, Set, Tuple
 
 from pelix.constants import Specification

@@ -69,10 +69,8 @@ def wrap_socket(
         # The "password" argument isn't supported
         # Check support for key file password
         if password:
-            logger.error(
-                "The ssl.wrap_socket() fallback method doesn't " "support key files with a password."
-            )
-            raise OSError("Can't decode the SSL key file: " "this version of Python doesn't support it")
+            logger.error("The ssl.wrap_socket() fallback method doesn't support key files with a password.")
+            raise OSError("Can't decode the SSL key file: this version of Python doesn't support it")
 
         # Load the certificate, without the password argument
         context.load_cert_chain(certfile, keyfile)
