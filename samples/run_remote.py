@@ -374,7 +374,7 @@ if __name__ == "__main__":
     # MQTT configuration
     group = parser.add_argument_group(
         "MQTT Configuration",
-        "Configuration of the MQTT discovery and" " RPC components",
+        "Configuration of the MQTT discovery and RPC components",
     )
     # ... server
     group.add_argument(

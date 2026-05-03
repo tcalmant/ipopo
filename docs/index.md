@@ -5,28 +5,51 @@
 :align: right
 ```
 
-iPOPO is a Python-based Service-Oriented Component Model (SOCM) based on Pelix,
-a dynamic service platform.
-They are inspired by two popular Java technologies for the development of
-long-lived applications: the
+iPOPO is a Python-based Service-Oriented Component Model (SOCM) built on top of
+Pelix, a dynamic service platform. It helps building modular, long-running
+applications from loosely coupled components and services, with explicit
+lifecycle management and runtime composition.
+
+It is especially relevant for software engineers building gateways,
+automation stacks, distributed backends and extensible platforms that need
+operational visibility and controlled evolution over time.
+
+The framework adapts to Python ideas popularized by
 [iPOJO](https://web.archive.org/web/20210616112915/http://felix.apache.org/documentation/subprojects/apache-felix-ipojo.html)
-component model and the [OSGi](https://www.osgi.org/) Service Platform.
-iPOPO enables the conception of long-running and modular IT services.
-The iPOJO component model was designed by Clément Escoffier in his
-[PhD Thesis](https://theses.hal.science/tel-00347935/document) (in French),
-while the iPOPO component model was designed by Thomas Calmant in his
+and [OSGi](https://www.osgi.org/). It was designed by Thomas Calmant in his
 [PhD Thesis](https://theses.hal.science/tel-01254286/file/CALMANT_2015_archivage.pdf)
-(in French).
+(in French), in continuity with the earlier [iPOJO work](https://theses.hal.science/tel-00347935/document) by Clément Escoffier.
+
+:::{important}
+This documentation targets the current iPOPO 3.x line and Python 3.10+.
+:::
+
+## Why iPOPO
+
+- Runtime-managed components with explicit lifecycle and dependency injection.
+- A service registry with dynamic binding between providers and consumers.
+- Built-in operational tooling such as the Pelix shell, Configuration Admin,
+	Event Admin, HTTP services and remote service support.
+- A Python-first developer experience with regular modules, type hints and
+	Protocol-based service specifications.
+
+## Start here
 
 This documentation is divided into three main parts.
-The [quickstart](./quickstart.md) will guide you to install iPOPO and write your
+The [quickstart](./quickstart.md) guides you through installation and your
 first components.
-The [reference cards](./refcards/index.md) details the various concepts of iPOPO.
-Finally, the [tutorials](./tutorials/index.md) explain how to use the various
-built-in services of iPOPO.
+The [reference cards](./refcards/index.md) detail the core concepts,
+decorators and services.
+The [tutorials](./tutorials/index.md) show how to use the built-in services in
+real examples.
+
+If you are evaluating the project for adoption, also look at
+[who uses iPOPO](./users.md) and the [release notes](./changelog.md).
 You can also take a look at the slides of the
 [iPOPO tutorial](https://github.com/tcalmant/ipopo-tutorials/releases)
 to have a quick overview of iPOPO.
+
+## Project license
 
 iPOPO is released under the terms of the
 [Apache Software License 2.0](https://www.apache.org/licenses/LICENSE-2.0.html).

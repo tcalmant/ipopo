@@ -29,11 +29,13 @@ be an etcd3 server/service running on localhost/2379 (default etcd3 port)
 """
 
 import pelix.framework as pelix
+from pelix.rsa.providers.discovery.etcd3 import (
+    ETCD_CONNECTED_CALLBACK_PROP,
+    ETCD_HOSTNAME_PROP,
+    ETCD_PORT_PROP,
+    instantiate_etcd3_discovery_provider,
+)
 from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
-from pelix.rsa.providers.discovery.etcd3 import ETCD_HOSTNAME_PROP, \
-    ETCD_PORT_PROP, \
-    ETCD_CONNECTED_CALLBACK_PROP, \
-    instantiate_etcd3_discovery_provider
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -58,6 +60,7 @@ def connected_cb():
 
 def main() -> None:
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
     # Define the initial bundles
     bundles = (
@@ -85,10 +88,14 @@ def main() -> None:
     # instantiate topology manager
     instantiate_basic_topology_manager(context)
     # start etcd3 discovery service client now that the basic_topology_manager is running
-    instantiate_etcd3_discovery_provider(context,
-                                         {ETCD_HOSTNAME_PROP: ETCD_HOSTNAME,
-                                          ETCD_PORT_PROP: ETCD_PORT,
-                                          ETCD_CONNECTED_CALLBACK_PROP: connected_cb})
+    instantiate_etcd3_discovery_provider(
+        context,
+        {
+            ETCD_HOSTNAME_PROP: ETCD_HOSTNAME,
+            ETCD_PORT_PROP: ETCD_PORT,
+            ETCD_CONNECTED_CALLBACK_PROP: connected_cb,
+        },
+    )
 
     try:
         framework.wait_for_stop()

@@ -25,10 +25,11 @@ Greeting service provider
 """
 
 from typing import Any, Optional
-from pelix.framework import BundleContext
-from pelix.internals.registry import ServiceRegistration
+
 import pelix.remote
 from pelix.constants import ActivatorProto, BundleActivator
+from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceRegistration
 
 # ------------------------------------------------------------------------------
 
@@ -86,9 +87,7 @@ class Activator(ActivatorProto):
         props = {pelix.remote.PROP_EXPORTED_INTERFACES: [SERVICE_SPECIFICATION]}
 
         # Register the service with the Java specification
-        self.__registration = context.register_service(
-            SERVICE_SPECIFICATION, HelloWorldImpl(), props
-        )
+        self.__registration = context.register_service(SERVICE_SPECIFICATION, HelloWorldImpl(), props)
 
     def stop(self, context: BundleContext) -> None:
         """

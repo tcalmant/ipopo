@@ -28,12 +28,13 @@ Provides commands to the Pelix shell to generate some service events
 """
 
 from typing import List, Tuple
-from pelix.framework import BundleContext
+
 import pelix.shell
+from pelix.framework import BundleContext
 from pelix.ipopo.decorators import (
     ComponentFactory,
-    Provides,
     Instantiate,
+    Provides,
     Validate,
 )
 from pelix.shell.beans import ShellSession
@@ -91,20 +92,13 @@ class EventHookCommands(pelix.shell.ShellCommandsProvider):
         Generates a service event
         """
         session.write_line("Registering a new service...")
-        self._context.register_service(
-            "sample-service", object(), {"to_filter": False}
-        )
+        self._context.register_service("sample-service", object(), {"to_filter": False})
 
     def gen_filtered_event(self, session: ShellSession) -> None:
         """
         Generates a service event that will be filtered by the event hook after
         its 3rd appearance
         """
-        session.write_line(
-            "Registering a new service to be filtered "
-            "by the hook after the 3rd time..."
-        )
+        session.write_line("Registering a new service to be filtered by the hook after the 3rd time...")
 
-        self._context.register_service(
-            "sample-service", object(), {"to_filter": True}
-        )
+        self._context.register_service("sample-service", object(), {"to_filter": True})

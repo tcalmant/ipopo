@@ -27,12 +27,12 @@ The logger handler implementation
 
 import logging
 from typing import Any, List, Optional
-from pelix.internals.registry import ServiceRegistration
 
 import pelix.ipopo.handlers.constants as ipopo_constants
 import samples.handler.constants as constants
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceRegistration
 from pelix.ipopo.contexts import ComponentContext
 
 # ------------------------------------------------------------------------------

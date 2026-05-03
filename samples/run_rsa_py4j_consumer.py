@@ -64,14 +64,13 @@ def main() -> None:
     )
 
     # Use the utility method to create, run and delete the framework
-    framework = pelix.create_framework(
-        bundles, {"ecf.py4j.javaport": 25333, "ecf.py4j.pythonport": 25334}
-    )
+    framework = pelix.create_framework(bundles, {"ecf.py4j.javaport": 25333, "ecf.py4j.pythonport": 25334})
     framework.start()
 
     from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+
     instantiate_basic_topology_manager(framework.get_bundle_context())
-    
+
     try:
         framework.wait_for_stop()
     except KeyboardInterrupt:

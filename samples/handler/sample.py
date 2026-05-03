@@ -29,12 +29,13 @@ this sample.
 """
 
 import logging
+
 from pelix.framework import BundleContext
 from pelix.ipopo.decorators import (
     ComponentFactory,
-    Validate,
-    Invalidate,
     Instantiate,
+    Invalidate,
+    Validate,
 )
 from samples.handler.decorator import Logger
 

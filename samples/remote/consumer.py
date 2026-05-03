@@ -34,7 +34,14 @@ from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference
 
 # iPOPO decorators
-from pelix.ipopo.decorators import BindField, ComponentFactory, Instantiate, Requires, UnbindField, Validate
+from pelix.ipopo.decorators import (
+    BindField,
+    ComponentFactory,
+    Instantiate,
+    Requires,
+    UnbindField,
+    Validate,
+)
 
 # ------------------------------------------------------------------------------
 

@@ -22,17 +22,17 @@ There are many ways to install iPOPO, let's have a look to some of them.
 This is the easiest way to install iPOPO, even though using virtual
 environments is recommended to develop your applications.
 
-For a system-wide installation, just run `pip` with root privileges:
+For a system-wide installation, run:
 
 ```bash
-sudo pip install iPOPO
+python -m pip install iPOPO
 ```
 
 If you don't have root privileges and you can't or don't want to use
 virtual environments, you can install iPOPO for your user only:
 
 ```bash
-pip install --user iPOPO
+python -m pip install --user iPOPO
 ```
 
 ## Virtual Environment
@@ -76,7 +76,14 @@ Now you can install iPOPO using `pip`. As you are in a virtual
 environment, you don't need administration rights:
 
 ```bash
-pip install iPOPO
+python -m pip install --upgrade pip
+python -m pip install iPOPO
+```
+
+Optional integrations can be installed through extras. For example:
+
+```bash
+python -m pip install "iPOPO[RSA,MQTT]"
 ```
 
 iPOPO is now installed and can be used in this environment. You can now
@@ -105,14 +112,15 @@ $ git clone https://github.com/tcalmant/ipopo.git
 $ cd ipopo
 $ python3 -m venv ipopo-venv
 $ . ipopo-venv/bin/activate
-$ python setup.py develop
+$ python -m pip install --upgrade pip
+$ python -m pip install -e .
 # ...
 Finished processing dependencies for iPOPO
 ```
 
 This will pull the dependency (*jsonrpclib-pelix*) and activate the git
 head as the current version inside the virtual environment. As the
-*develop* installation mode uses symbolic links, you simply have to run
+editable installation mode uses symbolic links, you simply have to run
 `git pull origin` to update to the latest version of iPOPO in your
 virtual environment.
 
