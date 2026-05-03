@@ -40,7 +40,6 @@ from slixmpp.basexmpp import BaseXMPP
 from slixmpp.clientxmpp import ClientXMPP
 from slixmpp.jid import JID
 from slixmpp.types import MessageTypes
-from slixmpp.xmlstream import JID
 
 from pelix.utilities import EventData
 
