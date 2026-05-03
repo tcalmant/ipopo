@@ -16,16 +16,14 @@ from samples.rsa.helloimpl import HelloImpl
 
 
 @ComponentFactory("helloimpl-xmlrpc-factory")
-@Provides(
-    "org.eclipse.ecf.examples.hello.IHello"
-) 
+@Provides("org.eclipse.ecf.examples.hello.IHello")
 @Instantiate(
     "helloimpl-xmlrpc",
     {
         "osgi.basic.timeout": 60000,
         # uncomment to automatically export upon creation
-        "service.exported.interfaces":"*",
-        "service.exported.configs": "ecf.xmlrpc.server"
+        "service.exported.interfaces": "*",
+        "service.exported.configs": "ecf.xmlrpc.server",
     },
 )
 class XmlRpcHelloImpl(HelloImpl):

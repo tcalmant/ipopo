@@ -30,6 +30,7 @@ from some listeners to avoid a double-action.
 """
 
 from __future__ import print_function
+
 from typing import Any, Dict, List, Optional
 
 # Pelix remote services constants
@@ -64,7 +65,11 @@ class EventListenerHookImpl:
         self._context = context
         self._count = 0
 
-    def event(self, service_event: ServiceEvent[Any], listener_dict: Dict[BundleContext, List[Any]]) -> None:
+    def event(
+        self,
+        service_event: ServiceEvent[Any],
+        listener_dict: Dict[BundleContext, List[Any]],
+    ) -> None:
         """
         A service has been received: this method can alter the list of
         listeners to be notified of this event (remove only).
@@ -88,10 +93,7 @@ class EventListenerHookImpl:
         to_filter = svc_ref.get_property("to_filter")
         if self._context in listener_dict and to_filter:
             if self._count >= 3:
-                print(
-                    "EventListenerHookSample removing our service listener "
-                    "so it will not be notified"
-                )
+                print("EventListenerHookSample removing our service listener so it will not be notified")
                 listener_dict.pop(self._context)
             else:
                 self._count += 1

@@ -59,6 +59,7 @@ def connected_cb():
 def main() -> None:
 
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
     # Define the initial bundles
     bundles = (
@@ -90,16 +91,24 @@ def main() -> None:
     context = framework.get_bundle_context()
     # instantiate basic topology manager
     from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+
     instantiate_basic_topology_manager(context)
     # start etcd3 discovery service client now that the basic_topology_manager is running
-    from pelix.rsa.providers.discovery.etcd3 import ETCD_HOSTNAME_PROP, \
-                                                    ETCD_PORT_PROP, \
-                                                    ETCD_CONNECTED_CALLBACK_PROP, \
-                                                    instantiate_etcd3_discovery_provider
-    instantiate_etcd3_discovery_provider(context,
-                                         {ETCD_HOSTNAME_PROP: ETCD_HOSTNAME,
-                                          ETCD_PORT_PROP: ETCD_PORT,
-                                          ETCD_CONNECTED_CALLBACK_PROP: connected_cb})
+    from pelix.rsa.providers.discovery.etcd3 import (
+        ETCD_CONNECTED_CALLBACK_PROP,
+        ETCD_HOSTNAME_PROP,
+        ETCD_PORT_PROP,
+        instantiate_etcd3_discovery_provider,
+    )
+
+    instantiate_etcd3_discovery_provider(
+        context,
+        {
+            ETCD_HOSTNAME_PROP: ETCD_HOSTNAME,
+            ETCD_PORT_PROP: ETCD_PORT,
+            ETCD_CONNECTED_CALLBACK_PROP: connected_cb,
+        },
+    )
 
     # start httpservice, required by the xmlrpc distribution provider
     with use_ipopo(framework.get_bundle_context()) as ipopo:

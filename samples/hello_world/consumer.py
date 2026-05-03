@@ -4,9 +4,15 @@ Implementation of a component that consumes an Hello World service
 """
 
 # iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Instantiate, Invalidate, Requires, Validate
-
 from specification import HelloWorld
+
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Instantiate,
+    Invalidate,
+    Requires,
+    Validate,
+)
 
 
 # Manipulates the class and sets its (unique) factory name

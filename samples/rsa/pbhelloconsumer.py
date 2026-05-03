@@ -12,6 +12,7 @@
 # remote service.
 
 from typing import Any
+
 from pelix.framework import BundleContext
 from pelix.ipopo.decorators import ComponentFactory, Instantiate, Requires, Validate
 from samples.rsa.hellomsg_pb2 import HelloMsgContent

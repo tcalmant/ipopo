@@ -24,6 +24,7 @@ Defines some constants for the logger handler
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+
 # Module version
 __version_info__ = (1, 0, 2)
 __version__ = ".".join(str(x) for x in __version_info__)

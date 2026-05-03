@@ -4,10 +4,10 @@ Implementation of a component that provides the Hello World service
 """
 
 # iPOPO decorators
-from pelix.ipopo.decorators import ComponentFactory, Instantiate, Provides
-
 # Import the specification, if we want to use its type
 from specification import HelloWorld
+
+from pelix.ipopo.decorators import ComponentFactory, Instantiate, Provides
 
 
 # Manipulates the class and sets its (unique) factory name
