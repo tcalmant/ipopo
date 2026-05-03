@@ -35,6 +35,7 @@ class RSABundleTests(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(["pelix.ipopo.core"])
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
 
     def tearDown(self):
@@ -106,6 +107,7 @@ class RSABasicFeatures(unittest.TestCase):
         self.framework = pelix.framework.create_framework(
             ["pelix.ipopo.core", "pelix.rsa.remoteserviceadmin"]
         )
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
 
         # Get the RSA service

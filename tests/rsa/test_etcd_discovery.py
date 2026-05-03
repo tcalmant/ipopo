@@ -162,6 +162,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
                 "etcd.toppath": TEST_ETCD_TOPPATH,
             },
         )
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
         # Start the framework and return TestEndpointEventListener
         context = self.framework.get_bundle_context()
@@ -307,6 +308,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
                 "etcd.toppath": TEST_ETCD_TOPPATH,
             },
         )
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
 
         context = self.framework.get_bundle_context()

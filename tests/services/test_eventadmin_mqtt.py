@@ -16,8 +16,12 @@ import pelix.framework
 import pelix.services
 from pelix.internals.registry import ServiceRegistration
 from pelix.ipopo.constants import use_ipopo
-from pelix.misc.mqtt_client import MqttClient, MqttMessage
-from tests.mqtt_utilities import find_mqtt_server
+
+try:
+    from pelix.misc.mqtt_client import MqttClient, MqttMessage
+    from tests.mqtt_utilities import find_mqtt_server
+except ImportError:
+    raise unittest.SkipTest("MQTT client library not available")
 
 # ------------------------------------------------------------------------------
 

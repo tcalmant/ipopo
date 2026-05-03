@@ -6,6 +6,7 @@ Tests the RSA discovery provider
 :author: Scott Lewis
 """
 
+import importlib.util
 import json
 import unittest
 from typing import Any, TypeVar
@@ -36,6 +37,12 @@ from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent
 from pelix.rsa.topologymanagers import TopologyManager
 from tests.utilities import WrappedProcess
+
+try:
+    assert importlib.util.find_spec("grpc") is not None
+except Exception:
+    raise unittest.SkipTest("grpc library not available")
+
 
 TEST_ETCD_HOSTNAME = "localhost"
 TEST_ETCD_TOPPATH = (
@@ -149,6 +156,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
             ],
             {},
         )
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
         # Start the framework and return TestEndpointEventListener
         context = self.framework.get_bundle_context()
@@ -301,6 +309,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
                 "ecf.xmlrpc.server.hostname": "localhost",
             },
         )
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
 
         context = self.framework.get_bundle_context()

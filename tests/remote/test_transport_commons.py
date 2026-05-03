@@ -185,6 +185,7 @@ class AbstractCommonExporterTest(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(("pelix.ipopo.core", "pelix.remote.dispatcher"))
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
 
         # Get the framework UID
@@ -419,6 +420,7 @@ class AbstractCommonImporterTest(unittest.TestCase):
         """
         # Create the framework
         self.framework = pelix.framework.create_framework(("pelix.ipopo.core", "pelix.remote.registry"))
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
 
         # Get the framework UID

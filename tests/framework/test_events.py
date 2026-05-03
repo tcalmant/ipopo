@@ -41,6 +41,7 @@ class BundleEventTest(unittest.TestCase):
         Called before each test. Initiates a framework.
         """
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         self.test_bundle_name = SIMPLE_BUNDLE
@@ -136,6 +137,7 @@ class ServiceEventTest(unittest.TestCase):
         Called before each test. Initiates a framework.
         """
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         self.test_bundle_name = SERVICE_BUNDLE
@@ -367,6 +369,7 @@ class EventListenerHookTest(unittest.TestCase):
         Called before each test. Initiates a framework.
         """
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         self.test_bundle_name = SERVICE_BUNDLE

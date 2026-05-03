@@ -61,6 +61,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
         """
         # Start a framework
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         # Install iPOPO
@@ -459,6 +460,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         """
         # Start a framework
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         # Install iPOPO

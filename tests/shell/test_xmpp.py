@@ -48,6 +48,7 @@ class XMPPShellTest(unittest.TestCase):
         """
         # Start the framework
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
         self.context = self.framework.get_bundle_context()
 

@@ -48,6 +48,7 @@ class IPopoShellTest(unittest.TestCase):
                 "samples.handler.sample",
             )
         )
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         # Get the Shell service

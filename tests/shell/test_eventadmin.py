@@ -85,6 +85,7 @@ class EventAdminShellTest(unittest.TestCase):
         self.framework = pelix.framework.create_framework(
             ("pelix.ipopo.core", "pelix.shell.core", "pelix.services.eventadmin", "pelix.shell.eventadmin")
         )
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         # Get the Shell service

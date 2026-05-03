@@ -115,6 +115,7 @@ class BasicHTTPSTest(unittest.TestCase):
         """
         # Start a framework
         self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
         # Install iPOPO

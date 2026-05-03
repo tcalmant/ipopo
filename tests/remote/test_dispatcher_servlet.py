@@ -145,6 +145,7 @@ class DispatcherTest(unittest.TestCase):
         self.framework = pelix.framework.create_framework(
             ("pelix.ipopo.core", "pelix.http.basic", "pelix.remote.dispatcher", "pelix.remote.registry")
         )
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
 
         # Instantiate components

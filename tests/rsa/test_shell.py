@@ -47,6 +47,7 @@ class ShellTest(unittest.TestCase):
             ],
             {"ecf.xmlrpc.server.hostname": "localhost"},
         )
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
         self.framework.start()
 
         # Start an HTTP server, required by XML-RPC

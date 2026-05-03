@@ -36,6 +36,8 @@ class ServicesTest(unittest.TestCase):
         self.test_bundle_name = "tests.framework.service_bundle"
 
         self.framework = FrameworkFactory.get_framework()
+
+        self.addCleanup(self.framework.delete, True)
         self.framework.start()
 
     def tearDown(self):
