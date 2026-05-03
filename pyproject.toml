@@ -46,6 +46,11 @@ zeroconf = ["zeroconf==0.19"]
 ZooKeeper = ["kazoo==2.8.0"]
 yaml = ["pyyaml>=6.0"]
 
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
+
 [tool.black]
 line-length = 110
 
