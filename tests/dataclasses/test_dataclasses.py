@@ -52,10 +52,10 @@ class DataclassTest(unittest.TestCase):
             )
         )
 
-        # Start the framework and wait for it to stop
-        fw.start()
-
         try:
+            # Start the framework and wait for it to stop
+            fw.start()
+
             # Register a service
             ctx = fw.get_bundle_context()
             test_svc = object()
@@ -81,7 +81,7 @@ class DataclassTest(unittest.TestCase):
             self.assertEqual(before.property_default, "Default-before")
             self.assertEqual(after.property_default, "Default-after")
         finally:
-            fw.stop()
+            fw.delete(True)
 
 
 if __name__ == "__main__":
