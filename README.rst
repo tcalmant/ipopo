@@ -51,10 +51,8 @@ Why iPOPO
 
 * Runtime-managed components with explicit lifecycle and dependency injection.
 * A service registry with dynamic binding between providers and consumers.
-* Built-in operational tooling such as the Pelix shell, Configuration Admin,
-    Event Admin, HTTP services and remote service support.
-* A Python-first developer experience with regular modules, type hints and
-    Protocol-based service specifications.
+* Built-in operational tooling such as the Pelix shell, Configuration Admin, Event Admin, HTTP services and remote service support.
+* A Python-first developer experience with regular modules, type hints and `Protocol`-based service specifications.
 
 Documentation
 =============
