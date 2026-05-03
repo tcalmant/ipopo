@@ -14,8 +14,7 @@ supported by the RSA Remote Services (OSGi R7-compliant) implementation.
 
 ## Requirements
 
-This tutorial sample requires Python 3.4+ or Python 2.7, and version
-0.8.0+ of iPOPO.
+This tutorial sample requires Python 3.10+ and iPOPO 3.x.
 
 ## Defining the Remote Service with a Python Class
 
@@ -27,9 +26,7 @@ the `XmlRpcHelloImpl` class
 
 ```python
 @ComponentFactory("helloimpl-xmlrpc-factory")
-@Provides(
-    "org.eclipse.ecf.examples.hello.IHello"
-)
+@Provides("org.eclipse.ecf.examples.hello.IHello")
 @Instantiate(
     "helloimpl-xmlrpc",
     {
@@ -62,7 +59,7 @@ For an example of Java↔Python remote services see
 [this tutorial](./rsa_pythonjava.md).
 
 For Python-only remote services it's not really necessary for this
-service specification be the name of a Java class, any unique String
+service specification to be the name of a Java class. Any unique string
 could have been used.
 
 The **`osgi.basic.timeout`** is an optional property that gives a maximum
@@ -81,7 +78,8 @@ Instead, for this tutorial the export is performed via iPOPO console
 commands. If these comments were to be removed, the RSA impl will export
 this service as soon as it is instantiated and registered, making it
 unnecessary to explicitly export the service as shown in the
-Exporting the XmlRpcHelloImpl as a Remote Servicesection below.
+{ref}`Exporting the XmlRpcHelloImpl as a Remote Service <xml_rpc_hello_export>`
+section below.
 
 ## The HelloImpl Implementation
 
@@ -92,12 +90,9 @@ name, with the main method `sayHello`:
 
 ```python
 class HelloImpl:
-    def sayHello(self, name='Not given', message='nothing'):
-        print(
-            "Python.sayHello called by: {0} with message: '{1}'".format(
-                name, message))
-        return "PythonSync says: Howdy {0} that's a nice runtime you got there".format(
-            name)
+    def sayHello(self, name="Not given", message="nothing"):
+        print(f"Python.sayHello called by: {name} with message: '{message}'")
+        return f"PythonSync says: Howdy {name} that's a nice runtime you got there"
 ```
 
 The `sayHello` method is invoked via a remote service consumer once the
@@ -147,8 +142,10 @@ for remote access, use the `exportservice` command in the pelix console,
 giving the number (20 from above) of the service to export:
 
 ```
-$ exportservice 20        # use the service id for the org.eclipse.ecf.examples.hello.IHello service if not 20
-Service=ServiceReference(ID=20, Bundle=18, Specs=['org.eclipse.ecf.examples.hello.IHello']) exported by 1 providers. EDEF written to file=edef.xml
+# use the service id for the org.eclipse.ecf.examples.hello.IHello service if not 20
+$ exportservice 20
+Service=ServiceReference(ID=20, Bundle=18, Specs=['org.eclipse.ecf.examples.hello.IHello'])
+exported by 1 providers. EDEF written to file=edef.xml
 $
 ```
 
@@ -166,54 +163,57 @@ $ listexports b96927ad-1d00-45ad-848a-716d6cde8443
 Endpoint description for endpoint.id=b96927ad-1d00-45ad-848a-716d6cde8443:
 <?xml version='1.0' encoding='cp1252'?>
 <endpoint-descriptions xmlns="http://www.osgi.org/xmlns/rsa/v1.0.0">
-       <endpoint-description>
-               <property name="objectClass" value-type="String">
-                       <array>
-                               <value>org.eclipse.ecf.examples.hello.IHello</value>
-                       </array>
-               </property>
-               <property name="remote.configs.supported" value-type="String">
-                       <array>
-                               <value>ecf.xmlrpc.server</value>
-                       </array>
-               </property>
-               <property name="service.imported.configs" value-type="String">
-                       <array>
-                               <value>ecf.xmlrpc.server</value>
-                       </array>
-               </property>
-               <property name="remote.intents.supported" value-type="String">
-                       <array>
-                               <value>osgi.basic</value>
-                               <value>osgi.async</value>
-                       </array>
-               </property>
-               <property name="service.intents" value-type="String">
-                       <array>
-                               <value>osgi.async</value>
-                       </array>
-               </property>
-               <property name="endpoint.service.id" value="20" value-type="Long">
-                       </property>
-               <property name="service.id" value="20" value-type="Long">
-                       </property>
-               <property name="endpoint.framework.uuid" value="4d541077-ee2a-4d68-85f5-be529f89bec0" value-type="String">
-                       </property>
-               <property name="endpoint.id" value="b96927ad-1d00-45ad-848a-716d6cde8443" value-type="String">
-                       </property>
-               <property name="service.imported" value="true" value-type="String">
-                       </property>
-               <property name="ecf.endpoint.id" value="http://127.0.0.1:8181/xml-rpc" value-type="String">
-                       </property>
-               <property name="ecf.endpoint.id.ns" value="ecf.namespace.xmlrpc" value-type="String">
-                       </property>
-               <property name="ecf.rsvc.id" value="3" value-type="Long">
-                       </property>
-               <property name="ecf.endpoint.ts" value="1534119904514" value-type="Long">
-                       </property>
-               <property name="osgi.basic.timeout" value="60000" value-type="Long">
-                       </property>
-       </endpoint-description>
+  <endpoint-description>
+    <property name="objectClass" value-type="String">
+      <array>
+        <value>org.eclipse.ecf.examples.hello.IHello</value>
+      </array>
+    </property>
+    <property name="remote.configs.supported" value-type="String">
+      <array>
+        <value>ecf.xmlrpc.server</value>
+      </array>
+    </property>
+    <property name="service.imported.configs" value-type="String">
+      <array>
+        <value>ecf.xmlrpc.server</value>
+      </array>
+    </property>
+    <property name="remote.intents.supported" value-type="String">
+      <array>
+        <value>osgi.basic</value>
+        <value>osgi.async</value>
+      </array>
+    </property>
+    <property name="service.intents" value-type="String">
+      <array>
+        <value>osgi.async</value>
+      </array>
+    </property>
+    <property name="endpoint.service.id" value="20" value-type="Long">
+    </property>
+    <property name="service.id" value="20" value-type="Long">
+    </property>
+    <property name="endpoint.framework.uuid"
+      value="4d541077-ee2a-4d68-85f5-be529f89bec0" value-type="String">
+    </property>
+    <property name="endpoint.id" value="b96927ad-1d00-45ad-848a-716d6cde8443"
+      value-type="String">
+    </property>
+    <property name="service.imported" value="true" value-type="String">
+    </property>
+    <property name="ecf.endpoint.id" value="http://127.0.0.1:8181/xml-rpc"
+      value-type="String">
+    </property>
+    <property name="ecf.endpoint.id.ns" value="ecf.namespace.xmlrpc" value-type="String">
+    </property>
+    <property name="ecf.rsvc.id" value="3" value-type="Long">
+    </property>
+    <property name="ecf.endpoint.ts" value="1534119904514" value-type="Long">
+    </property>
+    <property name="osgi.basic.timeout" value="60000" value-type="Long">
+    </property>
+  </endpoint-description>
 </endpoint-descriptions>
 $
 ```
@@ -271,44 +271,38 @@ from concurrent.futures import ThreadPoolExecutor
 
 @ComponentFactory("remote-hello-consumer-factory")
 # The '(service.imported=*)' filter only allows remote services to be injected
-@Requires("_helloservice", "org.eclipse.ecf.examples.hello.IHello",
-          False, False, "(service.imported=*)", False)
+@Requires(
+    "_helloservice",
+    "org.eclipse.ecf.examples.hello.IHello",
+    False,
+    False,
+    "(service.imported=*)",
+    False,
+)
 @Instantiate("remote-hello-consumer")
 class RemoteHelloConsumer:
-
     def __init__(self):
         self._helloservice = None
-        self._name = 'Python'
-        self._msg = 'Hello Java'
+        self._name = "Python"
+        self._msg = "Hello Java"
         self._executor = ThreadPoolExecutor()
 
     @Validate
     def _validate(self, bundle_context):
         # call it!
-        resp = self._helloservice.sayHello(self._name + 'Sync', self._msg)
-        print(
-            "{0} IHello service consumer received sync response: {1}".format(
-                self._name,
-                resp))
+        resp = self._helloservice.sayHello(f"{self._name}Sync", self._msg)
+        print(f"{self._name} IHello service consumer received sync response: {resp}")
         # call sayHelloAsync which returns Future and we add lambda to print
         # the result when done
         self._executor.submit(
-            self._helloservice.sayHelloAsync,
-            self._name + 'Async',
-            self._msg).add_done_callback(
-            lambda f: print(
-                'async response: {0}'.format(
-                    f.result())))
+            self._helloservice.sayHelloAsync, f"{self._name}Async", self._msg
+        ).add_done_callback(lambda f: print(f"async response: {f.result()}"))
         print("done with sayHelloAsync method")
         # call sayHelloAsync which returns Future and we add lambda to print
         # the result when done
         self._executor.submit(
-            self._helloservice.sayHelloPromise,
-            self._name + 'Promise',
-            self._msg).add_done_callback(
-            lambda f: print(
-                'promise response: {0}'.format(
-                    f.result())))
+            self._helloservice.sayHelloPromise, f"{self._name}Promise", self._msg
+        ).add_done_callback(lambda f: print(f"promise response: {f.result()}"))
         print("done with sayHelloPromise method")
 ```
 
@@ -316,17 +310,18 @@ For having this remote service injected, the important part of things is
 the `@Requires` decorator
 
 ```python
-@Requires("_helloservice", "org.eclipse.ecf.examples.hello.IHello",
-          False, False, "(service.imported=*)", False)
+@Requires(
+    "_helloservice",
+    "org.eclipse.ecf.examples.hello.IHello",
+    False,
+    False,
+    "(service.imported=*)",
+    False,
+)
 ```
 
-This gives the specification name required
-**org.eclipse.ecf.examples.hello.IHello**, and it also gives an OSGi
-filter
-
-```python
-"(service.imported=*)"
-```
+This gives the specification name required **org.eclipse.ecf.examples.hello.IHello**,
+and it also gives an OSGi filter: `(service.imported=*)`.
 
 As per the [Remote Service spec](https://docs.osgi.org/specification/osgi.cmpn/7.0.0/service.remoteservices.html#i1710847)
 this requires that the `IHello` service is a remote service, as all
@@ -336,8 +331,8 @@ it was imported.
 When `importservice` is executed the RSA implementation does the
 following:
 
-1.  Reads the edef.xml from filesystem (i.e. 'discovers the service')
-2.  Create a local proxy for the remote service using the edef.xml file
+1.  Reads the `edef.xml` from filesystem (i.e. 'discovers the service')
+2.  Create a local proxy for the remote service using the `edef.xml` file
 3.  The proxy is injected by iPOPO into the
     `RemoteHelloConsumer._helloservice` member
 4.  The `_activated` method is called by iPOPO, which uses the
@@ -363,18 +358,16 @@ property in the `Instantiate` decorator:
 
 ```python
 @ComponentFactory("helloimpl-xmlrpc-factory")
-@Provides(
-   "org.eclipse.ecf.examples.hello.IHello"
-)
+@Provides("org.eclipse.ecf.examples.hello.IHello")
 @Instantiate(
-   "helloimpl-xmlrpc",
-   {
-       "service.exported.interfaces": "*",
-       "osgi.basic.timeout": 60000,
-   },
+    "helloimpl-xmlrpc",
+    {
+        "service.exported.interfaces": "*",
+        "osgi.basic.timeout": 60000,
+    },
 )
 class XmlRpcHelloImpl(HelloImpl):
-   pass
+    pass
 ```
 
 Unlike in the example above, when this service is instantiated and
