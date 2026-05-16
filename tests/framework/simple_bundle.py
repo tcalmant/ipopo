@@ -9,7 +9,7 @@ Simple bundle with an activator (no service registered).
 from pelix.constants import ActivatorProto, BundleActivator, FrameworkException
 from pelix.framework import BundleContext
 
-__version_info__ = (3, 1, 0)
+__version_info__ = (3, 2, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 started = False

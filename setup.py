@@ -4,13 +4,13 @@
 iPOPO installation script
 
 :author: Thomas Calmant
-:copyright: Copyright 2025, Thomas Calmant
+:copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.1.0
+:version: 3.2.0
 
 ..
 
-    Copyright 2025 Thomas Calmant
+    Copyright 2026 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ from setuptools import setup
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 1, 0)
+__version_info__ = (3, 2, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -89,17 +89,22 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "Topic :: Software Development :: Libraries :: Application Frameworks",
     ],
-    install_requires=["jsonrpclib-pelix>=0.4.3"],
+    install_requires=["jsonrpclib-pelix~=0.4.3"],
     extras_require={
-        "etcd2": ["python-etcd==0.4.5", "osgiservicebridge>=1.5.8"],
-        "MQTT": ["paho-mqtt>=2.1"],
-        "Redis": ["redis>=2.10"],
-        "RSA": ["osgiservicebridge>=1.5.8", "grpcio>=1.71.0", "grpcio-tools>=1.71.0"],
-        "XMPP": ["slixmpp==1.10"],
-        "zeroconf": ["zeroconf==0.19"],
-        "ZooKeeper": ["kazoo==2.8.0"],
-        "yaml": ["pyyaml>=6.0"],
+        "aiohttp": ["aiohttp~=3.13.5"],
+        "etcd2": ["python-etcd~=0.4.5", "osgiservicebridge~=1.5.9"],
+        "MQTT": ["paho-mqtt~=2.1.0"],
+        "Redis": ["redis~=7.4.0"],
+        "RSA": ["osgiservicebridge~=1.5.9", "grpcio~=1.80.0", "grpcio-tools~=1.80.0"],
+        "XMPP": [
+            "slixmpp~=1.12.0; python_version <= '3.10'",
+            "slixmpp~=1.15.0; python_version > '3.10'",
+        ],
+        "zeroconf": ["zeroconf~=0.148.0"],
+        "ZooKeeper": ["kazoo~=2.11.0"],
+        "yaml": ["pyyaml~=6.0.3"],
     },
 )
