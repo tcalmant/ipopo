@@ -30,7 +30,7 @@ This module depends on the zeroconf package
 import json
 import logging
 import socket
-from typing import Any, Dict, List, Optional, Protocol, Union, cast
+from typing import Any, Dict, List, Optional, Protocol, cast
 
 import zeroconf
 
@@ -209,9 +209,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         return new_props
 
     @staticmethod
-    def _deserialize_properties(
-        props: Dict[Union[str, bytes], Optional[Union[str, bytes]]],
-    ) -> Dict[str, Any]:
+    def _deserialize_properties(props: Dict[bytes, Optional[bytes]]) -> Dict[str, Any]:
         """
         Converts properties values into their type
         """
@@ -271,7 +269,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         info = zeroconf.ServiceInfo(
             ZeroconfDiscovery.DNS_DISPATCHER_TYPE,  # Type
             svc_name,  # Name
-            address=self._address,  # Access address
+            addresses=[self._address] if self._address else None,  # Access address
             port=access[0],  # Access port
             properties=properties,
         )
@@ -328,7 +326,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         info = zeroconf.ServiceInfo(
             self._rs_type,  # Type
             svc_name,  # Name
-            address=self._address,  # Access address
+            addresses=[self._address] if self._address else None,  # Access address
             port=access_port,  # Access port
             properties=properties,
         )
@@ -425,17 +423,17 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
                 _logger.warning("Ignore discovered service with no port information: %s", info)
                 return
 
-            address: Optional[str] = None
-            if info.address:
-                address = socket.inet_ntoa(info.address)
+            addresses: Optional[list[str]] = None
+            if info.addresses:
+                addresses = [socket.inet_ntoa(addr) for addr in info.addresses]
             elif info.server:
-                address = info.server
+                addresses = [info.server]
 
-            if not address:
+            if not addresses:
                 _logger.warning("Ignore discovered service with no server information: %s", info)
                 return
 
-            self._access.send_discovered(address, info.port, properties["pelix.access.path"])
+            self._access.send_discovered(addresses[0], info.port, properties["pelix.access.path"])
         elif type_ == self._rs_type:
             # Remote service
             # Get the first available configuration
