@@ -1,5 +1,36 @@
 # Release Notes
 
+
+## iPOPO 3.2.0
+
+:::{admonition} Release Date
+:class: info
+
+2026-05-16
+:::
+
+### Dependencies
+
+* Upgraded dependencies
+  * Updated `grpcio` to 1.80
+  * Updated `kazoo` to 2.11
+  * Updated `osgiservicebridge` to 1.5.9
+  * Updated `redis` to 7.4
+  * Updated `slixmpp` to 1.12 for Python 3.10 and 1.15 for Python 3.11+
+  * Updated `zeroconf` to 0.148.0
+* Removed `Pipfile`
+
+### Project
+
+* Updated documentation
+* Scott Lewis (@scottslewis) added a Remote Tools Server sample (see pull request [#170](https://github.com/tcalmant/ipopo/pull/170))
+* Added Python 3.14 as continuous integration target
+
+### HTTP service
+
+* Added an asynchronous HTTP service, based on [`aiohttp`](https://github.com/aio-libs/aiohttp)
+  * Supports Server Sent Events (SSE) and WebSockets
+
 ## iPOPO 3.1.0
 
 :::{admonition} Release Date
