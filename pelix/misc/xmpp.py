@@ -7,13 +7,13 @@ development of bots in Pelix
 This module depends on the slixmpp package: https://slixmpp.readthedocs.io/
 
 :author: Thomas Calmant
-:copyright: Copyright 2025, Thomas Calmant
+:copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.1.0
+:version: 3.2.0
 
 ..
 
-    Copyright 2025 Thomas Calmant
+    Copyright 2026 Thomas Calmant
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ from pelix.utilities import EventData
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 1, 0)
+__version_info__ = (3, 2, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
