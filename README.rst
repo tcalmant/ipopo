@@ -506,7 +506,7 @@ All contributions are welcome!
 #. `Fork <https://github.com/tcalmant/ipopo/fork>`_ the project
 #. Develop your changes
 #. Check your code with `pylint <https://pypi.python.org/pypi/pylint/>`_
-   and `pep8 <https://pypi.python.org/pypi/pep8>`_
+   and `ruff <https://docs.astral.sh/ruff/>`_
 #. If necessary, write some unit tests
 #. Commit your changes, indicating in each commit a reference to the issue
    you're working on
