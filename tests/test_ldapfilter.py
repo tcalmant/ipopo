@@ -536,6 +536,15 @@ class LDAPCriteriaTest(unittest.TestCase):
 
         filters["(string=*mi*ed*)"] = (("mixed", "mixed1234", "798mixed", "mi O_O ed"), ("Mixed",))
 
+        # The anchored parts must be found even if they appear earlier in the
+        # tested value (requires back-tracking)
+        filters["(string=a*b)"] = (("ab", "axb", "abzb", "aXbXb"), ("a", "b", "ba", "abz"))
+
+        filters["(string=*end)"] = (("end", "xend", "xendend"), ("ends", "endx"))
+
+        # Prefix and suffix must not overlap: "ab*b" needs at least "abb"
+        filters["(string=ab*b)"] = (("abb", "abzb"), ("ab", "b", "abz"))
+
         # List test
         filters["(string=*li*ed*)"] = ((["listed"], ["toto", "aaaliXed123"]), ([], ["LixeD"], ["toto"]))
 
