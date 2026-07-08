@@ -205,8 +205,8 @@ usage information.
 | Bundle name | Description |
 |----|----|
 | `pelix.shell.ipopo` | Handles iPOPO factories and instances. |
-| `pelix.shell.configadmin` | Handles the Configuration Admin service (provided by `pelix.misc.configadmin`). See [](./configadmin.rst). |
-| `pelix.shell.eventadmin` | Handles the Event Admin service (provided by `pelix.misc.eventadmin`). See [](./eventadmin.rst). |
+| `pelix.shell.configadmin` | Handles the Configuration Admin service (provided by `pelix.services.configadmin`). See [](./configadmin.rst). |
+| `pelix.shell.eventadmin` | Handles the Event Admin service (provided by `pelix.services.eventadmin`). See [](./eventadmin.rst). |
 | `pelix.shell.log` | Looks into the Log Service (provided by `pelix.misc.log`). See [](./log.rst). |
 | `pelix.shell.report` | Generates framework state reports. See [](./shell_report.md). |
 

@@ -211,7 +211,6 @@ from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate
 @Provides("hello.world")
 # A component must be instantiated as soon as the bundle is active
 @Instantiate("provider")
-# Don't forget to inherit from object, for Python 2.x compatibility
 class Greetings:
       def hello(self, name="World"):
           print("Hello,", name, "!")
@@ -245,7 +244,6 @@ from pelix.ipopo.decorators import ComponentFactory, Requires, Instantiate, \
 @Requires("_svc", "hello.world")
 # A component must be instantiated as soon as the bundle is active
 @Instantiate("consumer")
-# Don't forget to inherit from object, for Python 2.x compatibility
 class Consumer:
     @Validate
     def validate(self, context):

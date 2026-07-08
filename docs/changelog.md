@@ -164,7 +164,7 @@
   `__path__` set, which case was not handled when the framework
   normalizes the existing module paths.
 * Fixed an invalid import of `collections` abstract classes for Python
-  3.3+ in `pelix.internal.hooks`.
+  3.3+ in `pelix.internals.hooks`.
 
 ## iPOPO 0.8.1
 

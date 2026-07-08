@@ -337,7 +337,10 @@ class ThreadPool:
 
     def enqueue(self, method: Callable[..., Any], *args: Any, **kwargs: Any) -> FutureResult:
         """
-        Queues a task in the pool
+        Queues a task in the pool.
+
+        Tasks can be enqueued while the pool is stopped (or not yet started):
+        they will be executed once the pool is started.
 
         :param method: Method to call
         :return: A FutureResult object, to get the result of the task
