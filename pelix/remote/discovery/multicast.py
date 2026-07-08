@@ -268,7 +268,7 @@ def close_multicast_socket(sock: socket.socket, address: str) -> None:
 
 @ComponentFactory(pelix.remote.FACTORY_DISCOVERY_MULTICAST)
 @Provides(pelix.remote.RemoteServiceExportEndpointListener)
-@Requires("_access", pelix.remote.RemoteServiceDispatcherServlet)
+@Requires("_access", pelix.remote.SERVICE_DISPATCHER_SERVLET)
 @Requires("_registry", pelix.remote.RemoteServiceRegistry)
 @Property("_group", "multicast.group", "239.0.0.1")
 @Property("_port", "multicast.port", 42000)
