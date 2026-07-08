@@ -377,8 +377,8 @@ class ThreadPool:
                 # Queue is now empty
                 pass
 
-            # Wait for the tasks currently executed
-            self.join()
+        # Wait for the remaining tasks outside the lock
+        self.join()
 
     def join(self, timeout: Optional[float] = None) -> bool:
         """
@@ -387,7 +387,9 @@ class ThreadPool:
         :param timeout: Maximum time to wait (in seconds)
         :return: True if the queue has been emptied, else False
         """
-        if self._queue.empty():
+        # Check unfinished_tasks instead of empty(): a task taken by a worker
+        # thread is out of the queue but still not done
+        if not self._queue.unfinished_tasks:
             # Nothing to wait for...
             return True
         elif timeout is None:
