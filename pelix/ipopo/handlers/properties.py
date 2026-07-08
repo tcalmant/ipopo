@@ -156,16 +156,15 @@ class PropertiesHandler(constants.Handler):
             :param name: The property name
             :param new_value: The new property value
             """
-            assert stored_instance is not None and stored_instance.context is not None
-
             # Get the previous value
             old_value = properties.get(name)
             if new_value != old_value:
                 # Change the property
                 properties[name] = new_value
 
-                # New value is different of the old one, trigger an event
-                update_notifier(name, old_value, new_value)
+                if stored_instance.context is not None:
+                    # Update only if the component is still alive
+                    update_notifier(name, old_value, new_value)
 
             return new_value
 
