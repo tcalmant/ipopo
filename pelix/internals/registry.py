@@ -1295,7 +1295,7 @@ class ServiceRegistry:
                         clazz = class_names[0]
                         remaining = class_names[1:]
                         if remaining:
-                            clazz_filter = "".join(f"({OBJECTCLASS}={name}" for name in remaining)
+                            clazz_filter = "".join(f"({OBJECTCLASS}={name})" for name in remaining)
                             if ldap_filter is None:
                                 ldap_filter = f"(&{clazz_filter})"
                             else:
