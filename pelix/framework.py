@@ -452,9 +452,6 @@ class Bundle:
 
         exception = None
         with self._lock:
-            # Store the bundle current state
-            previous_state = self._state
-
             # Stopping...
             self._state = Bundle.STOPPING
             self._fire_bundle_event(BundleEvent.STOPPING)
@@ -463,12 +460,9 @@ class Bundle:
             stopper = self.__get_activator_method("stop")
             if stopper is not None:
                 try:
-                    # Call the start method
+                    # Call the stop method
                     stopper(self.__context)
                 except (FrameworkException, BundleException) as ex:
-                    # Restore previous state
-                    self._state = previous_state
-
                     # Re-raise directly Pelix exceptions
                     _logger.exception("Pelix error raised by %s while stopping", self.__name)
                     exception = ex
