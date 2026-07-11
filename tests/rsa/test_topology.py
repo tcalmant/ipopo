@@ -112,3 +112,63 @@ class TopologyManagerTest(unittest.TestCase):
         for export_ref in self.rsa.get_exported_services():
             if export_ref.get_reference() is svc_ref:
                 self.fail("Service not automatically removed")
+
+    def test_endpoint_changed(self):
+        """
+        Tests the handling of discovery endpoint events (import side)
+        """
+        from pelix.rsa.edef import EDEFReader, EDEFWriter
+        from pelix.rsa.providers.discovery import EndpointEvent
+        from pelix.rsa.topologymanagers.basic import instantiate_basic_topology_manager
+
+        context = self.framework.get_bundle_context()
+        context.install_bundle("pelix.rsa.topologymanagers.basic").start()
+        topology_manager = instantiate_basic_topology_manager(context)
+
+        # Export a service to get a valid endpoint description
+        spec = "test.svc"
+        svc_reg = context.register_service(spec, object(), {})
+        export_regs = self.rsa.export_service(
+            svc_reg.get_reference(),
+            {rsa.SERVICE_EXPORTED_INTERFACES: "*", rsa.SERVICE_EXPORTED_CONFIGS: "ecf.xmlrpc.server"},
+        )
+        self.assertTrue(export_regs)
+        self.assertIsNone(export_regs[0].get_exception())
+        export_endpoint = export_regs[0].get_description()
+
+        # Round-trip through EDEF, like a discovery provider would
+        parsed_endpoint = EDEFReader().parse(EDEFWriter().to_string([export_endpoint]))[0]
+
+        # ADDED event: the endpoint must be imported
+        topology_manager.endpoint_changed(EndpointEvent(EndpointEvent.ADDED, parsed_endpoint), None)
+        imported = [
+            import_ref
+            for import_ref in self.rsa.get_imported_endpoints()
+            if import_ref.get_description().get_id() == parsed_endpoint.get_id()
+        ]
+        self.assertTrue(imported, "Endpoint not imported on ADDED event")
+
+        # MODIFIED event: the imported endpoint must be updated
+        topology_manager.endpoint_changed(EndpointEvent(EndpointEvent.MODIFIED, parsed_endpoint), None)
+
+        # REMOVED event: the imported endpoint must be closed
+        topology_manager.endpoint_changed(EndpointEvent(EndpointEvent.REMOVED, parsed_endpoint), None)
+        imported = [
+            import_ref
+            for import_ref in self.rsa.get_imported_endpoints()
+            if import_ref.get_description().get_id() == parsed_endpoint.get_id()
+        ]
+        self.assertFalse(imported, "Endpoint still imported after REMOVED event")
+
+        # ADDED event with an endpoint no provider can import: the import
+        # registration carries an exception and no service is imported
+        from pelix.rsa import REMOTE_CONFIGS_SUPPORTED
+        from pelix.rsa.endpointdescription import EndpointDescription
+
+        bad_props = dict(parsed_endpoint.get_properties())
+        bad_props[REMOTE_CONFIGS_SUPPORTED] = ["unknown.config"]
+        bad_endpoint = EndpointDescription(properties=bad_props)
+
+        with self.assertLogs("pelix.rsa.topologymanagers.basic", "ERROR") as log_ctx:
+            topology_manager.endpoint_changed(EndpointEvent(EndpointEvent.ADDED, bad_endpoint), None)
+        self.assertTrue(any("import failed" in line for line in log_ctx.output))
