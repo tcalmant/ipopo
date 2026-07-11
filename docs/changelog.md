@@ -1,6 +1,36 @@
 # Release Notes
 
 
+## iPOPO 3.2.1
+
+:::{admonition} Release Date
+:class: info
+
+Unreleased
+:::
+
+### Project
+
+* Removed `setup.py` as we're only using `pyproject.toml` now
+* Fixed wrong module references and Python 2 remnants in the documentation
+
+### Pelix
+
+* Fixed LDAP filter when looking up services with multiple specifications
+* Use `re` to handle LDAP filters with a joker (`*`)
+* Fixed potential deadlock in `ThreadPool.clear()`
+* Removed unnecessary intermediate state reset if the `Bundle.stop()` activator fails
+
+### iPOPO
+
+* Fixed error when updating a property on a killed component
+
+### Tests
+
+* Tests depending on external servers (etcd, MQTT, Redis, XMPP, ZooKeeper)
+  are now skipped when the `tests-infra` containers are not running
+* Added tests for shell and utilities
+
 ## iPOPO 3.2.0
 
 :::{admonition} Release Date
