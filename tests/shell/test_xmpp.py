@@ -28,6 +28,10 @@ from pelix.ipopo.constants import use_ipopo
 from pelix.shell import FACTORY_XMPP_SHELL, ShellService
 from pelix.shell.beans import IOHandler, ShellSession
 from pelix.threadpool import EventData
+from tests.utilities import is_server_reachable
+
+if not is_server_reachable("localhost", 5222):
+    raise unittest.SkipTest("No XMPP server on localhost:5222: can't test the XMPP shell")
 
 # ------------------------------------------------------------------------------
 

@@ -44,11 +44,16 @@ from pelix.rsa import ECF_ENDPOINT_CONTAINERID_NAMESPACE, RemoteServiceAdmin
 from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent
 from pelix.rsa.topologymanagers import TopologyManager
-from tests.utilities import WrappedProcess
+from tests.utilities import WrappedProcess, is_server_reachable
 
 TEST_ETCD_HOSTNAME = "localhost"
 TEST_ETCD_PORT = 12379
 TEST_ETCD_TOPPATH = "/etcddiscovery.tests"
+
+if not is_server_reachable(TEST_ETCD_HOSTNAME, TEST_ETCD_PORT):
+    raise unittest.SkipTest(
+        f"No etcd server on {TEST_ETCD_HOSTNAME}:{TEST_ETCD_PORT}: can't test etcd discovery"
+    )
 
 ENDPOINT_LISTENER_SCOPE = f"({ECF_ENDPOINT_CONTAINERID_NAMESPACE}=*)"
 
