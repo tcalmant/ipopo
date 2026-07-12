@@ -115,6 +115,20 @@ class LifeCycleTest(unittest.TestCase):
         # Assert it has been removed of the registry
         self.assertFalse(self.ipopo.is_registered_instance(NAME_A), "Instance is still in the registry")
 
+    def testSetPropertyOnKilledComponent(self):
+        """
+        Tests that setting an injected property on a killed component doesn't
+        raise (the component can be killed while another thread still holds
+        the instance)
+        """
+        # Instantiate then kill the component, keeping the instance around
+        compoA = self.ipopo.instantiate(self.module.FACTORY_A, NAME_A)
+        self.ipopo.kill(NAME_A)
+
+        # Setting the property must neither raise nor lose the value
+        compoA.name = "still-settable"
+        self.assertEqual(compoA.name, "still-settable")
+
     def testAutoRestart(self):
         """
         Tests the automatic re-instantiation of a component on bundle update

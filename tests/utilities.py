@@ -23,6 +23,7 @@
     limitations under the License.
 """
 
+import socket
 import unittest
 from typing import Any
 
@@ -57,3 +58,20 @@ try:
 
 except ImportError:
     WrappedProcess = Process
+
+
+def is_server_reachable(host: str, port: int, timeout: float = 1.0) -> bool:
+    """
+    Checks if a TCP server is reachable, e.g. to skip a test when the
+    associated container from tests-infra is not running
+
+    :param host: Server host name or address
+    :param port: Server TCP port
+    :param timeout: Maximum time to wait for a connection (in seconds)
+    :return: True if a connection could be established
+    """
+    try:
+        socket.create_connection((host, port), timeout).close()
+        return True
+    except OSError:
+        return False

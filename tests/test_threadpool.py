@@ -411,6 +411,60 @@ class ThreadPoolTest(unittest.TestCase):
             # result() must raise the exact exception
             self.assertIs(catched_ex, exception)
 
+    def testClearWaitsForRunningTask(self) -> None:
+        """
+        Tests that clear() waits for the task taken by a worker thread and
+        doesn't deadlock while doing so
+        """
+        self.pool = threadpool.ThreadPool(1)
+
+        # Pause the worker thread between the queue get() and the task
+        # execution, to simulate an in-flight task
+        got_task = threading.Event()
+        release_worker = threading.Event()
+        task_executed = threading.Event()
+        original_get = self.pool._queue.get
+
+        def paused_get(block: bool = True, timeout: Optional[float] = None) -> Any:
+            task = original_get(block, timeout)
+            if block:
+                # Blocking call: we're in the worker thread
+                got_task.set()
+                release_worker.wait(5)
+            return task
+
+        self.pool._queue.get = paused_get  # type: ignore[method-assign]
+        self.pool.start()
+
+        # Enqueue a task and wait for the worker to grab it
+        self.pool.enqueue(task_executed.set)
+        self.assertTrue(got_task.wait(5), "Worker didn't take the task")
+
+        # Call clear() from another thread
+        clear_done = threading.Event()
+        executed_before_clear_returned = False
+
+        def call_clear() -> None:
+            nonlocal executed_before_clear_returned
+            self.pool.clear()
+            executed_before_clear_returned = task_executed.is_set()
+            clear_done.set()
+
+        thread = threading.Thread(target=call_clear, daemon=True)
+        thread.start()
+
+        # Let clear() reach its waiting point, then release the worker
+        time.sleep(0.2)
+        release_worker.set()
+
+        # clear() must return: the worker needs the pool lock to finish
+        # the task
+        self.assertTrue(clear_done.wait(5), "clear() deadlocked")
+
+        # ... and it must have waited for the in-flight task
+        self.assertTrue(executed_before_clear_returned, "clear() returned before the in-flight task was done")
+        thread.join(5)
+
     def testJoin(self) -> None:
         """
         Tests the join() method

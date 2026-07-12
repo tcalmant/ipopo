@@ -286,8 +286,8 @@ class IOHandler:
             if args or kwargs:
                 line = line.format(*args, **kwargs)
 
-            # Remove the trailing line feed
-            if line[-1] == "\n":
+            # Remove the trailing line feed (if the line is not empty)
+            if line and line[-1] == "\n":
                 line = line[:-1]
 
         # Write it

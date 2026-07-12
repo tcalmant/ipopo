@@ -36,7 +36,7 @@ from pelix.rsa import ECF_ENDPOINT_CONTAINERID_NAMESPACE, RemoteServiceAdmin
 from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent
 from pelix.rsa.topologymanagers import TopologyManager
-from tests.utilities import WrappedProcess
+from tests.utilities import WrappedProcess, is_server_reachable
 
 try:
     assert importlib.util.find_spec("grpc") is not None
@@ -45,6 +45,13 @@ except Exception:
 
 
 TEST_ETCD_HOSTNAME = "localhost"
+TEST_ETCD_PORT = 2379
+
+if not is_server_reachable(TEST_ETCD_HOSTNAME, TEST_ETCD_PORT):
+    raise unittest.SkipTest(
+        f"No etcd server on {TEST_ETCD_HOSTNAME}:{TEST_ETCD_PORT}: can't test etcd3 discovery"
+    )
+
 TEST_ETCD_TOPPATH = (
     "org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer"  # "/etcd3discovery.tests"
 )

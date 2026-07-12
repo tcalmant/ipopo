@@ -15,6 +15,7 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+import logging
 import random
 import threading
 import time
@@ -555,6 +556,63 @@ class EventDataTest(unittest.TestCase):
         self.assertTrue(event.is_set(), "Event has been cleared")
         self.assertIsNone(event.data, "Non-None data")
         self.assertIs(event.exception, exception, "Invalid exception")
+
+
+# ------------------------------------------------------------------------------
+
+
+class MiscUtilitiesTest(unittest.TestCase):
+    """
+    Tests various small utility methods
+    """
+
+    def testRemoveDuplicates(self) -> None:
+        """
+        Tests the remove_duplicates() method
+        """
+        self.assertIsNone(utilities.remove_duplicates(None))
+        self.assertListEqual(utilities.remove_duplicates(["a", "b", "a", "c", "b"]), ["a", "b", "c"])
+
+    def testStr2Bool(self) -> None:
+        """
+        Tests the str2bool() method
+        """
+        for value in ("true", "True", "yes", "y", "on", "1", " TRUE "):
+            self.assertTrue(utilities.str2bool(value), f"{value!r} should be True")
+
+        for value in (None, "", "false", "no", "0", "whatever"):
+            self.assertFalse(utilities.str2bool(value), f"{value!r} should be False")
+
+    def testGetLogLevel(self) -> None:
+        """
+        Tests the get_log_level() method
+        """
+        # Integer levels are returned as-is
+        self.assertEqual(utilities.get_log_level(42), 42)
+
+        # Level names are converted
+        self.assertEqual(utilities.get_log_level("DEBUG"), logging.DEBUG)
+        self.assertEqual(utilities.get_log_level("ERROR"), logging.ERROR)
+
+        # Unknown names
+        self.assertIsNone(utilities.get_log_level("NO_SUCH_LEVEL"))
+
+    def testDeprecated(self) -> None:
+        """
+        Tests the Deprecated decorator
+        """
+
+        @utilities.Deprecated("Use something else", __name__)
+        def old_method(value: int) -> int:
+            return value * 2
+
+        # The warning must be logged on the first call only
+        with self.assertLogs(__name__, "WARNING") as log_ctx:
+            self.assertEqual(old_method(21), 42)
+        self.assertTrue(any("Use something else" in line for line in log_ctx.output))
+
+        with self.assertNoLogs(__name__, "WARNING"):
+            self.assertEqual(old_method(2), 4)
 
 
 # ------------------------------------------------------------------------------

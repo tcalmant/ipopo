@@ -631,7 +631,7 @@ def str2bool(value: Optional[str]) -> bool:
 
     Inspired from distutils.strtobool, removed from Python 3.12
 
-    True values are "true", "yes", "y", "on" and not "1".
+    True values are "true", "yes", "y", "on" and "1".
     All other values are false.
     """
     if not value:

@@ -230,8 +230,9 @@ class MqttTransportsTest(unittest.TestCase):
         peer.start()
 
         try:
-            # Wait for the ready state
-            state = status_queue.get(True, 5)
+            # Wait for the ready state: spawning the peer process and starting
+            # its framework can be slow when the whole test suite is running
+            state = status_queue.get(True, 15)
             self.assertEqual(state, "ready")
 
             # Load the local framework (after the fork)
@@ -239,7 +240,7 @@ class MqttTransportsTest(unittest.TestCase):
             context = framework.get_bundle_context()
 
             # Look for the remote service
-            for _ in range(30):
+            for _ in range(60):
                 svc_ref: Optional[ServiceReference[Any]] = context.get_service_reference(SVC_SPEC)
                 if svc_ref is not None:
                     break

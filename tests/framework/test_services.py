@@ -359,6 +359,37 @@ class ServicesTest(unittest.TestCase):
         # Test an invalid filter
         self.assertRaises(BundleException, context.get_all_service_references, None, "/// Invalid Filter ///")
 
+    def testGetReferencesMultipleSpecifications(self):
+        """
+        Tests references lookup with a class declaring multiple specifications
+        """
+
+        @pelix.constants.Specification("test.spec.a", "test.spec.b")
+        class MultiSpecService:
+            pass
+
+        context = self.framework.get_bundle_context()
+        assert isinstance(context, BundleContext)
+
+        # Register a service providing both specifications and one providing
+        # only the first one
+        reg_full = context.register_service(MultiSpecService, MultiSpecService(), None)
+        reg_partial = context.register_service("test.spec.a", object(), None)
+
+        try:
+            # Lookup by class must not fail and must only return the service
+            # providing all the specifications
+            refs = context.get_all_service_references(MultiSpecService, None)
+            self.assertIsNotNone(refs, "No reference found for the multi-specification class")
+            self.assertListEqual(refs, [reg_full.get_reference()], "Expected the full-match service only")
+
+            # Lookup must also work with an additional filter
+            refs = context.get_all_service_references(MultiSpecService, "(!(missing=*))")
+            self.assertListEqual(refs, [reg_full.get_reference()], "Expected the full-match service only")
+        finally:
+            reg_full.unregister()
+            reg_partial.unregister()
+
     def testMultipleUnregistrations(self):
         """
         Tests behavior when unregistering the same service twice

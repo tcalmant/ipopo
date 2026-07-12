@@ -26,6 +26,7 @@ Dependency-less LDAP filter parser for Python
 """
 
 import inspect
+import re
 from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 from pelix.utilities import is_string
@@ -385,35 +386,9 @@ def _star_comparison(filter_value: Any, tested_value: Any) -> bool:
         # Unhandled value type...
         return False
 
-    parts = filter_value.split("*")
-
-    i = 0
-    last_part = len(parts) - 1
-
-    idx = 0
-    for part in parts:
-        # Find the part in the tested value
-        idx = tested_value.find(part, idx)
-        if idx == -1:
-            # Part not found
-            return False
-
-        len_part = len(part)
-        if i == 0 and len_part != 0 and idx != 0:
-            # First part is not a star, but the tested value is not at
-            # position 0 => Doesn't match
-            return False
-
-        if i == last_part and len_part != 0 and idx != len(tested_value) - len_part:
-            # Last tested part is not at the end of the sequence
-            return False
-
-        # Be sure to test the next part
-        idx += len_part
-        i += 1
-
-    # Whole test passed
-    return True
+    # Convert the pattern to a regular expression
+    pattern = ".*".join(re.escape(part) for part in filter_value.split("*"))
+    return re.match(f"{pattern}\\Z", tested_value) is not None
 
 
 def _comparator_eq(filter_value: Any, tested_value: Any) -> bool:

@@ -37,7 +37,7 @@ import pelix.remote
 from pelix.framework import Bundle, Framework, FrameworkFactory, create_framework
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
-from tests.utilities import WrappedProcess
+from tests.utilities import WrappedProcess, is_server_reachable
 
 try:
     # Try to import modules
@@ -327,6 +327,9 @@ class HttpTransportsTest(unittest.TestCase):
         except Exception:
             self.skipTest("paho is missing: can't test MQTT discovery")
 
+        if not is_server_reachable("localhost", 1883):
+            self.skipTest("No MQTT broker on localhost:1883: can't test MQTT discovery")
+
         try:
             self._run_test("pelix.remote.discovery.mqtt", pelix.remote.FACTORY_DISCOVERY_MQTT)
         except queue.Empty:
@@ -342,6 +345,9 @@ class HttpTransportsTest(unittest.TestCase):
         except Exception:
             self.skipTest("redis is missing: can't test Redis discovery")
 
+        if not is_server_reachable("localhost", 6379):
+            self.skipTest("No Redis server on localhost:6379: can't test Redis discovery")
+
         try:
             self._run_test("pelix.remote.discovery.redis", pelix.remote.FACTORY_DISCOVERY_REDIS)
         except queue.Empty:
@@ -356,6 +362,9 @@ class HttpTransportsTest(unittest.TestCase):
             assert importlib.util.find_spec("kazoo") is not None
         except Exception:
             self.skipTest("Kazoo is missing: can't test ZooKeeper discovery")
+
+        if not is_server_reachable("localhost", 2181):
+            self.skipTest("No ZooKeeper server on localhost:2181: can't test ZooKeeper discovery")
 
         try:
             self._run_test(
