@@ -1,12 +1,11 @@
 # Release Notes
 
-
 ## iPOPO 3.2.1
 
 :::{admonition} Release Date
 :class: info
 
-Unreleased
+2026-07-13
 :::
 
 ### Project

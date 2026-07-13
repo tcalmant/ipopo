@@ -7,7 +7,7 @@ Topology Manager API
 :author: Scott Lewis
 :copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
-:version: 3.2.0
+:version: 3.2.1
 
 ..
 
@@ -56,7 +56,7 @@ from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (3, 2, 0)
+__version_info__ = (3, 2, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
