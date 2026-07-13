@@ -6,7 +6,7 @@ Service registry and event dispatcher for Pelix.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.0
+:version: 3.2.1
 
 ..
 
@@ -71,7 +71,7 @@ T = TypeVar("T")
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 0)
+__version_info__ = (3, 2, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

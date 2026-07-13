@@ -33,7 +33,7 @@ except Exception:
 
 KARAF_URL = "https://archive.apache.org/dist/karaf/4.4.11/apache-karaf-4.4.11.tar.gz"
 
-__version_info__ = (3, 2, 0)
+__version_info__ = (3, 2, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------

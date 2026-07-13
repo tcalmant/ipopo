@@ -18,7 +18,7 @@ from pelix.misc.log import LOG_DEBUG, LOG_ERROR, LOG_INFO, LOG_WARNING
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 0)
+__version_info__ = (3, 2, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------

@@ -140,7 +140,7 @@ To check if Pelix is installed correctly, run the following command:
 .. code-block:: bash
 
     $ python -m pelix.shell --version
-        Pelix 3.2.0 from /path/to/ipopo/pelix/__init__.py
+        Pelix 3.2.1 from /path/to/ipopo/pelix/__init__.py
 
 Concepts
 ########
