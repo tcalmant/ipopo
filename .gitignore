@@ -48,6 +48,11 @@ conf/
 # Profiling
 *.lprof
 
+# Generated SBOM
+requirements-sbom.txt
+*.cdx.json
+*.cdx.xml
+
 # Epydoc Help
 api/
 html/
