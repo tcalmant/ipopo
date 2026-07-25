@@ -6,7 +6,7 @@ Pelix remote services: Abstract RPC implementation
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -29,6 +29,7 @@ Pelix remote services: Abstract RPC implementation
 """
 
 import abc
+import logging
 import threading
 import uuid
 from abc import abstractmethod
@@ -40,16 +41,20 @@ from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo.decorators import Invalidate, Property, Provides, Validate
 from pelix.remote import RemoteServiceError
+from pelix.utilities import get_remote_method
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+# ------------------------------------------------------------------------------
+
+_logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
@@ -106,9 +111,12 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
         except KeyError:
             raise RemoteServiceError(f"Unknown endpoint: {matching}")
 
-        # Get the method
-        method_ref = getattr(service, method_name, None)
+        # Get the method: only the public API of the service can be called remotely
+        method_ref = get_remote_method(service, method_name)
         if method_ref is None:
+            # Same error as an unknown method: a caller must not be able to tell
+            # a refused method from a missing one
+            _logger.warning("Refused remote call to %s on endpoint %s", method_name, matching)
             raise RemoteServiceError(f"Unknown method {method}")
 
         # Call it (let the errors be propagated)

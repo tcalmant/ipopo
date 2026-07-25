@@ -6,7 +6,7 @@ Utility methods and decorators
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -60,7 +60,7 @@ P = ParamSpec("P")
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -134,6 +134,28 @@ def get_method_arguments(method: Callable[..., Any]) -> ArgSpec:
             defaults.append(param.default)
 
     return ArgSpec(args, varargs, keywords, defaults or None)
+
+
+def get_remote_method(service: Any, method_name: str) -> Optional[Callable[..., Any]]:
+    """
+    Looks for a method a remote caller is allowed to call on an exported service.
+
+    Private and special methods (leading underscore), dotted names and non-callable
+    attributes are rejected: a remote caller must only be able to reach the public
+    API of the service, not its internals.
+
+    :param service: The exported service instance
+    :param method_name: Name of the method given by the caller
+    :return: The method to call, or None if it can't be called remotely
+    """
+    if not method_name or method_name.startswith("_") or "." in method_name:
+        return None
+
+    method_ref = getattr(service, method_name, None)
+    if method_ref is None or not callable(method_ref):
+        return None
+
+    return method_ref
 
 
 # ------------------------------------------------------------------------------

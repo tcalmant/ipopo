@@ -24,6 +24,15 @@ Unreleased
   any other type are kept as strings instead of being interpreted.
   All versions up to 3.2.1 are affected, on every branch providing
   `pelix.remote.discovery.mdns`
+* Remote callers can now only reach the public API of an exported service.
+  The method name given by the caller was passed to `getattr()` without any
+  check, so a caller could reach any member of the service: reading its internal
+  state with `__getattribute__`, resetting it with `__init__`, or calling its
+  private methods.
+  Special members (leading underscore), dotted names and non-callable attributes
+  are now refused, in both Pelix Remote Services (all RPC transports) and the
+  Remote Service Admin.
+  All versions up to 3.2.1 are affected
 
 ### Pelix
 
@@ -34,6 +43,7 @@ Unreleased
 ### Tests
 
 * Added tests for the Zeroconf/mDNS property serialization
+* Added tests for the restrictions applied when calling an exported service
 
 ## iPOPO 3.2.1
 
