@@ -158,6 +158,58 @@ def get_remote_method(service: Any, method_name: str) -> Optional[Callable[..., 
     return method_ref
 
 
+def check_xml_no_doctype(xml_str: Union[str, bytes, bytearray]) -> None:
+    """
+    Ensures that an XML document doesn't declare a document type (DTD).
+
+    Entities can only be declared in a DTD, so refusing document type
+    declarations prevents entity expansion attacks ("billion laughs"), which
+    make a parser allocate a huge amount of memory from a small document.
+    Recent versions of ``expat`` limit that expansion, but Pelix also supports
+    systems where it is not the case.
+
+    Only the prolog of the document is checked, as a document type declaration
+    can't be given after the root element.
+
+    :param xml_str: The XML document to check
+    :raise ValueError: The document declares a document type
+    """
+    if isinstance(xml_str, (bytes, bytearray)):
+        if xml_str[:2] in (b"\xff\xfe", b"\xfe\xff"):
+            # UTF-16 document: its BOM is removed by the decoder
+            text = bytes(xml_str).decode("utf-16", errors="replace")
+        else:
+            # "utf-8-sig" removes the UTF-8 BOM, if any
+            text = bytes(xml_str).decode("utf-8-sig", errors="replace")
+    else:
+        # Remove the BOM, if any
+        text = xml_str.lstrip("\ufeff")
+
+    idx = 0
+    length = len(text)
+    while idx < length:
+        if text[idx].isspace():
+            idx += 1
+        elif text.startswith("<!--", idx):
+            # Comment
+            end = text.find("-->", idx + 4)
+            if end == -1:
+                # Malformed document: let the XML parser complain about it
+                return
+            idx = end + 3
+        elif text.startswith("<?", idx):
+            # XML declaration or processing instruction
+            end = text.find("?>", idx + 2)
+            if end == -1:
+                return
+            idx = end + 2
+        elif text.startswith("<!DOCTYPE", idx):
+            raise ValueError("XML document type declarations are not allowed")
+        else:
+            # Start of the root element, or invalid content
+            return
+
+
 # ------------------------------------------------------------------------------
 
 

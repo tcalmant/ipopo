@@ -45,6 +45,13 @@ All versions up to 3.2.1 are affected.
   error in the logs of the server.
   Set the new `pelix.http.debug` property to get the previous behaviour, e.g. in
   a development environment
+* The EDEF XML readers now refuse documents declaring a document type (DTD).
+  Entities can only be declared in a DTD, and their expansion can make a parser
+  allocate a huge amount of memory from a small document ("billion laughs").
+  EDEF documents are read from the network by the MQTT, Redis and ZooKeeper
+  discovery providers, and have no use for a DTD.
+  Recent versions of `expat` limit that expansion, but Pelix also supports
+  systems where it is not the case
 
 ### Pelix
 
@@ -58,6 +65,7 @@ All versions up to 3.2.1 are affected.
 * Added tests for the restrictions applied when calling an exported service
 * Added tests for the handling of PIDs by the Configuration Admin persistence
 * Added tests for the content of the HTTP error pages
+* Added tests for the rejection of XML document type declarations
 
 ## iPOPO 3.2.1
 

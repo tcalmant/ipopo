@@ -99,6 +99,35 @@ class EdefIOTest(unittest.TestCase):
             original.get_properties(), endpoint.get_properties(), "Endpoint properties changed"
         )
 
+    def testEdefRefusesEntities(self) -> None:
+        """
+        An EDEF document must not be able to declare entities, as their
+        expansion can exhaust the memory of the framework
+        """
+        # The root element is a valid one: only the DTD must be the reason of
+        # the rejection
+        root = (
+            '<endpoint-descriptions xmlns="http://www.osgi.org/xmlns/rsa/v1.0.0">{0}</endpoint-descriptions>'
+        )
+
+        billion_laughs = """<?xml version="1.0"?><!DOCTYPE lolz [
+ <!ENTITY lol "lol">
+ <!ENTITY lol1 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+ <!ENTITY lol2 "&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;">
+ <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
+]>""" + root.format("&lol3;")
+
+        external_entity = '<!DOCTYPE r [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>' + root.format("&xxe;")
+
+        reader = EDEFReader()
+        for document in (billion_laughs, external_entity):
+            with self.subTest(document=document[:40]):
+                self.assertRaisesRegex(ValueError, "document type", reader.parse, document)
+                self.assertRaisesRegex(ValueError, "document type", reader.parse, document.encode("utf-8"))
+
+        # A valid document without a DTD is still accepted
+        self.assertListEqual(reader.parse(root.format("")), [])
+
     def testEdefIOTypes(self) -> None:
         """
         Tests the writing and parsing of an EndpointDescription bean with
