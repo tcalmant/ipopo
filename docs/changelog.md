@@ -1,5 +1,40 @@
 # Release Notes
 
+## iPOPO 3.2.2
+
+:::{admonition} Release Date
+:class: info
+
+Unreleased
+:::
+
+### Project
+
+* Added a `SECURITY.md` file, describing how to notify the project about security
+  issues
+
+### Security
+
+* The Zeroconf/mDNS discovery provider no longer calls `eval()` on the values it
+  reads from mDNS records.
+  Those records are sent over unauthenticated multicast, meaning any host on the
+  local link could execute arbitrary code in the framework process.
+  Values using the `pelix-type:` pseudo-serialization are now converted with an
+  explicit list of supported types (`bool`, `float`, `int` and `str`): values of
+  any other type are kept as strings instead of being interpreted.
+  All versions up to 3.2.1 are affected, on every branch providing
+  `pelix.remote.discovery.mdns`
+
+### Pelix
+
+* Fixed the serialization of Zeroconf/mDNS properties: a value that JSON can't
+  handle (a `set`, a custom object, ...) raised a `TypeError` that aborted the
+  export of the whole endpoint. Such values are now logged and sent as strings
+
+### Tests
+
+* Added tests for the Zeroconf/mDNS property serialization
+
 ## iPOPO 3.2.1
 
 :::{admonition} Release Date
