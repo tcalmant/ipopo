@@ -15,15 +15,15 @@ Unreleased
 
 ### Security
 
+All versions up to 3.2.1 are affected.
+
 * The Zeroconf/mDNS discovery provider no longer calls `eval()` on the values it
   reads from mDNS records.
   Those records are sent over unauthenticated multicast, meaning any host on the
   local link could execute arbitrary code in the framework process.
   Values using the `pelix-type:` pseudo-serialization are now converted with an
   explicit list of supported types (`bool`, `float`, `int` and `str`): values of
-  any other type are kept as strings instead of being interpreted.
-  All versions up to 3.2.1 are affected, on every branch providing
-  `pelix.remote.discovery.mdns`
+  any other type are kept as strings instead of being interpreted
 * Remote callers can now only reach the public API of an exported service.
   The method name given by the caller was passed to `getattr()` without any
   check, so a caller could reach any member of the service: reading its internal
@@ -31,14 +31,20 @@ Unreleased
   private methods.
   Special members (leading underscore), dotted names and non-callable attributes
   are now refused, in both Pelix Remote Services (all RPC transports) and the
-  Remote Service Admin.
-  All versions up to 3.2.1 are affected
+  Remote Service Admin
 * The JSON persistence of Configuration Admin now refuses PIDs containing a path
   separator.
   A PID is used as a file name, so a PID like `../../some/file` could be used to
   read, write or delete a file outside of the configuration folder.
-  PIDs are otherwise unchanged: only `/`, `\` and the null character are refused.
-  All versions up to 3.2.1 are affected
+  PIDs are otherwise unchanged: only `/`, `\` and the null character are refused
+* The HTTP services don't send the details of an error to the clients anymore.
+  The stack trace of any error raised by a servlet was sent in the 500 error
+  page, describing the server (file paths, packages in use) and often the data
+  it was handling (through the message of the exception).
+  Error pages now only give an error ID, which allows to find the details of the
+  error in the logs of the server.
+  Set the new `pelix.http.debug` property to get the previous behaviour, e.g. in
+  a development environment
 
 ### Pelix
 
@@ -51,6 +57,7 @@ Unreleased
 * Added tests for the Zeroconf/mDNS property serialization
 * Added tests for the restrictions applied when calling an exported service
 * Added tests for the handling of PIDs by the Configuration Admin persistence
+* Added tests for the content of the HTTP error pages
 
 ## iPOPO 3.2.1
 
