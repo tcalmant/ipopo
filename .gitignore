@@ -8,7 +8,6 @@ __pycache__/
 .cache/
 .pytest_cache/
 .ruff_cache/
-uv.lock
 
 # IDE
 .project
