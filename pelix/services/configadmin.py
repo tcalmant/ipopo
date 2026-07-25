@@ -6,7 +6,7 @@ ConfigurationAdmin implementation
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -58,7 +58,7 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -74,6 +74,14 @@ SERVICE_CONFIGADMIN_DIRECTORY = "pelix.services.configadmin.directory"
 SERVICE_CONFIGURATION_ADMIN_PRIVATE = "pelix.services.configadmin.private"
 """
 Private version of ConfigAdmin, to handle loop-requirements ("that will do")
+"""
+
+PID_FORBIDDEN_CHARACTERS = ("/", "\\", "\0")
+"""
+Characters a PID can't contain when it is used as a file name.
+
+Both separators are rejected on every platform, so that a configuration folder
+can be shared between systems.
 """
 
 
@@ -1078,10 +1086,23 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         """
         Returns the path to the configuration file for the given PID
 
+        The PID is used as a file name: it must not be able to point outside of
+        the configuration folder.
+
         :param pid: A configuration PID
         :return: The name of the configuration file
+        :raise ValueError: The PID can't be used as a file name
         """
-        return os.path.join(self._conf_folder, f"{pid}.config.js")
+        if not pid or any(char in pid for char in PID_FORBIDDEN_CHARACTERS):
+            raise ValueError(f"Invalid configuration PID: {pid!r}")
+
+        folder = os.path.abspath(self._conf_folder)
+        path = os.path.abspath(os.path.join(folder, f"{pid}.config.js"))
+        if os.path.dirname(path) != folder:
+            # Double check: the file must be directly in the configuration folder
+            raise ValueError(f"Configuration PID points outside of the configuration folder: {pid!r}")
+
+        return path
 
     @staticmethod
     def _get_pid(filename: str) -> Optional[str]:
@@ -1159,7 +1180,12 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         :param pid: PID of a configuration
         :return: True if a readable configuration exists
         """
-        return os.path.isfile(self._get_file(pid))
+        try:
+            return os.path.isfile(self._get_file(pid))
+        except ValueError as ex:
+            # A PID we can't store can't exist
+            _logger.warning("Refused configuration PID: %s", ex)
+            return False
 
     def load(self, pid: str) -> Dict[str, Any]:
         """
@@ -1168,7 +1194,7 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         :param pid: A configuration PID
         :return: The properties in the configuration file
         :raise IOError: File not found/readable
-        :raise ValueError: Invalid file content
+        :raise ValueError: Invalid PID or invalid file content
         """
         with open(self._get_file(pid), "r") as filep:
             data = filep.read()
@@ -1184,6 +1210,7 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         :param pid: A configuration PID
         :param properties: Configuration values
         :raise IOError: File not writable
+        :raise ValueError: Invalid PID
         """
         # Write to the file
         with open(self._get_file(pid), "w") as filep:
@@ -1203,6 +1230,10 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         try:
             os.remove(self._get_file(pid))
             return True
+        except ValueError as ex:
+            # A PID we can't store has nothing to delete
+            _logger.warning("Refused configuration PID: %s", ex)
+            return False
         except OSError:
             return False
 

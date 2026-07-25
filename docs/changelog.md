@@ -33,6 +33,12 @@ Unreleased
   are now refused, in both Pelix Remote Services (all RPC transports) and the
   Remote Service Admin.
   All versions up to 3.2.1 are affected
+* The JSON persistence of Configuration Admin now refuses PIDs containing a path
+  separator.
+  A PID is used as a file name, so a PID like `../../some/file` could be used to
+  read, write or delete a file outside of the configuration folder.
+  PIDs are otherwise unchanged: only `/`, `\` and the null character are refused.
+  All versions up to 3.2.1 are affected
 
 ### Pelix
 
@@ -44,6 +50,7 @@ Unreleased
 
 * Added tests for the Zeroconf/mDNS property serialization
 * Added tests for the restrictions applied when calling an exported service
+* Added tests for the handling of PIDs by the Configuration Admin persistence
 
 ## iPOPO 3.2.1
 
