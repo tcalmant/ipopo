@@ -12,6 +12,14 @@ Unreleased
 
 * Added a `SECURITY.md` file, describing how to notify the project about security
   issues
+* `uv` is now used to handle the development environment: `uv.lock` is part of
+  the repository and the continuous integration uses `uv sync --all-extras`.
+  The `requirements.txt` file has been removed
+* Added a Dependabot configuration
+* Added the generation of a Software Bill of Materials (SBOM), in the CycloneDX
+  format (JSON and XML).
+  It is kept as an artifact of the `SBOM` workflow, and is attached to the
+  GitHub releases
 
 ### Security
 
