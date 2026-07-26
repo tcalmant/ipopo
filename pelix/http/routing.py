@@ -7,7 +7,7 @@ of HTTP requests.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -29,7 +29,9 @@ of HTTP requests.
 import inspect
 import re
 import uuid
-from typing import Any, Callable, Dict, Iterable, List, Optional, Pattern, Tuple
+from collections.abc import Callable, Iterable
+from re import Pattern
+from typing import Any
 
 from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse, Servlet
 from pelix.utilities import get_method_arguments
@@ -37,7 +39,7 @@ from pelix.utilities import get_method_arguments
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -61,7 +63,7 @@ Name of the attribute injected in methods to indicate their configuration
 # any 	    matches one of the items provided
 
 # Type name -> regex pattern
-TYPE_PATTERNS: Dict[Optional[str], str] = {
+TYPE_PATTERNS: dict[str | None, str] = {
     "string": r"(?:[^/]+)",
     "int": r"(?:[+\-]?\d+)",
     "float": r"(?:[+\-]?\d+\.?\d*)",
@@ -87,7 +89,7 @@ def path_filter(path: str) -> str:
 
 
 # Type name -> conversion method (for types other than str)
-TYPE_CONVERTERS: Dict[str, Callable[[str], Any]] = {
+TYPE_CONVERTERS: dict[str, Callable[[str], Any]] = {
     "int": int,
     "float": float,
     "path": path_filter,
@@ -102,7 +104,7 @@ class Http:
     Decorator indicating which route a method handles
     """
 
-    def __init__(self, route: str, methods: Optional[Iterable[str]] = None) -> None:
+    def __init__(self, route: str, methods: Iterable[str] | None = None) -> None:
         """
         :param route: Path handled by the method (beginning with a '/')
         :param methods: List of HTTP methods allowed (GET, POST, ...)
@@ -132,7 +134,7 @@ class Http:
             raise TypeError(f"@Http can decorate only methods, not {type(decorated_method).__name__}")
 
         try:
-            config: Dict[str, Any] = getattr(decorated_method, HTTP_ROUTE_ATTRIBUTE)
+            config: dict[str, Any] = getattr(decorated_method, HTTP_ROUTE_ATTRIBUTE)
         except AttributeError:
             config = {}
             setattr(decorated_method, HTTP_ROUTE_ATTRIBUTE, config)
@@ -217,10 +219,10 @@ class RestDispatcher(Servlet):
         Looks for the methods where to dispatch requests
         """
         # HTTP verb -> route pattern -> function
-        self.__routes: Dict[str, Dict[Pattern[str], Callable[..., None]]] = {}
+        self.__routes: dict[str, dict[Pattern[str], Callable[..., None]]] = {}
 
         # function -> arg name -> arg converter
-        self.__methods_args: Dict[Callable[..., None], Dict[str, Optional[Callable[[str], Any]]]] = {}
+        self.__methods_args: dict[Callable[..., None], dict[str, Callable[[str], Any] | None]] = {}
 
         # Find all REST methods
         self._setup_rest_dispatcher()
@@ -276,7 +278,7 @@ class RestDispatcher(Servlet):
         # Find the best matching method, according to the number of
         # readable arguments
         max_valid_args = -1
-        best_method: Optional[Callable[..., None]] = None
+        best_method: Callable[..., None] | None = None
         best_args = None
         best_match = None
 
@@ -365,7 +367,7 @@ class RestDispatcher(Servlet):
                     self.__routes.setdefault(http_verb, {})[pattern] = method
 
     @staticmethod
-    def __convert_route(route: str) -> Tuple[Pattern[str], Dict[str, Optional[Callable[[str], Any]]]]:
+    def __convert_route(route: str) -> tuple[Pattern[str], dict[str, Callable[[str], Any] | None]]:
         """
         Converts a route pattern into a regex.
         The result is a tuple containing the regex pattern to match and a
@@ -376,9 +378,9 @@ class RestDispatcher(Servlet):
         :param route: A route string, i.e. a path with type markers
         :return: A tuple (pattern, {argument name: converter})
         """
-        arguments: Dict[str, Optional[Callable[[str], Any]]] = {}
+        arguments: dict[str, Callable[[str], Any] | None] = {}
         last_idx = 0
-        final_pattern: List[str] = []
+        final_pattern: list[str] = []
         match_iter = _MARKER_PATTERN.finditer(route)
         for match_pattern in match_iter:
             # Copy intermediate string

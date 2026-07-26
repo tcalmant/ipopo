@@ -29,8 +29,9 @@ Defines the interfaces that must respect HTTP service implementations.
 
 import asyncio
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from enum import Enum
-from typing import IO, Any, Dict, Iterable, List, Optional, Protocol, Tuple, runtime_checkable
+from typing import IO, Any, Protocol, runtime_checkable
 
 from pelix.constants import Specification
 from pelix.utilities import to_bytes
@@ -192,7 +193,7 @@ class AbstractHTTPServletRequest(ABC):
         ...
 
     @abstractmethod
-    def get_client_address(self) -> Tuple[str, int]:
+    def get_client_address(self) -> tuple[str, int]:
         """
         Returns the address of the client
 
@@ -212,7 +213,7 @@ class AbstractHTTPServletRequest(ABC):
         ...
 
     @abstractmethod
-    def get_headers(self) -> Dict[str, Any]:
+    def get_headers(self) -> dict[str, Any]:
         """
         Returns a copy all headers, with a dictionary interface
 
@@ -276,7 +277,7 @@ class AbstractHTTPServletResponse(ABC):
     """
 
     @abstractmethod
-    def set_response(self, code: int, message: Optional[str] = None) -> None:
+    def set_response(self, code: int, message: str | None = None) -> None:
         """
         Sets the response line.
         This method should be the first called when sending an answer.
@@ -340,8 +341,8 @@ class AbstractHTTPServletResponse(ABC):
         self,
         http_code: int,
         content: str,
-        mime_type: Optional[str] = "text/html",
-        http_message: Optional[str] = None,
+        mime_type: str | None = "text/html",
+        http_message: str | None = None,
         content_length: int = -1,
     ) -> None:
         """
@@ -394,7 +395,7 @@ class AbstractAsyncHTTPServletRequest(ABC):
         ...
 
     @abstractmethod
-    def get_client_address(self) -> Tuple[str, int]:
+    def get_client_address(self) -> tuple[str, int]:
         """
         Returns the address of the client
 
@@ -414,7 +415,7 @@ class AbstractAsyncHTTPServletRequest(ABC):
         ...
 
     @abstractmethod
-    async def get_headers(self) -> Dict[str, Any]:
+    async def get_headers(self) -> dict[str, Any]:
         """
         Returns a copy all headers, with a dictionary interface
 
@@ -499,7 +500,7 @@ class AbstractAsyncHTTPServletResponse(ABC):
     """
 
     @abstractmethod
-    def set_response(self, code: int, message: Optional[str] = None) -> None:
+    def set_response(self, code: int, message: str | None = None) -> None:
         """
         Sets the response line.
         This method should be the first called when sending an answer.
@@ -585,8 +586,8 @@ class AbstractAsyncHTTPServletResponse(ABC):
         self,
         http_code: int,
         content: str,
-        mime_type: Optional[str] = "text/html",
-        http_message: Optional[str] = None,
+        mime_type: str | None = "text/html",
+        http_message: str | None = None,
         content_length: int = -1,
     ) -> None:
         """
@@ -680,7 +681,7 @@ class WebSocketSession(Protocol):
     Websocket session helper
     """
 
-    def get_client_address(self) -> Tuple[str, int]:
+    def get_client_address(self) -> tuple[str, int]:
         """
         Returns the address of the client
 
@@ -824,7 +825,7 @@ class HTTPService(Protocol):
     HTTP service interface
     """
 
-    def get_access(self) -> Tuple[str, int]:
+    def get_access(self) -> tuple[str, int]:
         """
         Retrieves the (address, port) tuple to access the server
         """
@@ -846,7 +847,7 @@ class HTTPService(Protocol):
         """
         ...
 
-    def get_registered_paths(self) -> List[str]:
+    def get_registered_paths(self) -> list[str]:
         """
         Returns the paths registered by servlets
 
@@ -854,7 +855,7 @@ class HTTPService(Protocol):
         """
         ...
 
-    def get_servlet(self, path: Optional[str]) -> Optional[Tuple[Servlet, Dict[str, Any], str, ServletType]]:
+    def get_servlet(self, path: str | None) -> tuple[Servlet, dict[str, Any], str, ServletType] | None:
         """
         Retrieves the servlet matching the given path and its parameters.
         Returns None if no servlet matches the given path.
@@ -887,7 +888,7 @@ class HTTPService(Protocol):
         self,
         path: str,
         servlet: Servlet,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: dict[str, Any] | None = None,
         servlet_type: ServletType = ServletType.SYNC,
     ) -> bool:
         """
@@ -902,7 +903,7 @@ class HTTPService(Protocol):
         """
         ...
 
-    def unregister(self, path: Optional[str], servlet: Optional[Servlet] = None) -> bool:
+    def unregister(self, path: str | None, servlet: Servlet | None = None) -> bool:
         """
         Unregisters the servlet for the given path
 
