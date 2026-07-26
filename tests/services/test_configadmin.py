@@ -9,13 +9,15 @@ Tests for the ConfigurationAdmin tests
 import json
 import os
 import shutil
+import tempfile
 import time
 import unittest
-from typing import TYPE_CHECKING, Any, Dict, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 
 import pelix.framework
 import pelix.services as services
 from pelix.internals.registry import ServiceReference
+from pelix.services.configadmin import JsonPersistence
 from pelix.utilities import use_service
 
 if TYPE_CHECKING:
@@ -665,6 +667,147 @@ class FileInstallTest(unittest.TestCase):
             svc = cast("Configurable", svc)
             self.check_call_count(svc, 1)
             self.assertTrue(svc.deleted, "Configuration not deleted")
+
+
+# ------------------------------------------------------------------------------
+
+
+class JsonPersistencePidTest(unittest.TestCase):
+    """
+    Tests the handling of PIDs by the JSON persistence.
+
+    A PID is used as a file name: it must not be possible to read, write or
+    delete a file outside of the configuration folder.
+    """
+
+    def setUp(self) -> None:
+        """
+        Prepares a persistence service with its own configuration folder
+        """
+        self.temp_dir = tempfile.mkdtemp(prefix="ipopo-configadmin-test-")
+        self.conf_folder = os.path.join(self.temp_dir, "conf")
+        self.outside_folder = os.path.join(self.temp_dir, "outside")
+        os.makedirs(self.conf_folder)
+        os.makedirs(self.outside_folder)
+
+        self.persistence = JsonPersistence()
+        self.persistence._conf_folder = self.conf_folder
+
+    def tearDown(self) -> None:
+        """
+        Cleans up the temporary folders
+        """
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def get_traversal_pids(self) -> List[str]:
+        """
+        Returns PIDs trying to point outside of the configuration folder
+        """
+        return [
+            "../outside/evil",
+            "../../outside/evil",
+            "../" * 10 + "tmp/evil",
+            "sub/evil",
+            "/etc/cron.d/evil",
+            "..\\..\\outside\\evil",
+            "sub\\evil",
+            "a\0b",
+            "",
+        ]
+
+    def test_traversal_pids_are_refused(self) -> None:
+        """
+        A PID pointing outside of the configuration folder must be refused
+        """
+        for pid in self.get_traversal_pids():
+            with self.subTest(pid=pid):
+                self.assertRaises(ValueError, self.persistence._get_file, pid)
+
+    def test_valid_pids_are_accepted(self) -> None:
+        """
+        Usual PIDs must still be usable, including the generated factory ones
+        """
+        for pid in (
+            "test.ca.bundle",
+            "Configurable",
+            "pelix.services.configadmin",
+            "spam.factory-4d69c0de-0000-4000-8000-000000000000",
+            "pid_with_underscore",
+            "pid-with-dash",
+            "pid with spaces",
+            "..",
+        ):
+            with self.subTest(pid=pid):
+                path = self.persistence._get_file(pid)
+                self.assertEqual(
+                    os.path.dirname(path),
+                    os.path.abspath(self.conf_folder),
+                    "Configuration file outside of the configuration folder",
+                )
+
+    def test_store_refuses_traversal(self) -> None:
+        """
+        Storing a configuration must not write outside of the folder
+        """
+        for pid in self.get_traversal_pids():
+            with self.subTest(pid=pid):
+                self.assertRaises(ValueError, self.persistence.store, pid, {"pwned": True})
+
+        self.assertListEqual(os.listdir(self.outside_folder), [], "A file has been written outside")
+
+    def test_load_refuses_traversal(self) -> None:
+        """
+        Loading a configuration must not read outside of the folder
+        """
+        # Write a file outside of the configuration folder
+        target = os.path.join(self.outside_folder, "evil.config.js")
+        with open(target, "w") as filep:
+            json.dump({"secret": "value"}, filep)
+
+        for pid in self.get_traversal_pids():
+            with self.subTest(pid=pid):
+                self.assertRaises(ValueError, self.persistence.load, pid)
+
+    def test_delete_refuses_traversal(self) -> None:
+        """
+        Deleting a configuration must not remove a file outside of the folder
+        """
+        target = os.path.join(self.outside_folder, "evil.config.js")
+        with open(target, "w") as filep:
+            json.dump({"secret": "value"}, filep)
+
+        for pid in self.get_traversal_pids():
+            with self.subTest(pid=pid):
+                self.assertFalse(self.persistence.delete(pid))
+
+        self.assertTrue(os.path.isfile(target), "A file has been deleted outside of the folder")
+
+    def test_exists_refuses_traversal(self) -> None:
+        """
+        A configuration outside of the folder must not be visible
+        """
+        target = os.path.join(self.outside_folder, "evil.config.js")
+        with open(target, "w") as filep:
+            json.dump({"secret": "value"}, filep)
+
+        for pid in self.get_traversal_pids():
+            with self.subTest(pid=pid):
+                self.assertFalse(self.persistence.exists(pid))
+
+    def test_store_load_round_trip(self) -> None:
+        """
+        Valid configurations must still be stored and loaded
+        """
+        properties = {"spam": "eggs", "count": 42}
+        self.assertFalse(self.persistence.exists("test.pid"))
+
+        self.persistence.store("test.pid", properties)
+        self.assertTrue(self.persistence.exists("test.pid"))
+        self.assertDictEqual(self.persistence.load("test.pid"), properties)
+        self.assertIn("test.pid", self.persistence.get_pids())
+
+        self.assertTrue(self.persistence.delete("test.pid"))
+        self.assertFalse(self.persistence.exists("test.pid"))
 
 
 # ------------------------------------------------------------------------------

@@ -8,7 +8,7 @@ Defines the interfaces that must respect HTTP service implementations.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -38,7 +38,7 @@ from pelix.utilities import to_bytes
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -73,6 +73,18 @@ HTTPS_KEY_FILE = "pelix.https.key_file"
 # ... the password of the key file for HTTPS servers
 # (supported since Python 3.3)
 HTTPS_KEY_PASSWORD = "pelix.https.key_password"
+
+# ... send the details of errors to the clients
+HTTP_DEBUG_ERRORS = "pelix.http.debug"
+"""
+If set, error pages sent to clients contain the stack trace of the error
+(boolean, False by default).
+
+Stack traces give details about the server (installed packages, file paths,
+handled data, ...): this flag must be kept unset in production. The details of
+an error are always logged by the server, along with the error ID shown in the
+error page.
+"""
 
 # HTTP servlet constants
 HTTP_SERVLET = "pelix.http.servlet"

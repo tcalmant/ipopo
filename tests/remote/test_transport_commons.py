@@ -41,6 +41,8 @@ IMPORT_MAKE = 2
 IMPORT_CLEAR = 3
 SERVICE_CALLED = 4
 
+SERVICE_SECRET = "s3cr3t-value"
+
 # ------------------------------------------------------------------------------
 
 
@@ -55,6 +57,7 @@ class DummyService:
         """
         self.value = uuid.uuid4()
         self.events: List[int] = []
+        self._secret = SERVICE_SECRET
 
     def clear(self) -> None:
         """
@@ -68,6 +71,13 @@ class DummyService:
         """
         self.events.append(SERVICE_CALLED)
         return self.value
+
+    def _private_method(self) -> str:
+        """
+        Private method: it must not be callable by a remote caller
+        """
+        self.events.append(SERVICE_CALLED)
+        return self._secret
 
 
 @ComponentFactory(TEST_EXPORTER_FACTORY)
@@ -323,6 +333,80 @@ class AbstractCommonExporterTest(unittest.TestCase):
         # An exception must be raised
         self.assertRaises(RemoteServiceError, exporter.dispatch, method_name, [])
         self.assertListEqual(service.events, [], "Service called after unregistration")
+
+    def testExportDispatchRestrictions(self) -> None:
+        """
+        Tests that only the public API of an exported service can be called.
+
+        A remote caller must not be able to reach the special or private members
+        of a service, e.g. to read its internal state or to reset it.
+        """
+        # Install the export transport
+        exporter = self._install_exporter()
+
+        # Register an exported service
+        context = self.framework.get_bundle_context()
+        service = DummyService()
+        svc_reg = context.register_service(
+            "sample.spec", service, {pelix.remote.PROP_EXPORTED_INTERFACES: "*"}
+        )
+        exporter.clear()
+
+        # Get the export endpoint
+        endpoint = self.dispatcher.get_endpoints()[0]
+
+        def dispatch(method_name: str, params: Any = None) -> Any:
+            """
+            Calls a method of the exported service
+            """
+            return exporter.dispatch(f"{endpoint.name}.{method_name}", params if params is not None else [])
+
+        # Special methods must be refused
+        for method_name in (
+            "__init__",
+            "__class__",
+            "__dict__",
+            "__str__",
+            "__repr__",
+            "__getattribute__",
+            "__setattr__",
+            "__reduce__",
+        ):
+            with self.subTest(method_name=method_name):
+                self.assertRaises(RemoteServiceError, dispatch, method_name)
+
+        # Private methods and attributes must be refused
+        for method_name in ("_private_method", "_secret"):
+            with self.subTest(method_name=method_name):
+                self.assertRaises(RemoteServiceError, dispatch, method_name)
+
+        # Public but non-callable attributes must be refused
+        for method_name in ("value", "events"):
+            with self.subTest(method_name=method_name):
+                self.assertRaises(RemoteServiceError, dispatch, method_name)
+
+        # Dotted names must be refused
+        for method_name in ("clear.__self__", "a.b"):
+            with self.subTest(method_name=method_name):
+                self.assertRaises(RemoteServiceError, dispatch, method_name)
+
+        # None of the above must have called the service
+        self.assertListEqual(service.events, [], "Service called by a refused method")
+
+        # The private state must not be readable through a special method
+        self.assertRaises(RemoteServiceError, dispatch, "__getattribute__", ["_secret"])
+        self.assertRaises(RemoteServiceError, dispatch, "__getattribute__", ["value"])
+
+        # The public API must still work
+        self.assertEqual(dispatch("call_me"), service.value)
+        self.assertListEqual(service.events, [SERVICE_CALLED], "Service not called")
+        service.clear()
+
+        # The service must not have been altered by the refused calls
+        self.assertEqual(service._secret, SERVICE_SECRET)
+
+        # Unregister the service
+        svc_reg.unregister()
 
     def testExportRename(self) -> None:
         """

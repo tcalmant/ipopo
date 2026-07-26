@@ -8,7 +8,7 @@ This module depends on the zeroconf package
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -30,7 +30,8 @@ This module depends on the zeroconf package
 import json
 import logging
 import socket
-from typing import Any, Dict, List, Optional, Protocol, cast
+from collections.abc import Callable
+from typing import Any, Protocol, cast
 
 import zeroconf
 
@@ -39,12 +40,12 @@ import pelix.remote
 import pelix.remote.beans as beans
 from pelix.framework import BundleContext
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
-from pelix.utilities import is_bytes, is_string, to_str
+from pelix.utilities import is_bytes, is_string, str2bool, to_str
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -57,6 +58,25 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 DEFAULT_ZEROCONF_TYPE = "_pelix-rs._tcp.local."
+
+PELIX_TYPE_PREFIX = "pelix-type:"
+"""
+Prefix of the pseudo-serialization format used for property values that can't be
+represented in JSON. Format: ``pelix-type:<type name>:<value>``
+"""
+
+_SAFE_TYPES: dict[str, Callable[[str], Any]] = {
+    "bool": str2bool,
+    "float": float,
+    "int": int,
+    "str": str,
+}
+"""
+Allowed types of the ``pelix-type:`` pseudo-serialization, and their converter.
+
+Values come from mDNS records, which anyone on the local link can send: only types
+that can be parsed without executing the payload are accepted.
+"""
 
 
 class _ZeroConfServiceListener(Protocol):
@@ -117,20 +137,20 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         self._ttl = 60
 
         # Framework UID
-        self._fw_uid: Optional[str] = None
+        self._fw_uid: str | None = None
 
         # Address of this framework
-        self._address: Optional[bytes] = None
+        self._address: bytes | None = None
 
         # Zeroconf
-        self._zeroconf: Optional[zeroconf.Zeroconf] = None
-        self._browsers: List[zeroconf.ServiceBrowser] = []
+        self._zeroconf: zeroconf.Zeroconf | None = None
+        self._browsers: list[zeroconf.ServiceBrowser] = []
 
         # Endpoint UID -> ServiceInfo
-        self._export_infos: Dict[str, zeroconf.ServiceInfo] = {}
+        self._export_infos: dict[str, zeroconf.ServiceInfo] = {}
 
         # mDNS name -> Endpoint UID
-        self._imported_endpoints: Dict[str, str] = {}
+        self._imported_endpoints: dict[str, str] = {}
 
     @Validate
     def validate(self, context: BundleContext) -> None:
@@ -180,11 +200,11 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         _logger.debug("Zeroconf discovery invalidated")
 
     @staticmethod
-    def _serialize_properties(props: Dict[str, Any]) -> Dict[str, Any]:
+    def _serialize_properties(props: dict[str, Any]) -> dict[str, Any]:
         """
         Converts properties values into strings
         """
-        new_props: Dict[str, Any] = {}
+        new_props: dict[str, Any] = {}
 
         for key, value in props.items():
             if is_string(value):
@@ -192,8 +212,19 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
             else:
                 try:
                     new_props[key] = json.dumps(value)
-                except ValueError:
-                    new_props[key] = f"pelix-type:{type(value).__name__}:{repr(value)}"
+                except (TypeError, ValueError):
+                    # Not JSON-serializable: fall back to the pseudo-serialization.
+                    # Values of a type the reader doesn't accept are sent as plain
+                    # strings rather than aborting the whole export.
+                    type_name = type(value).__name__
+                    if type_name not in _SAFE_TYPES:
+                        _logger.warning(
+                            "Property %s of type %s can't be serialized reliably: sending it as a string",
+                            key,
+                            type_name,
+                        )
+
+                    new_props[key] = f"{PELIX_TYPE_PREFIX}{type_name}:{value}"
 
         # FIXME: to simplify the usage with ECF, send single strings instead of
         # arrays
@@ -209,11 +240,45 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         return new_props
 
     @staticmethod
-    def _deserialize_properties(props: Dict[bytes, Optional[bytes]]) -> Dict[str, Any]:
+    def _parse_pelix_type(key: str, value: str) -> Any:
+        """
+        Parses a ``pelix-type:<type name>:<value>`` pseudo-serialized value.
+
+        The value comes from an mDNS record, i.e. from any host on the local link,
+        so only the types listed in :const:`_SAFE_TYPES` are converted. Anything
+        else is kept as a string: an unknown type is never interpreted.
+
+        :param key: Name of the property being read (for logging)
+        :param value: The raw ``pelix-type:`` string
+        :return: The converted value, or the raw string if it can't be converted
+        """
+        parts = value.split(":", 2)
+        if len(parts) != 3:
+            _logger.warning("Malformed pseudo-serialized value for %s: %s", key, value)
+            return value
+
+        type_name, raw_value = parts[1:]
+        converter = _SAFE_TYPES.get(type_name)
+        if converter is None:
+            _logger.warning(
+                "Unsupported type %s for property %s: keeping its string value",
+                type_name,
+                key,
+            )
+            return raw_value
+
+        try:
+            return converter(raw_value)
+        except (TypeError, ValueError) as ex:
+            _logger.warning("Invalid %s value for property %s (%s): %s", type_name, key, raw_value, ex)
+            return raw_value
+
+    @staticmethod
+    def _deserialize_properties(props: dict[bytes, bytes | None]) -> dict[str, Any]:
         """
         Converts properties values into their type
         """
-        new_props: Dict[str, Any] = {}
+        new_props: dict[str, Any] = {}
         for key, raw_value in props.items():
             key = to_str(key)
             if raw_value is None:
@@ -226,14 +291,9 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
                 try:
                     new_props[key] = json.loads(value)
                 except (TypeError, ValueError):
-                    if is_string(value) and value.startswith("pelix-type:"):
+                    if value.startswith(PELIX_TYPE_PREFIX):
                         # Pseudo-serialized
-                        value_type, value = value.split(":", 3)[2:]
-                        if "." in value_type and value_type not in value:
-                            # Not a builtin type...
-                            _logger.warning("Won't work: %s (%s)", value, value_type)
-
-                        new_props[key] = eval(value)
+                        new_props[key] = ZeroconfDiscovery._parse_pelix_type(key, value)
                     else:
                         # String
                         new_props[key] = value
@@ -277,7 +337,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         # Register the service
         self._zeroconf.register_service(info, self._ttl)
 
-    def endpoints_added(self, endpoints: List[beans.ExportEndpoint]) -> None:
+    def endpoints_added(self, endpoints: list[beans.ExportEndpoint]) -> None:
         """
         Multiple endpoints have been added
 
@@ -337,7 +397,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         self._zeroconf.register_service(info, self._ttl)
 
     def endpoint_updated(
-        self, endpoint: beans.ExportEndpoint, old_properties: Optional[Dict[str, Any]]
+        self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None
     ) -> None:
         # pylint: disable=W0613
         """
@@ -372,7 +432,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
 
     def _get_service_info(
         self, svc_type: str, name: str, max_retries: int = 10
-    ) -> Optional[zeroconf.ServiceInfo]:
+    ) -> zeroconf.ServiceInfo | None:
         """
         Tries to get information about the given mDNS service
 
@@ -423,7 +483,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
                 _logger.warning("Ignore discovered service with no port information: %s", info)
                 return
 
-            addresses: Optional[list[str]] = None
+            addresses: list[str] | None = None
             if info.addresses:
                 addresses = [socket.inet_ntoa(addr) for addr in info.addresses]
             elif info.server:

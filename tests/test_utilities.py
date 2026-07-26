@@ -617,5 +617,90 @@ class MiscUtilitiesTest(unittest.TestCase):
 
 # ------------------------------------------------------------------------------
 
+
+class XmlDoctypeTest(unittest.TestCase):
+    """
+    Tests the rejection of XML document type declarations.
+
+    Entities can only be declared in a DTD: refusing document type declarations
+    prevents entity expansion attacks on the XML documents Pelix reads from the
+    network.
+    """
+
+    EDEF = "<endpoint-descriptions><endpoint-description/></endpoint-descriptions>"
+
+    def assertRefused(self, document: Any) -> None:
+        """
+        The given document must be refused
+        """
+        self.assertRaises(ValueError, utilities.check_xml_no_doctype, document)
+
+    def assertAccepted(self, document: Any) -> None:
+        """
+        The given document must be accepted
+        """
+        utilities.check_xml_no_doctype(document)
+
+    def test_doctype_is_refused(self) -> None:
+        """
+        A document type declaration must be refused, wherever it is in the prolog
+        """
+        doctype = '<!DOCTYPE lolz [<!ENTITY lol "lol">]>'
+        for document in (
+            doctype + self.EDEF,
+            f'<?xml version="1.0"?>{doctype}{self.EDEF}',
+            f"\n\n \t{doctype}{self.EDEF}",
+            f"<!-- a comment -->{doctype}{self.EDEF}",
+            f"<!-- <fake> markup -->{doctype}{self.EDEF}",
+            f'<?xml version="1.0"?><!--c1--><?pi data?><!--c2-->\n{doctype}{self.EDEF}',
+        ):
+            with self.subTest(document=document[:40]):
+                self.assertRefused(document)
+
+    def test_doctype_is_refused_in_bytes(self) -> None:
+        """
+        Documents are also read as bytes, e.g. from an MQTT payload
+        """
+        document = f"<!DOCTYPE a []>{self.EDEF}"
+        self.assertRefused(document.encode("utf-8"))
+        self.assertRefused(bytearray(document.encode("utf-8")))
+
+    def test_doctype_is_refused_with_bom(self) -> None:
+        """
+        A byte order mark must not hide a document type declaration
+        """
+        document = f"<!DOCTYPE a []>{self.EDEF}"
+        self.assertRefused(b"\xef\xbb\xbf" + document.encode("utf-8"))
+        self.assertRefused(document.encode("utf-16"))
+        self.assertRefused("\ufeff" + document)
+
+    def test_valid_documents_are_accepted(self) -> None:
+        """
+        Documents without a document type declaration must be accepted
+        """
+        for document in (
+            self.EDEF,
+            f'<?xml version="1.0" encoding="UTF-8"?>{self.EDEF}',
+            f"<!-- a comment --><?pi data?>{self.EDEF}",
+            self.EDEF.encode("utf-8"),
+            self.EDEF.encode("utf-16"),
+            "<root>a &amp; b &lt;c&gt;</root>",
+            "<root>mentions &lt;!DOCTYPE in its text</root>",
+        ):
+            with self.subTest(document=str(document)[:40]):
+                self.assertAccepted(document)
+
+    def test_invalid_documents_are_left_to_the_parser(self) -> None:
+        """
+        The check must not raise on malformed documents: the XML parser gives
+        a better error message
+        """
+        for document in ("", "   \n ", "<!-- unterminated", "<?unterminated", "not xml at all"):
+            with self.subTest(document=document):
+                self.assertAccepted(document)
+
+
+# ------------------------------------------------------------------------------
+
 if __name__ == "__main__":
     unittest.main()

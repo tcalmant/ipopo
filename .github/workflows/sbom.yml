@@ -1,0 +1,116 @@
+name: SBOM
+
+# Generates the Software Bill of Materials (SBOM) of the project, in the
+# CycloneDX format.
+#
+# The SBOM lists the components iPOPO depends on, which is required to check
+# them against vulnerability databases. It is kept as a build artifact, and is
+# attached to the GitHub release when one is published.
+
+on:
+  push:
+    branches: [v3]
+  pull_request:
+    branches: [v3]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Check that uv.lock is up to date
+        # Ensures that the SBOM is trustworthy: a dependency added to pyproject.toml
+        # but missing from uv.lock would be absent from the SBOM
+        run: uv lock --check
+
+      - name: Resolve the dependencies
+        # All the extras are exported: the SBOM must describe every component,
+        # except the development ones, as they are not distributed.
+        #
+        # The export is based on the committed uv.lock: the SBOM describes the
+        # resolution stored in the repository
+        run: |
+          uv export --frozen --all-extras --no-dev --no-emit-project \
+            --format requirements-txt -o requirements-sbom.txt
+
+      - name: Generate the SBOM
+        run: |
+          uvx --from cyclonedx-bom cyclonedx-py requirements requirements-sbom.txt \
+            --pyproject pyproject.toml \
+            --mc-type library \
+            --output-reproducible \
+            --of JSON \
+            -o ipopo-sbom.cdx.json
+          uvx --from cyclonedx-bom cyclonedx-py requirements requirements-sbom.txt \
+            --pyproject pyproject.toml \
+            --mc-type library \
+            --output-reproducible \
+            --of XML \
+            -o ipopo-sbom.cdx.xml
+
+      - name: Show a summary of the SBOM
+        run: |
+          python - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json
+
+          with open("ipopo-sbom.cdx.json") as fp:
+              sbom = json.load(fp)
+
+          root = sbom["metadata"]["component"]
+          components = sbom.get("components", [])
+          print(f"## SBOM of {root['name']} {root.get('version', '')}")
+          print()
+          print(f"* CycloneDX specification: {sbom['specVersion']}")
+          print(f"* Components: {len(components)}")
+          print()
+          print("| Component | Version |")
+          print("| --------- | ------- |")
+          for component in sorted(components, key=lambda c: c["name"].lower()):
+              print(f"| {component['name']} | {component.get('version', '')} |")
+          EOF
+
+      - name: Store the SBOM as an artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ipopo-sbom
+          path: |
+            ipopo-sbom.cdx.json
+            ipopo-sbom.cdx.xml
+          if-no-files-found: error
+
+  # Separate job: it is the only one needing a write access to the repository
+  attach-to-release:
+    needs: sbom
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Get the SBOM
+        uses: actions/download-artifact@v4
+        with:
+          name: ipopo-sbom
+
+      - name: Attach the SBOM to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "$TAG_NAME" \
+            ipopo-sbom.cdx.json ipopo-sbom.cdx.xml --clobber

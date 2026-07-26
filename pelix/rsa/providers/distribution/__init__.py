@@ -7,7 +7,7 @@ Distribution Provider API
 :author: Scott Lewis
 :copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -27,6 +27,7 @@ Distribution Provider API
 """
 
 import abc
+import logging
 from threading import RLock
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast
 
@@ -59,15 +60,20 @@ from pelix.rsa import (
     merge_dicts,
 )
 from pelix.rsa.endpointdescription import EndpointDescription
+from pelix.utilities import get_remote_method
 
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
+
+# ------------------------------------------------------------------------------
+
+_logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
@@ -664,9 +670,12 @@ class ExportContainer(Container):
             raise RemoteServiceError(
                 "Unknown service with rs_id={0} for method call={1}".format(rs_id, method_name)
             )
-        # Get the method
-        method_ref = getattr(service[0], method_name, None)
+        # Get the method: only the public API of the service can be called remotely
+        method_ref = get_remote_method(service[0], method_name)
         if method_ref is None:
+            # Same error as an unknown method: a caller must not be able to tell
+            # a refused method from a missing one
+            _logger.warning("Refused remote call to %s on service %s", method_name, rs_id)
             raise RemoteServiceError(f"Unknown method {method_name}")
         # Call it (let the errors be propagated)
         if isinstance(params, (list, tuple)):

@@ -9,7 +9,7 @@ Python library.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -33,6 +33,7 @@ import logging
 import socket
 import threading
 import traceback
+import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import TCPServer, ThreadingMixIn
 from typing import (
@@ -74,7 +75,7 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -341,11 +342,10 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
         :param response: The response handler
         """
-        # Get a formatted stack trace
+        # Get a formatted stack trace.
+        # The error is logged by the service, which also decides what can be
+        # sent to the client
         stack = traceback.format_exc()
-
-        # Log the error
-        self.log_error("Error handling request upon: %s\n%s\n", self.path, stack)
 
         # Send the page
         response.send_content(500, self._service.make_exception_page(self.path, stack))
@@ -457,6 +457,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 @Property("_logger_name", "pelix.http.logger.name", "")
 @Property("_logger_level", "pelix.http.logger.level", None)
 @Property("_request_queue_size", "pelix.http.request_queue_size", 100)
+@Property("_debug_errors", http.HTTP_DEBUG_ERRORS, False)
 class HttpServiceImpl(http.HTTPService):
     """
     Basic HTTP service component
@@ -467,6 +468,7 @@ class HttpServiceImpl(http.HTTPService):
         self._address = "0.0.0.0"
         self._port = 8080
         self._uses_ssl = False
+        self._debug_errors = False
         self._extra: Optional[Dict[str, Any]] = None
         self._instance_name: Optional[str] = None
         self._logger_name: Optional[str] = None
@@ -734,15 +736,29 @@ class HttpServiceImpl(http.HTTPService):
 
     def make_exception_page(self, path: str, stack: str) -> str:
         """
-        Prepares a page printing an exception stack trace in a 500 error
+        Prepares a page describing an error in a 500 error page.
+
+        The stack trace is only sent to the client if the
+        :const:`pelix.http.HTTP_DEBUG_ERRORS` property is set: it gives details
+        about the server and about the data it handles. It is always logged,
+        along with the error ID shown in the page.
 
         :param path: Request path
         :param stack: Exception stack trace
         :return: A HTML page
         """
+        # Log the details of the error, they are not sent to the client
+        error_id = uuid.uuid4().hex
+        (self._logger or logging.getLogger(__name__)).error(
+            "Error %s handling request upon: %s\n%s", error_id, path, stack
+        )
+
+        # Only tell the client how to find the error in the logs
+        details = stack if self._debug_errors else f"Error ID: {error_id}"
+
         page = None
         if self._error_handler is not None:
-            page = self._error_handler.make_exception_page(path, stack)
+            page = self._error_handler.make_exception_page(path, details)
 
         if not page:
             page = f"""<html>
@@ -753,7 +769,7 @@ class HttpServiceImpl(http.HTTPService):
 <h1>Internal Server Error</h1>
 <p>Error handling request upon: <code>{html.escape(path)}</code></p>
 <pre>
-{html.escape(stack)}
+{html.escape(details)}
 </pre>
 </body>
 </html>"""

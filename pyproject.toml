@@ -7,7 +7,7 @@ packages = ["pelix"]
 
 [project]
 name = "iPOPO"
-version = "3.2.1"
+version = "3.2.2"
 authors = [
   { name = "Thomas Calmant", email = "thomas.calmant+github@gmail.com" },
 ]
@@ -51,7 +51,13 @@ ZooKeeper = ["kazoo~=2.11.0"]
 yaml = ["pyyaml~=6.0.3"]
 
 [dependency-groups]
-dev = ["pytest>=9.0.3"]
+dev = [
+  "pytest>=9.0.3",
+  "coverage>=7.6",
+  # Enables coverage in the frameworks started in subprocesses by the tests
+  "coverage-enable-subprocess>=1.0",
+  "coveralls>=4.0",
+]
 
 [tool.black]
 line-length = 110

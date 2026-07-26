@@ -7,7 +7,7 @@ specifications, section 122.8.
 :author: Thomas Calmant and Scott Lewis
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -33,11 +33,12 @@ from typing import Any, Iterable, List, Optional, Tuple
 import pelix.constants
 from pelix import rsa
 from pelix.rsa.endpointdescription import EndpointDescription
+from pelix.utilities import check_xml_no_doctype
 
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -212,7 +213,11 @@ class EDEFReader:
 
         :param xml_str: An XML string
         :return: The list of parsed EndpointDescription
+        :raise ValueError: Invalid XML document
         """
+        # Refuse documents declaring entities before giving them to the parser
+        check_xml_no_doctype(xml_str)
+
         # Parse the document
         root = ElementTree.fromstring(xml_str)
         if root.tag != TAG_ENDPOINT_DESCRIPTIONS:

@@ -8,7 +8,6 @@ __pycache__/
 .cache/
 .pytest_cache/
 .ruff_cache/
-uv.lock
 
 # IDE
 .project
@@ -48,6 +47,11 @@ conf/
 
 # Profiling
 *.lprof
+
+# Generated SBOM
+requirements-sbom.txt
+*.cdx.json
+*.cdx.xml
 
 # Epydoc Help
 api/

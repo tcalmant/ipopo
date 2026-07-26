@@ -32,7 +32,16 @@ Property           Default Description
 ================== ======= ====================================================
 pelix.http.address 0.0.0.0 The address the HTTP server is bound to
 pelix.http.port    8080    The port the HTTP server is bound to
+pelix.http.debug   False   If set, error pages sent to the clients contain the
+                           stack trace of the error
 ================== ======= ====================================================
+
+.. warning:: ``pelix.http.debug`` must be kept unset in production.
+
+   A stack trace describes the server: the paths of its files, the packages it
+   uses and the data it was handling. By default, the error page only gives an
+   error ID, which allows to find the details of the error in the logs of the
+   server.
 
 Instantiation
 -------------

@@ -1,5 +1,80 @@
 # Release Notes
 
+## iPOPO 3.2.2
+
+:::{admonition} Release Date
+:class: info
+
+Unreleased
+:::
+
+### Project
+
+* Added a `SECURITY.md` file, describing how to notify the project about security
+  issues
+* `uv` is now used to handle the development environment: `uv.lock` is part of
+  the repository and the continuous integration uses `uv sync --all-extras`.
+  The `requirements.txt` file has been removed
+* Added a Dependabot configuration
+* Added the generation of a Software Bill of Materials (SBOM), in the CycloneDX
+  format (JSON and XML).
+  It is kept as an artifact of the `SBOM` workflow, and is attached to the
+  GitHub releases
+
+### Security
+
+All versions up to 3.2.1 are affected.
+
+* The Zeroconf/mDNS discovery provider no longer calls `eval()` on the values it
+  reads from mDNS records.
+  Those records are sent over unauthenticated multicast, meaning any host on the
+  local link could execute arbitrary code in the framework process.
+  Values using the `pelix-type:` pseudo-serialization are now converted with an
+  explicit list of supported types (`bool`, `float`, `int` and `str`): values of
+  any other type are kept as strings instead of being interpreted
+* Remote callers can now only reach the public API of an exported service.
+  The method name given by the caller was passed to `getattr()` without any
+  check, so a caller could reach any member of the service: reading its internal
+  state with `__getattribute__`, resetting it with `__init__`, or calling its
+  private methods.
+  Special members (leading underscore), dotted names and non-callable attributes
+  are now refused, in both Pelix Remote Services (all RPC transports) and the
+  Remote Service Admin
+* The JSON persistence of Configuration Admin now refuses PIDs containing a path
+  separator.
+  A PID is used as a file name, so a PID like `../../some/file` could be used to
+  read, write or delete a file outside of the configuration folder.
+  PIDs are otherwise unchanged: only `/`, `\` and the null character are refused
+* The HTTP services don't send the details of an error to the clients anymore.
+  The stack trace of any error raised by a servlet was sent in the 500 error
+  page, describing the server (file paths, packages in use) and often the data
+  it was handling (through the message of the exception).
+  Error pages now only give an error ID, which allows to find the details of the
+  error in the logs of the server.
+  Set the new `pelix.http.debug` property to get the previous behaviour, e.g. in
+  a development environment
+* The EDEF XML readers now refuse documents declaring a document type (DTD).
+  Entities can only be declared in a DTD, and their expansion can make a parser
+  allocate a huge amount of memory from a small document ("billion laughs").
+  EDEF documents are read from the network by the MQTT, Redis and ZooKeeper
+  discovery providers, and have no use for a DTD.
+  Recent versions of `expat` limit that expansion, but Pelix also supports
+  systems where it is not the case
+
+### Pelix
+
+* Fixed the serialization of Zeroconf/mDNS properties: a value that JSON can't
+  handle (a `set`, a custom object, ...) raised a `TypeError` that aborted the
+  export of the whole endpoint. Such values are now logged and sent as strings
+
+### Tests
+
+* Added tests for the Zeroconf/mDNS property serialization
+* Added tests for the restrictions applied when calling an exported service
+* Added tests for the handling of PIDs by the Configuration Admin persistence
+* Added tests for the content of the HTTP error pages
+* Added tests for the rejection of XML document type declarations
+
 ## iPOPO 3.2.1
 
 :::{admonition} Release Date

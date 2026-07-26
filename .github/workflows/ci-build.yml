@@ -19,22 +19,20 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-
       - name: Use JDK 17
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Install uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pytest coverage coverage_enable_subprocess coveralls
-          pip install -r requirements.txt
+        run: uv sync --python "${{ matrix.python-version }}" --all-extras --locked
 
       - name: Start test infrastructure
         run: |
@@ -43,14 +41,17 @@ jobs:
 
       - name: Run unit tests
         run: |
-          coverage run -m pytest tests
-          coverage combine
+          uv run --no-sync coverage run -m pytest tests
+          uv run --no-sync coverage combine
+          uv run --no-sync coverage xml -o coverage.xml
 
       - name: Coveralls Parallel
         uses: coverallsapp/github-action@v2
         with:
           flag-name: python-${{ matrix.python-version }}
           parallel: true
+          file: coverage.xml
+          format: cobertura
 
   finish:
     needs: test
