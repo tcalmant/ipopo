@@ -43,12 +43,15 @@ jobs:
         run: |
           uv run --no-sync coverage run -m pytest tests
           uv run --no-sync coverage combine
+          uv run --no-sync coverage xml -o coverage.xml
 
       - name: Coveralls Parallel
         uses: coverallsapp/github-action@v2
         with:
           flag-name: python-${{ matrix.python-version }}
           parallel: true
+          file: coverage.xml
+          format: cobertura
 
   finish:
     needs: test
