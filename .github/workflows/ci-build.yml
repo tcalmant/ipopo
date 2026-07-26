@@ -47,6 +47,7 @@ jobs:
 
       - name: Coveralls Parallel
         uses: coverallsapp/github-action@v2
+        continue-on-error: true
         with:
           flag-name: python-${{ matrix.python-version }}
           parallel: true
@@ -60,5 +61,6 @@ jobs:
     steps:
     - name: Coveralls Finished
       uses: coverallsapp/github-action@v2
+      continue-on-error: true
       with:
         parallel-finished: true
