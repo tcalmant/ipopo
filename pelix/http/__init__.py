@@ -485,13 +485,13 @@ class AbstractAsyncWriter(ABC):
         :param raw: Data to write
         :return: Number of bytes written
         """
-        ...
+        ...  # noqa: PIE790
 
     async def flush(self) -> None:
         """
         Flushes the buffer if any
         """
-        ...
+        ...  # noqa: PIE790
 
 
 class AbstractAsyncHTTPServletResponse(ABC):

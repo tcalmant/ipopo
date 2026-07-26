@@ -41,11 +41,10 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, cast
 
-import pelix.http as http
-import pelix.ipopo.constants as constants
 import pelix.remote
-import pelix.utilities as utilities
+from pelix import http, utilities
 from pelix.internals.registry import ServiceReference
+from pelix.ipopo import constants
 from pelix.ipopo.decorators import HiddenProperty, Property
 
 # ------------------------------------------------------------------------------

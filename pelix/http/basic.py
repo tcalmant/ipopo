@@ -36,10 +36,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import TCPServer, ThreadingMixIn
 from typing import IO, TYPE_CHECKING, Any, cast
 
-import pelix.http as http
 import pelix.ipv6utils
-import pelix.misc.ssl_wrap as ssl_wrap
-import pelix.utilities as utilities
+from pelix import http, utilities
 from pelix.http._base import (
     DEFAULT_BIND_ADDRESS,
     DEFAULT_REQUEST_QUEUE_SIZE,
@@ -59,6 +57,7 @@ from pelix.ipopo.decorators import (
     UpdateField,
     Validate,
 )
+from pelix.misc import ssl_wrap
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext

@@ -154,7 +154,7 @@ class HttpGet(Http):
         """
         :param route: Path handled by the method (beginning with a '/')
         """
-        super(HttpGet, self).__init__(route, methods=["GET"])
+        super().__init__(route, methods=["GET"])
 
 
 class HttpHead(Http):
@@ -166,7 +166,7 @@ class HttpHead(Http):
         """
         :param route: Path handled by the method (beginning with a '/')
         """
-        super(HttpHead, self).__init__(route, methods=["HEAD"])
+        super().__init__(route, methods=["HEAD"])
 
 
 class HttpPost(Http):
@@ -178,7 +178,7 @@ class HttpPost(Http):
         """
         :param route: Path handled by the method (beginning with a '/')
         """
-        super(HttpPost, self).__init__(route, methods=["POST"])
+        super().__init__(route, methods=["POST"])
 
 
 class HttpPut(Http):
@@ -190,7 +190,7 @@ class HttpPut(Http):
         """
         :param route: Path handled by the method (beginning with a '/')
         """
-        super(HttpPut, self).__init__(route, methods=["PUT"])
+        super().__init__(route, methods=["PUT"])
 
 
 class HttpDelete(Http):
@@ -202,7 +202,7 @@ class HttpDelete(Http):
         """
         :param route: Path handled by the method (beginning with a '/')
         """
-        super(HttpDelete, self).__init__(route, methods=["DELETE"])
+        super().__init__(route, methods=["DELETE"])
 
 
 # ------------------------------------------------------------------------------

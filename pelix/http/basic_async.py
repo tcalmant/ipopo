@@ -41,8 +41,7 @@ import aiohttp.client_exceptions
 import aiohttp.web
 
 import pelix.constants as fw_constants
-import pelix.http as http
-import pelix.utilities as utilities
+from pelix import http, utilities
 from pelix.http._base import (
     DEFAULT_BIND_ADDRESS,
     HTTP_SERVICE_EXTRA,
