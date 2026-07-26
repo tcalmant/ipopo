@@ -29,33 +29,32 @@ Provides an implementation of the Pelix HTTP service based on aiohttp.
 
 import asyncio
 import concurrent.futures
-import html
 import io
 import logging
-import re
-import socket
 import ssl
 import sys
 import threading
 import traceback
-import uuid
-from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
+from typing import IO, TYPE_CHECKING, Any, cast
 
 import aiohttp.client_exceptions
 import aiohttp.web
 
 import pelix.constants as fw_constants
 import pelix.http as http
-import pelix.ipopo.constants as constants
-import pelix.remote
 import pelix.utilities as utilities
+from pelix.http._base import (
+    DEFAULT_BIND_ADDRESS,
+    HTTP_SERVICE_EXTRA,
+    LOCALHOST_ADDRESS,
+    AbstractHttpService,
+    compute_sub_path,
+)
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import (
     BindField,
     ComponentFactory,
-    HiddenProperty,
     Invalidate,
-    Property,
     Provides,
     Requires,
     UnbindField,
@@ -78,16 +77,14 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
-HTTP_SERVICE_EXTRA = "http.extra"
-""" HTTP service extra properties (dictionary) """
-
-DEFAULT_BIND_ADDRESS = "0.0.0.0"
-""" By default, bind to all IPv4 interfaces """
-
-LOCALHOST_ADDRESS = "127.0.0.1"
-"""
-Local address, if None is given as binding address, instead of the default one
-"""
+# Kept for backward compatibility: those constants are now defined in _base
+__all__ = [
+    "DEFAULT_BIND_ADDRESS",
+    "HTTP_SERVICE_EXTRA",
+    "LOCALHOST_ADDRESS",
+    "AsyncHttpServiceImpl",
+    "WSSession",
+]
 
 
 class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
@@ -109,11 +106,7 @@ class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
         self._content = content
 
         # Compute the sub path
-        self._sub_path = full_path[len(prefix) :]
-        if not self._sub_path.startswith("/"):
-            self._sub_path = f"/{self._sub_path}"
-
-        self._sub_path = re.sub("/+", "/", self._sub_path)
+        self._sub_path = compute_sub_path(full_path, prefix)
 
     def get_command(self) -> str:
         """
@@ -121,7 +114,7 @@ class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
         """
         return self._request.method.upper()
 
-    def get_client_address(self) -> Tuple[str, int]:
+    def get_client_address(self) -> tuple[str, int]:
         """
         Retrieves the address of the client
 
@@ -129,24 +122,24 @@ class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
         """
         if self._request.transport is None:
             # No transport, no address
-            raise IOError("No transport available for the request")
+            raise OSError("No transport available for the request")
 
         peer_name = self._request.transport.get_extra_info("peername")
         if not peer_name:
-            raise IOError("No peer name available for the request")
+            raise OSError("No peer name available for the request")
         return peer_name[:2]
 
-    def get_header(self, name: str, default: Optional[Any] = None) -> Any:
+    def get_header(self, name: str, default: Any | None = None) -> Any:
         """
         Retrieves the value of a header
         """
         return self._request.headers.get(name, default)
 
-    def get_headers(self) -> Dict[str, Any]:
+    def get_headers(self) -> dict[str, Any]:
         """
         Retrieves all headers
         """
-        return cast(Dict[str, Any], self._request.headers)
+        return cast(dict[str, Any], self._request.headers)
 
     def get_path(self) -> str:
         """
@@ -192,16 +185,16 @@ class _WriteWrapper(IO[bytes]):
         return self._buffer.getvalue()
 
     def read(self, size: int = -1) -> bytes:
-        raise IOError("This stream is not readable")
+        raise OSError("This stream is not readable")
 
     def write(self, b: bytes) -> int:
         return self._buffer.write(b)
 
     def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
-        raise IOError("This stream is not seekable")
+        raise OSError("This stream is not seekable")
 
     def tell(self) -> int:
-        raise IOError("This stream is not seekable")
+        raise OSError("This stream is not seekable")
 
     def close(self) -> None:
         self._closed = True
@@ -237,7 +230,7 @@ class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
         """
         self._request = request
         self._loop = loop
-        self._headers: Dict[str, str] = {}
+        self._headers: dict[str, str] = {}
         self._headers_set: bool = False
         self._code: int = 200
         self._message: str | None = None
@@ -254,7 +247,7 @@ class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
             body=self._writer.get(), status=self._code, reason=self._message, headers=self._headers
         )
 
-    def set_response(self, code: int, message: Optional[str] = None) -> None:
+    def set_response(self, code: int, message: str | None = None) -> None:
         """
         Sets the response line.
         This method should be the first called when sending an answer.
@@ -263,7 +256,7 @@ class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
         :param message: Associated message
         """
         if self._headers_set:
-            raise IOError("Headers have already been set, cannot change the response code")
+            raise OSError("Headers have already been set, cannot change the response code")
 
         self._code = code
         self._message = message
@@ -277,7 +270,7 @@ class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
         :param value: Header value
         """
         if self._headers_set:
-            raise IOError("Headers have already been set, cannot change them")
+            raise OSError("Headers have already been set, cannot change them")
 
         if value is None:
             self._headers.pop(name.lower(), None)
@@ -345,11 +338,7 @@ class _AsyncHTTPServletRequest(http.AbstractAsyncHTTPServletRequest):
         self._prefix = prefix
 
         # Compute the sub path
-        self._sub_path = full_path[len(prefix) :]
-        if not self._sub_path.startswith("/"):
-            self._sub_path = f"/{self._sub_path}"
-
-        self._sub_path = re.sub("/+", "/", self._sub_path)
+        self._sub_path = compute_sub_path(full_path, prefix)
 
     def get_command(self) -> str:
         """
@@ -357,7 +346,7 @@ class _AsyncHTTPServletRequest(http.AbstractAsyncHTTPServletRequest):
         """
         return self._request.method.upper()
 
-    def get_client_address(self) -> Tuple[str, int]:
+    def get_client_address(self) -> tuple[str, int]:
         """
         Retrieves the address of the client
 
@@ -365,24 +354,24 @@ class _AsyncHTTPServletRequest(http.AbstractAsyncHTTPServletRequest):
         """
         if self._request.transport is None:
             # No transport, no address
-            raise IOError("No transport available for the request")
+            raise OSError("No transport available for the request")
 
         peer_name = self._request.transport.get_extra_info("peername")
         if not peer_name:
-            raise IOError("No peer name available for the request")
+            raise OSError("No peer name available for the request")
         return peer_name[:2]
 
-    async def get_header(self, name: str, default: Optional[Any] = None) -> Any:
+    async def get_header(self, name: str, default: Any | None = None) -> Any:
         """
         Retrieves the value of a header
         """
         return self._request.headers.get(name, default)
 
-    async def get_headers(self) -> Dict[str, Any]:
+    async def get_headers(self) -> dict[str, Any]:
         """
         Retrieves all headers
         """
-        return cast(Dict[str, Any], self._request.headers)
+        return cast(dict[str, Any], self._request.headers)
 
     def get_path(self) -> str:
         """
@@ -455,7 +444,7 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         """
         return self._response
 
-    def set_response(self, code: int, message: Optional[str] = None) -> None:
+    def set_response(self, code: int, message: str | None = None) -> None:
         """
         Sets the response line.
         This method should be the first called when sending an answer.
@@ -464,7 +453,7 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         :param message: Associated message
         """
         if self._headers_set:
-            raise IOError("Headers have already been set, cannot change the response code")
+            raise OSError("Headers have already been set, cannot change the response code")
 
         self._response.set_status(code, message)
 
@@ -477,7 +466,7 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         :param value: Header value
         """
         if self._headers_set:
-            raise IOError("Headers have already been set, cannot change them")
+            raise OSError("Headers have already been set, cannot change them")
 
         if value is None:
             self._response.headers.popall(name.lower(), None)
@@ -509,7 +498,7 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
             raise ValueError("Cannot set up SSE for a non-SSE request")
 
         if self._headers_set:
-            raise IOError("Headers have already been set, cannot change them")
+            raise OSError("Headers have already been set, cannot change them")
 
         self._response.headers["Content-Type"] = "text/event-stream"
         self._response.headers["Cache-Control"] = "no-cache"
@@ -553,7 +542,7 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         :param id: Optional event ID (set to "" to reset the ID)
         """
         if not self._sse_set:
-            raise IOError("SSE not set up, call setup_sse() first")
+            raise OSError("SSE not set up, call setup_sse() first")
 
         # Prepare the SSE message
         parts: list[str] = []
@@ -583,7 +572,7 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
         try:
             await self.write("\n".join(parts).encode("utf-8"))
         except aiohttp.client_exceptions.ClientConnectionResetError:
-            raise IOError("Client connection reset during SSE send") from None
+            raise OSError("Client connection reset during SSE send") from None
 
 
 class WSSession(http.WebSocketSession):
@@ -604,7 +593,7 @@ class WSSession(http.WebSocketSession):
         self._request = servlet_request
         self._response = ws_response
 
-    def get_client_address(self) -> Tuple[str, int]:
+    def get_client_address(self) -> tuple[str, int]:
         """
         Returns the address of the client
 
@@ -619,7 +608,7 @@ class WSSession(http.WebSocketSession):
         :param message: Binary message to send
         """
         if self._response.closed:
-            raise IOError("WebSocket session is closed")
+            raise OSError("WebSocket session is closed")
 
         await self._response.send_bytes(message)
 
@@ -630,7 +619,7 @@ class WSSession(http.WebSocketSession):
         :param message: Message to send
         """
         if self._response.closed:
-            raise IOError("WebSocket session is closed")
+            raise OSError("WebSocket session is closed")
 
         await self._response.send_str(message)
 
@@ -654,64 +643,21 @@ class WSSession(http.WebSocketSession):
 @Requires("_servlets_async_services", http.AsyncServlet, True, True)
 @Requires("_websocket_handler_services", http.WebSocketHandler, True, True)
 @Requires("_error_handler", http.ErrorHandler, optional=True)
-@Property("_address", http.HTTP_SERVICE_ADDRESS, DEFAULT_BIND_ADDRESS)
-@Property("_port", http.HTTP_SERVICE_PORT, 8080)
-@Property("_uses_ssl", http.HTTP_USES_SSL, False)
-@Property("_cert_file", http.HTTPS_CERT_FILE, None)
-@Property("_key_file", http.HTTPS_KEY_FILE, None)
-@HiddenProperty("_key_password", http.HTTPS_KEY_PASSWORD, None)
-@Property("_extra", HTTP_SERVICE_EXTRA, None)
-@Property("_instance_name", constants.IPOPO_INSTANCE_NAME)
-@Property("_logger_name", "pelix.http.logger.name", "")
-@Property("_logger_level", "pelix.http.logger.level", None)
-@Property("_debug_errors", http.HTTP_DEBUG_ERRORS, False)
-class AsyncHttpServiceImpl(http.HTTPService):
+class AsyncHttpServiceImpl(AbstractHttpService):
     """
     Asynchronous HTTP service component
     """
 
     def __init__(self) -> None:
-        # Properties
-        self._address = "0.0.0.0"
-        self._port = 8080
-        self._uses_ssl = False
-        self._debug_errors = False
-        self._extra: Optional[Dict[str, Any]] = None
-        self._instance_name: Optional[str] = None
-        self._logger_name: Optional[str] = None
-        self._logger_level: str | int | None = None
+        super().__init__()
 
-        # SSL Parameters
-        self._cert_file: Optional[str] = None
-        self._key_file: Optional[str] = None
-        self._key_password: Optional[str] = None
-
-        # Validation flag
-        self._validated = False
-
-        # The logger
-        self._logger: logging.Logger = logging.getLogger(f"{__name__}#init")
-
-        # Servlets registry lock
-        self._lock = threading.RLock()
-
-        # Path -> (servlet, parameters, type)
-        self._servlets: Dict[
-            str, Tuple[http.Servlet | http.AsyncServlet, Dict[str, Any], http.ServletType]
-        ] = {}
+        # This implementation always has a logger
+        self._logger = logging.getLogger(f"{__name__}#init")
 
         # Fields injected by iPOPO
-        self._servlets_services: List[http.Servlet] = []
-        self._servlets_async_services: List[http.AsyncServlet] = []
-        self._websocket_handler_services: List[http.WebSocketHandler] = []
-        self._error_handler: Optional[http.ErrorHandler] = None
-
-        # Servlet -> ServiceReference
-        self._servlets_refs: Dict[
-            http.Servlet | http.AsyncServlet | http.WebSocketHandler,
-            ServiceReference[http.Servlet | http.AsyncServlet | http.WebSocketHandler],
-        ] = {}
-        self._binding_lock = threading.RLock()
+        self._servlets_services: list[http.Servlet] = []
+        self._servlets_async_services: list[http.AsyncServlet] = []
+        self._websocket_handler_services: list[http.WebSocketHandler] = []
 
         # Server control
         self._bound_address: tuple[str, int] | None = None
@@ -723,60 +669,13 @@ class AsyncHttpServiceImpl(http.HTTPService):
         self._stop_event: asyncio.Event = asyncio.Event()
         self._stop_done_event: threading.Event = threading.Event()
 
-    def __str__(self) -> str:
-        """
-        String representation of the instance
-        """
-        return f"BasicHttpService({self._address}, {self._port})"
-
     @Validate
     def validate(self, context: "BundleContext") -> None:
         """
         Component validated
         """
-        # Check if we'll use an SSL connection
-        self._uses_ssl = self._cert_file is not None
-
-        if not self._address:
-            # No address given, use the localhost address
-            self._address = LOCALHOST_ADDRESS
-
-        if self._port is None:
-            # Random port
-            self._port = 0
-        else:
-            # Ensure we have an integer
-            self._port = int(self._port)
-            if self._port < 0:
-                # Random port
-                self._port = 0
-
-        # Normalize the extra properties
-        if not isinstance(self._extra, dict):
-            self._extra = {}
-
-        # Set up the logger
-        if not self._logger_name:
-            # Empty name, use the instance name
-            self._logger_name = self._instance_name
-
-        self._logger = logging.getLogger(self._logger_name)
-
-        level: int | None = None
-        if self._logger_level is None:
-            level = logging.INFO
-        elif isinstance(self._logger_level, int):
-            level = self._logger_level
-        else:
-            level = utilities.get_log_level(self._logger_level)
-            if level is None:
-                try:
-                    level = int(self._logger_level)
-                except ValueError:
-                    # Invalid level
-                    level = None
-
-        self._logger.level = level if level is not None else logging.INFO
+        self._normalize_configuration()
+        self._setup_logger()
 
         self.log(
             logging.INFO,
@@ -802,23 +701,18 @@ class AsyncHttpServiceImpl(http.HTTPService):
         # Wait for the server to be ready
         if not self._start_done_event.wait(10):
             self._logger.error("HTTP server did not start in time")
-            raise IOError("HTTP server did not start in time")
+            raise OSError("HTTP server did not start in time")
 
         if self._start_done_event.data is None:
             self._logger.error("HTTP server did not bind to an address")
-            raise IOError("HTTP server did not bind to an address")
+            raise OSError("HTTP server did not bind to an address")
 
         host, port = self._start_done_event.data
         self._bound_address = (host, port)
         self._port = port
 
-        with self._binding_lock:
-            # Set the validation flag up, once the server is ready
-            self._validated = True
-
-            # Register bound servlets
-            for service, svc_ref in self._servlets_refs.items():
-                self.__register_servlet_service(service, svc_ref)
+        # Register the servlets bound before the server was ready
+        self._register_bound_servlets()
 
         self._logger.info(
             "HTTP%s server bound to: [%s]:%d ...",
@@ -883,6 +777,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
             # Set the event loop for this thread
             if sys.platform.startswith("win"):
                 # aiodns requires a specific event loop on Windows
+                # FIXME: this will be removed in Python 3.16
                 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
             self._loop = asyncio.new_event_loop()
@@ -959,13 +854,13 @@ class AsyncHttpServiceImpl(http.HTTPService):
             # No executor available, cannot handle the request
             return aiohttp.web.Response(status=503, text="Service unavailable")
 
-        # Remove the double-slashes in the request path
-        path = re.sub("/+", "/", request.path)
-
         # Get the corresponding servlet
-        found_servlet = self.get_servlet(path)
-        if found_servlet is not None:
-            servlet, _, prefix, servlet_type = found_servlet
+        routing = self.resolve_request(request.path)
+        path = routing.path
+        servlet = routing.servlet
+        if servlet is not None:
+            prefix = routing.prefix
+            servlet_type = routing.servlet_type
 
             async_name = f"do_async_{request.method.upper()}"
             sync_name = f"do_{request.method.upper()}"
@@ -1041,11 +936,12 @@ class AsyncHttpServiceImpl(http.HTTPService):
                                     case aiohttp.WSMsgType.TEXT:
                                         # Text message received
                                         await ws_handler.ws_message(ws_session, msg.data)
-                            else:
-                                code = ws_response.close_code or aiohttp.WSCloseCode.GOING_AWAY
-                                await ws_handler.ws_close(ws_session, code, "Session closed")
+
+                            # End of loop: the WebSocket connection is closed
+                            code = ws_response.close_code or aiohttp.WSCloseCode.GOING_AWAY
+                            await ws_handler.ws_close(ws_session, code, "Session closed")
                         except Exception as ex:
-                            self._logger.exception("Error handling WebSocket connection: %s", ex)
+                            self._logger.exception("Error handling WebSocket connection")
                             await ws_handler.ws_error(ws_session, str(ex))
                         finally:
                             if not ws_response.closed:
@@ -1077,45 +973,19 @@ class AsyncHttpServiceImpl(http.HTTPService):
         # Send the page
         return aiohttp.web.Response(status=500, text=self.make_exception_page(path, stack))
 
-    def __safe_callback(self, instance: http.Servlet, method: str, *args: Any, **kwargs: Any) -> Any:
+    def _set_extra_parameters(self, parameters: dict[str, Any], servlet_type: http.ServletType) -> None:
         """
-        Safely calls the given method in the given instance.
-        Returns True on method absence.
-        Returns False on error.
-        Returns the method result if found.
+        Tells the servlet if it is registered in asynchronous mode
 
-        :param instance: The instance to call
-        :param method: The method to call in the instance
-        :return: The method result or True on method absence or False on error
+        :param parameters: The parameters given to the servlet
+        :param servlet_type: The type of the servlet being registered
         """
-        # Call back the method
-        if instance is None:
-            # Consider invalidity as a failure
-            return False
+        parameters[http.PARAM_ASYNC] = servlet_type != http.ServletType.SYNC
 
-        try:
-            callback = getattr(instance, method)
-        except AttributeError:
-            # Consider absence as a success
-            return True
-
-        try:
-            result = callback(*args, **kwargs)
-            if result is None:
-                # Special case: consider None as success
-                return True
-
-            return result
-
-        except Exception as ex:
-            self.log_exception("Error calling back an instance: %s", ex)
-
-        return False
-
-    def __register_servlet_service(
+    def _register_servlet_service(
         self,
         service: http.Servlet | http.AsyncServlet | http.WebSocketHandler,
-        service_reference: ServiceReference[http.Servlet | http.AsyncServlet | http.WebSocketHandler],
+        service_reference: ServiceReference[Any],
     ) -> None:
         """
         Registers a servlet according to its service properties
@@ -1174,17 +1044,7 @@ class AsyncHttpServiceImpl(http.HTTPService):
         """
         Called by iPOPO when a service is bound
         """
-        # Ignore imported services
-        if self.__is_imported(service_reference):
-            self._logger.debug("Ignoring imported service as it is imported: %s", service_reference)
-            return
-
-        with self._binding_lock:
-            self._servlets_refs[service] = service_reference
-
-            if self._validated:
-                # We've been validated, register the service
-                self.__register_servlet_service(service, service_reference)
+        self._on_bind(service, service_reference)
 
     @UpdateField("_servlets_services")
     @UpdateField("_servlets_async_services")
@@ -1194,35 +1054,17 @@ class AsyncHttpServiceImpl(http.HTTPService):
         _: str,
         service: http.Servlet | http.AsyncServlet | http.WebSocketHandler,
         service_reference: ServiceReference[http.Servlet | http.AsyncServlet | http.WebSocketHandler],
-        old_properties: Dict[str, Any],
+        old_properties: dict[str, Any],
     ) -> None:
         """
         Called by iPOPO when the properties of a service have been updated
         """
-        # Ignore imported services
-        if self.__is_imported(service_reference):
-            return
-        # Check if the property concerns the registration
-        old_path = old_properties.get(http.HTTP_SERVLET_PATH)
-        new_path = service_reference.get_property(http.HTTP_SERVLET_PATH)
-
-        old_async_path = old_properties.get(http.HTTP_SERVLET_ASYNC_PATH)
-        new_async_path = service_reference.get_property(http.HTTP_SERVLET_ASYNC_PATH)
-
-        old_ws_path = old_properties.get(http.HTTP_WEBSOCKET_PATH)
-        new_ws_path = service_reference.get_property(http.HTTP_WEBSOCKET_PATH)
-
-        if old_path == new_path and old_async_path == new_async_path and old_ws_path == new_ws_path:
-            # Nothing to do
-            return
-
-        with self._binding_lock:
-            # Unregister the previous paths
-            self.unregister(None, service)
-
-            if self._validated:
-                # Register the service with its new properties
-                self.__register_servlet_service(service, service_reference)
+        self._on_update(
+            service,
+            service_reference,
+            old_properties,
+            (http.HTTP_SERVLET_PATH, http.HTTP_SERVLET_ASYNC_PATH, http.HTTP_WEBSOCKET_PATH),
+        )
 
     @UnbindField("_servlets_services")
     @UnbindField("_servlets_async_services")
@@ -1236,305 +1078,11 @@ class AsyncHttpServiceImpl(http.HTTPService):
         """
         Called by iPOPO when a service is gone
         """
-        # Ignore imported services
-        if self.__is_imported(service_reference):
-            return
+        self._on_unbind(service, service_reference)
 
-        with self._binding_lock:
-            # Servlet gone: unregister all paths associated to this servlet
-            self.unregister(None, service)
-
-            # Remove the service reference
-            try:
-                del self._servlets_refs[service]
-            except KeyError:
-                # Service reference not found, nothing to do
-                pass
-
-    def get_access(self) -> Tuple[str, int]:
+    def get_access(self) -> tuple[str, int]:
         """
         Retrieves the (address, port) tuple to access the server
         """
         assert self._bound_address is not None, "Server must be started before accessing its address"
         return self._bound_address
-
-    def get_hostname(self) -> str:
-        """
-        Retrieves the server host name
-
-        :return: The server host name
-        """
-        return socket.gethostname()
-
-    def is_https(self) -> bool:
-        """
-        Returns True if this is an HTTPS server
-
-        :return: True if this server uses SSL
-        """
-        return self._uses_ssl
-
-    def get_registered_paths(self) -> List[str]:
-        """
-        Returns the paths registered by servlets
-
-        :return: The paths registered by servlets (sorted list)
-        """
-        return sorted(self._servlets)
-
-    def get_servlet(
-        self, path: Optional[str]
-    ) -> Optional[Tuple[http.Servlet | http.AsyncServlet, Dict[str, Any], str, http.ServletType]]:
-        """
-        Retrieves the servlet matching the given path and its parameters.
-        Returns None if no servlet matches the given path.
-
-        :param path: A request URI
-        :return: A tuple (servlet, parameters, prefix, type) or None
-        """
-        if not path or path[0] != "/":
-            # No path, nothing to return
-            return None
-
-        # Use lower case for comparison
-        path = path.lower()
-
-        if path[-1] != "/":
-            # Add a trailing slash
-            path += "/"
-
-        with self._lock:
-            longest_match = ""
-            longest_match_len = 0
-            for servlet_path in self._servlets:
-                tested_path = servlet_path
-                if tested_path[-1] != "/":
-                    # Add a trailing slash
-                    tested_path += "/"
-
-                if path.startswith(tested_path) and len(servlet_path) > longest_match_len:
-                    # Found a corresponding servlet
-                    # which is deeper than the previous one
-                    longest_match = servlet_path
-                    longest_match_len = len(servlet_path)
-
-            # Return the found servlet
-            if not longest_match:
-                # No match found
-                return None
-
-            # Retrieve the stored information
-            servlet, params, servlet_type = self._servlets[longest_match]
-            return servlet, params, longest_match, servlet_type
-
-    def make_not_found_page(self, path: str) -> str:
-        """
-        Prepares a "page not found" page for a 404 error
-
-        :param path: Request path
-        :return: A HTML page
-        """
-        page = None
-        if self._error_handler is not None:
-            page = self._error_handler.make_not_found_page(path)
-
-        if not page:
-            page = f"""<html>
-<head>
-<title>404 - Page not found</title>
-</head>
-<body>
-<h1>Page not found</h1>
-<p>No servlet is associated to this path:</p>
-<code>{html.escape(path)}</code>
-<h2>Registered paths:</h2>
-{http.make_html_list(self.get_registered_paths())}
-</body>
-</html>"""
-        return page
-
-    def make_exception_page(self, path: str, stack: str) -> str:
-        """
-        Prepares a page describing an error in a 500 error page.
-
-        The stack trace is only sent to the client if the
-        :const:`pelix.http.HTTP_DEBUG_ERRORS` property is set: it gives details
-        about the server and about the data it handles. It is always logged,
-        along with the error ID shown in the page.
-
-        :param path: Request path
-        :param stack: Exception stack trace
-        :return: A HTML page
-        """
-        # Log the details of the error, they are not sent to the client
-        error_id = uuid.uuid4().hex
-        self._logger.error("Error %s handling request upon: %s\n%s", error_id, path, stack)
-
-        # Only tell the client how to find the error in the logs
-        details = stack if self._debug_errors else f"Error ID: {error_id}"
-
-        page = None
-        if self._error_handler is not None:
-            page = self._error_handler.make_exception_page(path, details)
-
-        if not page:
-            page = f"""<html>
-<head>
-<title>500 - Internal Server Error</title>
-</head>
-<body>
-<h1>Internal Server Error</h1>
-<p>Error handling request upon: <code>{html.escape(path)}</code></p>
-<pre>
-{html.escape(details)}
-</pre>
-</body>
-</html>"""
-        return page
-
-    def register_servlet(
-        self,
-        path: str,
-        servlet: http.Servlet | http.AsyncServlet,
-        parameters: Optional[Dict[str, Any]] = None,
-        servlet_type: http.ServletType = http.ServletType.SYNC,
-    ) -> bool:
-        """
-        Registers a servlet
-
-        :param path: Path handled by this servlet
-        :param servlet: The servlet instance
-        :param parameters: The parameters associated to this path
-        :param servlet_type: The type of servlet (sync, async, websocket, ...)
-        :return: True if the servlet has been registered, False if it refused the binding.
-        :raise ValueError: Invalid path or handler
-        """
-        if servlet is None:
-            raise ValueError("Invalid servlet instance")
-
-        if not path or path[0] != "/":
-            raise ValueError("Invalid path given to register the servlet: {0}".format(path))
-
-        # Use lower-case paths
-        path = path.lower()
-
-        # Prepare the parameters
-        if parameters is None:
-            parameters = {}
-
-        with self._lock:
-            if path in self._servlets:
-                # Already registered path
-                if self._servlets[path][0] is servlet:
-                    # Double-registration: Nothing to do
-                    return True
-                else:
-                    # Path is already taken by another servlet
-                    already_taken = True
-            else:
-                # Path is available
-                already_taken = False
-
-            # Add server information in parameters
-            parameters[http.PARAM_ADDRESS] = self._address
-            parameters[http.PARAM_PORT] = self._port
-            parameters[http.PARAM_HTTPS] = self._uses_ssl
-            parameters[http.PARAM_NAME] = self._instance_name
-            parameters[http.PARAM_EXTRA] = self._extra.copy() if self._extra else None
-            parameters[http.PARAM_ASYNC] = servlet_type != http.ServletType.SYNC
-
-            # The servlet might refuse to be bound to this server
-            if not self.__safe_callback(servlet, "accept_binding", path, parameters):
-                # Server refused: stop right there
-                # => No need to raise the "already taken path" exception
-                return False
-
-            if already_taken:
-                # The path is already taken by another servlet
-                raise ValueError("A servlet is already registered on {0}".format(path))
-
-            # Tell the servlet it can be bound to the path
-            if self.__safe_callback(servlet, "bound_to", path, parameters):
-                # Store the servlet
-                self._servlets[path] = (servlet, parameters, servlet_type)
-                return True
-
-            # The servlet refused the binding
-            return False
-
-    def unregister(self, path: Optional[str], servlet: Optional[http.Servlet] = None) -> bool:
-        """
-        Unregisters the servlet for the given path
-
-        :param path: The path to a servlet
-        :param servlet: If given, unregisters all the paths handled by this servlet
-        :return: True if at least one path as been unregistered, else False
-        """
-        if servlet is not None:
-            with self._lock:
-                # Unregister all paths for this servlet
-                paths = [
-                    servlet_path
-                    for (servlet_path, servlet_info) in self._servlets.items()
-                    if servlet_info[0] == servlet
-                ]
-
-            result = False
-            for servlet_path in paths:
-                result |= self.unregister(servlet_path)
-
-            return result
-        else:
-            if not path:
-                # Invalid path
-                return False
-
-            # Always use lower case to compare paths
-            path = path.lower()
-
-            with self._lock:
-                # Notify the servlet
-                servlet_info = self._servlets.get(path)
-                if servlet_info is None:
-                    # Unknown path
-                    return False
-
-                self.__safe_callback(servlet_info[0], "unbound_from", path, servlet_info[1])
-
-                # Remove the servlet
-                try:
-                    del self._servlets[path]
-                except KeyError:
-                    self.log(logging.DEBUG, "Tried to remove an unknown servlet path: %s", path)
-                return True
-
-    def log(self, level: int, message: str, *args: Any, **kwargs: Any) -> None:
-        """
-        Logs the given message
-
-        :param level: Log entry level
-        :param message: Log message (Python logging format)
-        """
-        if self._logger is not None:
-            # Log the message
-            self._logger.log(level, message, *args, **kwargs)
-
-    def log_exception(self, message: str, *args: Any, **kwargs: Any) -> None:
-        """
-        Logs an exception
-
-        :param message: Log message (Python logging format)
-        """
-        if self._logger is not None:
-            # Log the exception
-            self._logger.exception(message, *args, **kwargs)
-
-    @staticmethod
-    def __is_imported(service_reference: ServiceReference[Any]) -> bool:
-        """
-        Tests if the given service has been imported by Remote Services
-
-        :param service_reference: The reference of the service to check
-        :return: True if the service is flagged as imported
-        """
-        return cast(bool, service_reference.get_property(pelix.remote.PROP_IMPORTED))
