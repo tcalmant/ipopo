@@ -67,6 +67,12 @@ All versions up to 3.2.1 are affected.
   handle (a `set`, a custom object, ...) raised a `TypeError` that aborted the
   export of the whole endpoint. Such values are now logged and sent as strings
 
+### HTTP service
+
+* Shared code of synchronous and asynchronous HTTP services has been moved to
+  a common base class in the `pelix.http._base` module. It is intended for
+  internal use only
+
 ### Tests
 
 * Added tests for the Zeroconf/mDNS property serialization
@@ -74,6 +80,7 @@ All versions up to 3.2.1 are affected.
 * Added tests for the handling of PIDs by the Configuration Admin persistence
 * Added tests for the content of the HTTP error pages
 * Added tests for the rejection of XML document type declarations
+* Added tests for the code shared by the HTTP service implementations
 
 ## iPOPO 3.2.1
 
