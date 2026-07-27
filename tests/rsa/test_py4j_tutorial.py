@@ -70,7 +70,10 @@ def install_karaf(folder_str: Optional[str] = None) -> pathlib.Path:
                     abs_directory = os.path.abspath(directory)
                     abs_target = os.path.abspath(target)
 
-                    prefix = os.path.commonprefix([abs_directory, abs_target])
+                    try:
+                        prefix = os.path.commonpath([abs_directory, abs_target])
+                    except ValueError:
+                        return False
 
                     return prefix == abs_directory
 
