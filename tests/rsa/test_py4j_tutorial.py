@@ -17,8 +17,9 @@ import tarfile
 import tempfile
 import time
 import unittest
+from collections.abc import Generator, Iterable
 from contextlib import contextmanager
-from typing import Any, Generator, Iterable, Optional
+from typing import Any
 from urllib.request import urlopen
 
 from pelix.framework import create_framework
@@ -39,7 +40,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # ------------------------------------------------------------------------------
 
 
-def install_karaf(folder_str: Optional[str] = None) -> pathlib.Path:
+def install_karaf(folder_str: str | None = None) -> pathlib.Path:
     """
     Downloads & decompress Karaf tar file
 
@@ -57,7 +58,7 @@ def install_karaf(folder_str: Optional[str] = None) -> pathlib.Path:
         root = find_karaf_root(folder)
         print("Karaf found.")
         return root
-    except IOError:
+    except OSError:
         print("Karaf not found, installing it.")
         with tempfile.TemporaryFile() as fd:
             with urlopen(KARAF_URL) as req:
@@ -80,7 +81,7 @@ def install_karaf(folder_str: Optional[str] = None) -> pathlib.Path:
                 def safe_extract(
                     tar: tarfile.TarFile,
                     path: str = ".",
-                    members: Optional[Iterable[tarfile.TarInfo]] = None,
+                    members: Iterable[tarfile.TarInfo] | None = None,
                     *,
                     numeric_owner: bool = False,
                 ) -> None:
@@ -105,13 +106,13 @@ def install_karaf(folder_str: Optional[str] = None) -> pathlib.Path:
             return folder
 
 
-def find_karaf_root(folder: Optional[pathlib.Path] = None) -> pathlib.Path:
+def find_karaf_root(folder: pathlib.Path | None = None) -> pathlib.Path:
     """
     Looks for the Karaf root folder in the given directory
 
     :param folder: Optional known parent folder for the Karaf home
     :return: Path to the Karaf home directory
-    :raises IOError: Karaf not found
+    :raises OSError: Karaf not found
     """
     karaf_prefix = "apache-karaf-"
     if not folder:
@@ -124,7 +125,7 @@ def find_karaf_root(folder: Optional[pathlib.Path] = None) -> pathlib.Path:
         if path.name.startswith(karaf_prefix) and path.is_dir():
             return path
 
-    raise IOError("Karaf folder not found in {}".format(folder))
+    raise OSError(f"Karaf folder not found in {folder}")
 
 
 @contextmanager
@@ -165,9 +166,9 @@ def wait_for_prompt(process: subprocess.Popen, prompt: str = "karaf@root()>") ->
     :param prompt: The string to look for
     """
     if process.stdout is None:
-        raise IOError("Can't read from process")
+        raise OSError("Can't read from process")
 
-    charset = "utf-8" if not os.name == "nt" else "cp850"
+    charset = "utf-8" if os.name != "nt" else "cp850"
 
     buffer = io.BytesIO()
     while True:
@@ -214,6 +215,7 @@ def use_karaf() -> Generator[subprocess.Popen, None, None]:
         version_output = subprocess.run(
             [java_bin, "-version"],
             capture_output=True,
+            check=False,
         )
         assert version_output.returncode == 0, "Java is not installed or not working"
 
@@ -222,11 +224,11 @@ def use_karaf() -> Generator[subprocess.Popen, None, None]:
             major_version = int(match.group("version"))
             if major_version < 11:
                 raise unittest.SkipTest(
-                    "Java version is too old ({}), need at least Java 11".format(major_version)
+                    f"Java version is too old ({major_version}), need at least Java 11"
                 )
             elif major_version > 21:
                 raise unittest.SkipTest(
-                    "Java version is too new ({}), need at most Java 21".format(major_version)
+                    f"Java version is too new ({major_version}), need at most Java 21"
                 )
         else:
             raise unittest.SkipTest("Can't determine Java version")
@@ -244,7 +246,7 @@ def use_karaf() -> Generator[subprocess.Popen, None, None]:
     start = time.time()
     with start_karaf(karaf_root) as karaf:
         if karaf.stdin is None or karaf.stdout is None:
-            raise IOError("Can't access Karaf I/O")
+            raise OSError("Can't access Karaf I/O")
 
         # Wait for Karaf to start
         wait_for_prompt(karaf)
@@ -311,7 +313,7 @@ class Py4JTutorialTest(unittest.TestCase):
 
                 for _ in range(10):
                     # Check if we find the Hello world service
-                    svc_ref: Optional[ServiceReference[Any]] = bc.get_service_reference(
+                    svc_ref: ServiceReference[Any] | None = bc.get_service_reference(
                         "org.eclipse.ecf.examples.hello.IHello",
                         "(service.imported=*)",
                     )
