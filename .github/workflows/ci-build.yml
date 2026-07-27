@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
 
     steps:
       - uses: actions/checkout@v7
@@ -32,7 +32,15 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --python "${{ matrix.python-version }}" --all-extras --locked
+        # RSA (grpcio) and XMPP (pycares/cffi) have no prebuilt wheels for
+        # Python 3.15 yet: building them from source stalls the CI,
+        # so we skip them
+        run: |
+          if [ "${{ matrix.python-version }}" = "3.15" ]; then
+            uv sync --python "${{ matrix.python-version }}" --all-extras --no-extra RSA --no-extra XMPP --locked
+          else
+            uv sync --python "${{ matrix.python-version }}" --all-extras --locked
+          fi
 
       - name: Start test infrastructure
         run: |

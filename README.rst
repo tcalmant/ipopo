@@ -523,7 +523,12 @@ Compatibility
 
 Pelix and iPOPO are tested using
 `GitHub actions <https://github.com/tcalmant/ipopo/actions>`_
-targetting Python 3.10 to 3.14.
+targetting Python 3.10 to 3.15.
+
+``grpcio`` and ``pycares``, required by the ``RSA`` and ``XMPP`` extras,
+don't provide pre-built wheels for Python 3.15 yet.
+Their compilation from source stalls in CI and as a result, the CI skips
+those two extras on Python 3.15.
 
 iPOPO v3 doesn't support Python 2 neither versions earlier than 3.10.
 If you need to work with those versions of Python, please use iPOPO v1.
