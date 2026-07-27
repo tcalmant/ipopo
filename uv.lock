@@ -868,7 +868,7 @@ requires-dist = [
     { name = "aiohttp", marker = "extra == 'aiohttp'", specifier = ">=3.13.5,<3.15.0" },
     { name = "grpcio", marker = "extra == 'rsa'", specifier = ">=1.80,<1.84" },
     { name = "grpcio-tools", marker = "extra == 'rsa'", specifier = ">=1.80,<1.84" },
-    { name = "jsonrpclib-pelix", specifier = "~=0.4.3" },
+    { name = "jsonrpclib-pelix", specifier = ">=0.4.3,<1.2.0" },
     { name = "kazoo", marker = "extra == 'zookeeper'", specifier = "~=2.11.0" },
     { name = "osgiservicebridge", marker = "extra == 'etcd2'", specifier = "~=1.5.9" },
     { name = "osgiservicebridge", marker = "extra == 'rsa'", specifier = "~=1.5.9" },
@@ -892,11 +892,11 @@ dev = [
 
 [[package]]
 name = "jsonrpclib-pelix"
-version = "0.4.3.4"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/79/21/51a59adb17c2aa27ec3cef8787485df66e06c29f08e19a9d554e45b8f56d/jsonrpclib_pelix-0.4.3.4.tar.gz", hash = "sha256:e82d6f4da907a7d111ef93fd2361c8c20b79d248be4fe99678e08626aa8fcbef", size = 66438, upload-time = "2025-03-03T18:54:00.162Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f4/6d/927abe6f53a8b1db48dbbcd35b7d762431952d5f760f500287c6952540fa/jsonrpclib_pelix-1.1.0.tar.gz", hash = "sha256:379a3c9b3dd478727419587aa7cf14bb6ff0e64301decc0ffa98f710f6bfec1e", size = 70500, upload-time = "2026-05-30T19:59:45.754Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a2/99/4a90dbb4c264530c4b50895836dc0bc2763945b06536008b24b4f341a58c/jsonrpclib_pelix-0.4.3.4-py3-none-any.whl", hash = "sha256:56da1fd8fdfe040811cd6f0b76a1b8f40e4144ac03a2a9d03dfeefadda76f71c", size = 42477, upload-time = "2025-03-03T18:53:58.967Z" },
+    { url = "https://files.pythonhosted.org/packages/0f/2b/62d35a49a04a51906fdcaa1e4b5707bb8a8105479b53843ec43c24c5e13a/jsonrpclib_pelix-1.1.0-py3-none-any.whl", hash = "sha256:487b5d0b503abff8a16b5f19bff4040725e8958f381611ff4f47029482012a9f", size = 43444, upload-time = "2026-05-30T19:59:44.568Z" },
 ]
 
 [[package]]
