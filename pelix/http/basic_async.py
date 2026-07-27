@@ -762,7 +762,21 @@ class AsyncHttpServiceImpl(AbstractHttpService):
 
         # Close the event loop
         if self._loop is not None and not self._loop.is_closed():
-            self._loop.close()
+            try:
+                # Cancel pending tasks
+                pending = [task for task in asyncio.all_tasks(self._loop) if not task.done()]
+                for task in pending:
+                    task.cancel()
+
+                if pending:
+                    self._loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+
+                self._loop.run_until_complete(self._loop.shutdown_asyncgens())
+                self._loop.run_until_complete(self._loop.shutdown_default_executor())
+            except Exception:
+                self._logger.exception("Error closing the event loop")
+            finally:
+                self._loop.close()
 
         # Clear references
         self._loop = None
