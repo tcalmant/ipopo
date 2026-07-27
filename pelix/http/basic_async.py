@@ -776,10 +776,10 @@ class AsyncHttpServiceImpl(AbstractHttpService):
             # Set the event loop for this thread
             if sys.platform.startswith("win"):
                 # aiodns requires a specific event loop on Windows
-                # FIXME: this will be removed in Python 3.16
-                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+                self._loop = asyncio.SelectorEventLoop()
+            else:
+                self._loop = asyncio.new_event_loop()
 
-            self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._loop)
 
             # Setup the server
