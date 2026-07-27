@@ -32,12 +32,12 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        # RSA (grpcio) and XMPP (pycares/cffi) have no prebuilt wheels for
-        # Python 3.15 yet: building them from source stalls the CI,
-        # so we skip them
+        # RSA (grpcio) has no prebuilt wheel for Python 3.15 yet: building it
+        # from source stalls on GitHub Actions, so skip it on 3.15 until
+        # upstream publishes cp315 wheels.
         run: |
           if [ "${{ matrix.python-version }}" = "3.15" ]; then
-            uv sync --python "${{ matrix.python-version }}" --all-extras --no-extra RSA --no-extra XMPP --locked
+            uv sync --python "${{ matrix.python-version }}" --all-extras --no-extra RSA --locked
           else
             uv sync --python "${{ matrix.python-version }}" --all-extras --locked
           fi
