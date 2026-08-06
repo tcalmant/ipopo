@@ -273,8 +273,8 @@ class FileInstall(services.FileInstall):
         for listener in listeners:
             try:
                 listener.folder_change(folder, added, updated, deleted)
-            except Exception as ex:
-                _logger.exception("Error notifying a folder listener: %s", ex)
+            except Exception:
+                _logger.exception("Error notifying a folder listener")
 
     @staticmethod
     def __get_checksum(filepath: str) -> int:

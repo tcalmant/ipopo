@@ -26,7 +26,7 @@ Pelix OSGi-like services packages
 """
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Dict, Optional, Protocol, Union
+from typing import TYPE_CHECKING, Any, Protocol
 
 from pelix.constants import Specification
 
@@ -261,7 +261,7 @@ class Configuration(Protocol):
         """
         ...
 
-    def matches(self, ldap_filter: Optional["ldapfilter.LdapFilterOrCriteria"]) -> bool:
+    def matches(self, ldap_filter: "ldapfilter.LdapFilterOrCriteria | None") -> bool:
         """
         Tests if this configuration matches the given filter.
 
@@ -299,7 +299,7 @@ class IConfigurationAdmin(Protocol):
         ...
 
     def list_configurations(
-        self, ldap_filter: Union[None, str, "ldapfilter.LdapFilterOrCriteria"] = None
+        self, ldap_filter: "ldapfilter.LdapFilterOrCriteria | str | None" = None
     ) -> Iterable[Configuration]:
         """
         List the current Configuration objects which match the filter.

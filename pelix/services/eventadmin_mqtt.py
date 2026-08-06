@@ -179,8 +179,8 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         """
         try:
             self.handle_mqtt_message(message.topic, message.payload)
-        except Exception as ex:
-            _logger.exception("Error handling an MQTT EventAdmin message: %s", ex)
+        except Exception:
+            _logger.exception("Error handling an MQTT EventAdmin message")
 
     def handle_event(self, topic: str, properties: dict[str, Any]) -> None:
         """

@@ -190,13 +190,8 @@ class EventAdmin(pelix.services.EventAdmin):
                 if handler is not None:
                     # Use a copy of the properties each time
                     handler.handle_event(topic, copy.deepcopy(properties))
-            except Exception as ex:
-                _logger.exception(
-                    "Error notifying event handler %d: %s (%s)",
-                    handler_id,
-                    ex,
-                    type(ex).__name__,
-                )
+            except Exception:
+                _logger.exception("Error notifying event handler %d", handler_id)
             finally:
                 if ref is not None:
                     self._context.unget_service(ref)
@@ -274,9 +269,7 @@ class EventAdmin(pelix.services.EventAdmin):
         # Normalize properties
         try:
             self._nb_threads = int(self._nb_threads)
-            if self._nb_threads < 2:
-                # Minimal value
-                self._nb_threads = 2
+            self._nb_threads = max(self._nb_threads, 2)
         except ValueError:
             # Default value
             self._nb_threads = 10

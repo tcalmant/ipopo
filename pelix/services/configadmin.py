@@ -478,7 +478,7 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         self,
         pid: str,
         properties: dict[str, Any] | None,
-        loader: services.IConfigurationAdminPersistence,
+        persistence: services.IConfigurationAdminPersistence,
         factory_pid: str | None = None,
     ) -> services.Configuration:
         """
@@ -486,11 +486,11 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
 
         :param pid: PID of the configuration
         :param properties: Initial properties (can be None)
-        :param loader: Persistence service associated to the configuration
+        :param persistence: Persistence service associated to the configuration
         :param factory_pid: Set if the configuration is a factory (not used)
         :return: The new configuration bean
         :raise KeyError: PID already used
-        :raise ValueError: Invalid PID or loader
+        :raise ValueError: Invalid PID or persistence
         """
         with self.__lock:
             if pid in self.__configurations:
@@ -499,11 +499,11 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
                 raise ValueError("Configuration with an empty PID")
             elif pid in self.__factories:
                 raise KeyError("PID already used as a factory PID: {pid}")
-            elif loader is None:
+            elif persistence is None:
                 raise ValueError("No persistence service associated to {pid}")
 
             # Make the configuration bean
-            configuration = Configuration(pid, properties, self._admin, loader, factory_pid)
+            configuration = Configuration(pid, properties, self._admin, persistence, factory_pid)
 
             # Store the factory according to the PID
             self.__configurations[pid] = configuration
@@ -860,8 +860,8 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
             try:
                 # Only give the properties to the service
                 svc.updated(pid, properties)
-            except Exception as ex:
-                _logger.exception("Error updating factory: %s", ex)
+            except Exception:
+                _logger.exception("Error updating factory")
 
     @staticmethod
     def __notify_factories_delete(factories: Iterable[services.IManagedServiceFactory], pid: str) -> None:
@@ -874,8 +874,8 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         for svc in factories:
             try:
                 svc.deleted(pid)
-            except Exception as ex:
-                _logger.exception("Error notifying a factory: %s", ex)
+            except Exception:
+                _logger.exception("Error notifying a factory")
 
     @staticmethod
     def __notify_services(
@@ -892,8 +892,8 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
             try:
                 # Only give the properties to the service
                 svc.updated(properties)
-            except Exception as ex:
-                _logger.exception("Error updating service: %s", ex)
+            except Exception:
+                _logger.exception("Error updating service")
 
     def _update(self, configuration: services.Configuration) -> None:
         """

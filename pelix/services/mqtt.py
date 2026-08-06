@@ -171,7 +171,7 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
             for reg in self._services.values():
                 try:
                     reg.unregister()
-                except:
+                except:  # noqa: E722, S110
                     # Ignore errors
                     pass
 
@@ -325,8 +325,8 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
         for listener in listeners:
             try:
                 listener.handle_mqtt_message(topic, payload, qos)
-            except Exception as ex:
-                _logger.exception("Error calling MQTT listener: %s", ex)
+            except Exception:
+                _logger.exception("Error calling MQTT listener")
 
     def __subscribe(self, topic: str) -> None:
         """

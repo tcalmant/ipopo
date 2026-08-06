@@ -77,8 +77,8 @@ class FutureResult:
                     self._done_event.exception,
                     self.__extra,
                 )
-            except Exception as ex:
-                self._logger.exception("Error calling back method: %s", ex)
+            except Exception:
+                self._logger.exception("Error calling back method")
 
     def set_callback(
         self, method: Callable[[Any, BaseException | None, Any], None] | None, extra: Any = None
@@ -112,7 +112,7 @@ class FutureResult:
         :raise Exception: The exception raised by the method
         """
         if args is None:
-            args = tuple()
+            args = ()
 
         if kwargs is None:
             kwargs = {}
@@ -167,7 +167,7 @@ class _QueuedTask:
     future: FutureResult
 
 
-_STOP = _QueuedTask(lambda: ..., tuple(), {}, FutureResult())
+_STOP = _QueuedTask(lambda: ..., (), {}, FutureResult())
 
 
 class ThreadPool:
@@ -348,8 +348,8 @@ class ThreadPool:
         :raise ValueError: Invalid method
         :raise Full: The task queue is full
         """
-        if not hasattr(method, "__call__"):
-            raise ValueError(f"{method.__name__} has no __call__ member.")
+        if not callable(method):
+            raise ValueError(f"{method} is not callable.")  # noqa: TRY004
 
         # Prepare the future result object
         future = FutureResult(self._logger)
@@ -429,8 +429,8 @@ class ThreadPool:
                     try:
                         # Call the method
                         task.future.execute(task.method, task.args, task.kwargs)
-                    except Exception as ex:
-                        self._logger.exception("Error executing %s: %s", task.method.__name__, ex)
+                    except Exception:
+                        self._logger.exception("Error executing %s", task.method.__name__)
                     finally:
                         # Mark the action as executed
                         self._queue.task_done()
