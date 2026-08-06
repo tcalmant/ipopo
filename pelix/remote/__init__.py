@@ -26,7 +26,7 @@ Pelix remote services package
 """
 
 from collections.abc import Iterable
-from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
+from typing import Any, Protocol
 
 import pelix.http
 from pelix.constants import Specification
@@ -248,7 +248,6 @@ class RemoteServiceError(Exception):
     """
     Error while accessing a remote service entry
     """
-
 
 
 @Specification(SERVICE_REGISTRY)

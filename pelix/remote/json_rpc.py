@@ -100,10 +100,10 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
             pass
         else:
             # Internal method found
-            if isinstance(params, (list, tuple)):
-                return func(*params)
+            if isinstance(params, dict):
+                return func(**params)
 
-            return func(**params)
+            return func(*params)
 
         # Call the other method outside the except block, to avoid messy logs
         # in case of error
@@ -128,7 +128,7 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
 
             # Send the result
             response.send_content(200, result, "application/json-rpc")
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             response.send_content(500, f"Internal error:\n{ex}\n", "text/plain")
 
 
@@ -170,7 +170,7 @@ class JsonRpcServiceExporter(commons.AbstractRpcServiceExporter):
         Retrieves the URL to access this component
         """
         port = self._http.get_access()[1]
-        return "http{2}://{{server}}:{0}{1}".format(port, self._path, "s" if self._http.is_https() else "")
+        return f"http{'s' if self._http.is_https() else ''}://{{server}}:{port}{self._path}"
 
     def make_endpoint_properties(
         self, svc_ref: ServiceReference[Any], name: str, fw_uid: str | None

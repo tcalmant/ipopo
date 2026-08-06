@@ -181,9 +181,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         }
 
         self._pubsub = cast(redis.client.PubSub, self._redis.pubsub())
-        self._pubsub.psubscribe(
-            **{":".join((keyspace, pattern)): handler for pattern, handler in patterns.items()}
-        )
+        self._pubsub.psubscribe(**{f"{keyspace}:{pattern}": handler for pattern, handler in patterns.items()})
 
         # Start the event thread
         self._pubsub_thread = self._pubsub.run_in_thread()
@@ -203,7 +201,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         # The host name
         hostname = socket.gethostname()
         if hostname == "localhost":
-            logging.warning(
+            _logger.warning(
                 "Hostname is '%s': this will be a problem for multi-host remote services",
                 hostname,
             )
@@ -215,12 +213,12 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
             assert self._redis is not None
 
             # Register the framework once
-            self._redis.set(fw_key, hostname, int(math.ceil(self._heart_delay * 1.2)))
+            self._redis.set(fw_key, hostname, math.ceil(self._heart_delay * 1.2))
 
             # Loop while we're up
             while not self._stop_event.wait(self._heart_delay):
                 # Re-set the key with a new time to live
-                self._redis.set(fw_key, hostname, int(math.ceil(self._heart_delay * 1.2)))
+                self._redis.set(fw_key, hostname, math.ceil(self._heart_delay * 1.2))
 
             # Stop event set: delete the key immediately
             self._redis.delete(fw_key)
@@ -322,9 +320,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         for endpoint in endpoints:
             self._register_service(endpoint)
 
-    def endpoint_updated(
-        self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None
-    ) -> None:
+    def endpoint_updated(self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None) -> None:
         """
         An end point is updated
 
@@ -360,7 +356,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
 
         if event == "expired":
             # A framework has expired: clean it up
-            logging.warning("Framework %s has expired", fw_uid)
+            _logger.warning("Framework %s has expired", fw_uid)
 
             # Forget about its hostname
             try:
@@ -437,7 +433,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
             if not hostname:
                 # Endpoint's framework has been removed: ignore
                 # (happens when two frameworks clear traces of an old one)
-                logging.debug(
+                _logger.debug(
                     "Framework of endpoint key %s, doesn't have a hostname",
                     endpoint_key,
                 )
@@ -449,7 +445,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         # 2. Read the EDEF content
         content = cast(bytes | None, self._redis.get(endpoint_key))
         if not content:
-            logging.debug("Endpoint description removed while handling it")
+            _logger.debug("Endpoint description removed while handling it")
             return False
 
         content = to_str(content)

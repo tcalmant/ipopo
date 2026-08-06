@@ -221,8 +221,8 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
             except AttributeError:
                 _logger.error("Unhandled MQTT event: %s", event)
 
-        except Exception as ex:
-            _logger.exception("Error handling an MQTT message '%s': %s", topic, ex)
+        except Exception:
+            _logger.exception("Error handling an MQTT message '%s'", topic)
 
     def __send_message(self, event: str, payload: Any, wait: bool = False) -> int | None:
         """
@@ -313,9 +313,7 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         # Send the message
         self.__send_message(EVENT_ADD, xml_string)
 
-    def endpoint_updated(
-        self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None
-    ) -> None:
+    def endpoint_updated(self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None) -> None:
         # pylint: disable=W0613
         """
         An end point is updated

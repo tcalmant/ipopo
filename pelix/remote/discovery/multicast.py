@@ -191,7 +191,7 @@ def create_multicast_socket(address: str, port: int) -> tuple[socket.socket, str
     # Only accept IPv4/v6 addresses
     if addr_info[0] not in (socket.AF_INET, socket.AF_INET6):
         # Unhandled address family
-        raise ValueError("Unhandled socket family : %d" % (addr_info[0]))
+        raise ValueError(f"Unhandled socket family : {addr_info[0]}")
 
     # Prepare the socket
     sock = socket.socket(addr_info[0], socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -215,7 +215,7 @@ def create_multicast_socket(address: str, port: int) -> tuple[socket.socket, str
 
     # Prepare the mreq structure to join the group
     # addrinfo[4] = (addr,port)
-    mreq = make_mreq(sock.family, addr_info[4][0])
+    mreq = make_mreq(sock.family, str(addr_info[4][0]))
 
     # Join the group
     if sock.family == socket.AF_INET:
@@ -232,7 +232,7 @@ def create_multicast_socket(address: str, port: int) -> tuple[socket.socket, str
         # Allow multicast packets to get back on this host
         sock.setsockopt(ipproto_ipv6(), socket.IPV6_MULTICAST_LOOP, 1)
 
-    return sock, addr_info[4][0]
+    return sock, str(addr_info[4][0])
 
 
 def close_multicast_socket(sock: socket.socket, address: str) -> None:
@@ -488,8 +488,8 @@ class MulticastDiscovery:
                 try:
                     str_data = to_str(data)
                     self._handle_packet(sender, str_data)
-                except Exception as ex:
-                    _logger.exception("Error handling the packet: %s", ex)
+                except Exception:
+                    _logger.exception("Error handling the packet")
 
     @Validate
     def validate(self, context: BundleContext) -> None:

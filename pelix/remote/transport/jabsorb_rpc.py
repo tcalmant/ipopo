@@ -104,10 +104,10 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
             pass
         else:
             # Internal method found
-            if isinstance(params, (list, tuple)):
-                return func(*params)
+            if isinstance(params, dict):
+                return func(**params)
 
-            return func(**params)
+            return func(*params)
 
         # Avoid calling this method in the "except" block, as it would be in
         # an exception state (logs will consider the KeyError as a failure)
@@ -222,7 +222,7 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
         # Return two accesses: with a {server} variable and with the
         # bound address
-        model = "http{2}://{{server}}:{0}{1}".format(port, self._path, "s" if self._http.is_https() else "")
+        model = f"http{'s' if self._http.is_https() else ''}://{{server}}:{port}{self._path}"
         return ",".join((model, model.format(server=host)))
 
     @Validate

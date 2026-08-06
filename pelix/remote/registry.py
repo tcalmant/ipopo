@@ -104,8 +104,8 @@ class ImportsRegistry(RemoteServiceRegistry):
             for endpoint in self._registry.values():
                 try:
                     listener.endpoint_added(endpoint)
-                except Exception as ex:
-                    _logger.exception("Error calling listener: %s", ex)
+                except Exception:
+                    _logger.exception("Error calling listener")
 
     def add(self, endpoint: beans.ImportEndpoint) -> bool:
         """
@@ -136,8 +136,8 @@ class ImportsRegistry(RemoteServiceRegistry):
             for listener in self._listeners[:]:
                 try:
                     listener.endpoint_added(endpoint)
-                except Exception as ex:
-                    _logger.exception("Error calling listener: %s", ex)
+                except Exception:
+                    _logger.exception("Error calling listener")
         return True
 
     def update(self, uid: str, new_properties: dict[str, Any]) -> bool:
@@ -165,8 +165,8 @@ class ImportsRegistry(RemoteServiceRegistry):
                 for listener in self._listeners[:]:
                     try:
                         listener.endpoint_updated(stored_endpoint, old_properties)
-                    except Exception as ex:
-                        _logger.exception("Error calling listener: %s", ex)
+                    except Exception:
+                        _logger.exception("Error calling listener")
             return True
 
     def contains(self, endpoint: str | beans.ImportEndpoint) -> bool:
@@ -217,8 +217,8 @@ class ImportsRegistry(RemoteServiceRegistry):
             for listener in self._listeners[:]:
                 try:
                     listener.endpoint_removed(endpoint)
-                except Exception as ex:
-                    _logger.exception("Error calling listener: %s", ex)
+                except Exception:
+                    _logger.exception("Error calling listener")
 
         return True
 
@@ -244,8 +244,8 @@ class ImportsRegistry(RemoteServiceRegistry):
                 for listener in self._listeners[:]:
                     try:
                         listener.endpoint_removed(endpoint)
-                    except Exception as ex:
-                        _logger.exception("Error calling listener: %s", ex)
+                    except Exception:
+                        _logger.exception("Error calling listener")
 
     @Validate
     def _validate(self, context: BundleContext) -> None:

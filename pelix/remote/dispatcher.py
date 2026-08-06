@@ -261,9 +261,7 @@ class Dispatcher(pelix.remote.RemoteServiceDispatcher):
             for listener in self._listeners[:]:
                 listener.endpoints_added(endpoints)
 
-    def __update_service(
-        self, svc_ref: ServiceReference[Any], old_properties: dict[str, Any] | None
-    ) -> None:
+    def __update_service(self, svc_ref: ServiceReference[Any], old_properties: dict[str, Any] | None) -> None:
         """
         Service updated, notify exporters
         """
@@ -348,7 +346,7 @@ class Dispatcher(pelix.remote.RemoteServiceDispatcher):
                     for listener in self._listeners[:]:
                         try:
                             listener.endpoint_removed(endpoint)
-                        except Exception as ex:
+                        except Exception as ex:  # noqa: BLE001
                             _logger.error("Error notifying listener: %s", ex)
 
         # Check if a service wanted to export an endpoint with the given name
@@ -370,8 +368,8 @@ class Dispatcher(pelix.remote.RemoteServiceDispatcher):
         if self.__endpoints:
             try:
                 listener.endpoints_added(list(self.__endpoints.values()))
-            except Exception as ex:
-                _logger.exception("Error notifying newly bound listener: %s", ex)
+            except Exception:
+                _logger.exception("Error notifying newly bound listener")
 
     @BindField("_exporters", if_valid=True)
     def _bind_exporter(
@@ -440,8 +438,8 @@ class Dispatcher(pelix.remote.RemoteServiceDispatcher):
                 # Unexport the service
                 try:
                     exporter.unexport_service(endpoint)
-                except Exception as ex:
-                    _logger.exception("Error unexporting service: %s", ex)
+                except Exception:
+                    _logger.exception("Error unexporting service")
 
         # Notify listeners (out of the lock)
         if self._listeners:
@@ -449,7 +447,7 @@ class Dispatcher(pelix.remote.RemoteServiceDispatcher):
                 for endpoint in removed_endpoints:
                     try:
                         listener.endpoint_removed(endpoint)
-                    except Exception as ex:
+                    except Exception as ex:  # noqa: BLE001
                         _logger.error("Error notifying listener: %s", ex)
 
     def get_endpoint(self, uid: str) -> beans.ExportEndpoint | None:
@@ -462,9 +460,7 @@ class Dispatcher(pelix.remote.RemoteServiceDispatcher):
         """
         return self.__endpoints.get(uid)
 
-    def get_endpoints(
-        self, kind: str | None = None, name: str | None = None
-    ) -> list[beans.ExportEndpoint]:
+    def get_endpoints(self, kind: str | None = None, name: str | None = None) -> list[beans.ExportEndpoint]:
         """
         Retrieves all end points matching the given kind and/or name
 
@@ -564,7 +560,7 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
             result = conn.getresponse()
             data = result.read()
             conn.close()
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             _logger.error("Error accessing the dispatcher servlet: %s", ex)
             return None
 
@@ -598,9 +594,7 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         }
 
     @staticmethod
-    def _make_endpoint_bean(
-        endpoint_dict: dict[str, Any], host: str | None = None
-    ) -> beans.ImportEndpoint:
+    def _make_endpoint_bean(endpoint_dict: dict[str, Any], host: str | None = None) -> beans.ImportEndpoint:
         """
         Converts an endpoint dictionary into an ImportEndpoint bean
 
@@ -812,7 +806,7 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
             result = conn.getresponse()
             data = result.read()
             conn.close()
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             _logger.error(
                 "Error sending endpoints to the framework at %s:%s: %s",
                 host,

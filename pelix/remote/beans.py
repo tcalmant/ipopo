@@ -725,9 +725,7 @@ def compute_exported_specifications(svc_ref: ServiceReference[Any]) -> list[str]
     return [spec for spec in all_exported_specs if spec not in rejected_specs]
 
 
-def extract_specifications(
-    specifications: str | Iterable[str], properties: dict[str, Any]
-) -> list[str]:
+def extract_specifications(specifications: str | Iterable[str], properties: dict[str, Any]) -> list[str]:
     """
     Converts "python:/name" specifications to "name". Keeps the other
     specifications as is.
@@ -794,7 +792,7 @@ def _extract_specification_parts(specification: str) -> tuple[str, str]:
     try:
         # Parse the URI-like string
         parsed = urlparse(specification)
-    except:
+    except Exception:  # noqa: BLE001
         # Invalid URL
         raise ValueError(f"Invalid specification URL: {specification}")
 

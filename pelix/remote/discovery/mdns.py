@@ -297,7 +297,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
                     else:
                         # String
                         new_props[key] = value
-            except Exception as ex:
+            except Exception as ex:  # noqa: BLE001
                 _logger.error("Can't deserialize %s: %s", value, ex)
 
         return new_props

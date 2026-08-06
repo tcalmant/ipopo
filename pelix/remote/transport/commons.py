@@ -121,22 +121,22 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
             raise RemoteServiceError(f"Unknown method {method}")
 
         # Call it (let the errors be propagated)
-        if isinstance(params, (list, tuple)):
-            return method_ref(*params)
+        if isinstance(params, dict):
+            return method_ref(**params)
 
-        return method_ref(**params)
+        return method_ref(*params)
 
-    def handles(self, configurations: None | str | Iterable[str]) -> bool:
+    def handles(self, configs: None | str | Iterable[str]) -> bool:
         """
         Checks if this provider handles the given configuration types
 
-        :param configurations: Configuration types
+        :param configs: Configuration types
         """
-        if configurations is None or configurations == "*":
+        if configs is None or configs == "*":
             # 'Matches all'
             return True
 
-        return bool(set(configurations).intersection(self._kinds))
+        return bool(set(configs).intersection(self._kinds))
 
     def export_service(
         self, svc_ref: ServiceReference[Any], name: str, fw_uid: str | None

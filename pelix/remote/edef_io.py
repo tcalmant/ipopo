@@ -203,7 +203,7 @@ class EDEFReader:
             )
         elif kind == TAG_SET:
             # Set
-            return set(self._convert_value(vtype, value_node.text) for value_node in node.findall(TAG_VALUE))
+            return {self._convert_value(vtype, value_node.text) for value_node in node.findall(TAG_VALUE)}
         else:
             # Unknown
             raise ValueError(f"Unknown value tag: {kind}")
@@ -257,7 +257,7 @@ class EDEFWriter:
 
             # Yep, let the "element" variable be overwritten
             # pylint: disable=R1704
-            for element in element:
+            for element in element:  # noqa: B020, PLR1704
                 self._indent(element, level + 1, prefix)
 
             # Tail of the last child

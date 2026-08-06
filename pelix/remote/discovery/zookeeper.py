@@ -418,7 +418,7 @@ class ZooKeeperDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
 
     def _register_framework(self) -> None:
         """
-        Registers the framework and its current services in Redis
+        Registers the framework and its current services in ZooKeeper
         """
         assert self._zk is not None
 
@@ -428,7 +428,7 @@ class ZooKeeperDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         # The host name
         hostname = socket.gethostname()
         if hostname == "localhost":
-            logging.warning(
+            _logger.warning(
                 "Hostname is '%s': this will be a problem for multi-host remote services",
                 hostname,
             )
@@ -547,9 +547,7 @@ class ZooKeeperDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         for endpoint in endpoints:
             self._register_service(endpoint)
 
-    def endpoint_updated(
-        self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None
-    ) -> None:
+    def endpoint_updated(self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None) -> None:
         """
         An end point is updated
 
@@ -698,8 +696,8 @@ class ZooKeeperDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
                     # New endpoint found
                     self._register_remote(self.__read_endpoint(self._endpoint_path(fw_uid, endpoint_uid)))
                 except KazooException:
-                    logging.warning(
+                    _logger.warning(
                         "Error reading endpoint %s of framework %s",
-                        fw_uid,
                         endpoint_uid,
+                        fw_uid,
                     )

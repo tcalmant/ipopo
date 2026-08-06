@@ -236,7 +236,7 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
             try:
                 # Call the service
                 result[KEY_DATA] = self.dispatch(method, params)
-            except Exception as ex:
+            except Exception as ex:  # noqa: BLE001
                 # An error occurred
                 result[KEY_ERROR] = str(ex)
 
