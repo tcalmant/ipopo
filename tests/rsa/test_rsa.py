@@ -158,7 +158,7 @@ class RSABasicFeatures(unittest.TestCase):
         for export_reg in export_regs:
             exp = export_reg.get_exception()
             if exp:
-                self.fail("Error exporting service: {}".format(exp))
+                self.fail(f"Error exporting service: {exp}")
 
             export_endpoints.append(export_reg.get_description())
 
@@ -182,7 +182,7 @@ class RSABasicFeatures(unittest.TestCase):
                 _ = import_reg.get_description()
 
                 if exp:
-                    self.fail("Error importing service: {}".format(exp))
+                    self.fail(f"Error importing service: {exp}")
                 else:
                     break
         else:
@@ -228,7 +228,7 @@ class RSABasicFeatures(unittest.TestCase):
         for export_reg in export_regs:
             exp = export_reg.get_exception()
             if exp:
-                self.fail("Error exporting service: {}".format(exp))
+                self.fail(f"Error exporting service: {exp}")
             else:
                 export_endpoint = export_reg.get_description()
                 break
@@ -243,7 +243,7 @@ class RSABasicFeatures(unittest.TestCase):
         if import_reg:
             exp = import_reg.get_exception()
             if exp:
-                self.fail("Error importing service: {}".format(exp))
+                self.fail(f"Error importing service: {exp}")
             else:
                 import_endpoint = import_reg.get_description()
 
@@ -278,7 +278,7 @@ class RSABasicFeatures(unittest.TestCase):
         if import_reg_2:
             exp = import_reg_2.get_exception()
             if exp:
-                self.fail("Error re-importing service: {}".format(exp))
+                self.fail(f"Error re-importing service: {exp}")
             else:
                 import_endpoint_2 = import_reg_2.get_description()
 

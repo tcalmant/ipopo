@@ -26,16 +26,16 @@ Temporal dependency handler
 """
 
 import threading
-from typing import Any, Callable, Dict, Generic, Iterable, Optional, Tuple, TypeVar, cast
+from collections.abc import Callable, Iterable
+from typing import Any, Generic, TypeVar, cast
 
 import pelix.ipopo.constants as ipopo_constants
-import pelix.ipopo.handlers.constants as constants
-import pelix.ipopo.handlers.requires as requires
-import pelix.utilities as utilities
+from pelix import utilities
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo.contexts import ComponentContext, Requirement
+from pelix.ipopo.handlers import constants, requires
 
 # ------------------------------------------------------------------------------
 
@@ -58,8 +58,8 @@ class _HandlerFactory(constants.HandlerFactory):
 
     @staticmethod
     def _prepare_configs(
-        configs: Dict[str, Any], requires_filters: Dict[str, str], temporal_timeouts: Dict[str, float]
-    ) -> Dict[str, Any]:
+        configs: dict[str, Any], requires_filters: dict[str, str], temporal_timeouts: dict[str, float]
+    ) -> dict[str, Any]:
         """
         Overrides the filters specified in the decorator with the given ones
 
@@ -79,7 +79,7 @@ class _HandlerFactory(constants.HandlerFactory):
             return configs
 
         # We need to change a part of the requirements
-        new_configs: Dict[str, Any] = {}
+        new_configs: dict[str, Any] = {}
         for field, config in configs.items():
             # Extract values from tuple
             requirement, timeout = config
@@ -144,7 +144,7 @@ class Activator(ActivatorProto):
         """
         Sets up members
         """
-        self._registration: Optional[ServiceRegistration[constants.HandlerFactory]] = None
+        self._registration: ServiceRegistration[constants.HandlerFactory] | None = None
 
     def start(self, context: BundleContext) -> None:
         """
@@ -178,7 +178,6 @@ class TemporalException(constants.HandlerException):
     Temporal exception
     """
 
-    ...
 
 
 class _TemporalProxy(Generic[T]):
@@ -248,14 +247,14 @@ class TemporalDependency(requires.SimpleDependency):
         :param requirement: Description of the required dependency
         :param timeout: Time to wait for a service (greater than 0, in seconds)
         """
-        super(TemporalDependency, self).__init__(field, requirement)
+        super().__init__(field, requirement)
 
         # Internal timeout
         self.__timeout = timeout
 
         # The delayed unbind timer
-        self.__timer: Optional[threading.Timer] = None
-        self.__timer_args: Optional[Tuple[Any, ...]] = None
+        self.__timer: threading.Timer | None = None
+        self.__timer_args: tuple[Any, ...] | None = None
         self.__still_valid = False
 
         # The injected value is the proxy
@@ -273,7 +272,7 @@ class TemporalDependency(requires.SimpleDependency):
 
         self.__still_valid = False
         self._value = None
-        super(TemporalDependency, self).clear()
+        super().clear()
 
     def on_service_arrival(self, svc_ref: ServiceReference[Any]) -> None:
         """

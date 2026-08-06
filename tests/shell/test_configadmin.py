@@ -9,12 +9,12 @@ Tests the ConfigurationAdmin shell commands
 import os
 import unittest
 from io import StringIO
-from typing import Any, Dict, Optional
+from typing import Any
 
 import pelix.framework
 import pelix.services
 import pelix.shell
-import pelix.shell.beans as beans
+from pelix.shell import beans
 
 # ------------------------------------------------------------------------------
 
@@ -32,7 +32,7 @@ class ConfigAdminShellTest(unittest.TestCase):
     framework: pelix.framework.Framework
     shell: pelix.shell.ShellService
 
-    def assertDictContains(self, subset: Dict[str, Any], tested: Optional[Dict[str, Any]]) -> None:
+    def assertDictContains(self, subset: dict[str, Any], tested: dict[str, Any] | None) -> None:
         assert tested is not None
         self.assertEqual(tested, tested | subset)
 

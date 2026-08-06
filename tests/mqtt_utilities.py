@@ -22,7 +22,6 @@ Utility methods for MQTT tests
 
 import unittest
 from threading import Event
-from typing import Optional
 
 # ------------------------------------------------------------------------------
 
@@ -36,7 +35,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-def find_mqtt_server() -> Optional[str]:
+def find_mqtt_server() -> str | None:
     """
     Looks for a working server to run the tests
 
@@ -60,7 +59,7 @@ def find_mqtt_server() -> Optional[str]:
             # Try to connect
             evt.clear()
             clt.connect(server, blocking=True)
-        except IOError:
+        except OSError:
             # Not available
             pass
         else:

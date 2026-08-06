@@ -22,7 +22,7 @@ SIMPLE_FACTORY = "log.test.simple"
 
 @ComponentFactory(SIMPLE_FACTORY)
 @Requires("logger", LOG_SERVICE)
-class LoggerComponent(object):
+class LoggerComponent:
     """
     Dummy instantiated component
     """

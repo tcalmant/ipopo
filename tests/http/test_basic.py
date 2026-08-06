@@ -11,7 +11,7 @@ import socket
 import unittest
 from typing import Any, cast
 
-import pelix.http as http
+from pelix import http
 from pelix.framework import Framework, FrameworkFactory
 from pelix.ipopo.constants import IPopoService
 from tests import log_off, log_on
@@ -348,7 +348,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
 
         # Test the call back
         for path in paths:
-            self.assertIn(path, servlet.bound, "bound_to not called for {0}".format(path))
+            self.assertIn(path, servlet.bound, f"bound_to not called for {path}")
         self.assertEqual([], servlet.unbound, "unbound_from called")
         servlet.reset()
 
@@ -367,7 +367,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
 
         # Test the call back
         for path in paths:
-            self.assertIn(path, servlet.unbound, "unbound_from not called for {0}".format(path))
+            self.assertIn(path, servlet.unbound, f"unbound_from not called for {path}")
         self.assertEqual([], servlet.bound, "bound_to called")
         servlet.reset()
 
@@ -577,7 +577,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
             self.assertIs(
                 ensure_get_servlet(self.http_svc, path)[0],
                 servlet_1,
-                "Servlet 1 should handle {0}".format(path),
+                f"Servlet 1 should handle {path}",
             )
             self.assertEqual(ensure_get_servlet(self.http_svc, path)[2], path_1, "Servlet 1 path is not kept")
 
@@ -585,7 +585,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
             self.assertIs(
                 ensure_get_servlet(self.http_svc, path)[0],
                 servlet_2,
-                "Servlet 2 should handle {0}".format(path),
+                f"Servlet 2 should handle {path}",
             )
             self.assertEqual(ensure_get_servlet(self.http_svc, path)[2], path_2, "Servlet 2 path is not kept")
 
@@ -625,7 +625,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         # Try to unregister invalid/unknown paths
         for invalid in (None, "", "test", "/test/sub", "/"):
             self.assertFalse(
-                self.http_svc.unregister(invalid), "An invalid path was unregistered: {0}".format(invalid)
+                self.http_svc.unregister(invalid), f"An invalid path was unregistered: {invalid}"
             )
 
         # Try to unregister a None servlet

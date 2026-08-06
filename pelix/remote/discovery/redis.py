@@ -32,16 +32,17 @@ import logging
 import math
 import socket
 import threading
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
+from collections.abc import Iterable
+from typing import Any, cast
 
 import redis
 import redis.client
 
 import pelix.constants
 import pelix.remote
-import pelix.remote.beans as beans
 from pelix.framework import BundleContext
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
+from pelix.remote import beans
 from pelix.remote.edef_io import EDEFReader, EDEFWriter
 from pelix.utilities import to_str
 
@@ -96,25 +97,25 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         Sets up the component
         """
         # Framework UID
-        self._fw_uid: Optional[str] = None
+        self._fw_uid: str | None = None
 
         # Hostname cache: Framework UID -> Hostname
-        self._frameworks_hosts: Dict[str, str] = {}
+        self._frameworks_hosts: dict[str, str] = {}
 
         # Redis
         self._redis_host = "localhost"
         self._redis_port = 6379
         self._redis_db = 0
-        self._redis_password: Optional[str] = None
-        self._redis: Optional[redis.StrictRedis] = None
+        self._redis_password: str | None = None
+        self._redis: redis.StrictRedis | None = None
 
         # PubSub thread
-        self._pubsub: Optional[redis.client.PubSub] = None
-        self._pubsub_thread: Optional[redis.client.PubSubWorkerThread] = None
+        self._pubsub: redis.client.PubSub | None = None
+        self._pubsub_thread: redis.client.PubSubWorkerThread | None = None
 
         # Heartbeat thread
         self._heart_delay = 10
-        self._heart_thread: Optional[threading.Thread] = None
+        self._heart_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
 
         # Event handlers
@@ -168,7 +169,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
 
         # Configure the server to send key events
         config_key = "notify-keyspace-events"
-        current = set(cast(Dict[str, Any], self._redis.config_get(config_key))[config_key])
+        current = set(cast(dict[str, Any], self._redis.config_get(config_key))[config_key])
         current.update("K$sg")
         self._redis.config_set(config_key, "".join(current))
 
@@ -242,9 +243,9 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         """
         assert self._redis is not None
 
-        fw_cache: Dict[str, int] = {}
+        fw_cache: dict[str, int] = {}
         for raw_key in cast(
-            Iterable[Union[str, bytes]],
+            Iterable[str | bytes],
             self._redis.keys(PATTERN_ENDPOINT_KEY.format(fw_uid="*", endpoint_uid="*")),
         ):
             # Extract UIDs
@@ -312,7 +313,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         assert self._redis is not None
         self._redis.delete(PATTERN_ENDPOINT_KEY.format(fw_uid=self._fw_uid, endpoint_uid=endpoint.uid))
 
-    def endpoints_added(self, endpoints: List[beans.ExportEndpoint]) -> None:
+    def endpoints_added(self, endpoints: list[beans.ExportEndpoint]) -> None:
         """
         Multiple endpoints have been added
 
@@ -322,7 +323,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
             self._register_service(endpoint)
 
     def endpoint_updated(
-        self, endpoint: beans.ExportEndpoint, old_properties: Optional[Dict[str, Any]]
+        self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None
     ) -> None:
         """
         An end point is updated
@@ -341,7 +342,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         """
         self._unregister_service(endpoint)
 
-    def _handle_framework_event(self, data: Dict[str, Any]) -> None:
+    def _handle_framework_event(self, data: dict[str, Any]) -> None:
         """
         Handles a Redis notification about a framework
 
@@ -376,11 +377,11 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
                 self._redis.delete(*keys)
         elif event == "expire" and fw_uid not in self._frameworks_hosts:
             # Unknown framework found: store its hostname
-            hostname = cast(Optional[bytes], self._redis.get(fw_key))
+            hostname = cast(bytes | None, self._redis.get(fw_key))
             if hostname:
                 self._frameworks_hosts[fw_uid] = to_str(hostname)
 
-    def _handle_endpoint_event(self, data: Dict[str, Any]) -> None:
+    def _handle_endpoint_event(self, data: dict[str, Any]) -> None:
         """
         Handles a Redis notification about an endpoint
 
@@ -398,7 +399,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
             method(data["channel"].decode("utf-8").split(":", 1)[1])
 
     @staticmethod
-    def _extract_uids(endpoint_key: str) -> Tuple[str, str]:
+    def _extract_uids(endpoint_key: str) -> tuple[str, str]:
         """
         Extracts the framework UID and the endpoint UID from a Redis key name
 
@@ -432,7 +433,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
             hostname = self._frameworks_hosts[fw_uid]
         except KeyError:
             # Get it from Redis
-            hostname = cast(Optional[bytes], self._redis.get(PATTERN_FRAMEWORK_KEY.format(fw_uid=fw_uid)))
+            hostname = cast(bytes | None, self._redis.get(PATTERN_FRAMEWORK_KEY.format(fw_uid=fw_uid)))
             if not hostname:
                 # Endpoint's framework has been removed: ignore
                 # (happens when two frameworks clear traces of an old one)
@@ -446,7 +447,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
                 hostname = self._frameworks_hosts[fw_uid] = to_str(hostname)
 
         # 2. Read the EDEF content
-        content = cast(Optional[bytes], self._redis.get(endpoint_key))
+        content = cast(bytes | None, self._redis.get(endpoint_key))
         if not content:
             logging.debug("Endpoint description removed while handling it")
             return False

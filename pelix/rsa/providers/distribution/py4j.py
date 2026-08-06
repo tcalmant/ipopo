@@ -27,10 +27,11 @@ Py4j-based Distribution and Discovery Provider
 """
 
 import logging
+from collections.abc import Callable
 from concurrent.futures import Executor, ThreadPoolExecutor
 from queue import Queue
 from threading import RLock, Thread
-from typing import Any, Callable, Dict, List, Optional, Tuple, cast
+from typing import Any, cast
 
 from osgiservicebridge.bridge import (
     JavaServiceProxy,
@@ -126,10 +127,10 @@ class Py4jContainer(ExportContainer, ImportContainer):
         ExportContainer.__init__(self)
         ImportContainer.__init__(self)
         self._max_workers = max_workers
-        self._executor: Optional[Executor] = None
+        self._executor: Executor | None = None
 
     @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_PROPERTIES)
-    def _validate_component(self, bundle_context: BundleContext, container_props: Dict[str, Any]) -> None:
+    def _validate_component(self, bundle_context: BundleContext, container_props: dict[str, Any]) -> None:
         Container._validate_component(self, bundle_context, container_props)
         self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
 
@@ -140,7 +141,7 @@ class Py4jContainer(ExportContainer, ImportContainer):
             self._executor.shutdown()
             self._executor = None
 
-    def get_connected_id(self) -> Optional[str]:
+    def get_connected_id(self) -> str | None:
         return ExportContainer.get_connected_id(self)
 
     def _export_service(self, svc: Any, ed: EndpointDescription) -> None:
@@ -266,22 +267,22 @@ ECF_PY4J_CALLBACKSERVER_PARAMS_DEFAULT = None
 class Py4jDistributionProvider(
     ExportDistributionProvider, ImportDistributionProvider, Py4jServiceBridgeEventListener
 ):
-    _java_port: Optional[int]
-    _python_port: Optional[int]
-    _default_service_timeout: Optional[float]
+    _java_port: int | None
+    _python_port: int | None
+    _default_service_timeout: float | None
     _import_hook: bool
-    _gateway_params: Optional[GatewayParameters]
-    _callback_server_params: Optional[CallbackServerParameters]
+    _gateway_params: GatewayParameters | None
+    _callback_server_params: CallbackServerParameters | None
 
     def __init__(self) -> None:
         ExportDistributionProvider.__init__(self)
         ImportDistributionProvider.__init__(self)
         Py4jServiceBridgeEventListener.__init__(self)
 
-        self._bridge: Optional[Py4jServiceBridge] = None
-        self._container: Optional[Container] = None
+        self._bridge: Py4jServiceBridge | None = None
+        self._container: Container | None = None
         self._queue: Queue[
-            Tuple[Optional[str], Optional[Dict[str, Any]], Optional[Callable[[EndpointDescription], Any]]]
+            tuple[str | None, dict[str, Any] | None, Callable[[EndpointDescription], Any] | None]
         ] = Queue()
         self._thread = Thread(target=self._worker, daemon=True)
         self._done = False
@@ -296,8 +297,8 @@ class Py4jDistributionProvider(
 
     # Override of DistributionProvider._get_imported_configs. Returns
     # the Py4j bridge.get_id() in list
-    def _get_imported_configs(self, exported_configs: List[str]) -> List[str]:
-        imported_configs: List[str] = []
+    def _get_imported_configs(self, exported_configs: list[str]) -> list[str]:
+        imported_configs: list[str] = []
 
         if ECF_PY4JPB_JAVA_HOST_CONFIG_TYPE in exported_configs:
             imported_configs.append(ECF_PY4JPB_PYTHON_HOST_CONFIG_TYPE)
@@ -310,10 +311,10 @@ class Py4jDistributionProvider(
     # Implementation of ImportDistributionProvider
     def supports_import(
         self,
-        exported_configs: Optional[List[str]],
-        service_intents: Optional[List[str]],
-        import_props: Dict[str, Any],
-    ) -> Optional[ImportContainer]:
+        exported_configs: list[str] | None,
+        service_intents: list[str] | None,
+        import_props: dict[str, Any],
+    ) -> ImportContainer | None:
         if exported_configs:
             if ECF_PY4JPB_JAVA_HOST_CONFIG_TYPE in exported_configs:
                 if self._match_intents_supported(service_intents, self._supported_pb_intents):
@@ -327,10 +328,10 @@ class Py4jDistributionProvider(
     # Implementation of ExportDistributionProvider
     def supports_export(
         self,
-        exported_configs: Optional[List[str]],
-        service_intents: Optional[List[str]],
-        export_props: Dict[str, Any],
-    ) -> Optional[ExportContainer]:
+        exported_configs: list[str] | None,
+        service_intents: list[str] | None,
+        export_props: dict[str, Any],
+    ) -> ExportContainer | None:
         if exported_configs and self._match_intents(service_intents):
             if (
                 ECF_PY4J_PYTHON_HOST_CONFIG_TYPE in exported_configs
@@ -395,20 +396,20 @@ class Py4jDistributionProvider(
 
     # Implementation of Py4jServiceBridgeEventListener
     def service_imported(
-        self, servicebridge: Py4jServiceBridge, endpointid: str, proxy: Any, endpoint_props: Dict[str, Any]
+        self, servicebridge: Py4jServiceBridge, endpointid: str, proxy: Any, endpoint_props: dict[str, Any]
     ) -> None:
         # put on task queue so no blocking, but fifo delivery to rsa
         #  _logger.info('service_imported endpointid='+endpointid)
         self._queue.put((endpointid, endpoint_props, self._handle_import))
 
     def service_modified(
-        self, servicebridge: Py4jServiceBridge, endpointid: str, proxy: Any, endpoint_props: Dict[str, Any]
+        self, servicebridge: Py4jServiceBridge, endpointid: str, proxy: Any, endpoint_props: dict[str, Any]
     ) -> None:
         # _logger.info('_service_modified endpointid='+endpointid+";proxy="+str(proxy)+";endpoint_props="+str(endpoint_props))
         self._queue.put((endpointid, endpoint_props, self._handle_import_update))
 
     def service_unimported(
-        self, servicebridge: Py4jServiceBridge, endpointid: str, proxy: Any, endpoint_props: Dict[str, Any]
+        self, servicebridge: Py4jServiceBridge, endpointid: str, proxy: Any, endpoint_props: dict[str, Any]
     ) -> None:
         # _logger.info('_service_unimported endpointid='+endpointid+";proxy="+str(proxy)+";endpoint_props="+str(endpoint_props))
         # put on task queue so no blocking, but fifo delivery to rsa

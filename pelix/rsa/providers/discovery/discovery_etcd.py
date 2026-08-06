@@ -31,7 +31,7 @@ import logging
 import socket
 import threading
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import etcd
 
@@ -102,8 +102,8 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     Note that this depends upon the python-etcd client library.
     """
 
-    REMOVE_ACTIONS: List[str] = ["delete", "expire"]
-    ADD_ACTIONS: List[str] = ["set", "create"]
+    REMOVE_ACTIONS: list[str] = ["delete", "expire"]
+    ADD_ACTIONS: list[str] = ["set", "create"]
 
     def __init__(self) -> None:
         import warnings
@@ -121,12 +121,12 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         self._sessionid = create_uuid()
         self._session_ttl: int = 30
         self._watch_start_wait: int = 5
-        self._client: Optional[etcd.Client] = None
+        self._client: etcd.Client | None = None
         self._client_lock = threading.RLock()
-        self._top_nodes: Optional[List[etcd.EtcdResult]] = None
-        self._wait_index: Optional[int] = None
-        self._ttl_thread: Optional[threading.Thread] = None
-        self._watch_thread: Optional[threading.Thread] = None
+        self._top_nodes: list[etcd.EtcdResult] | None = None
+        self._wait_index: int | None = None
+        self._ttl_thread: threading.Thread | None = None
+        self._watch_thread: threading.Thread | None = None
         servicename = f"osgirsvc_{create_uuid()}"
         hostip = socket.gethostbyname(socket.gethostname())
         self._service_props = {
@@ -152,7 +152,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     def _invalidate(self, _: BundleContext) -> None:
         self._disconnect()
 
-    def _encode_description(self, endpoint_description: EndpointDescription) -> Dict[str, Any]:
+    def _encode_description(self, endpoint_description: EndpointDescription) -> dict[str, Any]:
         encoded_props = encode_endpoint_props(endpoint_description)
         # get copy of service props
         service_props = self._service_props.copy()
@@ -188,7 +188,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         _logger.debug("updating ed=%s", endpoint_description)
         return self._write_description(endpoint_description)
 
-    def _unadvertise(self, advertised: Tuple[EndpointDescription, Any]) -> etcd.EtcdResult:
+    def _unadvertise(self, advertised: tuple[EndpointDescription, Any]) -> etcd.EtcdResult:
         _logger.debug("unadvertising ed=%s", advertised[0])
         # get endpoint id
         endpointid = advertised[0].get_id()
@@ -285,7 +285,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         endpointids = self._get_endpointids_for_sessionid(sessionid)
         self._handle_remove_nodes(endpointids)
 
-    def _handle_add_nodes(self, sessionid: str, nodes: List[etcd.EtcdResult]) -> None:
+    def _handle_add_nodes(self, sessionid: str, nodes: list[etcd.EtcdResult]) -> None:
         for node in nodes:
             # we only care about properties
             node_val = node.value
@@ -318,7 +318,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                             self._add_discovered_endpoint(sessionid, new_ed)
                             self._fire_endpoint_event(EndpointEvent.MODIFIED, new_ed)
 
-    def _handle_remove_nodes(self, endpointids: List[str]) -> None:
+    def _handle_remove_nodes(self, endpointids: list[str]) -> None:
         for endpointid in endpointids:
             self._handle_remove_node(endpointid)
 

@@ -29,7 +29,7 @@ except ImportError:
     raise unittest.SkipTest("Interpreter doesn't support multiprocessing")
 
 import pelix.framework
-import pelix.rsa as rsa
+from pelix import rsa
 from pelix.framework import create_framework
 from pelix.ipopo.constants import use_ipopo
 from pelix.rsa import ECF_ENDPOINT_CONTAINERID_NAMESPACE, RemoteServiceAdmin
@@ -423,7 +423,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
     def test_none_advertised(self):
         adv = self._get_advertiser()
         eps = adv.get_advertised_endpoints()
-        self.assertDictEqual(eps, {}, "advertised endpoints not empty eps={0}".format(eps))
+        self.assertDictEqual(eps, {}, f"advertised endpoints not empty eps={eps}")
 
     def test_etcd_session(self):
         self.assertIsNotNone(self._get_advertiser()._session_id, "etcd._sessionid is null")
@@ -455,13 +455,13 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         adv.unadvertise_endpoint(ed_id)
         try:
             adv._get_value(ep_key)
-            self.fail("endpoint={0} still advertised after being removed".format(ed_id))
+            self.fail(f"endpoint={ed_id} still advertised after being removed")
         except Exception:  # exception expected
             pass
         eps = adv.get_advertised_endpoints()
         self.assertTrue(
             len(eps) == 0,
-            "length of eps should be 0 and is {0}".format(len(eps)),
+            f"length of eps should be 0 and is {len(eps)}",
         )
 
     def test_etcd_advertise_content(self):

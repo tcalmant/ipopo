@@ -27,10 +27,10 @@ Defines the decorator for the logger iPOPO handler
 
 import inspect
 import logging
-from typing import Any, Type
+from typing import Any
 
-import pelix.ipopo.decorators as decorators
-import samples.handler.constants as constants
+from pelix.ipopo import decorators
+from samples.handler import constants
 
 # ------------------------------------------------------------------------------
 
@@ -62,7 +62,7 @@ class Logger:
         """
         self._field = field
 
-    def __call__(self, clazz: Type[Any]) -> Type[Any]:
+    def __call__(self, clazz: type[Any]) -> type[Any]:
         """
         Stores the configuration of the handler in the component factory
         context

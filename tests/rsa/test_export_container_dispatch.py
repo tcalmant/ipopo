@@ -7,7 +7,7 @@ Tests the dispatch of calls to services exported by RSA
 """
 
 import unittest
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 # Imported first: pelix.rsa.providers.distribution can't be loaded on its own
 import pelix.rsa.remoteserviceadmin  # noqa: F401
@@ -38,7 +38,7 @@ class DummyService:
         """
         Sets up members
         """
-        self.calls: List[str] = []
+        self.calls: list[str] = []
         self._secret = SERVICE_SECRET
 
     def echo(self, value: Any) -> Any:
@@ -65,7 +65,7 @@ class FakeEndpointDescription:
     def __init__(self, rs_id: int) -> None:
         self._rs_id = rs_id
 
-    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
+    def get_remoteservice_id(self) -> tuple[tuple[str, str], int]:
         """
         Returns the ID of the remote service
         """
@@ -86,7 +86,7 @@ class ExportContainerDispatchTest(unittest.TestCase):
         """
         self.service = DummyService()
         self.container = ExportContainer()
-        exported: Dict[str, Tuple[Any, Any]] = {
+        exported: dict[str, tuple[Any, Any]] = {
             "endpoint-id": (self.service, FakeEndpointDescription(RS_ID)),
         }
         self.container._exported_services = exported

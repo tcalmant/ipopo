@@ -64,7 +64,7 @@ class EndpointAdvertiser(abc.ABC):
     """
 
     def __init__(self) -> None:
-        self._published_endpoints: Dict[str, Tuple[EndpointDescription, Any]] = {}
+        self._published_endpoints: dict[str, tuple[EndpointDescription, Any]] = {}
         self._published_endpoints_lock = RLock()
 
     def advertise_endpoint(self, endpoint_description: EndpointDescription) -> bool:
@@ -144,7 +144,7 @@ class EndpointAdvertiser(abc.ABC):
         """
         return self.get_advertised_endpoint(endpointid) is not None
 
-    def get_advertised_endpoint(self, endpointid: str) -> Optional[Tuple[EndpointDescription, Any]]:
+    def get_advertised_endpoint(self, endpointid: str) -> tuple[EndpointDescription, Any] | None:
         """
         Get the advertised endpoint given endpointid.
 
@@ -157,7 +157,7 @@ class EndpointAdvertiser(abc.ABC):
         with self._published_endpoints_lock:
             return self._published_endpoints.get(endpointid, None)
 
-    def get_advertised_endpoints(self) -> Dict[str, Tuple[EndpointDescription, Any]]:
+    def get_advertised_endpoints(self) -> dict[str, tuple[EndpointDescription, Any]]:
         """
         Get all endpoints advertised by this advertiser.
 
@@ -171,7 +171,7 @@ class EndpointAdvertiser(abc.ABC):
         with self._published_endpoints_lock:
             self._published_endpoints[ed.get_id()] = (ed, advertise_result)
 
-    def _remove_advertised(self, endpointid: str) -> Optional[Tuple[EndpointDescription, Any]]:
+    def _remove_advertised(self, endpointid: str) -> tuple[EndpointDescription, Any] | None:
         with self._published_endpoints_lock:
             return self._published_endpoints.pop(endpointid, None)
 
@@ -190,7 +190,7 @@ class EndpointAdvertiser(abc.ABC):
         """
 
     @abc.abstractmethod
-    def _unadvertise(self, advertised: Tuple[EndpointDescription, Any]) -> Any:
+    def _unadvertise(self, advertised: tuple[EndpointDescription, Any]) -> Any:
         """
         Advertise the removal of an endpoint description.
         Result is implementation dependent.
@@ -271,7 +271,7 @@ class EndpointEventListener(Protocol):
     # the endpoint_changed method will be called
     ENDPOINT_LISTENER_SCOPE: str = "endpoint.listener.scope"
 
-    def endpoint_changed(self, endpoint_event: EndpointEvent, matched_filter: Optional[str]) -> None:
+    def endpoint_changed(self, endpoint_event: EndpointEvent, matched_filter: str | None) -> None:
         """
         Called by discovery providers when an endpoint has been
         ADDED,REMOVED or MODIFIED.
@@ -291,11 +291,11 @@ class EndpointSubscriber(abc.ABC):
     """
 
     def __init__(self) -> None:
-        self._endpoint_event_listeners: List[
-            Tuple[EndpointEventListener, ServiceReference[EndpointEventListener]]
+        self._endpoint_event_listeners: list[
+            tuple[EndpointEventListener, ServiceReference[EndpointEventListener]]
         ] = []
         self._endpoint_event_listeners_lock = RLock()
-        self._discovered_endpoints: Dict[str, Tuple[str, EndpointDescription]] = {}
+        self._discovered_endpoints: dict[str, tuple[str, EndpointDescription]] = {}
         self._discovered_endpoints_lock = RLock()
 
     @BindField("_event_listeners")
@@ -323,7 +323,7 @@ class EndpointSubscriber(abc.ABC):
 
     def _get_matching_endpoint_event_listeners(
         self, ed: EndpointDescription
-    ) -> List[Tuple[EndpointEventListener, str]]:
+    ) -> list[tuple[EndpointEventListener, str]]:
         result = []
         with self._discovered_endpoints_lock:
             listeners = self._endpoint_event_listeners[:]
@@ -342,7 +342,7 @@ class EndpointSubscriber(abc.ABC):
                 result.append((listener[0], matching_filter))
         return result
 
-    def _has_discovered_endpoint(self, ed_id: str) -> Optional[EndpointDescription]:
+    def _has_discovered_endpoint(self, ed_id: str) -> EndpointDescription | None:
         with self._discovered_endpoints_lock:
             ep = self._discovered_endpoints.get(ed_id, None)
             if ep:
@@ -350,8 +350,8 @@ class EndpointSubscriber(abc.ABC):
 
             return None
 
-    def _get_endpointids_for_sessionid(self, sessionid: str) -> List[str]:
-        result: List[str] = []
+    def _get_endpointids_for_sessionid(self, sessionid: str) -> list[str]:
+        result: list[str] = []
         with self._discovered_endpoints_lock:
             for epid, ep in self._discovered_endpoints.items():
                 if ep and sessionid == ep[0]:
@@ -363,7 +363,7 @@ class EndpointSubscriber(abc.ABC):
             _logger.debug("_add_discovered_endpoint ed=%s", ed)
             self._discovered_endpoints[ed.get_id()] = (sessionid, ed)
 
-    def _remove_discovered_endpoint(self, endpointid: str) -> Optional[EndpointDescription]:
+    def _remove_discovered_endpoint(self, endpointid: str) -> EndpointDescription | None:
         with self._discovered_endpoints_lock:
             node = self._discovered_endpoints.pop(endpointid, None)
             if node:

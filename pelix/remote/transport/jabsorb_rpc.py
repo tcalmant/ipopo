@@ -26,19 +26,20 @@ Pelix Remote Services: Java-compatible RPC, based on the Jabsorb library
 """
 
 import logging
-from typing import Any, Callable, Dict, Iterable, Optional, Union
+from collections.abc import Callable, Iterable
+from typing import Any
 
 import jsonrpclib.jsonrpc as jsonrpclib
 from jsonrpclib.SimpleJSONRPCServer import NoMulticallResult, SimpleJSONRPCDispatcher
 
 import pelix.http
-import pelix.misc.jabsorb as jabsorb
 import pelix.remote
-import pelix.remote.transport.commons as commons
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
+from pelix.misc import jabsorb
 from pelix.remote.beans import ImportEndpoint
+from pelix.remote.transport import commons
 from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
@@ -77,8 +78,8 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
 
     def __init__(
         self,
-        dispatch_method: Callable[[str, Union[Iterable[Any], Dict[str, Any]]], Any],
-        encoding: Optional[str] = None,
+        dispatch_method: Callable[[str, Iterable[Any] | dict[str, Any]], Any],
+        encoding: str | None = None,
     ) -> None:
         """
         Sets up the servlet
@@ -91,7 +92,7 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
         # Make a link to the dispatch method
         self._dispatch_method = dispatch_method
 
-    def _simple_dispatch(self, name: str, params: Union[Iterable[Any], Dict[str, Any]]) -> Any:
+    def _simple_dispatch(self, name: str, params: Iterable[Any] | dict[str, Any]) -> Any:
         """
         Dispatch method
         """
@@ -175,17 +176,17 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
         Sets up the exporter
         """
         # Call parent
-        super(JabsorbRpcServiceExporter, self).__init__()
+        super().__init__()
 
         # HTTP Service
         self._path = ""
 
         # JSON-RPC servlet
-        self._servlet: Optional[pelix.http.Servlet] = None
+        self._servlet: pelix.http.Servlet | None = None
 
     def make_endpoint_properties(
-        self, svc_ref: ServiceReference[Any], name: str, fw_uid: Optional[str]
-    ) -> Dict[str, Any]:
+        self, svc_ref: ServiceReference[Any], name: str, fw_uid: str | None
+    ) -> dict[str, Any]:
         """
         Prepare properties for the ExportEndpoint to be created
 
@@ -230,7 +231,7 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
         Component validated
         """
         # Call parent
-        super(JabsorbRpcServiceExporter, self).validate(context)
+        super().validate(context)
 
         # Create/register the servlet
         self._servlet = _JabsorbRpcServlet(self.dispatch)
@@ -246,7 +247,7 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
         self._http.unregister(None, self._servlet)
 
         # Call parent
-        super(JabsorbRpcServiceExporter, self).invalidate(context)
+        super().invalidate(context)
 
         # Clean up members
         self._servlet = None

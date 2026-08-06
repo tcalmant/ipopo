@@ -16,7 +16,8 @@ import tempfile
 import threading
 import time
 import unittest
-from typing import Callable, Optional, Tuple, cast
+from collections.abc import Callable
+from typing import cast
 
 try:
     import ssl
@@ -248,12 +249,12 @@ class TLSShellClient:
         fail: Callable[[str], None],
         client_cert: str,
         client_key: str,
-        ca_chain: Optional[str] = None,
+        ca_chain: str | None = None,
     ) -> None:
         """
         Sets up the client
         """
-        self._socket: Optional[ssl.SSLSocket] = None
+        self._socket: ssl.SSLSocket | None = None
         self._ca_chain = ca_chain
         self._cert = client_cert
         self._key = client_key
@@ -261,7 +262,7 @@ class TLSShellClient:
         self.fail = fail
         self.__wait_prompt = True
 
-    def connect(self, access: Tuple[str, int], server_hostname: Optional[str] = None) -> None:
+    def connect(self, access: tuple[str, int], server_hostname: str | None = None) -> None:
         """
         Connects to the remote shell
         """
@@ -332,7 +333,7 @@ class TLSShellClient:
 
         return data
 
-    def run_command(self, command: str, disconnect: bool = False) -> Optional[str]:
+    def run_command(self, command: str, disconnect: bool = False) -> str | None:
         """
         Runs a command on the remote shell
         """
@@ -619,7 +620,7 @@ class TLSRemoteShellTest(unittest.TestCase):
 
             # Test a command
             test_str = "toto"
-            remote_output = client.run_command("echo {0}".format(test_str))
+            remote_output = client.run_command(f"echo {test_str}")
             self.assertEqual(remote_output, test_str)
         finally:
             # Close the client in any case

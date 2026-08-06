@@ -20,11 +20,11 @@ import random
 import threading
 import time
 import unittest
-from typing import Any, Dict, List
+from typing import Any
 
 import pelix.constants
 import pelix.framework
-import pelix.utilities as utilities
+from pelix import utilities
 from tests.interfaces import IEchoService
 
 # ------------------------------------------------------------------------------
@@ -52,12 +52,12 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
 
         for test in valid:
             self.assertTrue(
-                utilities.is_lock(test), "Valid lock not detected: {0}".format(type(test).__name__)
+                utilities.is_lock(test), f"Valid lock not detected: {type(test).__name__}"
             )
 
         for test in invalid:
             self.assertFalse(
-                utilities.is_lock(test), "Invalid lock not detected: {0}".format(type(test).__name__)
+                utilities.is_lock(test), f"Invalid lock not detected: {type(test).__name__}"
             )
 
     @utilities.SynchronizedClassMethod("lock")
@@ -75,7 +75,7 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         :param no_lock: If True, create the lock, else let the decorator do it
         """
         # Thread results: ID -> starting time
-        result: Dict[int, float] = {}
+        result: dict[int, float] = {}
 
         # Synchronization lock
         if no_lock:
@@ -124,7 +124,7 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         # (due to the lock)
         # (0.4 instead of 0.5: some systems are not that precise)
         self.assertGreaterEqual(
-            result[2], result[1] + 0.4, "Thread 2 started too soon (after {0}s)".format(result[2] - result[1])
+            result[2], result[1] + 0.4, f"Thread 2 started too soon (after {result[2] - result[1]}s)"
         )
 
         # .. Thread 2 must not have blocked the main thread
@@ -188,7 +188,7 @@ class UtilitiesTest(unittest.TestCase):
         value_2 = random.random()
 
         # Prepare the class members
-        class Dummy(object):
+        class Dummy:
             inside = utilities.read_only_property(value_1)
 
         Dummy.outside = utilities.read_only_property(value_2)  # type: ignore
@@ -234,7 +234,7 @@ class UtilitiesTest(unittest.TestCase):
 
         # Create a random list
         list_org = []
-        for i in range(0, random.randint(10, 20)):
+        for i in range(random.randint(10, 20)):
             list_org.append(random.randint(min_value, max_value))
 
         # Create a copy
@@ -275,7 +275,7 @@ class UtilitiesTest(unittest.TestCase):
         """
         Tests add/remove listener methods
         """
-        registry: List[Any] = []
+        registry: list[Any] = []
         values = (42, "test", (1, 2, 3))
 
         # None value

@@ -30,8 +30,9 @@ import datetime
 import logging
 import sys
 import time
+from collections.abc import Callable, Iterable
 from types import ModuleType
-from typing import Any, Callable, Iterable, Optional, Set, Tuple, Union, cast
+from typing import Any, cast
 
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.framework import Bundle, BundleContext
@@ -95,18 +96,18 @@ class LogEntryImpl(LogEntry):
         "__exception",
         "__level",
         "__message",
+        "__record",
         "__reference",
         "__time",
-        "__record",
     )
 
     def __init__(
         self,
         level: int,
-        message: Optional[str],
+        message: str | None,
         exception: OptExcInfo,
-        bundle: Optional[Bundle],
-        reference: Optional[ServiceReference[Any]],
+        bundle: Bundle | None,
+        reference: ServiceReference[Any] | None,
     ) -> None:
         """
         :param level: The Python log level of the entry
@@ -121,7 +122,7 @@ class LogEntryImpl(LogEntry):
         self.__message = message
         self.__reference = reference
         self.__time: float = time.time()
-        self.__record: Optional[logging.LogRecord] = None
+        self.__record: logging.LogRecord | None = None
 
     def __str__(self) -> str:
         """
@@ -129,7 +130,7 @@ class LogEntryImpl(LogEntry):
         """
         values = [
             # 7: length of "WARNING"
-            "{0: ^7} ::".format(logging.getLevelName(self.__level)),
+            f"{logging.getLevelName(self.__level): ^7} ::",
             # Date
             str(datetime.datetime.fromtimestamp(self.__time)),
             "::",
@@ -137,7 +138,7 @@ class LogEntryImpl(LogEntry):
 
         if self.__bundle:
             # Bundle name
-            values.append("{0: <20s} ::".format(self.__bundle.get_symbolic_name()))
+            values.append(f"{self.__bundle.get_symbolic_name(): <20s} ::")
 
         # Message
         if self.__message:
@@ -151,14 +152,14 @@ class LogEntryImpl(LogEntry):
         return f"{' '.join(values)}\n{self.__exception}"
 
     @property
-    def bundle(self) -> Optional[Bundle]:
+    def bundle(self) -> Bundle | None:
         """
         The bundle that created this entry
         """
         return self.__bundle
 
     @property
-    def message(self) -> Optional[str]:
+    def message(self) -> str | None:
         """
         The message associated to this entry
         """
@@ -186,7 +187,7 @@ class LogEntryImpl(LogEntry):
         return LEVEL_TO_OSGI.get(self.__level, LOG_INFO)
 
     @property
-    def reference(self) -> Optional[ServiceReference[Any]]:
+    def reference(self) -> ServiceReference[Any] | None:
         """
         The reference to the service associated to this entry
         """
@@ -248,7 +249,7 @@ class LogReaderImpl(LogReader):
         """
         self._context = context
         self.__logs = collections.deque[LogEntry](maxlen=max_entries)
-        self.__listeners: Set[LogListener] = set()
+        self.__listeners: set[LogListener] = set()
 
     def add_log_listener(self, listener: LogListener) -> None:
         """
@@ -278,7 +279,7 @@ class LogReaderImpl(LogReader):
         """
         self.__listeners.discard(listener)
 
-    def get_log(self) -> Tuple[LogEntry, ...]:
+    def get_log(self) -> tuple[LogEntry, ...]:
         """
         Returns the logs events kept by the service
 
@@ -321,7 +322,7 @@ class LogServiceInstance(LogService):
     Instance of the log service given to a bundle by the factory
     """
 
-    __slots__ = ("__reader", "__bundle")
+    __slots__ = ("__bundle", "__reader")
 
     def __init__(self, reader: LogReaderImpl, bundle: Bundle) -> None:
         """
@@ -334,9 +335,9 @@ class LogServiceInstance(LogService):
     def log(
         self,
         level: int,
-        message: Optional[str],
+        message: str | None,
         exc_info: OptExcInfo = None,
-        reference: Optional[ServiceReference[Any]] = None,
+        reference: ServiceReference[Any] | None = None,
     ) -> None:
         """
         Logs a message, possibly with an exception
@@ -370,7 +371,7 @@ class LogServiceFactory(logging.Handler):
         self._framework = context.get_framework()
         self._reader = reader
 
-    def _bundle_from_module(self, module_object: Union[str, ModuleType]) -> Optional[Bundle]:
+    def _bundle_from_module(self, module_object: str | ModuleType) -> Bundle | None:
         """
         Find the bundle associated to a module
 
@@ -379,7 +380,7 @@ class LogServiceFactory(logging.Handler):
         """
         # Get the module name
         try:
-            module_name = cast(str, getattr(module_object, "__name__"))
+            module_name = cast(str, module_object.__name__)
         except AttributeError:
             # We got a string
             module_name = str(module_object)
@@ -417,7 +418,6 @@ class LogServiceFactory(logging.Handler):
         :param bundle: Consuming bundle
         :param registration: Service registration bean
         """
-        pass
 
 
 @BundleActivator
@@ -427,9 +427,9 @@ class Activator(ActivatorProto):
     """
 
     def __init__(self) -> None:
-        self.__reader_reg: Optional[ServiceRegistration[LogReader]] = None
-        self.__factory_reg: Optional[ServiceRegistration[Any]] = None
-        self.__factory: Optional[LogServiceFactory] = None
+        self.__reader_reg: ServiceRegistration[LogReader] | None = None
+        self.__factory_reg: ServiceRegistration[Any] | None = None
+        self.__factory: LogServiceFactory | None = None
 
     @staticmethod
     def get_level(context: BundleContext) -> int:

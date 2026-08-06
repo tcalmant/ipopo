@@ -9,8 +9,8 @@ Tests the iPOPO utility methods.
 import unittest
 
 import pelix.framework as pelix
-import pelix.ipopo.constants as constants
 from pelix.framework import FrameworkFactory
+from pelix.ipopo import constants
 from tests.ipopo import install_ipopo
 
 # ------------------------------------------------------------------------------

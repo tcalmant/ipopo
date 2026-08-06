@@ -31,7 +31,7 @@ import sys
 import threading
 from datetime import datetime
 from traceback import print_exception
-from typing import IO, Any, Dict, List, Optional, Protocol, Set, Tuple, Union, cast
+from typing import IO, Any, Optional, Protocol, cast
 
 from pelix import constants
 from pelix.constants import (
@@ -122,8 +122,8 @@ class Activator(ActivatorProto):
     """
 
     def __init__(self) -> None:
-        self._context: Optional[BundleContext] = None
-        self._debug_reg: Optional[ServiceRegistration[RemoteServiceAdminListener]] = None
+        self._context: BundleContext | None = None
+        self._debug_reg: ServiceRegistration[RemoteServiceAdminListener] | None = None
 
     def start(self, context: BundleContext) -> None:
         """
@@ -168,8 +168,8 @@ class ExportContainerSelector(Protocol):
     """
 
     def select_export_containers(
-        self, service_ref: ServiceReference[Any], exported_intfs: List[str], export_props: Dict[str, Any]
-    ) -> List[ExportContainer]:
+        self, service_ref: ServiceReference[Any], exported_intfs: list[str], export_props: dict[str, Any]
+    ) -> list[ExportContainer]:
         """
         Select export containers, given service_ref (ServiceReference),
         exported_refs list(string), and export_props dict(string:?).  Each of
@@ -197,16 +197,16 @@ class ExportContainerSelector(Protocol):
 )
 @Instantiate(SERVICE_EXPORT_CONTAINER_SELECTOR, {SERVICE_RANKING: -1000000000})
 class ExportContainerSelectorImpl(ExportContainerSelector):
-    _export_distribution_providers: List[ExportDistributionProvider]
+    _export_distribution_providers: list[ExportDistributionProvider]
 
     def select_export_containers(
-        self, service_ref: ServiceReference[Any], exported_intfs: List[str], export_props: Dict[str, Any]
-    ) -> List[ExportContainer]:
+        self, service_ref: ServiceReference[Any], exported_intfs: list[str], export_props: dict[str, Any]
+    ) -> list[ExportContainer]:
         # get exported configs
         exported_configs = get_string_plus_property(SERVICE_EXPORTED_CONFIGS, export_props, None)
         # get service intents, via service.intents, services.exported.intents,
         # and extra
-        service_intents_set: Set[str] = set_append(set(), export_props.get(SERVICE_INTENTS, None))
+        service_intents_set: set[str] = set_append(set(), export_props.get(SERVICE_INTENTS, None))
         service_intents_set = set_append(
             service_intents_set,
             export_props.get(SERVICE_EXPORTED_INTENTS, None),
@@ -216,7 +216,7 @@ class ExportContainerSelectorImpl(ExportContainerSelector):
             export_props.get(SERVICE_EXPORTED_INTENTS_EXTRA, None),
         )
 
-        export_containers: List[ExportContainer] = []
+        export_containers: list[ExportContainer] = []
         for export_provider in self._export_distribution_providers:
             export_container = export_provider.supports_export(
                 exported_configs, list(service_intents_set), export_props
@@ -238,8 +238,8 @@ SERVICE_IMPORT_CONTAINER_SELECTOR = "pelix.rsa.importcontainerselector"
 @Specification(SERVICE_IMPORT_CONTAINER_SELECTOR)
 class ImportContainerSelector(Protocol):
     def select_import_container(
-        self, remote_configs: List[str], endpoint_description: EndpointDescription
-    ) -> Optional[ImportContainer]:
+        self, remote_configs: list[str], endpoint_description: EndpointDescription
+    ) -> ImportContainer | None:
         """
         Select import container, given endpoint_description
         (EndpointDescription).
@@ -262,11 +262,11 @@ class ImportContainerSelector(Protocol):
 )
 @Instantiate("pelix-rsa-importerselector-impl", {SERVICE_RANKING: -1000000000})
 class ImportContainerSelectorImpl(ImportContainerSelector):
-    _import_distribution_providers: List[ImportDistributionProvider]
+    _import_distribution_providers: list[ImportDistributionProvider]
 
     def select_import_container(
-        self, remote_configs: List[str], endpoint_description: EndpointDescription
-    ) -> Optional[ImportContainer]:
+        self, remote_configs: list[str], endpoint_description: EndpointDescription
+    ) -> ImportContainer | None:
         for import_provider in self._import_distribution_providers:
             import_container = import_provider.supports_import(
                 remote_configs,
@@ -291,42 +291,42 @@ class ImportContainerSelectorImpl(ImportContainerSelector):
 class RemoteServiceAdminImpl(RemoteServiceAdmin):
     _export_container_selector: ExportContainerSelector
     _import_container_selector: ImportContainerSelector
-    _rsa_event_listeners: List[RemoteServiceAdminListener]
+    _rsa_event_listeners: list[RemoteServiceAdminListener]
     _context: BundleContext
 
     def __init__(self) -> None:
-        self._exported_regs: List[ExportRegistrationImpl] = []
+        self._exported_regs: list[ExportRegistrationImpl] = []
         self._exported_regs_lock = threading.RLock()
-        self._imported_regs: List[ImportRegistrationImpl] = []
+        self._imported_regs: list[ImportRegistrationImpl] = []
         self._imported_regs_lock = threading.RLock()
 
-    def get_exported_services(self) -> List[ExportReference]:
-        result: List[ExportReference] = []
+    def get_exported_services(self) -> list[ExportReference]:
+        result: list[ExportReference] = []
         for reg in self._get_export_regs():
             exp_ref = reg.get_export_reference()
             if exp_ref:
                 result.append(exp_ref)
         return result
 
-    def get_imported_endpoints(self) -> List[ImportReference]:
-        result: List[ImportReference] = []
+    def get_imported_endpoints(self) -> list[ImportReference]:
+        result: list[ImportReference] = []
         for reg in self._get_import_regs():
             imp_ref = reg.get_import_reference()
             if imp_ref:
                 result.append(imp_ref)
         return result
 
-    def _get_export_regs(self) -> List[ExportRegistration]:
+    def _get_export_regs(self) -> list[ExportRegistration]:
         with self._exported_regs_lock:
             return list(self._exported_regs)
 
-    def _get_import_regs(self) -> List[ImportRegistration]:
+    def _get_import_regs(self) -> list[ImportRegistration]:
         with self._imported_regs_lock:
             return list(self._imported_regs)
 
     def export_service(
-        self, service_ref: ServiceReference[Any], overriding_props: Optional[Dict[str, Any]] = None
-    ) -> List[ExportRegistration]:
+        self, service_ref: ServiceReference[Any], overriding_props: dict[str, Any] | None = None
+    ) -> list[ExportRegistration]:
         bundle = self._get_bundle()
 
         if service_ref is None:
@@ -354,9 +354,9 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
         # was generated
         export_props[ENDPOINT_FRAMEWORK_UUID] = self._context.get_property(OSGI_FRAMEWORK_UUID)
 
-        result_regs: List[ExportRegistrationImpl] = []
-        result_events: List[RemoteServiceAdminEvent] = []
-        exporters: List[ExportContainer] = []
+        result_regs: list[ExportRegistrationImpl] = []
+        result_events: list[RemoteServiceAdminEvent] = []
+        exporters: list[ExportContainer] = []
 
         # Default properties for erroneous cases
         error_props = get_edef_props_error(service_ref.get_property(OBJECTCLASS))
@@ -442,7 +442,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
             self._publish_event(e)
 
         # Explicit cast as caller doesn't have to know about the implementation
-        return cast(List[ExportRegistration], result_regs)
+        return cast(list[ExportRegistration], result_regs)
 
     def import_service(self, endpoint_description: EndpointDescription) -> ImportRegistration:
         if not endpoint_description:
@@ -540,7 +540,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
                     reg.close()
 
     @staticmethod
-    def _valid_exported_interfaces(svc_ref: ServiceReference[Any], intfs: List[str]) -> bool:
+    def _valid_exported_interfaces(svc_ref: ServiceReference[Any], intfs: list[str]) -> bool:
         if not intfs:
             return False
 
@@ -552,7 +552,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
         return True
 
     def _find_existing_export_endpoint(
-        self, svc_ref: ServiceReference[Any], cid: Tuple[str, str]
+        self, svc_ref: ServiceReference[Any], cid: tuple[str, str]
     ) -> Optional["ExportRegistrationImpl"]:
         for er in self._exported_regs:
             if er.match_sr(svc_ref, cid):
@@ -591,7 +591,7 @@ class _ExportEndpoint:
         self.__ed = ed
         self.__svc_ref = svc_ref
         self.__lock = threading.RLock()
-        self.__active_registrations: List[ExportRegistration] = []
+        self.__active_registrations: list[ExportRegistration] = []
         self.__orig_props = self.__ed.get_properties()
 
     def _rsa(self) -> RemoteServiceAdmin:
@@ -601,7 +601,7 @@ class _ExportEndpoint:
 
             return self.__rsa
 
-    def _originalprops(self) -> Dict[str, Any]:
+    def _originalprops(self) -> dict[str, Any]:
         with self.__lock:
             return self.get_reference().get_properties()
 
@@ -641,14 +641,14 @@ class _ExportEndpoint:
 
             return self.__export_container.get_namespace()
 
-    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
+    def get_remoteservice_id(self) -> tuple[tuple[str, str], int]:
         with self.__lock:
             if self.__ed is None:
                 raise Exception("Export endpoint is already closed")
 
             return self.__ed.get_remoteservice_id()
 
-    def update(self, props: Dict[str, Any]) -> EndpointDescription:
+    def update(self, props: dict[str, Any]) -> EndpointDescription:
         with self.__lock:
             if self.__svc_ref is None:
                 raise Exception("Export endpoint is already closed")
@@ -716,29 +716,29 @@ class ExportReferenceImpl(ExportReference):
 
     @classmethod
     def fromexception(
-        cls, e: Optional[Tuple[Any, Any, Any]], ed: EndpointDescription
+        cls, e: tuple[Any, Any, Any] | None, ed: EndpointDescription
     ) -> "ExportReferenceImpl":
         return cls(endpoint=None, exception=e, errored=ed)
 
     def __init__(
         self,
-        endpoint: Optional[_ExportEndpoint] = None,
-        exception: Optional[Tuple[Any, Any, Any]] = None,
-        errored: Optional[EndpointDescription] = None,
+        endpoint: _ExportEndpoint | None = None,
+        exception: tuple[Any, Any, Any] | None = None,
+        errored: EndpointDescription | None = None,
     ) -> None:
         self.__lock = threading.RLock()
         if endpoint is None:
             if exception is None or errored is None:
                 raise RemoteServiceError("Must supply either endpoint or throwable/error EndpointDescription")
-            self.__exception: Optional[Tuple[Any, Any, Any]] = exception
-            self.__errored: Optional[EndpointDescription] = errored
-            self._endpoint: Optional[_ExportEndpoint] = None
+            self.__exception: tuple[Any, Any, Any] | None = exception
+            self.__errored: EndpointDescription | None = errored
+            self._endpoint: _ExportEndpoint | None = None
         else:
             self._endpoint = endpoint
             self.__exception = None
             self.__errored = None
 
-    def get_export_container_id(self) -> Tuple[str, str]:
+    def get_export_container_id(self) -> tuple[str, str]:
         with self.__lock:
             if self._endpoint is not None:
                 export_ns = self._endpoint.get_export_container_ns()
@@ -752,7 +752,7 @@ class ExportReferenceImpl(ExportReference):
             else:
                 raise RemoteServiceError("Export container ID not set")
 
-    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
+    def get_remoteservice_id(self) -> tuple[tuple[str, str], int]:
         with self.__lock:
             if self._endpoint is not None:
                 return self._endpoint.get_remoteservice_id()
@@ -761,7 +761,7 @@ class ExportReferenceImpl(ExportReference):
             else:
                 raise RemoteServiceError("Remote service ID not found")
 
-    def get_reference(self) -> Optional[ServiceReference[Any]]:
+    def get_reference(self) -> ServiceReference[Any] | None:
         with self.__lock:
             if self._endpoint is not None:
                 return self._endpoint.get_reference()
@@ -777,11 +777,11 @@ class ExportReferenceImpl(ExportReference):
             else:
                 raise RemoteServiceError("Endpoint description not set")
 
-    def get_exception(self) -> Optional[Tuple[Any, Any, Any]]:
+    def get_exception(self) -> tuple[Any, Any, Any] | None:
         with self.__lock:
             return self.__exception
 
-    def update(self, properties: Dict[str, Any]) -> Optional[EndpointDescription]:
+    def update(self, properties: dict[str, Any]) -> EndpointDescription | None:
         with self.__lock:
             if self._endpoint is not None:
                 return self._endpoint.update(properties)
@@ -822,15 +822,15 @@ class ExportRegistrationImpl(ExportRegistration):
         return cls(rsa, _ExportEndpoint(rsa, exporter, ed, svc_ref))
 
     @classmethod
-    def fromexception(cls, e: Tuple[Any, Any, Any], ed: EndpointDescription) -> "ExportRegistrationImpl":
+    def fromexception(cls, e: tuple[Any, Any, Any], ed: EndpointDescription) -> "ExportRegistrationImpl":
         return cls(rsa=None, endpoint=None, exception=e, errored=ed)
 
     def __init__(
         self,
-        rsa: Optional[RemoteServiceAdminImpl] = None,
-        endpoint: Optional[_ExportEndpoint] = None,
-        exception: Optional[Tuple[Any, Any, Any]] = None,
-        errored: Optional[EndpointDescription] = None,
+        rsa: RemoteServiceAdminImpl | None = None,
+        endpoint: _ExportEndpoint | None = None,
+        exception: tuple[Any, Any, Any] | None = None,
+        errored: EndpointDescription | None = None,
     ) -> None:
         if endpoint is None:
             if exception is None or errored is None:
@@ -844,10 +844,10 @@ class ExportRegistrationImpl(ExportRegistration):
             self.__exportref = ExportReferenceImpl.fromendpoint(endpoint)
 
         self.__closed = False
-        self.__update_exception: Optional[Tuple[Any, Any, Any]] = None
+        self.__update_exception: tuple[Any, Any, Any] | None = None
         self.__lock = threading.RLock()
 
-    def match_sr(self, svc_ref: ServiceReference[Any], cid: Optional[Tuple[str, str]] = None) -> bool:
+    def match_sr(self, svc_ref: ServiceReference[Any], cid: tuple[str, str] | None = None) -> bool:
         """
         Checks if this export registration matches the given service reference
 
@@ -870,7 +870,7 @@ class ExportRegistrationImpl(ExportRegistration):
 
             return sr_compare and our_cid == cid
 
-    def get_export_reference(self) -> Optional[ExportReference]:
+    def get_export_reference(self) -> ExportReference | None:
         """
         Returns the reference matching this registration
 
@@ -883,8 +883,8 @@ class ExportRegistrationImpl(ExportRegistration):
             return self.__exportref
 
     def _exportendpoint(
-        self, svc_ref: ServiceReference[Any], cid: Tuple[str, str]
-    ) -> Optional[_ExportEndpoint]:
+        self, svc_ref: ServiceReference[Any], cid: tuple[str, str]
+    ) -> _ExportEndpoint | None:
         with self.__lock:
             if self.__closed:
                 return None
@@ -894,7 +894,7 @@ class ExportRegistrationImpl(ExportRegistration):
             else:
                 return None
 
-    def get_export_container_id(self) -> Tuple[str, str]:
+    def get_export_container_id(self) -> tuple[str, str]:
         """
         Returns the export container namespace and ID
 
@@ -906,7 +906,7 @@ class ExportRegistrationImpl(ExportRegistration):
 
             return self.__exportref.get_export_container_id()
 
-    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
+    def get_remoteservice_id(self) -> tuple[tuple[str, str], int]:
         """
         Returns the remote service ID
 
@@ -918,7 +918,7 @@ class ExportRegistrationImpl(ExportRegistration):
 
             return self.__exportref.get_remoteservice_id()
 
-    def get_reference(self) -> Optional[ServiceReference[Any]]:
+    def get_reference(self) -> ServiceReference[Any] | None:
         """
         Retruns the service reference of the exported service
 
@@ -930,7 +930,7 @@ class ExportRegistrationImpl(ExportRegistration):
 
             return self.__exportref.get_reference()
 
-    def get_exception(self) -> Optional[Tuple[Any, Any, Any]]:
+    def get_exception(self) -> tuple[Any, Any, Any] | None:
         """
         Returns the exception associated to the export
 
@@ -954,7 +954,7 @@ class ExportRegistrationImpl(ExportRegistration):
 
             return self.__exportref.get_description()
 
-    def update(self, properties: Optional[Dict[str, Any]]) -> Optional[EndpointDescription]:
+    def update(self, properties: dict[str, Any] | None) -> EndpointDescription | None:
         with self.__lock:
             if self.__closed:
                 try:
@@ -1043,7 +1043,7 @@ class _ImportEndpoint:
         self.__ed: EndpointDescription = ed
         self.__svc_reg: ServiceRegistration[Any] = svc_reg
         self.__lock = threading.RLock()
-        self.__active_registrations: List[ImportRegistration] = []
+        self.__active_registrations: list[ImportRegistration] = []
 
     def _add_import_registration(self, import_reg: ImportRegistration) -> None:
         with self.__lock:
@@ -1058,7 +1058,7 @@ class _ImportEndpoint:
                 return False
             return self.__ed.is_same_service(ed)
 
-    def get_reference(self) -> Optional[ServiceReference[Any]]:
+    def get_reference(self) -> ServiceReference[Any] | None:
         with self.__lock:
             if self.__importer and self.__svc_reg:
                 return self.__svc_reg.get_reference()
@@ -1077,15 +1077,15 @@ class _ImportEndpoint:
             if self.__importer:
                 return self.__importer.get_namespace()
 
-    def get_export_container_id(self) -> Tuple[str, str]:
+    def get_export_container_id(self) -> tuple[str, str]:
         with self.__lock:
             return self.__ed.get_container_id()
 
-    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
+    def get_remoteservice_id(self) -> tuple[tuple[str, str], int]:
         with self.__lock:
             return self.__ed.get_remoteservice_id()
 
-    def update(self, ed: EndpointDescription) -> Optional[EndpointDescription]:
+    def update(self, ed: EndpointDescription) -> EndpointDescription | None:
         with self.__lock:
             if self.__svc_reg is None or self.__importer is None:
                 return None
@@ -1154,26 +1154,26 @@ class ImportReferenceImpl(ImportReference):
         return cls(endpoint=endpoint)
 
     @classmethod
-    def fromexception(cls, e: Tuple[Any, Any, Any], errored: EndpointDescription) -> "ImportReferenceImpl":
+    def fromexception(cls, e: tuple[Any, Any, Any], errored: EndpointDescription) -> "ImportReferenceImpl":
         return cls(endpoint=None, exception=e, errored=errored)
 
     def __init__(
         self,
-        endpoint: Optional[_ImportEndpoint] = None,
-        exception: Optional[Tuple[Any, Any, Any]] = None,
-        errored: Optional[EndpointDescription] = None,
+        endpoint: _ImportEndpoint | None = None,
+        exception: tuple[Any, Any, Any] | None = None,
+        errored: EndpointDescription | None = None,
     ) -> None:
         self.__lock = threading.RLock()
         if endpoint is None:
-            self.__exception: Optional[Tuple[Any, Any, Any]] = exception
-            self.__errored: Optional[EndpointDescription] = errored
-            self.__endpoint: Optional[_ImportEndpoint] = None
+            self.__exception: tuple[Any, Any, Any] | None = exception
+            self.__errored: EndpointDescription | None = errored
+            self.__endpoint: _ImportEndpoint | None = None
         else:
             self.__endpoint = endpoint
             self.__exception = None
             self.__errored = None
 
-    def _importendpoint(self) -> Optional[_ImportEndpoint]:
+    def _importendpoint(self) -> _ImportEndpoint | None:
         with self.__lock:
             return self.__endpoint
 
@@ -1183,7 +1183,7 @@ class ImportReferenceImpl(ImportReference):
                 return self.__endpoint.match_ed(ed)
             return False
 
-    def get_import_container_id(self) -> Tuple[str, str]:
+    def get_import_container_id(self) -> tuple[str, str]:
         with self.__lock:
             if self.__endpoint:
                 importer_ns = self.__endpoint.get_import_container_ns()
@@ -1207,27 +1207,27 @@ class ImportReferenceImpl(ImportReference):
             elif self.__errored:
                 return self.__errored.get_container_id()
 
-    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
+    def get_remoteservice_id(self) -> tuple[tuple[str, str], int]:
         with self.__lock:
             if self.__endpoint:
                 return self.__endpoint.get_remoteservice_id()
 
-    def get_reference(self) -> Optional[ServiceReference[Any]]:
+    def get_reference(self) -> ServiceReference[Any] | None:
         with self.__lock:
             if self.__endpoint:
                 return self.__endpoint.get_reference()
 
-    def get_description(self) -> Optional[EndpointDescription]:
+    def get_description(self) -> EndpointDescription | None:
         with self.__lock:
             if self.__endpoint:
                 return self.__endpoint.get_description()
             return self.__errored
 
-    def get_exception(self) -> Optional[Tuple[Any, Any, Any]]:
+    def get_exception(self) -> tuple[Any, Any, Any] | None:
         with self.__lock:
             return self.__exception
 
-    def update(self, endpoint: EndpointDescription) -> Optional[EndpointDescription]:
+    def update(self, endpoint: EndpointDescription) -> EndpointDescription | None:
         with self.__lock:
             if self.__endpoint:
                 return self.__endpoint.update(endpoint)
@@ -1262,7 +1262,7 @@ class ImportRegistrationImpl(ImportRegistration):
         return cls(endpoint=_ImportEndpoint(rsa, importer, ed, svc_reg))
 
     @classmethod
-    def fromexception(cls, e: Tuple[Any, Any, Any], ed: EndpointDescription) -> "ImportRegistrationImpl":
+    def fromexception(cls, e: tuple[Any, Any, Any], ed: EndpointDescription) -> "ImportRegistrationImpl":
         return cls(endpoint=None, exception=e, errored=ed)
 
     @classmethod
@@ -1271,16 +1271,16 @@ class ImportRegistrationImpl(ImportRegistration):
 
     def __init__(
         self,
-        endpoint: Optional[_ImportEndpoint] = None,
-        exception: Optional[Tuple[Any, Any, Any]] = None,
-        errored: Optional[EndpointDescription] = None,
+        endpoint: _ImportEndpoint | None = None,
+        exception: tuple[Any, Any, Any] | None = None,
+        errored: EndpointDescription | None = None,
     ) -> None:
-        self._rsa: Optional[RemoteServiceAdminImpl]
+        self._rsa: RemoteServiceAdminImpl | None
 
         if endpoint is None:
             if exception is None or errored is None:
                 raise RemoteServiceError("export endpoint or get_exception/errorED must not be null")
-            self.__importref: "ImportReferenceImpl" = ImportReferenceImpl.fromexception(exception, errored)
+            self.__importref: ImportReferenceImpl = ImportReferenceImpl.fromexception(exception, errored)
             self.__rsa = None
         else:
             self.__rsa = endpoint._rsa()
@@ -1288,10 +1288,10 @@ class ImportRegistrationImpl(ImportRegistration):
             self.__importref = ImportReferenceImpl.fromendpoint(endpoint)
 
         self.__closed = False
-        self.__update_exception: Optional[Tuple[Any, Any, Any]] = None
+        self.__update_exception: tuple[Any, Any, Any] | None = None
         self.__lock = threading.RLock()
 
-    def _import_endpoint(self) -> Optional[_ImportEndpoint]:
+    def _import_endpoint(self) -> _ImportEndpoint | None:
         with self.__lock:
             if self.__closed or self.__importref is None:
                 return None
@@ -1312,42 +1312,42 @@ class ImportRegistrationImpl(ImportRegistration):
 
             return self.__importref
 
-    def get_import_container_id(self) -> Tuple[str, str]:
+    def get_import_container_id(self) -> tuple[str, str]:
         with self.__lock:
             if self.__closed:
                 raise RemoteServiceError("ImportRegistration already closed")
 
             return self.__importref.get_import_container_id()
 
-    def get_export_container_id(self) -> Tuple[str, str]:
+    def get_export_container_id(self) -> tuple[str, str]:
         with self.__lock:
             if self.__closed:
                 raise RemoteServiceError("ImportRegistration already closed")
 
             return self.__importref.get_export_container_id()
 
-    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
+    def get_remoteservice_id(self) -> tuple[tuple[str, str], int]:
         with self.__lock:
             if self.__closed:
                 raise RemoteServiceError("ImportRegistration already closed")
 
             return self.__importref.get_remoteservice_id()
 
-    def get_reference(self) -> Optional[ServiceReference[Any]]:
+    def get_reference(self) -> ServiceReference[Any] | None:
         with self.__lock:
             if self.__closed:
                 return None
 
             return self.__importref.get_reference()
 
-    def get_exception(self) -> Optional[Tuple[Any, Any, Any]]:
+    def get_exception(self) -> tuple[Any, Any, Any] | None:
         with self.__lock:
             if self.__closed or self.__update_exception is not None:
                 return self.__update_exception
 
             return self.__importref.get_exception()
 
-    def get_description(self) -> Optional[EndpointDescription]:
+    def get_description(self) -> EndpointDescription | None:
         with self.__lock:
             if self.__closed:
                 return None
@@ -1485,7 +1485,7 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
             RemoteServiceAdminEvent.IMPORT_ERROR,
         ]
 
-    def write_description(self, ed: Optional[EndpointDescription]) -> None:
+    def write_description(self, ed: EndpointDescription | None) -> None:
         if self._write_endpoint and ed:
             self._output.write("---Endpoint Description---\n")
             self._output.write(self._writer.to_string([ed]))
@@ -1494,10 +1494,10 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
 
     def write_ref(
         self,
-        svc_ref: Optional[ServiceReference[Any]],
-        cid: Tuple[str, str],
-        rsid: Tuple[Tuple[str, str], int],
-        ed: Optional[EndpointDescription],
+        svc_ref: ServiceReference[Any] | None,
+        cid: tuple[str, str],
+        rsid: tuple[tuple[str, str], int],
+        ed: EndpointDescription | None,
     ) -> None:
         if svc_ref:
             self._output.write(str(svc_ref) + ";")
@@ -1515,7 +1515,7 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
         self._output.flush()
         self.write_description(ed)
 
-    def write_exception(self, exception: Tuple[Any, Any, Any]) -> None:
+    def write_exception(self, exception: tuple[Any, Any, Any]) -> None:
         self._output.write("---Exception Stack---\n")
         print_exception(
             exception[0],
@@ -1533,7 +1533,7 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
 
     def write_event(self, rsa_event: RemoteServiceAdminEvent) -> None:
         event_type = rsa_event.get_type()
-        rs_ref: Union[None, ImportReference, ExportReference] = None
+        rs_ref: None | ImportReference | ExportReference = None
         svc_ref = None
         exception = None
         self.write_type(event_type)

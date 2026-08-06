@@ -10,7 +10,7 @@ import random
 import threading
 import time
 import unittest
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, cast
 
 import pelix.framework
 import pelix.services
@@ -35,15 +35,15 @@ class DummyEventHandler:
         Sets up members
         """
         # Topic of the last received event
-        self.last_event: Optional[str] = None
-        self.last_props: Dict[str, Any] = {}
+        self.last_event: str | None = None
+        self.last_props: dict[str, Any] = {}
         self.__event = threading.Event()
 
         # Behavior
         self.change_props: Any = False
         self.sleep = 0
 
-    def handle_event(self, topic: str, properties: Dict[str, Any]) -> None:
+    def handle_event(self, topic: str, properties: dict[str, Any]) -> None:
         """
         Handles an event received from EventAdmin
         """
@@ -59,7 +59,7 @@ class DummyEventHandler:
         self.last_props = properties
         self.__event.set()
 
-    def pop_event(self) -> Optional[str]:
+    def pop_event(self) -> str | None:
         """
         Pops the list of events
         """
@@ -101,8 +101,8 @@ class EventAdminTest(unittest.TestCase):
             self.eventadmin = ipopo.instantiate(pelix.services.FACTORY_EVENT_ADMIN, "evtadmin", {})
 
     def _register_handler(
-        self, topics: Union[None, str, List[str]], evt_filter: Optional[str] = None
-    ) -> Tuple[DummyEventHandler, ServiceRegistration[pelix.services.ServiceEventHandler]]:
+        self, topics: None | str | list[str], evt_filter: str | None = None
+    ) -> tuple[DummyEventHandler, ServiceRegistration[pelix.services.ServiceEventHandler]]:
         """
         Registers an event handler
 
@@ -127,7 +127,7 @@ class EventAdminTest(unittest.TestCase):
         self.framework = None  # type: ignore
 
     def assertDictContains(
-        self, subset: Dict[str, Any], tested: Optional[Dict[str, Any]], msg: Any = None
+        self, subset: dict[str, Any], tested: dict[str, Any] | None, msg: Any = None
     ) -> None:
         assert tested is not None
         self.assertEqual(tested, tested | subset, msg)

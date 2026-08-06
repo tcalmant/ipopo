@@ -27,16 +27,15 @@
 
 import logging
 import string
-from typing import Any, List, Optional
+from typing import Any
 
 import pelix.ipopo.constants as ipopo_constants
-import pelix.ipopo.handlers.constants as constants
-import pelix.ipopo.handlers.requires as requires
-import pelix.ldapfilter as ldapfilter
+from pelix import ldapfilter
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceRegistration
 from pelix.ipopo.contexts import ComponentContext, Requirement
+from pelix.ipopo.handlers import constants, requires
 
 # ------------------------------------------------------------------------------
 
@@ -55,7 +54,7 @@ class _HandlerFactory(requires._HandlerFactory):
     Factory service for service registration handlers
     """
 
-    def get_handlers(self, component_context: ComponentContext, instance: Any) -> List[constants.Handler]:
+    def get_handlers(self, component_context: ComponentContext, instance: Any) -> list[constants.Handler]:
         """
         Sets up service providers for the given component
 
@@ -71,7 +70,7 @@ class _HandlerFactory(requires._HandlerFactory):
         requirements = self._prepare_requirements(requirements, requires_filters)
 
         # Set up the runtime dependency handlers
-        handlers: List[constants.Handler] = []
+        handlers: list[constants.Handler] = []
         for field, requirement in requirements.items():
             # Construct the handler
             if requirement.aggregate:
@@ -92,7 +91,7 @@ class Activator(ActivatorProto):
         """
         Sets up members
         """
-        self._registration: Optional[ServiceRegistration[constants.HandlerFactory]] = None
+        self._registration: ServiceRegistration[constants.HandlerFactory] | None = None
 
     def start(self, context: BundleContext) -> None:
         """
@@ -149,7 +148,7 @@ class _VariableFilterMixIn(requires._RuntimeDependency):
             # The filter couldn't be initialized (reason already logged)
             self.valid_filter = False
 
-    def _find_keys(self) -> List[str]:
+    def _find_keys(self) -> list[str]:
         """
         Looks for the property keys in the filter string
 

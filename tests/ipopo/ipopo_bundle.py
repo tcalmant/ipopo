@@ -66,7 +66,7 @@ PROP_USABLE = "usable"
 @ComponentFactory(BASIC_FACTORY)
 @Instantiate(BASIC_INSTANCE)
 @Provides("basic-component-svc")
-class BasicComponent(object):
+class BasicComponent:
     """
     Dummy instantiated component
     """
@@ -98,7 +98,7 @@ class BasicComponent(object):
 
 
 @Property("name", IPOPO_INSTANCE_NAME)
-class TestComponentFactory(object):
+class TestComponentFactory:
     """
     Parent class of components
     """
@@ -202,7 +202,7 @@ class ComponentFactoryB(TestComponentFactory):
         """ "
         Constructor
         """
-        super(ComponentFactoryB, self).__init__()
+        super().__init__()
         self.service: IEchoService = None  # type: ignore
         self.raiser = False
         self.fw_raiser = False
@@ -255,7 +255,7 @@ class ComponentFactoryC(TestComponentFactory):
         """ "
         Constructor
         """
-        super(ComponentFactoryC, self).__init__()
+        super().__init__()
         self.services = None
 
     @Bind
@@ -296,7 +296,7 @@ class MapComponentFactory(TestComponentFactory):
         """
         Sets up members
         """
-        super(MapComponentFactory, self).__init__()
+        super().__init__()
 
         self.single = None
         self.multiple = None
@@ -493,7 +493,7 @@ class ErroneousComponentFactory(TestComponentFactory):
         """
         Sets up members
         """
-        super(ErroneousComponentFactory, self).__init__()
+        super().__init__()
         self.raise_exception = True
 
     @Validate
@@ -504,7 +504,7 @@ class ErroneousComponentFactory(TestComponentFactory):
         if self.raise_exception:
             raise OSError("Error raised")
         else:
-            super(ErroneousComponentFactory, self).validate(context)
+            super().validate(context)
 
 
 # ------------------------------------------------------------------------------
@@ -513,7 +513,7 @@ class ErroneousComponentFactory(TestComponentFactory):
 @ComponentFactory(FACTORY_HIDDEN_PROPS)
 @HiddenProperty("hidden", "hidden.prop", "hidden")
 @Property("public", "public.prop", "public")
-class HiddenPropTest(object):
+class HiddenPropTest:
     """
     Test for hidden properties
     """
@@ -531,7 +531,7 @@ class HiddenPropTest(object):
 
 @ComponentFactory(FACTORY_PROVIDES_SVC_FACTORY)
 @Provides("factory.service", factory=True)
-class SvcFactoryProvider(object):
+class SvcFactoryProvider:
     """
     Test for providing a service factory
     """
@@ -561,7 +561,7 @@ class SvcFactoryProvider(object):
 
 @ComponentFactory(FACTORY_PROVIDES_SVC_PROTOTYPE)
 @Provides("prototype.service", prototype=True)
-class SvcPrototypeFactoryProvider(object):
+class SvcPrototypeFactoryProvider:
     """
     Test for providing a prototype service factory
     """
@@ -639,12 +639,11 @@ class ActivatorTest:
 # Inheritance tests
 
 
-class GrandMother(object):
+class GrandMother:
     """
     Parent class of Mother class: must not appear in specifications
     """
 
-    pass
 
 
 class Mother(GrandMother):
@@ -652,15 +651,13 @@ class Mother(GrandMother):
     Direct parent class: must appear in specifications
     """
 
-    pass
 
 
-class Father(object):
+class Father:
     """
     Direct parent class: must appear in specifications
     """
 
-    pass
 
 
 class Child(Father, Mother):
@@ -668,4 +665,3 @@ class Child(Father, Mother):
     Implementation class: must not appear in specifications
     """
 
-    pass

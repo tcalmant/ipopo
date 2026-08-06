@@ -27,10 +27,10 @@ An EventAdmin handler which prints to the standard output the events it receives
 
 import logging
 from pprint import pformat
-from typing import Any, Dict, List, Union
+from typing import Any
 
 import pelix.misc
-import pelix.services as services
+from pelix import services
 from pelix.framework import BundleContext
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides, Validate
 
@@ -87,7 +87,7 @@ class EventAdminPrinter(services.ServiceEventHandler):
         """
         Sets up members
         """
-        self._event_topics: Union[None, str, List[str]] = None
+        self._event_topics: None | str | list[str] = None
         self._print: bool = False
         self._log: bool = False
 
@@ -100,7 +100,7 @@ class EventAdminPrinter(services.ServiceEventHandler):
         self._print = _parse_boolean(self._print)
         self._log = _parse_boolean(self._log)
 
-    def handle_event(self, topic: str, properties: Dict[str, Any]) -> None:
+    def handle_event(self, topic: str, properties: dict[str, Any]) -> None:
         """
         An EventAdmin event has been received
         """

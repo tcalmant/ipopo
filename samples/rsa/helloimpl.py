@@ -28,8 +28,8 @@ class HelloImpl:
         The remote calling thread will be blocked until this is executed and
         responds.
         """
-        print("Python.sayHello called by: {0} with message: '{1}'".format(name, message))
-        return "PythonSync says: Howdy {0} that's a nice runtime you got there".format(name)
+        print(f"Python.sayHello called by: {name} with message: '{message}'")
+        return f"PythonSync says: Howdy {name} that's a nice runtime you got there"
 
     def sayHelloAsync(self, name: str = "Not given", message: str = "nothing") -> str:
         """
@@ -40,8 +40,8 @@ class HelloImpl:
         of IHello.sayHelloAsync is CompletableFuture<String>, OR a Future that
         returns a python string.  In this case, it returns the string directly.
         """
-        print("Python.sayHelloAsync called by: {0} with message: '{1}'".format(name, message))
-        return "PythonAsync says: Howdy {0} that's a nice runtime you got there".format(name)
+        print(f"Python.sayHelloAsync called by: {name} with message: '{message}'")
+        return f"PythonAsync says: Howdy {name} that's a nice runtime you got there"
 
     def sayHelloPromise(self, name: str = "Not given", message: str = "nothing") -> str:
         """
@@ -49,5 +49,5 @@ class HelloImpl:
         This method will be executed via some thread, and the remote caller
         will not block.
         """
-        print("Python.sayHelloPromise called by: {0} with message: '{1}'".format(name, message))
-        return "PythonPromise says: Howdy {0} that's a nice runtime you got there".format(name)
+        print(f"Python.sayHelloPromise called by: {name} with message: '{message}'")
+        return f"PythonPromise says: Howdy {name} that's a nice runtime you got there"

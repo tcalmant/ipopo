@@ -27,7 +27,8 @@ Dependency-less LDAP filter parser for Python
 
 import inspect
 import re
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from collections.abc import Callable, Iterable
+from typing import Any, Union
 
 from pelix.utilities import is_string
 
@@ -74,7 +75,7 @@ class LDAPFilter:
     Represents an LDAP filter
     """
 
-    __slots__ = ("subfilters", "operator")
+    __slots__ = ("operator", "subfilters")
 
     def __init__(self, operator: int) -> None:
         """
@@ -83,10 +84,10 @@ class LDAPFilter:
         if operator not in (AND, OR, NOT):
             raise ValueError(f"Invalid operator: {operator}")
 
-        self.subfilters: List[Union["LDAPCriteria", "LDAPFilter"]] = []
+        self.subfilters: list[LDAPCriteria | LDAPFilter] = []
         self.operator: int = operator
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Equality testing
         """
@@ -111,7 +112,7 @@ class LDAPFilter:
         # Same content
         return True
 
-    def __ne__(self, other: Any) -> bool:
+    def __ne__(self, other: object) -> bool:
         """
         Inequality testing
         """
@@ -121,7 +122,7 @@ class LDAPFilter:
         """
         String description
         """
-        return f"{__name__}.get_ldap_filter({repr(self.__str__())})"
+        return f"{__name__}.get_ldap_filter({self.__str__()!r})"
 
     def __str__(self) -> str:
         """
@@ -145,7 +146,7 @@ class LDAPFilter:
 
         self.subfilters.append(ldap_filter)
 
-    def matches(self, properties: Dict[str, Any]) -> bool:
+    def matches(self, properties: dict[str, Any]) -> bool:
         """
         Tests if the given properties matches this LDAP filter and its children
 
@@ -201,7 +202,7 @@ class LDAPCriteria:
     Represents an LDAP criterion
     """
 
-    __slots__ = ("name", "value", "comparator")
+    __slots__ = ("comparator", "name", "value")
 
     def __init__(self, name: str, value: Any, comparator: Callable[[Any, Any], bool]) -> None:
         """
@@ -221,7 +222,7 @@ class LDAPCriteria:
         self.value = value
         self.comparator: Callable[[Any, Any], bool] = comparator
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Equality testing
         """
@@ -241,7 +242,7 @@ class LDAPCriteria:
         # Convert to strings for comparison
         return str(self.value) == str(other.value)
 
-    def __ne__(self, other: Any) -> bool:
+    def __ne__(self, other: object) -> bool:
         """
         Inequality testing
         """
@@ -251,7 +252,7 @@ class LDAPCriteria:
         """
         String representation
         """
-        return f"{__name__}.get_ldap_filter({repr(self.__str__())})"
+        return f"{__name__}.get_ldap_filter({self.__str__()!r})"
 
     def __str__(self) -> str:
         """
@@ -259,7 +260,7 @@ class LDAPCriteria:
         """
         return f"({escape_LDAP(self.name)}{comparator2str(self.comparator)}{escape_LDAP(str(self.value))})"
 
-    def matches(self, properties: Dict[str, Any]) -> bool:
+    def matches(self, properties: dict[str, Any]) -> bool:
         """
         Tests if the given criterion matches this LDAP criterion
 
@@ -283,7 +284,7 @@ class LDAPCriteria:
 # ------------------------------------------------------------------------------
 
 
-def escape_LDAP(ldap_string: Optional[str]) -> Optional[str]:
+def escape_LDAP(ldap_string: str | None) -> str | None:
     """
     Escape a string to let it go in an LDAP filter
 
@@ -313,7 +314,7 @@ def escape_LDAP(ldap_string: Optional[str]) -> Optional[str]:
     return ldap_string
 
 
-def unescape_LDAP(ldap_string: Optional[str]) -> Optional[str]:
+def unescape_LDAP(ldap_string: str | None) -> str | None:
     """
     Un-escapes an LDAP string
 
@@ -544,7 +545,7 @@ def _comparator_gt(filter_value: Any, tested_value: Any) -> bool:
         return False
 
 
-_COMPARATOR_SYMBOL: Dict[Callable[[Any, Any], bool], str] = {
+_COMPARATOR_SYMBOL: dict[Callable[[Any, Any], bool], str] = {
     _comparator_approximate: "~=",
     _comparator_approximate_star: "~=",
     _comparator_eq: "=",
@@ -585,7 +586,7 @@ def operator2str(operator: int) -> str:
 # ------------------------------------------------------------------------------
 
 
-def _compute_comparator(string: str, idx: int) -> Optional[Callable[[Any, Any], bool]]:
+def _compute_comparator(string: str, idx: int) -> Callable[[Any, Any], bool] | None:
     """
     Tries to compute the LDAP comparator at the given index
 
@@ -631,7 +632,7 @@ def _compute_comparator(string: str, idx: int) -> Optional[Callable[[Any, Any], 
     return None
 
 
-def _compute_operation(string: str, idx: int) -> Optional[int]:
+def _compute_operation(string: str, idx: int) -> int | None:
     """
     Tries to compute the LDAP operation at the given index
 
@@ -744,7 +745,7 @@ def _parse_ldap_criteria(ldap_filter: str, start_idx: int = 0, end_idx: int = -1
     return LDAPCriteria(attribute_name, unescape_LDAP(value), comparator)
 
 
-def _parse_ldap(ldap_filter: str) -> Optional[Union[LDAPCriteria, LDAPFilter]]:
+def _parse_ldap(ldap_filter: str) -> LDAPCriteria | LDAPFilter | None:
     """
     Parses the given LDAP filter string
 
@@ -766,9 +767,9 @@ def _parse_ldap(ldap_filter: str) -> Optional[Union[LDAPCriteria, LDAPFilter]]:
 
     escaped = False
     filter_len = len(ldap_filter)
-    root: Optional[LDAPFilter] = None
-    stack: List[LDAPFilter] = []
-    subfilter_stack: List[int] = []
+    root: LDAPFilter | None = None
+    stack: list[LDAPFilter] = []
+    subfilter_stack: list[int] = []
 
     idx = 0
     while idx < filter_len:
@@ -834,8 +835,8 @@ def _parse_ldap(ldap_filter: str) -> Optional[Union[LDAPCriteria, LDAPFilter]]:
 
 
 def get_ldap_filter(
-    ldap_filter: Union[None, str, LDAPCriteria, LDAPFilter],
-) -> Union[None, LDAPCriteria, LDAPFilter]:
+    ldap_filter: None | str | LDAPCriteria | LDAPFilter,
+) -> None | LDAPCriteria | LDAPFilter:
     """
     Retrieves the LDAP filter object corresponding to the given filter.
     Parses it the argument if it is an LDAPFilter instance
@@ -859,7 +860,7 @@ def get_ldap_filter(
     raise TypeError(f"Unhandled filter type {type(ldap_filter).__name__}")
 
 
-def combine_filters(filters: Iterable[Any], operator: int = AND) -> Union[None, LDAPFilter, LDAPCriteria]:
+def combine_filters(filters: Iterable[Any], operator: int = AND) -> None | LDAPFilter | LDAPCriteria:
     """
     Combines two LDAP filters, which can be strings or LDAPFilter objects
 

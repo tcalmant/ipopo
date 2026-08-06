@@ -13,7 +13,7 @@ import tempfile
 from types import ModuleType
 from typing import Any, cast
 
-import pelix.http as http
+from pelix import http
 from pelix.framework import BundleContext, Framework
 from pelix.ipopo.constants import IPopoService
 
@@ -257,4 +257,3 @@ class TestServlet:
         if self.raiser:
             raise Exception("Some exception")
 
-        return None

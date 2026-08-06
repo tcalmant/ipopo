@@ -88,7 +88,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             self.assertListEqual(
                 [IPopoEvent.INSTANTIATED],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             consumer.reset()
 
@@ -105,7 +105,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             self.assertListEqual(
                 [IPopoEvent.BOUND, IPopoEvent.VALIDATED],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             consumer.reset()
 
@@ -124,7 +124,7 @@ class RequiresVarFilterTest(unittest.TestCase):
         self.assertListEqual(
             [],
             consumer_single.states,
-            "Invalid component states: {0}".format(consumer_single.states),
+            f"Invalid component states: {consumer_single.states}",
         )
         self.assertIs(consumer_single.service, svc1, "Wrong service injected")
 
@@ -132,7 +132,7 @@ class RequiresVarFilterTest(unittest.TestCase):
         self.assertListEqual(
             [IPopoEvent.BOUND],
             consumer_multi.states,
-            "Invalid component states: {0}".format(consumer_multi.states),
+            f"Invalid component states: {consumer_multi.states}",
         )
         self.assertListEqual(consumer_multi.service, [svc1, svc2], "Second service not injected")
 
@@ -147,7 +147,7 @@ class RequiresVarFilterTest(unittest.TestCase):
         self.assertListEqual(
             [],
             consumer_single.states,
-            "Invalid component states: {0}".format(consumer_single.states),
+            f"Invalid component states: {consumer_single.states}",
         )
         self.assertIs(consumer_single.service, svc1, "Wrong service injected")
 
@@ -155,7 +155,7 @@ class RequiresVarFilterTest(unittest.TestCase):
         self.assertListEqual(
             [IPopoEvent.UNBOUND],
             consumer_multi.states,
-            "Invalid component states: {0}".format(consumer_multi.states),
+            f"Invalid component states: {consumer_multi.states}",
         )
         self.assertListEqual(consumer_multi.service, [svc1], "Second service not removed")
 
@@ -168,7 +168,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             self.assertListEqual(
                 [],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             consumer.reset()
 
@@ -184,7 +184,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             self.assertListEqual(
                 [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             self.assertIs(consumer.service, None, "A service is injected")
             consumer.reset()
@@ -202,7 +202,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             self.assertListEqual(
                 [],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             self.assertIs(consumer.service, None, "A service is injected")
             consumer.reset()
@@ -220,7 +220,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             self.assertListEqual(
                 [IPopoEvent.BOUND, IPopoEvent.VALIDATED],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             consumer.reset()
 
@@ -239,7 +239,7 @@ class RequiresVarFilterTest(unittest.TestCase):
         self.assertListEqual(
             [],
             consumer_single.states,
-            "Invalid component states: {0}".format(consumer_single.states),
+            f"Invalid component states: {consumer_single.states}",
         )
         self.assertIs(consumer_single.service, svc4, "Wrong service injected")
 
@@ -247,7 +247,7 @@ class RequiresVarFilterTest(unittest.TestCase):
         self.assertListEqual(
             [IPopoEvent.BOUND],
             consumer_multi.states,
-            "Invalid component states: {0}".format(consumer_multi.states),
+            f"Invalid component states: {consumer_multi.states}",
         )
         self.assertListEqual(consumer_multi.service, [svc4, svc5], "Second service not injected")
 
@@ -262,7 +262,7 @@ class RequiresVarFilterTest(unittest.TestCase):
         self.assertListEqual(
             rebind_states,
             consumer_single.states,
-            "Invalid component states: {0}".format(consumer_single.states),
+            f"Invalid component states: {consumer_single.states}",
         )
         self.assertIs(consumer_single.service, svc5, "Wrong service injected")
 
@@ -270,7 +270,7 @@ class RequiresVarFilterTest(unittest.TestCase):
         self.assertListEqual(
             [IPopoEvent.UNBOUND],
             consumer_multi.states,
-            "Invalid component states: {0}".format(consumer_multi.states),
+            f"Invalid component states: {consumer_multi.states}",
         )
         self.assertListEqual(consumer_multi.service, [svc5], "First service not removed")
 
@@ -285,7 +285,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             self.assertListEqual(
                 [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             self.assertIs(consumer.service, None, "A service is still injected")
             consumer.reset()
@@ -372,7 +372,7 @@ class RequiresVarFilterTest(unittest.TestCase):
                     IPopoEvent.VALIDATED,
                 ],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             consumer.reset()
 
@@ -384,7 +384,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             self.assertListEqual(
                 [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             consumer.reset()
             self.assertIs(consumer.service, None, "A service is injected")
@@ -403,7 +403,7 @@ class RequiresVarFilterTest(unittest.TestCase):
                 self.assertListEqual(
                     [],
                     consumer.states,
-                    "Invalid component states: {0}".format(consumer.states),
+                    f"Invalid component states: {consumer.states}",
                 )
                 consumer.reset()
 
@@ -460,7 +460,7 @@ class RequiresVarFilterTest(unittest.TestCase):
                     IPopoEvent.VALIDATED,
                 ],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             consumer.reset()
 
@@ -473,7 +473,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             self.assertListEqual(
                 [],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             consumer.reset()
 
@@ -515,7 +515,7 @@ class RequiresVarFilterTest(unittest.TestCase):
             self.assertListEqual(
                 [IPopoEvent.INSTANTIATED],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             self.assertIs(consumer.service, None, "Service injected")
 

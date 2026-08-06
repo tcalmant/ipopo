@@ -30,7 +30,8 @@ Requires Paho MQTT client (paho-mqtt).
 
 import logging
 import threading
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, cast
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 import paho.mqtt.client as paho
 from paho.mqtt.client import ConnectFlags, DisconnectFlags
@@ -38,9 +39,8 @@ from paho.mqtt.enums import CallbackAPIVersion
 from paho.mqtt.properties import Properties
 from paho.mqtt.reasoncodes import ReasonCode
 
-import pelix.constants as constants
-import pelix.services as services
 import pelix.threadpool
+from pelix import constants, services
 from pelix.ipopo.decorators import (
     BindField,
     ComponentFactory,
@@ -100,34 +100,34 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
     """
 
     # Listeners (injected)
-    _listeners: List[services.MqttListener]
+    _listeners: list[services.MqttListener]
 
     def __init__(self) -> None:
         """
         Sets up members
         """
         # ConfigAdmin PID
-        self._pid: Optional[str] = None
+        self._pid: str | None = None
 
         # Topics to subscribe to (topic -> nb_references)
-        self._topics: Dict[str, Set[services.MqttListener]] = {}
+        self._topics: dict[str, set[services.MqttListener]] = {}
 
         # Bundle context
-        self._context: Optional[BundleContext] = None
+        self._context: BundleContext | None = None
 
         # Active connections (PID -> connection)
-        self._clients: Dict[str, paho.Client] = {}
+        self._clients: dict[str, paho.Client] = {}
 
         # Registered service (PID -> service registration)
-        self._services: Dict[str, ServiceRegistration[Any]] = {}
+        self._services: dict[str, ServiceRegistration[Any]] = {}
 
         # Client loop thread
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self.__lock = threading.RLock()
         self.__stop_event = threading.Event()
 
         # Notification pool
-        self._pool: Optional[pelix.threadpool.ThreadPool] = None
+        self._pool: pelix.threadpool.ThreadPool | None = None
 
     @Validate
     def _validate(self, context: "BundleContext") -> None:
@@ -234,7 +234,7 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
         field: str,
         listener: services.MqttListener,
         svc_ref: "ServiceReference[services.MqttListener]",
-        old_props: Optional[Dict[str, Any]],
+        old_props: dict[str, Any] | None,
     ) -> None:
         """
         A listener has been updated
@@ -297,7 +297,7 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
             topic = msg.topic
 
             # Get all listeners matching this topic
-            all_listeners: Set[services.MqttListener] = set()
+            all_listeners: set[services.MqttListener] = set()
             for subscription, listeners in self._topics.items():
                 if paho.topic_matches_sub(subscription, topic):
                     all_listeners.update(listeners)
@@ -342,7 +342,7 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
         for client in self._clients.values():
             client.unsubscribe(topic)
 
-    def updated(self, pid: str, properties: Dict[str, Any]) -> None:
+    def updated(self, pid: str, properties: dict[str, Any]) -> None:
         """
         Configuration updated
 
@@ -376,7 +376,7 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
                 userdata: Any,
                 flags: ConnectFlags,
                 rc: ReasonCode,
-                properties: Optional[Properties],
+                properties: Properties | None,
             ) -> None:
                 # pylint: disable=W0613
                 """
@@ -417,7 +417,7 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
                 userdata: Any,
                 flags: DisconnectFlags,
                 rc: ReasonCode,
-                properties: Optional[Properties],
+                properties: Properties | None,
             ) -> None:
                 # pylint: disable=W0613
                 """
@@ -474,7 +474,7 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
                 _logger.debug("Disconnected from %s", client)
 
     def publish(
-        self, topic: str, payload: bytes, qos: int = 0, retain: bool = False, pid: Optional[str] = None
+        self, topic: str, payload: bytes, qos: int = 0, retain: bool = False, pid: str | None = None
     ) -> None:
         """
         Publishes an MQTT message

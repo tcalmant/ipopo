@@ -29,11 +29,11 @@ import collections.abc
 import threading
 import time
 import uuid
+from collections.abc import Iterable
 from typing import (
     TYPE_CHECKING,
     Any,
     Dict,
-    Iterable,
     List,
     Optional,
     Protocol,
@@ -171,7 +171,7 @@ class RemoteServiceAdmin(Protocol):
     class below for method documentation.
     """
 
-    def get_exported_services(self) -> List["ExportReference"]:
+    def get_exported_services(self) -> list["ExportReference"]:
         """
         Get services previously exported by this RSA implementation.  Will
         not return None, but may return empty list.
@@ -180,7 +180,7 @@ class RemoteServiceAdmin(Protocol):
         """
         ...
 
-    def get_imported_endpoints(self) -> List["ImportReference"]:
+    def get_imported_endpoints(self) -> list["ImportReference"]:
         """
         Get services previously imported by this RSA implementation.  Will
         not return None, but may return empty list.
@@ -190,8 +190,8 @@ class RemoteServiceAdmin(Protocol):
         ...
 
     def export_service(
-        self, service_ref: ServiceReference[Any], overriding_props: Optional[Dict[str, Any]] = None
-    ) -> List["ExportRegistration"]:
+        self, service_ref: ServiceReference[Any], overriding_props: dict[str, Any] | None = None
+    ) -> list["ExportRegistration"]:
         """
         Export a given service_ref (ServiceReference) using overriding_props
         dictionary. service_ref must not be None and must be of type
@@ -249,7 +249,7 @@ class ExportRegistration(Protocol):
         """
         ...
 
-    def get_export_container_id(self) -> Tuple[str, str]:
+    def get_export_container_id(self) -> tuple[str, str]:
         """
         Get the exporting container id of form
         tuple(namespace(string), containerid(string)).
@@ -261,7 +261,7 @@ class ExportRegistration(Protocol):
         """
         ...
 
-    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
+    def get_remoteservice_id(self) -> tuple[tuple[str, str], int]:
         """
         Get the exporting remoteservice id of form:
         tuple(containerid,rsid(int)),
@@ -276,7 +276,7 @@ class ExportRegistration(Protocol):
         """
         ...
 
-    def get_reference(self) -> Optional[ServiceReference[Any]]:
+    def get_reference(self) -> ServiceReference[Any] | None:
         """
         Get the ServiceReference associated with this ExportRegistration.  Will
         be None if the ExportRegistration has been closed, or if an exception
@@ -288,7 +288,7 @@ class ExportRegistration(Protocol):
         """
         ...
 
-    def get_exception(self) -> Optional[Tuple[Any, Any, Any]]:
+    def get_exception(self) -> tuple[Any, Any, Any] | None:
         """
         Get any exception associated with the attempted export.  If not None,
         will be of form:  tuple(exc_type,exc_msg,exc_stack).  For example:
@@ -309,7 +309,7 @@ class ExportRegistration(Protocol):
         """
         ...
 
-    def match_sr(self, svc_ref: ServiceReference[Any], cid: Optional[Tuple[str, str]] = None) -> bool:
+    def match_sr(self, svc_ref: ServiceReference[Any], cid: tuple[str, str] | None = None) -> bool:
         """
         Checks if this export registration matches the given service reference
 
@@ -319,7 +319,7 @@ class ExportRegistration(Protocol):
         """
         ...
 
-    def update(self, properties: Optional[Dict[str, Any]]) -> Optional["EndpointDescription"]:
+    def update(self, properties: dict[str, Any] | None) -> Optional["EndpointDescription"]:
         """
         Updates ExportRegistration with new properties.
 
@@ -347,7 +347,7 @@ class ExportReference(Protocol):
     get_exported_services.
     """
 
-    def get_export_container_id(self) -> Optional[Tuple[str, str]]:
+    def get_export_container_id(self) -> tuple[str, str] | None:
         """
         Get the exporting container id of form
         tuple(namespace(string),containerid(string)).
@@ -360,7 +360,7 @@ class ExportReference(Protocol):
         """
         ...
 
-    def get_remoteservice_id(self) -> Optional[Tuple[Tuple[str, str], int]]:
+    def get_remoteservice_id(self) -> tuple[tuple[str, str], int] | None:
         """
         Get the exporting remoteservice id of form:
         tuple(containerid,rsid(int)), with containerid of form returned
@@ -376,7 +376,7 @@ class ExportReference(Protocol):
         """
         ...
 
-    def get_reference(self) -> Optional[ServiceReference[Any]]:
+    def get_reference(self) -> ServiceReference[Any] | None:
         """
         Get the ServiceReference associated with this ExportReference.  Will
         be None if the ExportReference has been closed, or if an exception
@@ -399,7 +399,7 @@ class ExportReference(Protocol):
         """
         ...
 
-    def get_exception(self) -> Optional[Tuple[Any, Any, Any]]:
+    def get_exception(self) -> tuple[Any, Any, Any] | None:
         """
         Get any exception associated with the attempted export.  If not None,
         will be of form:  tuple(exc_type,exc_msg,exc_stack).  For example:
@@ -411,7 +411,7 @@ class ExportReference(Protocol):
         """
         ...
 
-    def update(self, properties: Dict[str, Any]) -> Optional["EndpointDescription"]:
+    def update(self, properties: dict[str, Any]) -> Optional["EndpointDescription"]:
         """
         Update the service properties of the exported service.
 
@@ -450,7 +450,7 @@ class ImportRegistration(Protocol):
         """
         ...
 
-    def get_import_container_id(self) -> Tuple[str, str]:
+    def get_import_container_id(self) -> tuple[str, str]:
         """
         Get the importing container id of form
         tuple(namespace(string),containerid(string)).
@@ -465,7 +465,7 @@ class ImportRegistration(Protocol):
         """
         ...
 
-    def get_export_container_id(self) -> Tuple[str, str]:
+    def get_export_container_id(self) -> tuple[str, str]:
         """
         Get the exporting container id of form
         tuple(namespace(string),containerid(string)).
@@ -480,7 +480,7 @@ class ImportRegistration(Protocol):
         """
         ...
 
-    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
+    def get_remoteservice_id(self) -> tuple[tuple[str, str], int]:
         """
         Get the exporting remoteservice id of form:
         tuple(containerid,rsid(int)), with containerid of form returned from
@@ -494,7 +494,7 @@ class ImportRegistration(Protocol):
         """
         ...
 
-    def get_reference(self) -> Optional[ServiceReference[Any]]:
+    def get_reference(self) -> ServiceReference[Any] | None:
         """
         Get the ServiceReference associated with this ImportRegistration.
         Will be None if the ImportRegistration has been closed, or if an
@@ -506,7 +506,7 @@ class ImportRegistration(Protocol):
         """
         ...
 
-    def get_exception(self) -> Optional[Tuple[Any, Any, Any]]:
+    def get_exception(self) -> tuple[Any, Any, Any] | None:
         """
         Get any exception associated with the attempted import.  If not None,
         will be of form:  tuple(exc_type,exc_msg,exc_stack).
@@ -563,7 +563,7 @@ class ImportReference(Protocol):
     get_imported_endpoints.
     """
 
-    def get_import_container_id(self) -> Tuple[str, str]:
+    def get_import_container_id(self) -> tuple[str, str]:
         """
         Get the importing container id of form
         tuple(namespace(string),containerid(string)).
@@ -578,7 +578,7 @@ class ImportReference(Protocol):
         """
         ...
 
-    def get_export_container_id(self) -> Tuple[str, str]:
+    def get_export_container_id(self) -> tuple[str, str]:
         """
         Get the exporting container id of form
         tuple(namespace(string),containerid(string)).
@@ -593,7 +593,7 @@ class ImportReference(Protocol):
         """
         ...
 
-    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
+    def get_remoteservice_id(self) -> tuple[tuple[str, str], int]:
         """
         Get the importing remoteservice id of form:
         tuple(containerid,rsid(int)), with containerid of form returned from
@@ -609,7 +609,7 @@ class ImportReference(Protocol):
         """
         ...
 
-    def get_reference(self) -> Optional[ServiceReference[Any]]:
+    def get_reference(self) -> ServiceReference[Any] | None:
         """
         Get the ServiceReference of proxy associated with this ImportReference.
         Will be None if the ImportReference has been closed, or if an exception
@@ -632,7 +632,7 @@ class ImportReference(Protocol):
         """
         ...
 
-    def get_exception(self) -> Optional[Tuple[Any, Any, Any]]:
+    def get_exception(self) -> tuple[Any, Any, Any] | None:
         """
         Get any exception associated with the attempted import.  If not None,
         will be of form:  tuple(exc_type,exc_msg,exc_stack).  For example:
@@ -835,10 +835,10 @@ class RemoteServiceAdminEvent:
     def fromimportunreg(
         cls,
         bundle: Bundle,
-        cid: Tuple[str, str],
-        rsid: Tuple[Tuple[str, str], int],
+        cid: tuple[str, str],
+        rsid: tuple[tuple[str, str], int],
         import_ref: ImportReference,
-        exception: Optional[Tuple[Any, Any, Any]],
+        exception: tuple[Any, Any, Any] | None,
         endpoint: "EndpointDescription",
     ) -> "RemoteServiceAdminEvent":
         """
@@ -859,10 +859,10 @@ class RemoteServiceAdminEvent:
     def fromexportunreg(
         cls,
         bundle: Bundle,
-        exporterid: Tuple[str, str],
-        rsid: Tuple[Tuple[str, str], int],
+        exporterid: tuple[str, str],
+        rsid: tuple[tuple[str, str], int],
         export_ref: ExportReference,
-        exception: Optional[Tuple[Any, Any, Any]],
+        exception: tuple[Any, Any, Any] | None,
         endpoint: "EndpointDescription",
     ) -> "RemoteServiceAdminEvent":
         """
@@ -883,9 +883,9 @@ class RemoteServiceAdminEvent:
     def fromimporterror(
         cls,
         bundle: Bundle,
-        importerid: Tuple[str, str],
-        rsid: Tuple[Tuple[str, str], int],
-        exception: Optional[Tuple[Any, Any, Any]],
+        importerid: tuple[str, str],
+        rsid: tuple[tuple[str, str], int],
+        exception: tuple[Any, Any, Any] | None,
         endpoint: "EndpointDescription",
     ) -> "RemoteServiceAdminEvent":
         """
@@ -906,9 +906,9 @@ class RemoteServiceAdminEvent:
     def fromexporterror(
         cls,
         bundle: Bundle,
-        exporterid: Tuple[str, str],
-        rsid: Tuple[Tuple[str, str], int],
-        exception: Optional[Tuple[Any, Any, Any]],
+        exporterid: tuple[str, str],
+        rsid: tuple[tuple[str, str], int],
+        exception: tuple[Any, Any, Any] | None,
         endpoint: "EndpointDescription",
     ) -> "RemoteServiceAdminEvent":
         """
@@ -929,12 +929,12 @@ class RemoteServiceAdminEvent:
         self,
         typ: int,
         bundle: Bundle,
-        cid: Tuple[str, str],
-        rsid: Tuple[Tuple[str, str], int],
+        cid: tuple[str, str],
+        rsid: tuple[tuple[str, str], int],
         endpoint: Optional["EndpointDescription"],
-        import_ref: Optional[ImportReference] = None,
-        export_ref: Optional[ExportReference] = None,
-        exception: Optional[Tuple[Any, Any, Any]] = None,
+        import_ref: ImportReference | None = None,
+        export_ref: ExportReference | None = None,
+        exception: tuple[Any, Any, Any] | None = None,
     ) -> None:
         self._type = typ
         self._bundle = bundle
@@ -954,7 +954,7 @@ class RemoteServiceAdminEvent:
         """
         return self._ed
 
-    def get_container_id(self) -> Tuple[str, str]:
+    def get_container_id(self) -> tuple[str, str]:
         """
         Get the container id of form tuple/2 (namespace,id) where
         both namespace and id are strings. Will not be none.
@@ -964,7 +964,7 @@ class RemoteServiceAdminEvent:
         """
         return self._cid
 
-    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
+    def get_remoteservice_id(self) -> tuple[tuple[str, str], int]:
         """
         Get the remote service id of form:  tuple(tuple(namespace,id),rsid)
         where rsid is int and (namespace,id) are as returned from
@@ -996,7 +996,7 @@ class RemoteServiceAdminEvent:
         """
         return self._bundle
 
-    def get_import_ref(self) -> Optional[ImportReference]:
+    def get_import_ref(self) -> ImportReference | None:
         """
         Get ImportReference instance associated with this event.
         Will be None if type is IMPORT_*.
@@ -1005,7 +1005,7 @@ class RemoteServiceAdminEvent:
         """
         return self._import_ref
 
-    def get_export_ref(self) -> Optional[ExportReference]:
+    def get_export_ref(self) -> ExportReference | None:
         """
         Get ExportReference instance associated with this event.
         Will be None if type is EXPORT_*.
@@ -1014,7 +1014,7 @@ class RemoteServiceAdminEvent:
         """
         return self._export_ref
 
-    def get_exception(self) -> Optional[Tuple[Any, Any, Any]]:
+    def get_exception(self) -> tuple[Any, Any, Any] | None:
         """
         Get exception in tuple(exc_type,exc_name,traceback) form.
         If None, no exception occurred in RSA import/export. If
@@ -1060,8 +1060,8 @@ def get_fw_uuid(context: BundleContext) -> str:
 
 
 def get_matching_interfaces(
-    object_class: List[str], exported_intfs: Optional[List[str]]
-) -> Optional[List[str]]:
+    object_class: list[str], exported_intfs: list[str] | None
+) -> list[str] | None:
     """
     Returns the list of interfaces matching the export property
 
@@ -1086,7 +1086,7 @@ def get_matching_interfaces(
     return exported_intfs
 
 
-def get_prop_value(name: str, props: Optional[Dict[str, Any]], default: Any = None) -> Any:
+def get_prop_value(name: str, props: dict[str, Any] | None, default: Any = None) -> Any:
     """
     Returns the value of a property or the default one
 
@@ -1104,7 +1104,7 @@ def get_prop_value(name: str, props: Optional[Dict[str, Any]], default: Any = No
         return default
 
 
-def set_prop_if_null(name: str, props: Dict[str, Any], if_null: Any) -> None:
+def set_prop_if_null(name: str, props: dict[str, Any], if_null: Any) -> None:
     """
     Updates the value of a property if the previous one was None
 
@@ -1117,7 +1117,7 @@ def set_prop_if_null(name: str, props: Dict[str, Any], if_null: Any) -> None:
         props[name] = if_null
 
 
-def get_string_plus_property_value(value: Any) -> Optional[List[str]]:
+def get_string_plus_property_value(value: Any) -> list[str] | None:
     """
     Converts a string or list of string into a list of strings
 
@@ -1135,7 +1135,7 @@ def get_string_plus_property_value(value: Any) -> Optional[List[str]]:
     return None
 
 
-def convert_string_plus_value(values: List[str]) -> Union[None, str, List[str]]:
+def convert_string_plus_value(values: list[str]) -> None | str | list[str]:
     """
     Normalizes a list of string
 
@@ -1151,7 +1151,7 @@ def convert_string_plus_value(values: List[str]) -> Union[None, str, List[str]]:
     return values
 
 
-def parse_string_plus_value(value: str) -> List[str]:
+def parse_string_plus_value(value: str) -> list[str]:
     """
     Parses a comma-separated value
 
@@ -1162,8 +1162,8 @@ def parse_string_plus_value(value: str) -> List[str]:
 
 
 def get_string_plus_property(
-    name: str, props: Dict[str, Any], default: Optional[List[str]] = None
-) -> Optional[List[str]]:
+    name: str, props: dict[str, Any], default: list[str] | None = None
+) -> list[str] | None:
     """
     Returns the value of the given property or the default value
 
@@ -1186,8 +1186,8 @@ def get_current_time_millis() -> int:
 
 
 def get_exported_interfaces(
-    svc_ref: ServiceReference[Any], overriding_props: Optional[Dict[str, Any]] = None
-) -> Optional[List[str]]:
+    svc_ref: ServiceReference[Any], overriding_props: dict[str, Any] | None = None
+) -> list[str] | None:
     """
     Looks for the interfaces exported by a service
 
@@ -1196,7 +1196,7 @@ def get_exported_interfaces(
     :return: The list of exported interfaces
     """
     # first check overriding_props for service.exported.interfaces
-    exported_intfs = cast(Optional[List[str]], get_prop_value(SERVICE_EXPORTED_INTERFACES, overriding_props))
+    exported_intfs = cast(list[str] | None, get_prop_value(SERVICE_EXPORTED_INTERFACES, overriding_props))
     # then check svc_ref property
     if not exported_intfs:
         exported_intfs = svc_ref.get_property(SERVICE_EXPORTED_INTERFACES)
@@ -1207,7 +1207,7 @@ def get_exported_interfaces(
     return get_matching_interfaces(svc_ref.get_property(constants.OBJECTCLASS), exported_intfs)
 
 
-def validate_exported_interfaces(object_class: List[str], exported_intfs: Optional[List[str]]) -> bool:
+def validate_exported_interfaces(object_class: list[str], exported_intfs: list[str] | None) -> bool:
     """
     Validates that the exported interfaces are all provided by the service
 
@@ -1224,7 +1224,7 @@ def validate_exported_interfaces(object_class: List[str], exported_intfs: Option
     return True
 
 
-def get_package_from_classname(class_name: str) -> Optional[str]:
+def get_package_from_classname(class_name: str) -> str | None:
     """
     Returns the name of the package declaring the given class
 
@@ -1237,7 +1237,7 @@ def get_package_from_classname(class_name: str) -> Optional[str]:
         return None
 
 
-def get_package_versions(intfs: List[str], props: Dict[str, Any]) -> List[Tuple[str, str]]:
+def get_package_versions(intfs: list[str], props: dict[str, Any]) -> list[tuple[str, str]]:
     """
     Gets the package version of interfaces
 
@@ -1273,7 +1273,7 @@ def get_next_rsid() -> int:
         return new_rsid
 
 
-def copy_ref_props(service_ref: ServiceReference[Any]) -> Dict[str, Any]:
+def copy_ref_props(service_ref: ServiceReference[Any]) -> dict[str, Any]:
     """
     Copies the properties of a service reference
 
@@ -1283,7 +1283,7 @@ def copy_ref_props(service_ref: ServiceReference[Any]) -> Dict[str, Any]:
     return service_ref.get_properties().copy()
 
 
-def merge_dicts(*dict_args: Dict[K, Any]) -> Dict[K, Any]:
+def merge_dicts(*dict_args: dict[K, Any]) -> dict[K, Any]:
     """
     Given any number of dicts, shallow copy and merge into a new dict,
     precedence goes to key value pairs in latter dicts.
@@ -1295,8 +1295,8 @@ def merge_dicts(*dict_args: Dict[K, Any]) -> Dict[K, Any]:
 
 
 def merge_overriding_props(
-    service_ref: ServiceReference[Any], overriding_props: Dict[str, Any]
-) -> Dict[str, Any]:
+    service_ref: ServiceReference[Any], overriding_props: dict[str, Any]
+) -> dict[str, Any]:
     """
     Overrides the properties of the service with the given ones
 
@@ -1309,14 +1309,14 @@ def merge_overriding_props(
 
 
 def get_rsa_props(
-    object_class: List[str],
-    exported_cfgs: Optional[List[str]],
-    remote_intents: Optional[List[str]] = None,
-    ep_svc_id: Optional[int] = None,
-    fw_id: Optional[str] = None,
-    pkg_vers: Union[None, Tuple[str, str], List[Tuple[str, str]]] = None,
-    service_intents: Optional[List[str]] = None,
-) -> Dict[str, Any]:
+    object_class: list[str],
+    exported_cfgs: list[str] | None,
+    remote_intents: list[str] | None = None,
+    ep_svc_id: int | None = None,
+    fw_id: str | None = None,
+    pkg_vers: None | tuple[str, str] | list[tuple[str, str]] = None,
+    service_intents: list[str] | None = None,
+) -> dict[str, Any]:
     """
     Constructs a dictionary of RSA properties from the given arguments
 
@@ -1329,7 +1329,7 @@ def get_rsa_props(
     :param service_intents: Service intents
     :return: A dictionary of properties
     """
-    results: Dict[str, Any] = {}
+    results: dict[str, Any] = {}
     if not object_class:
         raise Exception("object_class must be an [] of Strings")
     results["objectClass"] = object_class
@@ -1363,9 +1363,9 @@ def get_rsa_props(
 def get_ecf_props(
     ep_id: str,
     ep_id_ns: str,
-    rsvc_id: Optional[int] = None,
-    ep_ts: Optional[int] = None,
-) -> Dict[str, Any]:
+    rsvc_id: int | None = None,
+    ep_ts: int | None = None,
+) -> dict[str, Any]:
     """
     Prepares the ECF properties
 
@@ -1375,7 +1375,7 @@ def get_ecf_props(
     :param ep_ts: Timestamp of the endpoint
     :return: A dictionary of ECF properties
     """
-    results: Dict[str, Any] = {}
+    results: dict[str, Any] = {}
     if not ep_id:
         raise Exception("ep_id must be a valid endpoint id")
     results[ECF_ENDPOINT_ID] = ep_id
@@ -1391,7 +1391,7 @@ def get_ecf_props(
     return results
 
 
-def get_extra_props(props: Dict[str, Any]) -> Dict[str, Any]:
+def get_extra_props(props: dict[str, Any]) -> dict[str, Any]:
     """
     Returns the extra properties, *i.e.* non-ECF, non-RSA properties
 
@@ -1408,18 +1408,18 @@ def get_extra_props(props: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def get_edef_props(
-    object_class: List[str],
-    exported_cfgs: Optional[List[str]],
+    object_class: list[str],
+    exported_cfgs: list[str] | None,
     ep_namespace: str,
     ep_id: str,
     ecf_ep_id: str,
     ep_rsvc_id: int,
     ep_ts: int,
-    remote_intents: Optional[List[str]] = None,
-    fw_id: Optional[str] = None,
-    pkg_ver: Union[None, Tuple[str, str], List[Tuple[str, str]]] = None,
-    service_intents: Optional[List[str]] = None,
-) -> Dict[str, Any]:
+    remote_intents: list[str] | None = None,
+    fw_id: str | None = None,
+    pkg_ver: None | tuple[str, str] | list[tuple[str, str]] = None,
+    service_intents: list[str] | None = None,
+) -> dict[str, Any]:
     """
     Prepares the EDEF properties of an endpoint, merge of RSA and ECF
     properties
@@ -1437,7 +1437,7 @@ def get_edef_props(
     return merge_dicts(osgi_props, ecf_props)
 
 
-def get_edef_props_error(object_class: List[str]) -> Dict[str, Any]:
+def get_edef_props_error(object_class: list[str]) -> dict[str, Any]:
     """
     Returns the EDEF properties for an errorred endpoint
     """
@@ -1452,13 +1452,13 @@ def get_edef_props_error(object_class: List[str]) -> Dict[str, Any]:
     )
 
 
-def get_dot_properties(prefix: str, props: Dict[str, Any], remove_prefix: bool) -> Dict[str, Any]:
+def get_dot_properties(prefix: str, props: dict[str, Any], remove_prefix: bool) -> dict[str, Any]:
     """
     Gets the properties starting with the given prefix
     """
     result_props = {}
     if props:
-        dot_keys = [x for x in props.keys() if x.startswith(prefix + ".")]
+        dot_keys = [x for x in props if x.startswith(prefix + ".")]
         for dot_key in dot_keys:
             if remove_prefix:
                 new_key = dot_key[len(prefix) + 1 :]
@@ -1483,7 +1483,7 @@ def is_reserved_property(key: str) -> bool:
     return key in RSA_PROP_NAMES or key in ECFPROPNAMES or key.startswith(".")
 
 
-def remove_from_props(props: Dict[str, Any], keys: Iterable[str]) -> Dict[str, Any]:
+def remove_from_props(props: dict[str, Any], keys: Iterable[str]) -> dict[str, Any]:
     """
     Removes in-place the given keys from the properties
 
@@ -1499,7 +1499,7 @@ def remove_from_props(props: Dict[str, Any], keys: Iterable[str]) -> Dict[str, A
     return props
 
 
-def copy_non_reserved(props: Dict[str, Any], target: Dict[str, Any]) -> Dict[str, Any]:
+def copy_non_reserved(props: dict[str, Any], target: dict[str, Any]) -> dict[str, Any]:
     """
     Copies all properties with non-reserved names from ``props`` to ``target``
 
@@ -1511,7 +1511,7 @@ def copy_non_reserved(props: Dict[str, Any], target: Dict[str, Any]) -> Dict[str
     return target
 
 
-def copy_non_ecf(props: Dict[str, Any], target: Dict[str, Any]) -> Dict[str, Any]:
+def copy_non_ecf(props: dict[str, Any], target: dict[str, Any]) -> dict[str, Any]:
     """
     Copies non-ECF properties from ``props`` to ``target``
 
@@ -1523,7 +1523,7 @@ def copy_non_ecf(props: Dict[str, Any], target: Dict[str, Any]) -> Dict[str, Any
     return target
 
 
-def set_append(input_set: Set[T], item: Union[None, T, Iterable[T]]) -> Set[T]:
+def set_append(input_set: set[T], item: None | T | Iterable[T]) -> set[T]:
     """
     Appends in-place the given item to the set.
     If the item is a list, all elements are added to the set.
@@ -1540,7 +1540,7 @@ def set_append(input_set: Set[T], item: Union[None, T, Iterable[T]]) -> Set[T]:
     return input_set
 
 
-def cid_to_string(cid: Tuple[str, str]) -> str:
+def cid_to_string(cid: tuple[str, str]) -> str:
     """
     Converts the Container ID to a string
 
@@ -1550,17 +1550,17 @@ def cid_to_string(cid: Tuple[str, str]) -> str:
     return cid[1]
 
 
-def rsid_to_string(rsid: Tuple[Tuple[str, str], int]) -> str:
+def rsid_to_string(rsid: tuple[tuple[str, str], int]) -> str:
     """
     Converts the RS ID tuple to a string
 
     :param rsid: An RS ID tuple
     :return: The RS ID as a string
     """
-    return "{0}:{1}".format(cid_to_string(rsid[0]), rsid[1])
+    return f"{cid_to_string(rsid[0])}:{rsid[1]}"
 
 
-def prop_dot_suffix(prop_name: str, suffix: Optional[str] = None) -> str:
+def prop_dot_suffix(prop_name: str, suffix: str | None = None) -> str:
     """
     Joins both strings with a dot (".")
     """
@@ -1578,7 +1578,6 @@ class SelectExporterError(Exception):
     Error selecting exporter
     """
 
-    ...
 
 
 class SelectImporterError(Exception):
@@ -1586,7 +1585,6 @@ class SelectImporterError(Exception):
     Error selecting importer
     """
 
-    ...
 
 
 class RemoteServiceError(Exception):
@@ -1594,11 +1592,10 @@ class RemoteServiceError(Exception):
     Generic RSA exception
     """
 
-    ...
 
 
 def instantiate_rsa_component(
-    context: BundleContext, factory_name: str, instance_name: str, properties: Optional[Dict[str, Any]] = None
+    context: BundleContext, factory_name: str, instance_name: str, properties: dict[str, Any] | None = None
 ) -> Any:
     with use_ipopo(context) as ipopo:
         return ipopo.instantiate(

@@ -8,13 +8,13 @@ Tests the shell completion handlers
 
 import unittest
 from io import StringIO
-from typing import Any, List, Optional
+from typing import Any
 
-import pelix.shell.beans as beans
 from pelix.framework import BundleContext, Framework, FrameworkFactory
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, Property
+from pelix.shell import beans
 from pelix.shell.completion import (
     BUNDLE,
     COMPONENT,
@@ -97,13 +97,13 @@ class CompletionTest(unittest.TestCase):
         """
         Retrieves the completer service with the given ID
         """
-        svc_ref: Optional[ServiceReference[Completer]] = self.context.get_service_reference(
+        svc_ref: ServiceReference[Completer] | None = self.context.get_service_reference(
             Completer, f"({PROP_COMPLETER_ID}={completer_id})"
         )
         assert svc_ref is not None, f"Completer {completer_id} not found"
         return self.context.get_service(svc_ref)
 
-    def _complete(self, completer_id: str, current: str, arguments: Optional[List[str]] = None) -> List[str]:
+    def _complete(self, completer_id: str, current: str, arguments: list[str] | None = None) -> list[str]:
         """
         Calls the completer with the given current word
         """
@@ -242,7 +242,7 @@ class RaisingCompleter:
     A completer that always fails
     """
 
-    def complete(self, *args: Any, **kwargs: Any) -> List[str]:
+    def complete(self, *args: Any, **kwargs: Any) -> list[str]:
         raise RuntimeError("Completion failure")
 
 
@@ -267,7 +267,7 @@ class CompletionHintsTest(unittest.TestCase):
 
         self.session = beans.ShellSession(beans.IOHandler(StringIO(), StringIO()))
 
-    def _hints(self, config: CompletionInfo, current: str, arguments: List[str]) -> List[str]:
+    def _hints(self, config: CompletionInfo, current: str, arguments: list[str]) -> list[str]:
         """
         Calls completion_hints() with common arguments
         """

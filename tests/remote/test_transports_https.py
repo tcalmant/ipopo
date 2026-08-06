@@ -30,7 +30,8 @@ import ssl
 import tempfile
 import threading
 import unittest
-from typing import Any, Iterable, Tuple
+from collections.abc import Iterable
+from typing import Any
 
 import pelix.http
 import pelix.remote
@@ -68,7 +69,7 @@ __docformat__ = "restructuredtext en"
 
 
 def load_framework(
-    transport: str, components: Iterable[Tuple[str, str]], start_server: bool = True
+    transport: str, components: Iterable[tuple[str, str]], start_server: bool = True
 ) -> Framework:
     """
     Starts a Pelix framework in the local process
@@ -110,7 +111,7 @@ def load_framework(
     return framework
 
 
-def export_framework(state_queue: Queue, transport: str, components: Iterable[Tuple[str, str]]) -> None:
+def export_framework(state_queue: Queue, transport: str, components: Iterable[tuple[str, str]]) -> None:
     """
     Starts a Pelix framework, on the export side
 
@@ -158,7 +159,7 @@ def export_framework(state_queue: Queue, transport: str, components: Iterable[Tu
         framework.stop()
         framework.delete()
     except Exception as ex:
-        state_queue.put("Error: {0}".format(ex))
+        state_queue.put(f"Error: {ex}")
     finally:
         shutil.rmtree(tmp_dir)
 
@@ -172,7 +173,7 @@ class HttpsTransportsTest(HttpTransportsTest):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super(HttpsTransportsTest, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._load_framework = load_framework
         self._export_framework = export_framework
 
@@ -180,7 +181,7 @@ class HttpsTransportsTest(HttpTransportsTest):
         self, transport_bundle: str, exporter_factory: str, importer_factory: str, test_kwargs: bool = True
     ) -> None:
         try:
-            super(HttpsTransportsTest, self)._run_test(
+            super()._run_test(
                 transport_bundle, exporter_factory, importer_factory, test_kwargs
             )
         except ssl.SSLError:

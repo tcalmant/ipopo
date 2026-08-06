@@ -10,9 +10,8 @@ import unittest
 
 import pelix.constants
 import pelix.framework
-import pelix.ipopo.constants as constants
-import pelix.ipopo.contexts as contexts
 from pelix.framework import FrameworkFactory
+from pelix.ipopo import constants, contexts
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides
 from pelix.utilities import use_service
@@ -38,12 +37,11 @@ SPEC_CHILD = "spec.child"
 @ComponentFactory(FACTORY_PARENT)
 @Provides(SPEC_PARENT)
 @Property("parent_prop", "prop.parent", "parent.value")
-class ParentFactory(object):
+class ParentFactory:
     """
     Parent factory, providing a service with a property
     """
 
-    pass
 
 
 @ComponentFactory(FACTORY_ALL)
@@ -52,7 +50,6 @@ class ChildAll(ParentFactory):
     Child factory, inheriting everything from its parent
     """
 
-    pass
 
 
 @ComponentFactory(FACTORY_NO_PROVIDE, excluded=Provides.HANDLER_ID)
@@ -61,7 +58,6 @@ class ChildNoProvides(ParentFactory):
     Child factory, removing the provided service
     """
 
-    pass
 
 
 @ComponentFactory(FACTORY_EXTEND_PROVIDE)
@@ -71,7 +67,6 @@ class ChildExtendProvides(ParentFactory):
     Child factory, replacing the provided service
     """
 
-    pass
 
 
 @ComponentFactory(FACTORY_REPLACE_PROVIDE, excluded=Provides.HANDLER_ID)
@@ -81,7 +76,6 @@ class ChildReplaceProvides(ParentFactory):
     Child factory, replacing the provided service
     """
 
-    pass
 
 
 # ------------------------------------------------------------------------------
@@ -114,7 +108,7 @@ class ContextsTests(unittest.TestCase):
         context = self.framework.get_bundle_context()
         svc_refs = context.get_all_service_references(specification)
         if not svc_refs:
-            self.fail("Service {0} not registered".format(specification))
+            self.fail(f"Service {specification} not registered")
 
         for svc_ref in svc_refs:
             with use_service(context, svc_ref) as svc:
@@ -123,7 +117,7 @@ class ContextsTests(unittest.TestCase):
                     break
 
         else:
-            self.fail("Service {0} is not provided by {1}".format(specification, provider))
+            self.fail(f"Service {specification} is not provided by {provider}")
 
     def assertNotProvides(self, specification, provider):
         """
@@ -136,7 +130,7 @@ class ContextsTests(unittest.TestCase):
                 with use_service(context, svc_ref) as svc:
                     if svc is provider:
                         # Found it
-                        self.fail("Service {0} is provided by {1}".format(specification, provider))
+                        self.fail(f"Service {specification} is provided by {provider}")
 
     def testRequirement(self):
         """
@@ -165,13 +159,13 @@ class ContextsTests(unittest.TestCase):
 
         for invalid in (None, "False", False, [False]):
             props = {pelix.constants.OBJECTCLASS: "spec", "test": invalid}
-            self.assertTrue(without_filter.matches(props), "Should match without filter: {0}".format(props))
-            self.assertFalse(with_filter.matches(props), "Shouldn't match with filter: {0}".format(props))
+            self.assertTrue(without_filter.matches(props), f"Should match without filter: {props}")
+            self.assertFalse(with_filter.matches(props), f"Shouldn't match with filter: {props}")
 
         for valid in ("True", True, [True]):
             props = {pelix.constants.OBJECTCLASS: "spec", "test": valid}
-            self.assertTrue(without_filter.matches(props), "Should match without filter: {0}".format(props))
-            self.assertTrue(with_filter.matches(props), "Should match with filter: {0}".format(props))
+            self.assertTrue(without_filter.matches(props), f"Should match without filter: {props}")
+            self.assertTrue(with_filter.matches(props), f"Should match with filter: {props}")
 
     def testRequirementEquality(self):
         """
@@ -186,7 +180,7 @@ class ContextsTests(unittest.TestCase):
 
         # Different types
         for req_2 in (None, "spec_1", [], {}):
-            self.assertNotEqual(req_1, req_2, "Requirement should not be equal to {0}".format(req_1))
+            self.assertNotEqual(req_1, req_2, f"Requirement should not be equal to {req_1}")
 
         # Copy
         req_2 = req_1.copy()

@@ -5,7 +5,6 @@ This bundle provides a component that is a simple implementation of the
 Dictionary service. It contains some French words.
 """
 
-from typing import Set
 
 from spell_checker_api import SpellDictionary
 
@@ -30,7 +29,7 @@ class FrenchSpellDictionary(SpellDictionary):
         """
         Declares members, to respect PEP-8.
         """
-        self.dictionary: Set[str] = set()
+        self.dictionary: set[str] = set()
 
     @Validate
     def validate(self, context: BundleContext) -> None:

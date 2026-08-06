@@ -32,10 +32,10 @@ import logging
 import shlex
 import string
 import sys
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, cast
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, cast
 
-import pelix.shell.beans as beans
-from pelix.shell import ShellCommandMethod
+from pelix.shell import ShellCommandMethod, beans
 from pelix.shell.completion import ATTR_COMPLETERS, CompletionInfo
 from pelix.utilities import get_method_arguments, to_str
 
@@ -88,8 +88,8 @@ class _ArgTemplate(string.Template):
 
 
 def _make_args(
-    args_list: List[str], session: beans.ShellSession, fw_props: Dict[str, Any]
-) -> Tuple[List[str], Dict[str, str]]:
+    args_list: list[str], session: beans.ShellSession, fw_props: dict[str, Any]
+) -> tuple[list[str], dict[str, str]]:
     """
     Converts the given list of arguments into a list (args) and a
     dictionary (kwargs).
@@ -114,7 +114,7 @@ def _make_args(
             args.append(arg_token)
 
     # Prepare the dictionary of variables
-    variables: Dict[str, Any] = collections.defaultdict(str)
+    variables: dict[str, Any] = collections.defaultdict(str)
     variables.update(fw_props)
     variables.update(session.variables)
 
@@ -124,7 +124,7 @@ def _make_args(
     return args, kwargs
 
 
-def _split_ns_command(cmd_token: str) -> Tuple[str, str]:
+def _split_ns_command(cmd_token: str) -> tuple[str, str]:
     """
     Extracts the name space and the command name of the given command token.
 
@@ -159,14 +159,14 @@ class Shell:
     Allows the use of name spaces.
     """
 
-    def __init__(self, framework: "Framework", logname: Optional[str] = None) -> None:
+    def __init__(self, framework: "Framework", logname: str | None = None) -> None:
         """
         Sets up members
 
         :param framework: The Pelix Framework instance
         :param logname: Custom name for the shell logger
         """
-        self._commands: Dict[str, Dict[str, ShellCommandMethod]] = {}
+        self._commands: dict[str, dict[str, ShellCommandMethod]] = {}
         self._framework = framework
         self._logger = logging.getLogger(logname or __name__)
 
@@ -200,7 +200,7 @@ class Shell:
         """
         return "$ "
 
-    def register_command(self, namespace: Optional[str], command: str, method: ShellCommandMethod) -> bool:
+    def register_command(self, namespace: str | None, command: str, method: ShellCommandMethod) -> bool:
         """
         Registers the given command to the shell.
 
@@ -227,7 +227,7 @@ class Shell:
             return False
 
         if namespace not in self._commands:
-            space = self._commands[namespace] = cast(Dict[str, Callable[..., Any]], {})
+            space = self._commands[namespace] = cast(dict[str, Callable[..., Any]], {})
         else:
             space = self._commands[namespace]
 
@@ -238,7 +238,7 @@ class Shell:
         space[command] = method
         return True
 
-    def get_command_completers(self, namespace: str, command: str) -> Optional[CompletionInfo]:
+    def get_command_completers(self, namespace: str, command: str) -> CompletionInfo | None:
         """
         Returns the completer method associated to the given command, or None
 
@@ -253,7 +253,7 @@ class Shell:
         # Return the completer, if any
         return getattr(method, ATTR_COMPLETERS, None)
 
-    def unregister(self, namespace: str, command: Optional[str] = None) -> bool:
+    def unregister(self, namespace: str, command: str | None = None) -> bool:
         """
         Unregisters the given command. If command is None, the whole name space
         is unregistered.
@@ -288,7 +288,7 @@ class Shell:
 
         return True
 
-    def __find_command_ns(self, command: str) -> List[str]:
+    def __find_command_ns(self, command: str) -> list[str]:
         """
         Returns the name spaces where the given command named is registered.
         If the command exists in the default name space, the returned list will
@@ -299,7 +299,7 @@ class Shell:
         :return: A list of name spaces
         """
         # Look for the spaces where the command name appears
-        namespaces: List[str] = []
+        namespaces: list[str] = []
         for namespace, commands in self._commands.items():
             if command in commands:
                 namespaces.append(namespace)
@@ -317,7 +317,7 @@ class Shell:
 
         return namespaces
 
-    def get_namespaces(self) -> List[str]:
+    def get_namespaces(self) -> list[str]:
         """
         Retrieves the list of known name spaces (without the default one)
 
@@ -328,7 +328,7 @@ class Shell:
         namespaces.sort()
         return namespaces
 
-    def get_commands(self, namespace: Optional[str]) -> List[str]:
+    def get_commands(self, namespace: str | None) -> list[str]:
         """
         Retrieves the commands of the given name space. If *namespace* is None
         or empty, it retrieves the commands of the default name space
@@ -349,7 +349,7 @@ class Shell:
             # Unknown name space
             return []
 
-    def get_ns_commands(self, cmd_name: str) -> List[Tuple[str, str]]:
+    def get_ns_commands(self, cmd_name: str) -> list[tuple[str, str]]:
         """
         Retrieves the possible name spaces and commands associated to the given
         command name.
@@ -372,7 +372,7 @@ class Shell:
         # Single match
         return [(namespace, command)]
 
-    def get_ns_command(self, cmd_name: str) -> Tuple[str, str]:
+    def get_ns_command(self, cmd_name: str) -> tuple[str, str]:
         """
         Retrieves the name space and the command associated to the given
         command name.
@@ -406,7 +406,7 @@ class Shell:
         # Command found
         return namespace, command
 
-    def execute(self, cmdline: str, session: Optional[beans.ShellSession] = None) -> bool:
+    def execute(self, cmdline: str, session: beans.ShellSession | None = None) -> bool:
         """
         Executes the command corresponding to the given line
 
@@ -485,11 +485,11 @@ class Shell:
             # Try to flush in any case
             try:
                 session.flush()
-            except IOError:
+            except OSError:
                 pass
 
     @staticmethod
-    def __extract_help(method: Callable[..., Any]) -> Tuple[str, str]:
+    def __extract_help(method: Callable[..., Any]) -> tuple[str, str]:
         """
         Formats the help string for the given method
 
@@ -554,7 +554,7 @@ class Shell:
         session.write_line("\t\t{0}", doc)
 
     def __print_namespace_help(
-        self, session: beans.ShellSession, namespace: str, cmd_name: Optional[str] = None
+        self, session: beans.ShellSession, namespace: str, cmd_name: str | None = None
     ) -> None:
         """
         Prints the documentation of all the commands in the given name space,
@@ -582,7 +582,7 @@ class Shell:
             self.__print_command_help(session, namespace, command)
             first_cmd = False
 
-    def print_help(self, session: beans.ShellSession, command: Optional[str] = None) -> Any:
+    def print_help(self, session: beans.ShellSession, command: str | None = None) -> Any:
         """
         Prints the available methods and their documentation, or the
         documentation of the given command.
@@ -697,7 +697,7 @@ class Shell:
                         return False
 
                 session.write_line("Script execution succeeded")
-        except IOError as ex:
+        except OSError as ex:
             session.write_line("Error reading file {0}: {1}", filename, ex)
             return False
 

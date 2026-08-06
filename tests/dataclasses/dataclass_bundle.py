@@ -25,7 +25,6 @@ Module checking the behaviour of iPOPO with PEP-557 Data Classes
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 from pelix.ipopo.constants import IPOPO_INSTANCE_NAME
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides, Requires
@@ -40,8 +39,8 @@ from pelix.ipopo.decorators import ComponentFactory, Property, Provides, Require
 @dataclass
 class DataClassBeforeManipulation:
     some_value: str = "42"
-    instance_name: Optional[str] = None
-    requirement: Optional[object] = None
+    instance_name: str | None = None
+    requirement: object | None = None
     property_set: str = "Default-before"
     property_default: str = "Default-before"
 
@@ -55,7 +54,7 @@ class DataClassBeforeManipulation:
 @Requires("requirement", "dataclass.check")
 class DataClassAfterManipulation:
     some_value: str = "42"
-    instance_name: Optional[str] = None
-    requirement: Optional[object] = None
+    instance_name: str | None = None
+    requirement: object | None = None
     property_set: str = "Default-after"
     property_default: str = "Default-after"

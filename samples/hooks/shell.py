@@ -27,7 +27,6 @@ Provides commands to the Pelix shell to generate some service events
     limitations under the License.
 """
 
-from typing import List, Tuple
 
 import pelix.shell
 from pelix.framework import BundleContext
@@ -78,7 +77,7 @@ class EventHookCommands(pelix.shell.ShellCommandsProvider):
         """
         return "hook"
 
-    def get_methods(self) -> List[Tuple[str, pelix.shell.ShellCommandMethod]]:
+    def get_methods(self) -> list[tuple[str, pelix.shell.ShellCommandMethod]]:
         """
         Retrieves the list of tuples (command, method) for this command handler
         """

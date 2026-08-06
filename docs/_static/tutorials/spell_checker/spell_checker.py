@@ -6,7 +6,6 @@ a given text.
 """
 
 import re
-from typing import Dict, List, Set
 
 from spell_checker_api import SpellChecker, SpellDictionary
 
@@ -39,18 +38,18 @@ class SpellCheckerImpl:
     """
 
     # We can declare the type of injected fields
-    _spell_dictionaries: List[SpellDictionary]
+    _spell_dictionaries: list[SpellDictionary]
 
     def __init__(self) -> None:
         """
         Define class members
         """
         # the list of available dictionaries, constructed
-        self.languages: Dict[str, SpellDictionary] = {}
+        self.languages: dict[str, SpellDictionary] = {}
 
         # list of some punctuation marks could be found in the given passage,
         # internal
-        self.punctuation_marks: Set[str] = set()
+        self.punctuation_marks: set[str] = set()
 
     @BindField("_spell_dictionaries")
     def bind_dict(

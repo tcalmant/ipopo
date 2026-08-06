@@ -28,7 +28,6 @@ Utility methods for SSL
 import logging
 import socket
 import ssl
-from typing import Optional
 
 # ------------------------------------------------------------------------------
 
@@ -43,7 +42,7 @@ __docformat__ = "restructuredtext en"
 
 
 def wrap_socket(
-    socket: socket.socket, certfile: str, keyfile: str, password: Optional[str] = None
+    socket: socket.socket, certfile: str, keyfile: str, password: str | None = None
 ) -> socket.socket:
     """
     Wraps an existing TCP socket and returns an SSLSocket object

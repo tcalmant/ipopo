@@ -8,8 +8,8 @@ Tests the iPOPO core service.
 
 import unittest
 
-import pelix.ipopo.decorators as decorators
 from pelix.framework import FrameworkFactory
+from pelix.ipopo import decorators
 from pelix.ipopo.constants import IPopoEvent
 from tests import log_off, log_on
 from tests.ipopo import install_bundle, install_ipopo
@@ -52,10 +52,10 @@ class IPopoServiceTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
 
         @decorators.ComponentFactory(FACTORY)
-        class TestComponent(object):
+        class TestComponent:
             pass
 
-        class UnManipulatedClass(object):
+        class UnManipulatedClass:
             pass
 
         # Test if the framework is clean
@@ -91,7 +91,7 @@ class IPopoServiceTest(unittest.TestCase):
         # Unregister the factory
         for invalid in (None, "", "Dummy", [FACTORY]):
             self.assertFalse(
-                (self.ipopo.unregister_factory(invalid)), "Invalid factory unregistered: {0}".format(invalid)
+                (self.ipopo.unregister_factory(invalid)), f"Invalid factory unregistered: {invalid}"
             )
 
         self.assertTrue(self.ipopo.unregister_factory(FACTORY))
@@ -110,7 +110,7 @@ class IPopoServiceTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
 
         @decorators.ComponentFactory(factory_name)
-        class TestComponent(object):
+        class TestComponent:
             pass
 
         # We must have a ValueError
@@ -181,7 +181,7 @@ class IPopoServiceTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
 
         @decorators.ComponentFactory(FACTORY)
-        class TestComponent(object):
+        class TestComponent:
             pass
 
         # Invalid name
@@ -203,7 +203,7 @@ class IPopoServiceTest(unittest.TestCase):
 
         # Exception on instantiate -> Type Error
         @decorators.ComponentFactory(FACTORY_2)
-        class TestComponent2(object):
+        class TestComponent2:
             def __init__(self):
                 raise NotImplementedError
 
@@ -222,10 +222,10 @@ class IPopoServiceTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
 
         @decorators.ComponentFactory(FACTORY)
-        class TestComponent(object):
+        class TestComponent:
             pass
 
-        class Listener(object):
+        class Listener:
             """
             iPOPO event listener
             """
@@ -247,19 +247,19 @@ class IPopoServiceTest(unittest.TestCase):
             Tests the validity of an event
             """
             self.assertEqual(
-                event.get_kind(), kind, "Excepted kind: {0} / got: {1}".format(kind, event.get_kind())
+                event.get_kind(), kind, f"Excepted kind: {kind} / got: {event.get_kind()}"
             )
 
             self.assertEqual(
                 event.get_factory_name(),
                 factory,
-                "Excepted factory: {0} / got: {1}".format(factory, event.get_factory_name()),
+                f"Excepted factory: {factory} / got: {event.get_factory_name()}",
             )
 
             self.assertEqual(
                 event.get_component_name(),
                 instance,
-                "Excepted instance: {0} / got: {1}".format(instance, event.get_component_name()),
+                f"Excepted instance: {instance} / got: {event.get_component_name()}",
             )
 
         # Register the listener
@@ -332,7 +332,7 @@ class IPopoServiceTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
 
         @decorators.ComponentFactory(factory_name)
-        class TestComponent(object):
+        class TestComponent:
             pass
 
         # Register the factory

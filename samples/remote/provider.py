@@ -24,7 +24,7 @@ Greeting service provider
     limitations under the License.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import pelix.remote
 from pelix.constants import ActivatorProto, BundleActivator
@@ -75,7 +75,7 @@ class Activator(ActivatorProto):
         """
         Sets up members
         """
-        self.__registration: Optional[ServiceRegistration[Any]] = None
+        self.__registration: ServiceRegistration[Any] | None = None
 
     def start(self, context: BundleContext) -> None:
         """

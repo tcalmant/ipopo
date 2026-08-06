@@ -16,7 +16,7 @@ try:
 except ImportError:
     raise unittest.SkipTest("aiohttp library not available")
 
-import pelix.http as http
+from pelix import http
 from pelix.framework import FrameworkFactory, create_framework
 from pelix.ipopo.constants import use_ipopo
 from pelix.utilities import EventData
@@ -35,7 +35,7 @@ def wait_for_service(framework, svc_name, timeout=5.0):
         if svc_ref is not None:
             return svc_ref
         time.sleep(0.1)
-    raise RuntimeError("Service '{}' not available after {} seconds".format(svc_name, timeout))
+    raise RuntimeError(f"Service '{svc_name}' not available after {timeout} seconds")
 
 
 class WebSocketTestCase(unittest.TestCase):
@@ -115,12 +115,11 @@ class WebSocketTestCase(unittest.TestCase):
 
         # Setup client
         async def client(name, send_msg, received):
-            async with ClientSession() as session:
-                async with session.ws_connect(self.ws_url) as ws:
-                    await ws.send_str(send_msg)
-                    msg = await ws.receive(timeout=1)
-                    if msg.type == WSMsgType.TEXT:
-                        received.append((name, msg.data))
+            async with ClientSession() as session, session.ws_connect(self.ws_url) as ws:
+                await ws.send_str(send_msg)
+                msg = await ws.receive(timeout=1)
+                if msg.type == WSMsgType.TEXT:
+                    received.append((name, msg.data))
 
         received = []
         await asyncio.gather(
@@ -157,14 +156,13 @@ class WebSocketTestCase(unittest.TestCase):
         self.register_handler(WSHandler())
 
         # Setup client
-        async with ClientSession() as session:
-            async with session.ws_connect(self.ws_url) as ws:
-                await ws.send_str("close me")
-                msg = await ws.receive(timeout=1)
-                self.assertEqual(msg.type, WSMsgType.TEXT)
-                self.assertEqual(msg.data, "bye")
-                msg = await ws.receive(timeout=1)
-                self.assertIn(msg.type, (WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.CLOSING))
+        async with ClientSession() as session, session.ws_connect(self.ws_url) as ws:
+            await ws.send_str("close me")
+            msg = await ws.receive(timeout=1)
+            self.assertEqual(msg.type, WSMsgType.TEXT)
+            self.assertEqual(msg.data, "bye")
+            msg = await ws.receive(timeout=1)
+            self.assertIn(msg.type, (WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.CLOSING))
 
         # on_close should have been called
         self.assertTrue(handler_closed.wait(1), "Handler close event not set")
@@ -193,13 +191,12 @@ class WebSocketTestCase(unittest.TestCase):
         self.register_handler(WSHandler())
 
         # Setup client
-        async with ClientSession() as session:
-            async with session.ws_connect(self.ws_url) as ws:
-                await ws.send_str("client will close")
-                msg = await ws.receive(timeout=1)
-                self.assertEqual(msg.type, WSMsgType.TEXT)
-                self.assertEqual(msg.data, "Echo: client will close")
-                await ws.close(code=aiohttp.WSCloseCode.SERVICE_RESTART, message=b"Client closing session")
+        async with ClientSession() as session, session.ws_connect(self.ws_url) as ws:
+            await ws.send_str("client will close")
+            msg = await ws.receive(timeout=1)
+            self.assertEqual(msg.type, WSMsgType.TEXT)
+            self.assertEqual(msg.data, "Echo: client will close")
+            await ws.close(code=aiohttp.WSCloseCode.SERVICE_RESTART, message=b"Client closing session")
 
         self.assertTrue(handler_closed.wait(1), "Handler close event not set")
         assert handler_closed.data is not None
@@ -222,12 +219,11 @@ class WebSocketTestCase(unittest.TestCase):
 
         self.register_handler(WSHandler())
 
-        async with ClientSession() as session:
-            async with session.ws_connect(self.ws_url) as ws:
-                await ws.send_str(large_message)
-                msg = await ws.receive(timeout=2)
-                self.assertEqual(msg.type, WSMsgType.TEXT)
-                self.assertEqual(msg.data, "Received")
+        async with ClientSession() as session, session.ws_connect(self.ws_url) as ws:
+            await ws.send_str(large_message)
+            msg = await ws.receive(timeout=2)
+            self.assertEqual(msg.type, WSMsgType.TEXT)
+            self.assertEqual(msg.data, "Received")
 
         self.assertIn(large_message, messages)
 
@@ -246,12 +242,11 @@ class WebSocketTestCase(unittest.TestCase):
         self.register_handler(WSHandler())
 
         async def client(name, send_msg):
-            async with ClientSession() as session:
-                async with session.ws_connect(self.ws_url) as ws:
-                    await ws.send_str(send_msg)
-                    msg = await ws.receive(timeout=2)
-                    self.assertEqual(msg.type, WSMsgType.TEXT)
-                    self.assertEqual(msg.data, f"Echo: {send_msg}")
+            async with ClientSession() as session, session.ws_connect(self.ws_url) as ws:
+                await ws.send_str(send_msg)
+                msg = await ws.receive(timeout=2)
+                self.assertEqual(msg.type, WSMsgType.TEXT)
+                self.assertEqual(msg.data, f"Echo: {send_msg}")
 
         # Launch 100 clients simultaneously
         await asyncio.gather(*(client(f"client{i}", f"message {i}") for i in range(100)))

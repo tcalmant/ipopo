@@ -33,7 +33,8 @@ import logging
 import ssl
 import threading
 from asyncio import AbstractEventLoop, Future
-from typing import Any, AsyncGenerator, Dict, Optional, Union, cast
+from collections.abc import AsyncGenerator
+from typing import Any, cast
 
 # XMPP, based on slixmpp, replacing sleekxmpp
 from slixmpp.basexmpp import BaseXMPP
@@ -63,7 +64,7 @@ class XMPPBotClient(ClientXMPP):
     """
 
     def __init__(
-        self, jid: Union[str, JID], password: str, initial_priority: int = 0, ssl_verify: bool = False
+        self, jid: str | JID, password: str, initial_priority: int = 0, ssl_verify: bool = False
     ) -> None:
         """
         :param jid: Full Jabber ID of the bot
@@ -156,7 +157,7 @@ class XMPPBotClient(ClientXMPP):
         )
         return super().connect(host, port)
 
-    def __on_connect(self, data: Dict[Any, Any]) -> None:
+    def __on_connect(self, data: dict[Any, Any]) -> None:
         """
         XMPP client connected: unblock the connect() method
         """
@@ -164,12 +165,12 @@ class XMPPBotClient(ClientXMPP):
         self._disconnected_event.clear()
         self._connected_event.set()
 
-    def __on_connect_error(self, data: Dict[Any, Any]) -> None:
+    def __on_connect_error(self, data: dict[Any, Any]) -> None:
         """
         Connection error: raise exception in connect()
         """
         _logger.error("Connect error: %s", data)
-        self._connected_event.raise_exception(IOError("XMPP connection error"))
+        self._connected_event.raise_exception(OSError("XMPP connection error"))
 
     def __on_disconnect(self, data: Any) -> None:
         """
@@ -195,7 +196,7 @@ class XMPPBotClient(ClientXMPP):
         XMPP Stream error: raise exception in connect()
         """
         _logger.error("XMPP Stream error: %s", data)
-        self._connected_event.raise_exception(IOError("XMPP Stream error"))
+        self._connected_event.raise_exception(OSError("XMPP Stream error"))
 
     def on_message_error(self, data: Any) -> None:
         """
@@ -247,7 +248,7 @@ class InviteMixIn(BaseXMPP):
         """
         self.del_event_handler("groupchat_invite", self.on_invite)
 
-    def on_invite(self, data: Dict[str, Any]) -> None:
+    def on_invite(self, data: dict[str, Any]) -> None:
         """
         Multi-User Chat invite
         """
@@ -276,7 +277,7 @@ class ServiceDiscoveryMixin(BaseXMPP):
         # Register the ServiceDiscovery plug-in
         self.register_plugin("xep_0030")
 
-    async def iter_services(self, feature: Optional[str] = None) -> AsyncGenerator[JID, None]:
+    async def iter_services(self, feature: str | None = None) -> AsyncGenerator[JID, None]:
         """
         Iterates over the root-level services on the server which provides the
         requested feature
@@ -317,7 +318,7 @@ class BasicBot:
 
     def __init__(
         self,
-        jid: Union[str, JID],
+        jid: str | JID,
         password: str,
         initial_priority: int = 0,
         ssl_verify: bool = False,
@@ -353,7 +354,7 @@ class BasicBot:
         self,
         event: EventData[XMPPBotClient],
         bot_class: type[XMPPBotClient],
-        jid: Union[str, JID],
+        jid: str | JID,
         password: str,
         initial_priority: int,
         ssl_verify: bool,
@@ -425,7 +426,7 @@ class BasicBot:
         """
         self.__bot.add_event_handler(event, handler)
 
-    def update_roster(self, jid: Union[str, JID], **kwargs) -> None:
+    def update_roster(self, jid: str | JID, **kwargs) -> None:
         """
         Updates the roster for the given JID
         """

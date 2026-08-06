@@ -12,13 +12,13 @@ import sys
 import threading
 import time
 import unittest
+from collections.abc import Callable
 from io import StringIO
-from typing import Any, Callable, Optional, Tuple
+from typing import Any
 
-import pelix.shell.beans as beans
 from pelix.framework import Framework, FrameworkFactory, create_framework
 from pelix.ipopo.constants import use_ipopo
-from pelix.shell import FACTORY_REMOTE_SHELL, RemoteShell, ShellService
+from pelix.shell import FACTORY_REMOTE_SHELL, RemoteShell, ShellService, beans
 from pelix.utilities import to_bytes, to_str
 
 try:
@@ -42,17 +42,17 @@ class ShellClient:
     Simple client of the remote shell
     """
 
-    def __init__(self, banner: Optional[str], ps1: str, fail: Callable[[str], None]) -> None:
+    def __init__(self, banner: str | None, ps1: str, fail: Callable[[str], None]) -> None:
         """
         Sets up the client
         """
-        self._socket: Optional[socket.socket] = None
+        self._socket: socket.socket | None = None
         self._banner = banner
         self._ps1 = ps1
         self.fail = fail
         self.__wait_prompt = True
 
-    def connect(self, access: Tuple[str, int]) -> None:
+    def connect(self, access: tuple[str, int]) -> None:
         """
         Connects to the remote shell
         """
@@ -99,7 +99,7 @@ class ShellClient:
 
         return data
 
-    def run_command(self, command: str, disconnect: bool = False) -> Optional[str]:
+    def run_command(self, command: str, disconnect: bool = False) -> str | None:
         """
         Runs a command on the remote shell
         """
@@ -169,7 +169,7 @@ else:
                 client.connect(("127.0.0.1", port))
 
                 test_string = "running"
-                self.assertEqual(client.run_command("echo {0}".format(test_string)), test_string)
+                self.assertEqual(client.run_command(f"echo {test_string}"), test_string)
 
                 # Good enough: stop there
                 client.close()
@@ -180,7 +180,7 @@ else:
 
                 # Stop the interpreter with a result code
                 rc_code = 42
-                stop_line = "import sys; sys.exit({0})".format(rc_code)
+                stop_line = f"import sys; sys.exit({rc_code})"
                 process.communicate(to_bytes(stop_line))
 
                 # We should be good

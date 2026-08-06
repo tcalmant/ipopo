@@ -101,7 +101,7 @@ class PackagesTest(unittest.TestCase):
         # Install the package
         bundles, failed = self.context.install_package(ok_root)
         if failed:
-            self.fail("Failed to install some packages: {}".format(failed))
+            self.fail(f"Failed to install some packages: {failed}")
 
         # Excepted bundles
         for bundle in bundles:
@@ -110,7 +110,7 @@ class PackagesTest(unittest.TestCase):
             expected.remove(os.path.splitext(os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. Remaining: {}".format(expected))
+            self.fail(f"All bundles should have been installed. Remaining: {expected}")
 
     def test_install_recursive(self):
         """
@@ -123,7 +123,7 @@ class PackagesTest(unittest.TestCase):
         # Install the package
         bundles, failed = self.context.install_package(ok_root, True)
         if failed:
-            self.fail("Failed to install some packages: {}".format(failed))
+            self.fail(f"Failed to install some packages: {failed}")
 
         # Excepted bundles
         for bundle in bundles:
@@ -132,7 +132,7 @@ class PackagesTest(unittest.TestCase):
             expected.remove(os.path.splitext(os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. Remaining: {}".format(expected))
+            self.fail(f"All bundles should have been installed. Remaining: {expected}")
 
     def test_install_fail(self):
         """
@@ -164,7 +164,7 @@ class PackagesTest(unittest.TestCase):
             expected.remove(os.path.splitext(os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. Remaining: {}".format(expected))
+            self.fail(f"All bundles should have been installed. Remaining: {expected}")
 
     def test_install_fail_recursive(self):
         """
@@ -196,7 +196,7 @@ class PackagesTest(unittest.TestCase):
             expected.remove(os.path.splitext(os.path.abspath(bundle.get_location()))[0])
 
         if expected:
-            self.fail("All bundles should have been installed. Remaining: {}".format(expected))
+            self.fail(f"All bundles should have been installed. Remaining: {expected}")
 
     def test_first_install_fail(self):
         """

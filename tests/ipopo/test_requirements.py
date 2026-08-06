@@ -8,8 +8,8 @@ Tests the component requirements behavior
 
 import unittest
 
-import pelix.ipopo.constants as constants
 from pelix.framework import Bundle, FrameworkFactory
+from pelix.ipopo import constants
 from pelix.ipopo.constants import IPopoEvent
 from tests import log_off, log_on
 from tests.interfaces import IEchoService
@@ -60,7 +60,7 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
             compoA.states,
-            "Invalid component states: {0}".format(compoA.states),
+            f"Invalid component states: {compoA.states}",
         )
         compoA.reset()
 
@@ -69,27 +69,27 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.INSTANTIATED, IPopoEvent.BOUND, IPopoEvent.VALIDATED],
             compoB.states,
-            "Invalid component states: {0}".format(compoB.states),
+            f"Invalid component states: {compoB.states}",
         )
         compoB.reset()
 
         # Invalidate B
         self.ipopo.invalidate(NAME_B)
         self.assertEqual(
-            [IPopoEvent.INVALIDATED], compoB.states, "Invalid component states: {0}".format(compoB.states)
+            [IPopoEvent.INVALIDATED], compoB.states, f"Invalid component states: {compoB.states}"
         )
         compoB.reset()
 
         # Uninstantiate B
         self.ipopo.kill(NAME_B)
         self.assertEqual(
-            [IPopoEvent.UNBOUND], compoB.states, "Invalid component states: {0}".format(compoB.states)
+            [IPopoEvent.UNBOUND], compoB.states, f"Invalid component states: {compoB.states}"
         )
 
         # Uninstantiate A
         self.ipopo.kill(NAME_A)
         self.assertEqual(
-            [IPopoEvent.INVALIDATED], compoA.states, "Invalid component states: {0}".format(compoA.states)
+            [IPopoEvent.INVALIDATED], compoA.states, f"Invalid component states: {compoA.states}"
         )
 
     def testCycleOuterEnd(self):
@@ -104,7 +104,7 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
             compoA.states,
-            "Invalid component states: {0}".format(compoA.states),
+            f"Invalid component states: {compoA.states}",
         )
         compoA.reset()
 
@@ -113,26 +113,26 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.INSTANTIATED, IPopoEvent.BOUND, IPopoEvent.VALIDATED],
             compoB.states,
-            "Invalid component states: {0}".format(compoA.states),
+            f"Invalid component states: {compoA.states}",
         )
         compoB.reset()
 
         # Uninstantiate A
         self.ipopo.kill(NAME_A)
         self.assertEqual(
-            [IPopoEvent.INVALIDATED], compoA.states, "Invalid component states: {0}".format(compoA.states)
+            [IPopoEvent.INVALIDATED], compoA.states, f"Invalid component states: {compoA.states}"
         )
 
         self.assertEqual(
             [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
             compoB.states,
-            "Invalid component states: {0}".format(compoB.states),
+            f"Invalid component states: {compoB.states}",
         )
         compoB.reset()
 
         # Uninstantiate B
         self.ipopo.kill(NAME_B)
-        self.assertEqual([], compoB.states, "Invalid component states: {0}".format(compoA.states))
+        self.assertEqual([], compoB.states, f"Invalid component states: {compoA.states}")
 
     def testCycleOuterStart(self):
         """
@@ -144,7 +144,7 @@ class RequirementTest(unittest.TestCase):
         # Instantiate B (no requirement present)
         compoB = self.ipopo.instantiate(module.FACTORY_B, NAME_B)
         self.assertEqual(
-            [IPopoEvent.INSTANTIATED], compoB.states, "Invalid component states: {0}".format(compoB.states)
+            [IPopoEvent.INSTANTIATED], compoB.states, f"Invalid component states: {compoB.states}"
         )
         compoB.reset()
 
@@ -153,7 +153,7 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
             compoA.states,
-            "Invalid component states: {0}".format(compoA.states),
+            f"Invalid component states: {compoA.states}",
         )
         compoA.reset()
 
@@ -161,27 +161,27 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.BOUND, IPopoEvent.VALIDATED],
             compoB.states,
-            "Invalid component states: {0}".format(compoB.states),
+            f"Invalid component states: {compoB.states}",
         )
         compoB.reset()
 
         # Invalidate B
         self.ipopo.invalidate(NAME_B)
         self.assertEqual(
-            [IPopoEvent.INVALIDATED], compoB.states, "Invalid component states: {0}".format(compoB.states)
+            [IPopoEvent.INVALIDATED], compoB.states, f"Invalid component states: {compoB.states}"
         )
         compoB.reset()
 
         # Uninstantiate B
         self.ipopo.kill(NAME_B)
         self.assertEqual(
-            [IPopoEvent.UNBOUND], compoB.states, "Invalid component states: {0}".format(compoB.states)
+            [IPopoEvent.UNBOUND], compoB.states, f"Invalid component states: {compoB.states}"
         )
 
         # Uninstantiate A
         self.ipopo.kill(NAME_A)
         self.assertEqual(
-            [IPopoEvent.INVALIDATED], compoA.states, "Invalid component states: {0}".format(compoA.states)
+            [IPopoEvent.INVALIDATED], compoA.states, f"Invalid component states: {compoA.states}"
         )
 
     def testConfiguredInstance(self):
@@ -192,7 +192,7 @@ class RequirementTest(unittest.TestCase):
 
         # The module filter
         properties_b = {
-            constants.IPOPO_REQUIRES_FILTERS: {"service": "({0}=True)".format(module.PROP_USABLE)}
+            constants.IPOPO_REQUIRES_FILTERS: {"service": f"({module.PROP_USABLE}=True)"}
         }
 
         # Instantiate A (validated)
@@ -204,7 +204,7 @@ class RequirementTest(unittest.TestCase):
         # Instantiate B (must not be bound)
         compoB = self.ipopo.instantiate(module.FACTORY_B, NAME_B, properties_b)
         self.assertEqual(
-            [IPopoEvent.INSTANTIATED], compoB.states, "Invalid component states: {0}".format(compoB.states)
+            [IPopoEvent.INSTANTIATED], compoB.states, f"Invalid component states: {compoB.states}"
         )
         compoB.reset()
 
@@ -215,7 +215,7 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.BOUND, IPopoEvent.VALIDATED],
             compoB.states,
-            "Invalid component states: {0}".format(compoB.states),
+            f"Invalid component states: {compoB.states}",
         )
         compoB.reset()
 
@@ -226,7 +226,7 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
             compoB.states,
-            "Invalid component states: {0}".format(compoB.states),
+            f"Invalid component states: {compoB.states}",
         )
 
     def testAggregateDependency(self):
@@ -242,7 +242,7 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
             compoC.states,
-            "Invalid component states: {0}".format(compoC.states),
+            f"Invalid component states: {compoC.states}",
         )
         compoC.reset()
 
@@ -253,7 +253,7 @@ class RequirementTest(unittest.TestCase):
         # The dependency must be injected
         self.assertIn(self, compoC.services, "Service not injected")
         self.assertEqual(
-            [IPopoEvent.BOUND], compoC.states, "Invalid component states: {0}".format(compoC.states)
+            [IPopoEvent.BOUND], compoC.states, f"Invalid component states: {compoC.states}"
         )
         compoC.reset()
 
@@ -264,7 +264,7 @@ class RequirementTest(unittest.TestCase):
         self.assertIn(self, compoC.services, "Service illegally removed")
         self.assertIn(compoA, compoC.services, "Service not injected")
         self.assertEqual(
-            [IPopoEvent.BOUND], compoC.states, "Invalid component states: {0}".format(compoC.states)
+            [IPopoEvent.BOUND], compoC.states, f"Invalid component states: {compoC.states}"
         )
         compoC.reset()
 
@@ -275,7 +275,7 @@ class RequirementTest(unittest.TestCase):
         self.assertNotIn(compoA, compoC.services, "Service not removed")
         self.assertIn(self, compoC.services, "Service illegally removed")
         self.assertEqual(
-            [IPopoEvent.UNBOUND], compoC.states, "Invalid component states: {0}".format(compoC.states)
+            [IPopoEvent.UNBOUND], compoC.states, f"Invalid component states: {compoC.states}"
         )
         compoC.reset()
 
@@ -284,7 +284,7 @@ class RequirementTest(unittest.TestCase):
         self.assertIn(self, compoC.services, "Service illegally removed")
         self.assertIn(compoA, compoC.services, "Service not injected")
         self.assertEqual(
-            [IPopoEvent.BOUND], compoC.states, "Invalid component states: {0}".format(compoC.states)
+            [IPopoEvent.BOUND], compoC.states, f"Invalid component states: {compoC.states}"
         )
         compoC.reset()
 
@@ -295,7 +295,7 @@ class RequirementTest(unittest.TestCase):
         self.assertNotIn(self, compoC.services, "Service not removed")
         self.assertIn(compoA, compoC.services, "Service illegally removed")
         self.assertEqual(
-            [IPopoEvent.UNBOUND], compoC.states, "Invalid component states: {0}".format(compoC.states)
+            [IPopoEvent.UNBOUND], compoC.states, f"Invalid component states: {compoC.states}"
         )
         compoC.reset()
 
@@ -305,14 +305,14 @@ class RequirementTest(unittest.TestCase):
         # The dependency must have been removed
         self.assertIsNone(compoC.services, "Aggregate dependency without value must be None")
         self.assertEqual(
-            [IPopoEvent.UNBOUND], compoC.states, "Invalid component states: {0}".format(compoC.states)
+            [IPopoEvent.UNBOUND], compoC.states, f"Invalid component states: {compoC.states}"
         )
         compoC.reset()
 
         # Delete C
         self.ipopo.kill(NAME_C)
         self.assertEqual(
-            [IPopoEvent.INVALIDATED], compoC.states, "Invalid component states: {0}".format(compoC.states)
+            [IPopoEvent.INVALIDATED], compoC.states, f"Invalid component states: {compoC.states}"
         )
 
     def testAggregateDependencyLate(self):
@@ -333,7 +333,7 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.INSTANTIATED, IPopoEvent.BOUND, IPopoEvent.VALIDATED],
             compoC.states,
-            "Invalid component states: {0}".format(compoC.states),
+            f"Invalid component states: {compoC.states}",
         )
 
     def testCallbackRaiser(self):
@@ -345,7 +345,7 @@ class RequirementTest(unittest.TestCase):
         # Instantiate B (no requirement present)
         compoB = self.ipopo.instantiate(module.FACTORY_B, NAME_B)
         self.assertEqual(
-            [IPopoEvent.INSTANTIATED], compoB.states, "Invalid component states: {0}".format(compoB.states)
+            [IPopoEvent.INSTANTIATED], compoB.states, f"Invalid component states: {compoB.states}"
         )
         compoB.reset()
 
@@ -360,7 +360,7 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
             compoA.states,
-            "Invalid component states: {0}".format(compoA.states),
+            f"Invalid component states: {compoA.states}",
         )
         compoA.reset()
 
@@ -368,7 +368,7 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.BOUND, IPopoEvent.VALIDATED],
             compoB.states,
-            "Invalid component states: {0}".format(compoB.states),
+            f"Invalid component states: {compoB.states}",
         )
         compoB.reset()
 
@@ -378,14 +378,14 @@ class RequirementTest(unittest.TestCase):
         log_on()
 
         self.assertEqual(
-            [IPopoEvent.INVALIDATED], compoA.states, "Invalid component states: {0}".format(compoA.states)
+            [IPopoEvent.INVALIDATED], compoA.states, f"Invalid component states: {compoA.states}"
         )
 
         # Uninstantiate B
         self.assertEqual(
             [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
             compoB.states,
-            "Invalid component states: {0}".format(compoB.states),
+            f"Invalid component states: {compoB.states}",
         )
 
     def testCallbackInstantiateStopper(self):
@@ -397,7 +397,7 @@ class RequirementTest(unittest.TestCase):
         # Instantiate B (no requirement present)
         compoB = self.ipopo.instantiate(module.FACTORY_B, NAME_B)
         self.assertEqual(
-            [IPopoEvent.INSTANTIATED], compoB.states, "Invalid component states: {0}".format(compoB.states)
+            [IPopoEvent.INSTANTIATED], compoB.states, f"Invalid component states: {compoB.states}"
         )
         compoB.reset()
 
@@ -413,7 +413,7 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
             compoA.states,
-            "Invalid component states: {0}".format(compoA.states),
+            f"Invalid component states: {compoA.states}",
         )
         compoA.reset()
 
@@ -421,7 +421,7 @@ class RequirementTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.BOUND, IPopoEvent.UNBOUND],
             compoB.states,
-            "Invalid component states: {0}".format(compoB.states),
+            f"Invalid component states: {compoB.states}",
         )
         compoB.reset()
 
@@ -439,7 +439,7 @@ class RequirementTest(unittest.TestCase):
         # Instantiate B (no requirement present)
         compoB = self.ipopo.instantiate(module.FACTORY_B, NAME_B)
         self.assertEqual(
-            [IPopoEvent.INSTANTIATED], compoB.states, "Invalid component states: {0}".format(compoB.states)
+            [IPopoEvent.INSTANTIATED], compoB.states, f"Invalid component states: {compoB.states}"
         )
         compoB.reset()
 
@@ -569,7 +569,7 @@ class RequirementTest(unittest.TestCase):
         self.assertListEqual(
             [IPopoEvent.INSTANTIATED],
             consumer.states,
-            "Invalid component states: {0}".format(consumer.states),
+            f"Invalid component states: {consumer.states}",
         )
         consumer.reset()
 
@@ -581,7 +581,7 @@ class RequirementTest(unittest.TestCase):
         self.assertListEqual(
             [IPopoEvent.BOUND, IPopoEvent.VALIDATED],
             consumer.states,
-            "Invalid component states: {0}".format(consumer.states),
+            f"Invalid component states: {consumer.states}",
         )
         self.assertIs(consumer.service, svc1, "Wrong service injected")
         consumer.reset()
@@ -591,7 +591,7 @@ class RequirementTest(unittest.TestCase):
         reg2 = context.register_service(IEchoService, svc2, {})
 
         # No modification for the consumer
-        self.assertListEqual([], consumer.states, "Invalid component states: {0}".format(consumer.states))
+        self.assertListEqual([], consumer.states, f"Invalid component states: {consumer.states}")
         self.assertIs(consumer.service, svc1, "Wrong service injected")
         consumer.reset()
 
@@ -603,7 +603,7 @@ class RequirementTest(unittest.TestCase):
         self.assertListEqual(
             [IPopoEvent.UNBOUND, IPopoEvent.BOUND],
             consumer.states,
-            "Invalid component states: {0}".format(consumer.states),
+            f"Invalid component states: {consumer.states}",
         )
         self.assertIs(consumer.service, svc2, "Wrong service injected")
         consumer.reset()
@@ -615,7 +615,7 @@ class RequirementTest(unittest.TestCase):
         self.assertListEqual(
             [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
             consumer.states,
-            "Invalid component states: {0}".format(consumer.states),
+            f"Invalid component states: {consumer.states}",
         )
         self.assertIsNone(consumer.service, "Service still injected")
         consumer.reset()

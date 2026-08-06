@@ -10,9 +10,9 @@ import http.client as httplib
 import logging
 import shutil
 import unittest
-from typing import Any, Dict, Optional
+from typing import Any
 
-import pelix.http as http
+from pelix import http
 from pelix.framework import Framework, FrameworkFactory
 from pelix.ipopo.constants import IPopoService
 from tests.http.gen_cert import make_certs
@@ -48,7 +48,7 @@ def get_https_code(
     port: int = DEFAULT_PORT,
     uri: str = "/",
     method: str = "GET",
-    headers: Optional[Dict[str, Any]] = None,
+    headers: dict[str, Any] | None = None,
     content: Any = None,
 ) -> int:
     """

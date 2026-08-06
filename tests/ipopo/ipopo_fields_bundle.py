@@ -56,7 +56,7 @@ UNBIND_FIELD_B = "unbind.field.b"
 @ComponentFactory(FACTORY_A)
 @Provides(SVC_A)
 @Property("_prop", PROP_TEST)
-class TestComponentA(object):
+class TestComponentA:
     """
     Provider of service A
     """
@@ -91,7 +91,7 @@ class TestComponentA(object):
 @ComponentFactory(FACTORY_B)
 @Provides(SVC_B)
 @Property("_prop", PROP_TEST)
-class TestComponentB(object):
+class TestComponentB:
     """
     Provider of service B
     """
@@ -130,7 +130,7 @@ class TestComponentB(object):
 @ComponentFactory(FACTORY_C)
 @Requires("_svc_a", SVC_A)
 @Requires("_svc_b", SVC_B)
-class Consumer(object):
+class Consumer:
     """
     Sample consumer
     """
@@ -239,7 +239,7 @@ class Consumer(object):
 @ComponentFactory(FACTORY_D)
 @Requires("_svc_a", SVC_A)
 @Requires("_svc_b", SVC_B, optional=True)
-class ConsumerBindIfValid(object):
+class ConsumerBindIfValid:
     """
     Sample consumer to test the "if_valid" flag
     """

@@ -27,16 +27,16 @@ RequiresBroadcast handler implementation
 
 import logging
 import threading
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from collections.abc import Iterable
+from typing import Any
 
 import pelix.ipopo.constants as ipopo_constants
-import pelix.ipopo.handlers.constants as constants
-import pelix.ipopo.handlers.requires as requires
 from pelix.constants import ActivatorProto, BundleActivator, BundleException
 from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceListener, ServiceReference, ServiceRegistration
 from pelix.ipopo.contexts import ComponentContext, Requirement
+from pelix.ipopo.handlers import constants, requires
 from pelix.ipopo.instance import StoredInstance
 
 # ------------------------------------------------------------------------------
@@ -93,7 +93,7 @@ class Activator(ActivatorProto):
         """
         Sets up members
         """
-        self._registration: Optional[ServiceRegistration[constants.HandlerFactory]] = None
+        self._registration: ServiceRegistration[constants.HandlerFactory] | None = None
 
     def start(self, context: BundleContext) -> None:
         """
@@ -127,7 +127,7 @@ class _ProxyDummy:
     Dummy "Yes Man" object
     """
 
-    def __init__(self, handler: "BroadcastDependency", name: Optional[str]) -> None:
+    def __init__(self, handler: "BroadcastDependency", name: str | None) -> None:
         """
         :param handler: The parent BroadcastHandler
         :param name: Name of this field
@@ -180,10 +180,10 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
         self._lock: threading.RLock = threading.RLock()
 
         # The iPOPO StoredInstance object (given during manipulation)
-        self._ipopo_instance: Optional[StoredInstance] = None
+        self._ipopo_instance: StoredInstance | None = None
 
         # The bundle context
-        self._context: Optional[BundleContext] = None
+        self._context: BundleContext | None = None
 
         # The associated field
         self._field: str = field
@@ -202,7 +202,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
         self._logger = logging.getLogger("-".join(("<n/a>", "RequiresBroadcast", field)))
 
         # Reference -> Service
-        self._services: Dict[ServiceReference[Any], Any] = {}
+        self._services: dict[ServiceReference[Any], Any] = {}
 
         # Length of the future injected list
         self._future_len = 0
@@ -239,7 +239,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
         self._muffle_ex = False
         self._trace_ex = False
 
-    def get_bindings(self) -> List[ServiceReference[Any]]:
+    def get_bindings(self) -> list[ServiceReference[Any]]:
         """
         Retrieves the list of the references to the bound services
 
@@ -254,7 +254,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
         """
         return self._field
 
-    def get_kinds(self) -> Tuple[str]:
+    def get_kinds(self) -> tuple[str]:
         """
         Retrieves the kinds of this handler: 'dependency'
 
@@ -374,7 +374,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
 
         self._context.add_service_listener(self, self.requirement.filter, self.requirement.specification)
 
-    def stop(self) -> Optional[List[Tuple[Any, ServiceReference[Any]]]]:
+    def stop(self) -> list[tuple[Any, ServiceReference[Any]]] | None:
         """
         Stops the dependency manager (must be called before clear())
 
@@ -405,7 +405,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
                 raise ValueError("Requirement not set up")
 
             # Get all matching services
-            refs: Optional[List[ServiceReference[Any]]] = self._context.get_all_service_references(
+            refs: list[ServiceReference[Any]] | None = self._context.get_all_service_references(
                 self.requirement.specification, self.requirement.filter
             )
             if not refs:
@@ -432,7 +432,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
                 del results[:]
                 raise
 
-    def handle_call(self, members_str: Optional[str], args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> bool:
+    def handle_call(self, members_str: str | None, args: tuple[Any, ...], kwargs: dict[str, Any]) -> bool:
         """
         Handles a call to the proxy
         """

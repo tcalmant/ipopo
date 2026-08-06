@@ -16,7 +16,7 @@ try:
 except ImportError:
     raise unittest.SkipTest("aiohttp library not available")
 
-import pelix.http as http
+from pelix import http
 from pelix.framework import FrameworkFactory, create_framework
 from pelix.ipopo.constants import use_ipopo
 from tests.http.utils import async_test

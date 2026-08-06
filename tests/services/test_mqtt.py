@@ -12,10 +12,10 @@ import string
 import tempfile
 import time
 import unittest
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any
 
 import pelix.framework
-import pelix.services as services
+from pelix import services
 from pelix.internals.registry import ServiceReference
 
 try:
@@ -41,9 +41,9 @@ class Listener:
         """
         Sets up members
         """
-        self.messages: List[Tuple[str, Union[str, bytes], int]] = []
+        self.messages: list[tuple[str, str | bytes, int]] = []
 
-    def handle_mqtt_message(self, topic: str, payload: Union[str, bytes], qos: int) -> None:
+    def handle_mqtt_message(self, topic: str, payload: str | bytes, qos: int) -> None:
         """
         Got a message
         """
@@ -59,7 +59,7 @@ class MqttServiceTest(unittest.TestCase):
     PORT = 1883
 
     framework: pelix.framework.Framework
-    config_ref: Optional[ServiceReference[services.IConfigurationAdmin]]
+    config_ref: ServiceReference[services.IConfigurationAdmin] | None
     config: services.IConfigurationAdmin
 
     def setUp(self) -> None:
@@ -99,7 +99,7 @@ class MqttServiceTest(unittest.TestCase):
         """
         Tests MQTT utility without configuration
         """
-        svc_ref: Optional[ServiceReference[Any]]
+        svc_ref: ServiceReference[Any] | None
 
         # Wait a bit
         time.sleep(0.5)
@@ -111,11 +111,11 @@ class MqttServiceTest(unittest.TestCase):
 
     def _setup_mqtt(
         self, context: pelix.framework.BundleContext
-    ) -> Tuple[services.Configuration, ServiceReference[Any]]:
+    ) -> tuple[services.Configuration, ServiceReference[Any]]:
         """
         Common code for MQTT service creation
         """
-        svc_ref: Optional[ServiceReference[Any]]
+        svc_ref: ServiceReference[Any] | None
 
         # Setup MQTT connection
         config = self.config.create_factory_configuration(services.MQTT_CONNECTOR_FACTORY_PID)
@@ -137,7 +137,7 @@ class MqttServiceTest(unittest.TestCase):
         """
         Tests service configuration
         """
-        svc_ref: Optional[ServiceReference[Any]]
+        svc_ref: ServiceReference[Any] | None
 
         # Prepare service
         context = self.framework.get_bundle_context()
@@ -156,7 +156,7 @@ class MqttServiceTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
         for _ in range(10):
             svc_ref = context.get_service_reference(
-                services.SERVICE_MQTT_CONNECTION, "(id={})".format(config.get_pid())
+                services.SERVICE_MQTT_CONNECTION, f"(id={config.get_pid()})"
             )
             if svc_ref is None:
                 break
@@ -236,7 +236,7 @@ class MqttServiceTest(unittest.TestCase):
                 # It is possible we got a copy of the previous message
                 # (QOS 1: at least one time)
                 if msg_topic == topic:
-                    self.fail("Got a message that should be filtered: {}".format(msg_topic))
+                    self.fail(f"Got a message that should be filtered: {msg_topic}")
 
         # Change topic filter
         lst_reg.set_properties({services.PROP_MQTT_TOPICS: "/pelix/foo/#"})

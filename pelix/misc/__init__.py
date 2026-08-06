@@ -91,14 +91,14 @@ class LogEntry(Protocol):
     """
 
     @property
-    def bundle(self) -> Optional[Bundle]:
+    def bundle(self) -> Bundle | None:
         """
         The bundle that created this entry
         """
         ...
 
     @property
-    def message(self) -> Optional[str]:
+    def message(self) -> str | None:
         """
         The message associated to this entry
         """
@@ -126,7 +126,7 @@ class LogEntry(Protocol):
         ...
 
     @property
-    def reference(self) -> Optional[ServiceReference[Any]]:
+    def reference(self) -> ServiceReference[Any] | None:
         """
         The reference to the service associated to this entry
         """
@@ -187,7 +187,7 @@ class LogReader(Protocol):
         """
         ...
 
-    def get_log(self) -> Tuple[LogEntry, ...]:
+    def get_log(self) -> tuple[LogEntry, ...]:
         """
         Returns the logs events kept by the service
 
@@ -205,9 +205,9 @@ class LogService(Protocol):
     def log(
         self,
         level: int,
-        message: Optional[str],
+        message: str | None,
         exc_info: OptExcInfo = None,
-        reference: Optional[ServiceReference[Any]] = None,
+        reference: ServiceReference[Any] | None = None,
     ) -> None:
         """
         Logs a message, possibly with an exception

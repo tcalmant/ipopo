@@ -26,7 +26,7 @@ NAME_A = "componentA"
 # ------------------------------------------------------------------------------
 
 
-class Dummy(object):
+class Dummy:
     """
     Dummy object for tests
     """

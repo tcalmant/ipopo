@@ -27,7 +27,7 @@ BasicTopologyManager implements TopologyManager API
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
@@ -63,7 +63,7 @@ class BasicTopologyManager(TopologyManager):
     BasicTopologyManager extends TopologyManager api
     """
 
-    def event(self, service_event: ServiceEvent[Any], listener_dict: Dict[Any, Any]) -> None:
+    def event(self, service_event: ServiceEvent[Any], listener_dict: dict[Any, Any]) -> None:
         """
         Implementation of EventListenerHook.  Called by local
         service registry when a service is registered, unregistered
@@ -105,7 +105,7 @@ class BasicTopologyManager(TopologyManager):
             _logger.debug("BasicTopologyManager: endpoint updated. endpoint.id=%s", ed_id)
 
 
-def instantiate_basic_topology_manager(context: BundleContext, properties: Optional[Dict[str, Any]] = None):
+def instantiate_basic_topology_manager(context: BundleContext, properties: dict[str, Any] | None = None):
     if not properties:
         properties = BASIC_TOPOLOGY_MANAGER_DEFAULT_PROPS
     from pelix.rsa import instantiate_rsa_component

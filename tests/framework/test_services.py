@@ -64,16 +64,16 @@ class ServicesTest(unittest.TestCase):
 
         # Assert we can't access the service
         ref1 = context.get_service_reference(IEchoService)
-        self.assertIsNone(ref1, "get_service_reference found: {0}".format(ref1))
+        self.assertIsNone(ref1, f"get_service_reference found: {ref1}")
 
         ref2 = context.get_service_reference(IEchoService, svc_filter)
-        self.assertIsNone(ref2, "get_service_reference, filtered found: {0}".format(ref2))
+        self.assertIsNone(ref2, f"get_service_reference, filtered found: {ref2}")
 
         refs = context.get_all_service_references(IEchoService, None)
-        self.assertIsNone(refs, "get_all_service_reference found: {0}".format(refs))
+        self.assertIsNone(refs, f"get_all_service_reference found: {refs}")
 
         refs = context.get_all_service_references(IEchoService, svc_filter)
-        self.assertIsNone(refs, "get_all_service_reference, filtered found: {0}".format(refs))
+        self.assertIsNone(refs, f"get_all_service_reference, filtered found: {refs}")
 
         # --- Start it (registers a service) ---
         bundle.start()
@@ -145,16 +145,16 @@ class ServicesTest(unittest.TestCase):
 
         # Assert we can't access the service
         ref1 = context.get_service_reference(IEchoService)
-        self.assertIsNone(ref1, "get_service_reference found: {0}".format(ref1))
+        self.assertIsNone(ref1, f"get_service_reference found: {ref1}")
 
         ref2 = context.get_service_reference(IEchoService, svc_filter)
-        self.assertIsNone(ref2, "get_service_reference, filtered found: {0}".format(ref2))
+        self.assertIsNone(ref2, f"get_service_reference, filtered found: {ref2}")
 
         refs = context.get_all_service_references(IEchoService, None)
-        self.assertIsNone(refs, "get_all_service_reference found: {0}".format(refs))
+        self.assertIsNone(refs, f"get_all_service_reference found: {refs}")
 
         refs = context.get_all_service_references(IEchoService, svc_filter)
-        self.assertIsNone(refs, "get_all_service_reference, filtered found: {0}".format(refs))
+        self.assertIsNone(refs, f"get_all_service_reference, filtered found: {refs}")
 
         # --- Uninstall it ---
         bundle.uninstall()
@@ -197,7 +197,7 @@ class ServicesTest(unittest.TestCase):
 
         # The service should be deleted
         ref = context.get_service_reference(IEchoService)
-        self.assertIsNone(ref, "get_service_reference found: {0}".format(ref))
+        self.assertIsNone(ref, f"get_service_reference found: {ref}")
 
         # We shouldn't have access to the bundle services anymore
         self.assertRaises(BundleException, bundle.get_registered_services)
@@ -293,7 +293,7 @@ class ServicesTest(unittest.TestCase):
         # Ensure that reserved properties have been overridden
         object_class = ref.get_property(pelix.constants.OBJECTCLASS)
         self.assertListEqual(
-            object_class, ["class"], "Invalid objectClass property '{0}'".format(object_class)
+            object_class, ["class"], f"Invalid objectClass property '{object_class}'"
         )
 
         svc_id = ref.get_property(pelix.constants.SERVICE_ID)

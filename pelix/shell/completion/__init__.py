@@ -82,7 +82,7 @@ class CompletionInfo:
     Keep track of the configuration of a completion
     """
 
-    completers: List[str]
+    completers: list[str]
     """
     List of IDs of shell completers
     """
@@ -105,9 +105,9 @@ class Completer(Protocol):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        current_arguments: List[str],
+        current_arguments: list[str],
         current: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Returns the list of bundle IDs matching the current state
 

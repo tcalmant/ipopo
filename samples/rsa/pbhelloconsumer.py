@@ -24,7 +24,7 @@ def create_hellomsgcontent(message: str) -> HelloMsgContent:
     resmsg.f = "Python consumer"
     resmsg.to = "tojava"
     resmsg.hellomsg = message
-    for x in range(0, 5):
+    for x in range(5):
         resmsg.x.append(float(x))
     return resmsg
 
@@ -48,16 +48,16 @@ class RemotePbHelloConsumer:
     def _validate(self, bcontext: BundleContext) -> None:
         # call it!
         resp = self._helloservice.sayHello(create_hellomsgcontent("pbPython consumer calling pb.sayHello"))
-        print("pb sayHello received response: {0}".format(resp))
+        print(f"pb sayHello received response: {resp}")
         # call sayHelloAsync which returns future and we lambda to print the
         # result when done
         self._helloservice.sayHelloAsync(
             create_hellomsgcontent("pbPython consumer calling pb.sayHelloAsynch")
-        ).add_done_callback(lambda f: print("pbasync respon: {0}".format(f.result())))
+        ).add_done_callback(lambda f: print(f"pbasync respon: {f.result()}"))
         print("done with pb.sayHelloAsync")
         # call sayHelloAsync which returns Future and we add lambda to print
         # the result when done
         self._helloservice.sayHelloPromise(
             create_hellomsgcontent("pbPython consumer calling pb.sayHelloPromise")
-        ).add_done_callback(lambda f: print("pbpromise response: {0}".format(f.result())))
+        ).add_done_callback(lambda f: print(f"pbpromise response: {f.result()}"))
         print("done with sayHelloPromise")

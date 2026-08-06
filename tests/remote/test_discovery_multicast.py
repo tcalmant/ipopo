@@ -10,7 +10,7 @@ except local multicast sockets)
 import json
 import socket
 import unittest
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from pelix.remote.discovery.multicast import (
     MulticastDiscovery,
@@ -90,11 +90,11 @@ class RecordingAccess:
     """
 
     def __init__(self) -> None:
-        self.access: Optional[Tuple[int, str]] = (8080, "/pelix-dispatcher")
-        self.discovered: List[Tuple[str, int, str]] = []
-        self.endpoints: Dict[str, Any] = {}
+        self.access: tuple[int, str] | None = (8080, "/pelix-dispatcher")
+        self.discovered: list[tuple[str, int, str]] = []
+        self.endpoints: dict[str, Any] = {}
 
-    def get_access(self) -> Optional[Tuple[int, str]]:
+    def get_access(self) -> tuple[int, str] | None:
         return self.access
 
     def send_discovered(self, host: str, port: int, path: str) -> None:
@@ -110,9 +110,9 @@ class RecordingRegistry:
     """
 
     def __init__(self) -> None:
-        self.added: List[Any] = []
-        self.removed: List[str] = []
-        self.updated: List[Tuple[str, Dict[str, Any]]] = []
+        self.added: list[Any] = []
+        self.removed: list[str] = []
+        self.updated: list[tuple[str, dict[str, Any]]] = []
 
     def add(self, endpoint: Any) -> None:
         self.added.append(endpoint)
@@ -120,7 +120,7 @@ class RecordingRegistry:
     def remove(self, uid: str) -> None:
         self.removed.append(uid)
 
-    def update(self, uid: str, new_properties: Dict[str, Any]) -> None:
+    def update(self, uid: str, new_properties: dict[str, Any]) -> None:
         self.updated.append((uid, new_properties))
 
 
@@ -132,7 +132,7 @@ class FakeExportEndpoint:
     def __init__(self, uid: str) -> None:
         self.uid = uid
 
-    def make_import_properties(self) -> Dict[str, Any]:
+    def make_import_properties(self) -> dict[str, Any]:
         return {"fake": True}
 
 
@@ -151,7 +151,7 @@ class PacketHandlingTest(unittest.TestCase):
         self.discovery._access = self.access  # type: ignore
         self.discovery._registry = self.registry  # type: ignore
 
-    def _handle(self, data: Dict[str, Any]) -> None:
+    def _handle(self, data: dict[str, Any]) -> None:
         self.discovery._handle_packet(self.SENDER, json.dumps(data))
 
     def test_own_packet_ignored(self) -> None:

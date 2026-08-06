@@ -27,7 +27,7 @@ Defines the decorators associated shell completion handlers to a shell function
 """
 
 import importlib.util
-from typing import List, TypeVar
+from typing import TypeVar
 
 from . import ATTR_COMPLETERS, CompletionInfo
 
@@ -60,7 +60,7 @@ class Completion:
         :param completers: A list of IDs (str) of argument completers
         :param multiple: If True, the last completer is reused multiple times
         """
-        self._completers: List[str] = list(completers)
+        self._completers: list[str] = list(completers)
         self._multiple = kwargs.get("multiple", False)
 
     def __call__(self, method: T) -> T:

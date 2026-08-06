@@ -12,8 +12,8 @@ from typing import Any
 
 import pelix.framework
 import pelix.shell
-import pelix.shell.beans as beans
 from pelix.ipopo.constants import use_ipopo
+from pelix.shell import beans
 
 # ------------------------------------------------------------------------------
 

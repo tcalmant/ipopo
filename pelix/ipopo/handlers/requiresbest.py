@@ -25,15 +25,15 @@ RequiresBest handler implementation
     limitations under the License.
 """
 
-from typing import Any, Dict, Iterable, Optional, cast
+from collections.abc import Iterable
+from typing import Any, cast
 
 import pelix.ipopo.constants as ipopo_constants
-import pelix.ipopo.handlers.constants as constants
-import pelix.ipopo.handlers.requires as requires
 from pelix.constants import SERVICE_RANKING, ActivatorProto, BundleActivator
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo.contexts import ComponentContext, Requirement
+from pelix.ipopo.handlers import constants, requires
 
 # ------------------------------------------------------------------------------
 
@@ -74,7 +74,7 @@ class Activator(ActivatorProto):
         """
         Sets up members
         """
-        self._registration: Optional[ServiceRegistration[constants.HandlerFactory]] = None
+        self._registration: ServiceRegistration[constants.HandlerFactory] | None = None
 
     def start(self, context: BundleContext) -> None:
         """
@@ -114,10 +114,10 @@ class BestDependency(requires.SimpleDependency):
         """
         Sets up members
         """
-        super(BestDependency, self).__init__(field, requirement)
+        super().__init__(field, requirement)
 
         # Current ranking
-        self._current_ranking: Optional[int] = None
+        self._current_ranking: int | None = None
 
     def clear(self) -> None:
         """
@@ -125,7 +125,7 @@ class BestDependency(requires.SimpleDependency):
         been called
         """
         self._current_ranking = None
-        super(BestDependency, self).clear()
+        super().clear()
 
     def on_service_arrival(self, svc_ref: ServiceReference[Any]) -> None:
         """
@@ -190,7 +190,7 @@ class BestDependency(requires.SimpleDependency):
 
                 self._ipopo_instance.unbind(self, service, svc_ref)
 
-    def on_service_modify(self, svc_ref: ServiceReference[Any], old_properties: Dict[str, Any]) -> None:
+    def on_service_modify(self, svc_ref: ServiceReference[Any], old_properties: dict[str, Any]) -> None:
         """
         Called when a service has been modified in the framework
 
@@ -206,7 +206,7 @@ class BestDependency(requires.SimpleDependency):
                     raise ValueError("Requirement not set up")
 
                 # Check if the ranking changed the service to inject
-                best_ref: Optional[ServiceReference[Any]] = self._context.get_service_reference(
+                best_ref: ServiceReference[Any] | None = self._context.get_service_reference(
                     self.requirement.specification, self.requirement.filter
                 )
                 if best_ref is self.reference:

@@ -1,8 +1,6 @@
+from collections.abc import Iterable as _Iterable
+from collections.abc import Mapping as _Mapping
 from typing import ClassVar as _ClassVar
-from typing import Iterable as _Iterable
-from typing import Mapping as _Mapping
-from typing import Optional as _Optional
-from typing import Union as _Union
 
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -23,7 +21,7 @@ NONE: AlarmType
 NOSPACE: AlarmType
 
 class ResponseHeader(_message.Message):
-    __slots__ = ("cluster_id", "member_id", "revision", "raft_term")
+    __slots__ = ("cluster_id", "member_id", "raft_term", "revision")
     CLUSTER_ID_FIELD_NUMBER: _ClassVar[int]
     MEMBER_ID_FIELD_NUMBER: _ClassVar[int]
     REVISION_FIELD_NUMBER: _ClassVar[int]
@@ -34,27 +32,27 @@ class ResponseHeader(_message.Message):
     raft_term: int
     def __init__(
         self,
-        cluster_id: _Optional[int] = ...,
-        member_id: _Optional[int] = ...,
-        revision: _Optional[int] = ...,
-        raft_term: _Optional[int] = ...,
+        cluster_id: int | None = ...,
+        member_id: int | None = ...,
+        revision: int | None = ...,
+        raft_term: int | None = ...,
     ) -> None: ...
 
 class RangeRequest(_message.Message):
     __slots__ = (
-        "key",
-        "range_end",
-        "limit",
-        "revision",
-        "sort_order",
-        "sort_target",
-        "serializable",
-        "keys_only",
         "count_only",
-        "min_mod_revision",
+        "key",
+        "keys_only",
+        "limit",
+        "max_create_revision",
         "max_mod_revision",
         "min_create_revision",
-        "max_create_revision",
+        "min_mod_revision",
+        "range_end",
+        "revision",
+        "serializable",
+        "sort_order",
+        "sort_target",
     )
     class SortOrder(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = ()
@@ -106,23 +104,23 @@ class RangeRequest(_message.Message):
     max_create_revision: int
     def __init__(
         self,
-        key: _Optional[bytes] = ...,
-        range_end: _Optional[bytes] = ...,
-        limit: _Optional[int] = ...,
-        revision: _Optional[int] = ...,
-        sort_order: _Optional[_Union[RangeRequest.SortOrder, str]] = ...,
-        sort_target: _Optional[_Union[RangeRequest.SortTarget, str]] = ...,
+        key: bytes | None = ...,
+        range_end: bytes | None = ...,
+        limit: int | None = ...,
+        revision: int | None = ...,
+        sort_order: RangeRequest.SortOrder | str | None = ...,
+        sort_target: RangeRequest.SortTarget | str | None = ...,
         serializable: bool = ...,
         keys_only: bool = ...,
         count_only: bool = ...,
-        min_mod_revision: _Optional[int] = ...,
-        max_mod_revision: _Optional[int] = ...,
-        min_create_revision: _Optional[int] = ...,
-        max_create_revision: _Optional[int] = ...,
+        min_mod_revision: int | None = ...,
+        max_mod_revision: int | None = ...,
+        min_create_revision: int | None = ...,
+        max_create_revision: int | None = ...,
     ) -> None: ...
 
 class RangeResponse(_message.Message):
-    __slots__ = ("header", "kvs", "more", "count")
+    __slots__ = ("count", "header", "kvs", "more")
     HEADER_FIELD_NUMBER: _ClassVar[int]
     KVS_FIELD_NUMBER: _ClassVar[int]
     MORE_FIELD_NUMBER: _ClassVar[int]
@@ -133,14 +131,14 @@ class RangeResponse(_message.Message):
     count: int
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        kvs: _Optional[_Iterable[_Union[_kv_pb2.KeyValue, _Mapping]]] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        kvs: _Iterable[_kv_pb2.KeyValue | _Mapping] | None = ...,
         more: bool = ...,
-        count: _Optional[int] = ...,
+        count: int | None = ...,
     ) -> None: ...
 
 class PutRequest(_message.Message):
-    __slots__ = ("key", "value", "lease", "prev_kv", "ignore_value", "ignore_lease")
+    __slots__ = ("ignore_lease", "ignore_value", "key", "lease", "prev_kv", "value")
     KEY_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
     LEASE_FIELD_NUMBER: _ClassVar[int]
@@ -155,9 +153,9 @@ class PutRequest(_message.Message):
     ignore_lease: bool
     def __init__(
         self,
-        key: _Optional[bytes] = ...,
-        value: _Optional[bytes] = ...,
-        lease: _Optional[int] = ...,
+        key: bytes | None = ...,
+        value: bytes | None = ...,
+        lease: int | None = ...,
         prev_kv: bool = ...,
         ignore_value: bool = ...,
         ignore_lease: bool = ...,
@@ -171,12 +169,12 @@ class PutResponse(_message.Message):
     prev_kv: _kv_pb2.KeyValue
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        prev_kv: _Optional[_Union[_kv_pb2.KeyValue, _Mapping]] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        prev_kv: _kv_pb2.KeyValue | _Mapping | None = ...,
     ) -> None: ...
 
 class DeleteRangeRequest(_message.Message):
-    __slots__ = ("key", "range_end", "prev_kv")
+    __slots__ = ("key", "prev_kv", "range_end")
     KEY_FIELD_NUMBER: _ClassVar[int]
     RANGE_END_FIELD_NUMBER: _ClassVar[int]
     PREV_KV_FIELD_NUMBER: _ClassVar[int]
@@ -184,11 +182,11 @@ class DeleteRangeRequest(_message.Message):
     range_end: bytes
     prev_kv: bool
     def __init__(
-        self, key: _Optional[bytes] = ..., range_end: _Optional[bytes] = ..., prev_kv: bool = ...
+        self, key: bytes | None = ..., range_end: bytes | None = ..., prev_kv: bool = ...
     ) -> None: ...
 
 class DeleteRangeResponse(_message.Message):
-    __slots__ = ("header", "deleted", "prev_kvs")
+    __slots__ = ("deleted", "header", "prev_kvs")
     HEADER_FIELD_NUMBER: _ClassVar[int]
     DELETED_FIELD_NUMBER: _ClassVar[int]
     PREV_KVS_FIELD_NUMBER: _ClassVar[int]
@@ -197,13 +195,13 @@ class DeleteRangeResponse(_message.Message):
     prev_kvs: _containers.RepeatedCompositeFieldContainer[_kv_pb2.KeyValue]
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        deleted: _Optional[int] = ...,
-        prev_kvs: _Optional[_Iterable[_Union[_kv_pb2.KeyValue, _Mapping]]] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        deleted: int | None = ...,
+        prev_kvs: _Iterable[_kv_pb2.KeyValue | _Mapping] | None = ...,
     ) -> None: ...
 
 class RequestOp(_message.Message):
-    __slots__ = ("request_range", "request_put", "request_delete_range", "request_txn")
+    __slots__ = ("request_delete_range", "request_put", "request_range", "request_txn")
     REQUEST_RANGE_FIELD_NUMBER: _ClassVar[int]
     REQUEST_PUT_FIELD_NUMBER: _ClassVar[int]
     REQUEST_DELETE_RANGE_FIELD_NUMBER: _ClassVar[int]
@@ -214,14 +212,14 @@ class RequestOp(_message.Message):
     request_txn: TxnRequest
     def __init__(
         self,
-        request_range: _Optional[_Union[RangeRequest, _Mapping]] = ...,
-        request_put: _Optional[_Union[PutRequest, _Mapping]] = ...,
-        request_delete_range: _Optional[_Union[DeleteRangeRequest, _Mapping]] = ...,
-        request_txn: _Optional[_Union[TxnRequest, _Mapping]] = ...,
+        request_range: RangeRequest | _Mapping | None = ...,
+        request_put: PutRequest | _Mapping | None = ...,
+        request_delete_range: DeleteRangeRequest | _Mapping | None = ...,
+        request_txn: TxnRequest | _Mapping | None = ...,
     ) -> None: ...
 
 class ResponseOp(_message.Message):
-    __slots__ = ("response_range", "response_put", "response_delete_range", "response_txn")
+    __slots__ = ("response_delete_range", "response_put", "response_range", "response_txn")
     RESPONSE_RANGE_FIELD_NUMBER: _ClassVar[int]
     RESPONSE_PUT_FIELD_NUMBER: _ClassVar[int]
     RESPONSE_DELETE_RANGE_FIELD_NUMBER: _ClassVar[int]
@@ -232,22 +230,22 @@ class ResponseOp(_message.Message):
     response_txn: TxnResponse
     def __init__(
         self,
-        response_range: _Optional[_Union[RangeResponse, _Mapping]] = ...,
-        response_put: _Optional[_Union[PutResponse, _Mapping]] = ...,
-        response_delete_range: _Optional[_Union[DeleteRangeResponse, _Mapping]] = ...,
-        response_txn: _Optional[_Union[TxnResponse, _Mapping]] = ...,
+        response_range: RangeResponse | _Mapping | None = ...,
+        response_put: PutResponse | _Mapping | None = ...,
+        response_delete_range: DeleteRangeResponse | _Mapping | None = ...,
+        response_txn: TxnResponse | _Mapping | None = ...,
     ) -> None: ...
 
 class Compare(_message.Message):
     __slots__ = (
+        "create_revision",
+        "key",
+        "mod_revision",
+        "range_end",
         "result",
         "target",
-        "key",
-        "version",
-        "create_revision",
-        "mod_revision",
         "value",
-        "range_end",
+        "version",
     )
     class CompareResult(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = ()
@@ -289,18 +287,18 @@ class Compare(_message.Message):
     range_end: bytes
     def __init__(
         self,
-        result: _Optional[_Union[Compare.CompareResult, str]] = ...,
-        target: _Optional[_Union[Compare.CompareTarget, str]] = ...,
-        key: _Optional[bytes] = ...,
-        version: _Optional[int] = ...,
-        create_revision: _Optional[int] = ...,
-        mod_revision: _Optional[int] = ...,
-        value: _Optional[bytes] = ...,
-        range_end: _Optional[bytes] = ...,
+        result: Compare.CompareResult | str | None = ...,
+        target: Compare.CompareTarget | str | None = ...,
+        key: bytes | None = ...,
+        version: int | None = ...,
+        create_revision: int | None = ...,
+        mod_revision: int | None = ...,
+        value: bytes | None = ...,
+        range_end: bytes | None = ...,
     ) -> None: ...
 
 class TxnRequest(_message.Message):
-    __slots__ = ("compare", "success", "failure")
+    __slots__ = ("compare", "failure", "success")
     COMPARE_FIELD_NUMBER: _ClassVar[int]
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     FAILURE_FIELD_NUMBER: _ClassVar[int]
@@ -309,13 +307,13 @@ class TxnRequest(_message.Message):
     failure: _containers.RepeatedCompositeFieldContainer[RequestOp]
     def __init__(
         self,
-        compare: _Optional[_Iterable[_Union[Compare, _Mapping]]] = ...,
-        success: _Optional[_Iterable[_Union[RequestOp, _Mapping]]] = ...,
-        failure: _Optional[_Iterable[_Union[RequestOp, _Mapping]]] = ...,
+        compare: _Iterable[Compare | _Mapping] | None = ...,
+        success: _Iterable[RequestOp | _Mapping] | None = ...,
+        failure: _Iterable[RequestOp | _Mapping] | None = ...,
     ) -> None: ...
 
 class TxnResponse(_message.Message):
-    __slots__ = ("header", "succeeded", "responses")
+    __slots__ = ("header", "responses", "succeeded")
     HEADER_FIELD_NUMBER: _ClassVar[int]
     SUCCEEDED_FIELD_NUMBER: _ClassVar[int]
     RESPONSES_FIELD_NUMBER: _ClassVar[int]
@@ -324,47 +322,47 @@ class TxnResponse(_message.Message):
     responses: _containers.RepeatedCompositeFieldContainer[ResponseOp]
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
         succeeded: bool = ...,
-        responses: _Optional[_Iterable[_Union[ResponseOp, _Mapping]]] = ...,
+        responses: _Iterable[ResponseOp | _Mapping] | None = ...,
     ) -> None: ...
 
 class CompactionRequest(_message.Message):
-    __slots__ = ("revision", "physical")
+    __slots__ = ("physical", "revision")
     REVISION_FIELD_NUMBER: _ClassVar[int]
     PHYSICAL_FIELD_NUMBER: _ClassVar[int]
     revision: int
     physical: bool
-    def __init__(self, revision: _Optional[int] = ..., physical: bool = ...) -> None: ...
+    def __init__(self, revision: int | None = ..., physical: bool = ...) -> None: ...
 
 class CompactionResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...
 
 class HashRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
 class HashResponse(_message.Message):
-    __slots__ = ("header", "hash")
+    __slots__ = ("hash", "header")
     HEADER_FIELD_NUMBER: _ClassVar[int]
     HASH_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
     hash: int
     def __init__(
-        self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ..., hash: _Optional[int] = ...
+        self, header: ResponseHeader | _Mapping | None = ..., hash: int | None = ...
     ) -> None: ...
 
 class HashKVRequest(_message.Message):
     __slots__ = ("revision",)
     REVISION_FIELD_NUMBER: _ClassVar[int]
     revision: int
-    def __init__(self, revision: _Optional[int] = ...) -> None: ...
+    def __init__(self, revision: int | None = ...) -> None: ...
 
 class HashKVResponse(_message.Message):
-    __slots__ = ("header", "hash", "compact_revision")
+    __slots__ = ("compact_revision", "hash", "header")
     HEADER_FIELD_NUMBER: _ClassVar[int]
     HASH_FIELD_NUMBER: _ClassVar[int]
     COMPACT_REVISION_FIELD_NUMBER: _ClassVar[int]
@@ -373,9 +371,9 @@ class HashKVResponse(_message.Message):
     compact_revision: int
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        hash: _Optional[int] = ...,
-        compact_revision: _Optional[int] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        hash: int | None = ...,
+        compact_revision: int | None = ...,
     ) -> None: ...
 
 class SnapshotRequest(_message.Message):
@@ -383,7 +381,7 @@ class SnapshotRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class SnapshotResponse(_message.Message):
-    __slots__ = ("header", "remaining_bytes", "blob")
+    __slots__ = ("blob", "header", "remaining_bytes")
     HEADER_FIELD_NUMBER: _ClassVar[int]
     REMAINING_BYTES_FIELD_NUMBER: _ClassVar[int]
     BLOB_FIELD_NUMBER: _ClassVar[int]
@@ -392,25 +390,25 @@ class SnapshotResponse(_message.Message):
     blob: bytes
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        remaining_bytes: _Optional[int] = ...,
-        blob: _Optional[bytes] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        remaining_bytes: int | None = ...,
+        blob: bytes | None = ...,
     ) -> None: ...
 
 class WatchRequest(_message.Message):
-    __slots__ = ("create_request", "cancel_request")
+    __slots__ = ("cancel_request", "create_request")
     CREATE_REQUEST_FIELD_NUMBER: _ClassVar[int]
     CANCEL_REQUEST_FIELD_NUMBER: _ClassVar[int]
     create_request: WatchCreateRequest
     cancel_request: WatchCancelRequest
     def __init__(
         self,
-        create_request: _Optional[_Union[WatchCreateRequest, _Mapping]] = ...,
-        cancel_request: _Optional[_Union[WatchCancelRequest, _Mapping]] = ...,
+        create_request: WatchCreateRequest | _Mapping | None = ...,
+        cancel_request: WatchCancelRequest | _Mapping | None = ...,
     ) -> None: ...
 
 class WatchCreateRequest(_message.Message):
-    __slots__ = ("key", "range_end", "start_revision", "progress_notify", "filters", "prev_kv")
+    __slots__ = ("filters", "key", "prev_kv", "progress_notify", "range_end", "start_revision")
     class FilterType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = ()
         NOPUT: _ClassVar[WatchCreateRequest.FilterType]
@@ -432,11 +430,11 @@ class WatchCreateRequest(_message.Message):
     prev_kv: bool
     def __init__(
         self,
-        key: _Optional[bytes] = ...,
-        range_end: _Optional[bytes] = ...,
-        start_revision: _Optional[int] = ...,
+        key: bytes | None = ...,
+        range_end: bytes | None = ...,
+        start_revision: int | None = ...,
         progress_notify: bool = ...,
-        filters: _Optional[_Iterable[_Union[WatchCreateRequest.FilterType, str]]] = ...,
+        filters: _Iterable[WatchCreateRequest.FilterType | str] | None = ...,
         prev_kv: bool = ...,
     ) -> None: ...
 
@@ -444,10 +442,10 @@ class WatchCancelRequest(_message.Message):
     __slots__ = ("watch_id",)
     WATCH_ID_FIELD_NUMBER: _ClassVar[int]
     watch_id: int
-    def __init__(self, watch_id: _Optional[int] = ...) -> None: ...
+    def __init__(self, watch_id: int | None = ...) -> None: ...
 
 class WatchResponse(_message.Message):
-    __slots__ = ("header", "watch_id", "created", "canceled", "compact_revision", "cancel_reason", "events")
+    __slots__ = ("cancel_reason", "canceled", "compact_revision", "created", "events", "header", "watch_id")
     HEADER_FIELD_NUMBER: _ClassVar[int]
     WATCH_ID_FIELD_NUMBER: _ClassVar[int]
     CREATED_FIELD_NUMBER: _ClassVar[int]
@@ -464,25 +462,25 @@ class WatchResponse(_message.Message):
     events: _containers.RepeatedCompositeFieldContainer[_kv_pb2.Event]
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        watch_id: _Optional[int] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        watch_id: int | None = ...,
         created: bool = ...,
         canceled: bool = ...,
-        compact_revision: _Optional[int] = ...,
-        cancel_reason: _Optional[str] = ...,
-        events: _Optional[_Iterable[_Union[_kv_pb2.Event, _Mapping]]] = ...,
+        compact_revision: int | None = ...,
+        cancel_reason: str | None = ...,
+        events: _Iterable[_kv_pb2.Event | _Mapping] | None = ...,
     ) -> None: ...
 
 class LeaseGrantRequest(_message.Message):
-    __slots__ = ("TTL", "ID")
+    __slots__ = ("ID", "TTL")
     TTL_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TTL: int
     ID: int
-    def __init__(self, TTL: _Optional[int] = ..., ID: _Optional[int] = ...) -> None: ...
+    def __init__(self, TTL: int | None = ..., ID: int | None = ...) -> None: ...
 
 class LeaseGrantResponse(_message.Message):
-    __slots__ = ("header", "ID", "TTL", "error")
+    __slots__ = ("ID", "TTL", "error", "header")
     HEADER_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TTL_FIELD_NUMBER: _ClassVar[int]
@@ -493,32 +491,32 @@ class LeaseGrantResponse(_message.Message):
     error: str
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        ID: _Optional[int] = ...,
-        TTL: _Optional[int] = ...,
-        error: _Optional[str] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        ID: int | None = ...,
+        TTL: int | None = ...,
+        error: str | None = ...,
     ) -> None: ...
 
 class LeaseRevokeRequest(_message.Message):
     __slots__ = ("ID",)
     ID_FIELD_NUMBER: _ClassVar[int]
     ID: int
-    def __init__(self, ID: _Optional[int] = ...) -> None: ...
+    def __init__(self, ID: int | None = ...) -> None: ...
 
 class LeaseRevokeResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...
 
 class LeaseKeepAliveRequest(_message.Message):
     __slots__ = ("ID",)
     ID_FIELD_NUMBER: _ClassVar[int]
     ID: int
-    def __init__(self, ID: _Optional[int] = ...) -> None: ...
+    def __init__(self, ID: int | None = ...) -> None: ...
 
 class LeaseKeepAliveResponse(_message.Message):
-    __slots__ = ("header", "ID", "TTL")
+    __slots__ = ("ID", "TTL", "header")
     HEADER_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TTL_FIELD_NUMBER: _ClassVar[int]
@@ -527,9 +525,9 @@ class LeaseKeepAliveResponse(_message.Message):
     TTL: int
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        ID: _Optional[int] = ...,
-        TTL: _Optional[int] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        ID: int | None = ...,
+        TTL: int | None = ...,
     ) -> None: ...
 
 class LeaseTimeToLiveRequest(_message.Message):
@@ -538,10 +536,10 @@ class LeaseTimeToLiveRequest(_message.Message):
     KEYS_FIELD_NUMBER: _ClassVar[int]
     ID: int
     keys: bool
-    def __init__(self, ID: _Optional[int] = ..., keys: bool = ...) -> None: ...
+    def __init__(self, ID: int | None = ..., keys: bool = ...) -> None: ...
 
 class LeaseTimeToLiveResponse(_message.Message):
-    __slots__ = ("header", "ID", "TTL", "grantedTTL", "keys")
+    __slots__ = ("ID", "TTL", "grantedTTL", "header", "keys")
     HEADER_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TTL_FIELD_NUMBER: _ClassVar[int]
@@ -554,15 +552,15 @@ class LeaseTimeToLiveResponse(_message.Message):
     keys: _containers.RepeatedScalarFieldContainer[bytes]
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        ID: _Optional[int] = ...,
-        TTL: _Optional[int] = ...,
-        grantedTTL: _Optional[int] = ...,
-        keys: _Optional[_Iterable[bytes]] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        ID: int | None = ...,
+        TTL: int | None = ...,
+        grantedTTL: int | None = ...,
+        keys: _Iterable[bytes] | None = ...,
     ) -> None: ...
 
 class Member(_message.Message):
-    __slots__ = ("ID", "name", "peerURLs", "clientURLs")
+    __slots__ = ("ID", "clientURLs", "name", "peerURLs")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     PEERURLS_FIELD_NUMBER: _ClassVar[int]
@@ -573,17 +571,17 @@ class Member(_message.Message):
     clientURLs: _containers.RepeatedScalarFieldContainer[str]
     def __init__(
         self,
-        ID: _Optional[int] = ...,
-        name: _Optional[str] = ...,
-        peerURLs: _Optional[_Iterable[str]] = ...,
-        clientURLs: _Optional[_Iterable[str]] = ...,
+        ID: int | None = ...,
+        name: str | None = ...,
+        peerURLs: _Iterable[str] | None = ...,
+        clientURLs: _Iterable[str] | None = ...,
     ) -> None: ...
 
 class MemberAddRequest(_message.Message):
     __slots__ = ("peerURLs",)
     PEERURLS_FIELD_NUMBER: _ClassVar[int]
     peerURLs: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, peerURLs: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, peerURLs: _Iterable[str] | None = ...) -> None: ...
 
 class MemberAddResponse(_message.Message):
     __slots__ = ("header", "member", "members")
@@ -595,16 +593,16 @@ class MemberAddResponse(_message.Message):
     members: _containers.RepeatedCompositeFieldContainer[Member]
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        member: _Optional[_Union[Member, _Mapping]] = ...,
-        members: _Optional[_Iterable[_Union[Member, _Mapping]]] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        member: Member | _Mapping | None = ...,
+        members: _Iterable[Member | _Mapping] | None = ...,
     ) -> None: ...
 
 class MemberRemoveRequest(_message.Message):
     __slots__ = ("ID",)
     ID_FIELD_NUMBER: _ClassVar[int]
     ID: int
-    def __init__(self, ID: _Optional[int] = ...) -> None: ...
+    def __init__(self, ID: int | None = ...) -> None: ...
 
 class MemberRemoveResponse(_message.Message):
     __slots__ = ("header", "members")
@@ -614,8 +612,8 @@ class MemberRemoveResponse(_message.Message):
     members: _containers.RepeatedCompositeFieldContainer[Member]
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        members: _Optional[_Iterable[_Union[Member, _Mapping]]] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        members: _Iterable[Member | _Mapping] | None = ...,
     ) -> None: ...
 
 class MemberUpdateRequest(_message.Message):
@@ -624,7 +622,7 @@ class MemberUpdateRequest(_message.Message):
     PEERURLS_FIELD_NUMBER: _ClassVar[int]
     ID: int
     peerURLs: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, ID: _Optional[int] = ..., peerURLs: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, ID: int | None = ..., peerURLs: _Iterable[str] | None = ...) -> None: ...
 
 class MemberUpdateResponse(_message.Message):
     __slots__ = ("header", "members")
@@ -634,8 +632,8 @@ class MemberUpdateResponse(_message.Message):
     members: _containers.RepeatedCompositeFieldContainer[Member]
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        members: _Optional[_Iterable[_Union[Member, _Mapping]]] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        members: _Iterable[Member | _Mapping] | None = ...,
     ) -> None: ...
 
 class MemberListRequest(_message.Message):
@@ -650,8 +648,8 @@ class MemberListResponse(_message.Message):
     members: _containers.RepeatedCompositeFieldContainer[Member]
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        members: _Optional[_Iterable[_Union[Member, _Mapping]]] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        members: _Iterable[Member | _Mapping] | None = ...,
     ) -> None: ...
 
 class DefragmentRequest(_message.Message):
@@ -662,22 +660,22 @@ class DefragmentResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...
 
 class MoveLeaderRequest(_message.Message):
     __slots__ = ("targetID",)
     TARGETID_FIELD_NUMBER: _ClassVar[int]
     targetID: int
-    def __init__(self, targetID: _Optional[int] = ...) -> None: ...
+    def __init__(self, targetID: int | None = ...) -> None: ...
 
 class MoveLeaderResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...
 
 class AlarmRequest(_message.Message):
-    __slots__ = ("action", "memberID", "alarm")
+    __slots__ = ("action", "alarm", "memberID")
     class AlarmAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = ()
         GET: _ClassVar[AlarmRequest.AlarmAction]
@@ -695,31 +693,31 @@ class AlarmRequest(_message.Message):
     alarm: AlarmType
     def __init__(
         self,
-        action: _Optional[_Union[AlarmRequest.AlarmAction, str]] = ...,
-        memberID: _Optional[int] = ...,
-        alarm: _Optional[_Union[AlarmType, str]] = ...,
+        action: AlarmRequest.AlarmAction | str | None = ...,
+        memberID: int | None = ...,
+        alarm: AlarmType | str | None = ...,
     ) -> None: ...
 
 class AlarmMember(_message.Message):
-    __slots__ = ("memberID", "alarm")
+    __slots__ = ("alarm", "memberID")
     MEMBERID_FIELD_NUMBER: _ClassVar[int]
     ALARM_FIELD_NUMBER: _ClassVar[int]
     memberID: int
     alarm: AlarmType
     def __init__(
-        self, memberID: _Optional[int] = ..., alarm: _Optional[_Union[AlarmType, str]] = ...
+        self, memberID: int | None = ..., alarm: AlarmType | str | None = ...
     ) -> None: ...
 
 class AlarmResponse(_message.Message):
-    __slots__ = ("header", "alarms")
+    __slots__ = ("alarms", "header")
     HEADER_FIELD_NUMBER: _ClassVar[int]
     ALARMS_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
     alarms: _containers.RepeatedCompositeFieldContainer[AlarmMember]
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        alarms: _Optional[_Iterable[_Union[AlarmMember, _Mapping]]] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        alarms: _Iterable[AlarmMember | _Mapping] | None = ...,
     ) -> None: ...
 
 class StatusRequest(_message.Message):
@@ -727,7 +725,7 @@ class StatusRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class StatusResponse(_message.Message):
-    __slots__ = ("header", "version", "dbSize", "leader", "raftIndex", "raftTerm")
+    __slots__ = ("dbSize", "header", "leader", "raftIndex", "raftTerm", "version")
     HEADER_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     DBSIZE_FIELD_NUMBER: _ClassVar[int]
@@ -742,12 +740,12 @@ class StatusResponse(_message.Message):
     raftTerm: int
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        version: _Optional[str] = ...,
-        dbSize: _Optional[int] = ...,
-        leader: _Optional[int] = ...,
-        raftIndex: _Optional[int] = ...,
-        raftTerm: _Optional[int] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        version: str | None = ...,
+        dbSize: int | None = ...,
+        leader: int | None = ...,
+        raftIndex: int | None = ...,
+        raftTerm: int | None = ...,
     ) -> None: ...
 
 class AuthEnableRequest(_message.Message):
@@ -764,7 +762,7 @@ class AuthenticateRequest(_message.Message):
     PASSWORD_FIELD_NUMBER: _ClassVar[int]
     name: str
     password: str
-    def __init__(self, name: _Optional[str] = ..., password: _Optional[str] = ...) -> None: ...
+    def __init__(self, name: str | None = ..., password: str | None = ...) -> None: ...
 
 class AuthUserAddRequest(_message.Message):
     __slots__ = ("name", "password")
@@ -772,19 +770,19 @@ class AuthUserAddRequest(_message.Message):
     PASSWORD_FIELD_NUMBER: _ClassVar[int]
     name: str
     password: str
-    def __init__(self, name: _Optional[str] = ..., password: _Optional[str] = ...) -> None: ...
+    def __init__(self, name: str | None = ..., password: str | None = ...) -> None: ...
 
 class AuthUserGetRequest(_message.Message):
     __slots__ = ("name",)
     NAME_FIELD_NUMBER: _ClassVar[int]
     name: str
-    def __init__(self, name: _Optional[str] = ...) -> None: ...
+    def __init__(self, name: str | None = ...) -> None: ...
 
 class AuthUserDeleteRequest(_message.Message):
     __slots__ = ("name",)
     NAME_FIELD_NUMBER: _ClassVar[int]
     name: str
-    def __init__(self, name: _Optional[str] = ...) -> None: ...
+    def __init__(self, name: str | None = ...) -> None: ...
 
 class AuthUserChangePasswordRequest(_message.Message):
     __slots__ = ("name", "password")
@@ -792,15 +790,15 @@ class AuthUserChangePasswordRequest(_message.Message):
     PASSWORD_FIELD_NUMBER: _ClassVar[int]
     name: str
     password: str
-    def __init__(self, name: _Optional[str] = ..., password: _Optional[str] = ...) -> None: ...
+    def __init__(self, name: str | None = ..., password: str | None = ...) -> None: ...
 
 class AuthUserGrantRoleRequest(_message.Message):
-    __slots__ = ("user", "role")
+    __slots__ = ("role", "user")
     USER_FIELD_NUMBER: _ClassVar[int]
     ROLE_FIELD_NUMBER: _ClassVar[int]
     user: str
     role: str
-    def __init__(self, user: _Optional[str] = ..., role: _Optional[str] = ...) -> None: ...
+    def __init__(self, user: str | None = ..., role: str | None = ...) -> None: ...
 
 class AuthUserRevokeRoleRequest(_message.Message):
     __slots__ = ("name", "role")
@@ -808,19 +806,19 @@ class AuthUserRevokeRoleRequest(_message.Message):
     ROLE_FIELD_NUMBER: _ClassVar[int]
     name: str
     role: str
-    def __init__(self, name: _Optional[str] = ..., role: _Optional[str] = ...) -> None: ...
+    def __init__(self, name: str | None = ..., role: str | None = ...) -> None: ...
 
 class AuthRoleAddRequest(_message.Message):
     __slots__ = ("name",)
     NAME_FIELD_NUMBER: _ClassVar[int]
     name: str
-    def __init__(self, name: _Optional[str] = ...) -> None: ...
+    def __init__(self, name: str | None = ...) -> None: ...
 
 class AuthRoleGetRequest(_message.Message):
     __slots__ = ("role",)
     ROLE_FIELD_NUMBER: _ClassVar[int]
     role: str
-    def __init__(self, role: _Optional[str] = ...) -> None: ...
+    def __init__(self, role: str | None = ...) -> None: ...
 
 class AuthUserListRequest(_message.Message):
     __slots__ = ()
@@ -834,7 +832,7 @@ class AuthRoleDeleteRequest(_message.Message):
     __slots__ = ("role",)
     ROLE_FIELD_NUMBER: _ClassVar[int]
     role: str
-    def __init__(self, role: _Optional[str] = ...) -> None: ...
+    def __init__(self, role: str | None = ...) -> None: ...
 
 class AuthRoleGrantPermissionRequest(_message.Message):
     __slots__ = ("name", "perm")
@@ -843,11 +841,11 @@ class AuthRoleGrantPermissionRequest(_message.Message):
     name: str
     perm: _auth_pb2.Permission
     def __init__(
-        self, name: _Optional[str] = ..., perm: _Optional[_Union[_auth_pb2.Permission, _Mapping]] = ...
+        self, name: str | None = ..., perm: _auth_pb2.Permission | _Mapping | None = ...
     ) -> None: ...
 
 class AuthRoleRevokePermissionRequest(_message.Message):
-    __slots__ = ("role", "key", "range_end")
+    __slots__ = ("key", "range_end", "role")
     ROLE_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
     RANGE_END_FIELD_NUMBER: _ClassVar[int]
@@ -855,20 +853,20 @@ class AuthRoleRevokePermissionRequest(_message.Message):
     key: str
     range_end: str
     def __init__(
-        self, role: _Optional[str] = ..., key: _Optional[str] = ..., range_end: _Optional[str] = ...
+        self, role: str | None = ..., key: str | None = ..., range_end: str | None = ...
     ) -> None: ...
 
 class AuthEnableResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...
 
 class AuthDisableResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...
 
 class AuthenticateResponse(_message.Message):
     __slots__ = ("header", "token")
@@ -877,14 +875,14 @@ class AuthenticateResponse(_message.Message):
     header: ResponseHeader
     token: str
     def __init__(
-        self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ..., token: _Optional[str] = ...
+        self, header: ResponseHeader | _Mapping | None = ..., token: str | None = ...
     ) -> None: ...
 
 class AuthUserAddResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...
 
 class AuthUserGetResponse(_message.Message):
     __slots__ = ("header", "roles")
@@ -894,39 +892,39 @@ class AuthUserGetResponse(_message.Message):
     roles: _containers.RepeatedScalarFieldContainer[str]
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        roles: _Optional[_Iterable[str]] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        roles: _Iterable[str] | None = ...,
     ) -> None: ...
 
 class AuthUserDeleteResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...
 
 class AuthUserChangePasswordResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...
 
 class AuthUserGrantRoleResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...
 
 class AuthUserRevokeRoleResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...
 
 class AuthRoleAddResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...
 
 class AuthRoleGetResponse(_message.Message):
     __slots__ = ("header", "perm")
@@ -936,8 +934,8 @@ class AuthRoleGetResponse(_message.Message):
     perm: _containers.RepeatedCompositeFieldContainer[_auth_pb2.Permission]
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        perm: _Optional[_Iterable[_Union[_auth_pb2.Permission, _Mapping]]] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        perm: _Iterable[_auth_pb2.Permission | _Mapping] | None = ...,
     ) -> None: ...
 
 class AuthRoleListResponse(_message.Message):
@@ -948,8 +946,8 @@ class AuthRoleListResponse(_message.Message):
     roles: _containers.RepeatedScalarFieldContainer[str]
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        roles: _Optional[_Iterable[str]] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        roles: _Iterable[str] | None = ...,
     ) -> None: ...
 
 class AuthUserListResponse(_message.Message):
@@ -960,24 +958,24 @@ class AuthUserListResponse(_message.Message):
     users: _containers.RepeatedScalarFieldContainer[str]
     def __init__(
         self,
-        header: _Optional[_Union[ResponseHeader, _Mapping]] = ...,
-        users: _Optional[_Iterable[str]] = ...,
+        header: ResponseHeader | _Mapping | None = ...,
+        users: _Iterable[str] | None = ...,
     ) -> None: ...
 
 class AuthRoleDeleteResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...
 
 class AuthRoleGrantPermissionResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...
 
 class AuthRoleRevokePermissionResponse(_message.Message):
     __slots__ = ("header",)
     HEADER_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
-    def __init__(self, header: _Optional[_Union[ResponseHeader, _Mapping]] = ...) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ...) -> None: ...

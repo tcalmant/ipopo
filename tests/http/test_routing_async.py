@@ -11,8 +11,8 @@ import logging
 import unittest
 from typing import cast
 
-import pelix.http as http
 import tests.http.test_routing as routing_tests
+from pelix import http
 
 try:
     assert importlib.util.find_spec("aiohttp") is not None

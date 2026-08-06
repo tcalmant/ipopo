@@ -9,8 +9,8 @@ Tests iPOPO handlers, using the sample logger handler
 import sys
 import unittest
 
-import pelix.ipopo.handlers.constants as constants
 from pelix.framework import FrameworkFactory
+from pelix.ipopo.handlers import constants
 from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
@@ -33,7 +33,7 @@ COMPONENT_NAME = "sample-logger-component"
 # ------------------------------------------------------------------------------
 
 
-class DummyHandlerFactory(object):
+class DummyHandlerFactory:
     """
     A dummy handler with a "called" flag
     """

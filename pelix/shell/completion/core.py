@@ -28,7 +28,8 @@ Defines the ``Completer`` class, mother of all shell completion handlers
 
 import abc
 import logging
-from typing import TYPE_CHECKING, Callable, List
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from pelix.utilities import use_service
 
@@ -67,7 +68,7 @@ class AbstractCompleter(abc.ABC, Completer):
 
     @staticmethod
     def set_display_hook(
-        display_hook: Callable[[str, "ShellSession", "BundleContext", List[str], int], None],
+        display_hook: Callable[[str, "ShellSession", "BundleContext", list[str], int], None],
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
@@ -90,9 +91,9 @@ class AbstractCompleter(abc.ABC, Completer):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        current_arguments: List[str],
+        current_arguments: list[str],
         current: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Returns the list of bundle IDs matching the current state
 
@@ -115,8 +116,8 @@ def completion_hints(
     session: "ShellSession",
     context: "BundleContext",
     current: str,
-    arguments: List[str],
-) -> List[str]:
+    arguments: list[str],
+) -> list[str]:
     """
     Returns the possible completions of the current argument
 

@@ -6,10 +6,9 @@ Bundle defining a component to be updated by ConfigAdmin
 :author: Thomas Calmant
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
-import pelix.constants as constants
-import pelix.services as services
+from pelix import constants, services
 from pelix.ipopo.decorators import ComponentFactory, Instantiate, Property, Provides
 
 # ------------------------------------------------------------------------------
@@ -46,7 +45,7 @@ class Configurable(services.IManagedService):
         self.deleted = False
         self.call_count = 0
 
-    def updated(self, properties: Optional[Dict[str, Any]]) -> None:
+    def updated(self, properties: dict[str, Any] | None) -> None:
         """
         Called by the ConfigurationAdmin service
         """

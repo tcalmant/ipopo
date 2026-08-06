@@ -83,7 +83,7 @@ else:
                         else:
                             output = "<no output>"
 
-                        self.fail("Can't read from stdout (rc={})\n{}".format(process.returncode, output))
+                        self.fail(f"Can't read from stdout (rc={process.returncode})\n{output}")
                 else:
                     got += char
 
@@ -95,7 +95,7 @@ else:
                 data = self.random_str()
 
                 # Write command
-                process.stdin.write(to_bytes("echo {}\n".format(data)))
+                process.stdin.write(to_bytes(f"echo {data}\n"))
                 process.stdin.flush()
 
                 # Read result
@@ -143,8 +143,8 @@ else:
                     "-m",
                     "pelix.shell",
                     "-D",
-                    "{}={}".format(key1, val1),
-                    "{}={}".format(key2, val2),
+                    f"{key1}={val1}",
+                    f"{key2}={val2}",
                 ],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,

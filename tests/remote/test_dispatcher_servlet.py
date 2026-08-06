@@ -10,16 +10,16 @@ import http.client as httplib
 import json
 import unittest
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from urllib.parse import urljoin
 
 import pelix.constants
 import pelix.framework
 import pelix.remote
-import pelix.remote.beans as beans
 from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
+from pelix.remote import beans
 from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
@@ -40,8 +40,8 @@ class Exporter:
         Sets up members
         """
         self.context = context
-        self.configs: List[str] = ["test.config"]
-        self.endpoints: List[beans.ExportEndpoint] = []
+        self.configs: list[str] = ["test.config"]
+        self.endpoints: list[beans.ExportEndpoint] = []
 
     def export_service(self, svc_ref: ServiceReference[Any], name: str, fw_uid: str) -> beans.ExportEndpoint:
         """
@@ -53,12 +53,11 @@ class Exporter:
         return endpoint
 
     def update_export(
-        self, endpoint: beans.ExportEndpoint, new_name: str, old_properties: Dict[str, Any]
+        self, endpoint: beans.ExportEndpoint, new_name: str, old_properties: dict[str, Any]
     ) -> None:
         """
         Endpoint updated
         """
-        pass
 
     def unexport_service(self, endpoint: beans.ExportEndpoint) -> None:
         """
@@ -76,7 +75,7 @@ class ImportListener:
         """
         Sets up members
         """
-        self.endpoints: Dict[str, beans.ImportEndpoint] = {}
+        self.endpoints: dict[str, beans.ImportEndpoint] = {}
 
     def endpoint_added(self, endpoint: beans.ImportEndpoint) -> None:
         """
@@ -84,11 +83,10 @@ class ImportListener:
         """
         self.endpoints[endpoint.uid] = endpoint
 
-    def endpoint_updated(self, endpoint: beans.ImportEndpoint, properties: Dict[str, Any]) -> None:
+    def endpoint_updated(self, endpoint: beans.ImportEndpoint, properties: dict[str, Any]) -> None:
         """
         Endpoint updated
         """
-        pass
 
     def endpoint_removed(self, uid: str) -> None:
         """
@@ -106,7 +104,7 @@ class FakeSerlvet:
         """
         Sets up members
         """
-        self.data: Optional[str] = None
+        self.data: str | None = None
         self.error: bool = False
 
     def do_POST(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
@@ -184,7 +182,7 @@ class DispatcherTest(unittest.TestCase):
         self.framework = None  # type: ignore
         self.dispatcher = None  # type: ignore
 
-    def _http_get(self, path: str) -> Tuple[int, str]:
+    def _http_get(self, path: str) -> tuple[int, str]:
         """
         Makes a HTTP GET request to the given path and returns the response
         as a string
@@ -207,7 +205,7 @@ class DispatcherTest(unittest.TestCase):
         # Convert the response to a string
         return result.status, to_str(data)
 
-    def _http_post(self, path: str, body: str) -> Tuple[int, str]:
+    def _http_post(self, path: str, body: str) -> tuple[int, str]:
         """
         Makes a HTTP GET request to the given path and returns the response
         as a string
@@ -329,7 +327,7 @@ class DispatcherTest(unittest.TestCase):
         endpoint = exporter.endpoints[-1]
 
         # Request the details of the endpoint
-        status, response = self._http_get("/endpoint/{0}".format(endpoint.uid))
+        status, response = self._http_get(f"/endpoint/{endpoint.uid}")
 
         # Check result
         self.assertEqual(status, 200)
@@ -343,7 +341,7 @@ class DispatcherTest(unittest.TestCase):
         svc_reg.unregister()
 
         # Request the list of endpoints
-        status, _ = self._http_get("/endpoint/{0}".format(endpoint.uid))
+        status, _ = self._http_get(f"/endpoint/{endpoint.uid}")
 
         # Check result
         self.assertEqual(status, 404)
@@ -422,7 +420,7 @@ class DispatcherTest(unittest.TestCase):
         endpoint = exporter.endpoints[-1]
 
         # Get its representation
-        status, response = self._http_get("/endpoint/{0}".format(endpoint.uid))
+        status, response = self._http_get(f"/endpoint/{endpoint.uid}")
         self.assertEqual(status, 200)
 
         # Change its UID and framework UID

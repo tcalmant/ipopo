@@ -8,13 +8,13 @@ Tests the Remote Services Exports Dispatcher
 
 import unittest
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pelix.constants
 import pelix.framework
 import pelix.remote
-import pelix.remote.beans as beans
 from pelix.internals.registry import ServiceReference
+from pelix.remote import beans
 
 # ------------------------------------------------------------------------------
 
@@ -36,17 +36,17 @@ class Exporter:
     def __init__(
         self,
         context: pelix.framework.BundleContext,
-        name: Optional[str] = None,
-        configs: Optional[List[str]] = None,
+        name: str | None = None,
+        configs: list[str] | None = None,
     ) -> None:
         """
         Sets up members
         """
         self.context = context
-        self.events: List[int] = []
+        self.events: list[int] = []
         self.raise_exception = False
 
-        self.endpoint: Optional[beans.ExportEndpoint] = None
+        self.endpoint: beans.ExportEndpoint | None = None
         self.name = name or "test.endpoint"
         self.configs = configs[:] if configs else ["test.config"]
 
@@ -68,7 +68,7 @@ class Exporter:
         return self.endpoint
 
     def update_export(
-        self, endpoint: beans.ExportEndpoint, new_name: str, old_properties: Dict[str, Any]
+        self, endpoint: beans.ExportEndpoint, new_name: str, old_properties: dict[str, Any]
     ) -> None:
         """
         Endpoint updated
@@ -93,7 +93,7 @@ class Listener:
         """
         Sets up members
         """
-        self.events: List[int] = []
+        self.events: list[int] = []
         self.raise_exception = False
 
     def clear(self) -> None:
@@ -102,7 +102,7 @@ class Listener:
         """
         del self.events[:]
 
-    def endpoints_added(self, endpoints: List[beans.ExportEndpoint]) -> None:
+    def endpoints_added(self, endpoints: list[beans.ExportEndpoint]) -> None:
         """
         Endpoints registered
         """
@@ -112,7 +112,7 @@ class Listener:
         if self.raise_exception:
             raise Exception("Endpoints added exception")
 
-    def endpoint_updated(self, endpoint: beans.ExportEndpoint, old_props: Dict[str, Any]) -> None:
+    def endpoint_updated(self, endpoint: beans.ExportEndpoint, old_props: dict[str, Any]) -> None:
         """
         Endpoint updated
         """
@@ -699,7 +699,7 @@ class DispatcherTest(unittest.TestCase):
 
             # Look for the endpoint: all services must be exported
             self.assertListEqual(
-                [], self.service.get_endpoints(), "Service exported even with export.none={0}".format(value)
+                [], self.service.get_endpoints(), f"Service exported even with export.none={value}"
             )
             svc_reg.unregister()
 

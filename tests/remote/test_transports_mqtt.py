@@ -29,7 +29,8 @@ import threading
 import time
 import unittest
 import uuid
-from typing import Any, Iterable, Optional, Tuple
+from collections.abc import Iterable
+from typing import Any
 
 import pelix.remote
 from pelix.framework import Framework, FrameworkFactory, create_framework
@@ -126,7 +127,7 @@ class RemoteService:
 # ------------------------------------------------------------------------------
 
 
-def load_framework(app_id: str, transport: str, components: Iterable[Tuple[str, str]]) -> Framework:
+def load_framework(app_id: str, transport: str, components: Iterable[tuple[str, str]]) -> Framework:
     """
     Starts a Pelix framework in the local process
 
@@ -162,7 +163,7 @@ def load_framework(app_id: str, transport: str, components: Iterable[Tuple[str, 
 
 
 def export_framework(
-    state_queue: Queue, app_id: str, transport: str, components: Iterable[Tuple[str, str]]
+    state_queue: Queue, app_id: str, transport: str, components: Iterable[tuple[str, str]]
 ) -> None:
     """
     Starts a Pelix framework, on the export side
@@ -241,7 +242,7 @@ class MqttTransportsTest(unittest.TestCase):
 
             # Look for the remote service
             for _ in range(60):
-                svc_ref: Optional[ServiceReference[Any]] = context.get_service_reference(SVC_SPEC)
+                svc_ref: ServiceReference[Any] | None = context.get_service_reference(SVC_SPEC)
                 if svc_ref is not None:
                     break
                 time.sleep(0.5)

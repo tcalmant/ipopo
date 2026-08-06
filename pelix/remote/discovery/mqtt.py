@@ -30,14 +30,15 @@ Eclipse Foundation: see http://www.eclipse.org/paho
 """
 
 import logging
-from typing import Any, Dict, Iterable, List, Optional
+from collections.abc import Iterable
+from typing import Any
 
-import pelix.constants as constants
 import pelix.remote
-import pelix.remote.beans as beans
+from pelix import constants
 from pelix.framework import BundleContext
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
 from pelix.misc.mqtt_client import MqttClient, MqttMessage
+from pelix.remote import beans
 from pelix.remote.edef_io import EDEFReader, EDEFWriter
 from pelix.utilities import to_bytes, to_str
 
@@ -99,10 +100,10 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
 
         # MQTT topic Properties
         self._prefix = ""
-        self._appid: Optional[str] = None
+        self._appid: str | None = None
 
         # MQTT client
-        self.__mqtt: Optional[MqttClient] = None
+        self.__mqtt: MqttClient | None = None
 
         # Real prefix
         self._real_prefix = ""
@@ -223,7 +224,7 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         except Exception as ex:
             _logger.exception("Error handling an MQTT message '%s': %s", topic, ex)
 
-    def __send_message(self, event: str, payload: Any, wait: bool = False) -> Optional[int]:
+    def __send_message(self, event: str, payload: Any, wait: bool = False) -> int | None:
         """
         Sends a message through the MQTT connection
 
@@ -298,7 +299,7 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         """
         self._registry.lost_framework(to_str(payload))
 
-    def endpoints_added(self, endpoints: List[beans.ExportEndpoint]) -> None:
+    def endpoints_added(self, endpoints: list[beans.ExportEndpoint]) -> None:
         """
         Multiple endpoints have been added
 
@@ -313,7 +314,7 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         self.__send_message(EVENT_ADD, xml_string)
 
     def endpoint_updated(
-        self, endpoint: beans.ExportEndpoint, old_properties: Optional[Dict[str, Any]]
+        self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None
     ) -> None:
         # pylint: disable=W0613
         """

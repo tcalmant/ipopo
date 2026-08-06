@@ -13,9 +13,9 @@ import importlib.util
 import logging
 import re
 import unittest
-from typing import Any, Optional
+from typing import Any
 
-import pelix.http as http
+from pelix import http
 from pelix.framework import Framework, FrameworkFactory
 from pelix.http.basic import HttpServiceImpl
 from tests.http.utils import DEFAULT_HOST, get_http_page, install_ipopo
@@ -55,7 +55,7 @@ class CustomErrorHandler:
     """
 
     def __init__(self) -> None:
-        self.stack: Optional[str] = None
+        self.stack: str | None = None
 
     def make_not_found_page(self, path: str) -> str:
         """
@@ -96,7 +96,7 @@ class ErrorPageContentTest(unittest.TestCase):
         """
         FrameworkFactory.delete_framework()
 
-    def start_server(self, debug_errors: Optional[bool] = None) -> int:
+    def start_server(self, debug_errors: bool | None = None) -> int:
         """
         Starts a HTTP server with a servlet raising an exception
 
@@ -117,7 +117,7 @@ class ErrorPageContentTest(unittest.TestCase):
         context.register_service(http.HTTP_SERVLET, RaisingServlet(), {http.HTTP_SERVLET_PATH: "/error"})
         return svc.get_access()[1]
 
-    def get_error_page(self, debug_errors: Optional[bool] = None) -> str:
+    def get_error_page(self, debug_errors: bool | None = None) -> str:
         """
         Calls the failing servlet and returns the error page
 

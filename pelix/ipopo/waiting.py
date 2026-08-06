@@ -31,7 +31,7 @@ components.
 # Standard library
 import logging
 import threading
-from typing import Any, Dict, Optional
+from typing import Any
 
 # Pelix
 from pelix.constants import ActivatorProto, BundleActivator, BundleException
@@ -74,13 +74,13 @@ class IPopoWaitingListImpl(IPopoWaitingList):
         :param bundle_context: The bundle context
         """
         # Bundle context
-        self.__context: Optional[BundleContext] = bundle_context
+        self.__context: BundleContext | None = bundle_context
 
         # The "queue": factory name -> {component name -> properties}
-        self.__queue: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        self.__queue: dict[str, dict[str, dict[str, Any]]] = {}
 
         # Component Name -> Factory Name
-        self.__names: Dict[str, str] = {}
+        self.__names: dict[str, str] = {}
 
         # Some locking
         self.__lock = threading.RLock()
@@ -200,7 +200,7 @@ class IPopoWaitingListImpl(IPopoWaitingList):
                 # No components for this new factory
                 pass
 
-    def add(self, factory: str, component: str, properties: Optional[Dict[str, Any]] = None) -> None:
+    def add(self, factory: str, component: str, properties: dict[str, Any] | None = None) -> None:
         """
         Enqueues the instantiation of the given component
 
@@ -277,8 +277,8 @@ class Activator(ActivatorProto):
         """
         Constructor
         """
-        self.__registration: Optional[ServiceRegistration[IPopoWaitingList]] = None
-        self.__service: Optional[IPopoWaitingListImpl] = None
+        self.__registration: ServiceRegistration[IPopoWaitingList] | None = None
+        self.__service: IPopoWaitingListImpl | None = None
 
     def start(self, context: BundleContext) -> None:
         """

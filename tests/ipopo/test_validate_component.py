@@ -9,9 +9,8 @@ Tests the component life cycle callbacks decorators
 import itertools
 import unittest
 
-import pelix.ipopo.constants as constants
-import pelix.ipopo.decorators as decorators
 from pelix.framework import BundleContext, FrameworkFactory
+from pelix.ipopo import constants, decorators
 from pelix.ipopo.contexts import ComponentContext
 from pelix.ipopo.instance import StoredInstance
 from tests.ipopo import install_bundle, install_ipopo
@@ -102,7 +101,7 @@ class ValidateComponentTest(unittest.TestCase):
 
         @decorators.ComponentFactory(factory_name)
         @decorators.Property("_raise", "raise", True)
-        class Erroneous(object):
+        class Erroneous:
             def __init__(self):
                 self.calls = []
                 self._raise = True
@@ -230,7 +229,7 @@ class InvalidateComponentTest(unittest.TestCase):
 
         @decorators.ComponentFactory(factory_name)
         @decorators.Requires("_toto", svc_interface)
-        class Erroneous(object):
+        class Erroneous:
             @decorators.InvalidateComponent()
             def invalidate(self):
                 raise ValueError("Bad things happen")

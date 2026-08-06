@@ -1,8 +1,6 @@
+from collections.abc import Iterable as _Iterable
+from collections.abc import Mapping as _Mapping
 from typing import ClassVar as _ClassVar
-from typing import Iterable as _Iterable
-from typing import Mapping as _Mapping
-from typing import Optional as _Optional
-from typing import Union as _Union
 
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -21,13 +19,13 @@ class User(_message.Message):
     roles: _containers.RepeatedScalarFieldContainer[str]
     def __init__(
         self,
-        name: _Optional[bytes] = ...,
-        password: _Optional[bytes] = ...,
-        roles: _Optional[_Iterable[str]] = ...,
+        name: bytes | None = ...,
+        password: bytes | None = ...,
+        roles: _Iterable[str] | None = ...,
     ) -> None: ...
 
 class Permission(_message.Message):
-    __slots__ = ("permType", "key", "range_end")
+    __slots__ = ("key", "permType", "range_end")
     class Type(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = ()
         READ: _ClassVar[Permission.Type]
@@ -45,19 +43,19 @@ class Permission(_message.Message):
     range_end: bytes
     def __init__(
         self,
-        permType: _Optional[_Union[Permission.Type, str]] = ...,
-        key: _Optional[bytes] = ...,
-        range_end: _Optional[bytes] = ...,
+        permType: Permission.Type | str | None = ...,
+        key: bytes | None = ...,
+        range_end: bytes | None = ...,
     ) -> None: ...
 
 class Role(_message.Message):
-    __slots__ = ("name", "keyPermission")
+    __slots__ = ("keyPermission", "name")
     NAME_FIELD_NUMBER: _ClassVar[int]
     KEYPERMISSION_FIELD_NUMBER: _ClassVar[int]
     name: bytes
     keyPermission: _containers.RepeatedCompositeFieldContainer[Permission]
     def __init__(
         self,
-        name: _Optional[bytes] = ...,
-        keyPermission: _Optional[_Iterable[_Union[Permission, _Mapping]]] = ...,
+        name: bytes | None = ...,
+        keyPermission: _Iterable[Permission | _Mapping] | None = ...,
     ) -> None: ...

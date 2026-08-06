@@ -28,7 +28,7 @@ Provides commands to the Pelix shell to get the state of iPOPO instances.
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 import pelix.ipopo.constants
 import pelix.shell
@@ -96,7 +96,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         """
         return "ipopo"
 
-    def get_methods(self) -> List[Tuple[str, pelix.shell.ShellCommandMethod]]:
+    def get_methods(self) -> list[tuple[str, pelix.shell.ShellCommandMethod]]:
         """
         Retrieves the list of tuples (command, method) for this command handler
         """
@@ -111,7 +111,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
             ("retry", self.retry_erroneous),
         ]
 
-    def list_factories(self, session: "ShellSession", name: Optional[str] = None) -> None:
+    def list_factories(self, session: "ShellSession", name: str | None = None) -> None:
         """
         Lists the available iPOPO component factories
         """
@@ -130,7 +130,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         else:
             session.write_line("{0} filtered factories", len(lines))
 
-    def list_instances(self, session: "ShellSession", name: Optional[str] = None) -> None:
+    def list_instances(self, session: "ShellSession", name: str | None = None) -> None:
         """
         Lists the active iPOPO component instances
         """
@@ -150,7 +150,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         else:
             session.write_line("{0} filtered components", len(instances))
 
-    def list_waitings(self, session: "ShellSession", name: Optional[str] = None) -> None:
+    def list_waitings(self, session: "ShellSession", name: str | None = None) -> None:
         """
         Lists the components waiting to be instantiated
         """

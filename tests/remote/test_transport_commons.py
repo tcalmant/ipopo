@@ -8,17 +8,17 @@ Tests the Remote Services abstract transport classes
 
 import unittest
 import uuid
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, cast
 
 import pelix.constants
 import pelix.framework
 import pelix.remote
-import pelix.remote.transport.commons as commons
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides
 from pelix.remote import RemoteServiceDispatcher, RemoteServiceError
 from pelix.remote.beans import ImportEndpoint
+from pelix.remote.transport import commons
 
 # ------------------------------------------------------------------------------
 
@@ -56,7 +56,7 @@ class DummyService:
         Sets up a random value to be returned by the service method
         """
         self.value = uuid.uuid4()
-        self.events: List[int] = []
+        self.events: list[int] = []
         self._secret = SERVICE_SECRET
 
     def clear(self) -> None:
@@ -93,9 +93,9 @@ class Exporter(commons.AbstractRpcServiceExporter):
         Sets up members
         """
         # Call parent
-        super(Exporter, self).__init__()
+        super().__init__()
 
-        self.events: List[int] = []
+        self.events: list[int] = []
         self.raise_exception = False
 
     def clear(self) -> None:
@@ -106,7 +106,7 @@ class Exporter(commons.AbstractRpcServiceExporter):
 
     def make_endpoint_properties(
         self, svc_ref: ServiceReference[Any], name: str, fw_uid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Prepare properties for the ExportEndpoint to be created
 
@@ -127,7 +127,7 @@ class Proxy:
     Small test proxy
     """
 
-    def __init__(self, fw_uid: Optional[str]) -> None:
+    def __init__(self, fw_uid: str | None) -> None:
         """
         Sets up proxy data
         """
@@ -147,9 +147,9 @@ class Importer(commons.AbstractRpcServiceImporter):
         Sets up members
         """
         # Call parent
-        super(Importer, self).__init__()
+        super().__init__()
 
-        self.events: List[int] = []
+        self.events: list[int] = []
         self.raise_exception = False
 
     def clear(self) -> None:
@@ -283,7 +283,7 @@ class AbstractCommonExporterTest(unittest.TestCase):
             )
 
             # Check if handle works correctly
-            self.assertTrue(exporter.handles(config), "Exporter doesn't handle {0}".format(config))
+            self.assertTrue(exporter.handles(config), f"Exporter doesn't handle {config}")
 
             # The exporter must have been called
             self.assertListEqual(exporter.events, [EXPORT_MAKE])

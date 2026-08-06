@@ -26,7 +26,8 @@ iPOPO handlers constants and base classes
 """
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Protocol, Tuple
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, Protocol
 
 from pelix.constants import Specification
 from pelix.internals.events import ServiceEvent
@@ -113,7 +114,7 @@ class Handler(ABC):
         """
         ...
 
-    def check_event(self, event: ServiceEvent[Any]) -> Optional[bool]:
+    def check_event(self, event: ServiceEvent[Any]) -> bool | None:
         """
         Tests if the given service event must be handled or ignored, based
         on the state of the iPOPO service and on the content of the event.
@@ -139,7 +140,7 @@ class Handler(ABC):
         :param name: The name of the controller
         :param value: The new value of the controller
         """
-        return None
+        return
 
     def on_property_change(self, name: str, old_value: Any, new_value: Any) -> None:
         """
@@ -149,7 +150,7 @@ class Handler(ABC):
         :param old_value: The previous property value
         :param new_value: The new property value
         """
-        return None
+        return
 
     def on_hidden_property_change(self, name: str, old_value: Any, new_value: Any) -> None:
         """
@@ -159,16 +160,16 @@ class Handler(ABC):
         :param old_value: The previous property value
         :param new_value: The new property value
         """
-        return None
+        return
 
     def start(self) -> None:
         """
         Starts the handler (listeners, ...). Called once, after the component
         has been manipulated by all handlers.
         """
-        return None
+        return
 
-    def stop(self) -> Optional[Iterable[Tuple[Any, ServiceReference[Any]]]]:
+    def stop(self) -> Iterable[tuple[Any, ServiceReference[Any]]] | None:
         """
         Stops the handler. Called once, just after the component has been
         killed
@@ -182,31 +183,31 @@ class Handler(ABC):
         Called just after a component has been killed and all handlers have
         been stopped. The handler should release all its resources here.
         """
-        return None
+        return
 
     def pre_validate(self) -> None:
         """
         Called just before a component is validated
         """
-        return None
+        return
 
     def post_validate(self) -> None:
         """
         Called just after a component has been validated
         """
-        return None
+        return
 
     def pre_invalidate(self) -> None:
         """
         Called just before a component is invalidated
         """
-        return None
+        return
 
     def post_invalidate(self) -> None:
         """
         Called just after a component has been invalidated
         """
-        return None
+        return
 
 
 class HandlerException(Exception):
@@ -214,7 +215,6 @@ class HandlerException(Exception):
     Kind of exception used by handlers
     """
 
-    ...
 
 
 # ------------------------------------------------------------------------------
@@ -226,7 +226,7 @@ class ServiceProviderHandler(Handler, ABC):
     """
 
     @abstractmethod
-    def get_service_reference(self) -> Optional[ServiceReference[Any]]:
+    def get_service_reference(self) -> ServiceReference[Any] | None:
         """
         Returns the reference to the service provided by this handler
         """
@@ -243,7 +243,7 @@ class DependencyHandler(Handler, ABC):
 
     requirement: "Requirement"
 
-    def get_field(self) -> Optional[str]:
+    def get_field(self) -> str | None:
         """
         Returns the name of the field where to inject the dependency
         """
@@ -253,9 +253,9 @@ class DependencyHandler(Handler, ABC):
         """
         Forces the handler to try to bind to existing services
         """
-        return None
+        return
 
-    def get_bindings(self) -> List[ServiceReference[Any]]:
+    def get_bindings(self) -> list[ServiceReference[Any]]:
         """
         Retrieves the list of the references to the bound services
 

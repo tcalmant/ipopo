@@ -27,7 +27,7 @@ Provides commands to the Pelix shell to work with the EventAdmin service
     limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Any, List, Tuple
+from typing import TYPE_CHECKING, Any
 
 import pelix.services
 from pelix.ipopo.decorators import ComponentFactory, Instantiate, Provides, Requires
@@ -67,7 +67,7 @@ class EventAdminCommands(ShellCommandsProvider):
         """
         return "event"
 
-    def get_methods(self) -> List[Tuple[str, ShellCommandMethod]]:
+    def get_methods(self) -> list[tuple[str, ShellCommandMethod]]:
         """
         Retrieves the list of tuples (command, method) for this command handler
         """

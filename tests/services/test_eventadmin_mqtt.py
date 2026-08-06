@@ -9,7 +9,7 @@ Tests the EventAdmin MQTT bridge service
 import json
 import threading
 import unittest
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, cast
 
 import pelix.constants
 import pelix.framework
@@ -53,7 +53,7 @@ class MQTTListener:
         self._client.on_message = self.on_message  # type: ignore
 
         # Received messages
-        self.messages: List[MqttMessage] = []
+        self.messages: list[MqttMessage] = []
 
         # Some control event
         self.connect_event = threading.Event()
@@ -92,7 +92,7 @@ class MQTTListener:
         self.messages.append(message)
         self.message_event.set()
 
-    def publish(self, topic: str, payload: Union[str, bytes]) -> Optional[int]:
+    def publish(self, topic: str, payload: str | bytes) -> int | None:
         """
         Sends an MQTT message
 
@@ -112,11 +112,11 @@ class DummyEventHandler:
         Sets up members
         """
         # Topic of the last received event
-        self.last_event: Optional[str] = None
-        self.last_props: Dict[str, Any] = {}
+        self.last_event: str | None = None
+        self.last_props: dict[str, Any] = {}
         self.__event = threading.Event()
 
-    def handle_event(self, topic: str, properties: Dict[str, Any]) -> None:
+    def handle_event(self, topic: str, properties: dict[str, Any]) -> None:
         """
         Handles an event received from EventAdmin
         """
@@ -125,7 +125,7 @@ class DummyEventHandler:
         self.last_props = properties
         self.__event.set()
 
-    def pop_event(self) -> Tuple[Optional[str], Dict[str, Any]]:
+    def pop_event(self) -> tuple[str | None, dict[str, Any]]:
         """
         Pops the list of events
         """
@@ -157,7 +157,7 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
 
     framework: pelix.framework.Framework
 
-    def assertDictContains(self, subset: Dict[Any, Any], container: Dict[Any, Any]) -> None:
+    def assertDictContains(self, subset: dict[Any, Any], container: dict[Any, Any]) -> None:
         """
         Ensures that the given subset exists in the container
 
@@ -227,8 +227,8 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
             )
 
     def _register_handler(
-        self, topics: Union[str, List[str]], evt_filter: Optional[str] = None
-    ) -> Tuple[DummyEventHandler, ServiceRegistration[pelix.services.ServiceEventHandler]]:
+        self, topics: str | list[str], evt_filter: str | None = None
+    ) -> tuple[DummyEventHandler, ServiceRegistration[pelix.services.ServiceEventHandler]]:
         """
         Registers an event handler
 

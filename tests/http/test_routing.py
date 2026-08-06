@@ -10,12 +10,11 @@ import logging
 import random
 import unittest
 import uuid
-from typing import Any, List, Optional
+from typing import Any
 
-import pelix.http as http
-import pelix.http.routing as routing
+from pelix import http
 from pelix.framework import Framework, FrameworkFactory, create_framework
-from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse
+from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse, routing
 from pelix.ipopo.constants import IPopoService
 from pelix.utilities import to_str
 from tests.http.utils import (
@@ -203,8 +202,8 @@ class HttpRoutingTests(unittest.TestCase):
         class Servlet(routing.RestDispatcher):
             def __init__(self) -> None:
                 super(Servlet, self).__init__()
-                self.called_path: Optional[str] = None
-                self.prefix: Optional[str] = None
+                self.called_path: str | None = None
+                self.prefix: str | None = None
 
             def reset(self) -> None:
                 self.called_path = None
@@ -251,7 +250,7 @@ class HttpRoutingTests(unittest.TestCase):
                 response.send_content(200, "OK")
 
         # Use a random prefix
-        prefix = "/routing{0}".format(random.randint(0, 100))
+        prefix = f"/routing{random.randint(0, 100)}"
         router = Servlet()
         self.http.register_servlet(prefix, router)
 
@@ -272,7 +271,7 @@ class HttpRoutingTests(unittest.TestCase):
         class Servlet(routing.RestDispatcher):
             def __init__(self) -> None:
                 super(Servlet, self).__init__()
-                self.verb: Optional[str] = None
+                self.verb: str | None = None
 
             def reset(self) -> None:
                 self.verb = None
@@ -316,7 +315,7 @@ class HttpRoutingTests(unittest.TestCase):
                 resp.send_content(200, self.verb)
 
         # Use a random prefix
-        prefix = "/routing{0}".format(random.randint(0, 100))
+        prefix = f"/routing{random.randint(0, 100)}"
         router = Servlet()
         self.http.register_servlet(prefix, router)
 
@@ -358,7 +357,7 @@ class HttpRoutingTests(unittest.TestCase):
         class Servlet(routing.RestDispatcher):
             def __init__(self) -> None:
                 super(Servlet, self).__init__()
-                self.args: List[Any] = []
+                self.args: list[Any] = []
 
             def reset(self) -> None:
                 self.args = []
@@ -439,7 +438,7 @@ class HttpRoutingTests(unittest.TestCase):
                 resp.send_content(200, "OK")
 
         # Use a random prefix
-        prefix = "/routing{0}".format(random.randint(0, 100))
+        prefix = f"/routing{random.randint(0, 100)}"
         router = Servlet()
         self.http.register_servlet(prefix, router)
 
@@ -449,7 +448,7 @@ class HttpRoutingTests(unittest.TestCase):
             for val in ("titi", "123", "a-b", "a.c", "a123"):
                 path = pattern.format(val)
                 router.reset()
-                code = self.get_http_code(uri="{0}/{1}".format(prefix, path))
+                code = self.get_http_code(uri=f"{prefix}/{path}")
                 self.assertEqual(code, 200, path)
                 self.assertEqual(router.args[0], val, path)
                 self.assertIsInstance(router.args[0], str, path)
@@ -459,7 +458,7 @@ class HttpRoutingTests(unittest.TestCase):
             for val in (0, 123, -456):
                 path = pattern.format(val)
                 router.reset()
-                code = self.get_http_code(uri="{0}/{1}".format(prefix, path))
+                code = self.get_http_code(uri=f"{prefix}/{path}")
                 self.assertEqual(code, 200, path)
                 self.assertEqual(router.args[0], val, path)
                 self.assertIsInstance(router.args[0], int, path)
@@ -469,16 +468,16 @@ class HttpRoutingTests(unittest.TestCase):
             for val in (0.0, 0.5, 12.34, -56.78):
                 path = pattern.format(val)
                 router.reset()
-                code = self.get_http_code(uri="{0}/{1}".format(prefix, path))
+                code = self.get_http_code(uri=f"{prefix}/{path}")
                 self.assertEqual(code, 200, path)
                 self.assertEqual(router.args[0], val, path)
                 self.assertIsInstance(router.args[0], float, path)
 
         # Paths
         for val in ("simple", "root/sub", "A/B/C", "123/456/789"):
-            path = "/path/{0}".format(val)
+            path = f"/path/{val}"
             router.reset()
-            code = self.get_http_code(uri="{0}/{1}".format(prefix, path))
+            code = self.get_http_code(uri=f"{prefix}/{path}")
             self.assertEqual(code, 200, path)
             self.assertEqual(router.args[0], val, path)
             self.assertIsInstance(router.args[0], str, path)
@@ -490,9 +489,9 @@ class HttpRoutingTests(unittest.TestCase):
             uuid.uuid3(uuid.NAMESPACE_OID, "test"),
             uuid.uuid5(uuid.NAMESPACE_OID, "test"),
         ):
-            path = "/uuid/{0}".format(val)
+            path = f"/uuid/{val}"
             router.reset()
-            code = self.get_http_code(uri="{0}/{1}".format(prefix, path))
+            code = self.get_http_code(uri=f"{prefix}/{path}")
             self.assertEqual(code, 200, path)
             self.assertEqual(router.args[0], val, path)
             self.assertIsInstance(router.args[0], uuid.UUID, path)
@@ -504,7 +503,7 @@ class HttpRoutingTests(unittest.TestCase):
             ("opt/toto/titi", "toto", "titi"),
         ):
             router.reset()
-            code = self.get_http_code(uri="{0}/{1}".format(prefix, path))
+            code = self.get_http_code(uri=f"{prefix}/{path}")
             self.assertEqual(code, 200, path)
             self.assertListEqual(router.args, [toto, titi], path)
 
@@ -515,7 +514,7 @@ class HttpRoutingTests(unittest.TestCase):
             ("opt/toto/titi", "toto", "titi"),
         ):
             router.reset()
-            code = self.get_http_code(uri="{0}/{1}".format(prefix, path))
+            code = self.get_http_code(uri=f"{prefix}/{path}")
             self.assertEqual(code, 200, path)
             self.assertListEqual(router.args, [toto, titi], path)
 

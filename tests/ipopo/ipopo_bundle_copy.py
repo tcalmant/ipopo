@@ -24,7 +24,7 @@ BASIC_INSTANCE = "basic-component-copy"
 @ComponentFactory(BASIC_FACTORY)
 @Instantiate(BASIC_INSTANCE)
 @Provides("basic-component-svc")
-class BasicComponent(object):
+class BasicComponent:
     """
     Dummy instantiated component
     """

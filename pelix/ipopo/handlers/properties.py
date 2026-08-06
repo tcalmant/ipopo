@@ -25,14 +25,15 @@ Properties handler
     limitations under the License.
 """
 
-from typing import Any, Callable, Iterable, Optional, Tuple, TypeVar
+from collections.abc import Callable, Iterable
+from typing import Any, TypeVar
 
 import pelix.ipopo.constants as ipopo_constants
-import pelix.ipopo.handlers.constants as constants
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceRegistration
 from pelix.ipopo.contexts import ComponentContext
+from pelix.ipopo.handlers import constants
 from pelix.ipopo.instance import StoredInstance
 
 # ------------------------------------------------------------------------------
@@ -76,7 +77,7 @@ class Activator(ActivatorProto):
         """
         Sets up members
         """
-        self._registration: Optional[ServiceRegistration[constants.HandlerFactory]] = None
+        self._registration: ServiceRegistration[constants.HandlerFactory] | None = None
 
     def start(self, context: BundleContext) -> None:
         """
@@ -112,11 +113,11 @@ class PropertiesHandler(constants.Handler):
 
     def __init__(self) -> None:
         super().__init__()
-        self._ipopo_instance: Optional[StoredInstance] = None
+        self._ipopo_instance: StoredInstance | None = None
 
     def _field_property_generator(
         self, public_properties: bool
-    ) -> Tuple[Callable[[T, str], Any], Callable[[T, str, Any], Any]]:
+    ) -> tuple[Callable[[T, str], Any], Callable[[T, str, Any], Any]]:
         """
         Generates the methods called by the injected class properties
 
@@ -171,7 +172,7 @@ class PropertiesHandler(constants.Handler):
         return get_value, set_value
 
     @staticmethod
-    def get_methods_names(public_properties: bool) -> Tuple[str, str]:
+    def get_methods_names(public_properties: bool) -> tuple[str, str]:
         """
         Generates the names of the fields where to inject the getter and setter
         methods
@@ -190,7 +191,7 @@ class PropertiesHandler(constants.Handler):
             f"{prefix}{ipopo_constants.IPOPO_SETTER_SUFFIX}",
         )
 
-    def get_kinds(self) -> Tuple[str]:
+    def get_kinds(self) -> tuple[str]:
         return (constants.KIND_PROPERTIES,)
 
     def manipulate(self, stored_instance: StoredInstance, component_instance: Any) -> None:

@@ -79,10 +79,10 @@ _logger = logging.getLogger(__name__)
 @Requires("_advertisers", EndpointAdvertiser, True, True)
 class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEventListener):
     _rsa: RemoteServiceAdmin
-    _advertisers: List[EndpointAdvertiser]
+    _advertisers: list[EndpointAdvertiser]
 
     def __init__(self) -> None:
-        self._context: Optional[BundleContext] = None
+        self._context: BundleContext | None = None
 
     @Validate
     def _validate(self, context: BundleContext) -> None:
@@ -157,7 +157,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
             self._handle_service_modified(service_ref)
 
     # impl of EventListenerHook
-    def event(self, service_event: ServiceEvent[Any], listener_dict: Dict[Any, Any]) -> None:
+    def event(self, service_event: ServiceEvent[Any], listener_dict: dict[Any, Any]) -> None:
         self._handle_event(service_event)
 
     def _advertise_endpoint(self, ed: EndpointDescription) -> None:

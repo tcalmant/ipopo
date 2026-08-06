@@ -29,7 +29,7 @@ import argparse
 import os
 import pathlib
 import subprocess
-from typing import Any, List, Optional
+from typing import Any
 
 # ------------------------------------------------------------------------------
 
@@ -63,8 +63,7 @@ def find_openssl() -> str:
         exe = os.path.join(path, name)
         if os.path.exists(exe):
             return exe
-    else:
-        raise IOError(f"{name} not found in PATH")
+    raise OSError(f"{name} not found in PATH")
 
 
 def call_openssl(*args: Any) -> None:
@@ -118,7 +117,7 @@ def make_subj(common_name: str, encrypted: bool = False) -> str:
     )
 
 
-def make_certs(out_dir: pathlib.Path, key_password: Optional[str]) -> None:
+def make_certs(out_dir: pathlib.Path, key_password: str | None) -> None:
     """
     Generates a certificate chain and two certificates: one with a password and
     one without
@@ -230,7 +229,7 @@ def make_certs(out_dir: pathlib.Path, key_password: Optional[str]) -> None:
         )
 
 
-def main(args: Optional[List[str]] = None) -> None:
+def main(args: list[str] | None = None) -> None:
     """
     Entry point
     """

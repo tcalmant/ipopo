@@ -33,10 +33,11 @@ import logging
 import threading
 import uuid
 from abc import abstractmethod
-from typing import Any, Dict, Iterable, List, Optional, Union
+from collections.abc import Iterable
+from typing import Any
 
-import pelix.constants as constants
 import pelix.remote.beans
+from pelix import constants
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo.decorators import Invalidate, Property, Provides, Validate
@@ -71,21 +72,21 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
         Sets up the exporter
         """
         # Bundle context
-        self._context: Optional[BundleContext] = None
+        self._context: BundleContext | None = None
 
         # Framework UID
-        self._framework_uid: Optional[str] = None
+        self._framework_uid: str | None = None
 
         # Handled configurations
-        self._kinds: List[str] = []
+        self._kinds: list[str] = []
 
         # Exported services: Name -> ExportEndpoint
-        self.__endpoints: Dict[str, pelix.remote.beans.ExportEndpoint] = {}
+        self.__endpoints: dict[str, pelix.remote.beans.ExportEndpoint] = {}
 
         # Thread safety
         self.__lock = threading.Lock()
 
-    def dispatch(self, method: str, params: Union[Iterable[Any], Dict[str, Any]]) -> Any:
+    def dispatch(self, method: str, params: Iterable[Any] | dict[str, Any]) -> Any:
         """
         Called by the servlet: calls the method of an exported service
         """
@@ -125,7 +126,7 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
 
         return method_ref(**params)
 
-    def handles(self, configurations: Union[None, str, Iterable[str]]) -> bool:
+    def handles(self, configurations: None | str | Iterable[str]) -> bool:
         """
         Checks if this provider handles the given configuration types
 
@@ -138,8 +139,8 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
         return bool(set(configurations).intersection(self._kinds))
 
     def export_service(
-        self, svc_ref: ServiceReference[Any], name: str, fw_uid: Optional[str]
-    ) -> Optional[pelix.remote.beans.ExportEndpoint]:
+        self, svc_ref: ServiceReference[Any], name: str, fw_uid: str | None
+    ) -> pelix.remote.beans.ExportEndpoint | None:
         """
         Prepares an export endpoint
 
@@ -195,7 +196,7 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
         self,
         endpoint: pelix.remote.beans.ExportEndpoint,
         new_name: str,
-        old_properties: Optional[Dict[str, Any]],
+        old_properties: dict[str, Any] | None,
     ) -> None:
         """
         Updates an export endpoint
@@ -238,8 +239,8 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
             self._context.unget_service(svc_ref)
 
     def make_endpoint_properties(
-        self, svc_ref: ServiceReference[Any], name: str, fw_uid: Optional[str]
-    ) -> Dict[str, Any]:
+        self, svc_ref: ServiceReference[Any], name: str, fw_uid: str | None
+    ) -> dict[str, Any]:
         """
         Prepare properties for the ExportEndpoint to be created
 
@@ -291,16 +292,16 @@ class AbstractRpcServiceImporter(abc.ABC, pelix.remote.RemoteServiceImportEndpoi
         Sets up the exporter
         """
         # Bundle context
-        self._context: Optional[BundleContext] = None
+        self._context: BundleContext | None = None
 
         # Framework UID
-        self._framework_uid: Optional[str] = None
+        self._framework_uid: str | None = None
 
         # Component properties
-        self._kinds: List[str] = []
+        self._kinds: list[str] = []
 
         # Registered services (endpoint UID -> ServiceReference)
-        self.__registrations: Dict[str, ServiceRegistration[Any]] = {}
+        self.__registrations: dict[str, ServiceRegistration[Any]] = {}
         self.__lock = threading.Lock()
 
     def endpoint_added(self, endpoint: pelix.remote.beans.ImportEndpoint) -> None:
@@ -331,7 +332,7 @@ class AbstractRpcServiceImporter(abc.ABC, pelix.remote.RemoteServiceImportEndpoi
             self.__registrations[endpoint.uid] = svc_reg
 
     def endpoint_updated(
-        self, endpoint: pelix.remote.beans.ImportEndpoint, old_properties: Optional[Dict[str, Any]]
+        self, endpoint: pelix.remote.beans.ImportEndpoint, old_properties: dict[str, Any] | None
     ) -> None:
         """
         An end point has been updated

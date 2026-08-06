@@ -8,8 +8,8 @@ Tests the iPOPO class manipulation.
 
 import unittest
 
-import pelix.ipopo.decorators as decorators
 from pelix.framework import FrameworkFactory
+from pelix.ipopo import decorators
 from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
@@ -54,7 +54,7 @@ class ManipulatedClassTest(unittest.TestCase):
         @decorators.Requires("req_2", "spec_1", True, True)
         @decorators.Property("prop_1", "prop.1")
         @decorators.Property("prop_2", "prop.2", 42)
-        class TestClass(object):
+        class TestClass:
             pass
 
         # Instantiate

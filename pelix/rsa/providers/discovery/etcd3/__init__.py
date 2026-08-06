@@ -32,9 +32,9 @@ import logging
 import socket
 import threading
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Sequence
 from concurrent.futures.thread import ThreadPoolExecutor
-from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import grpc
 
@@ -190,30 +190,30 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     _hostname: str
     _port: int
     _top_key: str
-    _grpc_credentials: Optional[grpc.ChannelCredentials]
-    _grpc_options: Optional[Sequence[Tuple[str, Any]]]
-    _grpc_compression: Optional[grpc.Compression]
-    _channel: Optional[grpc.Channel]
+    _grpc_credentials: grpc.ChannelCredentials | None
+    _grpc_options: Sequence[tuple[str, Any]] | None
+    _grpc_compression: grpc.Compression | None
+    _channel: grpc.Channel | None
     _lease_ttl: int
     _keepalive_interval: int
     _call_timeout: int
     _disconnect_timeout: int
     _session_id: str = None
-    _connected_callback: Optional[Callable]
+    _connected_callback: Callable | None
     _hostip: str
-    _call_executor: Optional[ThreadPoolExecutor]
+    _call_executor: ThreadPoolExecutor | None
     _encoding: str = "utf-8"
 
     def __init__(self) -> None:
         EndpointAdvertiser.__init__(self)
         EndpointSubscriber.__init__(self)
         # asyncio loop set in validate
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._loop: asyncio.AbstractEventLoop | None = None
         # lease_id and watch_id set during connection
-        self._lease_id: Optional[int] = None
-        self._watch_id: Optional[int] = None
+        self._lease_id: int | None = None
+        self._watch_id: int | None = None
         # task for doing keepalive requests setup during connect
-        self._keepalive_task: Optional[asyncio.Task] = None
+        self._keepalive_task: asyncio.Task | None = None
         # event is set in _connect and waited on by endpoint advertisers
         self._connected_event = asyncio.Event()
 
@@ -231,7 +231,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             self._get_endpoint_path(endpoint_description.get_id()), json.dumps(service_props)
         )
 
-    def _encode_description(self, endpoint_description: EndpointDescription) -> Dict[str, Any]:
+    def _encode_description(self, endpoint_description: EndpointDescription) -> dict[str, Any]:
         encoded_props = encode_endpoint_props(endpoint_description)
         # get copy of service props
         service_props = self._service_props.copy()
@@ -295,7 +295,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             self._loop.run_until_complete(self._connect())
 
         # create and start thread
-        threading.Thread(target=worker, name="etcd3[{}]".format(self._session_id), daemon=True).start()
+        threading.Thread(target=worker, name=f"etcd3[{self._session_id}]", daemon=True).start()
 
     @Invalidate
     def _invalidate(self, _: BundleContext) -> None:
@@ -313,7 +313,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     def _update(self, endpoint_description: EndpointDescription) -> None:
         return self._run_coroutine(self._write_description(endpoint_description))
 
-    def _unadvertise(self, advertised: Tuple[EndpointDescription, Any]) -> None:
+    def _unadvertise(self, advertised: tuple[EndpointDescription, Any]) -> None:
         return self._run_coroutine(self._delete_range(self._get_endpoint_path(advertised[0].get_id())))
 
     def _get_key_prefix(self):
@@ -322,16 +322,14 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     def _get_session_key(self):
         return "/".join([self._get_key_prefix(), self._session_id])
 
-    class EndpointKey(object):
+    class EndpointKey:
         def __init__(self, sessionid: str, ed_id: str) -> None:
             self.sessionid = sessionid
             self.ed_id = ed_id
             self.fullkey = "/".join([self.sessionid, self.ed_id])
 
         def __str__(self) -> str:
-            return "[EndpointKey sessionid={} ed_id={} fullKey={}]".format(
-                self.sessionid, self.ed_id, self.fullkey
-            )
+            return f"[EndpointKey sessionid={self.sessionid} ed_id={self.ed_id} fullKey={self.fullkey}]"
 
     def _create_endpoint_key(self, key: str) -> EndpointKey:
         split_key = [x for x in key.split("/") if x != ""]
@@ -343,7 +341,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             return None
         else:
             try:
-                uuid.UUID("urn:uuid:{}".format(split_key[1]), version=4)
+                uuid.UUID(f"urn:uuid:{split_key[1]}", version=4)
             except ValueError:
                 _logger.error(
                     "_create_endpoint_key error, GUID creation failed for sessionId=%s", split_key[1]
@@ -410,7 +408,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             else:
                 self._remove_endpoint(endpoint_key)
 
-    def _fire_endpoint_event(self, event_type: int, ed: EndpointDescription) -> None:  #
+    def _fire_endpoint_event(self, event_type: int, ed: EndpointDescription) -> None:
         # send notifications via thread so doesn't block asyncio loop thread
         self._loop.run_in_executor(
             self._call_executor, EndpointSubscriber._fire_endpoint_event, self, event_type, ed
@@ -422,7 +420,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         )
 
     def _create_async_channel(self) -> grpc.Channel:
-        target = "{}:{}".format(self._hostname, self._port)
+        target = f"{self._hostname}:{self._port}"
         if self._grpc_credentials:
             return grpc.aio.secure_channel(
                 target, self._grpc_credentials, self._grpc_options, self._grpc_compression
@@ -435,7 +433,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             rpc_pb2.LeaseGrantRequest(TTL=self._lease_ttl)
         )
         if resp.error:
-            _logger.error("session_id={} request_lease error={}".format(self._session_id, resp.error))
+            _logger.error(f"session_id={self._session_id} request_lease error={resp.error}")
             await self._disconnect()
         self._lease_id = resp.ID
         self._lease_ttl = resp.TTL
@@ -492,7 +490,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 self._watch_id = watch_response.watch_id
                 self._connected_event.set()
             elif watch_response.canceled:
-                _logger.error("session_id={} watch_cancelled ".format(self._session_id))
+                _logger.error(f"session_id={self._session_id} watch_cancelled ")
                 return
             else:
                 for event in watch_response.events:
@@ -521,22 +519,22 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             if self._keepalive_task:
                 self._keepalive_task.cancel("keepalive canceled")
                 self._keepalive_task = None
-                _logger.debug("session_id={} keepalive canceled".format(self._session_id))
+                _logger.debug(f"session_id={self._session_id} keepalive canceled")
 
             await self._delete_range(self._get_session_path())
-            _logger.debug("session_id={} range deleted".format(self._session_id))
+            _logger.debug(f"session_id={self._session_id} range deleted")
             await rpc_pb2_grpc.LeaseStub(self._channel).LeaseRevoke(
                 rpc_pb2.LeaseRevokeRequest(ID=self._lease_id)
             )
-            _logger.debug("session_id={} lease_id={} revoked".format(self._session_id, self._lease_id))
+            _logger.debug(f"session_id={self._session_id} lease_id={self._lease_id} revoked")
             self._lease_id = None
 
             await self._channel.close()
-            _logger.debug("session_id={} closed channel".format(self._session_id))
+            _logger.debug(f"session_id={self._session_id} closed channel")
             self._channel = None
 
 
-def instantiate_etcd3_discovery_provider(context: BundleContext, properties: Optional[Dict[str, Any]] = None):
+def instantiate_etcd3_discovery_provider(context: BundleContext, properties: dict[str, Any] | None = None):
     from pelix.rsa import instantiate_rsa_component
 
     return instantiate_rsa_component(context, ETCD_FACTORY_NAME, ETCD_INSTANCE_NAME, properties)

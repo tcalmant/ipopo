@@ -10,14 +10,13 @@ import os
 import sys
 import unittest
 from io import StringIO
-from typing import Any, List, Optional, Tuple, cast
+from typing import Any, cast
 
-import pelix.constants as constants
-import pelix.shell.beans as beans
+from pelix import constants
 from pelix.framework import Bundle, BundleContext, Framework, FrameworkFactory, create_framework
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
-from pelix.shell import ShellCommandMethod, ShellCommandsProvider, ShellService, ShellUtils
+from pelix.shell import ShellCommandMethod, ShellCommandsProvider, ShellService, ShellUtils, beans
 
 # ------------------------------------------------------------------------------
 
@@ -204,7 +203,7 @@ class ShellCoreTest(unittest.TestCase):
         for invalid in (None, "", "  "):
             self.assertFalse(
                 self.shell.register_command("test", invalid, self._command1),  # type: ignore
-                "Invalid command registered: '{0}'".format(invalid),
+                f"Invalid command registered: '{invalid}'",
             )
 
         # Invalid method
@@ -291,7 +290,7 @@ class ShellCoreTest(unittest.TestCase):
         # Call them (complete name)
         for name in ("test.command", "test2.command"):
             self._flag = False
-            self.assertTrue(self.shell.execute(name), "Error in executing '{0}'".format(name))
+            self.assertTrue(self.shell.execute(name), f"Error in executing '{name}'")
             self.assertTrue(self._flag, "Command not called")
 
         # Simple name must fail
@@ -345,7 +344,7 @@ class ShellCommandTest(unittest.TestCase):
         Tests positional arguments
         """
 
-        def command(io_handler: beans.ShellSession, arg1: Any, arg2: Any) -> Tuple[Any, Any]:
+        def command(io_handler: beans.ShellSession, arg1: Any, arg2: Any) -> tuple[Any, Any]:
             """
             Sample command
             """
@@ -363,14 +362,14 @@ class ShellCommandTest(unittest.TestCase):
         # Invalid call
         for invalid in ([1], (1, 2, 3)):
             args = " ".join(str(arg) for arg in invalid)
-            self.assertFalse(self.shell.execute("test.command {0}".format(args)), "Invalid call passed")
+            self.assertFalse(self.shell.execute(f"test.command {args}"), "Invalid call passed")
 
     def testKeywords(self) -> None:
         """
         Tests positional arguments
         """
 
-        def command(io_handler: beans.ShellSession, arg1: Any = "15", **kwargs: Any) -> Tuple[Any, Any]:
+        def command(io_handler: beans.ShellSession, arg1: Any = "15", **kwargs: Any) -> tuple[Any, Any]:
             """
             Sample command
             """
@@ -420,7 +419,7 @@ class ShellCommandTest(unittest.TestCase):
             def get_namespace(self) -> str:
                 return "test"
 
-            def get_methods(self) -> List[Tuple[str, ShellCommandMethod]]:
+            def get_methods(self) -> list[tuple[str, ShellCommandMethod]]:
                 return [("command", self._command)]
 
             def _command(self, io_handler: beans.ShellSession) -> None:
@@ -485,7 +484,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         self.context = None  # type: ignore
         self.framework = None  # type: ignore
 
-    def _make_session(self) -> Tuple[beans.ShellSession, StringIO]:
+    def _make_session(self) -> tuple[beans.ShellSession, StringIO]:
         """
         Prepares a ShellSession object for _run_command
         """
@@ -577,7 +576,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         old_value = None
         for value in ("Some value", "Another value"):
             # Set a value
-            output = self._run_command("set {0}='{1}'".format(var_name, value), **kwargs)
+            output = self._run_command(f"set {var_name}='{value}'", **kwargs)
             self.assertEqual(session.get(var_name), value)
 
             self.assertIn(var_name, output)
@@ -639,7 +638,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
             self.assertEqual(int(details["properties"]["pelix.shell.port"]), port)
 
         # Run the file a second time: it must fail
-        self.assertFalse(self.shell.execute("run '{0}'".format(filename), session))
+        self.assertFalse(self.shell.execute(f"run '{filename}'", session))
 
     def testBundlesInfo(self) -> None:
         """
@@ -741,7 +740,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         Tests the sl and sd commands
         """
         # Get all services references
-        svc_refs: Optional[List[ServiceReference[Any]]] = self.context.get_all_service_references(None, None)
+        svc_refs: list[ServiceReference[Any]] | None = self.context.get_all_service_references(None, None)
         assert svc_refs is not None
         specs = set()
         for svc_ref in svc_refs:

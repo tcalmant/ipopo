@@ -40,7 +40,8 @@ import select
 import socket
 import struct
 import threading
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from collections.abc import Iterable
+from typing import Any
 
 import pelix.constants
 import pelix.remote
@@ -165,7 +166,7 @@ def make_mreq(family: socket.AddressFamily, address: str) -> bytes:
 # ------------------------------------------------------------------------------
 
 
-def create_multicast_socket(address: str, port: int) -> Tuple[socket.socket, str]:
+def create_multicast_socket(address: str, port: int) -> tuple[socket.socket, str]:
     """
     Creates a multicast socket according to the given address and port.
     Handles both IPv4 and IPv6 addresses.
@@ -179,7 +180,7 @@ def create_multicast_socket(address: str, port: int) -> Tuple[socket.socket, str
     try:
         addrs_info = socket.getaddrinfo(address, port, socket.AF_UNSPEC, socket.SOCK_DGRAM)
     except socket.gaierror:
-        raise ValueError("Error retrieving address informations ({0}, {1})".format(address, port))
+        raise ValueError(f"Error retrieving address informations ({address}, {port})")
 
     if len(addrs_info) > 1:
         _logger.debug("More than one address information found. Using the first one.")
@@ -272,7 +273,7 @@ def close_multicast_socket(sock: socket.socket, address: str) -> None:
 @Requires("_registry", pelix.remote.RemoteServiceRegistry)
 @Property("_group", "multicast.group", "239.0.0.1")
 @Property("_port", "multicast.port", 42000)
-class MulticastDiscovery(object):
+class MulticastDiscovery:
     """
     Remote services discovery and notification using multicast packets
     """
@@ -288,19 +289,19 @@ class MulticastDiscovery(object):
         Sets up the component
         """
         # Framework UID
-        self._fw_uid: Optional[str] = None
+        self._fw_uid: str | None = None
 
         # Socket
         self._group = "239.0.0.1"
         self._port = 42000
-        self._socket: Optional[socket.socket] = None
-        self._target: Optional[Tuple[str, int]] = None
+        self._socket: socket.socket | None = None
+        self._target: tuple[str, int] | None = None
 
         # Reception loop
         self._stop_event = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
-    def __make_basic_dict(self, event: str) -> Dict[str, Any]:
+    def __make_basic_dict(self, event: str) -> dict[str, Any]:
         """
         Prepares basic common information contained into an event packet
         (access, framework UID, event type)
@@ -320,7 +321,7 @@ class MulticastDiscovery(object):
             "access": {"port": access[0], "path": access[1]},  # Access to the dispatcher servlet
         }
 
-    def _make_endpoint_dict(self, event: str, endpoint: ExportEndpoint) -> Dict[str, Any]:
+    def _make_endpoint_dict(self, event: str, endpoint: ExportEndpoint) -> dict[str, Any]:
         """
         Prepares an event packet containing a single endpoint
 
@@ -339,7 +340,7 @@ class MulticastDiscovery(object):
 
         return packet
 
-    def _make_endpoints_dict(self, event: str, endpoints: Iterable[ExportEndpoint]) -> Dict[str, Any]:
+    def _make_endpoints_dict(self, event: str, endpoints: Iterable[ExportEndpoint]) -> dict[str, Any]:
         """
         Prepares an event packet containing multiple endpoints
 
@@ -355,7 +356,7 @@ class MulticastDiscovery(object):
 
         return packet
 
-    def __send_packet(self, data: Union[str, bytes], target: Optional[Tuple[str, int]] = None) -> None:
+    def __send_packet(self, data: str | bytes, target: tuple[str, int] | None = None) -> None:
         """
         Sends a UDP datagram to the given target, if given, or to the multicast group.
 
@@ -385,7 +386,7 @@ class MulticastDiscovery(object):
         data = json.dumps(self.__make_basic_dict("discovery"))
         self.__send_packet(data)
 
-    def endpoints_added(self, endpoints: List[ExportEndpoint]) -> None:
+    def endpoints_added(self, endpoints: list[ExportEndpoint]) -> None:
         """
         Multiple endpoints have been created
         """
@@ -393,7 +394,7 @@ class MulticastDiscovery(object):
         data = json.dumps(self._make_endpoints_dict("add", endpoints))
         self.__send_packet(data)
 
-    def endpoint_updated(self, endpoint: ExportEndpoint, old_properties: Optional[Dict[str, Any]]) -> None:
+    def endpoint_updated(self, endpoint: ExportEndpoint, old_properties: dict[str, Any] | None) -> None:
         # pylint: disable=W0613
         """
         An end point is updated
@@ -410,7 +411,7 @@ class MulticastDiscovery(object):
         data = json.dumps(self._make_endpoint_dict("remove", endpoint))
         self.__send_packet(data)
 
-    def _handle_packet(self, sender: Tuple[str, int], raw_data: str) -> None:
+    def _handle_packet(self, sender: tuple[str, int], raw_data: str) -> None:
         """
         Calls the method associated to the kind of event indicated in the given
         packet.
@@ -438,7 +439,7 @@ class MulticastDiscovery(object):
         else:
             _logger.warning("Unknown event '%s' from %s", event, sender)
 
-    def _handle_event_packet(self, sender: Tuple[str, int], data: Dict[str, Any]) -> None:
+    def _handle_event_packet(self, sender: tuple[str, int], data: dict[str, Any]) -> None:
         """
         Handles an end point event packet
 

@@ -26,7 +26,7 @@ Defines the shell completion handlers for iPOPO concepts
     limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Dict, List, Type
+from typing import TYPE_CHECKING
 
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.ipopo.constants import use_ipopo
@@ -68,7 +68,7 @@ class ComponentFactoryCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        matches: List[str],
+        matches: list[str],
         longest_match_len: int,
     ) -> None:
         """
@@ -106,9 +106,9 @@ class ComponentFactoryCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        current_arguments: List[str],
+        current_arguments: list[str],
         current: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Returns the list of services IDs matching the current state
 
@@ -138,7 +138,7 @@ class ComponentInstanceCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        matches: List[str],
+        matches: list[str],
         longest_match_len: int,
     ) -> None:
         """
@@ -177,9 +177,9 @@ class ComponentInstanceCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        current_arguments: List[str],
+        current_arguments: list[str],
         current: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Returns the list of services IDs matching the current state
 
@@ -210,9 +210,9 @@ class ComponentFactoryPropertiesCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        current_arguments: List[str],
+        current_arguments: list[str],
         current: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Returns the list of services IDs matching the current state
 
@@ -257,7 +257,7 @@ class ComponentFactoryPropertiesCompleter(AbstractCompleter):
 
 
 # All completers for this bundle
-COMPLETERS: Dict[str, Type[AbstractCompleter]] = {
+COMPLETERS: dict[str, type[AbstractCompleter]] = {
     FACTORY: ComponentFactoryCompleter,
     FACTORY_PROPERTY: ComponentFactoryPropertiesCompleter,
     COMPONENT: ComponentInstanceCompleter,
@@ -271,7 +271,7 @@ class Activator(ActivatorProto):
     """
 
     def __init__(self) -> None:
-        self._registrations: List["ServiceRegistration[Completer]"] = []
+        self._registrations: list[ServiceRegistration[Completer]] = []
 
     def start(self, context: "BundleContext") -> None:
         """

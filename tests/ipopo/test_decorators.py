@@ -11,9 +11,8 @@ import os
 import sys
 import unittest
 
-import pelix.ipopo.constants as constants
-import pelix.ipopo.decorators as decorators
 from pelix.framework import FrameworkFactory
+from pelix.ipopo import constants, decorators
 from tests import log_off, log_on
 from tests.ipopo import install_bundle, install_ipopo
 
@@ -180,7 +179,7 @@ class DecoratorsTest(unittest.TestCase):
         }
 
         # Define some non decorable types
-        class BadClass(object):
+        class BadClass:
             pass
 
         # Define a decorable method
@@ -238,7 +237,7 @@ class DecoratorsTest(unittest.TestCase):
         instance_name = "test"
 
         @decorators.Instantiate(instance_name)
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         class ChildClass(DummyClass):
@@ -273,7 +272,7 @@ class DecoratorsTest(unittest.TestCase):
         Tests the @Instantiate decorator
         """
 
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         def method():
@@ -313,7 +312,7 @@ class DecoratorsTest(unittest.TestCase):
         Tests the @Property decorator
         """
 
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         def method():
@@ -342,7 +341,7 @@ class DecoratorsTest(unittest.TestCase):
         Tests the @Provides decorator
         """
 
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         def method():
@@ -364,7 +363,7 @@ class DecoratorsTest(unittest.TestCase):
         Tests the @Provides decorator for a service factory
         """
 
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         def invalid_method(self, foo):
@@ -396,7 +395,7 @@ class DecoratorsTest(unittest.TestCase):
         Tests the @Provides decorator for a prototype service factory
         """
 
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         def invalid_method(self, foo):
@@ -472,7 +471,7 @@ class DecoratorsTest(unittest.TestCase):
         Tests the @RequiresMap decorator
         """
 
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         def method():
@@ -542,7 +541,7 @@ class SimpleDecoratorsTests(unittest.TestCase):
         Tests the _get_factory_context() method
         """
 
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         class ChildClass(DummyClass):
@@ -594,7 +593,7 @@ class SimpleDecoratorsTests(unittest.TestCase):
         from tests.ipopo.ipopo_bundle import Child
 
         base_names = ["Father", "Mother"]
-        full_names = ["{0}.{1}".format(ipopo_bundle.__name__, name) for name in base_names]
+        full_names = [f"{ipopo_bundle.__name__}.{name}" for name in base_names]
 
         # New behavior
         decorators.Provides.USE_MODULE_QUALNAME = True
@@ -612,7 +611,7 @@ class SimpleDecoratorsTests(unittest.TestCase):
         self.assertCountEqual(base_names, specs)
 
         # Class specification
-        class Spec(object):
+        class Spec:
             pass
 
         self.assertEqual(

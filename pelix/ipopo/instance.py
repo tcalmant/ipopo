@@ -28,27 +28,22 @@ Instance manager class definition
 import logging
 import threading
 import traceback
+from collections.abc import Callable, Iterable
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Concatenate,
-    Dict,
-    Iterable,
-    List,
-    Optional,
     ParamSpec,
-    Set,
     TypeVar,
     cast,
 )
 
-import pelix.ipopo.constants as constants
 import pelix.ipopo.handlers.constants as handlers_const
 from pelix.constants import FrameworkException
 from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceReference
+from pelix.ipopo import constants
 from pelix.ipopo.contexts import ComponentContext
 
 if TYPE_CHECKING:
@@ -76,19 +71,19 @@ class StoredInstance:
 
     # Try to reduce memory footprint (stored instances)
     __slots__ = (
-        "bundle_context",
-        "context",
-        "factory_name",
-        "instance",
-        "name",
-        "state",
+        "__all_handlers",
         "_controllers_state",
         "_handlers",
         "_ipopo_service",
         "_lock",
         "_logger",
+        "bundle_context",
+        "context",
         "error_trace",
-        "__all_handlers",
+        "factory_name",
+        "instance",
+        "name",
+        "state",
     )
 
     INVALID = 0
@@ -128,10 +123,10 @@ class StoredInstance:
         self._lock = threading.RLock()
 
         # The iPOPO service
-        self._ipopo_service: Optional["_IPopoService"] = ipopo_service
+        self._ipopo_service: _IPopoService | None = ipopo_service
 
         # Component context
-        self.context: Optional[ComponentContext] = context
+        self.context: ComponentContext | None = context
 
         # The instance name
         self.name: str = self.context.name
@@ -146,17 +141,17 @@ class StoredInstance:
         self.state = StoredInstance.INVALID
 
         # Stack track of validation error
-        self.error_trace: Optional[str] = None
+        self.error_trace: str | None = None
 
         # Store the bundle context
         self.bundle_context: BundleContext = self.context.get_bundle_context()
 
         # The controllers state dictionary
-        self._controllers_state: Dict[str, bool] = {}
+        self._controllers_state: dict[str, bool] = {}
 
         # Handlers: kind -> [handlers]
-        self._handlers: Dict[str, List[handlers_const.Handler]] = {}
-        self.__all_handlers: Set[handlers_const.Handler] = set(handlers)
+        self._handlers: dict[str, list[handlers_const.Handler]] = {}
+        self.__all_handlers: set[handlers_const.Handler] = set(handlers)
         for handler in handlers:
             kinds = handler.get_kinds()
             if kinds:
@@ -207,7 +202,7 @@ class StoredInstance:
         dependency: handlers_const.DependencyHandler,
         svc: T,
         svc_ref: ServiceReference[T],
-        old_properties: Dict[str, Any],
+        old_properties: dict[str, Any],
         new_value: bool = False,
     ) -> None:
         """
@@ -289,7 +284,7 @@ class StoredInstance:
                 handlers_const.Handler.on_hidden_property_change, name, old_value, new_value
             )
 
-    def get_handlers(self, kind: Optional[str] = None) -> List[handlers_const.Handler]:
+    def get_handlers(self, kind: str | None = None) -> list[handlers_const.Handler]:
         """
         Retrieves the handlers of the given kind. If kind is None, all handlers
         are returned.
@@ -341,7 +336,7 @@ class StoredInstance:
         with self._lock:
             all_valid = True
             for handler in cast(
-                List[handlers_const.DependencyHandler], self.get_handlers(handlers_const.KIND_DEPENDENCY)
+                list[handlers_const.DependencyHandler], self.get_handlers(handlers_const.KIND_DEPENDENCY)
             ):
                 # Try to bind
                 try:
@@ -369,7 +364,7 @@ class StoredInstance:
         with self._lock:
             self.__safe_handlers_callback(handlers_const.Handler.start)
 
-    def retry_erroneous(self, properties_update: Optional[Dict[str, Any]]) -> int:
+    def retry_erroneous(self, properties_update: dict[str, Any] | None) -> int:
         """
         Removes the ERRONEOUS state from a component and retries a validation
 
@@ -766,7 +761,7 @@ class StoredInstance:
 
     def __safe_handlers_callback(
         self,
-        method: Callable[Concatenate[handlers_const.Handler, P], Optional[bool]],
+        method: Callable[Concatenate[handlers_const.Handler, P], bool | None],
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> bool:
@@ -789,7 +784,7 @@ class StoredInstance:
             # Get the method for each handler
             try:
                 # Get the bound method
-                handler_method = cast(Callable[P, Optional[bool]], getattr(handler, method.__name__))
+                handler_method = cast(Callable[P, bool | None], getattr(handler, method.__name__))
                 # Call it
                 res = handler_method(*args, **kwargs)
                 if res is not None and not res:
@@ -833,7 +828,7 @@ class StoredInstance:
         dependency: handlers_const.DependencyHandler,
         service: T,
         reference: ServiceReference[T],
-        old_properties: Dict[str, Any],
+        old_properties: dict[str, Any],
         new_value: bool,
     ) -> None:
         """

@@ -12,11 +12,10 @@ from io import StringIO
 
 import pelix.constants
 import pelix.framework
-import pelix.shell.beans as beans
 from pelix.constants import FRAMEWORK_UID, SERVICE_ID, BundleException
 from pelix.ipopo.constants import use_ipopo
 from pelix.rsa import ENDPOINT_FRAMEWORK_UUID, ENDPOINT_ID
-from pelix.shell import ShellService
+from pelix.shell import ShellService, beans
 
 # ------------------------------------------------------------------------------
 

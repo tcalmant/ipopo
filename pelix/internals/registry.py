@@ -29,24 +29,17 @@ import bisect
 import inspect
 import logging
 import threading
+from collections.abc import Callable
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
-    Dict,
     Generic,
-    List,
-    Optional,
     Protocol,
-    Set,
-    Tuple,
-    Type,
     TypeVar,
-    Union,
     cast,
 )
 
-import pelix.ldapfilter as ldapfilter
+from pelix import ldapfilter
 from pelix.constants import (
     OBJECTCLASS,
     PELIX_SPECIFICATION_FIELD,
@@ -152,7 +145,7 @@ class _FactoryCounter:
         self.__bundle = bundle
 
         # Service Factory Reference -> (Service instance, Usage counter)
-        self.__factored: Dict[ServiceReference[Any], Tuple[Any, _UsageCounter]] = {}
+        self.__factored: dict[ServiceReference[Any], tuple[Any, _UsageCounter]] = {}
 
     def is_used(self) -> bool:
         """
@@ -173,7 +166,7 @@ class _FactoryCounter:
         svc_ref = svc_registration.get_reference()
         try:
             # Use the existing service
-            service, counter = cast(Tuple[T, _UsageCounter], self.__factored[svc_ref])
+            service, counter = cast(tuple[T, _UsageCounter], self.__factored[svc_ref])
             counter.inc()
         except KeyError:
             # Create the service
@@ -228,7 +221,7 @@ class _FactoryCounter:
         return self._get_from_factory(factory, svc_registration)
 
     def unget_service(
-        self, factory: ServiceFactory, svc_registration: "ServiceRegistration[T]", service: Optional[T] = None
+        self, factory: ServiceFactory, svc_registration: "ServiceRegistration[T]", service: T | None = None
     ) -> bool:
         """
         Releases references to the given service reference
@@ -310,12 +303,12 @@ class ServiceReference(Generic[T]):
         "__properties",
         "__service_id",
         "__sort_key",
+        "__usage_lock",
         "__using_bundles",
         "_props_lock",
-        "__usage_lock",
     )
 
-    def __init__(self, bundle: "Bundle", properties: Dict[str, Any]) -> None:
+    def __init__(self, bundle: "Bundle", properties: dict[str, Any]) -> None:
         """
         :param bundle: The bundle registering the service
         :param properties: The service properties
@@ -339,7 +332,7 @@ class ServiceReference(Generic[T]):
         self.__service_id = cast(int, properties[SERVICE_ID])
 
         # Bundle object -> Usage Counter object
-        self.__using_bundles: Dict[Bundle, _UsageCounter] = {}
+        self.__using_bundles: dict[Bundle, _UsageCounter] = {}
 
         # Compute the sort key
         self.__sort_key = self.__compute_key()
@@ -362,7 +355,7 @@ class ServiceReference(Generic[T]):
         """
         return self.__service_id
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Two references are equal if they have the same service ID
         """
@@ -395,7 +388,7 @@ class ServiceReference(Generic[T]):
         """
         return self.__sort_key >= other.__sort_key
 
-    def __ne__(self, other: Any) -> bool:
+    def __ne__(self, other: object) -> bool:
         """
         Two references are different if they have different service IDs
         """
@@ -412,7 +405,7 @@ class ServiceReference(Generic[T]):
         """
         return self.__bundle
 
-    def get_using_bundles(self) -> List["Bundle"]:
+    def get_using_bundles(self) -> list["Bundle"]:
         """
         Returns the list of bundles that use this service
 
@@ -420,7 +413,7 @@ class ServiceReference(Generic[T]):
         """
         return list(self.__using_bundles.keys())
 
-    def get_properties(self) -> Dict[str, Any]:
+    def get_properties(self) -> dict[str, Any]:
         """
         Returns a copy of the service properties
 
@@ -438,7 +431,7 @@ class ServiceReference(Generic[T]):
         with self._props_lock:
             return self.__properties.get(name)
 
-    def get_property_keys(self) -> Tuple[str, ...]:
+    def get_property_keys(self) -> tuple[str, ...]:
         """
         Returns an array of the keys in the properties of the service
 
@@ -502,7 +495,7 @@ class ServiceReference(Generic[T]):
         with self.__usage_lock:
             self.__using_bundles.setdefault(bundle, _UsageCounter()).inc()
 
-    def __compute_key(self) -> Tuple[int, int]:
+    def __compute_key(self) -> tuple[int, int]:
         """
         Computes the sort key according to the service properties
 
@@ -541,8 +534,8 @@ class ServiceRegistration(Generic[T]):
 
     __slots__ = (
         "__framework",
-        "__reference",
         "__properties",
+        "__reference",
         "__update_callback",
     )
 
@@ -550,7 +543,7 @@ class ServiceRegistration(Generic[T]):
         self,
         framework: "Framework",
         reference: ServiceReference[T],
-        properties: Dict[str, Any],
+        properties: dict[str, Any],
         update_callback: Callable[[ServiceReference[T]], None],
     ):
         """
@@ -578,7 +571,7 @@ class ServiceRegistration(Generic[T]):
         """
         return self.__reference
 
-    def set_properties(self, properties: Dict[str, Any]) -> None:
+    def set_properties(self, properties: dict[str, Any]) -> None:
         """
         Updates the service properties
 
@@ -689,7 +682,7 @@ class EventDispatcher:
     Simple event dispatcher
     """
 
-    def __init__(self, registry: "ServiceRegistry", logger: Optional[logging.Logger] = None) -> None:
+    def __init__(self, registry: "ServiceRegistry", logger: logging.Logger | None = None) -> None:
         """
         Sets up the dispatcher
 
@@ -702,17 +695,17 @@ class EventDispatcher:
         self._logger = logger or logging.getLogger("EventDispatcher")
 
         # Bundle listeners
-        self.__bnd_listeners: List[BundleListener] = []
+        self.__bnd_listeners: list[BundleListener] = []
         self.__bnd_lock = threading.Lock()
 
         # Service listeners (specification -> listeners info)
-        self.__svc_listeners: Dict[Optional[str], List[ListenerInfo[ServiceListener]]] = {}
+        self.__svc_listeners: dict[str | None, list[ListenerInfo[ServiceListener]]] = {}
         # listener instance -> listener bean
-        self.__listeners_data: Dict[ServiceListener, ListenerInfo[ServiceListener]] = {}
+        self.__listeners_data: dict[ServiceListener, ListenerInfo[ServiceListener]] = {}
         self.__svc_lock = threading.Lock()
 
         # Framework stop listeners
-        self.__fw_listeners: List[FrameworkStoppingListener] = []
+        self.__fw_listeners: list[FrameworkStoppingListener] = []
         self.__fw_lock = threading.Lock()
 
     def clear(self) -> None:
@@ -771,8 +764,8 @@ class EventDispatcher:
         self,
         bundle_context: "BundleContext",
         listener: ServiceListener,
-        specification: Optional[str] = None,
-        ldap_filter: Union[None, str, ldapfilter.LDAPCriteria, ldapfilter.LDAPFilter] = None,
+        specification: str | None = None,
+        ldap_filter: None | str | ldapfilter.LDAPCriteria | ldapfilter.LDAPFilter = None,
     ) -> bool:
         """
         Registers a service listener
@@ -890,9 +883,9 @@ class EventDispatcher:
         """
         # Get the service properties
         properties = event.get_service_reference().get_properties()
-        svc_specs = cast(List[str], properties[OBJECTCLASS])
-        previous: Optional[Dict[str, Any]] = None
-        endmatch_event: Optional[ServiceEvent[Any]] = None
+        svc_specs = cast(list[str], properties[OBJECTCLASS])
+        previous: dict[str, Any] | None = None
+        endmatch_event: ServiceEvent[Any] | None = None
         svc_modified = event.get_kind() == ServiceEvent.MODIFIED
 
         if svc_modified:
@@ -906,7 +899,7 @@ class EventDispatcher:
 
         with self.__svc_lock:
             # Get the listeners for this specification
-            listeners: Set[ListenerInfo[Any]] = set()
+            listeners: set[ListenerInfo[Any]] = set()
             for spec in svc_specs:
                 try:
                     listeners.update(self.__svc_listeners[spec])
@@ -946,8 +939,8 @@ class EventDispatcher:
                 self._logger.exception("Error calling a service listener")
 
     def _filter_with_hooks(
-        self, svc_event: ServiceEvent[Any], listeners: Set[ListenerInfo[ServiceListener]]
-    ) -> Set[ListenerInfo[ServiceListener]]:
+        self, svc_event: ServiceEvent[Any], listeners: set[ListenerInfo[ServiceListener]]
+    ) -> set[ListenerInfo[ServiceListener]]:
         """
         Filters listeners with EventListenerHooks
 
@@ -961,7 +954,7 @@ class EventDispatcher:
         # only do something if there are some hook_refs
         if hook_refs:
             # Associate bundle context to hooks
-            ctx_listeners: Dict[BundleContext, List[ListenerInfo[ServiceListener]]] = {}
+            ctx_listeners: dict[BundleContext, list[ListenerInfo[ServiceListener]]] = {}
             for listener in listeners:
                 context = listener.bundle_context
                 ctx_listeners.setdefault(context, []).append(listener)
@@ -992,7 +985,7 @@ class EventDispatcher:
 
             # Convert the shrinkable_ctx_listeners back to a list of listeners
             # before returning
-            ret_listeners: Set[ListenerInfo[ServiceListener]] = set()
+            ret_listeners: set[ListenerInfo[ServiceListener]] = set()
             for bnd_listeners in shrinkable_ctx_listeners.values():
                 ret_listeners.update(bnd_listeners)
 
@@ -1012,7 +1005,7 @@ class ServiceRegistry:
     Associates service references to instances and bundles.
     """
 
-    def __init__(self, framework: "Framework", logger: Optional[logging.Logger] = None) -> None:
+    def __init__(self, framework: "Framework", logger: logging.Logger | None = None) -> None:
         """
         Sets up the registry
 
@@ -1029,28 +1022,28 @@ class ServiceRegistry:
         self.__next_service_id: int = 1
 
         # Service reference -> Service instance
-        self.__svc_registry: Dict[ServiceReference[Any], Any] = {}
+        self.__svc_registry: dict[ServiceReference[Any], Any] = {}
 
         # Service reference -> (Service factory, Service Registration)
-        self.__svc_factories: Dict[ServiceReference[Any], Tuple[Any, ServiceRegistration[Any]]] = {}
+        self.__svc_factories: dict[ServiceReference[Any], tuple[Any, ServiceRegistration[Any]]] = {}
 
         # Specification -> Service references[] (always sorted)
-        self.__svc_specs: Dict[str, List[ServiceReference[Any]]] = {}
+        self.__svc_specs: dict[str, list[ServiceReference[Any]]] = {}
 
         # Services published: "Bundle" -> set(Service references)
-        self.__bundle_svc: Dict[Bundle, Set[ServiceReference[Any]]] = {}
+        self.__bundle_svc: dict[Bundle, set[ServiceReference[Any]]] = {}
 
         # Services consumed: "Bundle" -> {Service reference -> UsageCounter}
-        self.__bundle_imports: Dict[Bundle, Dict[ServiceReference[Any], _UsageCounter]] = {}
+        self.__bundle_imports: dict[Bundle, dict[ServiceReference[Any], _UsageCounter]] = {}
 
         # Service factories consumption: "Bundle" -> _FactoryCounter
-        self.__factory_usage: Dict[Bundle, _FactoryCounter] = {}
+        self.__factory_usage: dict[Bundle, _FactoryCounter] = {}
 
         # Locks
         self.__svc_lock = threading.RLock()
 
         # Pending unregistration: Service reference -> Service instance
-        self.__pending_services: Dict[ServiceReference[Any], Any] = {}
+        self.__pending_services: dict[ServiceReference[Any], Any] = {}
 
     def clear(self) -> None:
         """
@@ -1068,8 +1061,8 @@ class ServiceRegistry:
     def register(
         self,
         bundle: "Bundle",
-        classes: List[str],
-        properties: Dict[str, Any],
+        classes: list[str],
+        properties: dict[str, Any],
         svc_instance: T,
         factory: bool,
         prototype: bool,
@@ -1207,7 +1200,7 @@ class ServiceRegistry:
 
             return service
 
-    def hide_bundle_services(self, bundle: "Bundle") -> Set[ServiceReference[Any]]:
+    def hide_bundle_services(self, bundle: "Bundle") -> set[ServiceReference[Any]]:
         """
         Hides the services of the given bundle (removes them from lists, but
         lets them be unregistered)
@@ -1245,10 +1238,10 @@ class ServiceRegistry:
 
     def find_service_references(
         self,
-        clazz: Union[None, str, Type[Any]] = None,
-        ldap_filter: Union[None, str, ldapfilter.LDAPFilter, ldapfilter.LDAPCriteria] = None,
+        clazz: None | str | type[Any] = None,
+        ldap_filter: None | str | ldapfilter.LDAPFilter | ldapfilter.LDAPCriteria = None,
         only_one: bool = False,
-    ) -> Optional[List[ServiceReference[Any]]]:
+    ) -> list[ServiceReference[Any]] | None:
         """
         Finds all services references matching the given filter.
 
@@ -1273,10 +1266,10 @@ class ServiceRegistry:
                 if isinstance(raw_spec, str):
                     clazz = ldapfilter.escape_LDAP(raw_spec)
                 elif hasattr(raw_spec, "__name__"):
-                    clazz = ldapfilter.escape_LDAP(getattr(raw_spec, "__name__"))
+                    clazz = ldapfilter.escape_LDAP(raw_spec.__name__)
                 elif isinstance(raw_spec, list):
                     # Use the first class as main filter, add the others to the LDAP filter
-                    class_names: List[str] = []
+                    class_names: list[str] = []
                     for spec in raw_spec:
                         if spec is None:
                             continue
@@ -1284,7 +1277,7 @@ class ServiceRegistry:
                         if isinstance(spec, str):
                             escaped = ldapfilter.escape_LDAP(spec)
                         elif hasattr(spec, "__name__"):
-                            escaped = ldapfilter.escape_LDAP(getattr(spec, "__name__"))
+                            escaped = ldapfilter.escape_LDAP(spec.__name__)
                         else:
                             continue
 
@@ -1336,7 +1329,7 @@ class ServiceRegistry:
             # Get all the matching references
             return list(refs_set) or None
 
-    def get_bundle_imported_services(self, bundle: "Bundle") -> List[ServiceReference[Any]]:
+    def get_bundle_imported_services(self, bundle: "Bundle") -> list[ServiceReference[Any]]:
         """
         Returns this bundle's ServiceReference list for all services it is
         using or returns None if this bundle is not using any services.
@@ -1353,7 +1346,7 @@ class ServiceRegistry:
         with self.__svc_lock:
             return sorted(self.__bundle_imports.get(bundle, []))
 
-    def get_bundle_registered_services(self, bundle: "Bundle") -> List[ServiceReference[Any]]:
+    def get_bundle_registered_services(self, bundle: "Bundle") -> list[ServiceReference[Any]]:
         """
         Retrieves the services registered by the given bundle. Returns None
         if the bundle didn't register any service.
@@ -1401,7 +1394,7 @@ class ServiceRegistry:
         :raise BundleException: The service could not be found
         """
         try:
-            factory, svc_reg = cast(Tuple[Any, ServiceRegistration[T]], self.__svc_factories[reference])
+            factory, svc_reg = cast(tuple[Any, ServiceRegistration[T]], self.__svc_factories[reference])
 
             # Indicate the dependency
             imports = self.__bundle_imports.setdefault(bundle, {})
@@ -1459,7 +1452,7 @@ class ServiceRegistry:
             pass
 
     def unget_service(
-        self, bundle: "Bundle", reference: ServiceReference[T], service: Optional[T] = None
+        self, bundle: "Bundle", reference: ServiceReference[T], service: T | None = None
     ) -> bool:
         """
         Removes the usage of a service by a bundle
@@ -1494,7 +1487,7 @@ class ServiceRegistry:
                 return True
 
     def __unget_service_from_factory(
-        self, bundle: "Bundle", reference: ServiceReference[T], service: Optional[T] = None
+        self, bundle: "Bundle", reference: ServiceReference[T], service: T | None = None
     ) -> bool:
         """
         Removes the usage of a a service factory or a prototype

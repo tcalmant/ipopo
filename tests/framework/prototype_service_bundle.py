@@ -26,7 +26,7 @@ class Instance:
         Instance._id += 1
 
     def __repr__(self):
-        return "Instance(id={}, for={}, released={})".format(self.id, self.bundle, self.released)
+        return f"Instance(id={self.id}, for={self.bundle}, released={self.released})"
 
 
 class PrototypeServiceFactory:
@@ -91,7 +91,7 @@ class PrototypeServiceFactory:
 
         bundle_instances = self.instances[bundle]
         if bundle_instances:
-            raise ValueError("Some instances are still active: {}".format(bundle_instances))
+            raise ValueError(f"Some instances are still active: {bundle_instances}")
 
         del self.instances[bundle]
 

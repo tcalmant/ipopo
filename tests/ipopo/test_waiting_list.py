@@ -8,8 +8,8 @@ Tests the iPOPO waiting list service
 
 import unittest
 
-import pelix.ipopo.constants as constants
 from pelix.framework import FrameworkFactory
+from pelix.ipopo import constants
 from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------

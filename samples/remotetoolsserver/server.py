@@ -1,7 +1,8 @@
 import logging
 from _thread import RLock
+from collections.abc import Callable
 from threading import Thread
-from typing import Annotated, Any, Callable, List
+from typing import Annotated, Any
 
 from mcp.server.auth.provider import OAuthAuthorizationServerProvider
 from mcp.server.fastmcp.exceptions import InvalidSignature
@@ -238,7 +239,7 @@ ARITHMETIC_TOOL_SERVICE_INTERFACE = "org.eclipse.ecf.examples.ai.mcp.toolservice
 @Property("_name", "remotetoolsfastmpcserver.name", "RemoteToolsFastMCPServer")
 @Property("_instructions", "remotetoolsfastmpcserver.instructions", "RemoteToolsFastMCPServer")
 class RemoteToolsFastMCPServer:
-    _tools_services: List[Any]
+    _tools_services: list[Any]
     _name: str | None = None
     _instructions: str | None = None
 

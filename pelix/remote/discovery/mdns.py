@@ -37,9 +37,9 @@ import zeroconf
 
 import pelix.constants
 import pelix.remote
-import pelix.remote.beans as beans
 from pelix.framework import BundleContext
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
+from pelix.remote import beans
 from pelix.utilities import is_bytes, is_string, str2bool, to_str
 
 # ------------------------------------------------------------------------------
@@ -396,9 +396,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         # Register the service
         self._zeroconf.register_service(info, self._ttl)
 
-    def endpoint_updated(
-        self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None
-    ) -> None:
+    def endpoint_updated(self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None) -> None:
         # pylint: disable=W0613
         """
         An end point is updated

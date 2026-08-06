@@ -11,7 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from typing import Any, List
+from typing import Any
 
 import pelix.framework
 from pelix.shell.console import (
@@ -53,7 +53,7 @@ class CommonArgumentsTest(unittest.TestCase):
     Tests the common shell argument parsing
     """
 
-    def _handle(self, arguments: List[str]) -> Any:
+    def _handle(self, arguments: list[str]) -> Any:
         parser = make_common_parser()
         return handle_common_arguments(parser.parse_args(arguments))
 

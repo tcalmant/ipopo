@@ -26,7 +26,7 @@ Constants and exceptions for Pelix.
 """
 
 import inspect
-from typing import TYPE_CHECKING, Any, List, Protocol, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
@@ -167,7 +167,7 @@ class ActivatorProto(Protocol):
         ...
 
 
-def BundleActivator(clazz: Type[ActivatorProto]) -> Type[ActivatorProto]:
+def BundleActivator(clazz: type[ActivatorProto]) -> type[ActivatorProto]:
     # pylint: disable=C0103
     """
     Decorator to declare the bundle activator
@@ -222,7 +222,7 @@ class FrameworkException(Exception):
 # ------------------------------------------------------------------------------
 
 
-def is_from_parent(cls: Type[Any], attribute_name: str, value: Any = None) -> bool:
+def is_from_parent(cls: type[Any], attribute_name: str, value: Any = None) -> bool:
     """
     Tests if the current attribute value is shared by a parent of the given
     class.
@@ -269,21 +269,21 @@ class Specification:
 
     def __init__(
         self,
-        *specifications: Union[str, Type[Any], List[Union[str, Type[Any]]]],
+        *specifications: str | type[Any] | list[str | type[Any]],
         ignore_parent: bool = False,
     ) -> None:
         """
         :param specification: Specification of the provided service
         """
         self.__ignore_parent: bool = ignore_parent
-        self.__spec: List[str] = []
+        self.__spec: list[str] = []
         for spec in specifications:
             if isinstance(spec, list):
                 self.__spec.extend(self._get_name(s) for s in spec)
             else:
                 self.__spec.append(self._get_name(spec))
 
-    def __call__(self, cls: Type[T]) -> Type[T]:
+    def __call__(self, cls: type[T]) -> type[T]:
         """
         Injects the specification information to the decorated class
         """
@@ -309,7 +309,7 @@ class Specification:
                 prepared = self.__spec + [existing]
 
         # Filter to avoid duplicates
-        injected: List[str] = []
+        injected: list[str] = []
         for spec in prepared:
             if spec not in injected:
                 injected.append(spec)
@@ -317,7 +317,7 @@ class Specification:
         setattr(cls, PELIX_SPECIFICATION_FIELD, injected)
         return cls
 
-    def _get_name(self, clazz: Union[str, Type[Any]]) -> str:
+    def _get_name(self, clazz: str | type[Any]) -> str:
         """
         Returns the given string of the name of the class
         """

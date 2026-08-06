@@ -30,7 +30,8 @@ import threading
 import time
 import traceback
 import unittest
-from typing import Any, Dict, Iterable, Optional, Tuple, Union
+from collections.abc import Iterable
+from typing import Any
 
 import pelix.http
 import pelix.remote
@@ -101,7 +102,7 @@ class RemoteService:
 def load_framework(
     transport: str,
     discovery: str,
-    components: Iterable[Union[Tuple[str, str], Tuple[str, str, Dict[str, Any]]]],
+    components: Iterable[tuple[str, str] | tuple[str, str, dict[str, Any]]],
 ) -> Framework:
     """
     Starts a Pelix framework in the local process
@@ -147,7 +148,7 @@ def export_framework(
     state_queue: Queue,
     transport: str,
     discovery: str,
-    components: Iterable[Union[Tuple[str, str], Tuple[str, str, Dict[str, Any]]]],
+    components: Iterable[tuple[str, str] | tuple[str, str, dict[str, Any]]],
 ) -> None:
     """
     Starts a Pelix framework, on the export side
@@ -196,12 +197,12 @@ class HttpTransportsTest(unittest.TestCase):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super(HttpTransportsTest, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._load_framework = load_framework
         self._export_framework = export_framework
 
     def _run_test(
-        self, discovery_bundle: str, discovery_factory: str, discovery_opts: Optional[Dict[str, Any]] = None
+        self, discovery_bundle: str, discovery_factory: str, discovery_opts: dict[str, Any] | None = None
     ) -> None:
         """
         Runs a remote service call test
@@ -239,7 +240,7 @@ class HttpTransportsTest(unittest.TestCase):
 
             # Look for the remote service
             for _ in range(10):
-                svc_ref: Optional[ServiceReference[Any]] = context.get_service_reference(SVC_SPEC)
+                svc_ref: ServiceReference[Any] | None = context.get_service_reference(SVC_SPEC)
                 if svc_ref is not None:
                     break
                 time.sleep(0.5)

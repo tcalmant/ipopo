@@ -7,12 +7,12 @@ Tests the Remote Services Imports Registry
 """
 
 import unittest
-from typing import Any, Dict, List
+from typing import Any
 
 import pelix.constants
 import pelix.framework
 import pelix.remote
-import pelix.remote.beans as beans
+from pelix.remote import beans
 
 # ------------------------------------------------------------------------------
 
@@ -35,7 +35,7 @@ class ImportListener:
         """
         Sets up members
         """
-        self.events: List[int] = []
+        self.events: list[int] = []
         self.raise_exception = False
 
     def clear(self) -> None:
@@ -52,7 +52,7 @@ class ImportListener:
         if self.raise_exception:
             raise Exception("Addition exception")
 
-    def endpoint_updated(self, endpoint: beans.ImportEndpoint, properties: Dict[str, Any]) -> None:
+    def endpoint_updated(self, endpoint: beans.ImportEndpoint, properties: dict[str, Any]) -> None:
         """
         Endpoint updated
         """
@@ -260,9 +260,9 @@ class ImportsRegistryTest(unittest.TestCase):
         spec_1 = "sample.spec"
         spec_2 = "sample.spec2"
         spec_3 = "sample.spec3"
-        python_specs = ["python:/{0}".format(spec) for spec in (spec_2, spec_3)]
+        python_specs = [f"python:/{spec}" for spec in (spec_2, spec_3)]
         spec_java = "org.pelix.sample.ISpec2"
-        java_specs = ["java:/{0}".format(spec_java)]
+        java_specs = [f"java:/{spec_java}"]
 
         # Prepare an ImportEndpoint
         endpoint = beans.ImportEndpoint(

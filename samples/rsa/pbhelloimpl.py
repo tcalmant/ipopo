@@ -28,7 +28,7 @@ def create_hellomsgcontent(message: str) -> HelloMsgContent:
     resmsg.f = "Python Impls"
     resmsg.to = "tojava"
     resmsg.hellomsg = message
-    for x in range(0, 5):
+    for x in range(5):
         resmsg.x.append(float(x))
     return resmsg
 
@@ -74,24 +74,24 @@ class PbHelloImpl:
         The remote calling thread will be blocked until this is executed and
         responds
         """
-        print("pbPython.sayHello called by: {0} with message: '{1}'".format(hellomsg.f, hellomsg))
+        print(f"pbPython.sayHello called by: {hellomsg.f} with message: '{hellomsg}'")
         return create_hellomsgcontent(
-            "pythonpbhello responds: Howdy {0} that's a nice runtime you got there".format(hellomsg.f)
+            f"pythonpbhello responds: Howdy {hellomsg.f} that's a nice runtime you got there"
         )
 
     def sayHelloAsync(self, hellomsg: HelloMsgContent) -> HelloMsgContent:
-        print("Python.sayHelloAsync called by: {0} with message: '{1}'".format(hellomsg.f, hellomsg))
+        print(f"Python.sayHelloAsync called by: {hellomsg.f} with message: '{hellomsg}'")
         return create_hellomsgcontent(
-            "pythonpbhello responds: Howdy {0} that's a nice runtime you got there".format(hellomsg.f)
+            f"pythonpbhello responds: Howdy {hellomsg.f} that's a nice runtime you got there"
         )
 
     def _sayHelloFuture(self, hellomsg: HelloMsgContent) -> HelloMsgContent:
-        print("Python.sayHelloFuture called by: {0} with message: '{1}'".format(hellomsg.f, hellomsg))
+        print(f"Python.sayHelloFuture called by: {hellomsg.f} with message: '{hellomsg}'")
         return create_hellomsgcontent(
-            "pythonpbhello responds: Howdy {0} that's a nice runtime you got there".format(hellomsg.f)
+            f"pythonpbhello responds: Howdy {hellomsg.f} that's a nice runtime you got there"
         )
 
     def sayHelloPromise(self, hellomsg: HelloMsgContent) -> Future[HelloMsgContent]:
-        print("Python.sayHelloPromise called by: {0} with message: '{1}'".format(hellomsg.f, hellomsg))
+        print(f"Python.sayHelloPromise called by: {hellomsg.f} with message: '{hellomsg}'")
         with ThreadPoolExecutor(2) as executor:
             return executor.submit(self._sayHelloFuture, hellomsg)

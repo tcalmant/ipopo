@@ -11,7 +11,7 @@ import os
 import sys
 import tempfile
 import unittest
-from typing import Any, Dict
+from typing import Any
 
 from pelix.framework import FrameworkFactory
 from pelix.ipopo.constants import use_ipopo
@@ -170,7 +170,7 @@ class InitFileHandlerTest(unittest.TestCase):
         self.tmp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp_dir.cleanup)
 
-    def _write_conf(self, name: str, configuration: Dict[str, Any]) -> str:
+    def _write_conf(self, name: str, configuration: dict[str, Any]) -> str:
         """
         Writes a configuration file in the temporary directory
         """
