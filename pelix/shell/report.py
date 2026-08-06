@@ -114,7 +114,7 @@ def format_frame_info(frame: types.FrameType) -> str:
     if lines:
         output_lines.append("")
         prefix = "      "
-        output_lines.append("{0}{1}".format(prefix, f"\n{prefix}".join(lines)))
+        output_lines.append("{}{}".format(prefix, f"\n{prefix}".join(lines)))
     return "\n".join(output_lines)
 
 
@@ -604,7 +604,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
             self.__report["report"] = {
                 "report.levels": levels,
                 "time.stamp": time.time(),
-                "time.local": str(datetime.datetime.now()),
+                "time.local": str(datetime.datetime.now().astimezone()),
                 "time.utc": str(datetime.datetime.now(datetime.timezone.utc)),
             }
 
