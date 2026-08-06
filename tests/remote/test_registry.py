@@ -50,7 +50,7 @@ class ImportListener:
         """
         self.events.append(ADDED)
         if self.raise_exception:
-            raise Exception("Addition exception")
+            raise Exception("Addition exception")  # noqa: TRY002
 
     def endpoint_updated(self, endpoint: beans.ImportEndpoint, properties: dict[str, Any]) -> None:
         """
@@ -58,7 +58,7 @@ class ImportListener:
         """
         self.events.append(UPDATED)
         if self.raise_exception:
-            raise Exception("Update exception")
+            raise Exception("Update exception")  # noqa: TRY002
 
     def endpoint_removed(self, uid: str) -> None:
         """
@@ -66,7 +66,7 @@ class ImportListener:
         """
         self.events.append(REMOVED)
         if self.raise_exception:
-            raise Exception("Removal exception")
+            raise Exception("Removal exception")  # noqa: TRY002
 
 
 # ------------------------------------------------------------------------------

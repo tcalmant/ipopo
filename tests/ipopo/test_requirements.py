@@ -82,9 +82,7 @@ class RequirementTest(unittest.TestCase):
 
         # Uninstantiate B
         self.ipopo.kill(NAME_B)
-        self.assertEqual(
-            [IPopoEvent.UNBOUND], compoB.states, f"Invalid component states: {compoB.states}"
-        )
+        self.assertEqual([IPopoEvent.UNBOUND], compoB.states, f"Invalid component states: {compoB.states}")
 
         # Uninstantiate A
         self.ipopo.kill(NAME_A)
@@ -174,9 +172,7 @@ class RequirementTest(unittest.TestCase):
 
         # Uninstantiate B
         self.ipopo.kill(NAME_B)
-        self.assertEqual(
-            [IPopoEvent.UNBOUND], compoB.states, f"Invalid component states: {compoB.states}"
-        )
+        self.assertEqual([IPopoEvent.UNBOUND], compoB.states, f"Invalid component states: {compoB.states}")
 
         # Uninstantiate A
         self.ipopo.kill(NAME_A)
@@ -191,9 +187,7 @@ class RequirementTest(unittest.TestCase):
         module = install_bundle(self.framework)
 
         # The module filter
-        properties_b = {
-            constants.IPOPO_REQUIRES_FILTERS: {"service": f"({module.PROP_USABLE}=True)"}
-        }
+        properties_b = {constants.IPOPO_REQUIRES_FILTERS: {"service": f"({module.PROP_USABLE}=True)"}}
 
         # Instantiate A (validated)
         compoA = self.ipopo.instantiate(module.FACTORY_A, NAME_A)
@@ -252,9 +246,7 @@ class RequirementTest(unittest.TestCase):
 
         # The dependency must be injected
         self.assertIn(self, compoC.services, "Service not injected")
-        self.assertEqual(
-            [IPopoEvent.BOUND], compoC.states, f"Invalid component states: {compoC.states}"
-        )
+        self.assertEqual([IPopoEvent.BOUND], compoC.states, f"Invalid component states: {compoC.states}")
         compoC.reset()
 
         # Instantiate A
@@ -263,9 +255,7 @@ class RequirementTest(unittest.TestCase):
         # The dependency must be injected
         self.assertIn(self, compoC.services, "Service illegally removed")
         self.assertIn(compoA, compoC.services, "Service not injected")
-        self.assertEqual(
-            [IPopoEvent.BOUND], compoC.states, f"Invalid component states: {compoC.states}"
-        )
+        self.assertEqual([IPopoEvent.BOUND], compoC.states, f"Invalid component states: {compoC.states}")
         compoC.reset()
 
         # Delete A
@@ -274,18 +264,14 @@ class RequirementTest(unittest.TestCase):
         # The dependency must have been removed
         self.assertNotIn(compoA, compoC.services, "Service not removed")
         self.assertIn(self, compoC.services, "Service illegally removed")
-        self.assertEqual(
-            [IPopoEvent.UNBOUND], compoC.states, f"Invalid component states: {compoC.states}"
-        )
+        self.assertEqual([IPopoEvent.UNBOUND], compoC.states, f"Invalid component states: {compoC.states}")
         compoC.reset()
 
         # Instantiate A
         compoA = self.ipopo.instantiate(module.FACTORY_A, NAME_A)
         self.assertIn(self, compoC.services, "Service illegally removed")
         self.assertIn(compoA, compoC.services, "Service not injected")
-        self.assertEqual(
-            [IPopoEvent.BOUND], compoC.states, f"Invalid component states: {compoC.states}"
-        )
+        self.assertEqual([IPopoEvent.BOUND], compoC.states, f"Invalid component states: {compoC.states}")
         compoC.reset()
 
         # Unregister the first service
@@ -294,9 +280,7 @@ class RequirementTest(unittest.TestCase):
         # The dependency must have been removed
         self.assertNotIn(self, compoC.services, "Service not removed")
         self.assertIn(compoA, compoC.services, "Service illegally removed")
-        self.assertEqual(
-            [IPopoEvent.UNBOUND], compoC.states, f"Invalid component states: {compoC.states}"
-        )
+        self.assertEqual([IPopoEvent.UNBOUND], compoC.states, f"Invalid component states: {compoC.states}")
         compoC.reset()
 
         # Delete A
@@ -304,9 +288,7 @@ class RequirementTest(unittest.TestCase):
 
         # The dependency must have been removed
         self.assertIsNone(compoC.services, "Aggregate dependency without value must be None")
-        self.assertEqual(
-            [IPopoEvent.UNBOUND], compoC.states, f"Invalid component states: {compoC.states}"
-        )
+        self.assertEqual([IPopoEvent.UNBOUND], compoC.states, f"Invalid component states: {compoC.states}")
         compoC.reset()
 
         # Delete C

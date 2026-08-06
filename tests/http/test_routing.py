@@ -6,8 +6,8 @@ Pelix HTTP routing test module.
 :author: Thomas Calmant
 """
 
-import logging
 import random
+import sys
 import unittest
 import uuid
 from typing import Any
@@ -89,7 +89,7 @@ class HttpRoutingTests(unittest.TestCase):
         try:
             kill_server(self.ipopo, self.instance_name)
         except:
-            logging.exception("Error while killing the server component")
+            print("Error while killing the server component", file=sys.stderr)
             raise
 
     def get_http_code(

@@ -38,9 +38,7 @@ from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent
 from pelix.rsa.topologymanagers import TopologyManager
 from tests.utilities import WrappedProcess, is_server_reachable
 
-try:
-    assert importlib.util.find_spec("grpc") is not None
-except Exception:
+if importlib.util.find_spec("grpc") is None:
     raise unittest.SkipTest("grpc library not available")
 
 
@@ -140,7 +138,7 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
             # stop the framework gracefully
             framework.stop()
             framework.delete()
-    except Exception as ex:
+    except Exception as ex:  # noqa: BLE001
         state_queue.put(f"Error: {ex}")
 
 
@@ -242,7 +240,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
 
                 # set the test_done_event, so tester thread will continue
                 test_done_event.set()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 test_done_event.raise_exception(e)
 
         # set the handler to the test code above
@@ -284,7 +282,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
                     # finally set the test_done_event, so tester thread will
                     # continue
                     test_done_event.set()
-            except Exception as ex:
+            except Exception as ex:  # noqa: BLE001
                 test_done_event.raise_exception(ex)
 
         # set the handler to the test code above
@@ -453,11 +451,9 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         self.assertTrue(len(eps) == 1, "length of eps is not equal 1")
         # now unadvertise
         adv.unadvertise_endpoint(ed_id)
-        try:
+        with self.assertRaises(Exception, msg=f"endpoint={ed_id} still advertised after being removed"):  # noqa: B017
+            # exception expected
             adv._get_value(ep_key)
-            self.fail(f"endpoint={ed_id} still advertised after being removed")
-        except Exception:  # exception expected
-            pass
         eps = adv.get_advertised_endpoints()
         self.assertTrue(
             len(eps) == 0,
@@ -474,7 +470,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         # advertise it
         adv.advertise_endpoint(ed)
         # get the string directly via http and key
-        ed_val_str = adv._get_value("".join([adv._get_session_path(), "/", ed_id]))
+        ed_val_str = adv._get_value(f"{adv._get_session_path()}/{ed_id}")
         # decode the string into json object (dict)
         val_encoded = json.loads(ed_val_str)
         # compare the original dict with the one returned

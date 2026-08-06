@@ -8,6 +8,7 @@ Pelix basic HTTP service test module.
 
 import logging
 import socket
+import sys
 import unittest
 from typing import Any, cast
 
@@ -101,7 +102,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
             self._port = 0
             kill_server(self.ipopo, self.instance_name)
         except:
-            logging.exception("Error while killing the server component")
+            print("Error while killing the server component", file=sys.stderr)
             raise
 
     def get_http_code(
@@ -499,7 +500,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         try:
             kill_server(self.ipopo, self.instance_name)
         except:
-            logging.exception("Error while killing the server component")
+            print("Error while killing the server component", file=sys.stderr)
             raise
 
     def get_http_code(

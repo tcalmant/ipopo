@@ -846,9 +846,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         """
         Tests the threads and thread commands
         """
-        try:
-            sys._current_frames
-        except AttributeError:
+        if not hasattr(sys, "_current_frames"):
             self.skipTest("sys._current_frames() isn't supported in this interpreter")
 
         output = self._run_command("threads")

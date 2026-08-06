@@ -165,9 +165,7 @@ class PacketHandlingTest(unittest.TestCase):
         """
         A discovery request must be answered with the local access
         """
-        self._handle(
-            {"sender": "other-fw", "event": "discovery", "access": {"port": 9000, "path": "/other"}}
-        )
+        self._handle({"sender": "other-fw", "event": "discovery", "access": {"port": 9000, "path": "/other"}})
         self.assertListEqual(self.access.discovered, [(self.SENDER[0], 9000, "/other")])
 
     def test_add_event(self) -> None:
@@ -193,9 +191,7 @@ class PacketHandlingTest(unittest.TestCase):
         self.assertListEqual(self.registry.removed, ["uid-1"])
 
     def test_update_event(self) -> None:
-        self._handle(
-            {"sender": "other-fw", "event": "update", "uid": "uid-1", "new_properties": {"a": 1}}
-        )
+        self._handle({"sender": "other-fw", "event": "update", "uid": "uid-1", "new_properties": {"a": 1}})
         self.assertListEqual(self.registry.updated, [("uid-1", {"a": 1})])
 
     def test_unknown_event(self) -> None:

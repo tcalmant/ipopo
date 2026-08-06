@@ -135,15 +135,11 @@ class LDAPUtilitiesTest(unittest.TestCase):
         for normal, escaped in tested_values.items():
             # Escape
             ldap_escape = pelix.ldapfilter.escape_LDAP(normal)
-            self.assertEqual(
-                escaped, ldap_escape, f"Invalid escape '{ldap_escape}' should be '{escaped}'"
-            )
+            self.assertEqual(escaped, ldap_escape, f"Invalid escape '{ldap_escape}' should be '{escaped}'")
 
             # Un-escape
             ldap_unescape = pelix.ldapfilter.unescape_LDAP(ldap_escape)
-            self.assertEqual(
-                escaped, ldap_escape, f"Invalid unescape '{ldap_unescape}' should be '{normal}'"
-            )
+            self.assertEqual(escaped, ldap_escape, f"Invalid unescape '{ldap_unescape}' should be '{normal}'")
 
     def testParseCriteria(self) -> None:
         """
@@ -222,7 +218,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
                 self.assertIn(criteria, ldap_filter.subfilters, "A criteria is missing in the result")
 
         # No filter given
-        for empty in (None, [], tuple(), (None, None, None)):  # type: ignore
+        for empty in (None, [], (), (None, None, None)):  # type: ignore
             self.assertIsNone(
                 pelix.ldapfilter.combine_filters(empty),
                 "Can't combine an empty list of filters",  # type: ignore
@@ -417,25 +413,17 @@ class LDAPCriteriaTest(unittest.TestCase):
 
         # Test with a single property
         props["valid"] = True
-        self.assertTrue(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}"
-        )
+        self.assertTrue(ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}")
 
         props["valid"] = False
-        self.assertFalse(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}"
-        )
+        self.assertFalse(ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}")
 
         # Test the ignorance of other properties
         props["valid2"] = True
-        self.assertFalse(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}"
-        )
+        self.assertFalse(ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}")
 
         props["valid"] = "True"
-        self.assertTrue(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}"
-        )
+        self.assertTrue(ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}")
 
     def testZeroValueCriteria(self) -> None:
         """
@@ -489,39 +477,27 @@ class LDAPCriteriaTest(unittest.TestCase):
         assert ldap_filter is not None
 
         # Missing value
-        self.assertFalse(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}"
-        )
+        self.assertFalse(ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}")
 
         # Still missing
         props["valid2"] = True
-        self.assertFalse(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}"
-        )
+        self.assertFalse(ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}")
 
         # Value present
         props["valid"] = True
-        self.assertTrue(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}"
-        )
+        self.assertTrue(ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}")
 
         props["valid"] = False
-        self.assertTrue(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}"
-        )
+        self.assertTrue(ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}")
 
         # Some other type
         props["valid"] = "1234"
-        self.assertTrue(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}"
-        )
+        self.assertTrue(ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}")
 
         # Empty values
-        for empty in ("", [], tuple()):
+        for empty in ("", [], ()):
             props["valid"] = empty
-            self.assertFalse(
-                ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}"
-            )
+            self.assertFalse(ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}")
 
     def testStarCriteria(self) -> None:
         """
@@ -805,28 +781,20 @@ class LDAPFilterTest(unittest.TestCase):
         # Valid
         props["test"] = True
         props["test2"] = False
-        self.assertTrue(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}"
-        )
+        self.assertTrue(ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}")
 
         # Invalid...
         props["test"] = False
         props["test2"] = False
-        self.assertFalse(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}"
-        )
+        self.assertFalse(ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}")
 
         props["test"] = False
         props["test2"] = True
-        self.assertFalse(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}"
-        )
+        self.assertFalse(ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}")
 
         props["test"] = True
         props["test2"] = True
-        self.assertFalse(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}"
-        )
+        self.assertFalse(ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}")
 
     def testOr(self) -> None:
         """
@@ -839,28 +807,20 @@ class LDAPFilterTest(unittest.TestCase):
         # Valid ...
         props["test"] = True
         props["test2"] = False
-        self.assertTrue(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}"
-        )
+        self.assertTrue(ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}")
 
         props["test"] = False
         props["test2"] = False
-        self.assertTrue(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}"
-        )
+        self.assertTrue(ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}")
 
         props["test"] = True
         props["test2"] = True
-        self.assertTrue(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}"
-        )
+        self.assertTrue(ldap_filter.matches(props), f"Filter '{ldap_filter}' should match {props}")
 
         # Invalid...
         props["test"] = False
         props["test2"] = True
-        self.assertFalse(
-            ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}"
-        )
+        self.assertFalse(ldap_filter.matches(props), f"Filter '{ldap_filter}' should not match {props}")
 
 
 # ------------------------------------------------------------------------------

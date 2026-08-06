@@ -15,9 +15,7 @@ import tests.http.test_basic as basic_tests
 from pelix import http
 from tests.http.utils import ASYNC_SERVLET_FACTORY, SIMPLE_SERVLET_FACTORY
 
-try:
-    assert importlib.util.find_spec("aiohttp") is not None
-except Exception:
+if importlib.util.find_spec("aiohttp") is None:
     raise unittest.SkipTest("aiohttp library not available")
 
 # ------------------------------------------------------------------------------

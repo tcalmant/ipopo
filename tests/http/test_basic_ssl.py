@@ -9,6 +9,7 @@ Pelix basic HTTP service test module.
 import http.client as httplib
 import logging
 import shutil
+import sys
 import unittest
 from typing import Any
 
@@ -157,7 +158,7 @@ class BasicHTTPSTest(unittest.TestCase):
         try:
             kill_server(self.ipopo, self.instance_name)
         except:
-            logging.exception("Error while killing the server component")
+            print("Error while killing the server component", file=sys.stderr)
             raise
 
     def testSimpleCertificate(self) -> None:

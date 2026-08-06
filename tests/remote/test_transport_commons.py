@@ -105,7 +105,7 @@ class Exporter(commons.AbstractRpcServiceExporter):
         del self.events[:]
 
     def make_endpoint_properties(
-        self, svc_ref: ServiceReference[Any], name: str, fw_uid: str
+        self, svc_ref: ServiceReference[Any], name: str, fw_uid: str | None
     ) -> dict[str, Any]:
         """
         Prepare properties for the ExportEndpoint to be created
@@ -115,6 +115,7 @@ class Exporter(commons.AbstractRpcServiceExporter):
         :param fw_uid: Framework UID
         :return: A dictionary of extra endpoint properties
         """
+        assert fw_uid is not None
         self.events.append(EXPORT_MAKE)
         return {TEST_PROPERTY: fw_uid}
 
@@ -317,15 +318,13 @@ class AbstractCommonExporterTest(unittest.TestCase):
         endpoint = self.dispatcher.get_endpoints()[0]
 
         # Call the test method
-        method_name = "{0}.{1}".format(endpoint.name, "call_me")
+        method_name = f"{endpoint.name}.call_me"
         self.assertEqual(exporter.dispatch(method_name, []), service.value)
         self.assertListEqual(service.events, [SERVICE_CALLED], "Service not called")
         service.clear()
 
         # Call an unknown method
-        self.assertRaises(
-            RemoteServiceError, exporter.dispatch, "{0}.{1}".format(endpoint.name, "unknown"), []
-        )
+        self.assertRaises(RemoteServiceError, exporter.dispatch, f"{endpoint.name}.unknown", [])
 
         # Unregister the service
         svc_reg.unregister()
@@ -427,7 +426,7 @@ class AbstractCommonExporterTest(unittest.TestCase):
         endpoint = self.dispatcher.get_endpoints()[0]
 
         # Call the test method
-        method_name = "{0}.{1}".format(endpoint.name, "call_me")
+        method_name = f"{endpoint.name}.call_me"
         self.assertEqual(exporter.dispatch(method_name, []), service.value)
         service.clear()
 
@@ -439,7 +438,7 @@ class AbstractCommonExporterTest(unittest.TestCase):
         self.assertEqual(endpoint.name, name)
 
         # Call the test method
-        method_name = "{0}.{1}".format(name, "call_me")
+        method_name = f"{name}.call_me"
         self.assertEqual(exporter.dispatch(method_name, []), service.value)
         self.assertListEqual(service.events, [SERVICE_CALLED], "Service not called")
         service.clear()

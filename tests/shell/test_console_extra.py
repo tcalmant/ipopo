@@ -116,9 +116,8 @@ class InteractiveShellTest(unittest.TestCase):
 
     def setUp(self) -> None:
         # Script to run instead of the interactive loop
-        self.script = tempfile.NamedTemporaryFile("w", suffix=".pelix", delete=False)
-        self.script.write("echo hello from script\n")
-        self.script.close()
+        with tempfile.NamedTemporaryFile("w", suffix=".pelix", delete=False) as self.script:
+            self.script.write("echo hello from script\n")
         self.addCleanup(os.unlink, self.script.name)
 
         self.framework = pelix.framework.create_framework(
@@ -151,11 +150,11 @@ class InteractiveShellTest(unittest.TestCase):
             self.assertTrue(shell._shell_event.is_set())
 
             # Stopping the shell bundle unbinds the service
-            shell_bundle = [
+            shell_bundle = next(
                 bundle
                 for bundle in self.context.get_bundles()
                 if bundle.get_symbolic_name() == "pelix.shell.core"
-            ][0]
+            )
             shell_bundle.stop()
             self.assertFalse(shell._shell_event.is_set())
 
@@ -172,9 +171,8 @@ class MainTest(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        self.script = tempfile.NamedTemporaryFile("w", suffix=".pelix", delete=False)
-        self.script.write("echo hello from main\n")
-        self.script.close()
+        with tempfile.NamedTemporaryFile("w", suffix=".pelix", delete=False) as self.script:
+            self.script.write("echo hello from main\n")
         self.addCleanup(os.unlink, self.script.name)
 
     def test_main(self) -> None:
@@ -193,6 +191,7 @@ class MainTest(unittest.TestCase):
             capture_output=True,
             timeout=60,
             text=True,
+            check=False,
         )
         self.assertEqual(process.returncode, 0, process.stderr)
         self.assertIn("hello from main", process.stdout)

@@ -26,6 +26,7 @@ Tests remote services discovery using the JSON-RPC transport
 
 import importlib.util
 import queue
+import sys
 import threading
 import time
 import traceback
@@ -184,7 +185,7 @@ def export_framework(
         state_queue.put("stopping")
         framework.stop()
         framework.delete()
-    except Exception as ex:
+    except Exception as ex:  # noqa: BLE001
         state_queue.put(f"Error: {ex}\n{traceback.format_exc()}")
 
 
@@ -282,8 +283,8 @@ class HttpTransportsTest(unittest.TestCase):
             # Stop everything (and delete the framework in any case
             try:
                 FrameworkFactory.delete_framework()
-            except:
-                pass
+            except:  # noqa: E722
+                print("Error while deleting the framework", file=sys.stderr)
 
             try:
                 peer.kill()
@@ -306,9 +307,7 @@ class HttpTransportsTest(unittest.TestCase):
         """
         Tests the mDNS/Zeroconf discovery
         """
-        try:
-            assert importlib.util.find_spec("zeroconf") is not None
-        except Exception:
+        if importlib.util.find_spec("zeroconf") is None:
             self.skipTest("zeroconf is missing: can't test mDNS discovery")
 
         try:
@@ -323,9 +322,7 @@ class HttpTransportsTest(unittest.TestCase):
         """
         Tests the MQTT discovery
         """
-        try:
-            assert importlib.util.find_spec("paho") is not None
-        except Exception:
+        if importlib.util.find_spec("paho") is None:
             self.skipTest("paho is missing: can't test MQTT discovery")
 
         if not is_server_reachable("localhost", 1883):
@@ -341,9 +338,7 @@ class HttpTransportsTest(unittest.TestCase):
         """
         Tests the Redis discovery
         """
-        try:
-            assert importlib.util.find_spec("redis") is not None
-        except Exception:
+        if importlib.util.find_spec("redis") is None:
             self.skipTest("redis is missing: can't test Redis discovery")
 
         if not is_server_reachable("localhost", 6379):
@@ -359,9 +354,7 @@ class HttpTransportsTest(unittest.TestCase):
         """
         Tests the ZooKeeper discovery
         """
-        try:
-            assert importlib.util.find_spec("kazoo") is not None
-        except Exception:
+        if importlib.util.find_spec("kazoo") is None:
             self.skipTest("Kazoo is missing: can't test ZooKeeper discovery")
 
         if not is_server_reachable("localhost", 2181):

@@ -246,9 +246,7 @@ class IPopoServiceTest(unittest.TestCase):
             """
             Tests the validity of an event
             """
-            self.assertEqual(
-                event.get_kind(), kind, f"Excepted kind: {kind} / got: {event.get_kind()}"
-            )
+            self.assertEqual(event.get_kind(), kind, f"Excepted kind: {kind} / got: {event.get_kind()}")
 
             self.assertEqual(
                 event.get_factory_name(),

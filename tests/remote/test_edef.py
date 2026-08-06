@@ -273,7 +273,7 @@ class BeansTest(unittest.TestCase):
                 pelix.constants.OBJECTCLASS: "spec",
             },
         )
-        for key in original.get_properties().keys():
+        for key in original.get_properties():
             self.assertFalse(key.startswith("service.exported"), "An export property has been found")
 
     def testConvertBeans(self) -> None:

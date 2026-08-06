@@ -158,7 +158,7 @@ def export_framework(state_queue: Queue, transport: str, components: Iterable[tu
         state_queue.put("stopping")
         framework.stop()
         framework.delete()
-    except Exception as ex:
+    except Exception as ex:  # noqa: BLE001
         state_queue.put(f"Error: {ex}")
     finally:
         shutil.rmtree(tmp_dir)
@@ -181,9 +181,7 @@ class HttpsTransportsTest(HttpTransportsTest):
         self, transport_bundle: str, exporter_factory: str, importer_factory: str, test_kwargs: bool = True
     ) -> None:
         try:
-            super()._run_test(
-                transport_bundle, exporter_factory, importer_factory, test_kwargs
-            )
+            super()._run_test(transport_bundle, exporter_factory, importer_factory, test_kwargs)
         except ssl.SSLError:
             # This should happen as the communication happens on a self-signed
             # certificate

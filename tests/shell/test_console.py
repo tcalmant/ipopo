@@ -75,15 +75,12 @@ else:
             while ps1 not in got:
                 char = to_str(process.stdout.read(1))
                 if not char:
-                    if sys.version_info[0] == 2:
-                        self.skipTest("Shell console test doesn't work on Python 2.7 with Travis")
+                    if process.poll():
+                        output = to_str(process.stdout.read())
                     else:
-                        if process.poll():
-                            output = to_str(process.stdout.read())
-                        else:
-                            output = "<no output>"
+                        output = "<no output>"
 
-                        self.fail(f"Can't read from stdout (rc={process.returncode})\n{output}")
+                    self.fail(f"Can't read from stdout (rc={process.returncode})\n{output}")
                 else:
                     got += char
 

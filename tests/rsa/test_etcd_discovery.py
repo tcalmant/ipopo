@@ -28,10 +28,8 @@ except ImportError:
     # Some interpreters don't have support for multiprocessing
     raise unittest.SkipTest("Interpreter doesn't support multiprocessing")
 
-try:
-    # Try to import modules
-    assert importlib.util.find_spec("etcd") is not None
-except Exception:
+# Try to import modules
+if importlib.util.find_spec("etcd") is None:
     # Some interpreters don't have support for multiprocessing
     raise unittest.SkipTest("etcd module not available")
 
@@ -137,7 +135,7 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
             # stop the framework gracefully
             framework.stop()
             framework.delete()
-    except Exception as ex:
+    except Exception as ex:  # noqa: BLE001
         state_queue.put(f"Error: {ex}")
 
 
@@ -236,7 +234,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
 
                 # set the test_done_event, so tester thread will continue
                 test_done_event.set()
-            except Exception as ex:
+            except Exception as ex:  # noqa: BLE001
                 test_done_event.raise_exception(ex)
 
         # set the handler to the test code above
@@ -278,7 +276,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
                     # finally set the test_done_event, so tester thread will
                     # continue
                     test_done_event.set()
-            except Exception as ex:
+            except Exception as ex:  # noqa: BLE001
                 test_done_event.raise_exception(ex)
 
         # set the handler to the test code above
@@ -440,11 +438,9 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         self.assertTrue(len(eps) == 1, "length of eps is not equal 1")
         # now unadvertise
         adv.unadvertise_endpoint(ed_id)
-        try:
+        with self.assertRaises(Exception, msg=f"endpoint={ed_id} still advertised after being removed"):  # noqa: B017
+            # exception expected
             adv._client.get(ep_key)
-            self.fail(f"endpoint={ed_id} still advertised after being removed")
-        except Exception:  # exception expected
-            pass
         eps = adv.get_advertised_endpoints()
         self.assertTrue(
             len(eps) == 0,
@@ -461,7 +457,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         # advertise it
         adv.advertise_endpoint(ed)
         # get the string directly via http and key
-        ed_val_str = list(adv._client.get(adv._get_session_path() + "/" + ed_id).get_subtree())[0].value
+        ed_val_str = next(iter(adv._client.get(adv._get_session_path() + "/" + ed_id).get_subtree())).value
         # decode the string into json object (dict)
         val_encoded = json.loads(ed_val_str)
         # compare the original dict with the one returned

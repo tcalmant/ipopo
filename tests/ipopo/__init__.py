@@ -44,6 +44,6 @@ def install_ipopo(framework: Framework) -> IPopoService:
     # Get the service
     service = get_ipopo_svc_ref(framework.get_bundle_context())
     if service is None:
-        raise Exception("iPOPO Service not found")
+        raise Exception("iPOPO Service not found")  # noqa: TRY002
 
     return service[1]

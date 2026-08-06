@@ -8,7 +8,6 @@ Tests the iPOPO decorators.
 
 import code
 import os
-import sys
 import unittest
 
 from pelix.framework import FrameworkFactory
@@ -109,7 +108,7 @@ class UtilityMethodsTest(unittest.TestCase):
         # Try with a compiled method
         local_vars = {}
         mod = code.compile_command("def foobar():\n    pass\n", "<generated>")
-        exec(mod, {}, local_vars)
+        exec(mod, {}, local_vars)  # noqa: S102
         foobar = local_vars["foobar"]
 
         description = decorators.get_method_description(foobar)
@@ -283,11 +282,11 @@ class DecoratorsTest(unittest.TestCase):
             self.assertRaises(ValueError, decorators.Instantiate, empty)
 
         # Invalid name type
-        for invalid in (None, [], tuple(), 123):
+        for invalid in (None, [], (), 123):
             self.assertRaises(TypeError, decorators.Instantiate, invalid)
 
         # Invalid properties type
-        for invalid in ("props", [1, 2], tuple((1, 2, 3)), 123):
+        for invalid in ("props", [1, 2], (1, 2, 3), 123):
             self.assertRaises(TypeError, decorators.Instantiate, "test", invalid)
 
         # Invalid target
@@ -328,7 +327,7 @@ class DecoratorsTest(unittest.TestCase):
 
         # Invalid type
         self.assertRaises(TypeError, decorators.Property, None)
-        for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
+        for invalid in ([1, 2, 3], (1, 2, 3), 123):
             self.assertRaises(TypeError, decorators.Property, invalid)
             self.assertRaises(TypeError, decorators.Property, "field", invalid)
 
@@ -351,7 +350,7 @@ class DecoratorsTest(unittest.TestCase):
         self.assertRaises(ValueError, decorators.Provides, "spec", "a space")
 
         # Invalid specification type
-        for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
+        for invalid in ([1, 2, 3], (1, 2, 3), 123):
             self.assertRaises(ValueError, decorators.Provides, "spec", invalid)
 
         # Invalid target
@@ -458,7 +457,7 @@ class DecoratorsTest(unittest.TestCase):
                 self.assertRaises(ValueError, decorator, "field", empty)
 
             # Invalid field or specification type
-            for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
+            for invalid in ([1, 2, 3], (1, 2, 3), 123):
                 self.assertRaises(TypeError, decorator, invalid)
                 self.assertRaises(ValueError, decorator, "field", invalid)
 
@@ -487,7 +486,7 @@ class DecoratorsTest(unittest.TestCase):
             self.assertRaises(ValueError, decorators.RequiresMap, "field", "spec", empty)
 
         # Invalid field or specification type
-        for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
+        for invalid in ([1, 2, 3], (1, 2, 3), 123):
             self.assertRaises(TypeError, decorators.RequiresMap, invalid)
             self.assertRaises(ValueError, decorators.RequiresMap, "field", invalid, "key")
 
@@ -524,10 +523,6 @@ class SimpleDecoratorsTests(unittest.TestCase):
         self.addCleanup(self.framework.delete, True)
         self.framework.start()
         self.context = self.framework.get_bundle_context()
-
-        # Compatibility issue
-        if sys.version_info[0] < 3:
-            self.assertCountEqual = self.assertItemsEqual
 
     def tearDown(self):
         """
@@ -585,7 +580,7 @@ class SimpleDecoratorsTests(unittest.TestCase):
         Tests the _get_specifications method for the @Provides decorator
         """
         # Invalid entry
-        for invalid in (None, "", [], tuple(), {"spec": 1}, [1, 2, 3], tuple((1, 2, 3)), 123):
+        for invalid in (None, "", [], (), {"spec": 1}, [1, 2, 3], (1, 2, 3), 123):
             self.assertRaises(ValueError, decorators._get_specifications, invalid)
 
         # Test inheritance
@@ -598,7 +593,7 @@ class SimpleDecoratorsTests(unittest.TestCase):
         # New behavior
         decorators.Provides.USE_MODULE_QUALNAME = True
         try:
-            Child.__qualname__
+            Child.__qualname__  # noqa: B018
         except AttributeError:
             self.assertRaises(ValueError, decorators._get_specifications, Child.__bases__)
         else:

@@ -42,7 +42,7 @@ class ActivatorTest(ActivatorProto):
             raise FrameworkException("Framework Exception", fw_raiser_stop)
 
         if raiser:
-            raise Exception("Some exception")
+            raise Exception("Some exception")  # noqa: TRY002
 
         global started
         started = True
@@ -58,7 +58,7 @@ class ActivatorTest(ActivatorProto):
             raise FrameworkException("Framework Exception", fw_raiser_stop)
 
         if raiser:
-            raise Exception("Some exception")
+            raise Exception("Some exception")  # noqa: TRY002
 
         global stopped
         stopped = True

@@ -189,7 +189,7 @@ def export_framework(state_queue: Queue, transport: str, components: Iterable[tu
         state_queue.put("stopping")
         framework.stop()
         framework.delete()
-    except Exception as ex:
+    except Exception as ex:  # noqa: BLE001
         state_queue.put(f"Error: {ex}")
 
 
@@ -298,7 +298,7 @@ class HttpTransportsTest(unittest.TestCase):
             # Exception handling
             try:
                 svc.error()
-            except:
+            except:  # noqa: E722
                 # The error has been propagated
                 state = status_queue.get(True, 2)
                 self.assertEqual(state, "call-error")
@@ -306,13 +306,8 @@ class HttpTransportsTest(unittest.TestCase):
                 self.fail("No exception raised calling 'error'")
 
             # Call undefined method
-            try:
+            with self.assertRaises(Exception):  # noqa: B017
                 svc.undefined()
-            except:
-                # The error has been propagated: OK
-                pass
-            else:
-                self.fail("No exception raised calling an undefined method")
 
             # Stop the peer
             svc.stop()

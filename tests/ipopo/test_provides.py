@@ -6,7 +6,6 @@ Tests the iPOPO @Provides decorator.
 :author: Thomas Calmant
 """
 
-import sys
 import unittest
 
 from pelix.framework import BundleContext, FrameworkFactory
@@ -36,10 +35,6 @@ class ProvidesTest(unittest.TestCase):
         self.addCleanup(self.framework.delete, True)
         self.framework.start()
         self.ipopo = install_ipopo(self.framework)
-
-        # Compatibility issue
-        if sys.version_info[0] < 3:
-            self.assertCountEqual = self.assertItemsEqual
 
     def tearDown(self):
         """
@@ -95,7 +90,7 @@ class ProvidesTest(unittest.TestCase):
         finally:
             try:
                 self.ipopo.kill(NAME_A)
-            except:
+            except:  # noqa: E722, S110
                 pass
 
     def testController(self):
@@ -158,7 +153,7 @@ class ProvidesTest(unittest.TestCase):
         finally:
             try:
                 self.ipopo.kill(NAME_A)
-            except:
+            except:  # noqa: E722, S110
                 pass
 
     def test_post_un_registration(self):
@@ -244,7 +239,7 @@ class ProvidesTest(unittest.TestCase):
         finally:
             try:
                 self.ipopo.kill(NAME_A)
-            except:
+            except:  # noqa: E722, S110
                 pass
 
     def test_factory(self):

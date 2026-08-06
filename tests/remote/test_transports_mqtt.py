@@ -194,7 +194,7 @@ def export_framework(
         state_queue.put("stopping")
         framework.stop()
         framework.delete()
-    except Exception as ex:
+    except Exception as ex:  # noqa: BLE001
         state_queue.put(f"Error: {ex}")
 
 
@@ -308,7 +308,7 @@ class MqttTransportsTest(unittest.TestCase):
                 self.fail("No exception raised calling 'error'")
 
             # Call undefined method
-            self.assertRaises(Exception, svc.undefined)
+            self.assertRaises(Exception, svc.undefined)  # noqa: B017
 
             try:
                 # Stop the peer

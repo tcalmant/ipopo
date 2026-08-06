@@ -211,7 +211,7 @@ class MqttServiceTest(unittest.TestCase):
         # Wait for it
         for _ in range(10):
             try:
-                msg_topic, msg_payload, qos = listener.messages.pop()
+                msg_topic, msg_payload, _qos = listener.messages.pop()
                 break
             except IndexError:
                 time.sleep(0.5)
@@ -229,7 +229,7 @@ class MqttServiceTest(unittest.TestCase):
         # Wait for something
         for _ in range(6):
             try:
-                msg_topic, msg_payload, qos = listener.messages.pop()
+                msg_topic, msg_payload, _qos = listener.messages.pop()
             except IndexError:
                 time.sleep(0.5)
             else:
@@ -245,7 +245,7 @@ class MqttServiceTest(unittest.TestCase):
         # Wait for it
         for _ in range(10):
             try:
-                msg_topic, msg_payload, qos = listener.messages.pop()
+                msg_topic, msg_payload, _qos = listener.messages.pop()
                 break
             except IndexError:
                 time.sleep(0.5)

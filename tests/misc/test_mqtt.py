@@ -150,31 +150,31 @@ class MqttClientTest(unittest.TestCase):
 
                 def on_connect(clt: mqtt.MqttClient, result_code: int) -> None:
                     if result_code == 0:
-                        event_connected.set()
+                        event_connected.set()  # noqa: B023
                     else:
-                        event_connected.raise_exception(
+                        event_connected.raise_exception(  # noqa: B023
                             RuntimeError(f"Connection failed with code {result_code}")
                         )
 
                 def on_disconnect(clt: mqtt.MqttClient, result_code: int) -> None:
                     if result_code == 0:
-                        event_disconnected.set()
+                        event_disconnected.set()  # noqa: B023
                     else:
-                        event_disconnected.raise_exception(
+                        event_disconnected.raise_exception(  # noqa: B023
                             RuntimeError(f"Disconnection failed with code {result_code}")
                         )
 
                 def on_message(clt: mqtt.MqttClient, msg: mqtt.MqttMessage) -> None:
-                    event_message.set(msg)
+                    event_message.set(msg)  # noqa: B023
 
                 def on_publish(clt: mqtt.MqttClient, mid: int) -> None:
-                    event_publish.set(mid)
+                    event_publish.set(mid)  # noqa: B023
 
                 def on_subscribe(clt: mqtt.MqttClient, mid: int, granted_qos: list[int]) -> None:
-                    event_subscribe.set((mid, granted_qos))
+                    event_subscribe.set((mid, granted_qos))  # noqa: B023
 
                 def on_unsubscribe(clt: mqtt.MqttClient, mid: int) -> None:
-                    event_unsubscribe.set(mid)
+                    event_unsubscribe.set(mid)  # noqa: B023
 
                 client.on_connect = on_connect
                 client.on_disconnect = on_disconnect
@@ -320,7 +320,7 @@ class MqttClientTest(unittest.TestCase):
 
             # NOTE: Disconnection event is not received on reconnect
             if not event_disconnect.is_set():
-                logging.warning("Disconnection event not received")
+                print("Disconnection event not received", file=sys.stderr)
         finally:
             # Clean up
             client_2.disconnect()
@@ -523,19 +523,14 @@ class MqttClientTest(unittest.TestCase):
         # Long ID
         long_id = "a" * 30
 
-        if sys.version_info[:2] >= (3, 4):
-            # assertLogs has been added in Python 3.4
-            with self.assertLogs(level=logging.WARNING) as cm:
-                client = mqtt.MqttClient(long_id)
-
-            for line in cm.output:
-                if long_id in line and "too long" in line:
-                    break
-            else:
-                self.fail("No warning for long client ID")
-        else:
-            # Log test not available
+        with self.assertLogs(level=logging.WARNING) as cm:
             client = mqtt.MqttClient(long_id)
+
+        for line in cm.output:
+            if long_id in line and "too long" in line:
+                break
+        else:
+            self.fail("No warning for long client ID")
 
         # Client ID must be kept as is
         self.assertEqual(client.client_id, long_id)

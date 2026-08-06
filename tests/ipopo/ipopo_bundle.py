@@ -223,7 +223,7 @@ class ComponentFactoryB(TestComponentFactory):
             raise FrameworkException("FrameworkException", self.fw_raiser_stop)
 
         if self.raiser:
-            raise Exception("Some exception")
+            raise Exception("Some exception")  # noqa: TRY002
 
     @Unbind
     def unbind(self, svc, svc_ref):
@@ -241,7 +241,7 @@ class ComponentFactoryB(TestComponentFactory):
             raise FrameworkException("FrameworkException", self.fw_raiser_stop)
 
         if self.raiser:
-            raise Exception("Some exception")
+            raise Exception("Some exception")  # noqa: TRY002
 
 
 @ComponentFactory(name=FACTORY_C)
@@ -645,12 +645,10 @@ class GrandMother:
     """
 
 
-
 class Mother(GrandMother):
     """
     Direct parent class: must appear in specifications
     """
-
 
 
 class Father:
@@ -659,9 +657,7 @@ class Father:
     """
 
 
-
 class Child(Father, Mother):
     """
     Implementation class: must not appear in specifications
     """
-

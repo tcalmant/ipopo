@@ -79,7 +79,7 @@ class SSETestCase(unittest.TestCase):
                     while True:
                         await response.send_sse(data=data)
                         await asyncio.sleep(0.1)
-                except Exception:
+                except Exception:  # noqa: BLE001
                     parent.sse_state["disconnects"] += 1
                 finally:
                     parent.sse_state["clients"].discard(clt)

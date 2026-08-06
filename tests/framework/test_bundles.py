@@ -305,7 +305,7 @@ def test_fct():
 
         # Compute the bundle full path
         simple_name = "generated_bundle"
-        bundle_name = "{0}.{1}".format(__name__.rsplit(".", 1)[0], simple_name)
+        bundle_name = f"{__name__.rsplit('.', 1)[0]}.{simple_name}"
         bundle_fullname = os.path.join(os.path.dirname(__file__), f"{simple_name}.py")
 
         # 0/ Clean up existing files

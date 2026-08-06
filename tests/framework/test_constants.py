@@ -18,7 +18,6 @@ class Foobar(Protocol):
     """
 
 
-
 @Specification("Hello")
 class Foo(Protocol):
     """

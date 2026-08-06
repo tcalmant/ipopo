@@ -14,9 +14,7 @@ from typing import cast
 import tests.http.test_routing as routing_tests
 from pelix import http
 
-try:
-    assert importlib.util.find_spec("aiohttp") is not None
-except Exception:
+if importlib.util.find_spec("aiohttp") is None:
     raise unittest.SkipTest("aiohttp library not available")
 
 # ------------------------------------------------------------------------------

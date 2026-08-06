@@ -26,9 +26,7 @@ T = TypeVar("T")
 # ------------------------------------------------------------------------------
 
 
-def _slow_call(
-    wait: float, result: T | None = None, event: EventData[Any] | None = None
-) -> T | None:
+def _slow_call(wait: float, result: T | None = None, event: EventData[Any] | None = None) -> T | None:
     """
     Method that returns after the given time (in seconds)
     """
@@ -183,7 +181,7 @@ class FutureTest(unittest.TestCase):
         # Execute
         try:
             future.execute(self._raise_call, None, None)
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             # Store it
             exception = ex
         else:

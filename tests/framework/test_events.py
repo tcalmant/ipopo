@@ -332,9 +332,7 @@ class ServiceEventTest(unittest.TestCase):
         # Modify the service => Ends the filter match
         svc.modify({"test": False})
         # Assert the events have been received
-        self.assertEqual(
-            [ServiceEvent.MODIFIED_ENDMATCH], self.received, f"Received {self.received}"
-        )
+        self.assertEqual([ServiceEvent.MODIFIED_ENDMATCH], self.received, f"Received {self.received}")
         self.reset_state()
 
         # Modify the service => the filter matches again

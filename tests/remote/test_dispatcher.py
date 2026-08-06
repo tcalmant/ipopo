@@ -110,7 +110,7 @@ class Listener:
             self.events.append(ADDED)
 
         if self.raise_exception:
-            raise Exception("Endpoints added exception")
+            raise Exception("Endpoints added exception")  # noqa: TRY002
 
     def endpoint_updated(self, endpoint: beans.ExportEndpoint, old_props: dict[str, Any]) -> None:
         """
@@ -118,7 +118,7 @@ class Listener:
         """
         self.events.append(UPDATED)
         if self.raise_exception:
-            raise Exception("Endpoints updated exception")
+            raise Exception("Endpoints updated exception")  # noqa: TRY002
 
     def endpoint_removed(self, endpoint: beans.ExportEndpoint) -> None:
         """
@@ -126,7 +126,7 @@ class Listener:
         """
         self.events.append(REMOVED)
         if self.raise_exception:
-            raise Exception("Endpoints removed exception")
+            raise Exception("Endpoints removed exception")  # noqa: TRY002
 
 
 # ------------------------------------------------------------------------------

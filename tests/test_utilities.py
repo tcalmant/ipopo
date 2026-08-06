@@ -51,14 +51,10 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         invalid = (None, "", 1234, object())
 
         for test in valid:
-            self.assertTrue(
-                utilities.is_lock(test), f"Valid lock not detected: {type(test).__name__}"
-            )
+            self.assertTrue(utilities.is_lock(test), f"Valid lock not detected: {type(test).__name__}")
 
         for test in invalid:
-            self.assertFalse(
-                utilities.is_lock(test), f"Invalid lock not detected: {type(test).__name__}"
-            )
+            self.assertFalse(utilities.is_lock(test), f"Invalid lock not detected: {type(test).__name__}")
 
     @utilities.SynchronizedClassMethod("lock")
     def testSynchronizedClassMethod(self) -> None:
@@ -226,7 +222,7 @@ class UtilitiesTest(unittest.TestCase):
         try:
             # Must not raise an exception
             utilities.remove_all_occurrences(None, 12)  # type: ignore
-        except:
+        except:  # noqa: E722
             self.fail("remove_all_occurrences(None) must not raise an exception")
 
         min_value = -1
@@ -263,7 +259,7 @@ class UtilitiesTest(unittest.TestCase):
         Tests the is_string() method
         """
         valid = ["", "aaa", str(42)]
-        invalid = [42, None, [], {}, tuple(), b"", b"aaa"]  # type: ignore
+        invalid = [42, None, [], {}, (), b"", b"aaa"]  # type: ignore
 
         for value in valid:
             self.assertTrue(utilities.is_string(value), f"'{value}' is a string")
@@ -506,7 +502,7 @@ class EventDataTest(unittest.TestCase):
         # Check the behavior of "wait"
         try:
             event.wait()
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             self.assertIs(ex, exception, "Not the same exception")
             self.assertTrue(event.is_set(), "Event has been cleared")
         else:
@@ -547,7 +543,7 @@ class EventDataTest(unittest.TestCase):
         # Check the behavior of "wait"
         try:
             event.wait()
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             self.assertIs(ex, exception, "Not the same exception")
         else:
             self.fail("Exception not raised")

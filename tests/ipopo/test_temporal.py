@@ -89,14 +89,9 @@ class TemporalTest(unittest.TestCase):
             self.fail("TemporalException not raised on call")
 
         # Try to call a non-active proxy method
-        try:
+        with self.assertRaises(TemporalException, msg="TemporalException not raised on field access"):
             # Exception getting the field
-            proxy.method
-        except TemporalException:
-            # OK
-            pass
-        else:
-            self.fail("TemporalException not raised on field access")
+            proxy.method  # noqa: B018
 
         # Check boolean value
         self.assertFalse(proxy)
@@ -135,14 +130,9 @@ class TemporalTest(unittest.TestCase):
             self.fail("TemporalException not raised on call")
 
         # Try to call a non-active proxy method
-        try:
+        with self.assertRaises(TemporalException, msg="TemporalException not raised on field access"):
             # Exception getting the field
-            proxy.method
-        except TemporalException:
-            # OK
-            pass
-        else:
-            self.fail("TemporalException not raised on field access")
+            proxy.method  # noqa: B018
 
     def test_temporal_lifecycle(self):
         """

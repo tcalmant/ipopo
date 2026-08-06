@@ -322,7 +322,7 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
 
             # Check if it has been received by the handler
             handler.wait()
-            last_topic, last_props = handler.pop_event()
+            last_topic, _last_props = handler.pop_event()
             self.assertEqual(last_topic, topic, "Bad topic")
 
             # Wait for it in the MQTT client
@@ -338,7 +338,7 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
 
             # Check if it has been received by the handler
             handler.wait()
-            last_topic, last_props = handler.pop_event()
+            last_topic, _last_props = handler.pop_event()
             self.assertEqual(last_topic, topic, "Bad topic")
 
             # Wait for it in the MQTT client
@@ -360,7 +360,7 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
 
             # Check if it has been received by the handler
             handler.wait()
-            last_topic, last_props = handler.pop_event()
+            last_topic, _last_props = handler.pop_event()
             self.assertEqual(last_topic, topic, "Bad topic")
 
             # Wait for it in the MQTT client

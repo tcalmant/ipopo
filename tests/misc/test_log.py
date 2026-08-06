@@ -111,7 +111,7 @@ class LogServiceTest(unittest.TestCase):
         Tests if logs made with the logging are handled
         """
         # Debug logs aren't taken into account
-        logging.debug("Some log message at %s", logging.getLevelName(logging.DEBUG))
+        logging.debug("Some log message at %s", logging.getLevelName(logging.DEBUG))  # noqa: LOG015
         self.assertListEqual(list(self.reader.get_log()), [], "Debug message logged")
 
         # Try to log at various log levels
@@ -123,7 +123,7 @@ class LogServiceTest(unittest.TestCase):
             (logging.CRITICAL, LOG_ERROR),
         ):
             # Log at the expected level
-            logging.log(level, "Some log message at %s", logging.getLevelName(level))
+            logging.log(level, "Some log message at %s", logging.getLevelName(level))  # noqa: LOG015
 
             # Get new logs
             new_logs = self.reader.get_log()
@@ -177,7 +177,7 @@ class LogServiceTest(unittest.TestCase):
                 # Log for each level
                 for level in (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR):
                     # Log something
-                    logging.log(level, "Some log at %s", logging.getLevelName(level))
+                    logging.log(level, "Some log at %s", logging.getLevelName(level))  # noqa: LOG015
 
                     try:
                         latest = self.reader.get_log()[-1]
@@ -204,7 +204,7 @@ class LogServiceTest(unittest.TestCase):
             # Log for each level
             for level in (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR):
                 # Log something
-                logging.log(level, "Some log at %s", logging.getLevelName(level))
+                logging.log(level, "Some log at %s", logging.getLevelName(level))  # noqa: LOG015
 
                 try:
                     latest = self.reader.get_log()[-1]

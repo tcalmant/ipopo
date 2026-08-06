@@ -43,7 +43,6 @@ class ParentFactory:
     """
 
 
-
 @ComponentFactory(FACTORY_ALL)
 class ChildAll(ParentFactory):
     """
@@ -51,13 +50,11 @@ class ChildAll(ParentFactory):
     """
 
 
-
 @ComponentFactory(FACTORY_NO_PROVIDE, excluded=Provides.HANDLER_ID)
 class ChildNoProvides(ParentFactory):
     """
     Child factory, removing the provided service
     """
-
 
 
 @ComponentFactory(FACTORY_EXTEND_PROVIDE)
@@ -68,14 +65,12 @@ class ChildExtendProvides(ParentFactory):
     """
 
 
-
 @ComponentFactory(FACTORY_REPLACE_PROVIDE, excluded=Provides.HANDLER_ID)
 @Provides(SPEC_CHILD)
 class ChildReplaceProvides(ParentFactory):
     """
     Child factory, replacing the provided service
     """
-
 
 
 # ------------------------------------------------------------------------------

@@ -86,7 +86,7 @@ def install_ipopo(framework: Framework) -> IPopoService:
     # Get the service
     ref = context.get_service_reference(IPopoService)
     if ref is None:
-        raise Exception("iPOPO Service not found")
+        raise Exception("iPOPO Service not found")  # noqa: TRY002
 
     return context.get_service(ref)
 
@@ -244,7 +244,7 @@ class TestServlet:
         self.bound.append(path)
 
         if self.raiser:
-            raise Exception("Some exception")
+            raise Exception("Some exception")  # noqa: TRY002
 
         return True
 
@@ -255,5 +255,4 @@ class TestServlet:
         self.unbound.append(path)
 
         if self.raiser:
-            raise Exception("Some exception")
-
+            raise Exception("Some exception")  # noqa: TRY002

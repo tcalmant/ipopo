@@ -85,7 +85,7 @@ class ValidateComponentTest(unittest.TestCase):
                         args = args[1:]
 
                         for idx, arg in enumerate(args):
-                            self.assertIsInstance(arg, types[decorator_args[idx]])
+                            self.assertIsInstance(arg, types[decorator_args[idx]])  # noqa: B023
 
                 try:
                     self.ipopo.register_factory(ctx, Sample)
@@ -212,7 +212,7 @@ class InvalidateComponentTest(unittest.TestCase):
                         args = args[1:]
 
                         for idx, arg in enumerate(args):
-                            self.assertIsInstance(arg, types[decorator_args[idx]])
+                            self.assertIsInstance(arg, types[decorator_args[idx]])  # noqa: B023
 
                 try:
                     self.ipopo.register_factory(ctx, Sample)

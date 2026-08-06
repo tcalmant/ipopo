@@ -292,9 +292,7 @@ class ServicesTest(unittest.TestCase):
 
         # Ensure that reserved properties have been overridden
         object_class = ref.get_property(pelix.constants.OBJECTCLASS)
-        self.assertListEqual(
-            object_class, ["class"], f"Invalid objectClass property '{object_class}'"
-        )
+        self.assertListEqual(object_class, ["class"], f"Invalid objectClass property '{object_class}'")
 
         svc_id = ref.get_property(pelix.constants.SERVICE_ID)
         self.assertGreater(svc_id, 0, "Invalid service ID")

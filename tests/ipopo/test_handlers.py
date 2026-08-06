@@ -6,7 +6,6 @@ Tests iPOPO handlers, using the sample logger handler
 :author: Thomas Calmant
 """
 
-import sys
 import unittest
 
 from pelix.framework import FrameworkFactory
@@ -67,10 +66,6 @@ class LifeCycleTest(unittest.TestCase):
         self.framework = FrameworkFactory.get_framework()
         self.addCleanup(self.framework.delete, True)
         self.framework.start()
-
-        # Compatibility issue
-        if sys.version_info[0] < 3:
-            self.assertCountEqual = self.assertItemsEqual
 
     def tearDown(self):
         """
