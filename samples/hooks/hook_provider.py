@@ -29,7 +29,6 @@ from some listeners to avoid a double-action.
     limitations under the License.
 """
 
-
 from typing import Any
 
 # Pelix remote services constants

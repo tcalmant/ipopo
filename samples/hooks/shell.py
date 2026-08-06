@@ -27,7 +27,6 @@ Provides commands to the Pelix shell to generate some service events
     limitations under the License.
 """
 
-
 import pelix.shell
 from pelix.framework import BundleContext
 from pelix.ipopo.decorators import (

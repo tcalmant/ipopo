@@ -334,7 +334,7 @@ if __name__ == "__main__":
         choices=DISCOVERIES,
         dest="discoveries",
         metavar="DISCOVERY",
-        help="Discovery protocols to use (one of {0})".format(", ".join(DISCOVERIES)),
+        help=f"Discovery protocols to use (one of {', '.join(DISCOVERIES)})",
     )
 
     # Transport
@@ -346,7 +346,7 @@ if __name__ == "__main__":
         choices=TRANSPORTS,
         dest="transports",
         metavar="TRANSPORT",
-        help="Transport protocols to use (one of {0})".format(", ".join(TRANSPORTS)),
+        help=f"Transport protocols to use (one of {', '.join(TRANSPORTS)})",
     )
 
     # Framework configuration

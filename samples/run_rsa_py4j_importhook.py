@@ -89,7 +89,7 @@ def main() -> None:
     print("...Bar class imported")
     print("...creating an instance of Bar...")
     print()
-    b = Bar()
+    _ = Bar()
     print()
     print(
         "...Bar instance created.  The print output between the lines starting with '...' is from foo package code"
