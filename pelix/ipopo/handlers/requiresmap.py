@@ -154,7 +154,7 @@ class Activator(ActivatorProto):
             properties,
         )
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -387,7 +387,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
                         results.append(reference)
             except BundleException as ex:
                 # Get the logger for this instance
-                logger = logging.getLogger("-".join((self._ipopo_instance.name, "RequiresMap-Runtime")))
+                logger = logging.getLogger(f"{self._ipopo_instance.name}-RequiresMap-Runtime")
                 logger.debug("Error binding multiple references: %s", ex)
 
                 # Undo what has just been done, ignoring errors

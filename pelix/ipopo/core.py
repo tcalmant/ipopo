@@ -251,7 +251,7 @@ class _IPopoService(IPopoService):
             del self._handlers[handler_id]
 
             # List the components using this handler
-            to_stop = set()  # type: Set[StoredInstance]
+            to_stop: set[StoredInstance] = set()
             for factory_name in self.__factories:
                 _, factory_context = self.__get_factory_with_context(factory_name)
                 if handler_id in factory_context.get_handlers_ids():
@@ -421,15 +421,14 @@ class _IPopoService(IPopoService):
                 try:
                     # Instantiate the given component
                     self.instantiate(factory, name, properties)
-                except Exception as ex:
+                except Exception:
                     # Log error, but continue to work
                     _logger.exception(
-                        "Error restarting component '%s' ('%s') from bundle %s (%d): %s",
+                        "Error restarting component '%s' ('%s') from bundle %s (%d)",
                         name,
                         factory,
                         bundle.get_symbolic_name(),
                         bundle.get_bundle_id(),
-                        ex,
                     )
 
     def _autorestart_clear_components(self, bundle: Bundle) -> None:
@@ -460,7 +459,7 @@ class _IPopoService(IPopoService):
         for listener in listeners:
             try:
                 listener.handle_ipopo_event(constants.IPopoEvent(kind, factory_name, instance_name))
-            except:
+            except:  # noqa: E722
                 _logger.exception("Error calling an iPOPO event handler")
 
     def _prepare_instance_properties(

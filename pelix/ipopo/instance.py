@@ -117,7 +117,7 @@ class StoredInstance:
         :param handlers: The list of handlers associated to this component
         """
         # The logger
-        self._logger = logging.getLogger("-".join(("InstanceManager", context.name)))
+        self._logger = logging.getLogger(f"InstanceManager-{context.name}")
 
         # The lock
         self._lock = threading.RLock()
@@ -341,14 +341,14 @@ class StoredInstance:
                 # Try to bind
                 try:
                     handler.try_binding()
-                except Exception as ex:
+                except Exception as ex:  # noqa: BLE001
                     # Ignore exception
                     self._logger.debug("Error calling try_binding() on %s: %s", handler, ex)
 
                 # Update the validity flag
                 try:
                     handler_valid = handler.is_valid()
-                except Exception as ex:
+                except Exception as ex:  # noqa: BLE001
                     # Don't update the validity flag
                     self._logger.debug("Error calling is_valid() on %s: %s", handler, ex)
                 else:
@@ -449,7 +449,7 @@ class StoredInstance:
 
             try:
                 self.invalidate(True)
-            except:
+            except:  # noqa: E722
                 self._logger.exception("%s: Error invalidating the instance", self.name)
 
             # Now that we are nearly clean, be sure we were in a good registry
@@ -460,17 +460,15 @@ class StoredInstance:
             for handler in self.get_handlers():
                 try:
                     results = handler.stop()
-                except Exception as ex:
+                except Exception as ex:  # noqa: BLE001
                     self._logger.debug("Error calling stop() on %s: %s", handler, ex)
                 else:
                     if results and isinstance(handler, handlers_const.DependencyHandler):
                         for binding in results:
                             try:
                                 self.__unset_binding(handler, binding[0], binding[1])
-                            except Exception as ex:
-                                self._logger.exception(
-                                    "Error removing binding in handler '%s': %s", handler, ex
-                                )
+                            except Exception:
+                                self._logger.exception("Error removing binding in handler '%s'", handler)
 
             # Call the handlers
             self.__safe_handlers_callback(handlers_const.Handler.clear)
@@ -661,7 +659,7 @@ class StoredInstance:
             return self.__callback(event, *args, **kwargs)
         except FrameworkException as ex:
             # Important error
-            self._logger.exception("Critical error calling back %s: %s", self.name, ex)
+            self._logger.exception("Critical error calling back %s", self.name)
 
             # Kill the component
             self._ipopo_service.kill(self.name)
@@ -671,7 +669,7 @@ class StoredInstance:
                 self._logger.error("%s said that the Framework must be stopped.", self.name)
                 self.bundle_context.get_framework().stop()
             return False
-        except:
+        except:  # noqa: E722
             self._logger.exception(
                 "Component '%s': error calling callback method for event %s",
                 self.name,
@@ -698,7 +696,7 @@ class StoredInstance:
             return self.__validation_callback(event)
         except FrameworkException as ex:
             # Important error
-            self._logger.exception("Critical error calling back %s: %s", self.name, ex)
+            self._logger.exception("Critical error calling back %s", self.name)
 
             # Kill the component
             self._ipopo_service.kill(self.name)
@@ -711,7 +709,7 @@ class StoredInstance:
                 self._logger.error("%s said that the Framework must be stopped.", self.name)
                 self.bundle_context.get_framework().stop()
             return False
-        except:
+        except:  # noqa: E722
             self._logger.exception(
                 "Component '%s': error calling @ValidateComponent callback",
                 self.name,
@@ -741,7 +739,7 @@ class StoredInstance:
             return self.__field_callback(field, event, *args, **kwargs)
         except FrameworkException as ex:
             # Important error
-            self._logger.exception("Critical error calling back %s: %s", self.name, ex)
+            self._logger.exception("Critical error calling back %s", self.name)
 
             # Kill the component
             self._ipopo_service.kill(self.name)
@@ -751,7 +749,7 @@ class StoredInstance:
                 self._logger.error("%s said that the Framework must be stopped.", self.name)
                 self.bundle_context.get_framework().stop()
             return False
-        except:
+        except:  # noqa: E722
             self._logger.exception(
                 "Component '%s' : error calling callback method for event %s",
                 self.name,
@@ -790,9 +788,8 @@ class StoredInstance:
                 if res is not None and not res:
                     # Ignore 'None' results
                     result = False
-            except Exception as ex:
-                # Log errors
-                self._logger.exception("Error calling handler '%s': %s", handler, ex)
+            except Exception:
+                self._logger.exception("Error calling handler '%s'", handler)
 
         return result
 

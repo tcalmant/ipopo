@@ -143,7 +143,7 @@ class Activator(ActivatorProto):
             properties,
         )
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -639,7 +639,7 @@ class AggregateDependency(_RuntimeDependency):
                         results.append(reference)
             except BundleException as ex:
                 # Get the logger for this instance
-                logger = logging.getLogger("-".join((self._ipopo_instance.name, "AggregateDependency")))
+                logger = logging.getLogger(f"{self._ipopo_instance.name}-AggregateDependency")
                 logger.debug("Error binding multiple references: %s", ex)
 
                 # Undo what has just been done, ignoring errors

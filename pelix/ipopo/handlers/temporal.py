@@ -25,6 +25,7 @@ Temporal dependency handler
     limitations under the License.
 """
 
+import logging
 import threading
 from collections.abc import Callable, Iterable
 from typing import Any, Generic, TypeVar, cast
@@ -45,6 +46,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
+
+_logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -87,12 +90,15 @@ class _HandlerFactory(constants.HandlerFactory):
             explicit_timeout = temporal_timeouts.get(field, timeout)
 
             # Convert the timeout value
-            try:
-                explicit_timeout = int(explicit_timeout)
-                if explicit_timeout <= 0:
-                    explicit_timeout = timeout
-            except (ValueError, TypeError):
+            if explicit_timeout is None:
                 explicit_timeout = timeout
+            else:
+                try:
+                    explicit_timeout = int(explicit_timeout)
+                    if explicit_timeout <= 0:
+                        explicit_timeout = timeout
+                except (ValueError, TypeError):
+                    explicit_timeout = timeout
 
             if not explicit_filter and not explicit_timeout:
                 # Nothing to do
@@ -121,8 +127,22 @@ class _HandlerFactory(constants.HandlerFactory):
         """
         # Extract information from the context
         configs = component_context.get_handler(ipopo_constants.HANDLER_TEMPORAL)
+        if not isinstance(configs, dict):
+            if configs is not None:
+                _logger.warning("Invalid temporal configuration: %s", configs)
+            configs = {}
+
         requires_filters = component_context.properties.get(ipopo_constants.IPOPO_REQUIRES_FILTERS, None)
+        if not isinstance(requires_filters, dict):
+            if requires_filters is not None:
+                _logger.warning("Invalid requires.filter configuration: %s", requires_filters)
+            requires_filters = {}
+
         temporal_timeouts = component_context.properties.get(ipopo_constants.IPOPO_TEMPORAL_TIMEOUTS, None)
+        if not isinstance(temporal_timeouts, dict):
+            if temporal_timeouts is not None:
+                _logger.warning("Invalid temporal.timeouts configuration: %s", temporal_timeouts)
+            temporal_timeouts = {}
 
         # Prepare requirements
         new_configs = self._prepare_configs(configs, requires_filters, temporal_timeouts)
@@ -160,7 +180,7 @@ class Activator(ActivatorProto):
             properties,
         )
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -177,7 +197,6 @@ class TemporalException(constants.HandlerException):
     """
     Temporal exception
     """
-
 
 
 class _TemporalProxy(Generic[T]):

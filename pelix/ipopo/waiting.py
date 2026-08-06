@@ -109,10 +109,10 @@ class IPopoWaitingListImpl(IPopoWaitingList):
                 pass
             except ValueError as ex:
                 # Already known component
-                _logger.error("Component already running: %s", ex)
-            except Exception as ex:
+                _logger.error("Component %s already running: %s", component, ex)
+            except Exception:
                 # Other error
-                _logger.exception("Error instantiating component: %s", ex)
+                _logger.exception("Error instantiating component %s from factory %s", component, factory)
 
     def _start(self) -> None:
         """
@@ -291,7 +291,7 @@ class Activator(ActivatorProto):
         # Register it
         self.__registration = context.register_service(IPopoWaitingList, self.__service, {})
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopped
         """

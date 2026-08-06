@@ -46,6 +46,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+_logger = logging.getLogger(__name__)
+
 # ------------------------------------------------------------------------------
 
 
@@ -107,7 +109,7 @@ class Activator(ActivatorProto):
             properties,
         )
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -172,14 +174,14 @@ class _VariableFilterMixIn(requires._RuntimeDependency):
             filter_str = self._original_filter.format(**self._component_context.properties)
         except KeyError as ex:
             # An entry is missing: abandon
-            logging.warning("Missing filter value: %s", ex)
+            _logger.warning("Missing filter value: %s", ex)
             raise ValueError("Missing filter value")
 
         try:
             # Parse the new LDAP filter
             new_filter = ldapfilter.get_ldap_filter(filter_str)
         except (TypeError, ValueError) as ex:
-            logging.warning("Error parsing filter: %s", ex)
+            _logger.warning("Error parsing filter: %s", ex)
             raise ValueError("Error parsing filter")
 
         # The filter is valid

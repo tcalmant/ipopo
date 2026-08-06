@@ -123,7 +123,7 @@ class Requirement:
             # Different specifications
             return False
 
-        if self.filter != other.filter:
+        if self.filter != other.filter:  # noqa: SIM103
             # Different filters (therefore different specifications)
             return False
 
@@ -184,9 +184,7 @@ class Requirement:
 
         return str(self.__original_filter)
 
-    def set_filter(
-        self, props_filter: None | str | ldapfilter.LDAPCriteria | ldapfilter.LDAPFilter
-    ) -> None:
+    def set_filter(self, props_filter: None | str | ldapfilter.LDAPCriteria | ldapfilter.LDAPFilter) -> None:
         """
         Changes the current filter for the given one
 
@@ -354,7 +352,7 @@ class FactoryContext:
         :param excluded_handlers: Excluded handlers
         """
         if not excluded_handlers:
-            excluded_handlers = tuple()
+            excluded_handlers = ()
 
         for handler, configuration in self.__inherited_configuration.items():
             if handler in excluded_handlers:

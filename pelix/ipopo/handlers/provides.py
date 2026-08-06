@@ -104,7 +104,7 @@ class Activator(ActivatorProto):
             properties,
         )
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -332,7 +332,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
                 self._registration.unregister()
             except BundleException as ex:
                 # Only log the error at this level
-                logger = logging.getLogger("-".join((self._ipopo_instance.name, "ServiceRegistration")))
+                logger = logging.getLogger(f"{self._ipopo_instance.name}-ServiceRegistration")
                 logger.error("Error unregistering a service: %s", ex)
 
             # Notify the component (even in case of error)

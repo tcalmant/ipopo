@@ -109,7 +109,7 @@ class Activator(ActivatorProto):
             properties,
         )
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -199,7 +199,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
         self._proxy = _ProxyDummy(self, None)
 
         # The logger
-        self._logger = logging.getLogger("-".join(("<n/a>", "RequiresBroadcast", field)))
+        self._logger = logging.getLogger(f"<n/a>-RequiresBroadcast-{field}")
 
         # Reference -> Service
         self._services: dict[ServiceReference[Any], Any] = {}
@@ -221,7 +221,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
         self._context = stored_instance.bundle_context
 
         # Reset the logger
-        self._logger = logging.getLogger("-".join((stored_instance.name, "RequiresBroadcast", self._field)))
+        self._logger = logging.getLogger(f"{stored_instance.name}-RequiresBroadcast-{self._field}")
 
         # Set the default value for the field if it is optional: the proxy
         if self.requirement.optional:
@@ -459,14 +459,14 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
                     try:
                         # Call it
                         to_call(*args, **kwargs)
-                    except Exception as ex:  # pylint:disable=broad-except
+                    except Exception:  # pylint:disable=broad-except
                         if not self._muffle_ex:
                             # Propagate if requested
-                            raise ex
+                            raise
 
                         if self._trace_ex:
                             # Log it
-                            self._logger.exception(ex)
+                            self._logger.exception("Exception occurred")
 
             # Service have been notified (or failed silently): return True
             return True
