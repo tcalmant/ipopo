@@ -78,8 +78,7 @@ class ConfigAdminCommands(ShellCommandsProvider):
         # Clean up
         self._configs.clear()
 
-    @staticmethod
-    def get_namespace() -> str:
+    def get_namespace(self) -> str:
         """
         Retrieves the name space of this command handler
         """
@@ -146,9 +145,9 @@ class ConfigAdminCommands(ShellCommandsProvider):
         try:
             # Reload the file
             config.reload()
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             # Log errors
-            session.write_line("Error reloading {0}: {1}", pid, ex)
+            session.write_line(f"Error reloading {pid}: {ex}")
 
     def delete(self, _: "ShellSession", pid: str) -> None:
         """
@@ -179,7 +178,7 @@ class ConfigAdminCommands(ShellCommandsProvider):
                     break
 
             else:
-                session.write_line("No configuration with PID {0}.", pid)
+                session.write_line(f"No configuration with PID {pid}.")
                 return
 
         lines = []

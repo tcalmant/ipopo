@@ -186,15 +186,13 @@ class Shell:
         # File commands
         self.register_command(None, "run", self.run_file)
 
-    @staticmethod
-    def get_banner() -> str:
+    def get_banner(self) -> str:
         """
         Returns the Shell banner
         """
         return "** Shell prompt **\n"
 
-    @staticmethod
-    def get_ps1() -> str:
+    def get_ps1(self) -> str:
         """
         Returns the PS1, the basic shell prompt
         """
@@ -478,7 +476,7 @@ class Shell:
             return False
         except Exception as ex:
             # Error
-            self._logger.exception("Error calling %s.%s: %s", namespace, command, ex)
+            self._logger.exception("Error calling %s.%s", namespace, command)
             session.write_line(f"{type(ex).__name__}: {ex}")
             return False
         finally:

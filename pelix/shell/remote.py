@@ -61,6 +61,7 @@ try:
     HAS_SSL = True
 except ImportError:
     HAS_SSL = False
+    ssl = None  # type: ignore[assignment]
 
 # ------------------------------------------------------------------------------
 
@@ -210,11 +211,11 @@ class RemoteConsole(socketserver.StreamRequestHandler):
                         # Stop there on interruption
                         self.send("\nInterruption received.")
                         return
-                    except OSError as ex:
+                    except OSError:
                         # I/O errors are fatal
-                        _logger.exception("Error communicating with a client: %s", ex)
+                        _logger.exception("Error communicating with a client")
                         break
-                    except Exception as ex:
+                    except Exception as ex:  # noqa: BLE001
                         # Other exceptions are not important
                         import traceback
 
@@ -284,10 +285,10 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
             # Explicitly ask to be accessible both by IPv4 and IPv6
             try:
                 pelix.ipv6utils.set_double_stack(self.socket)
-            except AttributeError as ex:
-                _logger.exception("System misses IPv6 constant: %s", ex)
-            except OSError as ex:
-                _logger.exception("Error setting up IPv6 double stack: %s", ex)
+            except AttributeError:
+                _logger.exception("System lacks IPv6 constant")
+            except OSError:
+                _logger.exception("Error setting up IPv6 double stack")
 
     def get_request(self) -> tuple[socket.socket, tuple[str, int]]:
         """
@@ -298,7 +299,7 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         # Accept the client
         client_socket, client_address = self.socket.accept()
 
-        if HAS_SSL and self.cert_file:
+        if ssl is not None and self.cert_file:
             # Setup an SSL context to accept clients with a certificate
             # signed by a known chain of authority.
             # Other clients will be rejected during handshake.
@@ -709,7 +710,7 @@ def main(argv: list[str] | None = None) -> int:
             # Avoid loose reference to the password
             del key_password
         else:
-            logging.error(
+            _logger.error(
                 "A remote shell component (%s) is already configured. Abandon.",
                 rshell_name,
             )

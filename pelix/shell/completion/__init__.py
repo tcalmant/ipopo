@@ -27,7 +27,7 @@ Pelix shell completion package
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, List, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from pelix.constants import Specification
 

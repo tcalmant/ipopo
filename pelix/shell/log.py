@@ -91,9 +91,7 @@ class ShellLogCommand(ShellCommandsProvider):
             ("error", self._error),
         ]
 
-    def _log(
-        self, session: ShellSession, level: int | str = "WARNING", count: int | None = None
-    ) -> None:
+    def _log(self, session: ShellSession, level: int | str = "WARNING", count: int | None = None) -> None:
         """
         Prints the content of the log
         """

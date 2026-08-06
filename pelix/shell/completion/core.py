@@ -28,7 +28,7 @@ Defines the ``Completer`` class, mother of all shell completion handlers
 
 import abc
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING
 
 from pelix.utilities import use_service
@@ -68,7 +68,7 @@ class AbstractCompleter(abc.ABC, Completer):
 
     @staticmethod
     def set_display_hook(
-        display_hook: Callable[[str, "ShellSession", "BundleContext", list[str], int], None],
+        display_hook: Callable[[str, "ShellSession", "BundleContext", Sequence[str], int], None],
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
@@ -168,6 +168,6 @@ def completion_hints(
                 return []
 
             return matches
-    except Exception as ex:
-        _logger.exception("Error calling completer %s: %s", completer_id, ex)
+    except Exception:
+        _logger.exception("Error calling completer %s", completer_id)
         return []

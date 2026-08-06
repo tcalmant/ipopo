@@ -134,7 +134,7 @@ class _ShellUtils(ShellUtils):
         # Prepare the head (centered text)
         format_str = f"{prefix}|"
         for column, length in enumerate(lengths):
-            format_str += " {%d:^%d} |" % (column, length)
+            format_str += f" {{{column}:^{length}}} |"
 
         head_str = format_str.format(*headers)
 
@@ -268,8 +268,7 @@ class _ShellService(parser.Shell, ShellService):
         del self._reference_commands[svc_ref]
         return True
 
-    @staticmethod
-    def get_banner() -> str:
+    def get_banner(self) -> str:
         """
         Returns the Shell banner
         """
@@ -532,7 +531,7 @@ class _ShellService(parser.Shell, ShellService):
             frames = sys._current_frames()
 
             # Get the thread ID -> Thread mapping
-            names = threading._active.copy()
+            names = threading._active.copy()  # type: ignore
         except AttributeError:
             session.write_line("sys._current_frames() is not available.")
             return
@@ -578,9 +577,7 @@ class _ShellService(parser.Shell, ShellService):
         session.write("\n".join(lines))
 
     @staticmethod
-    def thread_details(
-        session: "ShellSession", thread_id: str | int, max_depth: int | None = 0
-    ) -> Any:
+    def thread_details(session: "ShellSession", thread_id: str | int, max_depth: int | None = 0) -> Any:
         """
         Prints details about the thread with the given ID (not its name)
         """
@@ -606,8 +603,8 @@ class _ShellService(parser.Shell, ShellService):
         else:
             # Get the name
             try:
-                name = threading._active[thread_id].name
-            except KeyError:
+                name = threading._active[thread_id].name  # type: ignore
+            except (AttributeError, KeyError):
                 name = "<unknown>"
 
             lines = [
@@ -712,9 +709,7 @@ class _ShellService(parser.Shell, ShellService):
         return None
 
     @Completion(BUNDLE, multiple=True)
-    def start(
-        self, session: "ShellSession", bundle_id: int | str, *bundles_ids: int | str
-    ) -> Any:
+    def start(self, session: "ShellSession", bundle_id: int | str, *bundles_ids: int | str) -> Any:
         """
         Starts the bundles with the given IDs. Stops on first failure.
         """
@@ -759,9 +754,7 @@ class _ShellService(parser.Shell, ShellService):
         return None
 
     @Completion(BUNDLE, multiple=True)
-    def update(
-        self, session: "ShellSession", bundle_id: int | str, *bundles_ids: int | str
-    ) -> Any:
+    def update(self, session: "ShellSession", bundle_id: int | str, *bundles_ids: int | str) -> Any:
         """
         Updates the bundles with the given IDs. Stops on first failure.
         """
@@ -788,9 +781,7 @@ class _ShellService(parser.Shell, ShellService):
         return bundle.get_bundle_id()
 
     @Completion(BUNDLE, multiple=True)
-    def uninstall(
-        self, session: "ShellSession", bundle_id: int | str, *bundles_ids: int | str
-    ) -> Any:
+    def uninstall(self, session: "ShellSession", bundle_id: int | str, *bundles_ids: int | str) -> Any:
         """
         Uninstalls the bundles with the given IDs. Stops on first failure.
         """
@@ -867,8 +858,8 @@ class Activator(constants.ActivatorProto, ServiceListener):
 
             self._logger.info("Shell services registered")
 
-        except constants.BundleException as ex:
-            self._logger.exception("Error registering the shell service: %s", ex)
+        except constants.BundleException:
+            self._logger.exception("Error registering the shell service")
 
     def stop(self, context: BundleContext) -> None:
         """

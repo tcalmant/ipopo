@@ -29,6 +29,7 @@ Definition of classes used by the Pelix shell service and its consumers
 import sys
 import threading
 from collections.abc import Callable
+from io import IOBase
 from typing import IO, Any, cast
 
 from pelix.utilities import to_bytes, to_str
@@ -160,8 +161,8 @@ class IOHandler:
 
     def __init__(
         self,
-        in_stream: None | IO[bytes] | IO[str],
-        out_stream: IO[bytes] | IO[str],
+        in_stream: None | IOBase | IO[str] | IO[bytes],
+        out_stream: IOBase | IO[str] | IO[bytes],
         encoding: str = "UTF-8",
     ) -> None:
         """
@@ -171,8 +172,8 @@ class IOHandler:
         :param out_stream: Output stream
         :param encoding: Output encoding
         """
-        self.input: None | IO[bytes] | IO[str] = in_stream
-        self.output: IO[bytes] | IO[str] = out_stream
+        self.input: None | IOBase | IO[str] | IO[bytes] = in_stream
+        self.output: IOBase | IO[str] | IO[bytes] = out_stream
         self.encoding = encoding
         self.out_encoding: str = getattr(self.output, "encoding", self.encoding) or self.encoding
 

@@ -89,11 +89,12 @@ class _XmppOutStream(IO[str]):
         """
         return "w"
 
-    def write(self, data: str) -> None:
+    def write(self, data: str) -> int:
         """
         Writes data to a buffer
         """
         self._buffer.write(data)
+        return len(data)
 
     def flush(self) -> None:
         """
@@ -107,9 +108,9 @@ class _XmppOutStream(IO[str]):
             # Send message
             try:
                 self._client.send_message(mto=self._target, mbody=content, mtype="chat")
-            except Exception as ex:
-                _logger.exception("Error while sending message: %s", ex)
-                raise ex
+            except Exception:
+                _logger.exception("Error while sending message")
+                raise
 
 
 class _XmppInStream(IO[str]):
@@ -134,12 +135,12 @@ class _XmppInStream(IO[str]):
         """
         return "r"
 
-    def readline(self) -> str | None:
+    def readline(self, limit: int = -1) -> str:
         """
         Waits for a line from the XMPP client
         """
         # Wait for content from the user
-        return self._ui.read_from(self._jid)
+        return (self._ui.read_from(self._jid) or "")[:limit]
 
 
 # ------------------------------------------------------------------------------

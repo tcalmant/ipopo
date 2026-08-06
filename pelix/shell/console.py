@@ -80,6 +80,7 @@ try:
 except ImportError:
     # Readline is missing, not critical
     HAS_READLINE = False
+    readline = None  # type: ignore
 
 # ------------------------------------------------------------------------------
 
@@ -470,7 +471,7 @@ class Activator(ActivatorProto):
         self._thread.daemon = True
         self._thread.start()
 
-    def stop(self, _: "BundleContext") -> None:
+    def stop(self, context: "BundleContext") -> None:
         """
         Bundle stopped
         """

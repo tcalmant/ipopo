@@ -696,7 +696,7 @@ class Activator(ActivatorProto):
             {},
         )
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopping
         """

@@ -26,7 +26,7 @@ Pelix shell package
 """
 
 from collections.abc import Callable, Iterable
-from typing import TYPE_CHECKING, Any, List, Optional, Protocol, Set, Tuple
+from typing import TYPE_CHECKING, Any, Protocol
 
 from pelix.constants import Specification
 
@@ -152,7 +152,7 @@ class ShellService(Protocol):
         """
         ...
 
-    def execute(self, cmdline: str, session: Optional["ShellSession"] = None) -> bool:
+    def execute(self, cmdline: str, session: "ShellSession | None" = None) -> bool:
         """
         Executes the command corresponding to the given line
 
@@ -162,13 +162,13 @@ class ShellService(Protocol):
         """
         ...
 
-    def get_command_completers(self, namespace: str, command: str) -> Optional["CompletionInfo"]:
+    def get_command_completers(self, namespace: str, command: str) -> "CompletionInfo | None":
         """
         Returns the completer method associated to the given command, or None
 
         :param namespace: The command name space.
         :param command: The shell name of the command
-        :return: A CompletionConfiguration object
+        :return: A CompletionInfo object
         :raise KeyError: Unknown command or name space
         """
         ...

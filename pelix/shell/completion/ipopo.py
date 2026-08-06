@@ -26,6 +26,7 @@ Defines the shell completion handlers for iPOPO concepts
     limitations under the License.
 """
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from pelix.constants import ActivatorProto, BundleActivator
@@ -44,7 +45,7 @@ if TYPE_CHECKING:
 try:
     import readline
 except ImportError:
-    pass
+    readline = None  # type: ignore
 
 # ------------------------------------------------------------------------------
 
@@ -68,7 +69,7 @@ class ComponentFactoryCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        matches: list[str],
+        matches: Sequence[str],
         longest_match_len: int,
     ) -> None:
         """
@@ -138,7 +139,7 @@ class ComponentInstanceCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        matches: list[str],
+        matches: Sequence[str],
         longest_match_len: int,
     ) -> None:
         """
@@ -289,7 +290,7 @@ class Activator(ActivatorProto):
             for completer_id, completer_class in COMPLETERS.items()
         ]
 
-    def stop(self, _: "BundleContext") -> None:
+    def stop(self, context: "BundleContext") -> None:
         """
         Bundle stopping
 
