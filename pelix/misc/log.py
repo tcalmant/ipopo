@@ -32,7 +32,7 @@ import sys
 import time
 from collections.abc import Callable, Iterable
 from types import ModuleType
-from typing import Any, cast
+from typing import Any
 
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.framework import Bundle, BundleContext
@@ -132,7 +132,7 @@ class LogEntryImpl(LogEntry):
             # 7: length of "WARNING"
             f"{logging.getLevelName(self.__level): ^7} ::",
             # Date
-            str(datetime.datetime.fromtimestamp(self.__time)),
+            str(datetime.datetime.fromtimestamp(self.__time).astimezone()),
             "::",
         ]
 
@@ -300,7 +300,7 @@ class LogReaderImpl(LogReader):
         for listener in self.__listeners.copy():
             try:
                 listener.logged(entry)
-            except Exception as ex:
+            except Exception as ex:  # noqa: BLE001
                 # Create a new log entry, without using logging nor notifying
                 # listener (to avoid a recursion)
                 err_entry = LogEntryImpl(
@@ -379,12 +379,7 @@ class LogServiceFactory(logging.Handler):
         :return: The Bundle object associated to the module, or None
         """
         # Get the module name
-        try:
-            module_name = cast(str, module_object.__name__)
-        except AttributeError:
-            # We got a string
-            module_name = str(module_object)
-
+        module_name = getattr(module_object, "__name__", str(module_object))
         return self._framework.get_bundle_by_name(module_name)
 
     def emit(self, record: logging.LogRecord) -> None:
@@ -483,7 +478,7 @@ class Activator(ActivatorProto):
         # ... but not for our own logs
         logger.removeHandler(self.__factory)
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopping
         """

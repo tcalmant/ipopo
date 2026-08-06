@@ -277,7 +277,7 @@ def from_jabsorb(request: Any, seems_raw: bool = False) -> Any:
     elif isinstance(request, list):
         # Check if we were a list or a tuple
         if seems_raw:
-            return list(from_jabsorb(element) for element in request)
+            return [from_jabsorb(element) for element in request]
         return tuple(from_jabsorb(element) for element in request)
     elif isinstance(request, dict):
         # Dictionary
@@ -312,7 +312,7 @@ def from_jabsorb(request: Any, seems_raw: bool = False) -> Any:
         # Bean
         for attr in dir(request):
             # Only convert public fields
-            if not attr[0] == "_":
+            if attr[0] != "_":
                 # Field conversion
                 setattr(request, attr, from_jabsorb(getattr(request, attr)))
         return request

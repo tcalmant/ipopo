@@ -106,9 +106,9 @@ class MqttClient:
         # Assert protocol version
         try:
             protocol_version = MQTTProtocolVersion(protocol)
-        except ValueError as ex:
+        except ValueError:
             _logger.error("Unsupported MQTT protocol version")
-            raise ex
+            raise
 
         # MQTT client
         self.__mqtt = paho.Client(
@@ -454,7 +454,7 @@ class MqttClient:
                 )
                 _logger.error(message)
                 raise ValueError(message)
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             # Something went wrong: log it
             _logger.error("Exception connecting server: %s", ex)
         finally:
@@ -490,8 +490,8 @@ class MqttClient:
         if self.__on_connect_cb is not None:
             try:
                 self.__on_connect_cb(self, rc.value)
-            except Exception as ex:
-                _logger.exception("Error executing MQTT connection callback: %s", ex)
+            except Exception:
+                _logger.exception("Error executing MQTT connection callback")
 
     def __on_disconnect(
         self,
@@ -521,8 +521,8 @@ class MqttClient:
         if self.__on_disconnect_cb is not None:
             try:
                 self.__on_disconnect_cb(self, rc.value)
-            except Exception as ex:
-                _logger.exception("Error executing MQTT disconnection callback: %s", ex)
+            except Exception:
+                _logger.exception("Error executing MQTT disconnection callback")
 
     def __on_message(self, client: paho.Client, userdata: Any, msg: paho.MQTTMessage) -> None:
         # pylint: disable=W0613
@@ -537,8 +537,8 @@ class MqttClient:
         if self.__on_message_cb is not None:
             try:
                 self.__on_message_cb(self, msg)
-            except Exception as ex:
-                _logger.exception("Error notifying MQTT message listener: %s", ex)
+            except Exception:
+                _logger.exception("Error notifying MQTT message listener")
 
     def __on_publish(
         self, client: paho.Client, userdata: Any, mid: int, reason_code: ReasonCode, properties: Properties
@@ -561,8 +561,8 @@ class MqttClient:
         if self.__on_publish_cb is not None:
             try:
                 self.__on_publish_cb(self, mid)
-            except Exception as ex:
-                _logger.exception("Error notifying MQTT publish listener: %s", ex)
+            except Exception:
+                _logger.exception("Error notifying MQTT publish listener")
 
     def __on_subscribe(
         self,
@@ -587,8 +587,8 @@ class MqttClient:
         if self.__on_subscribe_cb is not None:
             try:
                 self.__on_subscribe_cb(self, mid, [r.value for r in reason_code_list])
-            except Exception as ex:
-                _logger.exception("Error executing MQTT subscribe callback: %s", ex)
+            except Exception:
+                _logger.exception("Error executing MQTT subscribe callback")
 
     def __on_unsubscribe(
         self,
@@ -612,5 +612,5 @@ class MqttClient:
         if self.__on_unsubscribe_cb is not None:
             try:
                 self.__on_unsubscribe_cb(self, mid)
-            except Exception as ex:
-                _logger.exception("Error executing MQTT unsubscribe callback: %s", ex)
+            except Exception:
+                _logger.exception("Error executing MQTT unsubscribe callback")

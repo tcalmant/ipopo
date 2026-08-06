@@ -111,14 +111,13 @@ class XMPPBotClient(ClientXMPP):
             ctx.verify_mode = ssl.CERT_REQUIRED
         return ctx
 
-    def connect(
+    def connect(  # type: ignore[override]
         self,
         host: str,
         port: int = 5222,
         use_tls: bool = True,
         use_ssl: bool = False,
     ) -> Future[Any]:
-        # pylint: disable=W0221
         """
         Connects to the server.
 
