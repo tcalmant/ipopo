@@ -7,7 +7,7 @@ Etcd Discovery Provider
 :author: Scott Lewis
 :copyright: Copyright 2026, Scott Lewis
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -49,7 +49,7 @@ from .etcdrpc import rpc_pb2, rpc_pb2_grpc
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
