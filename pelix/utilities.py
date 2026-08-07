@@ -269,7 +269,7 @@ class Synchronized:
     A synchronizer for global methods
     """
 
-    def __init__(self, lock: threading.Lock | None = None) -> None:
+    def __init__(self, lock: "threading.Lock | None" = None) -> None:
         """
         Sets up the decorator. If 'lock' is None, an RLock() is created for
         this decorator.
