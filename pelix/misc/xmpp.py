@@ -111,7 +111,7 @@ class XMPPBotClient(ClientXMPP):
             ctx.verify_mode = ssl.CERT_REQUIRED
         return ctx
 
-    def connect(  # type: ignore[override]
+    def connect(  # type: ignore[override] # ty: ignore[invalid-method-override]
         self,
         host: str,
         port: int = 5222,

@@ -155,7 +155,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     def _encode_description(self, endpoint_description: EndpointDescription) -> dict[str, Any]:
         encoded_props = encode_endpoint_props(endpoint_description)
         # get copy of service props
-        service_props = self._service_props.copy()
+        service_props: dict[str, Any] = self._service_props.copy()
         # set 'properties field'
         service_props["properties"] = [
             {"type": "string", "name": key, "value": encoded_props.get(key)} for key in encoded_props
@@ -273,7 +273,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         return int(self._session_ttl - (self._session_ttl / 10))
 
     def _handle_add_dir(self, dir_node: etcd.EtcdResult) -> None:
-        sessionid = dir_node.key[len(self._top_path) + 1 :]
+        sessionid = dir_node.key[len(self._top_path) + 1 :]  # type: ignore # ty: ignore[unresolved-attribute]
         _logger.debug("_handle_add_dir sessionid=%s", sessionid)
         self._handle_add_nodes(
             sessionid,
@@ -288,7 +288,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     def _handle_add_nodes(self, sessionid: str, nodes: list[etcd.EtcdResult]) -> None:
         for node in nodes:
             # we only care about properties
-            node_val = node.value
+            node_val = node.value  # type: ignore # ty: ignore[unresolved-attribute]
             if node_val:
                 json_obj = json.loads(node_val)
                 if isinstance(json_obj, dict):

@@ -313,7 +313,7 @@ class Py4jDistributionProvider(
         self,
         exported_configs: list[str] | None,
         service_intents: list[str] | None,
-        import_props: dict[str, Any],
+        endpoint_props: dict[str, Any],
     ) -> ImportContainer | None:
         if exported_configs:
             if ECF_PY4JPB_JAVA_HOST_CONFIG_TYPE in exported_configs:
@@ -370,7 +370,7 @@ class Py4jDistributionProvider(
         # Once bridge is connected, instantiate container using bridge id
         container_props = self._prepare_container_props(self._supported_intents, {})
         if self._default_service_timeout:
-            container_props[ECF_PY4J_SERVICE_TIMEOUT_DEFAULT] = self._default_service_timeout
+            container_props[ECF_PY4J_SERVICE_TIMEOUT_PROP] = self._default_service_timeout
         self._container = self._ipopo.instantiate(self._config_name, self._bridge.get_id(), container_props)
 
     @Invalidate

@@ -673,10 +673,10 @@ class ExportContainer(Container):
             _logger.warning("Refused remote call to %s on service %s", method_name, rs_id)
             raise RemoteServiceError(f"Unknown method {method_name}")
         # Call it (let the errors be propagated)
-        if isinstance(params, (list, tuple)):
-            return method_ref(*params)
+        if isinstance(params, dict):
+            return method_ref(**params)
 
-        return method_ref(**params)
+        return method_ref(*params)
 
     def get_connected_id(self) -> str | None:
         """

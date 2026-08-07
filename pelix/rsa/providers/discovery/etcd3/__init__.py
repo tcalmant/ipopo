@@ -197,7 +197,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     _keepalive_interval: int
     _call_timeout: int
     _disconnect_timeout: int
-    _session_id: str = None
+    _session_id: str
     _connected_callback: Callable | None
     _hostip: str
     _call_executor: ThreadPoolExecutor | None
@@ -208,6 +208,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         EndpointSubscriber.__init__(self)
         # asyncio loop set in validate
         self._loop: asyncio.AbstractEventLoop | None = None
+        self._loop_thread_id: int | None = None
         # lease_id and watch_id set during connection
         self._lease_id: int | None = None
         self._watch_id: int | None = None
@@ -233,7 +234,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     def _encode_description(self, endpoint_description: EndpointDescription) -> dict[str, Any]:
         encoded_props = encode_endpoint_props(endpoint_description)
         # get copy of service props
-        service_props = self._service_props.copy()
+        service_props: dict[str, Any] = self._service_props.copy()
         # set 'properties field'
         service_props["properties"] = [
             {"type": "string", "name": key, "value": encoded_props.get(key)} for key in encoded_props
@@ -241,9 +242,10 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         return service_props
 
     def _run_coroutine(self, coro) -> Any:
+        assert self._loop is not None
         return asyncio.run_coroutine_threadsafe(coro, self._loop).result(self._call_timeout)
 
-    async def _get_key_value(self, key: str) -> str:
+    async def _get_key_value(self, key: str) -> str | None:
         await self._connected_event.wait()
         resp = await rpc_pb2_grpc.KVStub(self._channel).Range(rpc_pb2.RangeRequest(key=to_bytes(key)))
         if resp.kvs and len(resp.kvs) > 0:
@@ -288,6 +290,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
 
         # define working for our asyncio thread
         def worker():
+            assert self._loop is not None
             asyncio.set_event_loop(self._loop)
             self._loop_thread_id = threading.current_thread().ident
             asyncio.run_coroutine_threadsafe(connected(), self._loop)
@@ -299,6 +302,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     @Invalidate
     def _invalidate(self, _: BundleContext) -> None:
         try:
+            assert self._loop is not None
             asyncio.run_coroutine_threadsafe(self._disconnect(), self._loop).result(self._disconnect_timeout)
         except:  # noqa: E722
             _logger.exception("session_id=%s exception during disconnect", self._session_id)
@@ -330,7 +334,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         def __str__(self) -> str:
             return f"[EndpointKey sessionid={self.sessionid} ed_id={self.ed_id} fullKey={self.fullkey}]"
 
-    def _create_endpoint_key(self, key: str) -> EndpointKey:
+    def _create_endpoint_key(self, key: str) -> EndpointKey | None:
         split_key = [x for x in key.split("/") if x != ""]
         split_key_len = len(split_key)
         if split_key_len <= 1:
@@ -409,6 +413,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
 
     def _fire_endpoint_event(self, event_type: int, ed: EndpointDescription) -> None:
         # send notifications via thread so doesn't block asyncio loop thread
+        assert self._loop is not None
         self._loop.run_in_executor(
             self._call_executor, EndpointSubscriber._fire_endpoint_event, self, event_type, ed
         )
@@ -456,10 +461,11 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
 
         # keep alive task is created  here
         if not self._keepalive_task:
+            assert self._loop is not None
             self._keepalive_task = self._loop.create_task(keepalive())
 
     def _generate_watch_request(
-        self, create_request: rpc_pb2.WatchCreateRequest, cancel_request: rpc_pb2.WatchCancelRequest
+        self, create_request: rpc_pb2.WatchCreateRequest, cancel_request: rpc_pb2.WatchCancelRequest | None
     ) -> Iterable[rpc_pb2.WatchRequest]:
         yield rpc_pb2.WatchRequest(create_request=create_request, cancel_request=None)
 
@@ -528,7 +534,8 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             _logger.debug(f"session_id={self._session_id} lease_id={self._lease_id} revoked")
             self._lease_id = None
 
-            await self._channel.close()
+            if self._channel is not None:
+                await self._channel.close()
             _logger.debug(f"session_id={self._session_id} closed channel")
             self._channel = None
 

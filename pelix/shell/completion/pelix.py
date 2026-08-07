@@ -38,7 +38,7 @@ from .core import AbstractCompleter
 try:
     import readline
 except ImportError:
-    readline = None
+    readline = None  # ty: ignore[invalid-assignment]
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext

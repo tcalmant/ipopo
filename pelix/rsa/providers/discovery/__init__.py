@@ -334,7 +334,7 @@ class EndpointSubscriber(abc.ABC):
         for listener in listeners:
             svc_ref = listener[1]
             filters = get_string_plus_property_value(
-                svc_ref.get_property(EndpointEventListener.ENDPOINT_LISTENER_SCOPE)
+                svc_ref.get_property(EndpointEventListener.ENDPOINT_LISTENER_SCOPE)  # ty: ignore[unresolved-attribute]
             )
             matching_filter = None
             if filters:

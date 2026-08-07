@@ -279,7 +279,11 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
         """
         lines: list[str] = []
         for level in sorted(self.get_levels()):
-            methods = sorted(method.__name__ for method in self.get_level_methods(level))
+            methods = sorted(
+                str(method.__name__)
+                for method in self.get_level_methods(level)
+                if hasattr(method, "__name__")
+            )
             lines.append(f"- {level}:")
             lines.append(f"\t{', '.join(methods)}")
         session.write_line("\n".join(lines))
@@ -599,7 +603,9 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
             self.__report = None
         else:
             # Call each method
-            self.__report = {method.__name__: method() for method in methods}
+            self.__report = {
+                str(method.__name__): method() for method in methods if hasattr(method, "__name__")
+            }
             # Describe the report
             self.__report["report"] = {
                 "report.levels": levels,

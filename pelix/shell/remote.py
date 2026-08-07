@@ -61,7 +61,7 @@ try:
     HAS_SSL = True
 except ImportError:
     HAS_SSL = False
-    ssl = None  # type: ignore[assignment]
+    ssl = None  # ty: ignore[invalid-assignment]
 
 # ------------------------------------------------------------------------------
 

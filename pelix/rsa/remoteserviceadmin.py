@@ -141,7 +141,7 @@ class Activator(ActivatorProto):
                 None,
             )
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopping
         """
@@ -1067,11 +1067,15 @@ class _ImportEndpoint:
         with self.__lock:
             if self.__importer:
                 return self.__importer.get_id()
+            else:
+                raise RemoteServiceError("Import container ID not set")
 
     def get_import_container_ns(self) -> str:
         with self.__lock:
             if self.__importer:
                 return self.__importer.get_namespace()
+            else:
+                raise RemoteServiceError("Import container NS not set")
 
     def get_export_container_id(self) -> tuple[str, str]:
         with self.__lock:
@@ -1186,6 +1190,8 @@ class ImportReferenceImpl(ImportReference):
                 importer_id = self.__endpoint.get_import_container_id()
             elif self.__errored:
                 importer_ns, importer_id = self.__errored.get_container_id()
+            else:
+                raise RemoteServiceError("Import container ID not set")
 
             return importer_ns, importer_id
 
@@ -1195,18 +1201,24 @@ class ImportReferenceImpl(ImportReference):
                 return self.__endpoint.get_import_container_ns()
             elif self.__errored:
                 return self.__errored.get_container_id()[0]
+            else:
+                raise RemoteServiceError("Import container NS not set")
 
-    def get_export_container_id(self) -> str:
+    def get_export_container_id(self) -> tuple[str, str]:
         with self.__lock:
             if self.__endpoint:
                 return self.__endpoint.get_export_container_id()
             elif self.__errored:
                 return self.__errored.get_container_id()
+            else:
+                raise RemoteServiceError("Export container ID not set")
 
     def get_remoteservice_id(self) -> tuple[tuple[str, str], int]:
         with self.__lock:
             if self.__endpoint:
                 return self.__endpoint.get_remoteservice_id()
+            else:
+                raise RemoteServiceError("Remote service ID not found")
 
     def get_reference(self) -> ServiceReference[Any] | None:
         with self.__lock:
