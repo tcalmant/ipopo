@@ -28,11 +28,12 @@ Distribution Provider API
 
 import abc
 import logging
+from collections.abc import Callable, Iterable
 from threading import RLock
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast
+from typing import Any, cast
 
-import pelix.rsa as rsa
 import pelix.rsa.remoteserviceadmin as rsa_impl
+from pelix import rsa
 from pelix.constants import OBJECTCLASS, SERVICE_SCOPE, Specification
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference, ServiceRegistration
@@ -120,19 +121,19 @@ class DistributionProvider(abc.ABC):
         self._namespace: str = ""
         self._allow_reuse: bool = True
         self._auto_create: bool = True
-        self._supported_configs: List[str] = []
-        self._supported_intents: Optional[List[str]] = None
+        self._supported_configs: list[str] = []
+        self._supported_intents: list[str] | None = None
 
     def get_config_name(self) -> str:
         return self._config_name
 
-    def get_supported_configs(self) -> List[str]:
+    def get_supported_configs(self) -> list[str]:
         return self._supported_configs
 
-    def get_supported_intents(self) -> Optional[List[str]]:
+    def get_supported_intents(self) -> list[str] | None:
         return self._supported_intents
 
-    def _get_imported_configs(self, exported_configs: List[str]) -> List[str]:
+    def _get_imported_configs(self, exported_configs: list[str]) -> list[str]:
         """
         Get any imported configs (list) given a set of exported_configs.
         Default implementation simply returns [self._config_name]
@@ -140,9 +141,7 @@ class DistributionProvider(abc.ABC):
         return [self._config_name]
 
     @staticmethod
-    def _match_intents_supported(
-        intents: Optional[List[str]], supported_intents: Optional[List[str]]
-    ) -> bool:
+    def _match_intents_supported(intents: list[str] | None, supported_intents: list[str] | None) -> bool:
         """
         Match the list of given intents with given supported_intents.
         This method is used by the other _match methods.
@@ -152,7 +151,7 @@ class DistributionProvider(abc.ABC):
 
         return len([x for x in intents if x in supported_intents]) == len(intents)
 
-    def _match_required_configs(self, required_configs: Optional[List[str]]) -> bool:
+    def _match_required_configs(self, required_configs: list[str] | None) -> bool:
         """
         Match required configs list(string).
         Default implementation compares required configs with
@@ -165,14 +164,14 @@ class DistributionProvider(abc.ABC):
             return False
         return len([x for x in required_configs if x in self._supported_configs]) == len(required_configs)
 
-    def _match_intents(self, intents: Optional[List[str]]) -> bool:
+    def _match_intents(self, intents: list[str] | None) -> bool:
         """
         Match list(string) of intents against self._supported_intents.
         Default implementation compares intents against self._supported_intents
         """
         return self._match_intents_supported(intents, self._supported_intents)
 
-    def _find_container(self, container_id: str, container_props: Dict[str, Any]) -> Any:
+    def _find_container(self, container_id: str, container_props: dict[str, Any]) -> Any:
         """
         Uses given container_id to get an ipopo instance with name=container_id.
         If instance is returned from ipopo.get_instance(container_id), then
@@ -189,7 +188,7 @@ class DistributionProvider(abc.ABC):
         return None
 
     @abc.abstractmethod
-    def _prepare_container_id(self, container_props: Dict[str, Any]) -> Optional[str]:
+    def _prepare_container_id(self, container_props: dict[str, Any]) -> str | None:
         """
         Prepare and return a (string) container id.  This method is called by
         self._get_or_create_container to create an id prior to instantiating
@@ -202,8 +201,8 @@ class DistributionProvider(abc.ABC):
         ...
 
     def _prepare_container_props(
-        self, service_intents: Optional[List[str]], export_props: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, service_intents: list[str] | None, export_props: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Prepare container props (dict).
         Creates dict of props subsequently passed to
@@ -213,7 +212,7 @@ class DistributionProvider(abc.ABC):
         Also sets DISTRIBUTION_PROVIDER_CONTAINER_PROP to self.  This
         is required by Container._get_distribution_provider()
         """
-        container_props: Dict[str, Any] = {DISTRIBUTION_PROVIDER_CONTAINER_PROP: self}
+        container_props: dict[str, Any] = {DISTRIBUTION_PROVIDER_CONTAINER_PROP: self}
         # first get . properties for this config
         container_props.update(get_dot_properties(self._config_name, export_props, True))
         # then add any service intents
@@ -228,29 +227,29 @@ class DistributionProvider(abc.ABC):
 
     def _get_or_create_container(
         self,
-        required_configs: Optional[List[str]],
-        service_intents: Optional[List[str]],
-        all_props: Dict[str, Any],
-    ) -> Optional["Container"]:
+        required_configs: list[str] | None,
+        service_intents: list[str] | None,
+        all_props: dict[str, Any],
+    ) -> "Container | None":
         if self._match_required_configs(required_configs) and self._match_intents(service_intents):
             container_props = self._prepare_container_props(service_intents, all_props)
             if container_props:
                 container_id = self._prepare_container_id(container_props)
                 if not container_id:
                     # Container not created
-                    raise Exception(f"No container ID found for properties {container_props}")
+                    raise ValueError(f"No container ID found for properties {container_props}")
                 container = self._find_container(container_id, container_props)
                 if container is None:
                     container = self._ipopo.instantiate(self._config_name, container_id, container_props)
 
                 if not isinstance(container, Container) or not container.is_valid():
-                    raise Exception("New RSA container is invalid")
+                    raise ValueError("New RSA container is invalid")
 
                 return container
 
         return None
 
-    def _find_import_registration(self, ed: EndpointDescription) -> Optional[ImportRegistration]:
+    def _find_import_registration(self, ed: EndpointDescription) -> ImportRegistration | None:
         """
         Looks for the Import Registration matching the given endpoint
         description
@@ -324,10 +323,10 @@ class ExportDistributionProvider(DistributionProvider):
 
     def supports_export(
         self,
-        exported_configs: Optional[List[str]],
-        service_intents: Optional[List[str]],
-        export_props: Dict[str, Any],
-    ) -> Optional["ExportContainer"]:
+        exported_configs: list[str] | None,
+        service_intents: list[str] | None,
+        export_props: dict[str, Any],
+    ) -> "ExportContainer | None":
         """
         Method called by rsa.export_service to ask if this
         ExportDistributionProvider supports export for given
@@ -357,7 +356,7 @@ class ImportDistributionProvider(DistributionProvider):
     extends DistributionProvider superclass
     """
 
-    def _prepare_container_id(self, container_props: Dict[str, Any]) -> str:
+    def _prepare_container_id(self, container_props: dict[str, Any]) -> str:
         """
         Default for import containers creates a UUID for the created container.
         """
@@ -365,10 +364,10 @@ class ImportDistributionProvider(DistributionProvider):
 
     def supports_import(
         self,
-        exported_configs: Optional[List[str]],
-        service_intents: Optional[List[str]],
-        endpoint_props: Dict[str, Any],
-    ) -> Optional["ImportContainer"]:
+        exported_configs: list[str] | None,
+        service_intents: list[str] | None,
+        endpoint_props: dict[str, Any],
+    ) -> "ImportContainer | None":
         """
         Method called by rsa.export_service to ask if this
         ImportDistributionProvider supports import for given
@@ -395,9 +394,9 @@ class Container(abc.ABC):
     """
 
     def __init__(self) -> None:
-        self._bundle_context: Optional[BundleContext] = None
-        self._container_props: Dict[str, Any] = {}
-        self._exported_services: Dict[str, Tuple[Any, EndpointDescription]] = {}
+        self._bundle_context: BundleContext | None = None
+        self._container_props: dict[str, Any] = {}
+        self._exported_services: dict[str, tuple[Any, EndpointDescription]] = {}
         self._exported_instances_lock = RLock()
 
     def get_id(self) -> str:
@@ -406,7 +405,7 @@ class Container(abc.ABC):
 
         :return: The ID of this containers
         """
-        name = cast(Optional[str], self._container_props.get(IPOPO_INSTANCE_NAME, None))
+        name = cast(str | None, self._container_props.get(IPOPO_INSTANCE_NAME, None))
         if not name:
             raise ValueError(f"Invalid empty ID for container {self}")
         return name
@@ -425,11 +424,11 @@ class Container(abc.ABC):
             or self.get_config_name()
             or self.get_namespace()
         ):
-            raise Exception("Invalid container")
+            raise ValueError("Invalid container")
         return True
 
     @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_PROPERTIES)
-    def _validate_component(self, bundle_context: BundleContext, container_props: Dict[str, Any]) -> None:
+    def _validate_component(self, bundle_context: BundleContext, container_props: dict[str, Any]) -> None:
         """
         Component validated
 
@@ -458,10 +457,10 @@ class Container(abc.ABC):
         :return: A bundle context
         """
         if self._bundle_context is None:
-            raise Exception("Bundle context should be set")
+            raise ValueError("Bundle context should be set")
         return self._bundle_context
 
-    def _add_export(self, ed_id: str, inst: Tuple[Any, EndpointDescription]) -> None:
+    def _add_export(self, ed_id: str, inst: tuple[Any, EndpointDescription]) -> None:
         """
         Keeps track of an exported service
 
@@ -471,7 +470,7 @@ class Container(abc.ABC):
         with self._exported_instances_lock:
             self._exported_services[ed_id] = inst
 
-    def _remove_export(self, ed_id: str) -> Optional[Tuple[Any, EndpointDescription]]:
+    def _remove_export(self, ed_id: str) -> tuple[Any, EndpointDescription] | None:
         """
         Cleans up an exported service
 
@@ -481,7 +480,7 @@ class Container(abc.ABC):
         with self._exported_instances_lock:
             return self._exported_services.pop(ed_id, None)
 
-    def _get_export(self, ed_id: str) -> Optional[Tuple[Any, EndpointDescription]]:
+    def _get_export(self, ed_id: str) -> tuple[Any, EndpointDescription] | None:
         """
         Get the details of an exported service
 
@@ -492,8 +491,8 @@ class Container(abc.ABC):
             return self._exported_services.get(ed_id, None)
 
     def _find_export(
-        self, func: Callable[[Tuple[Any, EndpointDescription]], bool]
-    ) -> Optional[Tuple[Any, EndpointDescription]]:
+        self, func: Callable[[tuple[Any, EndpointDescription]], bool]
+    ) -> tuple[Any, EndpointDescription] | None:
         """
         Look for an export using the given lookup method
 
@@ -534,10 +533,10 @@ class Container(abc.ABC):
         """
         return self._get_distribution_provider()._namespace
 
-    def _match_container_props(self, container_props: Dict[str, Any]) -> bool:
+    def _match_container_props(self, container_props: dict[str, Any]) -> bool:
         return True
 
-    def get_connected_id(self) -> Optional[str]:
+    def get_connected_id(self) -> str | None:
         return None
 
 
@@ -554,7 +553,7 @@ class ExportContainer(Container):
     class as a superclass to inherit required behavior.
     """
 
-    def _get_supported_intents(self) -> Optional[List[str]]:
+    def _get_supported_intents(self) -> list[str] | None:
         return self._get_distribution_provider().get_supported_intents()
 
     def _export_service(self, svc: Any, ed: EndpointDescription) -> None:
@@ -570,7 +569,7 @@ class ExportContainer(Container):
         # do nothing by default, subclasses may override
         pass
 
-    def _unexport_service(self, ed: EndpointDescription) -> Optional[Tuple[Any, EndpointDescription]]:
+    def _unexport_service(self, ed: EndpointDescription) -> tuple[Any, EndpointDescription] | None:
         """
         Clears a service export
 
@@ -580,8 +579,8 @@ class ExportContainer(Container):
         return self._remove_export(ed.get_id())
 
     def prepare_endpoint_props(
-        self, intfs: List[str], svc_ref: ServiceReference[Any], export_props: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, intfs: list[str], svc_ref: ServiceReference[Any], export_props: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Sets up the properties of an endpoint
 
@@ -629,7 +628,7 @@ class ExportContainer(Container):
         return merged
 
     def export_service(
-        self, svc_ref: ServiceReference[Any], export_props: Dict[str, Any]
+        self, svc_ref: ServiceReference[Any], export_props: dict[str, Any]
     ) -> EndpointDescription:
         """
         Exports the given service
@@ -651,7 +650,7 @@ class ExportContainer(Container):
         """
         return self._update_service(ed)
 
-    def unexport_service(self, ed: EndpointDescription) -> Optional[Tuple[Any, EndpointDescription]]:
+    def unexport_service(self, ed: EndpointDescription) -> tuple[Any, EndpointDescription] | None:
         """
         Clears a service export
 
@@ -660,16 +659,12 @@ class ExportContainer(Container):
         """
         return self._unexport_service(ed)
 
-    def _dispatch_exported(
-        self, rs_id: int, method_name: str, params: Union[Iterable[Any], Dict[str, Any]]
-    ) -> Any:
+    def _dispatch_exported(self, rs_id: int, method_name: str, params: Iterable[Any] | dict[str, Any]) -> Any:
         # first lookup service instance by comparing the rs_id against the
         # service's remote service id
         service = self._find_export(lambda val: val[1].get_remoteservice_id()[1] == int(rs_id))
         if not service:
-            raise RemoteServiceError(
-                "Unknown service with rs_id={0} for method call={1}".format(rs_id, method_name)
-            )
+            raise RemoteServiceError(f"Unknown service with rs_id={rs_id} for method call={method_name}")
         # Get the method: only the public API of the service can be called remotely
         method_ref = get_remote_method(service[0], method_name)
         if method_ref is None:
@@ -678,12 +673,12 @@ class ExportContainer(Container):
             _logger.warning("Refused remote call to %s on service %s", method_name, rs_id)
             raise RemoteServiceError(f"Unknown method {method_name}")
         # Call it (let the errors be propagated)
-        if isinstance(params, (list, tuple)):
-            return method_ref(*params)
+        if isinstance(params, dict):
+            return method_ref(**params)
 
-        return method_ref(**params)
+        return method_ref(*params)
 
-    def get_connected_id(self) -> Optional[str]:
+    def get_connected_id(self) -> str | None:
         """
         Returns the ID of this container
 
@@ -705,14 +700,14 @@ class ImportContainer(Container, abc.ABC):
     subclass this ImportContainer class to inherit necessary functionality.
     """
 
-    def _get_imported_configs(self, exported_configs: List[str]) -> List[str]:
+    def _get_imported_configs(self, exported_configs: list[str]) -> list[str]:
         return self._get_distribution_provider()._get_imported_configs(exported_configs)
 
-    def _prepare_proxy_props(self, endpoint_description: EndpointDescription) -> Dict[str, Any]:
+    def _prepare_proxy_props(self, endpoint_description: EndpointDescription) -> dict[str, Any]:
         """
         Utility method to construct the properties of the proxy of the given endpoint description
         """
-        result_props = copy_non_reserved(endpoint_description.get_properties(), dict())
+        result_props = copy_non_reserved(endpoint_description.get_properties(), {})
         # remove these props
         result_props.pop(OBJECTCLASS, None)
         result_props.pop(SERVICE_ID, None)
@@ -738,7 +733,7 @@ class ImportContainer(Container, abc.ABC):
         """
         ...
 
-    def import_service(self, endpoint_description: EndpointDescription) -> Optional[ServiceRegistration[Any]]:
+    def import_service(self, endpoint_description: EndpointDescription) -> ServiceRegistration[Any] | None:
         """
         Import a service from an Endpoint. The Remote Service Admin must use the
         given Endpoint to create a proxy. This method can return None if
@@ -761,4 +756,3 @@ class ImportContainer(Container, abc.ABC):
         """
         Free the resources used by the given imported service
         """
-        ...

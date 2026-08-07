@@ -11,17 +11,15 @@ import logging
 import unittest
 from typing import cast
 
-import pelix.http as http
 import tests.http.test_routing as routing_tests
+from pelix import http
 
-try:
-    assert importlib.util.find_spec("aiohttp") is not None
-except Exception:
+if importlib.util.find_spec("aiohttp") is None:
     raise unittest.SkipTest("aiohttp library not available")
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------

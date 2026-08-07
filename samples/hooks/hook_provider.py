@@ -29,9 +29,7 @@ from some listeners to avoid a double-action.
     limitations under the License.
 """
 
-from __future__ import print_function
-
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # Pelix remote services constants
 from pelix.constants import ActivatorProto, BundleActivator
@@ -68,7 +66,7 @@ class EventListenerHookImpl:
     def event(
         self,
         service_event: ServiceEvent[Any],
-        listener_dict: Dict[BundleContext, List[Any]],
+        listener_dict: dict[BundleContext, list[Any]],
     ) -> None:
         """
         A service has been received: this method can alter the list of
@@ -107,13 +105,13 @@ class ServiceEventListenerImpl(ServiceListener):
     A standard service event
     """
 
-    def service_changed(self, service_event: ServiceEvent[Any]) -> None:
+    def service_changed(self, event: ServiceEvent[Any]) -> None:
         """
         Notification of a service event, always executed after the hook.
 
-        :param service_event: The service event to handle
+        :param event: The service event to handle
         """
-        print("ServiceEventListenerImpl event=", service_event)
+        print("ServiceEventListenerImpl event=", event)
 
 
 @BundleActivator
@@ -124,7 +122,7 @@ class Activator(ActivatorProto):
 
     def __init__(self) -> None:
         self.__sel = ServiceEventListenerImpl()
-        self.__registration: Optional[ServiceRegistration[Any]] = None
+        self.__registration: ServiceRegistration[Any] | None = None
 
     def start(self, context: BundleContext) -> None:
         """

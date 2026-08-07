@@ -12,10 +12,10 @@ import shutil
 import tempfile
 import time
 import unittest
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pelix.framework
-import pelix.services as services
+from pelix import services
 from pelix.internals.registry import ServiceReference
 from pelix.services.configadmin import JsonPersistence
 from pelix.utilities import use_service
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -43,11 +43,11 @@ class ConfigurationAdminTest(unittest.TestCase):
     """
 
     framework: pelix.framework.Framework
-    config_ref: Optional[ServiceReference[services.IConfigurationAdmin]]
+    config_ref: ServiceReference[services.IConfigurationAdmin] | None
     config: services.IConfigurationAdmin
 
     def assertDictContains(
-        self, subset: Dict[str, Any], tested: Optional[Dict[str, Any]], msg: Any = None
+        self, subset: dict[str, Any], tested: dict[str, Any] | None, msg: Any = None
     ) -> None:
         assert tested is not None
         self.assertEqual(tested, tested | subset, msg)
@@ -261,7 +261,7 @@ class ManagedServiceTest(unittest.TestCase):
     """
 
     framework: pelix.framework.Framework
-    config_ref: Optional[ServiceReference[services.IConfigurationAdmin]]
+    config_ref: ServiceReference[services.IConfigurationAdmin] | None
     config: services.IConfigurationAdmin
 
     def setUp(self) -> None:
@@ -488,7 +488,7 @@ class FileInstallTest(unittest.TestCase):
     """
 
     framework: pelix.framework.Framework
-    config_ref: Optional[ServiceReference[services.IConfigurationAdmin]]
+    config_ref: ServiceReference[services.IConfigurationAdmin] | None
     config: services.IConfigurationAdmin
 
     def setUp(self) -> None:
@@ -699,7 +699,7 @@ class JsonPersistencePidTest(unittest.TestCase):
         """
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def get_traversal_pids(self) -> List[str]:
+    def get_traversal_pids(self) -> list[str]:
         """
         Returns PIDs trying to point outside of the configuration folder
         """

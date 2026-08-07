@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 #
 # iPOPO documentation build configuration file, created by
 # sphinx-quickstart on Thu Oct 13 16:39:47 2016.

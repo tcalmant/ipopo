@@ -6,7 +6,7 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -29,25 +29,19 @@ import inspect
 import logging
 import threading
 import types
+from collections.abc import Callable, Iterable
 from typing import (
     Any,
-    Callable,
-    Dict,
     Generic,
-    Iterable,
-    List,
-    Optional,
     ParamSpec,
-    Type,
     TypeVar,
-    Union,
     cast,
 )
 
-import pelix.ipopo.constants as constants
 from pelix.constants import PELIX_SPECIFICATION_FIELD, is_from_parent
 from pelix.framework import BundleContext
 from pelix.internals.registry import PrototypeServiceFactory, ServiceFactory, ServiceReference
+from pelix.ipopo import constants
 from pelix.ipopo.contexts import FactoryContext, Requirement
 from pelix.utilities import get_method_arguments, is_string, to_iterable
 
@@ -58,7 +52,7 @@ P = ParamSpec("P")
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -72,7 +66,7 @@ _logger = logging.getLogger("ipopo.decorators")
 # ------------------------------------------------------------------------------
 
 
-def get_factory_context(cls: Type[Any]) -> FactoryContext:
+def get_factory_context(cls: type[Any]) -> FactoryContext:
     """
     Retrieves the factory context object associated to a factory. Creates it
     if needed
@@ -80,7 +74,7 @@ def get_factory_context(cls: Type[Any]) -> FactoryContext:
     :param cls: The factory class
     :return: The factory class context
     """
-    context = cast(Optional[FactoryContext], getattr(cls, constants.IPOPO_FACTORY_CONTEXT, None))
+    context = cast(FactoryContext | None, getattr(cls, constants.IPOPO_FACTORY_CONTEXT, None))
 
     if context is None:
         # Class not yet manipulated
@@ -108,17 +102,19 @@ def get_method_description(method: Callable[..., Any]) -> str:
     :return: A description of the method (at least its name)
     :raise AttributeError: Given object has no __name__ attribute
     """
+    # Let it raise an AttributeError if the method has no __name__ attribute
+    method_name = method.__name__  # ty: ignore[unresolved-attribute]
     try:
         try:
             line_no = inspect.getsourcelines(method)[1]
-        except IOError:
+        except OSError:
             # Error reading the source file
             line_no = -1
 
-        return f"'{method.__name__}' ({inspect.getfile(method)}:{line_no})"
+        return f"'{method_name}' ({inspect.getfile(method)}:{line_no})"
     except TypeError:
         # Method can't be inspected
-        return f"'{method.__name__}'"
+        return f"'{method_name}'"
 
 
 def validate_method_arity(method: Callable[..., Any], *needed_args: str) -> None:
@@ -167,7 +163,7 @@ def validate_method_arity(method: Callable[..., Any], *needed_args: str) -> None
 # ------------------------------------------------------------------------------
 
 
-def _ipopo_setup_callback(cls: Type[Any], context: FactoryContext) -> None:
+def _ipopo_setup_callback(cls: type[Any], context: FactoryContext) -> None:
     """
     Sets up the class _callback dictionary
 
@@ -178,7 +174,7 @@ def _ipopo_setup_callback(cls: Type[Any], context: FactoryContext) -> None:
     assert isinstance(context, FactoryContext)
 
     if context.callbacks is not None:
-        callbacks = context.callbacks.copy()
+        callbacks: dict[str, Callable[..., Any]] = context.callbacks.copy()
     else:
         callbacks = {}
 
@@ -202,10 +198,14 @@ def _ipopo_setup_callback(cls: Type[Any], context: FactoryContext) -> None:
         # Keeping it allows inheritance : by removing it, only the first
         # child will see the attribute -> Don't remove it
 
+        # Cast known types
+        method_callbacks = cast(list[str], method_callbacks)
+        func = cast(Callable[..., Any], func)
+
         # Store the call backs
         for _callback in method_callbacks:
             if _callback in callbacks and not is_from_parent(
-                cls, callbacks[_callback].__name__, callbacks[_callback]
+                cls, getattr(callbacks[_callback], "__name__", None), callbacks[_callback]
             ):
                 _logger.warning(
                     "Redefining the callback %s in class '%s'.\n"
@@ -425,7 +425,7 @@ class Instantiate:
                 print("My value is:", self._value)
     """
 
-    def __init__(self, name: str, properties: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, name: str, properties: dict[str, Any] | None = None) -> None:
         """
         :param name: The name of the component instance (**mandatory**)
         :param properties: The initial properties of the instance as a dictionary
@@ -438,12 +438,12 @@ class Instantiate:
 
         name = name.strip()
         if not name:
-            raise ValueError("Invalid instance name '{0}'".format(name))
+            raise ValueError(f"Invalid instance name '{name}'")
 
         self.__name = name
         self.__properties = properties or {}
 
-    def __call__(self, factory_class: Type[T]) -> Type[T]:
+    def __call__(self, factory_class: type[T]) -> type[T]:
         """
         Sets up and registers the instances descriptions
 
@@ -509,7 +509,7 @@ class ComponentFactory:
                   pass
     """
 
-    def __init__(self, name: Optional[str] = None, excluded: Optional[Union[str, List[str]]] = None) -> None:
+    def __init__(self, name: str | None = None, excluded: str | list[str] | None = None) -> None:
         """
         :param name: Name of the component factory, used to identify it when
                      instantiating a component. This name must be unique in a
@@ -520,7 +520,7 @@ class ComponentFactory:
         self.__factory_name = name
         self.__excluded_inheritance = to_iterable(excluded)
 
-    def __call__(self, factory_class: Type[T]) -> Type[T]:
+    def __call__(self, factory_class: type[T]) -> type[T]:
         """
         Sets up and registers the factory class
 
@@ -603,7 +603,7 @@ class SingletonFactory(ComponentFactory):
               pass
     """
 
-    def __call__(self, factory_class: Type[T]) -> Type[T]:
+    def __call__(self, factory_class: type[T]) -> type[T]:
         """
         Sets up and registers the factory class
 
@@ -654,7 +654,7 @@ class Property:
     HANDLER_ID = constants.HANDLER_PROPERTY
     """ ID of the handler configured by this decorator """
 
-    def __init__(self, field: str, name: Optional[str] = None, value: Any = None) -> None:
+    def __init__(self, field: str, name: str | None = None, value: Any = None) -> None:
         """
         :param field: The property field in the class (can't be ``None`` nor empty)
         :param name: The property name (if ``None``, this will be the field name)
@@ -685,7 +685,7 @@ class Property:
         self._name = name
         self._value = value
 
-    def __call__(self, clazz: Type[T]) -> Type[T]:
+    def __call__(self, clazz: type[T]) -> type[T]:
         """
         Adds the property to the class iPOPO properties field.
         Creates the field if needed.
@@ -758,7 +758,7 @@ class HiddenProperty(Property):
                   self._password = "UpdatedSecret"
     """
 
-    def __call__(self, clazz: Type[T]) -> Type[T]:
+    def __call__(self, clazz: type[T]) -> type[T]:
         """
         Adds the property to the class iPOPO properties field.
         Creates the field if needed.
@@ -805,13 +805,8 @@ class HiddenProperty(Property):
 
 
 def _get_specifications(
-    specifications: Union[
-        None,
-        str,
-        Type[Any],
-        Iterable[Union[str, Type[Any]]],
-    ],
-) -> List[str]:
+    specifications: None | str | type[Any] | Iterable[str | type[Any]],
+) -> list[str]:
     """
     Computes the list of strings corresponding to the given specifications
 
@@ -828,7 +823,7 @@ def _get_specifications(
             if not raw_spec:
                 raise ValueError("Empty specification given")
             elif isinstance(raw_spec, (list, set, tuple)):
-                specs: List[str] = []
+                specs: list[str] = []
                 for spec in raw_spec:
                     specs.extend(_get_specifications(spec))
                 if not specs:
@@ -923,7 +918,7 @@ class Provides:
     HANDLER_ID = constants.HANDLER_PROVIDES
     """ ID of the handler configured by this decorator """
 
-    USE_MODULE_QUALNAME = False
+    USE_MODULE_QUALNAME: bool = False
     """
     Selects the methodology to generate a specification from a class.
     A value of False uses ``__name__`` (legacy), while True enables
@@ -932,13 +927,8 @@ class Provides:
 
     def __init__(
         self,
-        specifications: Union[
-            None,
-            str,
-            Type[Any],
-            Iterable[Union[str, Type[Any]]],
-        ],
-        controller: Optional[str] = None,
+        specifications: None | str | type[Any] | Iterable[str | type[Any]],
+        controller: str | None = None,
         factory: bool = False,
         prototype: bool = False,
     ) -> None:
@@ -968,7 +958,7 @@ class Provides:
         self.__is_factory = factory
         self.__is_prototype = prototype
 
-    def __call__(self, clazz: Type[T]) -> Type[T]:
+    def __call__(self, clazz: type[T]) -> type[T]:
         """
         Adds the provided service information to the class context iPOPO field.
         Creates the field if needed.
@@ -1092,10 +1082,10 @@ class Requires:
     def __init__(
         self,
         field: str,
-        specification: Union[None, str, Iterable[str], Type[Any], Iterable[Type[Any]]],
+        specification: None | str | Iterable[str] | type[Any] | Iterable[type[Any]],
         aggregate: bool = False,
         optional: bool = False,
-        spec_filter: Optional[str] = None,
+        spec_filter: str | None = None,
         immediate_rebind: bool = False,
     ):
         """
@@ -1138,7 +1128,7 @@ class Requires:
             immediate_rebind,
         )
 
-    def __call__(self, clazz: Type[T]) -> Type[T]:
+    def __call__(self, clazz: type[T]) -> type[T]:
         """
         Adds the requirement to the class iPOPO field
 
@@ -1275,9 +1265,9 @@ class RequiresBest(Requires):
     def __init__(
         self,
         field: str,
-        specification: Union[None, str, Iterable[str], Type[Any], Iterable[Type[Any]]],
+        specification: None | str | Iterable[str] | type[Any] | Iterable[type[Any]],
         optional: bool = False,
-        spec_filter: Optional[str] = None,
+        spec_filter: str | None = None,
         immediate_rebind: bool = True,
     ):
         """
@@ -1324,12 +1314,12 @@ class RequiresMap(Requires):
     def __init__(
         self,
         field: str,
-        specification: Union[None, str, Iterable[str], Type[Any], Iterable[Type[Any]]],
+        specification: None | str | Iterable[str] | type[Any] | Iterable[type[Any]],
         key: str,
         allow_none: bool = False,
         aggregate: bool = False,
         optional: bool = False,
-        spec_filter: Optional[str] = None,
+        spec_filter: str | None = None,
     ):
         """
         :param field: The injected field
@@ -1355,7 +1345,7 @@ class RequiresMap(Requires):
         self._key = key
         self._allow_none = allow_none
 
-    def __call__(self, clazz: Type[T]) -> Type[T]:
+    def __call__(self, clazz: type[T]) -> type[T]:
         """
         Adds the requirement to the class iPOPO field
 
@@ -1413,9 +1403,9 @@ class RequiresBroadcast(Requires):
     def __init__(
         self,
         field: str,
-        specification: Union[None, str, Iterable[str], Type[Any], Iterable[Type[Any]]],
+        specification: None | str | Iterable[str] | type[Any] | Iterable[type[Any]],
         optional: bool = True,
-        spec_filter: Optional[str] = None,
+        spec_filter: str | None = None,
         muffle_exceptions: bool = True,
         trace_exceptions: bool = True,
     ):
@@ -1438,7 +1428,7 @@ class RequiresBroadcast(Requires):
         self._muffle_ex = muffle_exceptions
         self._trace_ex = trace_exceptions
 
-    def __call__(self, clazz: Type[T]) -> Type[T]:
+    def __call__(self, clazz: type[T]) -> type[T]:
         """
         Adds the requirement to the class iPOPO field
 
@@ -1446,7 +1436,7 @@ class RequiresBroadcast(Requires):
         :return: The decorated class
         :raise TypeError: If *clazz* is not a type
         """
-        clazz = super(RequiresBroadcast, self).__call__(clazz)
+        clazz = super().__call__(clazz)
 
         # Set up the property in the class
         context = get_factory_context(clazz)
@@ -1509,9 +1499,9 @@ class Temporal(Requires):
     def __init__(
         self,
         field: str,
-        specification: Union[None, str, Iterable[str], Type[Any], Iterable[Type[Any]]],
+        specification: None | str | Iterable[str] | type[Any] | Iterable[type[Any]],
         optional: bool = False,
-        spec_filter: Optional[str] = None,
+        spec_filter: str | None = None,
         timeout: float = 10,
     ):
         """
@@ -1531,7 +1521,7 @@ class Temporal(Requires):
         else:
             self._timeout = timeout
 
-    def __call__(self, clazz: Type[T]) -> Type[T]:
+    def __call__(self, clazz: type[T]) -> type[T]:
         """
         Adds the requirement to the class iPOPO field
 
@@ -1800,8 +1790,8 @@ def Bind(
 
 
 def Update(
-    method: Callable[[Any, T, ServiceReference[T], Dict[str, Any]], None],
-) -> Callable[[Any, T, ServiceReference[T], Dict[str, Any]], None]:
+    method: Callable[[Any, T, ServiceReference[T], dict[str, Any]], None],
+) -> Callable[[Any, T, ServiceReference[T], dict[str, Any]], None]:
     # pylint: disable=C0103
     """
     The ``@Update`` callback decorator is called when the properties of an
@@ -1843,7 +1833,7 @@ def Update(
         constants.IPOPO_METHOD_CALLBACKS,
         constants.IPOPO_CALLBACK_UPDATE,
     )
-    return cast(Callable[[Any, T, ServiceReference[T], Dict[str, Any]], None], method)
+    return cast(Callable[[Any, T, ServiceReference[T], dict[str, Any]], None], method)
 
 
 def Unbind(

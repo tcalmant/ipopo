@@ -6,7 +6,7 @@ FileInstall: Polls for changes on files in a directory and notifies listeners
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -29,10 +29,11 @@ import logging
 import os
 import threading
 import zlib
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, cast
+from collections.abc import Iterable
+from typing import Any, cast
 
-import pelix.services as services
 import pelix.threadpool
+from pelix import services
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import (
@@ -51,7 +52,7 @@ from pelix.ipopo.decorators import (
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -80,14 +81,14 @@ class FileInstall(services.FileInstall):
     """
 
     # Listeners (injected)
-    _listeners: List[services.FileInstallListener]
+    _listeners: list[services.FileInstallListener]
 
     def __init__(self) -> None:
         """
         Sets up members
         """
         # Folder -> [listeners] (computed)
-        self._folder_listeners: Dict[str, Set[services.FileInstallListener]] = {}
+        self._folder_listeners: dict[str, set[services.FileInstallListener]] = {}
 
         # Polling delta time (1 second by default)
         self._poll_time = 1
@@ -99,10 +100,10 @@ class FileInstall(services.FileInstall):
         self.__pool = pelix.threadpool.ThreadPool(1, logname="FileInstallNotifier")
 
         # 1 thread per watched folder (folder -> Thread)
-        self.__threads: Dict[str, threading.Thread] = {}
+        self.__threads: dict[str, threading.Thread] = {}
 
         # Thread stoppers (folder -> Event)
-        self.__stoppers: Dict[str, threading.Event] = {}
+        self.__stoppers: dict[str, threading.Event] = {}
 
     @Validate
     def _validate(self, context: BundleContext) -> None:
@@ -145,7 +146,7 @@ class FileInstall(services.FileInstall):
         A new listener is bound
         """
         with self.__lock:
-            folder = cast(Optional[str], svc_ref.get_property(services.PROP_FILEINSTALL_FOLDER))
+            folder = cast(str | None, svc_ref.get_property(services.PROP_FILEINSTALL_FOLDER))
             if folder:
                 # Register the listener for this service
                 self.add_listener(folder, svc)
@@ -156,7 +157,7 @@ class FileInstall(services.FileInstall):
         field: str,
         svc: services.FileInstallListener,
         svc_ref: ServiceReference[services.FileInstallListener],
-        old_props: Optional[Dict[str, Any]],
+        old_props: dict[str, Any] | None,
     ) -> None:
         """
         A bound listener has been updated
@@ -272,8 +273,8 @@ class FileInstall(services.FileInstall):
         for listener in listeners:
             try:
                 listener.folder_change(folder, added, updated, deleted)
-            except Exception as ex:
-                _logger.exception("Error notifying a folder listener: %s", ex)
+            except Exception:
+                _logger.exception("Error notifying a folder listener")
 
     @staticmethod
     def __get_checksum(filepath: str) -> int:
@@ -290,7 +291,7 @@ class FileInstall(services.FileInstall):
             # Return the checksum of the given file
             return zlib.adler32(filep.read())
 
-    def __get_file_info(self, folder: str, filename: str) -> Tuple[float, int]:
+    def __get_file_info(self, folder: str, filename: str) -> tuple[float, int]:
         """
         Returns the (mtime, checksum) tuple for the given file
 
@@ -304,8 +305,8 @@ class FileInstall(services.FileInstall):
         return os.path.getmtime(filepath), self.__get_checksum(filepath)
 
     def __check_different(
-        self, folder: str, filename: str, file_info: Tuple[float, int], updated: Set[str]
-    ) -> Tuple[float, int]:
+        self, folder: str, filename: str, file_info: tuple[float, int], updated: set[str]
+    ) -> tuple[float, int]:
         """
         Checks if the given file has changed since the previous check
 
@@ -352,7 +353,7 @@ class FileInstall(services.FileInstall):
         :param stopper: An Event object that will stop the loop once set
         """
         # File name -> (modification time, checksum)
-        previous_info: Dict[str, Tuple[float, int]] = {}
+        previous_info: dict[str, tuple[float, int]] = {}
 
         while not stopper.wait(self._poll_time) and not stopper.is_set():
             if not os.path.exists(folder):
@@ -365,9 +366,9 @@ class FileInstall(services.FileInstall):
             }
 
             # Prepare the sets
-            added: Set[str] = set()
-            updated: Set[str] = set()
-            deleted: Set[str] = set(previous_info.keys()).difference(filenames)
+            added: set[str] = set()
+            updated: set[str] = set()
+            deleted: set[str] = set(previous_info.keys()).difference(filenames)
 
             # Compute differences
             for filename in filenames:
@@ -384,7 +385,7 @@ class FileInstall(services.FileInstall):
                         new_info = self.__check_different(folder, filename, file_info, updated)
                         # Store new information
                         previous_info[filename] = new_info
-                    except (IOError, OSError):
+                    except OSError:
                         # Error reading file, do nothing
                         pass
 

@@ -6,7 +6,7 @@ Pelix miscellaneous modules
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -26,14 +26,14 @@ Pelix miscellaneous modules
 """
 
 from types import TracebackType
-from typing import Any, Optional, Protocol, Tuple, TypeAlias
+from typing import Any, Protocol, TypeAlias
 
 from pelix.constants import Specification
 from pelix.framework import Bundle
 from pelix.internals.registry import ServiceReference
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -91,14 +91,14 @@ class LogEntry(Protocol):
     """
 
     @property
-    def bundle(self) -> Optional[Bundle]:
+    def bundle(self) -> Bundle | None:
         """
         The bundle that created this entry
         """
         ...
 
     @property
-    def message(self) -> Optional[str]:
+    def message(self) -> str | None:
         """
         The message associated to this entry
         """
@@ -126,7 +126,7 @@ class LogEntry(Protocol):
         ...
 
     @property
-    def reference(self) -> Optional[ServiceReference[Any]]:
+    def reference(self) -> ServiceReference[Any] | None:
         """
         The reference to the service associated to this entry
         """
@@ -187,7 +187,7 @@ class LogReader(Protocol):
         """
         ...
 
-    def get_log(self) -> Tuple[LogEntry, ...]:
+    def get_log(self) -> tuple[LogEntry, ...]:
         """
         Returns the logs events kept by the service
 
@@ -205,9 +205,9 @@ class LogService(Protocol):
     def log(
         self,
         level: int,
-        message: Optional[str],
+        message: str | None,
         exc_info: OptExcInfo = None,
-        reference: Optional[ServiceReference[Any]] = None,
+        reference: ServiceReference[Any] | None = None,
     ) -> None:
         """
         Logs a message, possibly with an exception

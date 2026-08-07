@@ -6,7 +6,7 @@ Pelix shell package
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -25,7 +25,8 @@ Pelix shell package
     limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Protocol, Set, Tuple
+from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING, Any, Protocol
 
 from pelix.constants import Specification
 
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
 
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -111,7 +112,7 @@ class ShellService(Protocol):
         """
         ...
 
-    def get_namespaces(self) -> List[str]:
+    def get_namespaces(self) -> list[str]:
         """
         Retrieves the list of known name spaces (without the default one)
 
@@ -119,7 +120,7 @@ class ShellService(Protocol):
         """
         ...
 
-    def get_commands(self, namespace: Optional[str]) -> List[str]:
+    def get_commands(self, namespace: str | None) -> list[str]:
         """
         Retrieves the commands of the given name space. If *namespace* is None
         or empty, it retrieves the commands of the default name space
@@ -129,7 +130,7 @@ class ShellService(Protocol):
         """
         ...
 
-    def get_ns_commands(self, cmd_name: str) -> List[Tuple[str, str]]:
+    def get_ns_commands(self, cmd_name: str) -> list[tuple[str, str]]:
         """
         Retrieves the possible name spaces and commands associated to the given
         command name.
@@ -140,7 +141,7 @@ class ShellService(Protocol):
         """
         ...
 
-    def get_ns_command(self, cmd_name: str) -> Tuple[str, str]:
+    def get_ns_command(self, cmd_name: str) -> tuple[str, str]:
         """
         Retrieves the name space and the command associated to the given
         command name.
@@ -151,7 +152,7 @@ class ShellService(Protocol):
         """
         ...
 
-    def execute(self, cmdline: str, session: Optional["ShellSession"] = None) -> bool:
+    def execute(self, cmdline: str, session: "ShellSession | None" = None) -> bool:
         """
         Executes the command corresponding to the given line
 
@@ -161,18 +162,18 @@ class ShellService(Protocol):
         """
         ...
 
-    def get_command_completers(self, namespace: str, command: str) -> Optional["CompletionInfo"]:
+    def get_command_completers(self, namespace: str, command: str) -> "CompletionInfo | None":
         """
         Returns the completer method associated to the given command, or None
 
         :param namespace: The command name space.
         :param command: The shell name of the command
-        :return: A CompletionConfiguration object
+        :return: A CompletionInfo object
         :raise KeyError: Unknown command or name space
         """
         ...
 
-    def register_command(self, namespace: Optional[str], command: str, method: ShellCommandMethod) -> bool:
+    def register_command(self, namespace: str | None, command: str, method: ShellCommandMethod) -> bool:
         """
         Registers the given command to the shell.
 
@@ -185,7 +186,7 @@ class ShellService(Protocol):
         """
         ...
 
-    def unregister(self, namespace: str, command: Optional[str] = None) -> bool:
+    def unregister(self, namespace: str, command: str | None = None) -> bool:
         """
         Unregisters the given command. If command is None, the whole name space
         is unregistered.
@@ -211,7 +212,7 @@ class ShellUtils(Protocol):
         ...
 
     @staticmethod
-    def make_table(headers: Iterable[str], lines: Iterable[Any], prefix: Optional[str] = None) -> str:
+    def make_table(headers: Iterable[str], lines: Iterable[Any], prefix: str | None = None) -> str:
         """
         Generates an ASCII table according to the given headers and lines
 
@@ -236,7 +237,7 @@ class ShellCommandsProvider(Protocol):
         """
         ...
 
-    def get_methods(self) -> List[Tuple[str, ShellCommandMethod]]:
+    def get_methods(self) -> list[tuple[str, ShellCommandMethod]]:
         """
         Retrieves the list of tuples (command, method) for this command handler
         """
@@ -249,7 +250,7 @@ class ShellReport(Protocol):
     Specification of the shell report service
     """
 
-    def get_levels(self) -> Set[str]:
+    def get_levels(self) -> set[str]:
         """
         Returns the available levels of reports
 
@@ -264,7 +265,7 @@ class RemoteShell(Protocol):
     Specification of the remote shell service
     """
 
-    def get_access(self) -> Tuple[Optional[str], Optional[int]]:
+    def get_access(self) -> tuple[str | None, int | None]:
         """
         Returns the real access to this remote shell.
         Can raise an exception or return default values if not ready.

@@ -19,7 +19,7 @@ from pelix.ipopo.constants import use_ipopo
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -93,7 +93,7 @@ class EndpointDescriptionTests(unittest.TestCase):
         Tests package_name()
         """
         for empty in (None, ""):
-            self.assertEqual("", rsa_ed.package_name(empty))
+            self.assertEqual("", rsa_ed.package_name(empty))  # type: ignore
 
         self.assertEqual("simple", rsa_ed.package_name("simple"))
         self.assertEqual("package", rsa_ed.package_name("package.simple"))

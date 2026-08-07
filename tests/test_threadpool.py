@@ -11,14 +11,14 @@ Cached thread pool tests
 import threading
 import time
 import unittest
-from typing import Any, List, Optional, Tuple, TypeVar
+from typing import Any, TypeVar
 
-import pelix.threadpool as threadpool
+from pelix import threadpool
 from pelix.utilities import EventData
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 T = TypeVar("T")
@@ -26,9 +26,7 @@ T = TypeVar("T")
 # ------------------------------------------------------------------------------
 
 
-def _slow_call(
-    wait: float, result: Optional[T] = None, event: Optional[EventData[Any]] = None
-) -> Optional[T]:
+def _slow_call(wait: float, result: T | None = None, event: EventData[Any] | None = None) -> T | None:
     """
     Method that returns after the given time (in seconds)
     """
@@ -39,7 +37,7 @@ def _slow_call(
     return result
 
 
-def _trace_call(result_list: List[T], result: T) -> None:
+def _trace_call(result_list: list[T], result: T) -> None:
     """
     Methods stores the result in the result list
     """
@@ -54,7 +52,7 @@ class FutureTest(unittest.TestCase):
     Tests the Future utility class
     """
 
-    def _simple_call(self, pos1: Any, pos2: Any, result: Any) -> Tuple[Any, Any, Any]:
+    def _simple_call(self, pos1: Any, pos2: Any, result: Any) -> tuple[Any, Any, Any]:
         """
         Method that returns the 3 given arguments in a tuple
         """
@@ -66,7 +64,7 @@ class FutureTest(unittest.TestCase):
         """
         raise ValueError("Buggy method")
 
-    def _callback(self, data: Any, exception: Optional[BaseException], event: EventData[Any]) -> None:
+    def _callback(self, data: Any, exception: BaseException | None, event: EventData[Any]) -> None:
         """
         Sets up an EventData
         """
@@ -183,7 +181,7 @@ class FutureTest(unittest.TestCase):
         # Execute
         try:
             future.execute(self._raise_call, None, None)
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             # Store it
             exception = ex
         else:
@@ -223,7 +221,7 @@ class FutureTest(unittest.TestCase):
         future.execute(self._simple_call, args, None)
         self.assertFalse(flag.is_set(), "Flag shouldn't be set...")
 
-        def raising(data: Any, exception: Optional[BaseException], ex: Any) -> None:
+        def raising(data: Any, exception: BaseException | None, ex: Any) -> None:
             """
             Callback raising an exception
             """
@@ -289,7 +287,7 @@ class ThreadPoolTest(unittest.TestCase):
         Check double call to start() and stop()
         """
         self.pool = threadpool.ThreadPool(1)
-        result_list: List[Any] = []
+        result_list: list[Any] = []
 
         # Enqueue the call
         future = self.pool.enqueue(_trace_call, result_list, None)
@@ -425,7 +423,7 @@ class ThreadPoolTest(unittest.TestCase):
         task_executed = threading.Event()
         original_get = self.pool._queue.get
 
-        def paused_get(block: bool = True, timeout: Optional[float] = None) -> Any:
+        def paused_get(block: bool = True, timeout: float | None = None) -> Any:
             task = original_get(block, timeout)
             if block:
                 # Blocking call: we're in the worker thread
@@ -433,7 +431,7 @@ class ThreadPoolTest(unittest.TestCase):
                 release_worker.wait(5)
             return task
 
-        self.pool._queue.get = paused_get  # type: ignore[method-assign]
+        self.pool._queue.get = paused_get  # type: ignore
         self.pool.start()
 
         # Enqueue a task and wait for the worker to grab it

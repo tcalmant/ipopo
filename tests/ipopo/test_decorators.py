@@ -8,18 +8,16 @@ Tests the iPOPO decorators.
 
 import code
 import os
-import sys
 import unittest
 
-import pelix.ipopo.constants as constants
-import pelix.ipopo.decorators as decorators
 from pelix.framework import FrameworkFactory
+from pelix.ipopo import constants, decorators
 from tests import log_off, log_on
 from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -110,7 +108,7 @@ class UtilityMethodsTest(unittest.TestCase):
         # Try with a compiled method
         local_vars = {}
         mod = code.compile_command("def foobar():\n    pass\n", "<generated>")
-        exec(mod, {}, local_vars)
+        exec(mod, {}, local_vars)  # type: ignore # noqa: S102
         foobar = local_vars["foobar"]
 
         description = decorators.get_method_description(foobar)
@@ -137,7 +135,7 @@ class UtilityMethodsTest(unittest.TestCase):
             __name__ = "<Bar>"
 
         # Name exists in instance
-        description = decorators.get_method_description(Bar())
+        description = decorators.get_method_description(Bar())  # type: ignore
         self.assertIn(repr(Bar().__name__), description)
 
 
@@ -180,7 +178,7 @@ class DecoratorsTest(unittest.TestCase):
         }
 
         # Define some non decorable types
-        class BadClass(object):
+        class BadClass:
             pass
 
         # Define a decorable method
@@ -238,7 +236,7 @@ class DecoratorsTest(unittest.TestCase):
         instance_name = "test"
 
         @decorators.Instantiate(instance_name)
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         class ChildClass(DummyClass):
@@ -273,7 +271,7 @@ class DecoratorsTest(unittest.TestCase):
         Tests the @Instantiate decorator
         """
 
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         def method():
@@ -284,11 +282,11 @@ class DecoratorsTest(unittest.TestCase):
             self.assertRaises(ValueError, decorators.Instantiate, empty)
 
         # Invalid name type
-        for invalid in (None, [], tuple(), 123):
+        for invalid in (None, [], (), 123):
             self.assertRaises(TypeError, decorators.Instantiate, invalid)
 
         # Invalid properties type
-        for invalid in ("props", [1, 2], tuple((1, 2, 3)), 123):
+        for invalid in ("props", [1, 2], (1, 2, 3), 123):
             self.assertRaises(TypeError, decorators.Instantiate, "test", invalid)
 
         # Invalid target
@@ -313,7 +311,7 @@ class DecoratorsTest(unittest.TestCase):
         Tests the @Property decorator
         """
 
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         def method():
@@ -329,7 +327,7 @@ class DecoratorsTest(unittest.TestCase):
 
         # Invalid type
         self.assertRaises(TypeError, decorators.Property, None)
-        for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
+        for invalid in ([1, 2, 3], (1, 2, 3), 123):
             self.assertRaises(TypeError, decorators.Property, invalid)
             self.assertRaises(TypeError, decorators.Property, "field", invalid)
 
@@ -342,7 +340,7 @@ class DecoratorsTest(unittest.TestCase):
         Tests the @Provides decorator
         """
 
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         def method():
@@ -352,7 +350,7 @@ class DecoratorsTest(unittest.TestCase):
         self.assertRaises(ValueError, decorators.Provides, "spec", "a space")
 
         # Invalid specification type
-        for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
+        for invalid in ([1, 2, 3], (1, 2, 3), 123):
             self.assertRaises(ValueError, decorators.Provides, "spec", invalid)
 
         # Invalid target
@@ -364,7 +362,7 @@ class DecoratorsTest(unittest.TestCase):
         Tests the @Provides decorator for a service factory
         """
 
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         def invalid_method(self, foo):
@@ -377,18 +375,18 @@ class DecoratorsTest(unittest.TestCase):
         self.assertRaises(TypeError, decorators.Provides("spec", factory=True), DummyClass)
 
         # One of two methods
-        DummyClass.get_service = valid_method
+        DummyClass.get_service = valid_method  # type: ignore
         self.assertRaises(TypeError, decorators.Provides("spec", factory=True), DummyClass)
 
         # Both methods
-        DummyClass.unget_service = valid_method
+        DummyClass.unget_service = valid_method  # type: ignore
         try:
             decorators.Provides("spec", factory=True)(DummyClass)
         except TypeError:
             self.fail("Error on valid class")
 
         # Invalid arity
-        DummyClass.get_service = invalid_method
+        DummyClass.get_service = invalid_method  # type: ignore
         self.assertRaises(TypeError, decorators.Provides("spec", factory=True), DummyClass)
 
     def test_provides_prototype(self):
@@ -396,7 +394,7 @@ class DecoratorsTest(unittest.TestCase):
         Tests the @Provides decorator for a prototype service factory
         """
 
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         def invalid_method(self, foo):
@@ -412,31 +410,31 @@ class DecoratorsTest(unittest.TestCase):
         self.assertRaises(TypeError, decorators.Provides("spec", prototype=True), DummyClass)
 
         # One of three methods
-        DummyClass.get_service = valid_method
+        DummyClass.get_service = valid_method  # type: ignore
         self.assertRaises(TypeError, decorators.Provides("spec", prototype=True), DummyClass)
 
         # Two of three methods
-        DummyClass.unget_service = valid_method
+        DummyClass.unget_service = valid_method  # type: ignore
         self.assertRaises(TypeError, decorators.Provides("spec", prototype=True), DummyClass)
 
         # Two (other) of three methods
-        del DummyClass.unget_service
-        DummyClass.unget_service_instance = valid_instance_method
+        del DummyClass.unget_service  # type: ignore
+        DummyClass.unget_service_instance = valid_instance_method  # type: ignore
         self.assertRaises(TypeError, decorators.Provides("spec", prototype=True), DummyClass)
 
         # All methods
-        DummyClass.unget_service = valid_method
+        DummyClass.unget_service = valid_method  # type: ignore
         try:
             decorators.Provides("spec", prototype=True)(DummyClass)
         except TypeError:
             self.fail("Error on valid class")
 
         # Invalid arity
-        DummyClass.get_service = invalid_method
+        DummyClass.get_service = invalid_method  # type: ignore
         self.assertRaises(TypeError, decorators.Provides("spec", prototype=True), DummyClass)
 
-        DummyClass.get_service = valid_method
-        DummyClass.unget_service_instance = invalid_method
+        DummyClass.get_service = valid_method  # type: ignore
+        DummyClass.unget_service_instance = invalid_method  # type: ignore
         self.assertRaises(TypeError, decorators.Provides("spec", prototype=True), DummyClass)
 
     def test_requires_base(self):
@@ -459,7 +457,7 @@ class DecoratorsTest(unittest.TestCase):
                 self.assertRaises(ValueError, decorator, "field", empty)
 
             # Invalid field or specification type
-            for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
+            for invalid in ([1, 2, 3], (1, 2, 3), 123):
                 self.assertRaises(TypeError, decorator, invalid)
                 self.assertRaises(ValueError, decorator, "field", invalid)
 
@@ -472,7 +470,7 @@ class DecoratorsTest(unittest.TestCase):
         Tests the @RequiresMap decorator
         """
 
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         def method():
@@ -488,7 +486,7 @@ class DecoratorsTest(unittest.TestCase):
             self.assertRaises(ValueError, decorators.RequiresMap, "field", "spec", empty)
 
         # Invalid field or specification type
-        for invalid in ([1, 2, 3], tuple((1, 2, 3)), 123):
+        for invalid in ([1, 2, 3], (1, 2, 3), 123):
             self.assertRaises(TypeError, decorators.RequiresMap, invalid)
             self.assertRaises(ValueError, decorators.RequiresMap, "field", invalid, "key")
 
@@ -526,10 +524,6 @@ class SimpleDecoratorsTests(unittest.TestCase):
         self.framework.start()
         self.context = self.framework.get_bundle_context()
 
-        # Compatibility issue
-        if sys.version_info[0] < 3:
-            self.assertCountEqual = self.assertItemsEqual
-
     def tearDown(self):
         """
         Called after each test
@@ -542,7 +536,7 @@ class SimpleDecoratorsTests(unittest.TestCase):
         Tests the _get_factory_context() method
         """
 
-        class DummyClass(object):
+        class DummyClass:
             pass
 
         class ChildClass(DummyClass):
@@ -552,7 +546,7 @@ class SimpleDecoratorsTests(unittest.TestCase):
         self.assertRaises(AttributeError, getattr, DummyClass, constants.IPOPO_FACTORY_CONTEXT)
 
         # Convert the parent into a component
-        DummyClass = decorators.ComponentFactory("dummy-factory")(
+        DummyClass = decorators.ComponentFactory("dummy-factory")(  # ty: ignore[invalid-assignment]
             decorators.Requires("field", "req")(DummyClass)
         )
 
@@ -586,7 +580,7 @@ class SimpleDecoratorsTests(unittest.TestCase):
         Tests the _get_specifications method for the @Provides decorator
         """
         # Invalid entry
-        for invalid in (None, "", [], tuple(), {"spec": 1}, [1, 2, 3], tuple((1, 2, 3)), 123):
+        for invalid in (None, "", [], (), {"spec": 1}, [1, 2, 3], (1, 2, 3), 123):
             self.assertRaises(ValueError, decorators._get_specifications, invalid)
 
         # Test inheritance
@@ -594,12 +588,12 @@ class SimpleDecoratorsTests(unittest.TestCase):
         from tests.ipopo.ipopo_bundle import Child
 
         base_names = ["Father", "Mother"]
-        full_names = ["{0}.{1}".format(ipopo_bundle.__name__, name) for name in base_names]
+        full_names = [f"{ipopo_bundle.__name__}.{name}" for name in base_names]
 
         # New behavior
         decorators.Provides.USE_MODULE_QUALNAME = True
         try:
-            Child.__qualname__
+            Child.__qualname__  # noqa: B018
         except AttributeError:
             self.assertRaises(ValueError, decorators._get_specifications, Child.__bases__)
         else:
@@ -612,7 +606,7 @@ class SimpleDecoratorsTests(unittest.TestCase):
         self.assertCountEqual(base_names, specs)
 
         # Class specification
-        class Spec(object):
+        class Spec:
             pass
 
         self.assertEqual(

@@ -11,7 +11,7 @@ from pelix.ipopo.decorators import ComponentFactory, Instantiate, Invalidate, Pr
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 BASIC_FACTORY = "basic-component-factory"
@@ -24,7 +24,7 @@ BASIC_INSTANCE = "basic-component-copy"
 @ComponentFactory(BASIC_FACTORY)
 @Instantiate(BASIC_INSTANCE)
 @Provides("basic-component-svc")
-class BasicComponent(object):
+class BasicComponent:
     """
     Dummy instantiated component
     """

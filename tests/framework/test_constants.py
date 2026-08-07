@@ -7,7 +7,7 @@ Tests the framework events.
 """
 
 import unittest
-from typing import List, Protocol
+from typing import Protocol
 
 from pelix.constants import PELIX_SPECIFICATION_FIELD, Specification
 
@@ -16,8 +16,6 @@ class Foobar(Protocol):
     """
     Sample protocol, using class name
     """
-
-    pass
 
 
 @Specification("Hello")
@@ -33,7 +31,7 @@ class TestSpecificationDecorator(unittest.TestCase):
     """
 
     @staticmethod
-    def __get_specification(clazz) -> List[str]:
+    def __get_specification(clazz) -> list[str]:
         """
         Returns the specifications of the given class
         """

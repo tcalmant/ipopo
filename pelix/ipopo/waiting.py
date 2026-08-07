@@ -9,7 +9,7 @@ components.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -31,7 +31,7 @@ components.
 # Standard library
 import logging
 import threading
-from typing import Any, Dict, Optional
+from typing import Any
 
 # Pelix
 from pelix.constants import ActivatorProto, BundleActivator, BundleException
@@ -49,7 +49,7 @@ from pelix.ipopo.constants import (
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -74,13 +74,13 @@ class IPopoWaitingListImpl(IPopoWaitingList):
         :param bundle_context: The bundle context
         """
         # Bundle context
-        self.__context: Optional[BundleContext] = bundle_context
+        self.__context: BundleContext | None = bundle_context
 
         # The "queue": factory name -> {component name -> properties}
-        self.__queue: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        self.__queue: dict[str, dict[str, dict[str, Any]]] = {}
 
         # Component Name -> Factory Name
-        self.__names: Dict[str, str] = {}
+        self.__names: dict[str, str] = {}
 
         # Some locking
         self.__lock = threading.RLock()
@@ -109,10 +109,10 @@ class IPopoWaitingListImpl(IPopoWaitingList):
                 pass
             except ValueError as ex:
                 # Already known component
-                _logger.error("Component already running: %s", ex)
-            except Exception as ex:
+                _logger.error("Component %s already running: %s", component, ex)
+            except Exception:
                 # Other error
-                _logger.exception("Error instantiating component: %s", ex)
+                _logger.exception("Error instantiating component %s from factory %s", component, factory)
 
     def _start(self) -> None:
         """
@@ -200,7 +200,7 @@ class IPopoWaitingListImpl(IPopoWaitingList):
                 # No components for this new factory
                 pass
 
-    def add(self, factory: str, component: str, properties: Optional[Dict[str, Any]] = None) -> None:
+    def add(self, factory: str, component: str, properties: dict[str, Any] | None = None) -> None:
         """
         Enqueues the instantiation of the given component
 
@@ -277,8 +277,8 @@ class Activator(ActivatorProto):
         """
         Constructor
         """
-        self.__registration: Optional[ServiceRegistration[IPopoWaitingList]] = None
-        self.__service: Optional[IPopoWaitingListImpl] = None
+        self.__registration: ServiceRegistration[IPopoWaitingList] | None = None
+        self.__service: IPopoWaitingListImpl | None = None
 
     def start(self, context: BundleContext) -> None:
         """
@@ -291,7 +291,7 @@ class Activator(ActivatorProto):
         # Register it
         self.__registration = context.register_service(IPopoWaitingList, self.__service, {})
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopped
         """

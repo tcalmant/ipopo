@@ -9,16 +9,15 @@ Tests the component life cycle callbacks decorators
 import itertools
 import unittest
 
-import pelix.ipopo.constants as constants
-import pelix.ipopo.decorators as decorators
 from pelix.framework import BundleContext, FrameworkFactory
+from pelix.ipopo import constants, decorators
 from pelix.ipopo.contexts import ComponentContext
 from pelix.ipopo.instance import StoredInstance
 from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -86,7 +85,7 @@ class ValidateComponentTest(unittest.TestCase):
                         args = args[1:]
 
                         for idx, arg in enumerate(args):
-                            self.assertIsInstance(arg, types[decorator_args[idx]])
+                            self.assertIsInstance(arg, types[decorator_args[idx]])  # noqa: B023
 
                 try:
                     self.ipopo.register_factory(ctx, Sample)
@@ -102,7 +101,7 @@ class ValidateComponentTest(unittest.TestCase):
 
         @decorators.ComponentFactory(factory_name)
         @decorators.Property("_raise", "raise", True)
-        class Erroneous(object):
+        class Erroneous:
             def __init__(self):
                 self.calls = []
                 self._raise = True
@@ -213,7 +212,7 @@ class InvalidateComponentTest(unittest.TestCase):
                         args = args[1:]
 
                         for idx, arg in enumerate(args):
-                            self.assertIsInstance(arg, types[decorator_args[idx]])
+                            self.assertIsInstance(arg, types[decorator_args[idx]])  # noqa: B023
 
                 try:
                     self.ipopo.register_factory(ctx, Sample)
@@ -230,7 +229,7 @@ class InvalidateComponentTest(unittest.TestCase):
 
         @decorators.ComponentFactory(factory_name)
         @decorators.Requires("_toto", svc_interface)
-        class Erroneous(object):
+        class Erroneous:
             @decorators.InvalidateComponent()
             def invalidate(self):
                 raise ValueError("Bad things happen")

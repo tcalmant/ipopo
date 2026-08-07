@@ -9,7 +9,7 @@ available.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -34,7 +34,8 @@ import os
 import shlex
 import sys
 import threading
-from typing import TYPE_CHECKING, Callable, List, Optional, cast
+from collections.abc import Callable
+from typing import TYPE_CHECKING, cast
 
 import pelix.framework
 from pelix.constants import ActivatorProto, BundleActivator
@@ -52,7 +53,7 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -79,6 +80,7 @@ try:
 except ImportError:
     # Readline is missing, not critical
     HAS_READLINE = False
+    readline = None  # type: ignore
 
 # ------------------------------------------------------------------------------
 
@@ -94,15 +96,15 @@ class InteractiveShell:
 
         :param context: The bundle context
         """
-        self._context: Optional[BundleContext] = context
-        self._shell_ref: Optional["ServiceReference[ShellService]"] = None
-        self._shell: Optional[ShellService] = None
+        self._context: BundleContext | None = context
+        self._shell_ref: ServiceReference[ShellService] | None = None
+        self._shell: ShellService | None = None
 
         # Single session
         self.__session = ShellSession(IOHandler(sys.stdin, sys.stdout), {})
 
         # Read line cache
-        self._readline_matches: List[str] = []
+        self._readline_matches: list[str] = []
 
         # Rendez-vous events
         self._lock = threading.RLock()
@@ -147,7 +149,7 @@ class InteractiveShell:
         sys.stdout.flush()
         return input()
 
-    def loop_input(self, on_quit: Optional[Callable[[], None]] = None) -> None:
+    def loop_input(self, on_quit: Callable[[], None] | None = None) -> None:
         """
         Reads the standard input until the shell session is stopped
 
@@ -175,7 +177,7 @@ class InteractiveShell:
             # Call a handler if needed
             on_quit()
 
-    def _run_script(self, session: ShellSession, file_path: str) -> Optional[bool]:
+    def _run_script(self, session: ShellSession, file_path: str) -> bool | None:
         """
         Runs the given script file
 
@@ -232,7 +234,7 @@ class InteractiveShell:
             # Input closed or keyboard interruption
             pass
 
-    def readline_completer(self, text: str, state: int) -> Optional[str]:
+    def readline_completer(self, text: str, state: int) -> str | None:
         """
         A completer for the readline library
         """
@@ -447,9 +449,9 @@ class Activator(ActivatorProto):
         """
         Sets up the members
         """
-        self._context: Optional["BundleContext"] = None
-        self._shell: Optional[InteractiveShell] = None
-        self._thread: Optional[threading.Thread] = None
+        self._context: BundleContext | None = None
+        self._shell: InteractiveShell | None = None
+        self._thread: threading.Thread | None = None
 
     def start(self, context: "BundleContext") -> None:
         """
@@ -469,7 +471,7 @@ class Activator(ActivatorProto):
         self._thread.daemon = True
         self._thread.start()
 
-    def stop(self, _: "BundleContext") -> None:
+    def stop(self, context: "BundleContext") -> None:
         """
         Bundle stopped
         """
@@ -502,7 +504,7 @@ class Activator(ActivatorProto):
 # ------------------------------------------------------------------------------
 
 
-def _resolve_file(file_name: str) -> Optional[str]:
+def _resolve_file(file_name: str) -> str | None:
     """
     Checks if the file exists.
 
@@ -641,20 +643,20 @@ def handle_common_arguments(parsed_args: argparse.Namespace) -> InitFileHandler:
     if parsed_args.init_script:
         path = props[PROP_INIT_FILE] = _resolve_file(parsed_args.init_script)
         if not path:
-            raise IOError("Initial script file not found: {0}".format(parsed_args.init_script))
+            raise OSError(f"Initial script file not found: {parsed_args.init_script}")
 
     if parsed_args.run_script:
         # Find the file
         path = props[PROP_RUN_FILE] = _resolve_file(parsed_args.run_script)
         if not path:
-            raise IOError("Script file not found: {0}".format(parsed_args.run_script))
+            raise OSError(f"Script file not found: {parsed_args.run_script}")
 
     # Update the stored configuration
     init.properties.update(props)
     return init
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """
     Entry point
 

@@ -6,7 +6,7 @@ Event beans for Pelix.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -25,14 +25,14 @@ Event beans for Pelix.
     limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 if TYPE_CHECKING:
     from pelix.framework import Bundle
     from pelix.internals.registry import ServiceReference
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -119,7 +119,7 @@ class ServiceEvent(Generic[T]):
     Represents a service event
     """
 
-    __slots__ = ("__kind", "__reference", "__previous_properties")
+    __slots__ = ("__kind", "__previous_properties", "__reference")
 
     REGISTERED = 1
     """ This service has been registered """
@@ -140,7 +140,7 @@ class ServiceEvent(Generic[T]):
         self,
         kind: int,
         reference: "ServiceReference[T]",
-        previous_properties: Optional[Dict[str, Any]] = None,
+        previous_properties: dict[str, Any] | None = None,
     ) -> None:
         """
         Sets up the event
@@ -164,7 +164,7 @@ class ServiceEvent(Generic[T]):
         """
         return f"ServiceEvent({self.__kind}, {self.__reference})"
 
-    def get_previous_properties(self) -> Optional[Dict[str, Any]]:
+    def get_previous_properties(self) -> dict[str, Any] | None:
         """
         Returns the previous values of the service properties, meaningless if
         the the event is not MODIFIED nor MODIFIED_ENDMATCH.

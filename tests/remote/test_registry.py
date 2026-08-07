@@ -7,16 +7,16 @@ Tests the Remote Services Imports Registry
 """
 
 import unittest
-from typing import Any, Dict, List
+from typing import Any
 
 import pelix.constants
 import pelix.framework
 import pelix.remote
-import pelix.remote.beans as beans
+from pelix.remote import beans
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 ADDED = 1
@@ -35,7 +35,7 @@ class ImportListener:
         """
         Sets up members
         """
-        self.events: List[int] = []
+        self.events: list[int] = []
         self.raise_exception = False
 
     def clear(self) -> None:
@@ -50,15 +50,15 @@ class ImportListener:
         """
         self.events.append(ADDED)
         if self.raise_exception:
-            raise Exception("Addition exception")
+            raise Exception("Addition exception")  # noqa: TRY002
 
-    def endpoint_updated(self, endpoint: beans.ImportEndpoint, properties: Dict[str, Any]) -> None:
+    def endpoint_updated(self, endpoint: beans.ImportEndpoint, properties: dict[str, Any]) -> None:
         """
         Endpoint updated
         """
         self.events.append(UPDATED)
         if self.raise_exception:
-            raise Exception("Update exception")
+            raise Exception("Update exception")  # noqa: TRY002
 
     def endpoint_removed(self, uid: str) -> None:
         """
@@ -66,7 +66,7 @@ class ImportListener:
         """
         self.events.append(REMOVED)
         if self.raise_exception:
-            raise Exception("Removal exception")
+            raise Exception("Removal exception")  # noqa: TRY002
 
 
 # ------------------------------------------------------------------------------
@@ -260,9 +260,9 @@ class ImportsRegistryTest(unittest.TestCase):
         spec_1 = "sample.spec"
         spec_2 = "sample.spec2"
         spec_3 = "sample.spec3"
-        python_specs = ["python:/{0}".format(spec) for spec in (spec_2, spec_3)]
+        python_specs = [f"python:/{spec}" for spec in (spec_2, spec_3)]
         spec_java = "org.pelix.sample.ISpec2"
-        java_specs = ["java:/{0}".format(spec_java)]
+        java_specs = [f"java:/{spec_java}"]
 
         # Prepare an ImportEndpoint
         endpoint = beans.ImportEndpoint(

@@ -9,7 +9,7 @@ service
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -28,7 +28,7 @@ service
     limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 import pelix.services
 from pelix.ipopo.decorators import ComponentFactory, Instantiate, Invalidate, Provides, Requires
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -68,7 +68,7 @@ class ConfigAdminCommands(ShellCommandsProvider):
         Sets up members
         """
         # Handled configurations (PID -> Configuration)
-        self._configs: Dict[str, pelix.services.Configuration] = {}
+        self._configs: dict[str, pelix.services.Configuration] = {}
 
     @Invalidate
     def invalidate(self, _: "BundleContext") -> None:
@@ -78,14 +78,13 @@ class ConfigAdminCommands(ShellCommandsProvider):
         # Clean up
         self._configs.clear()
 
-    @staticmethod
-    def get_namespace() -> str:
+    def get_namespace(self) -> str:
         """
         Retrieves the name space of this command handler
         """
         return "config"
 
-    def get_methods(self) -> List[Tuple[str, ShellCommandMethod]]:
+    def get_methods(self) -> list[tuple[str, ShellCommandMethod]]:
         """
         Retrieves the list of tuples (command, method) for this command handler
         """
@@ -146,9 +145,9 @@ class ConfigAdminCommands(ShellCommandsProvider):
         try:
             # Reload the file
             config.reload()
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             # Log errors
-            session.write_line("Error reloading {0}: {1}", pid, ex)
+            session.write_line(f"Error reloading {pid}: {ex}")
 
     def delete(self, _: "ShellSession", pid: str) -> None:
         """
@@ -162,7 +161,7 @@ class ConfigAdminCommands(ShellCommandsProvider):
             # Configuration was unknown
             pass
 
-    def list(self, session: "ShellSession", pid: Optional[str] = None) -> None:
+    def list(self, session: "ShellSession", pid: str | None = None) -> None:
         """
         Lists known configurations
         """
@@ -179,16 +178,16 @@ class ConfigAdminCommands(ShellCommandsProvider):
                     break
 
             else:
-                session.write_line("No configuration with PID {0}.", pid)
+                session.write_line(f"No configuration with PID {pid}.")
                 return
 
         lines = []
         for config in configs:
-            lines.append("* {0}:".format(config.get_pid()))
+            lines.append(f"* {config.get_pid()}:")
             factory_pid = config.get_factory_pid()
             if factory_pid:
-                lines.append("\tFactory PID: {0}".format(factory_pid))
-            lines.append("\tLocation: {0}".format(config.get_bundle_location()))
+                lines.append(f"\tFactory PID: {factory_pid}")
+            lines.append(f"\tLocation: {config.get_bundle_location()}")
 
             try:
                 properties = config.get_properties()
@@ -197,7 +196,7 @@ class ConfigAdminCommands(ShellCommandsProvider):
 
                 else:
                     lines.append("\tProperties:")
-                    lines.extend("\t\t{0} = {1}".format(key, value) for key, value in properties.items())
+                    lines.extend(f"\t\t{key} = {value}" for key, value in properties.items())
 
             except ValueError:
                 lines.append("\t** Deleted **")

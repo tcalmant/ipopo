@@ -26,7 +26,7 @@ Greeting service consumer
 
 # Standard library
 import threading
-from typing import Any, List
+from typing import Any
 
 # Pelix constants
 import pelix.constants
@@ -72,7 +72,7 @@ class HelloWorldConsumer:
         """
         Sets up members
         """
-        self._services: List[Any] = []
+        self._services: list[Any] = []
         self._fw_uid = None
 
     def _use_service(self, service: Any) -> None:

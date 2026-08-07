@@ -18,8 +18,7 @@ snippet:
 
 ```python
 # Start the framework, with the required bundles and the report bundle
-framework = create_framework(
-    ["pelix.shell.core", "pelix.shell.report"])
+framework = create_framework(["pelix.shell.core", "pelix.shell.report"])
 
 # ... or install & start it using the BundleContext
 bundle_context.install_bundle("pelix.shell.report").start()

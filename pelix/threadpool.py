@@ -6,7 +6,7 @@ Pelix Utilities: Cached thread pool
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -28,8 +28,9 @@ Pelix Utilities: Cached thread pool
 import logging
 import queue
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 from pelix.utilities import EventData
 
@@ -39,7 +40,7 @@ from pelix.utilities import EventData
 __docformat__ = "restructuredtext en"
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 __all__ = ["EventData", "FutureResult", "ThreadPool"]
@@ -52,9 +53,9 @@ class FutureResult:
     An object to wait for the result of a threaded execution
     """
 
-    __slots__ = ("_logger", "_done_event", "__callback", "__extra")
+    __slots__ = ("__callback", "__extra", "_done_event", "_logger")
 
-    def __init__(self, logger: Optional[logging.Logger] = None) -> None:
+    def __init__(self, logger: logging.Logger | None = None) -> None:
         """
         Sets up the FutureResult object
 
@@ -62,7 +63,7 @@ class FutureResult:
         """
         self._logger = logger or logging.getLogger(__name__)
         self._done_event: EventData[Any] = EventData()
-        self.__callback: Optional[Callable[[Any, Optional[BaseException], Any], None]] = None
+        self.__callback: Callable[[Any, BaseException | None, Any], None] | None = None
         self.__extra: Any = None
 
     def __notify(self) -> None:
@@ -76,11 +77,11 @@ class FutureResult:
                     self._done_event.exception,
                     self.__extra,
                 )
-            except Exception as ex:
-                self._logger.exception("Error calling back method: %s", ex)
+            except Exception:
+                self._logger.exception("Error calling back method")
 
     def set_callback(
-        self, method: Optional[Callable[[Any, Optional[BaseException], Any], None]], extra: Any = None
+        self, method: Callable[[Any, BaseException | None, Any], None] | None, extra: Any = None
     ) -> None:
         """
         Sets a callback method, called once the result has been computed or in
@@ -99,7 +100,7 @@ class FutureResult:
             self.__notify()
 
     def execute(
-        self, method: Callable[..., Any], args: Optional[Tuple[Any, ...]], kwargs: Optional[Dict[str, Any]]
+        self, method: Callable[..., Any], args: tuple[Any, ...] | None, kwargs: dict[str, Any] | None
     ) -> None:
         """
         Execute the given method and stores its result.
@@ -111,7 +112,7 @@ class FutureResult:
         :raise Exception: The exception raised by the method
         """
         if args is None:
-            args = tuple()
+            args = ()
 
         if kwargs is None:
             kwargs = {}
@@ -136,7 +137,7 @@ class FutureResult:
         """
         return self._done_event.is_set()
 
-    def result(self, timeout: Optional[float] = None) -> Any:
+    def result(self, timeout: float | None = None) -> Any:
         """
         Waits up to timeout for the result the threaded job.
         Returns immediately the result if the job has already been done.
@@ -161,12 +162,12 @@ class _QueuedTask:
     """
 
     method: Callable[..., Any]
-    args: Tuple[Any, ...]
-    kwargs: Dict[str, Any]
+    args: tuple[Any, ...]
+    kwargs: dict[str, Any]
     future: FutureResult
 
 
-_STOP = _QueuedTask(lambda: ..., tuple(), {}, FutureResult())
+_STOP = _QueuedTask(lambda: ..., (), {}, FutureResult())
 
 
 class ThreadPool:
@@ -180,7 +181,7 @@ class ThreadPool:
         min_threads: int = 1,
         queue_size: int = 0,
         timeout: float = 60,
-        logname: Optional[str] = None,
+        logname: str | None = None,
     ) -> None:
         """
         Sets up the thread pool.
@@ -232,7 +233,7 @@ class ThreadPool:
         # The thread pool
         self._min_threads = min_threads
         self._max_threads = max_threads
-        self._threads: List[threading.Thread] = []
+        self._threads: list[threading.Thread] = []
 
         # Thread count
         self._thread_id = 0
@@ -347,8 +348,8 @@ class ThreadPool:
         :raise ValueError: Invalid method
         :raise Full: The task queue is full
         """
-        if not hasattr(method, "__call__"):
-            raise ValueError(f"{method.__name__} has no __call__ member.")
+        if not callable(method):
+            raise ValueError(f"{method} is not callable.")  # noqa: TRY004
 
         # Prepare the future result object
         future = FutureResult(self._logger)
@@ -383,7 +384,7 @@ class ThreadPool:
         # Wait for the remaining tasks outside the lock
         self.join()
 
-    def join(self, timeout: Optional[float] = None) -> bool:
+    def join(self, timeout: float | None = None) -> bool:
         """
         Waits for all the tasks to be executed
 
@@ -428,8 +429,10 @@ class ThreadPool:
                     try:
                         # Call the method
                         task.future.execute(task.method, task.args, task.kwargs)
-                    except Exception as ex:
-                        self._logger.exception("Error executing %s: %s", task.method.__name__, ex)
+                    except Exception:
+                        self._logger.exception(
+                            "Error executing %s", getattr(task.method, "__name__", repr(task.method))
+                        )
                     finally:
                         # Mark the action as executed
                         self._queue.task_done()

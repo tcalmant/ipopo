@@ -28,7 +28,8 @@ import queue
 import threading
 import time
 import unittest
-from typing import Any, Iterable, Optional, Tuple
+from collections.abc import Iterable
+from typing import Any
 
 import pelix.http
 import pelix.remote
@@ -53,7 +54,7 @@ except ImportError:
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -119,7 +120,7 @@ class RemoteService:
 # ------------------------------------------------------------------------------
 
 
-def load_framework(transport: str, components: Iterable[Tuple[str, str]]) -> Framework:
+def load_framework(transport: str, components: Iterable[tuple[str, str]]) -> Framework:
     """
     Starts a Pelix framework in the local process
 
@@ -159,7 +160,7 @@ def load_framework(transport: str, components: Iterable[Tuple[str, str]]) -> Fra
     return framework
 
 
-def export_framework(state_queue: Queue, transport: str, components: Iterable[Tuple[str, str]]) -> None:
+def export_framework(state_queue: Queue, transport: str, components: Iterable[tuple[str, str]]) -> None:
     """
     Starts a Pelix framework, on the export side
 
@@ -188,7 +189,7 @@ def export_framework(state_queue: Queue, transport: str, components: Iterable[Tu
         state_queue.put("stopping")
         framework.stop()
         framework.delete()
-    except Exception as ex:
+    except Exception as ex:  # noqa: BLE001
         state_queue.put(f"Error: {ex}")
 
 
@@ -201,7 +202,7 @@ class HttpTransportsTest(unittest.TestCase):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super(HttpTransportsTest, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._load_framework = load_framework
         self._export_framework = export_framework
 
@@ -239,7 +240,7 @@ class HttpTransportsTest(unittest.TestCase):
 
             # Look for the remote service
             for _ in range(10):
-                svc_ref: Optional[ServiceReference[Any]] = context.get_service_reference(SVC_SPEC)
+                svc_ref: ServiceReference[Any] | None = context.get_service_reference(SVC_SPEC)
                 if svc_ref is not None:
                     break
                 time.sleep(0.5)
@@ -297,7 +298,7 @@ class HttpTransportsTest(unittest.TestCase):
             # Exception handling
             try:
                 svc.error()
-            except:
+            except:  # noqa: E722
                 # The error has been propagated
                 state = status_queue.get(True, 2)
                 self.assertEqual(state, "call-error")
@@ -305,13 +306,8 @@ class HttpTransportsTest(unittest.TestCase):
                 self.fail("No exception raised calling 'error'")
 
             # Call undefined method
-            try:
+            with self.assertRaises(Exception):  # noqa: B017
                 svc.undefined()
-            except:
-                # The error has been propagated: OK
-                pass
-            else:
-                self.fail("No exception raised calling an undefined method")
 
             # Stop the peer
             svc.stop()

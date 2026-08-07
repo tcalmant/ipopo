@@ -7,7 +7,7 @@ EndpointDescription class API
 :author: Scott Lewis
 :copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -26,7 +26,8 @@ EndpointDescription class API
     limitations under the License.
 """
 
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
+from collections.abc import Iterable
+from typing import Any, cast
 
 from pelix.constants import FRAMEWORK_UID, OBJECTCLASS, SERVICE_ID
 from pelix.internals.registry import ServiceReference
@@ -66,7 +67,7 @@ from pelix.rsa import (
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -75,7 +76,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-def encode_list(key: str, list_: Iterable[Any]) -> Dict[str, str]:
+def encode_list(key: str, list_: Iterable[Any]) -> dict[str, str]:
     """
     Converts a list into a space-separated string and puts it in a dictionary
 
@@ -102,7 +103,7 @@ def package_name(package: str) -> str:
     return package[:lastdot]
 
 
-def encode_osgi_props(ed: "EndpointDescription") -> Dict[str, str]:
+def encode_osgi_props(ed: "EndpointDescription") -> dict[str, str]:
     """
     Prepares a dictionary of OSGi properties for the given EndpointDescription
     """
@@ -112,7 +113,7 @@ def encode_osgi_props(ed: "EndpointDescription") -> Dict[str, str]:
     for intf in intfs:
         pkg_name = package_name(intf)
         ver = ed.get_package_version(pkg_name)
-        if ver and not ver == (0, 0, 0):
+        if ver and ver != (0, 0, 0):
             result_props[ENDPOINT_PACKAGE_VERSION_] = ".".join(str(v) for v in ver)
 
     result_props[ENDPOINT_ID] = ed.get_id()
@@ -133,7 +134,7 @@ def encode_osgi_props(ed: "EndpointDescription") -> Dict[str, str]:
     return result_props
 
 
-def decode_list(input_props: Dict[str, str], name: str) -> List[str]:
+def decode_list(input_props: dict[str, str], name: str) -> list[str]:
     """
     Decodes a space-separated list
     """
@@ -143,7 +144,7 @@ def decode_list(input_props: Dict[str, str], name: str) -> List[str]:
     return []
 
 
-def decode_osgi_props(input_props: Dict[str, Any]) -> Dict[str, Any]:
+def decode_osgi_props(input_props: dict[str, Any]) -> dict[str, Any]:
     """
     Decodes the OSGi properties of the given endpoint properties
     """
@@ -173,7 +174,7 @@ def decode_osgi_props(input_props: Dict[str, Any]) -> Dict[str, Any]:
     return result_props
 
 
-def decode_endpoint_props(input_props: Dict[str, Any]) -> Dict[str, Any]:
+def decode_endpoint_props(input_props: dict[str, Any]) -> dict[str, Any]:
     """
     Decodes the endpoint properties from the given dictionary
     """
@@ -200,7 +201,7 @@ def decode_endpoint_props(input_props: Dict[str, Any]) -> Dict[str, Any]:
             if async_intfs:
                 ed_props[ECF_SERVICE_EXPORTED_ASYNC_INTERFACES] = async_intfs
 
-    for key in input_props.keys():
+    for key in input_props:
         if not is_reserved_property(key):
             val = input_props.get(key, None)
             if val:
@@ -208,11 +209,11 @@ def decode_endpoint_props(input_props: Dict[str, Any]) -> Dict[str, Any]:
     return ed_props
 
 
-def encode_endpoint_props(ed: "EndpointDescription") -> Dict[str, Any]:
+def encode_endpoint_props(ed: "EndpointDescription") -> dict[str, Any]:
     """
     Encodes the properties of the given EndpointDescription
     """
-    props: Dict[str, Any] = encode_osgi_props(ed)
+    props: dict[str, Any] = encode_osgi_props(ed)
     props[ECF_RSVC_ID] = str(ed.get_remoteservice_id()[1])
     props[ECF_ENDPOINT_ID] = str(ed.get_container_id()[1])
     props[ECF_ENDPOINT_CONTAINERID_NAMESPACE] = str(ed.get_container_id()[0])
@@ -254,37 +255,37 @@ class EndpointDescription:
         return cls(svc_ref, None)
 
     @classmethod
-    def fromprops(cls, props: Dict[str, Any]) -> "EndpointDescription":
+    def fromprops(cls, props: dict[str, Any]) -> "EndpointDescription":
         return cls(None, props)
 
     @classmethod
-    def fromsvcrefprops(cls, svc_ref: ServiceReference[Any], props: Dict[str, Any]) -> "EndpointDescription":
+    def fromsvcrefprops(cls, svc_ref: ServiceReference[Any], props: dict[str, Any]) -> "EndpointDescription":
         return cls(svc_ref, props)
 
     @classmethod
-    def _condition_props(cls, properties: Dict[str, Any]) -> Dict[str, Any]:
+    def _condition_props(cls, properties: dict[str, Any]) -> dict[str, Any]:
         set_prop_if_null(SERVICE_IMPORTED, properties, True)
-        for key in properties.keys():
+        for key in properties:
             if key.startswith("services.exported."):
                 del properties[key]
         return properties
 
     @classmethod
     def _verify_export_props(
-        cls, svc_ref: ServiceReference[Any], all_properties: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        cls, svc_ref: ServiceReference[Any], all_properties: dict[str, Any]
+    ) -> dict[str, Any]:
         props = all_properties.copy()
         set_prop_if_null(ENDPOINT_SERVICE_ID, props, svc_ref.get_property(SERVICE_ID))
         set_prop_if_null(ENDPOINT_FRAMEWORK_UUID, props, svc_ref.get_property(FRAMEWORK_UID))
         return props
 
     def __init__(
-        self, svc_ref: Optional[ServiceReference[Any]] = None, properties: Optional[Dict[str, Any]] = None
+        self, svc_ref: ServiceReference[Any] | None = None, properties: dict[str, Any] | None = None
     ) -> None:
         if svc_ref is None and properties is None:
             raise ValueError("Either service reference or properties argument must be non-null")
 
-        all_properties: Dict[str, Any] = {}
+        all_properties: dict[str, Any] = {}
 
         if svc_ref is not None:
             all_properties.update(svc_ref.get_properties())
@@ -297,7 +298,7 @@ class EndpointDescription:
         else:
             self._properties = all_properties
 
-        self._interfaces = cast(List[str], (self._properties.get(OBJECTCLASS) or [])[:])
+        self._interfaces = cast(list[str], (self._properties.get(OBJECTCLASS) or [])[:])
         self._service_id = self._verify_long_prop(ENDPOINT_SERVICE_ID)
         self._framework_uuid = self._verify_str_prop(ENDPOINT_FRAMEWORK_UUID)
         endpoint_id = self._verify_str_prop(ENDPOINT_ID)
@@ -320,52 +321,46 @@ class EndpointDescription:
         if self._rs_id is None:
             self._rs_id = self.get_service_id()
 
-        connect_target_name = cast(Optional[str], self._get_prop(ECF_ENDPOINT_CONNECTTARGET_ID))
+        connect_target_name = cast(str | None, self._get_prop(ECF_ENDPOINT_CONNECTTARGET_ID))
 
-        self._connect_target_id: Optional[Tuple[str, str]] = None
+        self._connect_target_id: tuple[str, str] | None = None
         if connect_target_name is not None:
             self._connect_target_id = (self._id_namespace, connect_target_name)
 
         id_filter_names = self._get_string_plus_property(ECF_ENDPOINT_IDFILTER_IDS)
 
-        self._id_filters: Optional[List[Tuple[str, str]]] = None
+        self._id_filters: list[tuple[str, str]] | None = None
         if id_filter_names:
             self._id_filters = [(self._id_namespace, x) for x in id_filter_names]
 
-        self._rs_filter = cast(Optional[str], self._get_prop(ECF_ENDPOINT_REMOTESERVICE_FILTER))
+        self._rs_filter = cast(str | None, self._get_prop(ECF_ENDPOINT_REMOTESERVICE_FILTER))
         self._async_intfs = self._verify_async_intfs()
 
     def __hash__(self) -> int:
         return hash(self._id)
 
-    def __eq__(self, other: Any) -> Any:
+    def __eq__(self, other: object) -> Any:
         return isinstance(other, EndpointDescription) and self._id == other._id
 
-    def __ne__(self, other: Any) -> Any:
+    def __ne__(self, other: object) -> Any:
         return not isinstance(other, EndpointDescription) or self._id != other._id
 
     def __str__(self) -> str:
         get_remoteservice_id = self.get_remoteservice_id()
         return (
-            "EndpointDescription(id={0}; endpoint.service.id={1}; "
-            "framework.uuid={2}; ecf.endpoint.id={3}:{4})".format(
-                self.get_id(),
-                self.get_service_id(),
-                self.get_framework_uuid(),
-                get_remoteservice_id[0],
-                get_remoteservice_id[1],
-            )
+            f"EndpointDescription(id={self.get_id()}; endpoint.service.id={self.get_service_id()}; "
+            f"framework.uuid={self.get_framework_uuid()}; ecf.endpoint.id={get_remoteservice_id[0]}:{get_remoteservice_id[1]})"
         )
 
     def _get_prop(self, key: str, default: Any = None) -> Any:
         return get_prop_value(key, self._properties, default)
 
-    def _get_string_plus_property(self, key: str) -> List[str]:
+    def _get_string_plus_property(self, key: str) -> list[str]:
         return get_string_plus_property(key, self._properties) or []
 
     def _verify_long_prop(self, prop: str) -> int:
         value = self._get_prop(prop)
-        return int(value) if value else int(0)
+        return int(value) if value else 0
 
     def _verify_str_prop(self, prop: str) -> str:
         value = self._get_prop(prop)
@@ -383,8 +378,8 @@ class EndpointDescription:
 
         return intf + ECF_ASYNC_INTERFACE_SUFFIX
 
-    def _verify_async_intfs(self) -> List[str]:
-        matching: Optional[List[str]] = []
+    def _verify_async_intfs(self) -> list[str]:
+        matching: list[str] | None = []
         no_async_prop = self._get_prop(ECF_SERVICE_EXPORTED_ASYNC_NOPROXY)
         if no_async_prop is None:
             async_inf_val = self._get_prop(ECF_SERVICE_EXPORTED_ASYNC_INTERFACES)
@@ -392,34 +387,34 @@ class EndpointDescription:
                 matching = get_matching_interfaces(self.get_interfaces(), async_inf_val)
         return [self._convert_intf_to_async(x) for x in matching or []]
 
-    def get_container_id(self) -> Tuple[str, str]:
+    def get_container_id(self) -> tuple[str, str]:
         return self._container_id
 
-    def get_connect_target_id(self) -> Optional[Tuple[str, str]]:
+    def get_connect_target_id(self) -> tuple[str, str] | None:
         return self._connect_target_id
 
     def get_timestamp(self) -> int:
         return self._timestamp
 
-    def get_remoteservice_id(self) -> Tuple[Tuple[str, str], int]:
+    def get_remoteservice_id(self) -> tuple[tuple[str, str], int]:
         return (self.get_container_id(), self._rs_id)
 
     def get_remoteservice_idstr(self) -> str:
         return rsid_to_string(self.get_remoteservice_id())
 
-    def get_id_filters(self) -> Optional[List[Tuple[str, str]]]:
+    def get_id_filters(self) -> list[tuple[str, str]] | None:
         return self._id_filters
 
-    def get_remoteservice_filter(self) -> Optional[str]:
+    def get_remoteservice_filter(self) -> str | None:
         return self._rs_filter
 
-    def get_async_interfaces(self) -> List[str]:
+    def get_async_interfaces(self) -> list[str]:
         return self._async_intfs
 
     def get_framework_uuid(self) -> str:
         return self._framework_uuid
 
-    def get_osgi_basic_timeout(self) -> Optional[int]:
+    def get_osgi_basic_timeout(self) -> int | None:
         timeout = self.get_properties().get(OSGI_BASIC_TIMEOUT_INTENT, None)
         if isinstance(timeout, str):
             timeout = int(timeout)
@@ -433,10 +428,10 @@ class EndpointDescription:
         """
         return self._id
 
-    def get_remote_intents_supported(self) -> List[str]:
+    def get_remote_intents_supported(self) -> list[str]:
         return self._get_string_plus_property(REMOTE_INTENTS_SUPPORTED)
 
-    def get_intents(self) -> List[str]:
+    def get_intents(self) -> list[str]:
         """
         Returns the list of intents required by this endpoint.
 
@@ -452,7 +447,7 @@ class EndpointDescription:
         # Return a copy of the list
         return self._get_string_plus_property(SERVICE_INTENTS)
 
-    def get_interfaces(self) -> List[str]:
+    def get_interfaces(self) -> list[str]:
         """
         Provides the list of interfaces implemented by the exported service.
 
@@ -460,22 +455,22 @@ class EndpointDescription:
         """
         return self._interfaces
 
-    def get_imported_configs(self) -> List[str]:
+    def get_imported_configs(self) -> list[str]:
         return self.get_configuration_types()
 
     def update_imported_configs(self, imported_configs: Any) -> None:
         self._properties[SERVICE_IMPORTED_CONFIGS] = get_string_plus_property_value(imported_configs)
 
-    def get_configuration_types(self) -> List[str]:
+    def get_configuration_types(self) -> list[str]:
         return self._get_string_plus_property(SERVICE_IMPORTED_CONFIGS)
 
-    def get_remote_configs_supported(self) -> List[str]:
+    def get_remote_configs_supported(self) -> list[str]:
         return self._get_string_plus_property(REMOTE_CONFIGS_SUPPORTED)
 
     def get_service_id(self) -> int:
         return self._service_id
 
-    def get_package_version(self, package: str) -> Tuple[int, ...]:
+    def get_package_version(self, package: str) -> tuple[int, ...]:
         """
         Provides the version of the given package name.
 
@@ -492,7 +487,7 @@ class EndpointDescription:
             # No version
             return 0, 0, 0
 
-    def get_properties(self) -> Dict[str, Any]:
+    def get_properties(self) -> dict[str, Any]:
         """
         Returns all endpoint properties.
 
@@ -513,7 +508,7 @@ class EndpointDescription:
             and self.get_service_id() == endpoint.get_service_id()
         )
 
-    def matches(self, ldap_filter: Union[None, str, LdapFilterOrCriteria]) -> bool:
+    def matches(self, ldap_filter: None | str | LdapFilterOrCriteria) -> bool:
         """
         Tests the properties of this EndpointDescription against the given
         filter

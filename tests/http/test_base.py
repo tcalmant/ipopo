@@ -10,7 +10,7 @@ import importlib.util
 import unittest
 from typing import Any
 
-import pelix.http as http
+from pelix import http
 from pelix.framework import Framework, FrameworkFactory
 from pelix.http._base import AbstractHttpService, compute_sub_path, normalize_request_path
 from pelix.http.basic import HttpServiceImpl

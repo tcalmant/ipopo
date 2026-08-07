@@ -6,7 +6,7 @@ Defines the decorators associated shell completion handlers to a shell function
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 :status: Alpha
 
 ..
@@ -27,7 +27,7 @@ Defines the decorators associated shell completion handlers to a shell function
 """
 
 import importlib.util
-from typing import List, TypeVar
+from typing import TypeVar
 
 from . import ATTR_COMPLETERS, CompletionInfo
 
@@ -41,7 +41,7 @@ except ImportError:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -60,7 +60,7 @@ class Completion:
         :param completers: A list of IDs (str) of argument completers
         :param multiple: If True, the last completer is reused multiple times
         """
-        self._completers: List[str] = list(completers)
+        self._completers: list[str] = list(completers)
         self._multiple = kwargs.get("multiple", False)
 
     def __call__(self, method: T) -> T:

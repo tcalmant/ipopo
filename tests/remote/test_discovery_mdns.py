@@ -23,7 +23,7 @@ from pelix.remote.discovery.mdns import PELIX_TYPE_PREFIX, ZeroconfDiscovery
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -358,7 +358,7 @@ class SerializationTest(unittest.TestCase):
             "service.ranking": 0,
             "pelix.access.port": 9000,
             "pelix.access.path": "/pelix-dispatcher",
-            "pelix.version": "3.2.1",
+            "pelix.version": "3.2.2",
         }
         serialized = ZeroconfDiscovery._serialize_properties(props)
         self.assertEqual(ZeroconfDiscovery._deserialize_properties(serialized), props)  # type: ignore

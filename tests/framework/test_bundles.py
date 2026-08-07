@@ -8,13 +8,14 @@ Tests the bundles handling.
 
 import os
 import unittest
+from typing import Any
 
 from pelix.framework import Bundle, BundleContext, BundleException, FrameworkFactory
 from tests import log_off, log_on
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 SERVICE_BUNDLE = "tests.framework.service_bundle"
@@ -135,7 +136,7 @@ class BundlesTest(unittest.TestCase):
         assert isinstance(bundle, Bundle)
 
         # Get the internal module
-        module_ = bundle.get_module()
+        module_: Any = bundle.get_module()
 
         # Assert initial state
         self.assertFalse(module_.started, "Bundle should not be started yet")
@@ -184,7 +185,7 @@ class BundlesTest(unittest.TestCase):
         assert isinstance(bundle, Bundle)
 
         # Get the internal module
-        module_ = bundle.get_module()
+        module_: Any = bundle.get_module()
 
         # Assert initial state
         self.assertFalse(module_.started, "Bundle should not be started yet")
@@ -251,25 +252,25 @@ class BundlesTest(unittest.TestCase):
         assert isinstance(bundle, Bundle)
 
         bid = bundle.get_bundle_id()
-        self.assertEqual(bid, 1, "Invalid first bundle ID '{0:d}'".format(bid))
+        self.assertEqual(bid, 1, f"Invalid first bundle ID '{bid:d}'")
 
         # Test state
         self.assertEqual(
             bundle.get_state(),
             Bundle.RESOLVED,
-            "Invalid fresh install state {0:d}".format(bundle.get_state()),
+            f"Invalid fresh install state {bundle.get_state():d}",
         )
 
         # Start
         bundle.start()
         self.assertEqual(
-            bundle.get_state(), Bundle.ACTIVE, "Invalid fresh start state {0:d}".format(bundle.get_state())
+            bundle.get_state(), Bundle.ACTIVE, f"Invalid fresh start state {bundle.get_state():d}"
         )
 
         # Stop
         bundle.stop()
         self.assertEqual(
-            bundle.get_state(), Bundle.RESOLVED, "Invalid fresh stop state {0:d}".format(bundle.get_state())
+            bundle.get_state(), Bundle.RESOLVED, f"Invalid fresh stop state {bundle.get_state():d}"
         )
 
         # Uninstall
@@ -277,7 +278,7 @@ class BundlesTest(unittest.TestCase):
         self.assertEqual(
             bundle.get_state(),
             Bundle.UNINSTALLED,
-            "Invalid fresh stop state {0:d}".format(bundle.get_state()),
+            f"Invalid fresh stop state {bundle.get_state():d}",
         )
 
         # The bundle must not be accessible through the framework
@@ -305,12 +306,12 @@ def test_fct():
 
         # Compute the bundle full path
         simple_name = "generated_bundle"
-        bundle_name = "{0}.{1}".format(__name__.rsplit(".", 1)[0], simple_name)
-        bundle_fullname = os.path.join(os.path.dirname(__file__), "{0}.py".format(simple_name))
+        bundle_name = f"{__name__.rsplit('.', 1)[0]}.{simple_name}"
+        bundle_fullname = os.path.join(os.path.dirname(__file__), f"{simple_name}.py")
 
         # 0/ Clean up existing files
         for suffix in ("", "c", "o"):
-            path = "{0}{1}".format(bundle_fullname, suffix)
+            path = f"{bundle_fullname}{suffix}"
             if os.path.exists(path):
                 os.remove(path)
 
@@ -361,7 +362,7 @@ def test_fct():
         assert isinstance(bundle, Bundle)
 
         bid = bundle.get_bundle_id()
-        self.assertEqual(bid, 1, "Invalid first bundle ID '{0:d}'".format(bid))
+        self.assertEqual(bid, 1, f"Invalid first bundle ID '{bid:d}'")
 
         # Get the internal module
         module_ = bundle.get_module()
@@ -370,7 +371,7 @@ def test_fct():
         self.assertEqual(
             bundle.get_symbolic_name(),
             self.test_bundle_name,
-            "Names are different ({0} / {1})".format(bundle.get_symbolic_name(), self.test_bundle_name),
+            f"Names are different ({bundle.get_symbolic_name()} / {self.test_bundle_name})",
         )
 
         # Validate get_location()
@@ -382,7 +383,7 @@ def test_fct():
         self.assertEqual(
             bundle.get_version(),
             module_.__version__,
-            "Different versions found ({0} / {1})".format(bundle.get_version(), module_.__version__),
+            f"Different versions found ({bundle.get_version()} / {module_.__version__})",
         )
 
         # Remove the bundle
@@ -431,7 +432,7 @@ class LocalBundleTest(unittest.TestCase):
         self.assertEqual(
             bundle.get_symbolic_name(),
             __name__,
-            "Bundle ({0}) and module ({1}) are different".format(bundle.get_symbolic_name(), __name__),
+            f"Bundle ({bundle.get_symbolic_name()}) and module ({__name__}) are different",
         )
 
         # Validate get_bundle() via bundle context
@@ -439,23 +440,21 @@ class LocalBundleTest(unittest.TestCase):
         self.assertIs(
             bundle,
             context_bundle,
-            "Not the same bundle:\n{0:d} / {1}\n{2:d} / {3}".format(
-                id(bundle), bundle, id(context_bundle), context_bundle
-            ),
+            f"Not the same bundle:\n{id(bundle):d} / {bundle}\n{id(context_bundle):d} / {context_bundle}",
         )
 
         # Validate get_version()
         self.assertEqual(
             bundle.get_version(),
             __version__,
-            "Not the same version {0} -> {1}".format(__version__, bundle.get_version()),
+            f"Not the same version {__version__} -> {bundle.get_version()}",
         )
 
         # Validate get_location()
         self.assertEqual(
             bundle.get_location(),
             __file__,
-            "Not the same location {0} -> {1}".format(__file__, bundle.get_location()),
+            f"Not the same location {__file__} -> {bundle.get_location()}",
         )
 
 

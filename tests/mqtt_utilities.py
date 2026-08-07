@@ -22,12 +22,11 @@ Utility methods for MQTT tests
 
 import unittest
 from threading import Event
-from typing import Optional
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -36,7 +35,7 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-def find_mqtt_server() -> Optional[str]:
+def find_mqtt_server() -> str | None:
     """
     Looks for a working server to run the tests
 
@@ -60,7 +59,7 @@ def find_mqtt_server() -> Optional[str]:
             # Try to connect
             evt.clear()
             clt.connect(server, blocking=True)
-        except IOError:
+        except OSError:
             # Not available
             pass
         else:

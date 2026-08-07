@@ -16,7 +16,8 @@ import tempfile
 import threading
 import time
 import unittest
-from typing import Callable, Optional, Tuple, cast
+from collections.abc import Callable
+from typing import cast
 
 try:
     import ssl
@@ -37,7 +38,7 @@ except ImportError:
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -248,12 +249,12 @@ class TLSShellClient:
         fail: Callable[[str], None],
         client_cert: str,
         client_key: str,
-        ca_chain: Optional[str] = None,
+        ca_chain: str | None = None,
     ) -> None:
         """
         Sets up the client
         """
-        self._socket: Optional[ssl.SSLSocket] = None
+        self._socket: ssl.SSLSocket | None = None
         self._ca_chain = ca_chain
         self._cert = client_cert
         self._key = client_key
@@ -261,7 +262,7 @@ class TLSShellClient:
         self.fail = fail
         self.__wait_prompt = True
 
-    def connect(self, access: Tuple[str, int], server_hostname: Optional[str] = None) -> None:
+    def connect(self, access: tuple[str, int], server_hostname: str | None = None) -> None:
         """
         Connects to the remote shell
         """
@@ -332,7 +333,7 @@ class TLSShellClient:
 
         return data
 
-    def run_command(self, command: str, disconnect: bool = False) -> Optional[str]:
+    def run_command(self, command: str, disconnect: bool = False) -> str | None:
         """
         Runs a command on the remote shell
         """
@@ -387,10 +388,10 @@ else:
             # Get shell PS1 (static method)
             import pelix.shell.core
 
-            ps1 = pelix.shell.core._ShellService.get_ps1()
+            ps1 = pelix.shell.core._ShellService.PS1
 
             # Start the remote shell process
-            port = 9000
+            port = 9001
             args = [sys.executable, "-m"]
             if has_coverage:
                 args += ["coverage", "run", "-m"]
@@ -521,7 +522,7 @@ class TLSRemoteShellTest(unittest.TestCase):
                     "remoteShell",
                     {
                         "pelix.shell.address": "127.0.0.1",
-                        "pelix.shell.port": 9000,
+                        "pelix.shell.port": 9001,
                         "pelix.shell.ssl.ca": ca_chain,
                         "pelix.shell.ssl.cert": srv_cert,
                         "pelix.shell.ssl.key": srv_key,
@@ -535,7 +536,7 @@ class TLSRemoteShellTest(unittest.TestCase):
         # Create a client
         client = TLSShellClient(self.shell.get_ps1(), self.fail, client_cert, client_key, ca_chain)
         try:
-            client.connect(self.remote.get_access())
+            client.connect(self.remote.get_access())  # type: ignore
 
             # Test a command
             test_str = "toto"
@@ -566,7 +567,7 @@ class TLSRemoteShellTest(unittest.TestCase):
                     "remoteShell",
                     {
                         "pelix.shell.address": "127.0.0.1",
-                        "pelix.shell.port": 9000,
+                        "pelix.shell.port": 9001,
                         "pelix.shell.ssl.ca": ca_chain,
                         "pelix.shell.ssl.cert": srv_cert,
                         "pelix.shell.ssl.key": srv_key,
@@ -603,7 +604,7 @@ class TLSRemoteShellTest(unittest.TestCase):
                     "remoteShell",
                     {
                         "pelix.shell.address": "127.0.0.1",
-                        "pelix.shell.port": 9000,
+                        "pelix.shell.port": 9001,
                         "pelix.shell.ssl.ca": ca_chain,
                         "pelix.shell.ssl.cert": srv_cert,
                         "pelix.shell.ssl.key": srv_key,
@@ -615,11 +616,11 @@ class TLSRemoteShellTest(unittest.TestCase):
         # Create a client
         client = TLSShellClient(self.shell.get_ps1(), self.fail, client_cert, client_key, ca_chain)
         try:
-            client.connect(self.remote.get_access())
+            client.connect(self.remote.get_access())  # type: ignore
 
             # Test a command
             test_str = "toto"
-            remote_output = client.run_command("echo {0}".format(test_str))
+            remote_output = client.run_command(f"echo {test_str}")
             self.assertEqual(remote_output, test_str)
         finally:
             # Close the client in any case

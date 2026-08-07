@@ -43,5 +43,3 @@ class Py4jHelloImpl(HelloImpl):
 
     See samples.rsa.helloimpl module.
     """
-
-    pass

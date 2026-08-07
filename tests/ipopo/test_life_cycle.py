@@ -8,16 +8,15 @@ Tests the component life cycle
 
 import unittest
 
-import pelix.ipopo.constants as constants
-import pelix.ipopo.decorators as decorators
 from pelix.framework import FrameworkFactory
+from pelix.ipopo import constants, decorators
 from pelix.ipopo.constants import IPopoEvent
 from pelix.ipopo.instance import StoredInstance
 from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 NAME_A = "componentA"
@@ -60,7 +59,7 @@ class LifeCycleTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
             compoA.states,
-            "Invalid component states: {0}".format(compoA.states),
+            f"Invalid component states: {compoA.states}",
         )
         compoA.reset()
 
@@ -70,7 +69,7 @@ class LifeCycleTest(unittest.TestCase):
         # Invalidate the component
         self.ipopo.invalidate(NAME_A)
         self.assertEqual(
-            [IPopoEvent.INVALIDATED], compoA.states, "Invalid component states: {0}".format(compoA.states)
+            [IPopoEvent.INVALIDATED], compoA.states, f"Invalid component states: {compoA.states}"
         )
         compoA.reset()
 
@@ -81,7 +80,7 @@ class LifeCycleTest(unittest.TestCase):
         self.ipopo.kill(NAME_A)
 
         # No event
-        self.assertEqual([], compoA.states, "Invalid component states: {0}".format(compoA.states))
+        self.assertEqual([], compoA.states, f"Invalid component states: {compoA.states}")
 
         # Assert it has been removed of the registry
         self.assertFalse(self.ipopo.is_registered_instance(NAME_A), "Instance is still in the registry")
@@ -98,7 +97,7 @@ class LifeCycleTest(unittest.TestCase):
         self.assertEqual(
             [IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
             compoA.states,
-            "Invalid component states: {0}".format(compoA.states),
+            f"Invalid component states: {compoA.states}",
         )
         compoA.reset()
 
@@ -108,7 +107,7 @@ class LifeCycleTest(unittest.TestCase):
         # Kill the component without invalidating it
         self.ipopo.kill(NAME_A)
         self.assertEqual(
-            [IPopoEvent.INVALIDATED], compoA.states, "Invalid component states: {0}".format(compoA.states)
+            [IPopoEvent.INVALIDATED], compoA.states, f"Invalid component states: {compoA.states}"
         )
         compoA.reset()
 
@@ -144,6 +143,7 @@ class LifeCycleTest(unittest.TestCase):
 
         # Update its bundle
         bundle = self.framework.get_bundle_by_name("tests.ipopo.ipopo_bundle")
+        assert bundle is not None, "Bundle not found"
         bundle.update()
 
         # Assert the auto-restart component is still in the registry
@@ -166,7 +166,7 @@ class LifeCycleTest(unittest.TestCase):
         name_b = "singleton.B"
 
         @decorators.SingletonFactory(factory_name)
-        class Singleton(object):
+        class Singleton:
             pass
 
         # Register factory

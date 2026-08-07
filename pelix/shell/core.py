@@ -8,7 +8,7 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -31,15 +31,15 @@ import logging
 import os
 import sys
 import threading
+from collections.abc import Iterable
 from types import FrameType
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any
 
-import pelix.constants as constants
-import pelix.shell.parser as parser
+from pelix import constants
 from pelix.framework import Bundle, BundleContext
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceListener, ServiceReference, ServiceRegistration
-from pelix.shell import ShellCommandsProvider, ShellService, ShellUtils
+from pelix.shell import ShellCommandsProvider, ShellService, ShellUtils, parser
 from pelix.shell.completion import BUNDLE, SERVICE
 from pelix.shell.completion.decorators import Completion
 from pelix.shell.report import format_frame_info
@@ -53,7 +53,7 @@ if TYPE_CHECKING:
 __all__ = ()
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -84,7 +84,7 @@ class _ShellUtils(ShellUtils):
         return states.get(state, f"Unknown state ({state})")
 
     @staticmethod
-    def make_table(headers: Iterable[str], lines: Iterable[Any], prefix: Optional[str] = None) -> str:
+    def make_table(headers: Iterable[str], lines: Iterable[Any], prefix: str | None = None) -> str:
         """
         Generates an ASCII table according to the given headers and lines
 
@@ -107,7 +107,7 @@ class _ShellUtils(ShellUtils):
         str_lines = []
         for idx, line in enumerate(lines):
             # Recompute lengths
-            str_line: List[str] = []
+            str_line: list[str] = []
             str_lines.append(str_line)
             column = -1
 
@@ -116,12 +116,11 @@ class _ShellUtils(ShellUtils):
                     str_entry = str(entry)
                     str_line.append(str_entry)
 
-                    if len(str_entry) > lengths[column]:
-                        lengths[column] = len(str_entry)
+                    lengths[column] = max(lengths[column], len(str_entry))
 
             except IndexError:
                 # Line too small/big
-                raise ValueError("Different sizes for header and lines (line {0})".format(idx + 1))
+                raise ValueError(f"Different sizes for header and lines (line {idx + 1})")
 
             except (TypeError, AttributeError):
                 # Invalid type of line
@@ -130,12 +129,12 @@ class _ShellUtils(ShellUtils):
             else:
                 if column != nb_columns:
                     # Check if all lines have the same number of columns
-                    raise ValueError("Different sizes for header and lines (line {0})".format(idx + 1))
+                    raise ValueError(f"Different sizes for header and lines (line {idx + 1})")
 
         # Prepare the head (centered text)
         format_str = f"{prefix}|"
         for column, length in enumerate(lengths):
-            format_str += " {%d:^%d} |" % (column, length)
+            format_str += f" {{{column}:^{length}}} |"
 
         head_str = format_str.format(*headers)
 
@@ -171,24 +170,26 @@ class _ShellService(parser.Shell, ShellService):
     Provides the core shell service for Pelix
     """
 
+    BANNER = "** Pelix Shell prompt **\n"
+
     def __init__(self, context: BundleContext, utilities: _ShellUtils) -> None:
         """
         Sets up the shell
 
         :param context: The bundle context
         """
-        super(_ShellService, self).__init__(context.get_framework(), __name__)
+        super().__init__(context.get_framework(), __name__)
         self._context = context
         self._utils = utilities
 
         # Bound services: reference -> service
-        self._bound_references: Dict[ServiceReference[ShellCommandsProvider], ShellCommandsProvider] = {}
+        self._bound_references: dict[ServiceReference[ShellCommandsProvider], ShellCommandsProvider] = {}
 
         # Service reference -> (name space, [commands])
-        self._reference_commands: Dict[ServiceReference[ShellCommandsProvider], Tuple[str, List[str]]] = {}
+        self._reference_commands: dict[ServiceReference[ShellCommandsProvider], tuple[str, list[str]]] = {}
 
         # Last working directory
-        self._previous_path: Optional[str] = None
+        self._previous_path: str | None = None
 
         # Register basic commands
         self.register_command(None, "bd", self.bundle_details)
@@ -234,7 +235,7 @@ class _ShellService(parser.Shell, ShellService):
 
         # Get its name space
         namespace = handler.get_namespace()
-        commands: List[str] = []
+        commands: list[str] = []
 
         # Register all service methods directly
         for command, method in handler.get_methods():
@@ -269,12 +270,11 @@ class _ShellService(parser.Shell, ShellService):
         del self._reference_commands[svc_ref]
         return True
 
-    @staticmethod
-    def get_banner() -> str:
+    def get_banner(self) -> str:
         """
         Returns the Shell banner
         """
-        return "** Pelix Shell prompt **\n"
+        return self.BANNER
 
     def var_set(self, session: "ShellSession", **kwargs: Any) -> Any:
         """
@@ -289,7 +289,7 @@ class _ShellService(parser.Shell, ShellService):
                 session.write_line("{0}={1}", name, value)
 
     @Completion(BUNDLE)
-    def bundle_details(self, session: "ShellSession", bundle_id: Union[int, str]) -> Any:
+    def bundle_details(self, session: "ShellSession", bundle_id: int | str) -> Any:
         """
         Prints the details of the bundle with the given ID or name
         """
@@ -353,7 +353,7 @@ class _ShellService(parser.Shell, ShellService):
         session.write("\n".join(lines))
         return None
 
-    def bundles_list(self, session: "ShellSession", name: Optional[str] = None) -> Any:
+    def bundles_list(self, session: "ShellSession", name: str | None = None) -> Any:
         """
         Lists the bundles in the framework and their state. Possibility to
         filter on the bundle name.
@@ -398,7 +398,7 @@ class _ShellService(parser.Shell, ShellService):
         """
         Prints the details of the service with the given ID
         """
-        svc_ref: Optional[ServiceReference[Any]] = self._context.get_service_reference(
+        svc_ref: ServiceReference[Any] | None = self._context.get_service_reference(
             None, f"({constants.SERVICE_ID}={service_id})"
         )
         if svc_ref is None:
@@ -423,7 +423,7 @@ class _ShellService(parser.Shell, ShellService):
         session.write("\n".join(lines))
         return None
 
-    def services_list(self, session: "ShellSession", specification: Optional[str] = None) -> Any:
+    def services_list(self, session: "ShellSession", specification: str | None = None) -> Any:
         """
         Lists the services in the framework. Possibility to filter on an exact
         specification.
@@ -432,7 +432,7 @@ class _ShellService(parser.Shell, ShellService):
         headers = ("ID", "Specifications", "Bundle", "Ranking")
 
         # Lines
-        references: List[ServiceReference[Any]] = (
+        references: list[ServiceReference[Any]] = (
             self._context.get_all_service_references(specification, None) or []
         )
 
@@ -515,7 +515,7 @@ class _ShellService(parser.Shell, ShellService):
         session.write_line(os.getenv(name))
 
     @staticmethod
-    def threads_list(session: "ShellSession", max_depth: Optional[int] = 1) -> Any:
+    def threads_list(session: "ShellSession", max_depth: int | None = 1) -> Any:
         """
         Lists the active threads and their current code line
         """
@@ -533,7 +533,7 @@ class _ShellService(parser.Shell, ShellService):
             frames = sys._current_frames()
 
             # Get the thread ID -> Thread mapping
-            names = getattr(threading, "_active").copy()
+            names = threading._active.copy()  # type: ignore
         except AttributeError:
             session.write_line("sys._current_frames() is not available.")
             return
@@ -557,7 +557,7 @@ class _ShellService(parser.Shell, ShellService):
 
             trace_lines = []
             depth = 0
-            frame: Optional[FrameType] = stack
+            frame: FrameType | None = stack
             while frame is not None and (max_depth is None or depth < max_depth):
                 # Store the line information
                 trace_lines.append(format_frame_info(frame))
@@ -579,9 +579,7 @@ class _ShellService(parser.Shell, ShellService):
         session.write("\n".join(lines))
 
     @staticmethod
-    def thread_details(
-        session: "ShellSession", thread_id: Union[str, int], max_depth: Optional[int] = 0
-    ) -> Any:
+    def thread_details(session: "ShellSession", thread_id: str | int, max_depth: int | None = 0) -> Any:
         """
         Prints details about the thread with the given ID (not its name)
         """
@@ -607,8 +605,8 @@ class _ShellService(parser.Shell, ShellService):
         else:
             # Get the name
             try:
-                name = getattr(threading, "_active")[thread_id].name
-            except KeyError:
+                name = threading._active[thread_id].name  # type: ignore
+            except (AttributeError, KeyError):
                 name = "<unknown>"
 
             lines = [
@@ -618,7 +616,7 @@ class _ShellService(parser.Shell, ShellService):
 
             trace_lines = []
             depth = 0
-            frame: Optional[FrameType] = stack
+            frame: FrameType | None = stack
             while frame is not None and (max_depth is None or depth < max_depth):
                 # Store the line information
                 trace_lines.append(format_frame_info(frame))
@@ -637,7 +635,7 @@ class _ShellService(parser.Shell, ShellService):
             session.write("\n".join(lines))
 
     @staticmethod
-    def log_level(session: "ShellSession", level: Optional[str] = None, name: Optional[str] = None) -> None:
+    def log_level(session: "ShellSession", level: str | None = None, name: str | None = None) -> None:
         """
         Prints/Changes log level
         """
@@ -675,7 +673,7 @@ class _ShellService(parser.Shell, ShellService):
         try:
             previous = os.getcwd()
             os.chdir(path)
-        except IOError as ex:
+        except OSError as ex:
             # Can't change directory
             session.write_line(f"Error changing directory: {ex}")
         else:
@@ -692,7 +690,7 @@ class _ShellService(parser.Shell, ShellService):
         session.write_line(pwd)
         return pwd
 
-    def __get_bundle(self, session: "ShellSession", bundle_id: Union[int, str]) -> Optional[Bundle]:
+    def __get_bundle(self, session: "ShellSession", bundle_id: int | str) -> Bundle | None:
         """
         Retrieves the Bundle object with the given bundle ID. Writes errors
         through the I/O handler if any.
@@ -713,9 +711,7 @@ class _ShellService(parser.Shell, ShellService):
         return None
 
     @Completion(BUNDLE, multiple=True)
-    def start(
-        self, session: "ShellSession", bundle_id: Union[int, str], *bundles_ids: Union[int, str]
-    ) -> Any:
+    def start(self, session: "ShellSession", bundle_id: int | str, *bundles_ids: int | str) -> Any:
         """
         Starts the bundles with the given IDs. Stops on first failure.
         """
@@ -741,7 +737,7 @@ class _ShellService(parser.Shell, ShellService):
         return None
 
     @Completion(BUNDLE, multiple=True)
-    def stop(self, session: "ShellSession", bundle_id: Union[int, str], *bundles_ids: Union[int, str]) -> Any:
+    def stop(self, session: "ShellSession", bundle_id: int | str, *bundles_ids: int | str) -> Any:
         """
         Stops the bundles with the given IDs. Stops on first failure.
         """
@@ -760,9 +756,7 @@ class _ShellService(parser.Shell, ShellService):
         return None
 
     @Completion(BUNDLE, multiple=True)
-    def update(
-        self, session: "ShellSession", bundle_id: Union[int, str], *bundles_ids: Union[int, str]
-    ) -> Any:
+    def update(self, session: "ShellSession", bundle_id: int | str, *bundles_ids: int | str) -> Any:
         """
         Updates the bundles with the given IDs. Stops on first failure.
         """
@@ -789,9 +783,7 @@ class _ShellService(parser.Shell, ShellService):
         return bundle.get_bundle_id()
 
     @Completion(BUNDLE, multiple=True)
-    def uninstall(
-        self, session: "ShellSession", bundle_id: Union[int, str], *bundles_ids: Union[int, str]
-    ) -> Any:
+    def uninstall(self, session: "ShellSession", bundle_id: int | str, *bundles_ids: int | str) -> Any:
         """
         Uninstalls the bundles with the given IDs. Stops on first failure.
         """
@@ -823,9 +815,9 @@ class Activator(constants.ActivatorProto, ServiceListener):
         """
         Sets up the activator
         """
-        self._shell: Optional[_ShellService] = None
-        self._shell_reg: Optional[ServiceRegistration[ShellService]] = None
-        self._utils_reg: Optional[ServiceRegistration[ShellUtils]] = None
+        self._shell: _ShellService | None = None
+        self._shell_reg: ServiceRegistration[ShellService] | None = None
+        self._utils_reg: ServiceRegistration[ShellUtils] | None = None
         self._logger = logging.getLogger(__name__)
 
     def service_changed(self, event: ServiceEvent[ShellCommandsProvider]) -> None:
@@ -868,8 +860,8 @@ class Activator(constants.ActivatorProto, ServiceListener):
 
             self._logger.info("Shell services registered")
 
-        except constants.BundleException as ex:
-            self._logger.exception("Error registering the shell service: %s", ex)
+        except constants.BundleException:
+            self._logger.exception("Error registering the shell service")
 
     def stop(self, context: BundleContext) -> None:
         """

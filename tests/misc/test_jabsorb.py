@@ -10,11 +10,11 @@ import unittest
 import uuid
 from typing import Any
 
-import pelix.misc.jabsorb as jabsorb
+from pelix.misc import jabsorb
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -47,10 +47,10 @@ class JabsorbConverterTest(unittest.TestCase):
             list,
             [4, 5, 6],
         ):
-            self.assertTrue(jabsorb._is_builtin(item), "Item {0} should be built-in".format(item))
+            self.assertTrue(jabsorb._is_builtin(item), f"Item {item} should be built-in")
 
         for item in (unittest.TestCase, jabsorb, jabsorb.to_jabsorb):
-            self.assertFalse(jabsorb._is_builtin(item), "Item {0} should not be built-in".format(item))
+            self.assertFalse(jabsorb._is_builtin(item), f"Item {item} should not be built-in")
 
     def testMirror(self) -> None:
         """
@@ -119,10 +119,10 @@ class JabsorbConverterTest(unittest.TestCase):
             def __init__(self) -> None:
                 self.list = jabsorb.to_jabsorb([1, 2, 3])
                 self.tuple = jabsorb.to_jabsorb((1, 2, 3))
-                self.set = jabsorb.to_jabsorb(set((1, 2, 3)))
+                self.set = jabsorb.to_jabsorb({1, 2, 3})
 
-            def __eq__(self, other: Any) -> Any:
-                return self.list == other.list and self.tuple == other.tuple and self.set == other.set
+            def __eq__(self, other: object) -> Any:
+                return self.list == other.list and self.tuple == other.tuple and self.set == other.set  # type: ignore
 
         # Prepare the bean
         bean = Bean()

@@ -6,7 +6,7 @@ Defines the shell completion handlers for Pelix concepts
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 :status: Alpha
 
 ..
@@ -26,7 +26,8 @@ Defines the shell completion handlers for Pelix concepts
     limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Any, List, Optional
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from pelix.constants import SERVICE_ID, ActivatorProto, BundleActivator
 from pelix.internals.registry import ServiceReference
@@ -37,7 +38,7 @@ from .core import AbstractCompleter
 try:
     import readline
 except ImportError:
-    pass
+    readline = None  # ty: ignore[invalid-assignment]
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
@@ -48,7 +49,7 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -67,7 +68,7 @@ class BundleCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        matches: List[str],
+        matches: Sequence[str],
         longest_match_len: int,
     ) -> None:
         """
@@ -104,9 +105,9 @@ class BundleCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        current_arguments: List[str],
+        current_arguments: list[str],
         current: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Returns the list of bundle IDs matching the current state
 
@@ -142,7 +143,7 @@ class ServiceCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        matches: List[str],
+        matches: Sequence[str],
         longest_match_len: int,
     ) -> None:
         """
@@ -164,7 +165,7 @@ class ServiceCompleter(AbstractCompleter):
             # Print the match and the associated name
             session.write_line()
             for svc_id in matching_ids:
-                svc_ref: Optional[ServiceReference[Any]] = context.get_service_reference(
+                svc_ref: ServiceReference[Any] | None = context.get_service_reference(
                     None, f"({SERVICE_ID}={svc_id})"
                 )
                 session.write_line(match_pattern, svc_id, str(svc_ref))
@@ -173,7 +174,7 @@ class ServiceCompleter(AbstractCompleter):
             session.write(prompt)
             session.write_line_no_feed(readline.get_line_buffer())  # type: ignore
             readline.redisplay()  # type: ignore
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             session.write_line("\n{}\n\n", ex)
 
     def complete(
@@ -182,9 +183,9 @@ class ServiceCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        current_arguments: List[str],
+        current_arguments: list[str],
         current: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Returns the list of services IDs matching the current state
 
@@ -201,8 +202,8 @@ class ServiceCompleter(AbstractCompleter):
 
         # Return a list of bundle IDs (strings) matching the current value
         # and not yet in arguments
-        rl_matches: List[str] = []
-        svc_refs: Optional[List[ServiceReference[Any]]] = context.get_all_service_references(None, None)
+        rl_matches: list[str] = []
+        svc_refs: list[ServiceReference[Any]] | None = context.get_all_service_references(None, None)
         if svc_refs:
             for svc_ref in svc_refs:
                 svc_id = f"{svc_ref.get_property(SERVICE_ID)} "
@@ -226,7 +227,7 @@ class Activator(ActivatorProto):
     """
 
     def __init__(self) -> None:
-        self._registrations: List["ServiceRegistration[Completer]"] = []
+        self._registrations: list[ServiceRegistration[Completer]] = []
 
     def start(self, context: "BundleContext") -> None:
         """
@@ -244,7 +245,7 @@ class Activator(ActivatorProto):
             for completer_id, completer_class in COMPLETERS.items()
         ]
 
-    def stop(self, _: "BundleContext") -> None:
+    def stop(self, context: "BundleContext") -> None:
         """
         Bundle stopping
         """

@@ -4,7 +4,7 @@
 Module defining the types used in the Spell Checker
 """
 
-from typing import List, Protocol
+from typing import Protocol
 
 from pelix.constants import Specification
 
@@ -32,7 +32,7 @@ class SpellChecker(Protocol):
     Definition of the spell checker service
     """
 
-    def check(self, passage: str, language: str = "EN") -> List[str] | None:
+    def check(self, passage: str, language: str = "EN") -> list[str] | None:
         """
         Checks the given passage for misspelled words.
 

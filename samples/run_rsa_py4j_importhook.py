@@ -80,17 +80,17 @@ def main() -> None:
     )
     print("There are instructions for running an instance of this server in the RSA importhook tutorial at")
     print("https://ipopo.readthedocs.io/en/v3/tutorials/index.html")
-    print("")
+    print()
     print("...importing Bar class from foo.bar.baz package")
-    print("")
-    from foo.bar.baz import Bar
+    print()
+    from foo.bar.baz import Bar  # type: ignore
 
-    print("")
+    print()
     print("...Bar class imported")
     print("...creating an instance of Bar...")
-    print("")
-    b = Bar()
-    print("")
+    print()
+    _ = Bar()
+    print()
     print(
         "...Bar instance created.  The print output between the lines starting with '...' is from foo package code"
     )

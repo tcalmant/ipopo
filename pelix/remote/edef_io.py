@@ -28,9 +28,10 @@ specifications, section 122.8.
     limitations under the License.
 """
 
-import xml.etree.ElementTree as ElementTree
+from collections.abc import Iterable
 from io import StringIO
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any
+from xml.etree import ElementTree
 
 import pelix.constants
 import pelix.remote
@@ -52,14 +53,14 @@ __docformat__ = "restructuredtext en"
 EDEF_NAMESPACE = "http://www.osgi.org/xmlns/rsa/v1.0.0"
 
 # EDEF tags
-TAG_ENDPOINT_DESCRIPTIONS = "{{{0}}}endpoint-descriptions".format(EDEF_NAMESPACE)
-TAG_ENDPOINT_DESCRIPTION = "{{{0}}}endpoint-description".format(EDEF_NAMESPACE)
-TAG_PROPERTY = "{{{0}}}property".format(EDEF_NAMESPACE)
-TAG_ARRAY = "{{{0}}}array".format(EDEF_NAMESPACE)
-TAG_LIST = "{{{0}}}list".format(EDEF_NAMESPACE)
-TAG_SET = "{{{0}}}set".format(EDEF_NAMESPACE)
-TAG_XML = "{{{0}}}xml".format(EDEF_NAMESPACE)
-TAG_VALUE = "{{{0}}}value".format(EDEF_NAMESPACE)
+TAG_ENDPOINT_DESCRIPTIONS = f"{{{EDEF_NAMESPACE}}}endpoint-descriptions"
+TAG_ENDPOINT_DESCRIPTION = f"{{{EDEF_NAMESPACE}}}endpoint-description"
+TAG_PROPERTY = f"{{{EDEF_NAMESPACE}}}property"
+TAG_ARRAY = f"{{{EDEF_NAMESPACE}}}array"
+TAG_LIST = f"{{{EDEF_NAMESPACE}}}list"
+TAG_SET = f"{{{EDEF_NAMESPACE}}}set"
+TAG_XML = f"{{{EDEF_NAMESPACE}}}xml"
+TAG_VALUE = f"{{{EDEF_NAMESPACE}}}value"
 
 # Property attributes
 ATTR_NAME = "name"
@@ -111,7 +112,7 @@ class EDEFReader:
     """
 
     @staticmethod
-    def _convert_value(vtype: str, value: Optional[str]) -> Any:
+    def _convert_value(vtype: str, value: str | None) -> Any:
         """
         Converts the given value string according to the given type
 
@@ -151,14 +152,14 @@ class EDEFReader:
         :raise KeyError: Attribute missing
         :raise ValueError: Invalid description
         """
-        endpoint: Dict[str, Any] = {}
+        endpoint: dict[str, Any] = {}
         for prop_node in node.findall(TAG_PROPERTY):
             name, value = self._parse_property(prop_node)
             endpoint[name] = value
 
         return EndpointDescription(None, endpoint)
 
-    def _parse_property(self, node: ElementTree.Element) -> Tuple[str, Any]:
+    def _parse_property(self, node: ElementTree.Element) -> tuple[str, Any]:
         """
         Parses a property node
 
@@ -202,12 +203,12 @@ class EDEFReader:
             )
         elif kind == TAG_SET:
             # Set
-            return set(self._convert_value(vtype, value_node.text) for value_node in node.findall(TAG_VALUE))
+            return {self._convert_value(vtype, value_node.text) for value_node in node.findall(TAG_VALUE)}
         else:
             # Unknown
             raise ValueError(f"Unknown value tag: {kind}")
 
-    def parse(self, xml_str: Union[str, bytes, bytearray]) -> List[EndpointDescription]:
+    def parse(self, xml_str: str | bytes | bytearray) -> list[EndpointDescription]:
         """
         Parses an EDEF XML string
 
@@ -256,7 +257,7 @@ class EDEFWriter:
 
             # Yep, let the "element" variable be overwritten
             # pylint: disable=R1704
-            for element in element:
+            for element in element:  # noqa: B020, PLR1704
                 self._indent(element, level + 1, prefix)
 
             # Tail of the last child

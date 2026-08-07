@@ -9,10 +9,11 @@ Pelix basic HTTP service test module.
 import http.client as httplib
 import logging
 import shutil
+import sys
 import unittest
-from typing import Any, Dict, Optional
+from typing import Any
 
-import pelix.http as http
+from pelix import http
 from pelix.framework import Framework, FrameworkFactory
 from pelix.ipopo.constants import IPopoService
 from tests.http.gen_cert import make_certs
@@ -32,7 +33,7 @@ except ImportError:
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 DEFAULT_HOST = "localhost"
@@ -48,7 +49,7 @@ def get_https_code(
     port: int = DEFAULT_PORT,
     uri: str = "/",
     method: str = "GET",
-    headers: Optional[Dict[str, Any]] = None,
+    headers: dict[str, Any] | None = None,
     content: Any = None,
 ) -> int:
     """
@@ -157,7 +158,7 @@ class BasicHTTPSTest(unittest.TestCase):
         try:
             kill_server(self.ipopo, self.instance_name)
         except:
-            logging.exception("Error while killing the server component")
+            print("Error while killing the server component", file=sys.stderr)
             raise
 
     def testSimpleCertificate(self) -> None:

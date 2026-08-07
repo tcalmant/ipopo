@@ -25,16 +25,14 @@ from urllib.request import urlopen
 from pelix.framework import create_framework
 from pelix.internals.registry import ServiceReference
 
-try:
-    assert importlib.util.find_spec("osgiservicebridge") is not None
-except Exception:
+if importlib.util.find_spec("osgiservicebridge") is None:
     raise unittest.SkipTest("OSGi Service Bridge not available")
 
 # ------------------------------------------------------------------------------
 
 KARAF_URL = "https://archive.apache.org/dist/karaf/4.4.11/apache-karaf-4.4.11.tar.gz"
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -88,7 +86,7 @@ def install_karaf(folder_str: str | None = None) -> pathlib.Path:
                     for member in tar.getmembers():
                         member_path = os.path.join(path, member.name)
                         if not is_within_directory(path, member_path):
-                            raise Exception("Attempted Path Traversal in Tar File")
+                            raise OSError("Attempted Path Traversal in Tar File")
 
                     # Filter out examples: paths are too long for Windows
                     filtered_members = (m for m in members or tar.getmembers() if "examples" not in m.path)
@@ -223,13 +221,9 @@ def use_karaf() -> Generator[subprocess.Popen, None, None]:
         if match:
             major_version = int(match.group("version"))
             if major_version < 11:
-                raise unittest.SkipTest(
-                    f"Java version is too old ({major_version}), need at least Java 11"
-                )
+                raise unittest.SkipTest(f"Java version is too old ({major_version}), need at least Java 11")
             elif major_version > 21:
-                raise unittest.SkipTest(
-                    f"Java version is too new ({major_version}), need at most Java 21"
-                )
+                raise unittest.SkipTest(f"Java version is too new ({major_version}), need at most Java 21")
         else:
             raise unittest.SkipTest("Can't determine Java version")
     except OSError:
@@ -271,7 +265,7 @@ def use_karaf() -> Generator[subprocess.Popen, None, None]:
             try:
                 # Exit Karaf
                 karaf.stdin.write(b"logout\n")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print("Error while exiting Karaf:", e)
 
 

@@ -7,11 +7,11 @@ Test bundle for the log service
 """
 
 from pelix.ipopo.decorators import ComponentFactory, Requires
-from pelix.misc import LOG_SERVICE
+from pelix.misc import LOG_SERVICE, LogService
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 SIMPLE_FACTORY = "log.test.simple"
@@ -22,10 +22,12 @@ SIMPLE_FACTORY = "log.test.simple"
 
 @ComponentFactory(SIMPLE_FACTORY)
 @Requires("logger", LOG_SERVICE)
-class LoggerComponent(object):
+class LoggerComponent:
     """
     Dummy instantiated component
     """
+
+    logger: LogService
 
     def log(self, level, message):
         """

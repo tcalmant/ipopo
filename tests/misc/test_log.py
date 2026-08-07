@@ -18,7 +18,7 @@ from pelix.misc.log import LOG_DEBUG, LOG_ERROR, LOG_INFO, LOG_WARNING
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -111,7 +111,7 @@ class LogServiceTest(unittest.TestCase):
         Tests if logs made with the logging are handled
         """
         # Debug logs aren't taken into account
-        logging.debug("Some log message at %s", logging.getLevelName(logging.DEBUG))
+        logging.debug("Some log message at %s", logging.getLevelName(logging.DEBUG))  # noqa: LOG015
         self.assertListEqual(list(self.reader.get_log()), [], "Debug message logged")
 
         # Try to log at various log levels
@@ -123,7 +123,7 @@ class LogServiceTest(unittest.TestCase):
             (logging.CRITICAL, LOG_ERROR),
         ):
             # Log at the expected level
-            logging.log(level, "Some log message at %s", logging.getLevelName(level))
+            logging.log(level, "Some log message at %s", logging.getLevelName(level))  # noqa: LOG015
 
             # Get new logs
             new_logs = self.reader.get_log()
@@ -136,7 +136,7 @@ class LogServiceTest(unittest.TestCase):
             # Check stored info
             self.assertEqual(latest.level, level, "Wrong log level")
             self.assertEqual(latest.osgi_level, osgi_level, "Wrong OSGi log level")
-            self.assertIn(logging.getLevelName(level), latest.message, "Wrong log message")
+            self.assertIn(logging.getLevelName(level), latest.message, "Wrong log message")  # type: ignore
             self.assertIsNone(latest.bundle, "Unexpected bundle info")
             self.assertIsNone(latest.exception, "Unexpected exception data")
             self.assertIsNone(latest.reference, "Unexpected reference data")
@@ -170,19 +170,19 @@ class LogServiceTest(unittest.TestCase):
                         pelix.misc.PROPERTY_LOG_LEVEL, logging.getLevelName(filter_level)
                     )
 
-                self.framework.get_bundle_by_name("pelix.misc.log").update()
+                self.framework.get_bundle_by_name("pelix.misc.log").update()  # type: ignore
                 self.logger = self._get_logger()
                 self.reader = self._get_reader()
 
                 # Log for each level
                 for level in (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR):
                     # Log something
-                    logging.log(level, "Some log at %s", logging.getLevelName(level))
+                    logging.log(level, "Some log at %s", logging.getLevelName(level))  # noqa: LOG015
 
                     try:
                         latest = self.reader.get_log()[-1]
                         if level >= filter_level:
-                            self.assertIn(logging.getLevelName(level), latest.message)
+                            self.assertIn(logging.getLevelName(level), latest.message)  # type: ignore
                     except IndexError:
                         if level >= filter_level:
                             self.fail("Missing a log matching the filter")
@@ -197,19 +197,19 @@ class LogServiceTest(unittest.TestCase):
             # Change the framework property and reload the log service
             self.framework.add_property(pelix.misc.PROPERTY_LOG_LEVEL, invalid)
 
-            self.framework.get_bundle_by_name("pelix.misc.log").update()
+            self.framework.get_bundle_by_name("pelix.misc.log").update()  # type: ignore
             self.logger = self._get_logger()
             self.reader = self._get_reader()
 
             # Log for each level
             for level in (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR):
                 # Log something
-                logging.log(level, "Some log at %s", logging.getLevelName(level))
+                logging.log(level, "Some log at %s", logging.getLevelName(level))  # noqa: LOG015
 
                 try:
                     latest = self.reader.get_log()[-1]
                     if level >= filter_level:
-                        self.assertIn(logging.getLevelName(level), latest.message)
+                        self.assertIn(logging.getLevelName(level), latest.message)  # type: ignore
                 except IndexError:
                     if level >= filter_level:
                         self.fail("Missing a log matching the filter")
@@ -232,7 +232,7 @@ class LogServiceTest(unittest.TestCase):
         self.reader.add_log_listener(listener)
 
         # Also, check with a null log listener
-        self.reader.add_log_listener(None)
+        self.reader.add_log_listener(None)  # type: ignore
 
         # Log something
         self.logger.log(logging.WARNING, "Some log")
@@ -257,7 +257,7 @@ class LogServiceTest(unittest.TestCase):
 
         # Nothing must happen if we unregister the listener twice
         self.reader.remove_log_listener(listener)
-        self.reader.remove_log_listener(None)
+        self.reader.remove_log_listener(None)  # type: ignore
 
     def test_bad_listener(self):
         """
@@ -316,7 +316,7 @@ class LogServiceTest(unittest.TestCase):
 
         # Log with wrong references
         for wrong_ref in (None, object(), svc_reg):
-            self.logger.log(logging.WARNING, "Some text", reference=wrong_ref)
+            self.logger.log(logging.WARNING, "Some text", reference=wrong_ref)  # type: ignore
 
             latest = self.reader.get_log()[-1]
             self.assertIsNone(latest.reference, "Non-None service reference")

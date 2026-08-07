@@ -6,7 +6,7 @@ Pelix OSGi-like services packages
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -25,15 +25,16 @@ Pelix OSGi-like services packages
     limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Protocol, Union
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, Protocol
 
 from pelix.constants import Specification
 
 if TYPE_CHECKING:
-    import pelix.ldapfilter as ldapfilter
+    from pelix import ldapfilter
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -65,7 +66,7 @@ class EventAdmin(Protocol):
     Definition of the event admin service
     """
 
-    def send(self, topic: str, properties: Optional[Dict[str, Any]] = None) -> None:
+    def send(self, topic: str, properties: dict[str, Any] | None = None) -> None:
         """
         Sends synchronously the given event
 
@@ -74,7 +75,7 @@ class EventAdmin(Protocol):
         """
         ...
 
-    def post(self, topic: str, properties: Optional[Dict[str, Any]] = None) -> None:
+    def post(self, topic: str, properties: dict[str, Any] | None = None) -> None:
         """
         Sends asynchronously the given event
 
@@ -90,7 +91,7 @@ class ServiceEventHandler(Protocol):
     Definition of a Service Event handler
     """
 
-    def handle_event(self, topic: str, properties: Dict[str, Any]) -> None:
+    def handle_event(self, topic: str, properties: dict[str, Any]) -> None:
         """
         An EventAdmin event has been received
         """
@@ -152,7 +153,7 @@ class Configuration(Protocol):
     Representation of a configuration
     """
 
-    def get_bundle_location(self) -> Optional[str]:
+    def get_bundle_location(self) -> str | None:
         """
         Get the bundle location.
         Returns the bundle location to which this configuration is bound,
@@ -162,7 +163,7 @@ class Configuration(Protocol):
         """
         ...
 
-    def set_bundle_location(self, location: Optional[str]) -> None:
+    def set_bundle_location(self, location: str | None) -> None:
         """
         Bind this Configuration object to the specified bundle location.
         If the location parameter is None then the Configuration object
@@ -176,7 +177,7 @@ class Configuration(Protocol):
         """
         ...
 
-    def get_factory_pid(self) -> Optional[str]:
+    def get_factory_pid(self) -> str | None:
         """
         For a factory configuration returns the PID of the corresponding
         Managed Service Factory, else returns None.
@@ -193,7 +194,7 @@ class Configuration(Protocol):
         """
         ...
 
-    def get_properties(self) -> Optional[Dict[str, Any]]:
+    def get_properties(self) -> dict[str, Any] | None:
         """
         Return the properties of this Configuration object.
         The Dictionary object returned is a private copy for the caller and may
@@ -227,7 +228,7 @@ class Configuration(Protocol):
         """
         ...
 
-    def update(self, properties: Optional[Dict[str, Any]] = None) -> None:
+    def update(self, properties: dict[str, Any] | None = None) -> None:
         """
         If called without properties, only notifies listeners
 
@@ -260,7 +261,7 @@ class Configuration(Protocol):
         """
         ...
 
-    def matches(self, ldap_filter: Optional["ldapfilter.LdapFilterOrCriteria"]) -> bool:
+    def matches(self, ldap_filter: "ldapfilter.LdapFilterOrCriteria | None") -> bool:
         """
         Tests if this configuration matches the given filter.
 
@@ -298,7 +299,7 @@ class IConfigurationAdmin(Protocol):
         ...
 
     def list_configurations(
-        self, ldap_filter: Union[None, str, "ldapfilter.LdapFilterOrCriteria"] = None
+        self, ldap_filter: "ldapfilter.LdapFilterOrCriteria | str | None" = None
     ) -> Iterable[Configuration]:
         """
         List the current Configuration objects which match the filter.
@@ -340,13 +341,13 @@ class IConfigurationAdminPersistence(Protocol):
         """
         ...
 
-    def load(self, pid: str) -> Dict[str, Any]:
+    def load(self, pid: str) -> dict[str, Any]:
         """
         Loads the configuration with the given PID
         """
         ...
 
-    def store(self, pid: str, properties: Dict[str, Any]) -> None:
+    def store(self, pid: str, properties: dict[str, Any]) -> None:
         """
         Stores the given configuration
         """
@@ -365,7 +366,7 @@ class IManagedService(Protocol):
     Specification of a service managed by configuration admin
     """
 
-    def updated(self, properties: Optional[Dict[str, Any]]) -> None:
+    def updated(self, properties: dict[str, Any] | None) -> None:
         """
         Service configuration updated
         """
@@ -384,7 +385,7 @@ class IManagedServiceFactory(Protocol):
         """
         ...
 
-    def updated(self, pid: str, properties: Optional[Dict[str, Any]]) -> None:
+    def updated(self, pid: str, properties: dict[str, Any] | None) -> None:
         """
         Service configuration updated
         """
@@ -481,7 +482,7 @@ class MqttConnectorFactory(Protocol):
     """
 
     def publish(
-        self, topic: str, payload: bytes, qos: int = 0, retain: bool = False, pid: Optional[str] = None
+        self, topic: str, payload: bytes, qos: int = 0, retain: bool = False, pid: str | None = None
     ) -> None:
         """
         Publishes an MQTT message

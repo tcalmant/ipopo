@@ -1,7 +1,8 @@
 import logging
 from _thread import RLock
+from collections.abc import Callable
 from threading import Thread
-from typing import Annotated, Any, Callable, List
+from typing import Annotated, Any
 
 from mcp.server.auth.provider import OAuthAuthorizationServerProvider
 from mcp.server.fastmcp.exceptions import InvalidSignature
@@ -74,7 +75,7 @@ class RemoteToolManager(ToolManager):
                 field_info,
             )
         arguments_model = create_model(
-            f"{param_desc.name}Arguments",
+            f"{param_desc.name}Arguments",  # type: ignore
             **dynamic_pydantic_model_params,
             __base__=ArgModelBase,
         )
@@ -141,8 +142,6 @@ class RemoteToolManager(ToolManager):
 # and remove_tools_from_service, which are methods that dynamically adds and remove
 # remote tools, implemented in Java as OSGi remote services
 class RemoteToolFastMCP(FastMCP):
-    _tool_descriptions: dict = {}
-
     def __init__(
         self,
         name: str | None = None,
@@ -153,6 +152,7 @@ class RemoteToolFastMCP(FastMCP):
         tools: list[Tool] | None = None,
         **settings: Any,
     ):
+        self._tool_descriptions = {}
         self.settings = Settings(**settings)
 
         self._mcp_server = MCPServer(
@@ -238,7 +238,7 @@ ARITHMETIC_TOOL_SERVICE_INTERFACE = "org.eclipse.ecf.examples.ai.mcp.toolservice
 @Property("_name", "remotetoolsfastmpcserver.name", "RemoteToolsFastMCPServer")
 @Property("_instructions", "remotetoolsfastmpcserver.instructions", "RemoteToolsFastMCPServer")
 class RemoteToolsFastMCPServer:
-    _tools_services: List[Any]
+    _tools_services: list[Any]
     _name: str | None = None
     _instructions: str | None = None
 
@@ -257,8 +257,10 @@ class RemoteToolsFastMCPServer:
 
     @Bind
     def _bind_tool_service(self, service_proxy: Any, service_reference: ServiceReference):
+        assert self._mcp is not None, "RemoteToolFastMCP instance not found"
         self._mcp.add_tools_from_service(service_proxy, ARITHMETIC_TOOL_SERVICE_INTERFACE)
 
     @Unbind
     def _unbind_tool_service(self, service_proxy: Any, service_reference: ServiceReference):
+        assert self._mcp is not None, "RemoteToolFastMCP instance not found"
         self._mcp.remove_tools_from_service(service_proxy, ARITHMETIC_TOOL_SERVICE_INTERFACE)

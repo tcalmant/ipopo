@@ -4,7 +4,7 @@
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -51,13 +51,13 @@ try:
             cov = coverage.Coverage(data_suffix=True)
             cov.start()
             try:
-                return Process._bootstrap(self, *args, **kwargs)
+                return Process._bootstrap(self, *args, **kwargs)  # type: ignore
             finally:
                 cov.stop()
                 cov.save()
 
 except ImportError:
-    WrappedProcess = Process
+    WrappedProcess = Process  # type: ignore
 
 
 def is_server_reachable(host: str, port: int, timeout: float = 1.0) -> bool:

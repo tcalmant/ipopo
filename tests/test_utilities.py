@@ -7,7 +7,7 @@ Tests the utility module
 """
 
 # Same version as the tested bundle
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -20,11 +20,11 @@ import random
 import threading
 import time
 import unittest
-from typing import Any, Dict, List
+from typing import Any
 
 import pelix.constants
 import pelix.framework
-import pelix.utilities as utilities
+from pelix import utilities
 from tests.interfaces import IEchoService
 
 # ------------------------------------------------------------------------------
@@ -51,14 +51,10 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         invalid = (None, "", 1234, object())
 
         for test in valid:
-            self.assertTrue(
-                utilities.is_lock(test), "Valid lock not detected: {0}".format(type(test).__name__)
-            )
+            self.assertTrue(utilities.is_lock(test), f"Valid lock not detected: {type(test).__name__}")
 
         for test in invalid:
-            self.assertFalse(
-                utilities.is_lock(test), "Invalid lock not detected: {0}".format(type(test).__name__)
-            )
+            self.assertFalse(utilities.is_lock(test), f"Invalid lock not detected: {type(test).__name__}")
 
     @utilities.SynchronizedClassMethod("lock")
     def testSynchronizedClassMethod(self) -> None:
@@ -75,7 +71,7 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         :param no_lock: If True, create the lock, else let the decorator do it
         """
         # Thread results: ID -> starting time
-        result: Dict[int, float] = {}
+        result: dict[int, float] = {}
 
         # Synchronization lock
         if no_lock:
@@ -124,7 +120,7 @@ class SynchronizationUtilitiesTest(unittest.TestCase):
         # (due to the lock)
         # (0.4 instead of 0.5: some systems are not that precise)
         self.assertGreaterEqual(
-            result[2], result[1] + 0.4, "Thread 2 started too soon (after {0}s)".format(result[2] - result[1])
+            result[2], result[1] + 0.4, f"Thread 2 started too soon (after {result[2] - result[1]}s)"
         )
 
         # .. Thread 2 must not have blocked the main thread
@@ -188,7 +184,7 @@ class UtilitiesTest(unittest.TestCase):
         value_2 = random.random()
 
         # Prepare the class members
-        class Dummy(object):
+        class Dummy:
             inside = utilities.read_only_property(value_1)
 
         Dummy.outside = utilities.read_only_property(value_2)  # type: ignore
@@ -226,7 +222,7 @@ class UtilitiesTest(unittest.TestCase):
         try:
             # Must not raise an exception
             utilities.remove_all_occurrences(None, 12)  # type: ignore
-        except:
+        except:  # noqa: E722
             self.fail("remove_all_occurrences(None) must not raise an exception")
 
         min_value = -1
@@ -234,7 +230,7 @@ class UtilitiesTest(unittest.TestCase):
 
         # Create a random list
         list_org = []
-        for i in range(0, random.randint(10, 20)):
+        for i in range(random.randint(10, 20)):
             list_org.append(random.randint(min_value, max_value))
 
         # Create a copy
@@ -263,7 +259,7 @@ class UtilitiesTest(unittest.TestCase):
         Tests the is_string() method
         """
         valid = ["", "aaa", str(42)]
-        invalid = [42, None, [], {}, tuple(), b"", b"aaa"]  # type: ignore
+        invalid = [42, None, [], {}, (), b"", b"aaa"]  # type: ignore
 
         for value in valid:
             self.assertTrue(utilities.is_string(value), f"'{value}' is a string")
@@ -275,7 +271,7 @@ class UtilitiesTest(unittest.TestCase):
         """
         Tests add/remove listener methods
         """
-        registry: List[Any] = []
+        registry: list[Any] = []
         values = (42, "test", (1, 2, 3))
 
         # None value
@@ -388,7 +384,7 @@ class UtilitiesTest(unittest.TestCase):
         # Check other types
         for value in ("hello", 123, {1: 2}, object()):
             self.assertListEqual(
-                utilities.to_iterable(value),
+                utilities.to_iterable(value),  # type: ignore
                 [value],
                 "to_iterable() didn't returned a list",  # type: ignore
             )
@@ -506,7 +502,7 @@ class EventDataTest(unittest.TestCase):
         # Check the behavior of "wait"
         try:
             event.wait()
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             self.assertIs(ex, exception, "Not the same exception")
             self.assertTrue(event.is_set(), "Event has been cleared")
         else:
@@ -547,7 +543,7 @@ class EventDataTest(unittest.TestCase):
         # Check the behavior of "wait"
         try:
             event.wait()
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             self.assertIs(ex, exception, "Not the same exception")
         else:
             self.fail("Exception not raised")
@@ -570,7 +566,7 @@ class MiscUtilitiesTest(unittest.TestCase):
         """
         Tests the remove_duplicates() method
         """
-        self.assertIsNone(utilities.remove_duplicates(None))
+        self.assertIsNone(utilities.remove_duplicates(None))  # type: ignore
         self.assertListEqual(utilities.remove_duplicates(["a", "b", "a", "c", "b"]), ["a", "b", "c"])
 
     def testStr2Bool(self) -> None:

@@ -6,6 +6,8 @@ Bundle defining multiple component factories for iPOPO tests
 :author: Thomas Calmant
 """
 
+from typing import Any
+
 from pelix.constants import OBJECTCLASS
 from pelix.ipopo.decorators import (
     Bind,
@@ -24,7 +26,7 @@ from pelix.ipopo.decorators import (
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 SVC_A = "service.a"
@@ -56,7 +58,7 @@ UNBIND_FIELD_B = "unbind.field.b"
 @ComponentFactory(FACTORY_A)
 @Provides(SVC_A)
 @Property("_prop", PROP_TEST)
-class TestComponentA(object):
+class TestComponentA:
     """
     Provider of service A
     """
@@ -91,7 +93,7 @@ class TestComponentA(object):
 @ComponentFactory(FACTORY_B)
 @Provides(SVC_B)
 @Property("_prop", PROP_TEST)
-class TestComponentB(object):
+class TestComponentB:
     """
     Provider of service B
     """
@@ -130,7 +132,7 @@ class TestComponentB(object):
 @ComponentFactory(FACTORY_C)
 @Requires("_svc_a", SVC_A)
 @Requires("_svc_b", SVC_B)
-class Consumer(object):
+class Consumer:
     """
     Sample consumer
     """
@@ -140,8 +142,8 @@ class Consumer(object):
         Constructor
         """
         self.states = []
-        self._svc_a = None
-        self._svc_b = None
+        self._svc_a: Any = None
+        self._svc_b: Any = None
 
     def change_a(self, value):
         """
@@ -239,7 +241,7 @@ class Consumer(object):
 @ComponentFactory(FACTORY_D)
 @Requires("_svc_a", SVC_A)
 @Requires("_svc_b", SVC_B, optional=True)
-class ConsumerBindIfValid(object):
+class ConsumerBindIfValid:
     """
     Sample consumer to test the "if_valid" flag
     """
@@ -249,8 +251,8 @@ class ConsumerBindIfValid(object):
         Constructor
         """
         self.states = []
-        self._svc_a = None
-        self._svc_b = None
+        self._svc_a: Any = None
+        self._svc_b: Any = None
 
     def change_b(self, value):
         """

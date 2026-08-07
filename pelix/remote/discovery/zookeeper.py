@@ -9,7 +9,7 @@ PyPI), and a ZooKeeper server.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -31,16 +31,17 @@ PyPI), and a ZooKeeper server.
 import logging
 import posixpath
 import socket
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 from kazoo.client import EventType, KazooClient, KazooState, WatchedEvent
 from kazoo.exceptions import KazooException, NodeExistsError
 
 import pelix.constants
 import pelix.remote
-import pelix.remote.beans as beans
 from pelix.framework import BundleContext
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
+from pelix.remote import beans
 from pelix.remote.edef_io import EDEFReader, EDEFWriter
 from pelix.threadpool import ThreadPool
 from pelix.utilities import to_bytes, to_str
@@ -48,7 +49,7 @@ from pelix.utilities import to_bytes, to_str
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -91,8 +92,8 @@ class ZooKeeperClient:
         self._queue = ThreadPool(1, 1, logname=log_name)
 
         # Callbacks
-        self.__on_first_connection: Optional[Callable[[], None]] = None
-        self.__on_client_reconnection: Optional[Callable[[], None]] = None
+        self.__on_first_connection: Callable[[], None] | None = None
+        self.__on_client_reconnection: Callable[[], None] | None = None
 
     @property
     def prefix(self) -> str:
@@ -168,28 +169,28 @@ class ZooKeeperClient:
         self._zk.stop()
 
     @property
-    def on_first_connection(self) -> Optional[Callable[[], None]]:
+    def on_first_connection(self) -> Callable[[], None] | None:
         """
         Called when the client is connected for the first time
         """
         return self.__on_first_connection
 
     @on_first_connection.setter
-    def on_first_connection(self, callback: Optional[Callable[[], None]]) -> None:
+    def on_first_connection(self, callback: Callable[[], None] | None) -> None:
         """
         Called when the client is connected for the first time
         """
         self.__on_first_connection = callback
 
     @property
-    def on_client_reconnection(self) -> Optional[Callable[[], None]]:
+    def on_client_reconnection(self) -> Callable[[], None] | None:
         """
         Called when the client is connected for the first time
         """
         return self.__on_client_reconnection
 
     @on_client_reconnection.setter
-    def on_client_reconnection(self, callback: Optional[Callable[[], None]]) -> None:
+    def on_client_reconnection(self, callback: Callable[[], None] | None) -> None:
         """
         Called when the client is connected for the first time
         """
@@ -229,7 +230,7 @@ class ZooKeeperClient:
         """
         return self._zk.ensure_path(self.__path(path))
 
-    def get(self, path: str, watch: Optional[Callable[[WatchedEvent], None]] = None) -> Any:
+    def get(self, path: str, watch: Callable[[WatchedEvent], None] | None = None) -> Any:
         """
         Gets the content of a ZooKeeper node
 
@@ -238,7 +239,7 @@ class ZooKeeperClient:
         """
         return self._zk.get(self.__path(path), watch=watch)
 
-    def get_children(self, path: str, watch: Optional[Callable[[WatchedEvent], None]] = None) -> Any:
+    def get_children(self, path: str, watch: Callable[[WatchedEvent], None] | None = None) -> Any:
         """
         Gets the list of children of a node
 
@@ -286,14 +287,14 @@ class ZooKeeperDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         # Properties
         self._controller: bool = False
         self._prefix: str = ""
-        self._zk_hosts: Optional[str] = None
-        self._zk: Optional[ZooKeeperClient] = None
+        self._zk_hosts: str | None = None
+        self._zk: ZooKeeperClient | None = None
 
         # Framework properties
         self._fw_uid: str = ""
 
         # Keep track of frameworks hosts
-        self._frameworks_hosts: Dict[str, str] = {}
+        self._frameworks_hosts: dict[str, str] = {}
 
     @Validate
     def _validate(self, context: BundleContext) -> None:
@@ -417,7 +418,7 @@ class ZooKeeperDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
 
     def _register_framework(self) -> None:
         """
-        Registers the framework and its current services in Redis
+        Registers the framework and its current services in ZooKeeper
         """
         assert self._zk is not None
 
@@ -427,7 +428,7 @@ class ZooKeeperDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         # The host name
         hostname = socket.gethostname()
         if hostname == "localhost":
-            logging.warning(
+            _logger.warning(
                 "Hostname is '%s': this will be a problem for multi-host remote services",
                 hostname,
             )
@@ -537,7 +538,7 @@ class ZooKeeperDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         except KazooException as ex:
             _logger.error("Error unregistering service %s:", ex)
 
-    def endpoints_added(self, endpoints: List[beans.ExportEndpoint]) -> None:
+    def endpoints_added(self, endpoints: list[beans.ExportEndpoint]) -> None:
         """
         Multiple endpoints have been added
 
@@ -546,9 +547,7 @@ class ZooKeeperDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         for endpoint in endpoints:
             self._register_service(endpoint)
 
-    def endpoint_updated(
-        self, endpoint: beans.ExportEndpoint, old_properties: Optional[Dict[str, Any]]
-    ) -> None:
+    def endpoint_updated(self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None) -> None:
         """
         An end point is updated
 
@@ -697,8 +696,8 @@ class ZooKeeperDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
                     # New endpoint found
                     self._register_remote(self.__read_endpoint(self._endpoint_path(fw_uid, endpoint_uid)))
                 except KazooException:
-                    logging.warning(
+                    _logger.warning(
                         "Error reading endpoint %s of framework %s",
-                        fw_uid,
                         endpoint_uid,
+                        fw_uid,
                     )

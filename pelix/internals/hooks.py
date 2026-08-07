@@ -6,7 +6,7 @@ EventListenerHook for Pelix.
 :author: Scott Lewis
 :copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -25,16 +25,11 @@ EventListenerHook for Pelix.
     limitations under the License.
 """
 
-from collections.abc import MutableMapping, MutableSequence
+from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
     Generic,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
     Protocol,
     TypeVar,
     Union,
@@ -54,7 +49,7 @@ V = TypeVar("V")
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -84,7 +79,7 @@ class ShrinkableList(MutableSequence[T]):
     def __getitem__(self, index):  # type: ignore
         return self._delegate[index]
 
-    def __delitem__(self, index: Union[int, slice]) -> None:
+    def __delitem__(self, index: int | slice) -> None:
         del self._delegate[index]
 
     @overload
@@ -136,16 +131,16 @@ class ListenerInfo(Generic[T]):
     # Try to reduce memory footprint (stored instances)
     __slots__ = (
         "__bundle_context",
+        "__ldap_filter",
         "__listener",
         "__specification",
-        "__ldap_filter",
     )
 
     def __init__(
         self,
         bundle_context: "BundleContext",
         listener: T,
-        specification: Optional[str],
+        specification: str | None,
         ldap_filter: Union[None, "LDAPCriteria", "LDAPFilter"],
     ) -> None:
         """
@@ -174,7 +169,7 @@ class ListenerInfo(Generic[T]):
         return self.__listener
 
     @property
-    def specification(self) -> Optional[str]:
+    def specification(self) -> str | None:
         """
         The specification to listen to
         """
@@ -195,7 +190,7 @@ class ListenerInfo(Generic[T]):
         """
         return self.__bundle_context
 
-    def get_filter(self) -> Optional[str]:
+    def get_filter(self) -> str | None:
         """
         Returns the LDAP filter string with which the filter was added
 
@@ -216,7 +211,7 @@ class EventListenerHook(Protocol):
     def event(
         self,
         service_event: "ServiceEvent[Any]",
-        listener_dict: Dict["BundleContext", List["ServiceListener"]],
+        listener_dict: dict["BundleContext", list["ServiceListener"]],
     ) -> None:
         """
         Method called when a service event is triggered.

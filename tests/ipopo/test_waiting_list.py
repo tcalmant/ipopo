@@ -8,13 +8,13 @@ Tests the iPOPO waiting list service
 
 import unittest
 
-import pelix.ipopo.constants as constants
 from pelix.framework import FrameworkFactory
+from pelix.ipopo import constants
 from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 NAME_A = "componentA"
@@ -43,6 +43,7 @@ class WaitingListTest(unittest.TestCase):
 
         # Get the service
         svc_ref = context.get_service_reference(constants.SERVICE_IPOPO_WAITING_LIST)
+        assert svc_ref is not None
         self.waiting = context.get_service(svc_ref)
 
     def tearDown(self):
@@ -59,6 +60,7 @@ class WaitingListTest(unittest.TestCase):
         The waiting list must raise an error if we try to instantiate two
         components with the same name
         """
+        assert self.waiting is not None
         # Store the component
         self.waiting.add("some.factory", "some.instance", {})
 
@@ -82,6 +84,9 @@ class WaitingListTest(unittest.TestCase):
         Tests if the component is correctly instantiated when added and killed
         when removed
         """
+        assert self.framework is not None
+        assert self.waiting is not None
+
         # Add the component to the waiting list
         self.waiting.add(FACTORY_A, NAME_A)
 
@@ -108,6 +113,9 @@ class WaitingListTest(unittest.TestCase):
         Tests if the component is correctly instantiated when added and killed
         when removed
         """
+        assert self.framework is not None
+        assert self.waiting is not None
+
         # Install iPOPO
         ipopo = install_ipopo(self.framework)
 
@@ -134,6 +142,9 @@ class WaitingListTest(unittest.TestCase):
         Tests if the component is correctly instantiated when added and killed
         when removed
         """
+        assert self.framework is not None
+        assert self.waiting is not None
+
         # Install iPOPO
         ipopo = install_ipopo(self.framework)
 
@@ -159,6 +170,9 @@ class WaitingListTest(unittest.TestCase):
         """
         Try to instantiate a component with a name already used
         """
+        assert self.framework is not None
+        assert self.waiting is not None
+
         # Install iPOPO
         ipopo = install_ipopo(self.framework)
 

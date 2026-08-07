@@ -10,7 +10,7 @@ Eclipse Foundation: see http://www.eclipse.org/paho
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -32,7 +32,8 @@ Eclipse Foundation: see http://www.eclipse.org/paho
 import logging
 import os
 import threading
-from typing import Any, Callable, Dict, List, Literal, Optional, Union
+from collections.abc import Callable
+from typing import Any, Literal
 
 import paho.mqtt.client as paho
 from paho.mqtt.client import ConnectFlags, DisconnectFlags
@@ -43,7 +44,7 @@ from paho.mqtt.reasoncodes import ReasonCode
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -69,7 +70,7 @@ class MqttClient:
 
     def __init__(
         self,
-        client_id: Optional[str] = None,
+        client_id: str | None = None,
         clean_session: bool = False,
         protocol: int = MQTTv311,
         transport: Literal["tcp", "websockets", "unix"] = "tcp",
@@ -97,17 +98,17 @@ class MqttClient:
             self._client_id = client_id
 
         # Reconnection timer
-        self.__timer: Optional[threading.Timer] = threading.Timer(5, self.__reconnect)
+        self.__timer: threading.Timer | None = threading.Timer(5, self.__reconnect)
 
         # Publication events
-        self.__in_flight: Dict[int, threading.Event] = {}
+        self.__in_flight: dict[int, threading.Event] = {}
 
         # Assert protocol version
         try:
             protocol_version = MQTTProtocolVersion(protocol)
-        except ValueError as ex:
+        except ValueError:
             _logger.error("Unsupported MQTT protocol version")
-            raise ex
+            raise
 
         # MQTT client
         self.__mqtt = paho.Client(
@@ -131,12 +132,12 @@ class MqttClient:
         self.__mqtt.on_unsubscribe = self.__on_unsubscribe
 
         # Pelix callbacks
-        self.__on_connect_cb: Optional[Callable[["MqttClient", int], None]] = None
-        self.__on_disconnect_cb: Optional[Callable[["MqttClient", int], None]] = None
-        self.__on_subscribe_cb: Optional[Callable[["MqttClient", int, List[int]], None]] = None
-        self.__on_unsubscribe_cb: Optional[Callable[["MqttClient", int], None]] = None
-        self.__on_message_cb: Optional[Callable[["MqttClient", MqttMessage], None]] = None
-        self.__on_publish_cb: Optional[Callable[["MqttClient", int], None]] = None
+        self.__on_connect_cb: Callable[[MqttClient, int], None] | None = None
+        self.__on_disconnect_cb: Callable[[MqttClient, int], None] | None = None
+        self.__on_subscribe_cb: Callable[[MqttClient, int, list[int]], None] | None = None
+        self.__on_unsubscribe_cb: Callable[[MqttClient, int], None] | None = None
+        self.__on_message_cb: Callable[[MqttClient, MqttMessage], None] | None = None
+        self.__on_publish_cb: Callable[[MqttClient, int], None] | None = None
 
     @property
     def raw_client(self) -> paho.Client:
@@ -146,91 +147,91 @@ class MqttClient:
         return self.__mqtt
 
     @property
-    def on_connect(self) -> Optional[Callable[["MqttClient", int], None]]:
+    def on_connect(self) -> Callable[["MqttClient", int], None] | None:
         """
         The MQTT connection callback
         """
         return self.__on_connect_cb
 
     @on_connect.setter
-    def on_connect(self, callback: Optional[Callable[["MqttClient", int], None]]) -> None:
+    def on_connect(self, callback: Callable[["MqttClient", int], None] | None) -> None:
         """
         Sets the MQTT connection callback
         """
         self.__on_connect_cb = callback
 
     @property
-    def on_disconnect(self) -> Optional[Callable[["MqttClient", int], None]]:
+    def on_disconnect(self) -> Callable[["MqttClient", int], None] | None:
         """
         The MQTT disconnection callback
         """
         return self.__on_disconnect_cb
 
     @on_disconnect.setter
-    def on_disconnect(self, callback: Optional[Callable[["MqttClient", int], None]]) -> None:
+    def on_disconnect(self, callback: Callable[["MqttClient", int], None] | None) -> None:
         """
         Sets the MQTT disconnection callback
         """
         self.__on_disconnect_cb = callback
 
     @property
-    def on_subscribe(self) -> Optional[Callable[["MqttClient", int, List[int]], None]]:
+    def on_subscribe(self) -> Callable[["MqttClient", int, list[int]], None] | None:
         """
         The MQTT connection callback
         """
         return self.__on_subscribe_cb
 
     @on_subscribe.setter
-    def on_subscribe(self, callback: Optional[Callable[["MqttClient", int, List[int]], None]]) -> None:
+    def on_subscribe(self, callback: Callable[["MqttClient", int, list[int]], None] | None) -> None:
         """
         Sets the MQTT connection callback
         """
         self.__on_subscribe_cb = callback
 
     @property
-    def on_unsubscribe(self) -> Optional[Callable[["MqttClient", int], None]]:
+    def on_unsubscribe(self) -> Callable[["MqttClient", int], None] | None:
         """
         The MQTT connection callback
         """
         return self.__on_unsubscribe_cb
 
     @on_unsubscribe.setter
-    def on_unsubscribe(self, callback: Optional[Callable[["MqttClient", int], None]]) -> None:
+    def on_unsubscribe(self, callback: Callable[["MqttClient", int], None] | None) -> None:
         """
         Sets the MQTT connection callback
         """
         self.__on_unsubscribe_cb = callback
 
     @property
-    def on_message(self) -> Optional[Callable[["MqttClient", MqttMessage], None]]:
+    def on_message(self) -> Callable[["MqttClient", MqttMessage], None] | None:
         """
         The MQTT message reception callback
         """
         return self.__on_message_cb
 
     @on_message.setter
-    def on_message(self, callback: Optional[Callable[["MqttClient", MqttMessage], None]]) -> None:
+    def on_message(self, callback: Callable[["MqttClient", MqttMessage], None] | None) -> None:
         """
         Sets the MQTT message reception callback
         """
         self.__on_message_cb = callback
 
     @property
-    def on_publish(self) -> Optional[Callable[["MqttClient", int], None]]:
+    def on_publish(self) -> Callable[["MqttClient", int], None] | None:
         """
         The MQTT message reception callback
         """
         return self.__on_publish_cb
 
     @on_publish.setter
-    def on_publish(self, callback: Optional[Callable[["MqttClient", int], None]]) -> None:
+    def on_publish(self, callback: Callable[["MqttClient", int], None] | None) -> None:
         """
         Sets the MQTT message reception callback
         """
         self.__on_publish_cb = callback
 
     @classmethod
-    def generate_id(cls, prefix: Optional[str] = "pelix-") -> str:
+    def generate_id(cls, prefix: str | None = "pelix-") -> str:
         """
         Generates a random MQTT client ID
 
@@ -271,7 +272,7 @@ class MqttClient:
         """
         return self._client_id
 
-    def set_credentials(self, username: str, password: Optional[str]) -> None:
+    def set_credentials(self, username: str, password: str | None) -> None:
         """
         Sets the user name and password to be authenticated on the server
 
@@ -281,7 +282,7 @@ class MqttClient:
         self.__mqtt.username_pw_set(username, password)
 
     def set_will(
-        self, topic: str, payload: Union[None, bytes, bytearray, str], qos: int = 0, retain: bool = False
+        self, topic: str, payload: None | bytes | bytearray | str, qos: int = 0, retain: bool = False
     ) -> None:
         """
         Sets up the will message
@@ -346,11 +347,11 @@ class MqttClient:
     def publish(
         self,
         topic: str,
-        payload: Union[None, bytes, str],
+        payload: None | bytes | str,
         qos: int = 0,
         retain: bool = False,
         wait: bool = False,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         Sends a message through the MQTT connection
 
@@ -373,7 +374,7 @@ class MqttClient:
 
         return result.mid
 
-    def wait_publication(self, mid: int, timeout: Optional[float] = None) -> bool:
+    def wait_publication(self, mid: int, timeout: float | None = None) -> bool:
         """
         Wait for a publication to be validated
 
@@ -391,7 +392,7 @@ class MqttClient:
         # Publication not sent yet
         return False
 
-    def subscribe(self, topic: str, qos: int = 0) -> Optional[int]:
+    def subscribe(self, topic: str, qos: int = 0) -> int | None:
         """
         Subscribes to a topic on the server
 
@@ -405,7 +406,7 @@ class MqttClient:
             return result[1]
         return None
 
-    def unsubscribe(self, topic: str) -> Optional[int]:
+    def unsubscribe(self, topic: str) -> int | None:
         """
         Unscribes from a topic on the server
 
@@ -453,7 +454,7 @@ class MqttClient:
                 )
                 _logger.error(message)
                 raise ValueError(message)
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             # Something went wrong: log it
             _logger.error("Exception connecting server: %s", ex)
         finally:
@@ -467,7 +468,7 @@ class MqttClient:
         userdata: Any,
         flags: ConnectFlags,
         rc: ReasonCode,
-        properties: Optional[Properties],
+        properties: Properties | None,
     ) -> None:
         # pylint: disable=W0613
         """
@@ -489,8 +490,8 @@ class MqttClient:
         if self.__on_connect_cb is not None:
             try:
                 self.__on_connect_cb(self, rc.value)
-            except Exception as ex:
-                _logger.exception("Error executing MQTT connection callback: %s", ex)
+            except Exception:
+                _logger.exception("Error executing MQTT connection callback")
 
     def __on_disconnect(
         self,
@@ -498,7 +499,7 @@ class MqttClient:
         userdata: Any,
         flags: DisconnectFlags,
         rc: ReasonCode,
-        properties: Optional[Properties],
+        properties: Properties | None,
     ) -> None:
         # pylint: disable=W0613
         """
@@ -520,8 +521,8 @@ class MqttClient:
         if self.__on_disconnect_cb is not None:
             try:
                 self.__on_disconnect_cb(self, rc.value)
-            except Exception as ex:
-                _logger.exception("Error executing MQTT disconnection callback: %s", ex)
+            except Exception:
+                _logger.exception("Error executing MQTT disconnection callback")
 
     def __on_message(self, client: paho.Client, userdata: Any, msg: paho.MQTTMessage) -> None:
         # pylint: disable=W0613
@@ -536,8 +537,8 @@ class MqttClient:
         if self.__on_message_cb is not None:
             try:
                 self.__on_message_cb(self, msg)
-            except Exception as ex:
-                _logger.exception("Error notifying MQTT message listener: %s", ex)
+            except Exception:
+                _logger.exception("Error notifying MQTT message listener")
 
     def __on_publish(
         self, client: paho.Client, userdata: Any, mid: int, reason_code: ReasonCode, properties: Properties
@@ -560,15 +561,15 @@ class MqttClient:
         if self.__on_publish_cb is not None:
             try:
                 self.__on_publish_cb(self, mid)
-            except Exception as ex:
-                _logger.exception("Error notifying MQTT publish listener: %s", ex)
+            except Exception:
+                _logger.exception("Error notifying MQTT publish listener")
 
     def __on_subscribe(
         self,
         client: paho.Client,
         userdata: Any,
         mid: int,
-        reason_code_list: List[ReasonCode],
+        reason_code_list: list[ReasonCode],
         properties: Properties,
     ) -> None:
         # pylint: disable=W0613
@@ -586,8 +587,8 @@ class MqttClient:
         if self.__on_subscribe_cb is not None:
             try:
                 self.__on_subscribe_cb(self, mid, [r.value for r in reason_code_list])
-            except Exception as ex:
-                _logger.exception("Error executing MQTT subscribe callback: %s", ex)
+            except Exception:
+                _logger.exception("Error executing MQTT subscribe callback")
 
     def __on_unsubscribe(
         self,
@@ -595,7 +596,7 @@ class MqttClient:
         userdata: Any,
         mid: int,
         properties: Properties,
-        reasonCodes: Union[ReasonCode, List[ReasonCode]],
+        reasonCodes: ReasonCode | list[ReasonCode],
     ) -> None:
         # pylint: disable=W0613
         """
@@ -611,5 +612,5 @@ class MqttClient:
         if self.__on_unsubscribe_cb is not None:
             try:
                 self.__on_unsubscribe_cb(self, mid)
-            except Exception as ex:
-                _logger.exception("Error executing MQTT unsubscribe callback: %s", ex)
+            except Exception:
+                _logger.exception("Error executing MQTT unsubscribe callback")

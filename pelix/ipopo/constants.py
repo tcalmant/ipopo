@@ -6,7 +6,7 @@ Defines some iPOPO constants
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -26,7 +26,8 @@ Defines some iPOPO constants
 """
 
 import contextlib
-from typing import Any, Dict, Generator, List, Optional, Protocol, Set, Tuple, Type, cast
+from collections.abc import Generator
+from typing import Any, Protocol, cast
 
 from pelix.constants import BundleException, Specification
 from pelix.framework import Bundle, BundleContext
@@ -35,7 +36,7 @@ from pelix.internals.registry import ServiceReference
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -210,7 +211,7 @@ class IPopoEvent:
     UNREGISTERED = 10
     """ A component factory has been unregistered """
 
-    def __init__(self, kind: int, factory_name: str, component_name: Optional[str]) -> None:
+    def __init__(self, kind: int, factory_name: str, component_name: str | None) -> None:
         """
         Sets up the iPOPO event
 
@@ -222,7 +223,7 @@ class IPopoEvent:
         self.__factory_name = factory_name
         self.__component_name = component_name
 
-    def get_component_name(self) -> Optional[str]:
+    def get_component_name(self) -> str | None:
         """
         Retrieves the name of the component associated to the event
 
@@ -267,7 +268,7 @@ class IPopoService(Protocol):
     Interface of the iPOPO core service
     """
 
-    def instantiate(self, factory_name: str, name: str, properties: Optional[Dict[str, Any]] = None) -> Any:
+    def instantiate(self, factory_name: str, name: str, properties: dict[str, Any] | None = None) -> Any:
         """
         Instantiates a component from the given factory, with the given name
 
@@ -282,7 +283,7 @@ class IPopoService(Protocol):
         """
         ...
 
-    def retry_erroneous(self, name: str, properties_update: Optional[Dict[str, Any]] = None) -> int:
+    def retry_erroneous(self, name: str, properties_update: dict[str, Any] | None = None) -> int:
         """
         Removes the ERRONEOUS state of the given component, and retries a validation
 
@@ -328,7 +329,7 @@ class IPopoService(Protocol):
         """
         ...
 
-    def register_factory(self, bundle_context: "BundleContext", factory: Type[Any]) -> bool:
+    def register_factory(self, bundle_context: "BundleContext", factory: type[Any]) -> bool:
         """
         Registers a manually created factory, using decorators programmatically
 
@@ -375,7 +376,7 @@ class IPopoService(Protocol):
         """
         ...
 
-    def get_instances(self) -> List[Tuple[str, str, int]]:
+    def get_instances(self) -> list[tuple[str, str, int]]:
         """
         Retrieves the list of the currently registered component instances
 
@@ -393,7 +394,7 @@ class IPopoService(Protocol):
         """
         ...
 
-    def get_waiting_components(self) -> List[Tuple[str, str, Set[str]]]:
+    def get_waiting_components(self) -> list[tuple[str, str, set[str]]]:
         """
         Returns the list of the instances waiting for their handlers
 
@@ -401,7 +402,7 @@ class IPopoService(Protocol):
         """
         ...
 
-    def get_instance_details(self, name: str) -> Dict[str, Any]:
+    def get_instance_details(self, name: str) -> dict[str, Any]:
         """
         Retrieves a snapshot of the given component instance.
         The result dictionary has the following keys:
@@ -434,7 +435,7 @@ class IPopoService(Protocol):
         """
         ...
 
-    def get_factories(self) -> List[str]:
+    def get_factories(self) -> list[str]:
         """
         Retrieves the names of the registered factories
 
@@ -452,7 +453,7 @@ class IPopoService(Protocol):
         """
         ...
 
-    def get_factory_details(self, name: str) -> Dict[str, Any]:
+    def get_factory_details(self, name: str) -> dict[str, Any]:
         """
         Retrieves a dictionary with details about the given factory
 
@@ -486,7 +487,7 @@ class IPopoWaitingList(Protocol):
     iPOPO instantiation waiting list
     """
 
-    def add(self, factory: str, component: str, properties: Optional[Dict[str, Any]] = None) -> None:
+    def add(self, factory: str, component: str, properties: dict[str, Any] | None = None) -> None:
         """
         Enqueues the instantiation of the given component
 
@@ -513,7 +514,7 @@ class IPopoWaitingList(Protocol):
 
 def get_ipopo_svc_ref(
     bundle_context: "BundleContext",
-) -> Optional[Tuple["ServiceReference[IPopoService]", "IPopoService"]]:
+) -> tuple["ServiceReference[IPopoService]", "IPopoService"] | None:
     """
     Retrieves a tuple containing the service reference to iPOPO and the service
     itself

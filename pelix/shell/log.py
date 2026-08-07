@@ -6,7 +6,7 @@ Shell commands for the log service
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -26,7 +26,7 @@ Shell commands for the log service
 """
 
 import logging
-from typing import Iterable, List, Optional, Tuple, Union
+from collections.abc import Iterable
 
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import ComponentFactory, Instantiate, PostRegistration, Provides, Requires
@@ -37,7 +37,7 @@ from pelix.shell.beans import ShellSession
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -56,14 +56,14 @@ class ShellLogCommand(ShellCommandsProvider):
     Provides shell commands to print the content of the log service
     """
 
-    _logger: Optional[LogService]
-    _reader: Optional[LogReader]
+    _logger: LogService | None
+    _reader: LogReader | None
 
     def __init__(self) -> None:
         """
         Sets up members
         """
-        self.__svc_ref: Optional[ServiceReference[ShellCommandsProvider]] = None
+        self.__svc_ref: ServiceReference[ShellCommandsProvider] | None = None
 
     @PostRegistration
     def _post_register(self, svc_ref: ServiceReference[ShellCommandsProvider]) -> None:
@@ -78,7 +78,7 @@ class ShellLogCommand(ShellCommandsProvider):
         """
         return "log"
 
-    def get_methods(self) -> List[Tuple[str, ShellCommandMethod]]:
+    def get_methods(self) -> list[tuple[str, ShellCommandMethod]]:
         """
         Returns the methods of the shell command
         """
@@ -91,9 +91,7 @@ class ShellLogCommand(ShellCommandsProvider):
             ("error", self._error),
         ]
 
-    def _log(
-        self, session: ShellSession, level: Union[int, str] = "WARNING", count: Optional[int] = None
-    ) -> None:
+    def _log(self, session: ShellSession, level: int | str = "WARNING", count: int | None = None) -> None:
         """
         Prints the content of the log
         """
@@ -123,7 +121,7 @@ class ShellLogCommand(ShellCommandsProvider):
         except StopIteration:
             pass
 
-    def _trace(self, session: ShellSession, level: Union[int, str], words: Iterable[str]) -> None:
+    def _trace(self, session: ShellSession, level: int | str, words: Iterable[str]) -> None:
         """
         Logs a message using the log service
 

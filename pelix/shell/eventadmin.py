@@ -8,7 +8,7 @@ Provides commands to the Pelix shell to work with the EventAdmin service
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -27,7 +27,7 @@ Provides commands to the Pelix shell to work with the EventAdmin service
     limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Any, List, Tuple
+from typing import TYPE_CHECKING, Any
 
 import pelix.services
 from pelix.ipopo.decorators import ComponentFactory, Instantiate, Provides, Requires
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -67,7 +67,7 @@ class EventAdminCommands(ShellCommandsProvider):
         """
         return "event"
 
-    def get_methods(self) -> List[Tuple[str, ShellCommandMethod]]:
+    def get_methods(self) -> list[tuple[str, ShellCommandMethod]]:
         """
         Retrieves the list of tuples (command, method) for this command handler
         """

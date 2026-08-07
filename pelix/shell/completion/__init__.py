@@ -6,7 +6,7 @@ Pelix shell completion package
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 :status: Alpha
 
 ..
@@ -27,7 +27,7 @@ Pelix shell completion package
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, List, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from pelix.constants import Specification
 
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -82,7 +82,7 @@ class CompletionInfo:
     Keep track of the configuration of a completion
     """
 
-    completers: List[str]
+    completers: list[str]
     """
     List of IDs of shell completers
     """
@@ -105,9 +105,9 @@ class Completer(Protocol):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        current_arguments: List[str],
+        current_arguments: list[str],
         current: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Returns the list of bundle IDs matching the current state
 

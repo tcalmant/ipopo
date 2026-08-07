@@ -9,7 +9,7 @@ telnet or netcat.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -35,13 +35,12 @@ import socketserver
 import sys
 import threading
 from select import select
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
+from typing import Any, cast
 
 import pelix.framework
 import pelix.ipv6utils
 import pelix.shell
-import pelix.shell.beans as beans
-import pelix.utilities as utilities
+from pelix import utilities
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import (
     ComponentFactory,
@@ -52,6 +51,7 @@ from pelix.ipopo.decorators import (
     Requires,
     Validate,
 )
+from pelix.shell import beans
 from pelix.shell.console import handle_common_arguments, make_common_parser
 
 try:
@@ -61,11 +61,12 @@ try:
     HAS_SSL = True
 except ImportError:
     HAS_SSL = False
+    ssl = None  # ty: ignore[invalid-assignment]
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -139,7 +140,7 @@ class RemoteConsole(socketserver.StreamRequestHandler):
             self.wfile.write(data.encode("UTF-8"))
             self.wfile.flush()
             return True
-        except IOError:
+        except OSError:
             # An error occurred, mask it
             # -> This allows to handle the command even if the client has been
             # disconnect (i.e. "echo stop 0 | nc localhost 9000")
@@ -210,11 +211,11 @@ class RemoteConsole(socketserver.StreamRequestHandler):
                         # Stop there on interruption
                         self.send("\nInterruption received.")
                         return
-                    except IOError as ex:
+                    except OSError:
                         # I/O errors are fatal
-                        _logger.exception("Error communicating with a client: %s", ex)
+                        _logger.exception("Error communicating with a client")
                         break
-                    except Exception as ex:
+                    except Exception as ex:  # noqa: BLE001
                         # Other exceptions are not important
                         import traceback
 
@@ -234,7 +235,7 @@ class RemoteConsole(socketserver.StreamRequestHandler):
                 # Be polite
                 self.send("\nSession closed. Good bye.\n")
                 self.finish()
-            except IOError as ex:
+            except OSError as ex:
                 _logger.warning("Error cleaning up connection: %s", ex)
 
 
@@ -248,12 +249,12 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
 
     def __init__(
         self,
-        server_address: Tuple[str, int],
-        request_handler_class: Type[socketserver.BaseRequestHandler],
-        cert_file: Optional[str] = None,
-        key_file: Optional[str] = None,
-        key_password: Optional[str] = None,
-        ca_file: Optional[str] = None,
+        server_address: tuple[str, int],
+        request_handler_class: type[socketserver.BaseRequestHandler],
+        cert_file: str | None = None,
+        key_file: str | None = None,
+        key_password: str | None = None,
+        ca_file: str | None = None,
     ):
         """
         Sets up the TCP server. Doesn't bind nor activate it.
@@ -284,12 +285,12 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
             # Explicitly ask to be accessible both by IPv4 and IPv6
             try:
                 pelix.ipv6utils.set_double_stack(self.socket)
-            except AttributeError as ex:
-                _logger.exception("System misses IPv6 constant: %s", ex)
-            except socket.error as ex:
-                _logger.exception("Error setting up IPv6 double stack: %s", ex)
+            except AttributeError:
+                _logger.exception("System lacks IPv6 constant")
+            except OSError:
+                _logger.exception("Error setting up IPv6 double stack")
 
-    def get_request(self) -> Tuple[socket.socket, Tuple[str, int]]:
+    def get_request(self) -> tuple[socket.socket, tuple[str, int]]:
         """
         Accepts a new client. Sets up SSL wrapping if necessary.
 
@@ -298,7 +299,7 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         # Accept the client
         client_socket, client_address = self.socket.accept()
 
-        if HAS_SSL and self.cert_file:
+        if ssl is not None and self.cert_file:
             # Setup an SSL context to accept clients with a certificate
             # signed by a known chain of authority.
             # Other clients will be rejected during handshake.
@@ -340,7 +341,7 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         return client_stream, client_address
 
     def process_request(
-        self, request: Union[socket.socket, tuple[bytes, socket.socket]], client_address: Tuple[str, int]
+        self, request: socket.socket | tuple[bytes, socket.socket], client_address: tuple[str, int]
     ) -> None:
         """
         Starts a new thread to process the request, adding the client address
@@ -359,11 +360,11 @@ def _create_server(
     shell: "IPopoRemoteShell",
     server_address: str,
     port: int,
-    cert_file: Optional[str] = None,
-    key_file: Optional[str] = None,
-    key_password: Optional[str] = None,
-    ca_file: Optional[str] = None,
-) -> Tuple[threading.Thread, socketserver.TCPServer, SharedBoolean]:
+    cert_file: str | None = None,
+    key_file: str | None = None,
+    key_password: str | None = None,
+    ca_file: str | None = None,
+) -> tuple[threading.Thread, socketserver.TCPServer, SharedBoolean]:
     """
     Creates the TCP console on the given address and port
 
@@ -388,7 +389,7 @@ def _create_server(
     # Set up the server
     server = ThreadingTCPServerFamily(
         (server_address, port),
-        cast(Type[socketserver.BaseRequestHandler], request_handler),
+        cast(type[socketserver.BaseRequestHandler], request_handler),
         cert_file,
         key_file,
         key_password,
@@ -404,7 +405,7 @@ def _create_server(
     server.server_activate()
 
     # Serve clients
-    server_thread = threading.Thread(target=server.serve_forever, name="RemoteShell-{0}".format(port))
+    server_thread = threading.Thread(target=server.serve_forever, name=f"RemoteShell-{port}")
     server_thread.daemon = True
     server_thread.start()
 
@@ -436,22 +437,22 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         Sets up the component
         """
         # Server configuration
-        self._address: Optional[str] = None
-        self._port: Optional[int] = 0
+        self._address: str | None = None
+        self._port: int | None = 0
         self._encoding: str = "utf-8"
 
         # SSL configuration
-        self._ca_file: Optional[str] = None
-        self._cert_file: Optional[str] = None
-        self._key_file: Optional[str] = None
-        self._key_password: Optional[str] = None
+        self._ca_file: str | None = None
+        self._cert_file: str | None = None
+        self._key_file: str | None = None
+        self._key_password: str | None = None
 
         # Internals
-        self._thread: Optional[threading.Thread] = None
-        self._server: Optional[socketserver.TCPServer] = None
+        self._thread: threading.Thread | None = None
+        self._server: socketserver.TCPServer | None = None
         self._server_flag: SharedBoolean = SharedBoolean()
 
-    def get_access(self) -> Tuple[Optional[str], Optional[int]]:
+    def get_access(self) -> tuple[str | None, int | None]:
         """
         Returns the access to this remote shell
 
@@ -558,7 +559,7 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
 # ------------------------------------------------------------------------------
 
 
-def _run_interpreter(variables: Dict[str, Any], banner: str) -> None:
+def _run_interpreter(variables: dict[str, Any], banner: str) -> None:
     """
     Runs a Python interpreter console and blocks until the user exits it.
 
@@ -583,7 +584,7 @@ def _run_interpreter(variables: Dict[str, Any], banner: str) -> None:
     shell.interact(banner)
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """
     Script entry point
 
@@ -709,7 +710,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             # Avoid loose reference to the password
             del key_password
         else:
-            logging.error(
+            _logger.error(
                 "A remote shell component (%s) is already configured. Abandon.",
                 rshell_name,
             )

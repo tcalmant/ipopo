@@ -12,12 +12,12 @@ users (user1 and user2) with "foobar" as password.
 import socket
 import unittest
 from io import StringIO
-from typing import Any, Dict
+from typing import Any
 
 try:
     from slixmpp.jid import JID
 
-    import pelix.misc.xmpp as xmpp
+    from pelix.misc import xmpp
 except ImportError:
     # Missing requirement: not a fatal error
     raise unittest.SkipTest("XMPP client dependency missing: skip test")
@@ -35,7 +35,7 @@ if not is_server_reachable("localhost", 5222):
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -111,7 +111,7 @@ class XMPPShellTest(unittest.TestCase):
         # Register the message event handler
         msg_event = EventData()
 
-        def on_message(data: Dict[str, Any]) -> None:
+        def on_message(data: dict[str, Any]) -> None:
             if data["type"] in ("normal", "chat"):
                 # Got a message
                 body = data["body"].strip()

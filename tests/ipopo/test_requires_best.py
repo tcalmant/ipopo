@@ -17,7 +17,7 @@ from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 NAME_A = "componentA"
@@ -63,7 +63,7 @@ class RequiresBestTest(unittest.TestCase):
         self.assertListEqual(
             [IPopoEvent.INSTANTIATED],
             consumer.states,
-            "Invalid component states: {0}".format(consumer.states),
+            f"Invalid component states: {consumer.states}",
         )
         consumer.reset()
 
@@ -75,7 +75,7 @@ class RequiresBestTest(unittest.TestCase):
         self.assertListEqual(
             [IPopoEvent.BOUND, IPopoEvent.VALIDATED],
             consumer.states,
-            "Invalid component states: {0}".format(consumer.states),
+            f"Invalid component states: {consumer.states}",
         )
         self.assertIs(consumer.service, svc1, "Wrong service injected")
         consumer.reset()
@@ -85,7 +85,7 @@ class RequiresBestTest(unittest.TestCase):
         reg2 = context.register_service(IEchoService, svc2, {SERVICE_RANKING: 5})
 
         # The consumer must not have been modified
-        self.assertListEqual([], consumer.states, "Invalid component states: {0}".format(consumer.states))
+        self.assertListEqual([], consumer.states, f"Invalid component states: {consumer.states}")
         self.assertIs(consumer.service, svc1, "Wrong service injected")
         consumer.reset()
 
@@ -93,59 +93,51 @@ class RequiresBestTest(unittest.TestCase):
         svc3 = object()
         reg3 = context.register_service(IEchoService, svc3, {SERVICE_RANKING: 15})
 
-        self.assertListEqual(
-            rebind_states, consumer.states, "Invalid component states: {0}".format(consumer.states)
-        )
+        self.assertListEqual(rebind_states, consumer.states, f"Invalid component states: {consumer.states}")
         self.assertIs(consumer.service, svc3, "Old service injected")
         consumer.reset()
 
         # Increase ranking of service 2
         reg2.set_properties({SERVICE_RANKING: 20})
-        self.assertListEqual(
-            rebind_states, consumer.states, "Invalid component states: {0}".format(consumer.states)
-        )
+        self.assertListEqual(rebind_states, consumer.states, f"Invalid component states: {consumer.states}")
         self.assertIs(consumer.service, svc2, "Old service injected")
         consumer.reset()
 
         # Lower the ranking of service 2 (a bit)
         reg2.set_properties({SERVICE_RANKING: 18})
-        self.assertListEqual([], consumer.states, "Invalid component states: {0}".format(consumer.states))
+        self.assertListEqual([], consumer.states, f"Invalid component states: {consumer.states}")
         self.assertIs(consumer.service, svc2, "Injected service changed")
         consumer.reset()
 
         # Lower the ranking of service 2 (very low)
         reg2.set_properties({SERVICE_RANKING: 0})
-        self.assertListEqual(
-            rebind_states, consumer.states, "Invalid component states: {0}".format(consumer.states)
-        )
+        self.assertListEqual(rebind_states, consumer.states, f"Invalid component states: {consumer.states}")
         self.assertIs(consumer.service, svc3, "Old service injected")
         consumer.reset()
 
         # Remove service 2
         reg2.unregister()
-        self.assertListEqual([], consumer.states, "Invalid component states: {0}".format(consumer.states))
+        self.assertListEqual([], consumer.states, f"Invalid component states: {consumer.states}")
         self.assertIs(consumer.service, svc3, "Injected service changed")
         consumer.reset()
 
         # Re-register service, with the same ranking as service 1
         rank1 = reg1.get_reference().get_property(SERVICE_RANKING)
         reg2 = context.register_service(IEchoService, svc2, {SERVICE_RANKING: rank1})
-        self.assertListEqual([], consumer.states, "Invalid component states: {0}".format(consumer.states))
+        self.assertListEqual([], consumer.states, f"Invalid component states: {consumer.states}")
         self.assertIs(consumer.service, svc3, "Injected service changed")
         consumer.reset()
 
         # Remove service 3 -> service 1 must be injected
         # (same ranking as 2, but older)
         reg3.unregister()
-        self.assertListEqual(
-            rebind_states, consumer.states, "Invalid component states: {0}".format(consumer.states)
-        )
+        self.assertListEqual(rebind_states, consumer.states, f"Invalid component states: {consumer.states}")
         self.assertIs(consumer.service, svc1, "Old service injected")
         consumer.reset()
 
         # Remove service 2 (again)
         reg2.unregister()
-        self.assertListEqual([], consumer.states, "Invalid component states: {0}".format(consumer.states))
+        self.assertListEqual([], consumer.states, f"Invalid component states: {consumer.states}")
         self.assertIs(consumer.service, svc1, "Injected service changed")
         consumer.reset()
 
@@ -154,7 +146,7 @@ class RequiresBestTest(unittest.TestCase):
         self.assertListEqual(
             [IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND],
             consumer.states,
-            "Invalid component states: {0}".format(consumer.states),
+            f"Invalid component states: {consumer.states}",
         )
         self.assertIsNone(consumer.service, "Service still injected")
         consumer.reset()

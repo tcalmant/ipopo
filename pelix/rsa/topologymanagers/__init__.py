@@ -7,7 +7,7 @@ Topology Manager API
 :author: Scott Lewis
 :copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -27,7 +27,7 @@ Topology Manager API
 """
 
 import logging
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, cast
 
 import pelix.rsa.remoteserviceadmin as rsa_impl
 from pelix.framework import BundleContext
@@ -56,7 +56,7 @@ from pelix.services import SERVICE_EVENT_LISTENER_HOOK
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -79,10 +79,10 @@ _logger = logging.getLogger(__name__)
 @Requires("_advertisers", EndpointAdvertiser, True, True)
 class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEventListener):
     _rsa: RemoteServiceAdmin
-    _advertisers: List[EndpointAdvertiser]
+    _advertisers: list[EndpointAdvertiser]
 
     def __init__(self) -> None:
-        self._context: Optional[BundleContext] = None
+        self._context: BundleContext | None = None
 
     @Validate
     def _validate(self, context: BundleContext) -> None:
@@ -157,14 +157,14 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
             self._handle_service_modified(service_ref)
 
     # impl of EventListenerHook
-    def event(self, service_event: ServiceEvent[Any], listener_dict: Dict[Any, Any]) -> None:
+    def event(self, service_event: ServiceEvent[Any], listener_dict: dict[Any, Any]) -> None:
         self._handle_event(service_event)
 
     def _advertise_endpoint(self, ed: EndpointDescription) -> None:
         for adv in self._advertisers or []:
             try:
                 adv.advertise_endpoint(ed)
-            except:
+            except:  # noqa: E722
                 _logger.error(
                     "Exception in advertise_endpoint for advertiser=%s endpoint=%s",
                     adv,
@@ -175,7 +175,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
         for adv in self._advertisers or []:
             try:
                 adv.update_endpoint(ed)
-            except:
+            except:  # noqa: E722
                 _logger.error(
                     "Exception in update_endpoint for advertiser=%s endpoint=%s",
                     adv,
@@ -186,7 +186,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
         for adv in self._advertisers or []:
             try:
                 adv.unadvertise_endpoint(ed.get_id())
-            except:
+            except:  # noqa: E722
                 _logger.error(
                     "Exception in unadvertise_endpoint for advertiser=%s endpoint=%s",
                     adv,

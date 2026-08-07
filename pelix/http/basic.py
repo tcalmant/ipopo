@@ -150,7 +150,7 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         """
         Retrieves the input as a file stream
         """
-        return self._handler.rfile
+        return cast(IO[bytes], self._handler.rfile)
 
 
 class _HTTPServletResponse(http.AbstractHTTPServletResponse):
@@ -214,7 +214,7 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
 
         :return: The output file-like object
         """
-        return self._handler.wfile
+        return cast(IO[bytes], self._handler.wfile)
 
     def write(self, data: bytes) -> None:
         """
@@ -278,7 +278,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
                 try:
                     # Handle the request
                     getattr(servlet, name)(request, response)
-                except Exception:
+                except Exception:  # noqa: BLE001
                     # Send a 500 error page on error
                     self.send_exception(response)
 

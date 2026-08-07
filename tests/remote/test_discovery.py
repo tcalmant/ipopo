@@ -26,11 +26,13 @@ Tests remote services discovery using the JSON-RPC transport
 
 import importlib.util
 import queue
+import sys
 import threading
 import time
 import traceback
 import unittest
-from typing import Any, Dict, Iterable, Optional, Tuple, Union
+from collections.abc import Iterable
+from typing import Any
 
 import pelix.http
 import pelix.remote
@@ -55,7 +57,7 @@ except ImportError:
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -101,7 +103,7 @@ class RemoteService:
 def load_framework(
     transport: str,
     discovery: str,
-    components: Iterable[Union[Tuple[str, str], Tuple[str, str, Dict[str, Any]]]],
+    components: Iterable[tuple[str, str] | tuple[str, str, dict[str, Any] | None]],
 ) -> Framework:
     """
     Starts a Pelix framework in the local process
@@ -147,7 +149,7 @@ def export_framework(
     state_queue: Queue,
     transport: str,
     discovery: str,
-    components: Iterable[Union[Tuple[str, str], Tuple[str, str, Dict[str, Any]]]],
+    components: Iterable[tuple[str, str] | tuple[str, str, dict[str, Any]]],
 ) -> None:
     """
     Starts a Pelix framework, on the export side
@@ -183,7 +185,7 @@ def export_framework(
         state_queue.put("stopping")
         framework.stop()
         framework.delete()
-    except Exception as ex:
+    except Exception as ex:  # noqa: BLE001
         state_queue.put(f"Error: {ex}\n{traceback.format_exc()}")
 
 
@@ -196,12 +198,12 @@ class HttpTransportsTest(unittest.TestCase):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super(HttpTransportsTest, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._load_framework = load_framework
         self._export_framework = export_framework
 
     def _run_test(
-        self, discovery_bundle: str, discovery_factory: str, discovery_opts: Optional[Dict[str, Any]] = None
+        self, discovery_bundle: str, discovery_factory: str, discovery_opts: dict[str, Any] | None = None
     ) -> None:
         """
         Runs a remote service call test
@@ -215,7 +217,7 @@ class HttpTransportsTest(unittest.TestCase):
         transport_bundle = "pelix.remote.json_rpc"
 
         # Define components
-        components = [
+        components: list[tuple[str, str] | tuple[str, str, dict[str, Any] | None]] = [
             (pelix.remote.FACTORY_TRANSPORT_JSONRPC_EXPORTER, "rs-exporter"),
             (pelix.remote.FACTORY_TRANSPORT_JSONRPC_IMPORTER, "rs-importer"),
             (discovery_factory, "discovery", discovery_opts),
@@ -239,7 +241,7 @@ class HttpTransportsTest(unittest.TestCase):
 
             # Look for the remote service
             for _ in range(10):
-                svc_ref: Optional[ServiceReference[Any]] = context.get_service_reference(SVC_SPEC)
+                svc_ref: ServiceReference[Any] | None = context.get_service_reference(SVC_SPEC)
                 if svc_ref is not None:
                     break
                 time.sleep(0.5)
@@ -281,8 +283,8 @@ class HttpTransportsTest(unittest.TestCase):
             # Stop everything (and delete the framework in any case
             try:
                 FrameworkFactory.delete_framework()
-            except:
-                pass
+            except:  # noqa: E722
+                print("Error while deleting the framework", file=sys.stderr)
 
             try:
                 peer.kill()
@@ -305,9 +307,7 @@ class HttpTransportsTest(unittest.TestCase):
         """
         Tests the mDNS/Zeroconf discovery
         """
-        try:
-            assert importlib.util.find_spec("zeroconf") is not None
-        except Exception:
+        if importlib.util.find_spec("zeroconf") is None:
             self.skipTest("zeroconf is missing: can't test mDNS discovery")
 
         try:
@@ -322,9 +322,7 @@ class HttpTransportsTest(unittest.TestCase):
         """
         Tests the MQTT discovery
         """
-        try:
-            assert importlib.util.find_spec("paho") is not None
-        except Exception:
+        if importlib.util.find_spec("paho") is None:
             self.skipTest("paho is missing: can't test MQTT discovery")
 
         if not is_server_reachable("localhost", 1883):
@@ -340,9 +338,7 @@ class HttpTransportsTest(unittest.TestCase):
         """
         Tests the Redis discovery
         """
-        try:
-            assert importlib.util.find_spec("redis") is not None
-        except Exception:
+        if importlib.util.find_spec("redis") is None:
             self.skipTest("redis is missing: can't test Redis discovery")
 
         if not is_server_reachable("localhost", 6379):
@@ -358,9 +354,7 @@ class HttpTransportsTest(unittest.TestCase):
         """
         Tests the ZooKeeper discovery
         """
-        try:
-            assert importlib.util.find_spec("kazoo") is not None
-        except Exception:
+        if importlib.util.find_spec("kazoo") is None:
             self.skipTest("Kazoo is missing: can't test ZooKeeper discovery")
 
         if not is_server_reachable("localhost", 2181):

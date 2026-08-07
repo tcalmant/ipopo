@@ -15,7 +15,7 @@ from pelix.ipopo.constants import use_ipopo
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ class TopologyManagerTest(unittest.TestCase):
         svc_reg.set_properties({key: val})
         for export_ref in self.rsa.get_exported_services():
             if export_ref.get_reference() is svc_ref:
-                svc_val = export_ref.get_description().get_properties()[key]
+                svc_val = export_ref.get_description().get_properties()[key]  # type: ignore
                 self.assertEqual(val, svc_val)
                 break
         else:
@@ -144,7 +144,7 @@ class TopologyManagerTest(unittest.TestCase):
         imported = [
             import_ref
             for import_ref in self.rsa.get_imported_endpoints()
-            if import_ref.get_description().get_id() == parsed_endpoint.get_id()
+            if import_ref.get_description().get_id() == parsed_endpoint.get_id()  # type: ignore
         ]
         self.assertTrue(imported, "Endpoint not imported on ADDED event")
 
@@ -156,7 +156,7 @@ class TopologyManagerTest(unittest.TestCase):
         imported = [
             import_ref
             for import_ref in self.rsa.get_imported_endpoints()
-            if import_ref.get_description().get_id() == parsed_endpoint.get_id()
+            if import_ref.get_description().get_id() == parsed_endpoint.get_id()  # type: ignore
         ]
         self.assertFalse(imported, "Endpoint still imported after REMOVED event")
 

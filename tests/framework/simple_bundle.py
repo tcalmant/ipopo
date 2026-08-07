@@ -9,7 +9,7 @@ Simple bundle with an activator (no service registered).
 from pelix.constants import ActivatorProto, BundleActivator, FrameworkException
 from pelix.framework import BundleContext
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 started = False
@@ -42,7 +42,7 @@ class ActivatorTest(ActivatorProto):
             raise FrameworkException("Framework Exception", fw_raiser_stop)
 
         if raiser:
-            raise Exception("Some exception")
+            raise Exception("Some exception")  # noqa: TRY002
 
         global started
         started = True
@@ -58,7 +58,7 @@ class ActivatorTest(ActivatorProto):
             raise FrameworkException("Framework Exception", fw_raiser_stop)
 
         if raiser:
-            raise Exception("Some exception")
+            raise Exception("Some exception")  # noqa: TRY002
 
         global stopped
         stopped = True

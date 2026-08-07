@@ -9,16 +9,16 @@ Tests the log shell commands
 import logging
 import unittest
 from io import StringIO
-from typing import Any, Tuple, cast
+from typing import Any, cast
 
 import pelix.framework
 import pelix.misc
 import pelix.shell
-import pelix.shell.beans as beans
+from pelix.shell import beans
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -64,7 +64,7 @@ class LogShellTest(unittest.TestCase):
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
         self.framework = None  # type: ignore
 
-    def _make_session(self) -> Tuple[beans.ShellSession, StringIO]:
+    def _make_session(self) -> tuple[beans.ShellSession, StringIO]:
         """
         Prepares a ShellSession object for _run_command
         """
@@ -110,7 +110,7 @@ class LogShellTest(unittest.TestCase):
             ("warning", logging.WARNING),
             ("error", logging.ERROR),
         ):
-            self._run_command("log.{0} some text".format(cmd))
+            self._run_command(f"log.{cmd} some text")
 
             latest = self.reader.get_log()[-1]
             self.assertEqual(latest.level, level, "Wrong log level")
@@ -123,7 +123,7 @@ class LogShellTest(unittest.TestCase):
 
         # Check if the commands work
         for cmd in ("debug", "info", "warn", "warning", "error"):
-            output = self._run_command("log.{0} some text".format(cmd))
+            output = self._run_command(f"log.{cmd} some text")
             self.assertIn("No LogService".lower(), output.lower())
             self.assertIn("available", output.lower())
 
@@ -133,7 +133,7 @@ class LogShellTest(unittest.TestCase):
         """
         for cmd in ("debug", "info", "warn", "warning", "error"):
             # Log something
-            self._run_command("log.{0} some text for {0}".format(cmd))
+            self._run_command(f"log.{cmd} some text for {cmd}")
 
         # Get all logs
         logs = self.reader.get_log()
@@ -146,7 +146,7 @@ class LogShellTest(unittest.TestCase):
 
         # Filter given
         for level in (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR):
-            output = self._run_command("log.log {0}".format(logging.getLevelName(level)))
+            output = self._run_command(f"log.log {logging.getLevelName(level)}")
             for entry in logs:
                 if entry.level >= level:
                     self.assertIn(entry.message, output)
@@ -154,7 +154,7 @@ class LogShellTest(unittest.TestCase):
         # Test length filter, even when going beyond the log size
         for level in (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR):
             for i in range(1, len(logs) + 10):
-                output = self._run_command("log.log {0} {1}".format(logging.getLevelName(level), i))
+                output = self._run_command(f"log.log {logging.getLevelName(level)} {i}")
                 for entry in logs[-i:]:
                     if entry.level >= level:
                         self.assertIn(entry.message, output)

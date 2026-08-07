@@ -6,7 +6,7 @@ Remote Service Admin Shell Commands
 :author: Scott Lewis
 :copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -28,7 +28,7 @@ Remote Service Admin Shell Commands
 import os
 from threading import RLock
 from traceback import print_exception
-from typing import Any, List, Optional, Set, Tuple, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 import pelix.rsa.remoteserviceadmin as rsa_impl
 from pelix.constants import SERVICE_ID
@@ -70,7 +70,7 @@ from pelix.shell.beans import ShellSession
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -136,18 +136,18 @@ class RSACommandHandler(ShellCommandsProvider):
 
     _utils: ShellUtils
     _rsa: RemoteServiceAdmin
-    _imp_dist_providers: List[ImportDistributionProvider]
-    _exp_dist_providers: List[ExportDistributionProvider]
+    _imp_dist_providers: list[ImportDistributionProvider]
+    _exp_dist_providers: list[ExportDistributionProvider]
 
     def __init__(self) -> None:
-        self._context: Optional[BundleContext] = None
-        self._imp_containers: List[Container] = []
-        self._exp_containers: List[Container] = []
+        self._context: BundleContext | None = None
+        self._imp_containers: list[Container] = []
+        self._exp_containers: list[Container] = []
         self._edef_filename: str = "edef.xml"
         self._export_config: str = "ecf.xmlrpc.server"
         self._bind_lock = RLock()
 
-    def _bind_lists(self, field: List[T], service: T) -> None:
+    def _bind_lists(self, field: list[T], service: T) -> None:
         """
         Thread-safe handling of addition in a list of bound services
 
@@ -157,7 +157,7 @@ class RSACommandHandler(ShellCommandsProvider):
         with self._bind_lock:
             field.append(service)
 
-    def _unbind_lists(self, field: List[T], service: T) -> None:
+    def _unbind_lists(self, field: list[T], service: T) -> None:
         """
         Thread-safe handling of removal in a list of bound services
 
@@ -230,7 +230,7 @@ class RSACommandHandler(ShellCommandsProvider):
     ) -> None:
         self._unbind_lists(self._exp_dist_providers, service)
 
-    def _get_containers(self, container_id: Optional[str] = None) -> List[Container]:
+    def _get_containers(self, container_id: str | None = None) -> list[Container]:
         """
         Gets the list of import and export containers
 
@@ -244,7 +244,7 @@ class RSACommandHandler(ShellCommandsProvider):
 
             return list(containers)
 
-    def _get_dist_providers(self, provider_id: Optional[str] = None) -> List[DistributionProvider]:
+    def _get_dist_providers(self, provider_id: str | None = None) -> list[DistributionProvider]:
         """
         Gets the list of import and export providers
 
@@ -252,7 +252,7 @@ class RSACommandHandler(ShellCommandsProvider):
         :return: All providers or those matching the given ID
         """
         with self._bind_lock:
-            providers: Set[DistributionProvider] = set(self._imp_dist_providers)
+            providers: set[DistributionProvider] = set(self._imp_dist_providers)
             providers.update(self._exp_dist_providers)
             if provider_id:
                 return [p for p in providers if p.get_config_name() == provider_id]
@@ -281,7 +281,7 @@ class RSACommandHandler(ShellCommandsProvider):
         """
         return RSACommandHandler.SHELL_NAMESPACE
 
-    def get_methods(self) -> List[Tuple[str, ShellCommandMethod]]:
+    def get_methods(self) -> list[tuple[str, ShellCommandMethod]]:
         """
         Returns the commands provided by this service
         """
@@ -329,7 +329,7 @@ class RSACommandHandler(ShellCommandsProvider):
         )
 
     def _set_defaults(
-        self, io_handler: ShellSession, export_config: str, edef_file: Optional[str] = None
+        self, io_handler: ShellSession, export_config: str, edef_file: str | None = None
     ) -> None:
         """
         Set the export_config and optionally the edef_file default values
@@ -351,7 +351,7 @@ class RSACommandHandler(ShellCommandsProvider):
 
             io_handler.write_line(EDEFWriter().to_string(eds))
 
-    def _list_providers(self, io_handler: ShellSession, provider_id: Optional[str] = None) -> None:
+    def _list_providers(self, io_handler: ShellSession, provider_id: str | None = None) -> None:
         """
         List export/import providers. If <provider_id> given,
         details on that provider
@@ -374,7 +374,7 @@ class RSACommandHandler(ShellCommandsProvider):
                 rows = [(p.get_config_name(), _full_class_name(p)) for p in providers]
                 io_handler.write_line(self._utils.make_table(title, rows))
 
-    def _list_containers(self, io_handler: ShellSession, container_id: Optional[str] = None) -> None:
+    def _list_containers(self, io_handler: ShellSession, container_id: str | None = None) -> None:
         """
         List existing import/export containers.
         If <container_id> given, details on that container
@@ -402,7 +402,7 @@ class RSACommandHandler(ShellCommandsProvider):
                 io_handler.write_line(self._utils.make_table(title, rows))
 
     def _list_imports(
-        self, session: ShellSession, import_regs: List[ImportRegistration], endpoint_id: Optional[str] = None
+        self, session: ShellSession, import_regs: list[ImportRegistration], endpoint_id: str | None = None
     ) -> None:
         """
         Lists the imported services
@@ -443,7 +443,7 @@ class RSACommandHandler(ShellCommandsProvider):
             session.write_line(self._utils.make_table(title, rows))
 
     def _list_exports(
-        self, session: ShellSession, configs: List[ExportRegistration], endpoint_id: Optional[str] = None
+        self, session: ShellSession, configs: list[ExportRegistration], endpoint_id: str | None = None
     ) -> None:
         """
         Lists the exported services
@@ -464,7 +464,7 @@ class RSACommandHandler(ShellCommandsProvider):
 
             session.write_line(self._utils.make_table(title, rows))
 
-    def _list_exported_configs(self, io_handler: ShellSession, endpoint_id: Optional[str] = None) -> None:
+    def _list_exported_configs(self, io_handler: ShellSession, endpoint_id: str | None = None) -> None:
         """
         List exported services. If <endpoint_id> given, details on that export
         """
@@ -472,7 +472,7 @@ class RSACommandHandler(ShellCommandsProvider):
             io_handler, cast(rsa_impl.RemoteServiceAdminImpl, self._rsa)._get_export_regs(), endpoint_id
         )
 
-    def _list_imported_configs(self, io_handler: ShellSession, endpoint_id: Optional[str] = None) -> None:
+    def _list_imported_configs(self, io_handler: ShellSession, endpoint_id: str | None = None) -> None:
         """
         List imported endpoints. If <endpoint_id> given, details on that import
         """
@@ -526,14 +526,14 @@ class RSACommandHandler(ShellCommandsProvider):
         self,
         io_handler: ShellSession,
         service_id: str,
-        export_config: Optional[str] = None,
-        filename: Optional[str] = None,
+        export_config: str | None = None,
+        filename: str | None = None,
     ) -> None:
         """
         Export service with given service.id.
         """
         assert self._context is not None
-        svc_ref: Optional[ServiceReference[Any]] = self._context.get_service_reference(
+        svc_ref: ServiceReference[Any] | None = self._context.get_service_reference(
             None, f"(service.id={service_id})"
         )
         if not svc_ref:
@@ -584,7 +584,7 @@ class RSACommandHandler(ShellCommandsProvider):
         else:
             io_handler.write_line("No output EDEF file given")
 
-    def _import_edef(self, io_handler: ShellSession, edef_file: Optional[str] = None) -> None:
+    def _import_edef(self, io_handler: ShellSession, edef_file: str | None = None) -> None:
         """
         Import endpoint
         """
@@ -596,7 +596,7 @@ class RSACommandHandler(ShellCommandsProvider):
             eds = EDEFReader().parse(f.read())
             io_handler.write_line("Imported {0} endpoints from EDEF file={1}", len(eds), full_name)
 
-        ed: Optional[EndpointDescription]
+        ed: EndpointDescription | None
         for ed in eds:
             if ed is None:
                 continue

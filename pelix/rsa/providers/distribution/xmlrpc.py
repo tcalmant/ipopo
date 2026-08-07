@@ -1,13 +1,12 @@
 #!/usr/bin/python
 # -- Content-Encoding: UTF-8 --
 """
-
 XmlRpc-on-HttpService-based Export and Import Distribution Providers
 
 :author: Scott Lewis
 :copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -26,10 +25,12 @@ XmlRpc-on-HttpService-based Export and Import Distribution Providers
     limitations under the License.
 """
 
+import logging
 import xmlrpc.client as xmlrpclib
+from collections.abc import Callable
 from concurrent.futures import Executor
 from concurrent.futures.thread import ThreadPoolExecutor
-from typing import Any, Callable, Dict, List, Optional, Tuple, cast
+from typing import Any, cast
 from xmlrpc.server import SimpleXMLRPCDispatcher
 
 from pelix.framework import BundleContext
@@ -60,11 +61,13 @@ from pelix.rsa.providers.distribution import (
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
+
+_logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 # XmlRpc Distribution Provider Constants. Note that to get interoperability with
@@ -92,10 +95,10 @@ class ServerDispatcher(SimpleXMLRPCDispatcher, Servlet):
     def __init__(
         self,
         dispatch_func: Callable[..., Any],
-        timeout: Optional[float] = None,
-        executor: Optional[Executor] = None,
+        timeout: float | None = None,
+        executor: Executor | None = None,
     ) -> None:
-        super(ServerDispatcher, self).__init__(allow_none=True)
+        super().__init__(allow_none=True)
         self._dispatch_func = dispatch_func
         self._timeout = timeout
         self._executor = executor
@@ -106,14 +109,12 @@ class ServerDispatcher(SimpleXMLRPCDispatcher, Servlet):
         result = self._marshaled_dispatch(data, self._dispatch)
         response.send_content(200, result, "text/xml")
 
-    def _dispatch(self, method: Optional[str], params: Any) -> Any:
+    def _dispatch(self, method: str | None, params: Any) -> Any:
         if method is None:
-            raise Exception("No method to dispatch given")
+            raise ValueError("No method to dispatch given")
         obj_method_list = method.split(".")
         if not len(obj_method_list) == 2:
-            raise Exception(
-                "_dispatch: invalid method=" + method + ".  Must be of form <objectid>.<methodname>"
-            )
+            raise ValueError("Invalid method=" + method + ".  Must be of form <objectid>.<methodname>")
         # and call _dispatch_func/3
         if self._executor:
             return self._executor.submit(
@@ -144,7 +145,7 @@ class XmlRpcExportContainer(ExportContainer):
         return cast(XmlRpcExportDistributionProvider, super()._get_distribution_provider())
 
     @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_PROPERTIES)
-    def _validate_component(self, bundle_context: BundleContext, container_props: Dict[str, Any]) -> None:
+    def _validate_component(self, bundle_context: BundleContext, container_props: dict[str, Any]) -> None:
         # pylint: disable=W0212
         ExportContainer._validate_component(self, bundle_context, container_props)
         timeout = container_props.get(ECF_XMLRPC_TIMEOUT_PROP, None)
@@ -167,8 +168,8 @@ class XmlRpcExportContainer(ExportContainer):
             dp = self._get_distribution_provider()
             dp._httpservice.unregister(dp._uri_path)
             ExportContainer._invalidate_component(self, bundle_context)
-        except:
-            pass
+        except:  # noqa: E722
+            _logger.exception("Error while invalidating XmlRpcExportContainer")
 
 
 # ------------------------------------------------------------------------------
@@ -213,14 +214,14 @@ class XmlRpcExportDistributionProvider(ExportDistributionProvider):
     _httpservice: HTTPService
 
     def __init__(self) -> None:
-        super(XmlRpcExportDistributionProvider, self).__init__()
+        super().__init__()
         self._uri_path: str = ""
-        self._timeout: Optional[float] = None
-        self._hostname: Optional[str] = None
+        self._timeout: float | None = None
+        self._hostname: str | None = None
 
     def _prepare_container_props(
-        self, service_intents: Optional[List[str]], export_props: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, service_intents: list[str] | None, export_props: dict[str, Any]
+    ) -> dict[str, Any]:
         container_props = ExportDistributionProvider._prepare_container_props(
             self, service_intents, export_props
         )
@@ -228,7 +229,7 @@ class XmlRpcExportDistributionProvider(ExportDistributionProvider):
             container_props[ECF_XMLRPC_TIMEOUT_PROP] = self._timeout
         return container_props
 
-    def _prepare_container_id(self, container_props: Dict[str, Any]) -> str:
+    def _prepare_container_id(self, container_props: dict[str, Any]) -> str:
         """
         This method is called prior to actual container creation in order to
         create the name/id of the ExportContainer to be subsequently created
@@ -238,13 +239,13 @@ class XmlRpcExportDistributionProvider(ExportDistributionProvider):
         the container_id.
         """
         protocol = "https" if self._httpservice.is_https() else "http"
-        hostname = cast(Optional[str], container_props.get(ECF_XMLRPC_HOSTNAME_PROP, None))
+        hostname = cast(str | None, container_props.get(ECF_XMLRPC_HOSTNAME_PROP, None))
         if not hostname:
             hostname = self._hostname
             if not hostname:
                 hostname = self._httpservice.get_hostname()
 
-        port = cast(Optional[int], container_props.get("port"))
+        port = cast(int | None, container_props.get("port"))
         if not port:
             port = self._httpservice.get_access()[1]
 
@@ -278,7 +279,7 @@ class XmlRpcImportContainer(ImportContainer):
         """
 
         class XmlRpcProxy:
-            def __init__(self, get_remoteservice_id: Tuple[Tuple[Any, str], int]) -> None:
+            def __init__(self, get_remoteservice_id: tuple[tuple[Any, str], int]) -> None:
                 self._url = get_remoteservice_id[0][1]
                 self._rsid = str(get_remoteservice_id[1])
 
@@ -306,5 +307,3 @@ class XmlRpcImportDistributionProvider(ImportDistributionProvider):
     """
     We get all necessary methods from ImportDistributionProvider
     """
-
-    ...

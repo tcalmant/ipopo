@@ -18,7 +18,7 @@ from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 NAME_A = "componentA"
@@ -26,7 +26,7 @@ NAME_A = "componentA"
 # ------------------------------------------------------------------------------
 
 
-class Dummy(object):
+class Dummy:
     """
     Dummy object for tests
     """
@@ -89,14 +89,9 @@ class TemporalTest(unittest.TestCase):
             self.fail("TemporalException not raised on call")
 
         # Try to call a non-active proxy method
-        try:
+        with self.assertRaises(TemporalException, msg="TemporalException not raised on field access"):
             # Exception getting the field
-            proxy.method
-        except TemporalException:
-            # OK
-            pass
-        else:
-            self.fail("TemporalException not raised on field access")
+            proxy.method  # noqa: B018
 
         # Check boolean value
         self.assertFalse(proxy)
@@ -135,14 +130,9 @@ class TemporalTest(unittest.TestCase):
             self.fail("TemporalException not raised on call")
 
         # Try to call a non-active proxy method
-        try:
+        with self.assertRaises(TemporalException, msg="TemporalException not raised on field access"):
             # Exception getting the field
-            proxy.method
-        except TemporalException:
-            # OK
-            pass
-        else:
-            self.fail("TemporalException not raised on field access")
+            proxy.method  # noqa: B018
 
     def test_temporal_lifecycle(self):
         """

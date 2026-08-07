@@ -8,7 +8,7 @@ This module depends on the sleekxmpp package: http://sleekxmpp.com/
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -32,16 +32,16 @@ import collections
 import logging
 import sys
 from io import StringIO
-from typing import IO, Any, Deque, Dict, List, Optional, cast
+from typing import IO, Any, cast
 
 from slixmpp.jid import JID
 
 import pelix.framework
 import pelix.misc.xmpp
 import pelix.shell
-import pelix.shell.beans as beans
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, HiddenProperty, Invalidate, Property, Requires, Validate
+from pelix.shell import beans
 from pelix.shell.console import handle_common_arguments, make_common_parser
 from pelix.threadpool import ThreadPool
 from pelix.utilities import EventData, remove_duplicates
@@ -49,7 +49,7 @@ from pelix.utilities import EventData, remove_duplicates
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -89,11 +89,12 @@ class _XmppOutStream(IO[str]):
         """
         return "w"
 
-    def write(self, data: str) -> None:
+    def write(self, data: str) -> int:
         """
         Writes data to a buffer
         """
         self._buffer.write(data)
+        return len(data)
 
     def flush(self) -> None:
         """
@@ -107,9 +108,9 @@ class _XmppOutStream(IO[str]):
             # Send message
             try:
                 self._client.send_message(mto=self._target, mbody=content, mtype="chat")
-            except Exception as ex:
-                _logger.exception("Error while sending message: %s", ex)
-                raise ex
+            except Exception:
+                _logger.exception("Error while sending message")
+                raise
 
 
 class _XmppInStream(IO[str]):
@@ -134,12 +135,12 @@ class _XmppInStream(IO[str]):
         """
         return "r"
 
-    def readline(self) -> Optional[str]:
+    def readline(self, limit: int = -1) -> str:
         """
         Waits for a line from the XMPP client
         """
         # Wait for content from the user
-        return self._ui.read_from(self._jid)
+        return (self._ui.read_from(self._jid) or "")[:limit]
 
 
 # ------------------------------------------------------------------------------
@@ -167,19 +168,19 @@ class IPopoXMPPShell:
         # Injected properties
         self._host: str = "localhost"
         self._port: int = 5222
-        self._jid: Optional[str] = None
-        self._password: Optional[str] = None
+        self._jid: str | None = None
+        self._password: str | None = None
         self._use_tls: bool = True
         self._use_ssl: bool = False
 
         # XMPP Bot
-        self.__bot: Optional[pelix.misc.xmpp.BasicBot] = None
+        self.__bot: pelix.misc.xmpp.BasicBot | None = None
 
         # Shell sessions: JID -> ShellSession
-        self.__sessions: Dict[JID, beans.ShellSession] = {}
+        self.__sessions: dict[JID, beans.ShellSession] = {}
 
         # Waiting for a message from the given JID
-        self.__waiting: Dict[JID, Deque[EventData[str]]] = {}
+        self.__waiting: dict[JID, collections.deque[EventData[str]]] = {}
 
         # Task queue thread
         self.__pool: ThreadPool = ThreadPool(1, logname="XMPPShell")
@@ -285,7 +286,7 @@ class IPopoXMPPShell:
 
         _logger.info("XMPP shell disconnected from %s", self.__bot.boundjid.full)
 
-    def __on_offline(self, data: Dict[str, Any]) -> None:
+    def __on_offline(self, data: dict[str, Any]) -> None:
         """
         XMPP client got offline
         :param data: Message stanza
@@ -305,7 +306,7 @@ class IPopoXMPPShell:
             else:
                 _logger.debug("No XMPP bot: cannot unsubscribe %s", source_jid)
 
-    def __on_message(self, data: Dict[str, Any]) -> None:
+    def __on_message(self, data: dict[str, Any]) -> None:
         """
         Got an XMPP message
 
@@ -361,7 +362,7 @@ class IPopoXMPPShell:
 
         self._shell.execute(content, session)
 
-    def read_from(self, jid: JID) -> Optional[str]:
+    def read_from(self, jid: JID) -> str | None:
         """
         Returns the next message read from the given JID
 
@@ -382,7 +383,7 @@ class IPopoXMPPShell:
 # ------------------------------------------------------------------------------
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """
     Entry point
 

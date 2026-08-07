@@ -14,7 +14,7 @@ from pelix.framework import FrameworkFactory
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -64,6 +64,7 @@ class ServicesTest(unittest.TestCase):
 
         # Find the service
         svc_ref = context_fw.get_service_reference(factory_module.SVC)
+        assert svc_ref is not None, "Service reference not found"
 
         # Get the service from the Framework context
         svc_fw = context_fw.get_service(svc_ref)
@@ -113,6 +114,7 @@ class ServicesTest(unittest.TestCase):
 
         # Find the service
         svc_ref = ctx.get_service_reference(factory_module.SVC_NO_CLEAN)
+        assert svc_ref is not None, "Service reference not found"
 
         # Get the service from the Framework context
         svc = ctx.get_service(svc_ref)
@@ -156,6 +158,7 @@ class ServicesTest(unittest.TestCase):
 
         # Find the service
         svc_ref = context_fw.get_service_reference(factory_module.SVC)
+        assert svc_ref is not None, "Service reference not found"
 
         # Start a dummy bundle for its context
         bnd = context_fw.install_bundle("tests.dummy_1")

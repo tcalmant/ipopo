@@ -6,7 +6,7 @@ Pelix remote services package
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -25,7 +25,8 @@ Pelix remote services package
     limitations under the License.
 """
 
-from typing import Any, Dict, Iterable, List, Optional, Protocol, Tuple, Union
+from collections.abc import Iterable
+from typing import Any, Protocol
 
 import pelix.http
 from pelix.constants import Specification
@@ -33,7 +34,7 @@ from pelix.internals.registry import ServiceReference
 from pelix.remote.beans import ExportEndpoint, ImportEndpoint
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -248,8 +249,6 @@ class RemoteServiceError(Exception):
     Error while accessing a remote service entry
     """
 
-    pass
-
 
 @Specification(SERVICE_REGISTRY)
 class RemoteServiceRegistry(Protocol):
@@ -267,7 +266,7 @@ class RemoteServiceRegistry(Protocol):
         """
         ...
 
-    def update(self, uid: str, new_properties: Dict[str, Any]) -> bool:
+    def update(self, uid: str, new_properties: dict[str, Any]) -> bool:
         """
         Updates an end point and notifies listeners
 
@@ -277,7 +276,7 @@ class RemoteServiceRegistry(Protocol):
         """
         ...
 
-    def contains(self, endpoint: Union[str, ImportEndpoint]) -> bool:
+    def contains(self, endpoint: str | ImportEndpoint) -> bool:
         """
         Checks if an endpoint is in the registry
 
@@ -295,7 +294,7 @@ class RemoteServiceRegistry(Protocol):
         """
         ...
 
-    def lost_framework(self, uid: Optional[str]) -> None:
+    def lost_framework(self, uid: str | None) -> None:
         """
         Unregisters all the end points associated to the given framework UID
 
@@ -310,7 +309,7 @@ class RemoteServiceDispatcher(Protocol):
     Remote service dispatcher
     """
 
-    def get_endpoints(self, kind: Optional[str] = None, name: Optional[str] = None) -> List[ExportEndpoint]:
+    def get_endpoints(self, kind: str | None = None, name: str | None = None) -> list[ExportEndpoint]:
         """
         Retrieves all end points matching the given kind and/or name
 
@@ -320,7 +319,7 @@ class RemoteServiceDispatcher(Protocol):
         """
         ...
 
-    def get_endpoint(self, uid: str) -> Optional[ExportEndpoint]:
+    def get_endpoint(self, uid: str) -> ExportEndpoint | None:
         """
         Return an exported endpoint
         """
@@ -333,7 +332,7 @@ class RemoteServiceDispatcherServlet(pelix.http.Servlet, Protocol):
     Remote service dispatcher servlet
     """
 
-    def get_access(self) -> Optional[Tuple[int, str]]:
+    def get_access(self) -> tuple[int, str] | None:
         """
         Returns the port and path to access this servlet with the first
         bound HTTP service.
@@ -355,7 +354,7 @@ class RemoteServiceDispatcherServlet(pelix.http.Servlet, Protocol):
         """
         ...
 
-    def grab_endpoint(self, host: str, port: int, path: str, uid: str) -> Optional[ImportEndpoint]:
+    def grab_endpoint(self, host: str, port: int, path: str, uid: str) -> ImportEndpoint | None:
         """
         Retrieves the description of the end point with the given UID from the
         given dispatcher servlet.
@@ -386,8 +385,8 @@ class RemoteServiceExportProvider(Protocol):
         ...
 
     def export_service(
-        self, svc_ref: ServiceReference[Any], name: str, fw_uid: Optional[str]
-    ) -> Optional[ExportEndpoint]:
+        self, svc_ref: ServiceReference[Any], name: str, fw_uid: str | None
+    ) -> ExportEndpoint | None:
         """
         Prepares an export endpoint
 
@@ -401,7 +400,7 @@ class RemoteServiceExportProvider(Protocol):
         ...
 
     def update_export(
-        self, endpoint: ExportEndpoint, new_name: str, old_properties: Optional[Dict[str, Any]]
+        self, endpoint: ExportEndpoint, new_name: str, old_properties: dict[str, Any] | None
     ) -> None:
         """
         Updates an export endpoint
@@ -428,13 +427,13 @@ class RemoteServiceExportEndpointListener(Protocol):
     Remote service export endpoint listener
     """
 
-    def endpoints_added(self, endpoints: List[ExportEndpoint]) -> None:
+    def endpoints_added(self, endpoints: list[ExportEndpoint]) -> None:
         """
         Notification of new remote service export endpoints
         """
         ...
 
-    def endpoint_updated(self, endpoint: ExportEndpoint, old_properties: Optional[Dict[str, Any]]) -> None:
+    def endpoint_updated(self, endpoint: ExportEndpoint, old_properties: dict[str, Any] | None) -> None:
         """
         Notification of the update of an endpoint of an an exported service
         """
@@ -459,7 +458,7 @@ class RemoteServiceImportEndpointListener(Protocol):
         """
         ...
 
-    def endpoint_updated(self, endpoint: ImportEndpoint, old_properties: Optional[Dict[str, Any]]) -> None:
+    def endpoint_updated(self, endpoint: ImportEndpoint, old_properties: dict[str, Any] | None) -> None:
         """
         Notification of the removal of a remote service
         """

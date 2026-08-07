@@ -6,7 +6,7 @@ Service providing handler
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -26,21 +26,22 @@ Service providing handler
 """
 
 import logging
-from typing import Any, Callable, Iterable, List, Optional, Tuple, TypeVar
+from collections.abc import Callable, Iterable
+from typing import Any, TypeVar
 
 import pelix.ipopo.constants as ipopo_constants
-import pelix.ipopo.handlers.constants as constants
 from pelix.constants import ActivatorProto, BundleActivator, BundleException
 from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo.contexts import ComponentContext
+from pelix.ipopo.handlers import constants
 from pelix.ipopo.instance import StoredInstance
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -87,7 +88,7 @@ class Activator(ActivatorProto):
         """
         Sets up members
         """
-        self._registration: Optional[ServiceRegistration[constants.HandlerFactory]] = None
+        self._registration: ServiceRegistration[constants.HandlerFactory] | None = None
 
     def start(self, context: BundleContext) -> None:
         """
@@ -103,7 +104,7 @@ class Activator(ActivatorProto):
             properties,
         )
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -122,7 +123,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
     """
 
     def __init__(
-        self, specifications: List[str], controller_name: str, is_factory: bool, is_prototype: bool
+        self, specifications: list[str], controller_name: str, is_factory: bool, is_prototype: bool
     ) -> None:
         """
         Sets up the handler
@@ -134,7 +135,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         """
         self.specifications = specifications
         self.__controller = controller_name
-        self._ipopo_instance: Optional[StoredInstance] = None
+        self._ipopo_instance: StoredInstance | None = None
 
         # Controller is "on" by default
         self.__controller_on = True
@@ -145,10 +146,10 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         self.__is_prototype = is_prototype
 
         # The ServiceRegistration and ServiceReference objects
-        self._registration: Optional[ServiceRegistration[Any]] = None
-        self._svc_reference: Optional[ServiceReference[Any]] = None
+        self._registration: ServiceRegistration[Any] | None = None
+        self._svc_reference: ServiceReference[Any] | None = None
 
-    def _field_controller_generator(self) -> Tuple[Callable[[T, str], Any], Callable[[T, str, Any], Any]]:
+    def _field_controller_generator(self) -> tuple[Callable[[T, str], Any], Callable[[T, str, Any], Any]]:
         """
         Generates the methods called by the injected controller
         """
@@ -223,7 +224,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         """
         return self._svc_reference is not event.get_service_reference()
 
-    def get_kinds(self) -> Tuple[str]:
+    def get_kinds(self) -> tuple[str]:
         """
         Retrieves the kinds of this handler: 'service_provider'
 
@@ -231,7 +232,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
         """
         return (constants.KIND_SERVICE_PROVIDER,)
 
-    def get_service_reference(self) -> Optional[ServiceReference[Any]]:
+    def get_service_reference(self) -> ServiceReference[Any] | None:
         """
         Retrieves the reference of the provided service
 
@@ -331,7 +332,7 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
                 self._registration.unregister()
             except BundleException as ex:
                 # Only log the error at this level
-                logger = logging.getLogger("-".join((self._ipopo_instance.name, "ServiceRegistration")))
+                logger = logging.getLogger(f"{self._ipopo_instance.name}-ServiceRegistration")
                 logger.error("Error unregistering a service: %s", ex)
 
             # Notify the component (even in case of error)

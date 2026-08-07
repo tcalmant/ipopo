@@ -7,6 +7,7 @@ Simple bundle providing a prototype service factory
 """
 
 from pelix.constants import ActivatorProto, BundleActivator
+from pelix.internals.registry import ServiceRegistration
 
 
 class Instance:
@@ -26,7 +27,7 @@ class Instance:
         Instance._id += 1
 
     def __repr__(self):
-        return "Instance(id={}, for={}, released={})".format(self.id, self.bundle, self.released)
+        return f"Instance(id={self.id}, for={self.bundle}, released={self.released})"
 
 
 class PrototypeServiceFactory:
@@ -34,7 +35,7 @@ class PrototypeServiceFactory:
     Implementation of a prototype service factory
     """
 
-    def __init__(self, svc_reg):
+    def __init__(self, svc_reg: ServiceRegistration | None):
         """
         :param svc_reg: Service Registration associated to the factory
         """
@@ -91,7 +92,7 @@ class PrototypeServiceFactory:
 
         bundle_instances = self.instances[bundle]
         if bundle_instances:
-            raise ValueError("Some instances are still active: {}".format(bundle_instances))
+            raise ValueError(f"Some instances are still active: {bundle_instances}")
 
         del self.instances[bundle]
 
@@ -126,6 +127,9 @@ class Activator(ActivatorProto):
 
         :param context: Bundle context
         """
+        assert self._reg is not None, "Service registration not found"
+        assert self._reg2 is not None, "Internal service registration not found"
+
         self._reg.unregister()
         self._reg2.unregister()
         self._svc = None

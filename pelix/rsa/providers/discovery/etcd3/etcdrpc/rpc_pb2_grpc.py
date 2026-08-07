@@ -27,7 +27,7 @@ if _version_not_supported:
     )
 
 
-class KVStub(object):
+class KVStub:
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -68,7 +68,7 @@ class KVStub(object):
         )
 
 
-class KVServicer(object):
+class KVServicer:
     """Missing associated documentation comment in .proto file."""
 
     def Range(self, request, context):
@@ -149,7 +149,7 @@ def add_KVServicer_to_server(servicer, server):
 
 
 # This class is part of an EXPERIMENTAL API.
-class KV(object):
+class KV:
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -303,7 +303,7 @@ class KV(object):
         )
 
 
-class WatchStub(object):
+class WatchStub:
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -320,7 +320,7 @@ class WatchStub(object):
         )
 
 
-class WatchServicer(object):
+class WatchServicer:
     """Missing associated documentation comment in .proto file."""
 
     def Watch(self, request_iterator, context):
@@ -349,7 +349,7 @@ def add_WatchServicer_to_server(servicer, server):
 
 
 # This class is part of an EXPERIMENTAL API.
-class Watch(object):
+class Watch:
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -383,7 +383,7 @@ class Watch(object):
         )
 
 
-class LeaseStub(object):
+class LeaseStub:
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -418,7 +418,7 @@ class LeaseStub(object):
         )
 
 
-class LeaseServicer(object):
+class LeaseServicer:
     """Missing associated documentation comment in .proto file."""
 
     def LeaseGrant(self, request, context):
@@ -480,7 +480,7 @@ def add_LeaseServicer_to_server(servicer, server):
 
 
 # This class is part of an EXPERIMENTAL API.
-class Lease(object):
+class Lease:
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -604,7 +604,7 @@ class Lease(object):
         )
 
 
-class ClusterStub(object):
+class ClusterStub:
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -639,7 +639,7 @@ class ClusterStub(object):
         )
 
 
-class ClusterServicer(object):
+class ClusterServicer:
     """Missing associated documentation comment in .proto file."""
 
     def MemberAdd(self, request, context):
@@ -696,7 +696,7 @@ def add_ClusterServicer_to_server(servicer, server):
 
 
 # This class is part of an EXPERIMENTAL API.
-class Cluster(object):
+class Cluster:
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -820,7 +820,7 @@ class Cluster(object):
         )
 
 
-class MaintenanceStub(object):
+class MaintenanceStub:
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -873,7 +873,7 @@ class MaintenanceStub(object):
         )
 
 
-class MaintenanceServicer(object):
+class MaintenanceServicer:
     """Missing associated documentation comment in .proto file."""
 
     def Alarm(self, request, context):
@@ -966,7 +966,7 @@ def add_MaintenanceServicer_to_server(servicer, server):
 
 
 # This class is part of an EXPERIMENTAL API.
-class Maintenance(object):
+class Maintenance:
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -1180,7 +1180,7 @@ class Maintenance(object):
         )
 
 
-class AuthStub(object):
+class AuthStub:
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -1287,7 +1287,7 @@ class AuthStub(object):
         )
 
 
-class AuthServicer(object):
+class AuthServicer:
     """Missing associated documentation comment in .proto file."""
 
     def AuthEnable(self, request, context):
@@ -1476,7 +1476,7 @@ def add_AuthServicer_to_server(servicer, server):
 
 
 # This class is part of an EXPERIMENTAL API.
-class Auth(object):
+class Auth:
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod

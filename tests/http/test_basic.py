@@ -8,10 +8,11 @@ Pelix basic HTTP service test module.
 
 import logging
 import socket
+import sys
 import unittest
-from typing import Any, cast
+from typing import Any
 
-import pelix.http as http
+from pelix import http
 from pelix.framework import Framework, FrameworkFactory
 from pelix.ipopo.constants import IPopoService
 from tests import log_off, log_on
@@ -29,7 +30,7 @@ from tests.http.utils import (
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -101,7 +102,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
             self._port = 0
             kill_server(self.ipopo, self.instance_name)
         except:
-            logging.exception("Error while killing the server component")
+            print("Error while killing the server component", file=sys.stderr)
             raise
 
     def get_http_code(
@@ -348,7 +349,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
 
         # Test the call back
         for path in paths:
-            self.assertIn(path, servlet.bound, "bound_to not called for {0}".format(path))
+            self.assertIn(path, servlet.bound, f"bound_to not called for {path}")
         self.assertEqual([], servlet.unbound, "unbound_from called")
         servlet.reset()
 
@@ -367,7 +368,7 @@ class BasicHTTPServiceServletsTest(unittest.TestCase):
 
         # Test the call back
         for path in paths:
-            self.assertIn(path, servlet.unbound, "unbound_from not called for {0}".format(path))
+            self.assertIn(path, servlet.unbound, f"unbound_from not called for {path}")
         self.assertEqual([], servlet.bound, "bound_to called")
         servlet.reset()
 
@@ -499,7 +500,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         try:
             kill_server(self.ipopo, self.instance_name)
         except:
-            logging.exception("Error while killing the server component")
+            print("Error while killing the server component", file=sys.stderr)
             raise
 
     def get_http_code(
@@ -562,8 +563,8 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         self.assertIsNone(self.http_svc.get_servlet("/"), "Empty servlet service may return None")
 
         # Dummy objects
-        servlet_1 = cast(http.Servlet, object())
-        servlet_2 = cast(http.Servlet, object())
+        servlet_1: http.Servlet = object()
+        servlet_2: http.Servlet = object()
 
         # Register'em
         path_1 = "/test"
@@ -577,7 +578,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
             self.assertIs(
                 ensure_get_servlet(self.http_svc, path)[0],
                 servlet_1,
-                "Servlet 1 should handle {0}".format(path),
+                f"Servlet 1 should handle {path}",
             )
             self.assertEqual(ensure_get_servlet(self.http_svc, path)[2], path_1, "Servlet 1 path is not kept")
 
@@ -585,7 +586,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
             self.assertIs(
                 ensure_get_servlet(self.http_svc, path)[0],
                 servlet_2,
-                "Servlet 2 should handle {0}".format(path),
+                f"Servlet 2 should handle {path}",
             )
             self.assertEqual(ensure_get_servlet(self.http_svc, path)[2], path_2, "Servlet 2 path is not kept")
 
@@ -594,8 +595,8 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         Tests the behavior of register_servlet with dummy objects
         """
         # Dummy objects
-        servlet_1 = cast(http.Servlet, object())
-        servlet_2 = cast(http.Servlet, object())
+        servlet_1: http.Servlet = object()
+        servlet_2: http.Servlet = object()
 
         # Refuse None servlets
         self.assertRaises(ValueError, self.http_svc.register_servlet, "/test", None)
@@ -618,14 +619,14 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         Tests the behavior of register_servlet with dummy objects
         """
         # Dummy object
-        servlet_1 = cast(http.Servlet, object())
+        servlet_1: http.Servlet = object()
 
         self.http_svc.register_servlet("/test", servlet_1)
 
         # Try to unregister invalid/unknown paths
         for invalid in (None, "", "test", "/test/sub", "/"):
             self.assertFalse(
-                self.http_svc.unregister(invalid), "An invalid path was unregistered: {0}".format(invalid)
+                self.http_svc.unregister(invalid), f"An invalid path was unregistered: {invalid}"
             )
 
         # Try to unregister a None servlet
@@ -633,7 +634,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
 
         # Try to unregister an unknown servlet
         self.assertFalse(
-            self.http_svc.unregister(None, cast(http.Servlet, object())),
+            self.http_svc.unregister(None, object()),  # type: ignore
             "An unknown servlet can't be unregistered.",
         )
 

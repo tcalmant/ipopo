@@ -4,11 +4,11 @@
 import sys
 
 _b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode("latin1"))
-from google.protobuf import descriptor as _descriptor  # noqa: F401,E402
-from google.protobuf import descriptor_pb2  # noqa: F401,E402
-from google.protobuf import message as _message  # noqa: F401,E402
-from google.protobuf import reflection as _reflection  # noqa: F401,E402
-from google.protobuf import symbol_database as _symbol_database  # noqa: E402
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import descriptor_pb2  # noqa: F401
+from google.protobuf import message as _message
+from google.protobuf import reflection as _reflection
+from google.protobuf import symbol_database as _symbol_database
 
 # @@protoc_insertion_point(imports)
 
@@ -136,11 +136,11 @@ DESCRIPTOR.message_types_by_name["HelloMsgContent"] = _HELLOMSGCONTENT
 HelloMsgContent = _reflection.GeneratedProtocolMessageType(
     "HelloMsgContent",
     (_message.Message,),
-    dict(
-        DESCRIPTOR=_HELLOMSGCONTENT,
-        __module__="hellomsg_pb2",
+    {
+        "DESCRIPTOR": _HELLOMSGCONTENT,
+        "__module__": "hellomsg_pb2",
         # @@protoc_insertion_point(class_scope:org.eclipse.ecf.examples.protobuf.hello.HelloMsgContent)
-    ),
+    },
 )
 _sym_db.RegisterMessage(HelloMsgContent)
 

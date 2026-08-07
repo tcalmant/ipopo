@@ -10,15 +10,14 @@ import json
 import os
 import unittest
 from io import StringIO
-from typing import Any, Tuple, cast
+from typing import Any, cast
 
-import pelix.shell.beans as beans
 from pelix.framework import BundleContext, Framework, FrameworkFactory, create_framework
-from pelix.shell import ShellReport, ShellService
+from pelix.shell import ShellReport, ShellService, beans
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -77,7 +76,7 @@ class ShellReportTest(unittest.TestCase):
         self.context = None  # type: ignore
         self.framework = None  # type: ignore
 
-    def _make_session(self) -> Tuple[beans.ShellSession, StringIO]:
+    def _make_session(self) -> tuple[beans.ShellSession, StringIO]:
         """
         Prepares a ShellSession object for _run_command
         """
@@ -131,7 +130,7 @@ class ShellReportTest(unittest.TestCase):
         """
         for bad_level in (12, "bad level", "'<some unknown level>'"):
             for command in ("make", "show"):
-                output = self._run_command("report.{0} {1}".format(command, bad_level))
+                output = self._run_command(f"report.{command} {bad_level}")
                 self.assertIn("Unknown report level", output)
 
     def test_report_info(self) -> None:
@@ -140,7 +139,7 @@ class ShellReportTest(unittest.TestCase):
         """
         for level in self.report.get_levels():
             # Run the 'show' command, to get the output
-            output = self._run_command("report.show {0}".format(level))
+            output = self._run_command(f"report.show {level}")
             parsed = json.loads(output)
 
             # Check mandatory keys
@@ -177,7 +176,7 @@ class ShellReportTest(unittest.TestCase):
         self.assertFalse(os.path.exists(self.out_file))
 
         # Run the command without any report
-        output = self._run_command("report.write {0}".format(self.out_file))
+        output = self._run_command(f"report.write {self.out_file}")
         self.assertIn("No report", output)
         self.assertFalse(os.path.exists(self.out_file))
 
@@ -185,7 +184,7 @@ class ShellReportTest(unittest.TestCase):
         report_content = self._run_command("report.show full")
 
         # Write it down
-        self._run_command("report.write {0}".format(self.out_file))
+        self._run_command(f"report.write {self.out_file}")
         self.assertTrue(os.path.exists(self.out_file))
 
         # Check content
@@ -200,7 +199,7 @@ class ShellReportTest(unittest.TestCase):
 
         # Make a report and write it down
         self._run_command("report.make minimal")
-        self._run_command("report.write {0}".format(self.out_file))
+        self._run_command(f"report.write {self.out_file}")
 
         # Assert it's there
         self.assertTrue(os.path.exists(self.out_file))
@@ -210,7 +209,7 @@ class ShellReportTest(unittest.TestCase):
         self._run_command("report.clear")
 
         # Run the command without any report
-        output = self._run_command("report.write {0}".format(self.out_file))
+        output = self._run_command(f"report.write {self.out_file}")
         self.assertIn("No report", output)
         self.assertFalse(os.path.exists(self.out_file))
 

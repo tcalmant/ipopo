@@ -6,7 +6,7 @@ An EventAdmin-like implementation for Pelix: a publish-subscribe service
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -29,7 +29,8 @@ import copy
 import fnmatch
 import logging
 import time
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
+from collections.abc import Iterable
+from typing import Any, cast
 
 import pelix.constants
 import pelix.framework
@@ -43,7 +44,7 @@ from pelix.utilities import to_iterable
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -66,18 +67,18 @@ class EventAdmin(pelix.services.EventAdmin):
 
     def __init__(self) -> None:
         # The bundle context
-        self._context: Optional[pelix.framework.BundleContext] = None
+        self._context: pelix.framework.BundleContext | None = None
 
         # The framework instance UID
-        self._fw_uid: Optional[str] = None
+        self._fw_uid: str | None = None
 
         # Number of threads in the pool
         self._nb_threads: int = 10
 
         # Thread pool
-        self._pool: Optional[pelix.threadpool.ThreadPool] = None
+        self._pool: pelix.threadpool.ThreadPool | None = None
 
-    def _get_handlers_ids(self, topic: str, properties: Dict[str, Any]) -> Optional[List[str]]:
+    def _get_handlers_ids(self, topic: str, properties: dict[str, Any]) -> list[str] | None:
         """
         Retrieves the IDs of the listeners that requested to handle this event
 
@@ -85,7 +86,7 @@ class EventAdmin(pelix.services.EventAdmin):
         :param properties: Associated properties
         :return: The IDs of the services to call back for this event. None if none found
         """
-        handlers: List[str] = []
+        handlers: list[str] = []
 
         # Get the handler service references
         assert self._context is not None
@@ -118,7 +119,7 @@ class EventAdmin(pelix.services.EventAdmin):
 
     @staticmethod
     def __match_filter(
-        properties: Dict[str, Any], ldap_filter: Union[None, str, pelix.ldapfilter.LdapFilterOrCriteria]
+        properties: dict[str, Any], ldap_filter: None | str | pelix.ldapfilter.LdapFilterOrCriteria
     ) -> bool:
         """
         Tests if the given properties match the given filter
@@ -137,9 +138,9 @@ class EventAdmin(pelix.services.EventAdmin):
 
     def __get_service(
         self, service_id: str
-    ) -> Tuple[
-        Optional[ServiceReference[pelix.services.ServiceEventHandler]],
-        Optional[pelix.services.ServiceEventHandler],
+    ) -> tuple[
+        ServiceReference[pelix.services.ServiceEventHandler] | None,
+        pelix.services.ServiceEventHandler | None,
     ]:
         """
         Retrieves the reference and the service associated to the given ID,
@@ -168,7 +169,7 @@ class EventAdmin(pelix.services.EventAdmin):
             # Service disappeared
             return None, None
 
-    def __notify_handlers(self, topic: str, properties: Dict[str, Any], handlers_ids: Iterable[str]) -> None:
+    def __notify_handlers(self, topic: str, properties: dict[str, Any], handlers_ids: Iterable[str]) -> None:
         """
         Notifies the handlers of an event
 
@@ -189,18 +190,13 @@ class EventAdmin(pelix.services.EventAdmin):
                 if handler is not None:
                     # Use a copy of the properties each time
                     handler.handle_event(topic, copy.deepcopy(properties))
-            except Exception as ex:
-                _logger.exception(
-                    "Error notifying event handler %d: %s (%s)",
-                    handler_id,
-                    ex,
-                    type(ex).__name__,
-                )
+            except Exception:
+                _logger.exception("Error notifying event handler %d", handler_id)
             finally:
                 if ref is not None:
                     self._context.unget_service(ref)
 
-    def __setup_properties(self, properties: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    def __setup_properties(self, properties: dict[str, Any] | None) -> dict[str, Any]:
         """
         Adds the EventAdmin specific properties to the event
 
@@ -212,7 +208,7 @@ class EventAdmin(pelix.services.EventAdmin):
 
         if not isinstance(properties, dict):
             # Create a new dictionary
-            props: Dict[str, Any] = {}
+            props: dict[str, Any] = {}
 
         else:
             # Copy the given one
@@ -226,7 +222,7 @@ class EventAdmin(pelix.services.EventAdmin):
 
         return props
 
-    def send(self, topic: str, properties: Optional[Dict[str, Any]] = None) -> None:
+    def send(self, topic: str, properties: dict[str, Any] | None = None) -> None:
         """
         Sends synchronously the given event
 
@@ -242,7 +238,7 @@ class EventAdmin(pelix.services.EventAdmin):
             # Notify them
             self.__notify_handlers(topic, properties, handlers_ids)
 
-    def post(self, topic: str, properties: Optional[Dict[str, Any]] = None) -> None:
+    def post(self, topic: str, properties: dict[str, Any] | None = None) -> None:
         """
         Sends asynchronously the given event
 
@@ -268,14 +264,12 @@ class EventAdmin(pelix.services.EventAdmin):
         self._context = context
 
         # Get the framework instance UID
-        self._fw_uid = cast(Optional[str], context.get_property(pelix.constants.FRAMEWORK_UID))
+        self._fw_uid = cast(str | None, context.get_property(pelix.constants.FRAMEWORK_UID))
 
         # Normalize properties
         try:
             self._nb_threads = int(self._nb_threads)
-            if self._nb_threads < 2:
-                # Minimal value
-                self._nb_threads = 2
+            self._nb_threads = max(self._nb_threads, 2)
         except ValueError:
             # Default value
             self._nb_threads = 10

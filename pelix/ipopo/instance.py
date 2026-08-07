@@ -6,7 +6,7 @@ Instance manager class definition
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -28,27 +28,22 @@ Instance manager class definition
 import logging
 import threading
 import traceback
+from collections.abc import Callable, Iterable
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Concatenate,
-    Dict,
-    Iterable,
-    List,
-    Optional,
     ParamSpec,
-    Set,
     TypeVar,
     cast,
 )
 
-import pelix.ipopo.constants as constants
 import pelix.ipopo.handlers.constants as handlers_const
 from pelix.constants import FrameworkException
 from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceReference
+from pelix.ipopo import constants
 from pelix.ipopo.contexts import ComponentContext
 
 if TYPE_CHECKING:
@@ -60,7 +55,7 @@ T = TypeVar("T")
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -76,19 +71,19 @@ class StoredInstance:
 
     # Try to reduce memory footprint (stored instances)
     __slots__ = (
-        "bundle_context",
-        "context",
-        "factory_name",
-        "instance",
-        "name",
-        "state",
+        "__all_handlers",
         "_controllers_state",
         "_handlers",
         "_ipopo_service",
         "_lock",
         "_logger",
+        "bundle_context",
+        "context",
         "error_trace",
-        "__all_handlers",
+        "factory_name",
+        "instance",
+        "name",
+        "state",
     )
 
     INVALID = 0
@@ -122,16 +117,16 @@ class StoredInstance:
         :param handlers: The list of handlers associated to this component
         """
         # The logger
-        self._logger = logging.getLogger("-".join(("InstanceManager", context.name)))
+        self._logger = logging.getLogger(f"InstanceManager-{context.name}")
 
         # The lock
         self._lock = threading.RLock()
 
         # The iPOPO service
-        self._ipopo_service: Optional["_IPopoService"] = ipopo_service
+        self._ipopo_service: _IPopoService | None = ipopo_service
 
         # Component context
-        self.context: Optional[ComponentContext] = context
+        self.context: ComponentContext | None = context
 
         # The instance name
         self.name: str = self.context.name
@@ -146,17 +141,17 @@ class StoredInstance:
         self.state = StoredInstance.INVALID
 
         # Stack track of validation error
-        self.error_trace: Optional[str] = None
+        self.error_trace: str | None = None
 
         # Store the bundle context
         self.bundle_context: BundleContext = self.context.get_bundle_context()
 
         # The controllers state dictionary
-        self._controllers_state: Dict[str, bool] = {}
+        self._controllers_state: dict[str, bool] = {}
 
         # Handlers: kind -> [handlers]
-        self._handlers: Dict[str, List[handlers_const.Handler]] = {}
-        self.__all_handlers: Set[handlers_const.Handler] = set(handlers)
+        self._handlers: dict[str, list[handlers_const.Handler]] = {}
+        self.__all_handlers: set[handlers_const.Handler] = set(handlers)
         for handler in handlers:
             kinds = handler.get_kinds()
             if kinds:
@@ -207,7 +202,7 @@ class StoredInstance:
         dependency: handlers_const.DependencyHandler,
         svc: T,
         svc_ref: ServiceReference[T],
-        old_properties: Dict[str, Any],
+        old_properties: dict[str, Any],
         new_value: bool = False,
     ) -> None:
         """
@@ -289,7 +284,7 @@ class StoredInstance:
                 handlers_const.Handler.on_hidden_property_change, name, old_value, new_value
             )
 
-    def get_handlers(self, kind: Optional[str] = None) -> List[handlers_const.Handler]:
+    def get_handlers(self, kind: str | None = None) -> list[handlers_const.Handler]:
         """
         Retrieves the handlers of the given kind. If kind is None, all handlers
         are returned.
@@ -341,19 +336,19 @@ class StoredInstance:
         with self._lock:
             all_valid = True
             for handler in cast(
-                List[handlers_const.DependencyHandler], self.get_handlers(handlers_const.KIND_DEPENDENCY)
+                list[handlers_const.DependencyHandler], self.get_handlers(handlers_const.KIND_DEPENDENCY)
             ):
                 # Try to bind
                 try:
                     handler.try_binding()
-                except Exception as ex:
+                except Exception as ex:  # noqa: BLE001
                     # Ignore exception
                     self._logger.debug("Error calling try_binding() on %s: %s", handler, ex)
 
                 # Update the validity flag
                 try:
                     handler_valid = handler.is_valid()
-                except Exception as ex:
+                except Exception as ex:  # noqa: BLE001
                     # Don't update the validity flag
                     self._logger.debug("Error calling is_valid() on %s: %s", handler, ex)
                 else:
@@ -369,7 +364,7 @@ class StoredInstance:
         with self._lock:
             self.__safe_handlers_callback(handlers_const.Handler.start)
 
-    def retry_erroneous(self, properties_update: Optional[Dict[str, Any]]) -> int:
+    def retry_erroneous(self, properties_update: dict[str, Any] | None) -> int:
         """
         Removes the ERRONEOUS state from a component and retries a validation
 
@@ -454,7 +449,7 @@ class StoredInstance:
 
             try:
                 self.invalidate(True)
-            except:
+            except:  # noqa: E722
                 self._logger.exception("%s: Error invalidating the instance", self.name)
 
             # Now that we are nearly clean, be sure we were in a good registry
@@ -465,17 +460,15 @@ class StoredInstance:
             for handler in self.get_handlers():
                 try:
                     results = handler.stop()
-                except Exception as ex:
+                except Exception as ex:  # noqa: BLE001
                     self._logger.debug("Error calling stop() on %s: %s", handler, ex)
                 else:
                     if results and isinstance(handler, handlers_const.DependencyHandler):
                         for binding in results:
                             try:
                                 self.__unset_binding(handler, binding[0], binding[1])
-                            except Exception as ex:
-                                self._logger.exception(
-                                    "Error removing binding in handler '%s': %s", handler, ex
-                                )
+                            except Exception:
+                                self._logger.exception("Error removing binding in handler '%s'", handler)
 
             # Call the handlers
             self.__safe_handlers_callback(handlers_const.Handler.clear)
@@ -666,7 +659,7 @@ class StoredInstance:
             return self.__callback(event, *args, **kwargs)
         except FrameworkException as ex:
             # Important error
-            self._logger.exception("Critical error calling back %s: %s", self.name, ex)
+            self._logger.exception("Critical error calling back %s", self.name)
 
             # Kill the component
             self._ipopo_service.kill(self.name)
@@ -676,7 +669,7 @@ class StoredInstance:
                 self._logger.error("%s said that the Framework must be stopped.", self.name)
                 self.bundle_context.get_framework().stop()
             return False
-        except:
+        except:  # noqa: E722
             self._logger.exception(
                 "Component '%s': error calling callback method for event %s",
                 self.name,
@@ -703,7 +696,7 @@ class StoredInstance:
             return self.__validation_callback(event)
         except FrameworkException as ex:
             # Important error
-            self._logger.exception("Critical error calling back %s: %s", self.name, ex)
+            self._logger.exception("Critical error calling back %s", self.name)
 
             # Kill the component
             self._ipopo_service.kill(self.name)
@@ -716,7 +709,7 @@ class StoredInstance:
                 self._logger.error("%s said that the Framework must be stopped.", self.name)
                 self.bundle_context.get_framework().stop()
             return False
-        except:
+        except:  # noqa: E722
             self._logger.exception(
                 "Component '%s': error calling @ValidateComponent callback",
                 self.name,
@@ -746,7 +739,7 @@ class StoredInstance:
             return self.__field_callback(field, event, *args, **kwargs)
         except FrameworkException as ex:
             # Important error
-            self._logger.exception("Critical error calling back %s: %s", self.name, ex)
+            self._logger.exception("Critical error calling back %s", self.name)
 
             # Kill the component
             self._ipopo_service.kill(self.name)
@@ -756,7 +749,7 @@ class StoredInstance:
                 self._logger.error("%s said that the Framework must be stopped.", self.name)
                 self.bundle_context.get_framework().stop()
             return False
-        except:
+        except:  # noqa: E722
             self._logger.exception(
                 "Component '%s' : error calling callback method for event %s",
                 self.name,
@@ -766,7 +759,7 @@ class StoredInstance:
 
     def __safe_handlers_callback(
         self,
-        method: Callable[Concatenate[handlers_const.Handler, P], Optional[bool]],
+        method: Callable[Concatenate[handlers_const.Handler, P], bool | None],
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> bool:
@@ -784,20 +777,24 @@ class StoredInstance:
             # Nothing to do
             return False
 
+        method_name = getattr(method, "__name__", None)
+        if method_name is None:
+            self._logger.error("Invalid method to call in handlers: %s", method)
+            return False
+
         result = True
         for handler in self.get_handlers():
             # Get the method for each handler
             try:
                 # Get the bound method
-                handler_method = cast(Callable[P, Optional[bool]], getattr(handler, method.__name__))
+                handler_method = cast(Callable[P, bool | None], getattr(handler, method_name))
                 # Call it
                 res = handler_method(*args, **kwargs)
                 if res is not None and not res:
                     # Ignore 'None' results
                     result = False
-            except Exception as ex:
-                # Log errors
-                self._logger.exception("Error calling handler '%s': %s", handler, ex)
+            except Exception:
+                self._logger.exception("Error calling handler '%s'", handler)
 
         return result
 
@@ -833,7 +830,7 @@ class StoredInstance:
         dependency: handlers_const.DependencyHandler,
         service: T,
         reference: ServiceReference[T],
-        old_properties: Dict[str, Any],
+        old_properties: dict[str, Any],
         new_value: bool,
     ) -> None:
         """

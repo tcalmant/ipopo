@@ -6,7 +6,7 @@ Definition of classes used by the Pelix shell service and its consumers
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 :status: Alpha
 
 ..
@@ -28,14 +28,16 @@ Definition of classes used by the Pelix shell service and its consumers
 
 import sys
 import threading
-from typing import IO, Any, Callable, Dict, Optional, Union, cast
+from collections.abc import Callable
+from io import IOBase
+from typing import IO, Any, cast
 
 from pelix.utilities import to_bytes, to_str
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -55,7 +57,7 @@ class ShellSession:
     to shell commands
     """
 
-    def __init__(self, io_handler: "IOHandler", initial_vars: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, io_handler: "IOHandler", initial_vars: dict[str, Any] | None = None) -> None:
         """
         Sets up the shell session
 
@@ -72,7 +74,7 @@ class ShellSession:
         # Special variable for the last result
         self.__variables[RESULT_VAR_NAME] = None
 
-    def prompt(self, prompt: Optional[str] = None) -> str:
+    def prompt(self, prompt: str | None = None) -> str:
         """
         Reads a line written by the user
 
@@ -87,13 +89,13 @@ class ShellSession:
         """
         self._io_handler.write(data)
 
-    def write_line(self, line: Optional[str] = None, *args: Any, **kwargs: Any) -> None:
+    def write_line(self, line: str | None = None, *args: Any, **kwargs: Any) -> None:
         """
         Formats and writes a line to the output
         """
         self._io_handler.write_line(line, *args, **kwargs)
 
-    def write_line_no_feed(self, line: Optional[str] = None, *args: Any, **kwargs: Any) -> None:
+    def write_line_no_feed(self, line: str | None = None, *args: Any, **kwargs: Any) -> None:
         """
         Formats and writes a line to the output
         """
@@ -106,7 +108,7 @@ class ShellSession:
         self._io_handler.flush()
 
     @property
-    def variables(self) -> Dict[str, Any]:
+    def variables(self) -> dict[str, Any]:
         """
         A copy of the session variables
         """
@@ -159,8 +161,8 @@ class IOHandler:
 
     def __init__(
         self,
-        in_stream: Union[None, IO[bytes], IO[str]],
-        out_stream: Union[IO[bytes], IO[str]],
+        in_stream: None | IOBase | IO[str] | IO[bytes],
+        out_stream: IOBase | IO[str] | IO[bytes],
         encoding: str = "UTF-8",
     ) -> None:
         """
@@ -170,8 +172,8 @@ class IOHandler:
         :param out_stream: Output stream
         :param encoding: Output encoding
         """
-        self.input: Union[None, IO[bytes], IO[str]] = in_stream
-        self.output: Union[IO[bytes], IO[str]] = out_stream
+        self.input: None | IOBase | IO[str] | IO[bytes] = in_stream
+        self.output: IOBase | IO[str] | IO[bytes] = out_stream
         self.encoding = encoding
         self.out_encoding: str = getattr(self.output, "encoding", self.encoding) or self.encoding
 
@@ -186,10 +188,10 @@ class IOHandler:
         # string compatible ones
         if "b" in getattr(out_stream, "mode", "") or not hasattr(out_stream, "encoding"):
             # Bytes conversion
-            self.write = cast(Callable[[Union[str, bytes]], int], self._write_bytes)
+            self.write = cast(Callable[[str | bytes], int], self._write_bytes)
         else:
             # Strings accepted
-            self.write = cast(Callable[[Union[str, bytes]], int], self._write_str)
+            self.write = cast(Callable[[str | bytes], int], self._write_str)
 
         # Very specific
         if in_stream is sys.stdin:
@@ -198,7 +200,7 @@ class IOHandler:
         else:
             self.prompt = self._prompt
 
-    def _real_prompt(self, prompt: Optional[Union[bytes, str]] = None) -> str:
+    def _real_prompt(self, prompt: bytes | str | None = None) -> str:
         """
         Reads a line written by the user
 
@@ -207,7 +209,7 @@ class IOHandler:
         """
         return input(prompt)
 
-    def _prompt(self, prompt: Optional[Union[bytes, str]] = None) -> str:
+    def _prompt(self, prompt: bytes | str | None = None) -> str:
         """
         Reads a line written by the user
 
@@ -225,7 +227,7 @@ class IOHandler:
         # Read the line
         return to_str(self.input.readline())
 
-    def _write_bytes(self, data: Optional[Union[bytes, str]]) -> None:
+    def _write_bytes(self, data: bytes | str | None) -> None:
         """
         Converts the given data then writes it
 
@@ -236,7 +238,7 @@ class IOHandler:
             with self.__lock:
                 cast(IO[bytes], self.output).write(to_bytes(data, self.encoding))
 
-    def _write_str(self, data: Optional[Union[str, bytes]]) -> None:
+    def _write_str(self, data: str | bytes | None) -> None:
         """
         Converts the given data then writes it
 
@@ -249,7 +251,7 @@ class IOHandler:
                     to_str(data, self.encoding).encode().decode(self.out_encoding, errors="replace")
                 )
 
-    def write_line(self, line: Optional[str] = None, *args: Any, **kwargs: Any) -> None:
+    def write_line(self, line: str | None = None, *args: Any, **kwargs: Any) -> None:
         """
         Formats and writes a line to the output
         """
@@ -274,7 +276,7 @@ class IOHandler:
 
         self.flush()
 
-    def write_line_no_feed(self, line: Optional[str] = None, *args: Any, **kwargs: Any) -> None:
+    def write_line_no_feed(self, line: str | None = None, *args: Any, **kwargs: Any) -> None:
         """
         Formats and writes a line to the output
         """

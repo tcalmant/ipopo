@@ -8,8 +8,8 @@ Tests the iPOPO core service.
 
 import unittest
 
-import pelix.ipopo.decorators as decorators
 from pelix.framework import FrameworkFactory
+from pelix.ipopo import decorators
 from pelix.ipopo.constants import IPopoEvent
 from tests import log_off, log_on
 from tests.ipopo import install_bundle, install_ipopo
@@ -17,7 +17,7 @@ from tests.ipopo.ipopo_bundle import BASIC_INSTANCE
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -48,14 +48,16 @@ class IPopoServiceTest(unittest.TestCase):
         """
         Tests the (un)register_factory and get_factories behavior
         """
+        assert self.ipopo is not None, "iPOPO service not found"
+
         FACTORY = "dummy-factory"
         context = self.framework.get_bundle_context()
 
         @decorators.ComponentFactory(FACTORY)
-        class TestComponent(object):
+        class TestComponent:
             pass
 
-        class UnManipulatedClass(object):
+        class UnManipulatedClass:
             pass
 
         # Test if the framework is clean
@@ -91,7 +93,8 @@ class IPopoServiceTest(unittest.TestCase):
         # Unregister the factory
         for invalid in (None, "", "Dummy", [FACTORY]):
             self.assertFalse(
-                (self.ipopo.unregister_factory(invalid)), "Invalid factory unregistered: {0}".format(invalid)
+                (self.ipopo.unregister_factory(invalid)),
+                f"Invalid factory unregistered: {invalid}",  # type: ignore
             )
 
         self.assertTrue(self.ipopo.unregister_factory(FACTORY))
@@ -106,11 +109,13 @@ class IPopoServiceTest(unittest.TestCase):
         """
         Tests the get_factory_bundle() method
         """
+        assert self.ipopo is not None, "iPOPO service not found"
+
         factory_name = "dummy-factory"
         context = self.framework.get_bundle_context()
 
         @decorators.ComponentFactory(factory_name)
-        class TestComponent(object):
+        class TestComponent:
             pass
 
         # We must have a ValueError
@@ -132,6 +137,7 @@ class IPopoServiceTest(unittest.TestCase):
         """
         Instance details method test
         """
+        assert self.ipopo is not None, "iPOPO service not found"
         module = install_bundle(self.framework)
 
         # Invalid component names
@@ -157,6 +163,7 @@ class IPopoServiceTest(unittest.TestCase):
         """
         # Uninstall the iPOPO bundle
         ipopo_bundle = self.framework.get_bundle_by_name("pelix.ipopo.core")
+        assert ipopo_bundle is not None, "iPOPO bundle not found"
         ipopo_bundle.uninstall()
         self.ipopo = None
 
@@ -175,13 +182,15 @@ class IPopoServiceTest(unittest.TestCase):
         """
         Tests the instantiate method
         """
+        assert self.ipopo is not None, "iPOPO service not found"
+
         FACTORY = "dummy-factory"
         FACTORY_2 = "dummy-factory-2"
         INSTANCE = "dummy-instance"
         context = self.framework.get_bundle_context()
 
         @decorators.ComponentFactory(FACTORY)
-        class TestComponent(object):
+        class TestComponent:
             pass
 
         # Invalid name
@@ -203,7 +212,7 @@ class IPopoServiceTest(unittest.TestCase):
 
         # Exception on instantiate -> Type Error
         @decorators.ComponentFactory(FACTORY_2)
-        class TestComponent2(object):
+        class TestComponent2:
             def __init__(self):
                 raise NotImplementedError
 
@@ -217,15 +226,17 @@ class IPopoServiceTest(unittest.TestCase):
         """
         Tests iPOPO event listener
         """
+        assert self.ipopo is not None, "iPOPO service not found"
+
         FACTORY = "dummy-factory"
         INSTANCE = "dummy-instance"
         context = self.framework.get_bundle_context()
 
         @decorators.ComponentFactory(FACTORY)
-        class TestComponent(object):
+        class TestComponent:
             pass
 
-        class Listener(object):
+        class Listener:
             """
             iPOPO event listener
             """
@@ -246,20 +257,18 @@ class IPopoServiceTest(unittest.TestCase):
             """
             Tests the validity of an event
             """
-            self.assertEqual(
-                event.get_kind(), kind, "Excepted kind: {0} / got: {1}".format(kind, event.get_kind())
-            )
+            self.assertEqual(event.get_kind(), kind, f"Excepted kind: {kind} / got: {event.get_kind()}")
 
             self.assertEqual(
                 event.get_factory_name(),
                 factory,
-                "Excepted factory: {0} / got: {1}".format(factory, event.get_factory_name()),
+                f"Excepted factory: {factory} / got: {event.get_factory_name()}",
             )
 
             self.assertEqual(
                 event.get_component_name(),
                 instance,
-                "Excepted instance: {0} / got: {1}".format(instance, event.get_component_name()),
+                f"Excepted instance: {instance} / got: {event.get_component_name()}",
             )
 
         # Register the listener
@@ -308,6 +317,8 @@ class IPopoServiceTest(unittest.TestCase):
         """
         Tests the get_instance(name) method
         """
+        assert self.ipopo is not None, "iPOPO service not found"
+
         # Test if the framework is clean
         self.assertEqual(len(self.ipopo.get_factories()), 0, "Some factories are already registered.")
 
@@ -332,7 +343,7 @@ class IPopoServiceTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
 
         @decorators.ComponentFactory(factory_name)
-        class TestComponent(object):
+        class TestComponent:
             pass
 
         # Register the factory

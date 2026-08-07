@@ -7,7 +7,7 @@ MQTT
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -28,10 +28,9 @@ MQTT
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
-import pelix.constants as constants
-import pelix.services as services
+from pelix import constants, services
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
 from pelix.misc.mqtt_client import MqttClient, MqttMessage
 from pelix.utilities import to_str
@@ -42,7 +41,7 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -88,16 +87,16 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         self._mqtt_topic: str = DEFAULT_MQTT_TOPIC
 
         # MQTT Client
-        self._mqtt: Optional[MqttClient] = None
+        self._mqtt: MqttClient | None = None
 
         # EventAdmin
-        self._event_topics: Union[None, str, List[str]] = None
+        self._event_topics: None | str | list[str] = None
 
         # EventHandler service controller
         self._controller: bool = False
 
         # Framework UID
-        self._framework_uid: Optional[str] = None
+        self._framework_uid: str | None = None
 
     @Validate
     def _validate(self, context: "BundleContext") -> None:
@@ -105,7 +104,7 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         Component validated
         """
         # Store the framework UID
-        self._framework_uid = cast(Optional[str], context.get_property(constants.FRAMEWORK_UID))
+        self._framework_uid = cast(str | None, context.get_property(constants.FRAMEWORK_UID))
 
         if not self._mqtt_topic:
             # No topic given, use the default one
@@ -180,10 +179,10 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         """
         try:
             self.handle_mqtt_message(message.topic, message.payload)
-        except Exception as ex:
-            _logger.exception("Error handling an MQTT EventAdmin message: %s", ex)
+        except Exception:
+            _logger.exception("Error handling an MQTT EventAdmin message")
 
-    def handle_event(self, topic: str, properties: Dict[str, Any]) -> None:
+    def handle_event(self, topic: str, properties: dict[str, Any]) -> None:
         """
         An EventAdmin event has been received
         """

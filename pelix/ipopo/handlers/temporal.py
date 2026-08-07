@@ -6,7 +6,7 @@ Temporal dependency handler
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -25,26 +25,29 @@ Temporal dependency handler
     limitations under the License.
 """
 
+import logging
 import threading
-from typing import Any, Callable, Dict, Generic, Iterable, Optional, Tuple, TypeVar, cast
+from collections.abc import Callable, Iterable
+from typing import Any, Generic, TypeVar, cast
 
 import pelix.ipopo.constants as ipopo_constants
-import pelix.ipopo.handlers.constants as constants
-import pelix.ipopo.handlers.requires as requires
-import pelix.utilities as utilities
+from pelix import utilities
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo.contexts import ComponentContext, Requirement
+from pelix.ipopo.handlers import constants, requires
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
+
+_logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -58,8 +61,8 @@ class _HandlerFactory(constants.HandlerFactory):
 
     @staticmethod
     def _prepare_configs(
-        configs: Dict[str, Any], requires_filters: Dict[str, str], temporal_timeouts: Dict[str, float]
-    ) -> Dict[str, Any]:
+        configs: dict[str, Any], requires_filters: dict[str, str], temporal_timeouts: dict[str, float]
+    ) -> dict[str, Any]:
         """
         Overrides the filters specified in the decorator with the given ones
 
@@ -79,7 +82,7 @@ class _HandlerFactory(constants.HandlerFactory):
             return configs
 
         # We need to change a part of the requirements
-        new_configs: Dict[str, Any] = {}
+        new_configs: dict[str, Any] = {}
         for field, config in configs.items():
             # Extract values from tuple
             requirement, timeout = config
@@ -87,12 +90,15 @@ class _HandlerFactory(constants.HandlerFactory):
             explicit_timeout = temporal_timeouts.get(field, timeout)
 
             # Convert the timeout value
-            try:
-                explicit_timeout = int(explicit_timeout)
-                if explicit_timeout <= 0:
-                    explicit_timeout = timeout
-            except (ValueError, TypeError):
+            if explicit_timeout is None:
                 explicit_timeout = timeout
+            else:
+                try:
+                    explicit_timeout = int(explicit_timeout)
+                    if explicit_timeout <= 0:
+                        explicit_timeout = timeout
+                except (ValueError, TypeError):
+                    explicit_timeout = timeout
 
             if not explicit_filter and not explicit_timeout:
                 # Nothing to do
@@ -121,8 +127,22 @@ class _HandlerFactory(constants.HandlerFactory):
         """
         # Extract information from the context
         configs = component_context.get_handler(ipopo_constants.HANDLER_TEMPORAL)
+        if not isinstance(configs, dict):
+            if configs is not None:
+                _logger.warning("Invalid temporal configuration: %s", configs)
+            configs = {}
+
         requires_filters = component_context.properties.get(ipopo_constants.IPOPO_REQUIRES_FILTERS, None)
+        if not isinstance(requires_filters, dict):
+            if requires_filters is not None:
+                _logger.warning("Invalid requires.filter configuration: %s", requires_filters)
+            requires_filters = {}
+
         temporal_timeouts = component_context.properties.get(ipopo_constants.IPOPO_TEMPORAL_TIMEOUTS, None)
+        if not isinstance(temporal_timeouts, dict):
+            if temporal_timeouts is not None:
+                _logger.warning("Invalid temporal.timeouts configuration: %s", temporal_timeouts)
+            temporal_timeouts = {}
 
         # Prepare requirements
         new_configs = self._prepare_configs(configs, requires_filters, temporal_timeouts)
@@ -144,7 +164,7 @@ class Activator(ActivatorProto):
         """
         Sets up members
         """
-        self._registration: Optional[ServiceRegistration[constants.HandlerFactory]] = None
+        self._registration: ServiceRegistration[constants.HandlerFactory] | None = None
 
     def start(self, context: BundleContext) -> None:
         """
@@ -160,7 +180,7 @@ class Activator(ActivatorProto):
             properties,
         )
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -177,8 +197,6 @@ class TemporalException(constants.HandlerException):
     """
     Temporal exception
     """
-
-    ...
 
 
 class _TemporalProxy(Generic[T]):
@@ -248,14 +266,14 @@ class TemporalDependency(requires.SimpleDependency):
         :param requirement: Description of the required dependency
         :param timeout: Time to wait for a service (greater than 0, in seconds)
         """
-        super(TemporalDependency, self).__init__(field, requirement)
+        super().__init__(field, requirement)
 
         # Internal timeout
         self.__timeout = timeout
 
         # The delayed unbind timer
-        self.__timer: Optional[threading.Timer] = None
-        self.__timer_args: Optional[Tuple[Any, ...]] = None
+        self.__timer: threading.Timer | None = None
+        self.__timer_args: tuple[Any, ...] | None = None
         self.__still_valid = False
 
         # The injected value is the proxy
@@ -273,7 +291,7 @@ class TemporalDependency(requires.SimpleDependency):
 
         self.__still_valid = False
         self._value = None
-        super(TemporalDependency, self).clear()
+        super().clear()
 
     def on_service_arrival(self, svc_ref: ServiceReference[Any]) -> None:
         """

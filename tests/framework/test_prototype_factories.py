@@ -12,7 +12,7 @@ from pelix.framework import FrameworkFactory
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -49,6 +49,7 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
 
         # Get the internal service
         svc_ref = self.context.get_service_reference("test.prototype.internal")
+        assert svc_ref is not None, "Service reference not found"
         factory = self.context.get_service(svc_ref)
 
         # Start the consumers
@@ -62,6 +63,7 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
 
         # Find the service
         svc_ref = self.context.get_service_reference("test.prototype")
+        assert svc_ref is not None, "Service reference not found"
 
         # Get the service objects beans
         obj_1 = ctx_1.get_service_objects(svc_ref)
@@ -110,6 +112,7 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
 
         # Get the internal service
         svc_ref = self.context.get_service_reference("test.prototype.internal")
+        assert svc_ref is not None, "Service reference not found"
         factory = self.context.get_service(svc_ref)
 
         # Start the consumers
@@ -119,6 +122,7 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
 
         # Find the service
         svc_ref = self.context.get_service_reference("test.prototype")
+        assert svc_ref is not None, "Service reference not found"
 
         # Get the service objects beans
         obj_1 = ctx.get_service_objects(svc_ref)
@@ -147,6 +151,7 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
 
         # Get the internal service
         svc_ref = self.context.get_service_reference("test.prototype.internal")
+        assert svc_ref is not None, "Service reference not found"
         factory = self.context.get_service(svc_ref)
 
         # Start the consumers
@@ -156,6 +161,7 @@ class PrototypeServiceFactoryTest(unittest.TestCase):
 
         # Find the service
         svc_ref = self.context.get_service_reference("test.prototype")
+        assert svc_ref is not None, "Service reference not found"
 
         # Get the service objects beans
         obj_1 = ctx.get_service_objects(svc_ref)

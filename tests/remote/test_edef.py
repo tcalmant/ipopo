@@ -7,18 +7,18 @@ Tests the Remote Services EDEF I/O operations
 """
 
 import unittest
-from typing import Any, Dict, Optional
+from typing import Any
 
 import pelix.constants
 import pelix.framework
 import pelix.remote
-import pelix.remote.beans as beans
 from pelix.internals.registry import ServiceReference
+from pelix.remote import beans
 from pelix.remote.edef_io import EDEFReader, EDEFWriter
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -33,7 +33,7 @@ class EdefIOTest(unittest.TestCase):
     svc_ref: ServiceReference[Any]
 
     def assertDictContains(
-        self, subset: Dict[str, Any], tested: Optional[Dict[str, Any]], msg: Any = None
+        self, subset: dict[str, Any], tested: dict[str, Any] | None, msg: Any = None
     ) -> None:
         assert tested is not None
         self.assertEqual(tested, tested | subset, msg)
@@ -187,7 +187,7 @@ class BeansTest(unittest.TestCase):
     svc_ref: ServiceReference[Any]
 
     def assertDictContains(
-        self, subset: Dict[str, Any], tested: Optional[Dict[str, Any]], msg: Any = None
+        self, subset: dict[str, Any], tested: dict[str, Any] | None, msg: Any = None
     ) -> None:
         assert tested is not None
         self.assertEqual(tested, tested | subset, msg)
@@ -273,7 +273,7 @@ class BeansTest(unittest.TestCase):
                 pelix.constants.OBJECTCLASS: "spec",
             },
         )
-        for key in original.get_properties().keys():
+        for key in original.get_properties():
             self.assertFalse(key.startswith("service.exported"), "An export property has been found")
 
     def testConvertBeans(self) -> None:

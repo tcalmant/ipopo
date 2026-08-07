@@ -6,7 +6,7 @@ Defines the shell completion handlers for iPOPO concepts
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 :status: Alpha
 
 ..
@@ -26,7 +26,8 @@ Defines the shell completion handlers for iPOPO concepts
     limitations under the License.
 """
 
-from typing import TYPE_CHECKING, Dict, List, Type
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.ipopo.constants import use_ipopo
@@ -44,12 +45,12 @@ if TYPE_CHECKING:
 try:
     import readline
 except ImportError:
-    pass
+    readline = None  # type: ignore
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -68,7 +69,7 @@ class ComponentFactoryCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        matches: List[str],
+        matches: Sequence[str],
         longest_match_len: int,
     ) -> None:
         """
@@ -106,9 +107,9 @@ class ComponentFactoryCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        current_arguments: List[str],
+        current_arguments: list[str],
         current: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Returns the list of services IDs matching the current state
 
@@ -138,7 +139,7 @@ class ComponentInstanceCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        matches: List[str],
+        matches: Sequence[str],
         longest_match_len: int,
     ) -> None:
         """
@@ -177,9 +178,9 @@ class ComponentInstanceCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        current_arguments: List[str],
+        current_arguments: list[str],
         current: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Returns the list of services IDs matching the current state
 
@@ -210,9 +211,9 @@ class ComponentFactoryPropertiesCompleter(AbstractCompleter):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        current_arguments: List[str],
+        current_arguments: list[str],
         current: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Returns the list of services IDs matching the current state
 
@@ -257,7 +258,7 @@ class ComponentFactoryPropertiesCompleter(AbstractCompleter):
 
 
 # All completers for this bundle
-COMPLETERS: Dict[str, Type[AbstractCompleter]] = {
+COMPLETERS: dict[str, type[AbstractCompleter]] = {
     FACTORY: ComponentFactoryCompleter,
     FACTORY_PROPERTY: ComponentFactoryPropertiesCompleter,
     COMPONENT: ComponentInstanceCompleter,
@@ -271,7 +272,7 @@ class Activator(ActivatorProto):
     """
 
     def __init__(self) -> None:
-        self._registrations: List["ServiceRegistration[Completer]"] = []
+        self._registrations: list[ServiceRegistration[Completer]] = []
 
     def start(self, context: "BundleContext") -> None:
         """
@@ -289,7 +290,7 @@ class Activator(ActivatorProto):
             for completer_id, completer_class in COMPLETERS.items()
         ]
 
-    def stop(self, _: "BundleContext") -> None:
+    def stop(self, context: "BundleContext") -> None:
         """
         Bundle stopping
 

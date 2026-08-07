@@ -6,7 +6,7 @@ RequiresMap handler implementation
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -29,24 +29,25 @@ import abc
 import copy
 import logging
 import threading
-from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
+from collections.abc import Iterable
+from typing import Any, TypeVar
 
 import pelix.ipopo.constants as ipopo_constants
-import pelix.ipopo.handlers.constants as constants
 from pelix.constants import ActivatorProto, BundleActivator, BundleException
 from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceListener, ServiceReference, ServiceRegistration
 from pelix.ipopo.contexts import ComponentContext, Requirement
+from pelix.ipopo.handlers import constants
 from pelix.ipopo.instance import StoredInstance
 
-CONFIG = Tuple[Requirement, str, bool]
+CONFIG = tuple[Requirement, str, bool]
 T = TypeVar("T")
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -63,8 +64,8 @@ class _HandlerFactory(constants.HandlerFactory):
 
     @staticmethod
     def _prepare_requirements(
-        configs: Dict[str, CONFIG], requires_filters: Optional[Dict[str, str]]
-    ) -> Dict[str, CONFIG]:
+        configs: dict[str, CONFIG], requires_filters: dict[str, str] | None
+    ) -> dict[str, CONFIG]:
         """
         Overrides the filters specified in the decorator with the given ones
 
@@ -77,7 +78,7 @@ class _HandlerFactory(constants.HandlerFactory):
             return configs
 
         # We need to change a part of the requirements
-        new_requirements: Dict[str, CONFIG] = {}
+        new_requirements: dict[str, CONFIG] = {}
         for field, config in configs.items():
             # Extract values from tuple
             requirement, key, allow_none = config
@@ -113,7 +114,7 @@ class _HandlerFactory(constants.HandlerFactory):
         configs = self._prepare_requirements(configs, requires_filters)
 
         # Set up the runtime dependency handlers
-        handlers: List[_RuntimeDependency] = []
+        handlers: list[_RuntimeDependency] = []
         for field, config in configs.items():
             # Extract values from tuple
             requirement, key, allow_none = config
@@ -137,7 +138,7 @@ class Activator(ActivatorProto):
         """
         Sets up members
         """
-        self._registration: Optional[ServiceRegistration[constants.HandlerFactory]] = None
+        self._registration: ServiceRegistration[constants.HandlerFactory] | None = None
 
     def start(self, context: BundleContext) -> None:
         """
@@ -153,7 +154,7 @@ class Activator(ActivatorProto):
             properties,
         )
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -184,10 +185,10 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
         self._lock: threading.RLock = threading.RLock()
 
         # The iPOPO StoredInstance object (given during manipulation)
-        self._ipopo_instance: Optional[StoredInstance] = None
+        self._ipopo_instance: StoredInstance | None = None
 
         # The bundle context
-        self._context: Optional[BundleContext] = None
+        self._context: BundleContext | None = None
 
         # The associated field
         self._field: str = field
@@ -202,10 +203,10 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
         self._allow_none: bool = allow_none
 
         # Reference -> Service
-        self.services: Dict[ServiceReference[Any], Any] = {}
+        self.services: dict[ServiceReference[Any], Any] = {}
 
         # Future injected dictionary
-        self._future_value: Dict[Optional[str], Any] = {}
+        self._future_value: dict[str | None, Any] = {}
 
     def manipulate(self, stored_instance: StoredInstance, component_instance: Any) -> None:
         """
@@ -233,7 +234,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
         self._ipopo_instance = None
         self._context = None
 
-    def get_bindings(self) -> List[ServiceReference[Any]]:
+    def get_bindings(self) -> list[ServiceReference[Any]]:
         """
         Retrieves the list of the references to the bound services
 
@@ -242,7 +243,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
         with self._lock:
             return list(self.services.keys())
 
-    def get_field(self) -> Optional[str]:
+    def get_field(self) -> str | None:
         """
         Returns the name of the field handled by this handler
         """
@@ -274,7 +275,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
         return (self.requirement is not None and self.requirement.optional) or bool(self._future_value)
 
     @abc.abstractmethod
-    def on_service_arrival(self, svc_ref: ServiceReference[Any]) -> Optional[bool]:
+    def on_service_arrival(self, svc_ref: ServiceReference[Any]) -> bool | None:
         """
         Called when a service has been registered in the framework
 
@@ -283,7 +284,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
         ...
 
     @abc.abstractmethod
-    def on_service_departure(self, svc_ref: ServiceReference[Any]) -> Optional[bool]:
+    def on_service_departure(self, svc_ref: ServiceReference[Any]) -> bool | None:
         """
         Called when a service has been registered in the framework
 
@@ -292,7 +293,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
         ...
 
     @abc.abstractmethod
-    def on_service_modify(self, svc_ref: ServiceReference[Any], old_properties: Dict[str, Any]) -> None:
+    def on_service_modify(self, svc_ref: ServiceReference[Any], old_properties: dict[str, Any]) -> None:
         """
         Called when a service has been registered in the framework
 
@@ -339,7 +340,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
 
         self._context.add_service_listener(self, self.requirement.filter, self.requirement.specification)
 
-    def stop(self) -> Optional[List[Tuple[Any, ServiceReference[Any]]]]:
+    def stop(self) -> list[tuple[Any, ServiceReference[Any]]] | None:
         """
         Stops the dependency manager (must be called before clear())
 
@@ -370,14 +371,14 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
                 raise ValueError("Requirement not set up")
 
             # Get all matching services
-            refs: Optional[List[ServiceReference[Any]]] = self._context.get_all_service_references(
+            refs: list[ServiceReference[Any]] | None = self._context.get_all_service_references(
                 self.requirement.specification, self.requirement.filter
             )
             if not refs:
                 # No match found
                 return
 
-            results: List[ServiceReference[Any]] = []
+            results: list[ServiceReference[Any]] = []
             try:
                 # Bind all new reference
                 for reference in refs:
@@ -386,7 +387,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
                         results.append(reference)
             except BundleException as ex:
                 # Get the logger for this instance
-                logger = logging.getLogger("-".join((self._ipopo_instance.name, "RequiresMap-Runtime")))
+                logger = logging.getLogger(f"{self._ipopo_instance.name}-RequiresMap-Runtime")
                 logger.debug("Error binding multiple references: %s", ex)
 
                 # Undo what has just been done, ignoring errors
@@ -405,7 +406,7 @@ class SimpleDependency(_RuntimeDependency):
     Manages a simple dependency field: one service per dictionary key
     """
 
-    def on_service_arrival(self, svc_ref: ServiceReference[Any]) -> Optional[bool]:
+    def on_service_arrival(self, svc_ref: ServiceReference[Any]) -> bool | None:
         """
         Called when a service has been registered in the framework
 
@@ -432,7 +433,7 @@ class SimpleDependency(_RuntimeDependency):
 
             return None
 
-    def on_service_departure(self, svc_ref: ServiceReference[Any]) -> Optional[bool]:
+    def on_service_departure(self, svc_ref: ServiceReference[Any]) -> bool | None:
         """
         Called when a service has been unregistered from the framework
 
@@ -457,7 +458,7 @@ class SimpleDependency(_RuntimeDependency):
 
             return None
 
-    def on_service_modify(self, svc_ref: ServiceReference[Any], old_properties: Dict[str, Any]) -> None:
+    def on_service_modify(self, svc_ref: ServiceReference[Any], old_properties: dict[str, Any]) -> None:
         """
         Called when a service has been modified in the framework
 
@@ -495,7 +496,7 @@ class SimpleDependency(_RuntimeDependency):
                     # Notify the property modification
                     self._ipopo_instance.update(self, service, svc_ref, old_properties, False)
 
-            return None
+            return
 
 
 class AggregateDependency(_RuntimeDependency):
@@ -504,7 +505,7 @@ class AggregateDependency(_RuntimeDependency):
     key
     """
 
-    def __store_service(self, key: Optional[str], service: Any) -> None:
+    def __store_service(self, key: str | None, service: Any) -> None:
         """
         Stores the given service in the dictionary
 
@@ -513,7 +514,7 @@ class AggregateDependency(_RuntimeDependency):
         """
         self._future_value.setdefault(key, []).append(service)
 
-    def __remove_service(self, key: Optional[str], service: Any) -> None:
+    def __remove_service(self, key: str | None, service: Any) -> None:
         """
         Removes the given service from the future dictionary
 
@@ -533,7 +534,7 @@ class AggregateDependency(_RuntimeDependency):
             # if allow_none is False
             pass
 
-    def get_value(self) -> Optional[Dict[Optional[str], Any]]:
+    def get_value(self) -> dict[str | None, Any] | None:
         """
         Retrieves the value to inject in the component
 
@@ -546,7 +547,7 @@ class AggregateDependency(_RuntimeDependency):
 
             return None
 
-    def on_service_arrival(self, svc_ref: ServiceReference[Any]) -> Optional[bool]:
+    def on_service_arrival(self, svc_ref: ServiceReference[Any]) -> bool | None:
         """
         Called when a service has been registered in the framework
 
@@ -573,7 +574,7 @@ class AggregateDependency(_RuntimeDependency):
 
             return None
 
-    def on_service_departure(self, svc_ref: ServiceReference[Any]) -> Optional[bool]:
+    def on_service_departure(self, svc_ref: ServiceReference[Any]) -> bool | None:
         """
         Called when a service has been unregistered from the framework
 
@@ -599,7 +600,7 @@ class AggregateDependency(_RuntimeDependency):
 
             return None
 
-    def on_service_modify(self, svc_ref: ServiceReference[Any], old_properties: Dict[str, Any]) -> None:
+    def on_service_modify(self, svc_ref: ServiceReference[Any], old_properties: dict[str, Any]) -> None:
         """
         Called when a service has been modified in the framework
 
@@ -641,4 +642,4 @@ class AggregateDependency(_RuntimeDependency):
                     # Simple property update
                     self._ipopo_instance.update(self, service, svc_ref, old_properties, False)
 
-            return None
+            return

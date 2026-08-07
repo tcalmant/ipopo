@@ -6,7 +6,7 @@
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -27,25 +27,26 @@
 
 import logging
 import string
-from typing import Any, List, Optional
+from typing import Any
 
 import pelix.ipopo.constants as ipopo_constants
-import pelix.ipopo.handlers.constants as constants
-import pelix.ipopo.handlers.requires as requires
-import pelix.ldapfilter as ldapfilter
+from pelix import ldapfilter
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceRegistration
 from pelix.ipopo.contexts import ComponentContext, Requirement
+from pelix.ipopo.handlers import constants, requires
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
+
+_logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
@@ -55,7 +56,7 @@ class _HandlerFactory(requires._HandlerFactory):
     Factory service for service registration handlers
     """
 
-    def get_handlers(self, component_context: ComponentContext, instance: Any) -> List[constants.Handler]:
+    def get_handlers(self, component_context: ComponentContext, instance: Any) -> list[constants.Handler]:
         """
         Sets up service providers for the given component
 
@@ -71,7 +72,7 @@ class _HandlerFactory(requires._HandlerFactory):
         requirements = self._prepare_requirements(requirements, requires_filters)
 
         # Set up the runtime dependency handlers
-        handlers: List[constants.Handler] = []
+        handlers: list[constants.Handler] = []
         for field, requirement in requirements.items():
             # Construct the handler
             if requirement.aggregate:
@@ -92,7 +93,7 @@ class Activator(ActivatorProto):
         """
         Sets up members
         """
-        self._registration: Optional[ServiceRegistration[constants.HandlerFactory]] = None
+        self._registration: ServiceRegistration[constants.HandlerFactory] | None = None
 
     def start(self, context: BundleContext) -> None:
         """
@@ -108,7 +109,7 @@ class Activator(ActivatorProto):
             properties,
         )
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopped
         """
@@ -149,7 +150,7 @@ class _VariableFilterMixIn(requires._RuntimeDependency):
             # The filter couldn't be initialized (reason already logged)
             self.valid_filter = False
 
-    def _find_keys(self) -> List[str]:
+    def _find_keys(self) -> list[str]:
         """
         Looks for the property keys in the filter string
 
@@ -173,14 +174,14 @@ class _VariableFilterMixIn(requires._RuntimeDependency):
             filter_str = self._original_filter.format(**self._component_context.properties)
         except KeyError as ex:
             # An entry is missing: abandon
-            logging.warning("Missing filter value: %s", ex)
+            _logger.warning("Missing filter value: %s", ex)
             raise ValueError("Missing filter value")
 
         try:
             # Parse the new LDAP filter
             new_filter = ldapfilter.get_ldap_filter(filter_str)
         except (TypeError, ValueError) as ex:
-            logging.warning("Error parsing filter: %s", ex)
+            _logger.warning("Error parsing filter: %s", ex)
             raise ValueError("Error parsing filter")
 
         # The filter is valid

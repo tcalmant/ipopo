@@ -9,9 +9,13 @@ Tests the RSA discovery provider
 import importlib.util
 import json
 import unittest
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
+
+if importlib.util.find_spec("grpc") is None:
+    raise unittest.SkipTest("grpc library not available")
 
 from pelix.internals.registry import ServiceReference
+from pelix.rsa.providers.discovery.etcd3 import Etcd3EndpointDiscovery
 from pelix.utilities import EventData
 
 try:
@@ -29,7 +33,7 @@ except ImportError:
     raise unittest.SkipTest("Interpreter doesn't support multiprocessing")
 
 import pelix.framework
-import pelix.rsa as rsa
+from pelix import rsa
 from pelix.framework import create_framework
 from pelix.ipopo.constants import use_ipopo
 from pelix.rsa import ECF_ENDPOINT_CONTAINERID_NAMESPACE, RemoteServiceAdmin
@@ -37,12 +41,6 @@ from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent
 from pelix.rsa.topologymanagers import TopologyManager
 from tests.utilities import WrappedProcess, is_server_reachable
-
-try:
-    assert importlib.util.find_spec("grpc") is not None
-except Exception:
-    raise unittest.SkipTest("grpc library not available")
-
 
 TEST_ETCD_HOSTNAME = "localhost"
 TEST_ETCD_PORT = 2379
@@ -60,7 +58,7 @@ ENDPOINT_LISTENER_SCOPE = f"({ECF_ENDPOINT_CONTAINERID_NAMESPACE}=*)"
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 T = TypeVar("T")
@@ -140,7 +138,7 @@ def start_framework_for_advertise(state_queue: Queue, order_queue: Queue):
             # stop the framework gracefully
             framework.stop()
             framework.delete()
-    except Exception as ex:
+    except Exception as ex:  # noqa: BLE001
         state_queue.put(f"Error: {ex}")
 
 
@@ -242,7 +240,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
 
                 # set the test_done_event, so tester thread will continue
                 test_done_event.set()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 test_done_event.raise_exception(e)
 
         # set the handler to the test code above
@@ -284,7 +282,7 @@ class EtcdDiscoveryListenerTest(unittest.TestCase):
                     # finally set the test_done_event, so tester thread will
                     # continue
                     test_done_event.set()
-            except Exception as ex:
+            except Exception as ex:  # noqa: BLE001
                 test_done_event.raise_exception(ex)
 
         # set the handler to the test code above
@@ -389,8 +387,8 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         assert self.framework is not None
         self.framework.get_bundle_context().unget_service(sr)
 
-    def _get_advertiser(self):
-        self.advertiser = self._get_service(self._get_discovery_advertiser_sr())
+    def _get_advertiser(self) -> Etcd3EndpointDiscovery:
+        self.advertiser = cast(Etcd3EndpointDiscovery, self._get_service(self._get_discovery_advertiser_sr()))
         return self.advertiser
 
     def _get_rsa(self):
@@ -423,7 +421,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
     def test_none_advertised(self):
         adv = self._get_advertiser()
         eps = adv.get_advertised_endpoints()
-        self.assertDictEqual(eps, {}, "advertised endpoints not empty eps={0}".format(eps))
+        self.assertDictEqual(eps, {}, f"advertised endpoints not empty eps={eps}")
 
     def test_etcd_session(self):
         self.assertIsNotNone(self._get_advertiser()._session_id, "etcd._sessionid is null")
@@ -453,15 +451,13 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         self.assertTrue(len(eps) == 1, "length of eps is not equal 1")
         # now unadvertise
         adv.unadvertise_endpoint(ed_id)
-        try:
+        with self.assertRaises(Exception, msg=f"endpoint={ed_id} still advertised after being removed"):  # noqa: B017
+            # exception expected
             adv._get_value(ep_key)
-            self.fail("endpoint={0} still advertised after being removed".format(ed_id))
-        except Exception:  # exception expected
-            pass
         eps = adv.get_advertised_endpoints()
         self.assertTrue(
             len(eps) == 0,
-            "length of eps should be 0 and is {0}".format(len(eps)),
+            f"length of eps should be 0 and is {len(eps)}",
         )
 
     def test_etcd_advertise_content(self):
@@ -474,7 +470,7 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         # advertise it
         adv.advertise_endpoint(ed)
         # get the string directly via http and key
-        ed_val_str = adv._get_value("".join([adv._get_session_path(), "/", ed_id]))
+        ed_val_str = adv._get_value(f"{adv._get_session_path()}/{ed_id}")
         # decode the string into json object (dict)
         val_encoded = json.loads(ed_val_str)
         # compare the original dict with the one returned

@@ -6,7 +6,7 @@ Pelix remote services: Imported end points registry
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -27,10 +27,9 @@ Pelix remote services: Imported end points registry
 
 import logging
 import threading
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import pelix.constants
-import pelix.remote.beans as beans
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import (
@@ -42,12 +41,12 @@ from pelix.ipopo.decorators import (
     Requires,
     Validate,
 )
-from pelix.remote import RemoteServiceImportEndpointListener, RemoteServiceRegistry
+from pelix.remote import RemoteServiceImportEndpointListener, RemoteServiceRegistry, beans
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -74,17 +73,17 @@ class ImportsRegistry(RemoteServiceRegistry):
     Registry of discovered end points. End points are identified by their UID
     """
 
-    _listeners: List[RemoteServiceImportEndpointListener]
+    _listeners: list[RemoteServiceImportEndpointListener]
 
     def __init__(self) -> None:
         # Framework UID
-        self._fw_uid: Optional[str] = None
+        self._fw_uid: str | None = None
 
         # Framework UID -> [ImportEndpoint]
-        self._frameworks: Dict[Optional[str], List[beans.ImportEndpoint]] = {}
+        self._frameworks: dict[str | None, list[beans.ImportEndpoint]] = {}
 
         # End point UID -> ImportEndpoint
-        self._registry: Dict[str, beans.ImportEndpoint] = {}
+        self._registry: dict[str, beans.ImportEndpoint] = {}
 
         # Lock
         self.__lock = threading.Lock()
@@ -105,8 +104,8 @@ class ImportsRegistry(RemoteServiceRegistry):
             for endpoint in self._registry.values():
                 try:
                     listener.endpoint_added(endpoint)
-                except Exception as ex:
-                    _logger.exception("Error calling listener: %s", ex)
+                except Exception:
+                    _logger.exception("Error calling listener")
 
     def add(self, endpoint: beans.ImportEndpoint) -> bool:
         """
@@ -137,11 +136,11 @@ class ImportsRegistry(RemoteServiceRegistry):
             for listener in self._listeners[:]:
                 try:
                     listener.endpoint_added(endpoint)
-                except Exception as ex:
-                    _logger.exception("Error calling listener: %s", ex)
+                except Exception:
+                    _logger.exception("Error calling listener")
         return True
 
-    def update(self, uid: str, new_properties: Dict[str, Any]) -> bool:
+    def update(self, uid: str, new_properties: dict[str, Any]) -> bool:
         """
         Updates an end point and notifies listeners
 
@@ -166,11 +165,11 @@ class ImportsRegistry(RemoteServiceRegistry):
                 for listener in self._listeners[:]:
                     try:
                         listener.endpoint_updated(stored_endpoint, old_properties)
-                    except Exception as ex:
-                        _logger.exception("Error calling listener: %s", ex)
+                    except Exception:
+                        _logger.exception("Error calling listener")
             return True
 
-    def contains(self, endpoint: Union[str, beans.ImportEndpoint]) -> bool:
+    def contains(self, endpoint: str | beans.ImportEndpoint) -> bool:
         """
         Checks if an endpoint is in the registry
 
@@ -218,12 +217,12 @@ class ImportsRegistry(RemoteServiceRegistry):
             for listener in self._listeners[:]:
                 try:
                     listener.endpoint_removed(endpoint)
-                except Exception as ex:
-                    _logger.exception("Error calling listener: %s", ex)
+                except Exception:
+                    _logger.exception("Error calling listener")
 
         return True
 
-    def lost_framework(self, uid: Optional[str]) -> None:
+    def lost_framework(self, uid: str | None) -> None:
         """
         Unregisters all the end points associated to the given framework UID
 
@@ -245,8 +244,8 @@ class ImportsRegistry(RemoteServiceRegistry):
                 for listener in self._listeners[:]:
                     try:
                         listener.endpoint_removed(endpoint)
-                    except Exception as ex:
-                        _logger.exception("Error calling listener: %s", ex)
+                    except Exception:
+                        _logger.exception("Error calling listener")
 
     @Validate
     def _validate(self, context: BundleContext) -> None:

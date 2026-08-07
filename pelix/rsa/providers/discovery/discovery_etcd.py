@@ -7,7 +7,7 @@ Etcd Discovery Provider
 :author: Scott Lewis
 :copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -31,7 +31,7 @@ import logging
 import socket
 import threading
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import etcd
 
@@ -51,7 +51,7 @@ from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent, End
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -102,8 +102,8 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     Note that this depends upon the python-etcd client library.
     """
 
-    REMOVE_ACTIONS: List[str] = ["delete", "expire"]
-    ADD_ACTIONS: List[str] = ["set", "create"]
+    REMOVE_ACTIONS: tuple[str, ...] = ("delete", "expire")
+    ADD_ACTIONS: tuple[str, ...] = ("set", "create")
 
     def __init__(self) -> None:
         import warnings
@@ -121,12 +121,12 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         self._sessionid = create_uuid()
         self._session_ttl: int = 30
         self._watch_start_wait: int = 5
-        self._client: Optional[etcd.Client] = None
+        self._client: etcd.Client | None = None
         self._client_lock = threading.RLock()
-        self._top_nodes: Optional[List[etcd.EtcdResult]] = None
-        self._wait_index: Optional[int] = None
-        self._ttl_thread: Optional[threading.Thread] = None
-        self._watch_thread: Optional[threading.Thread] = None
+        self._top_nodes: list[etcd.EtcdResult] | None = None
+        self._wait_index: int | None = None
+        self._ttl_thread: threading.Thread | None = None
+        self._watch_thread: threading.Thread | None = None
         servicename = f"osgirsvc_{create_uuid()}"
         hostip = socket.gethostbyname(socket.gethostname())
         self._service_props = {
@@ -152,10 +152,10 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     def _invalidate(self, _: BundleContext) -> None:
         self._disconnect()
 
-    def _encode_description(self, endpoint_description: EndpointDescription) -> Dict[str, Any]:
+    def _encode_description(self, endpoint_description: EndpointDescription) -> dict[str, Any]:
         encoded_props = encode_endpoint_props(endpoint_description)
         # get copy of service props
-        service_props = self._service_props.copy()
+        service_props: dict[str, Any] = self._service_props.copy()
         # set 'properties field'
         service_props["properties"] = [
             {"type": "string", "name": key, "value": encoded_props.get(key)} for key in encoded_props
@@ -170,7 +170,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         # write to etcd
         with self._client_lock:
             if self._client is None:
-                raise Exception("etcd client not available")
+                raise ValueError("etcd client not available")
 
             return self._client.write(
                 key=self._get_endpoint_path(endpoint_description.get_id()),
@@ -188,14 +188,14 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         _logger.debug("updating ed=%s", endpoint_description)
         return self._write_description(endpoint_description)
 
-    def _unadvertise(self, advertised: Tuple[EndpointDescription, Any]) -> etcd.EtcdResult:
+    def _unadvertise(self, advertised: tuple[EndpointDescription, Any]) -> etcd.EtcdResult:
         _logger.debug("unadvertising ed=%s", advertised[0])
         # get endpoint id
         endpointid = advertised[0].get_id()
         # write to etcd
         with self._client_lock:
             if self._client is None:
-                raise Exception("etcd client not available")
+                raise ValueError("etcd client not available")
 
             return self._client.delete(key=self._get_endpoint_path(endpointid))
 
@@ -224,7 +224,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         """
         with self._client_lock:
             if self._client:
-                raise Exception("already connected")
+                raise ValueError("already connected")
             # create etcd Client instance
             self._client = etcd.Client(host=self._hostname, port=self._port)
             # now make request against basic
@@ -234,12 +234,12 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 # if this happens, attempt to write it
                 try:
                     top_response = self._client.write(self._top_path, None, None, True)
-                except Exception as e:
+                except Exception:
                     _logger.exception(
                         "Exception attempting to create top dir=%s",
                         self._top_path,
                     )
-                    raise e
+                    raise
             # set top nodes with list comprehension base top_response subtree
             self._top_nodes = [
                 x for x in list(top_response.get_subtree()) if x.dir and x.key != self._top_path
@@ -252,12 +252,12 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                     dir=True,
                     prevExist=False,
                 )
-            except Exception as e:
+            except Exception:
                 _logger.exception(
                     "Exception creating session for client at session_path=%s",
                     self._get_session_path(),
                 )
-                raise e
+                raise
 
             # Note: error disabled as EtcdResult object is too dynamic
             # pylint: disable=E1101
@@ -273,7 +273,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         return int(self._session_ttl - (self._session_ttl / 10))
 
     def _handle_add_dir(self, dir_node: etcd.EtcdResult) -> None:
-        sessionid = dir_node.key[len(self._top_path) + 1 :]
+        sessionid = dir_node.key[len(self._top_path) + 1 :]  # type: ignore # ty: ignore[unresolved-attribute]
         _logger.debug("_handle_add_dir sessionid=%s", sessionid)
         self._handle_add_nodes(
             sessionid,
@@ -285,10 +285,10 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         endpointids = self._get_endpointids_for_sessionid(sessionid)
         self._handle_remove_nodes(endpointids)
 
-    def _handle_add_nodes(self, sessionid: str, nodes: List[etcd.EtcdResult]) -> None:
+    def _handle_add_nodes(self, sessionid: str, nodes: list[etcd.EtcdResult]) -> None:
         for node in nodes:
             # we only care about properties
-            node_val = node.value
+            node_val = node.value  # type: ignore # ty: ignore[unresolved-attribute]
             if node_val:
                 json_obj = json.loads(node_val)
                 if isinstance(json_obj, dict):
@@ -318,7 +318,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                             self._add_discovered_endpoint(sessionid, new_ed)
                             self._fire_endpoint_event(EndpointEvent.MODIFIED, new_ed)
 
-    def _handle_remove_nodes(self, endpointids: List[str]) -> None:
+    def _handle_remove_nodes(self, endpointids: list[str]) -> None:
         for endpointid in endpointids:
             self._handle_remove_node(endpointid)
 

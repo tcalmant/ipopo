@@ -12,7 +12,7 @@ https://github.com/cohorte/cohorte-org.jabsorb.ng
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -34,12 +34,12 @@ https://github.com/cohorte/cohorte-org.jabsorb.ng
 import builtins
 import inspect
 import re
-from typing import Any, Dict, List, Optional, Tuple, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -119,7 +119,7 @@ class AttributeMap(dict[Any, Any]):
         """
         Adds a __dict__ member to this dictionary
         """
-        super(AttributeMap, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.__dict__ = self
 
     def __hash__(self) -> int:  # type: ignore
@@ -132,7 +132,7 @@ class AttributeMap(dict[Any, Any]):
 # ------------------------------------------------------------------------------
 
 
-def _compute_jsonclass(obj: Any) -> Tuple[str, List[Any]]:
+def _compute_jsonclass(obj: Any) -> tuple[str, list[Any]]:
     """
     Compute the content of the __jsonclass__ field for the given object
 
@@ -162,7 +162,7 @@ def _is_builtin(obj: Any) -> bool:
     return module_.__name__ in ("", "__main__")
 
 
-def _is_converted_class(java_class: Optional[str]) -> bool:
+def _is_converted_class(java_class: str | None) -> bool:
     """
     Checks if the given Java class is one we *might* have set up
     """
@@ -194,7 +194,7 @@ def to_jabsorb(value: Any) -> Any:
         return None
     # Map ?
     elif isinstance(value, dict):
-        converted_result: Dict[str, Any]
+        converted_result: dict[str, Any]
         if JAVA_CLASS in value or JSON_CLASS in value:
             if not _is_converted_class(value.get(JAVA_CLASS)):
                 # Bean representation
@@ -277,7 +277,7 @@ def from_jabsorb(request: Any, seems_raw: bool = False) -> Any:
     elif isinstance(request, list):
         # Check if we were a list or a tuple
         if seems_raw:
-            return list(from_jabsorb(element) for element in request)
+            return [from_jabsorb(element) for element in request]
         return tuple(from_jabsorb(element) for element in request)
     elif isinstance(request, dict):
         # Dictionary
@@ -312,7 +312,7 @@ def from_jabsorb(request: Any, seems_raw: bool = False) -> Any:
         # Bean
         for attr in dir(request):
             # Only convert public fields
-            if not attr[0] == "_":
+            if attr[0] != "_":
                 # Field conversion
                 setattr(request, attr, from_jabsorb(getattr(request, attr)))
         return request

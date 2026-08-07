@@ -10,7 +10,7 @@ its environement.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 
 ..
 
@@ -40,7 +40,8 @@ import sys
 import threading
 import time
 import types
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from collections.abc import Callable
+from typing import Any
 
 import pelix.constants
 from pelix.constants import ActivatorProto, BundleActivator, BundleException
@@ -56,7 +57,7 @@ from pelix.shell.beans import ShellSession
 __all__ = ("format_frame_info",)
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -96,11 +97,11 @@ def format_frame_info(frame: types.FrameType) -> str:
         arg_info = inspect.getargvalues(frame)
         for name in arg_info.args:
             try:
-                output_lines.append(f"    - {name} = {repr(frame.f_locals[name])}")
+                output_lines.append(f"    - {name} = {frame.f_locals[name]!r}")
             except TypeError:
                 # Happens in dict/list-comprehensions in Python 2.x
                 name = name[0]
-                output_lines.append(f"    - {name} = {repr(frame.f_locals[name])}")
+                output_lines.append(f"    - {name} = {frame.f_locals[name]!r}")
 
         if arg_info.varargs:
             output_lines.append(f"    - *{arg_info.varargs} = {frame.f_locals[arg_info.varargs]}")
@@ -113,11 +114,11 @@ def format_frame_info(frame: types.FrameType) -> str:
     if lines:
         output_lines.append("")
         prefix = "      "
-        output_lines.append("{0}{1}".format(prefix, f"\n{prefix}".join(lines)))
+        output_lines.append("{}{}".format(prefix, f"\n{prefix}".join(lines)))
     return "\n".join(output_lines)
 
 
-def _extract_lines(filename: str, f_globals: Dict[str, Any], line_no: int, around: int) -> List[str]:
+def _extract_lines(filename: str, f_globals: dict[str, Any], line_no: int, around: int) -> list[str]:
     """
     Extracts a block of lines from the given file
 
@@ -131,7 +132,7 @@ def _extract_lines(filename: str, f_globals: Dict[str, Any], line_no: int, aroun
         # No data on this line
         return [""]
 
-    lines: List[str] = []
+    lines: list[str] = []
     # Add some lines before
     for pre_line_no in range(line_no - around, line_no):
         pre_line = linecache.getline(filename, pre_line_no, f_globals)
@@ -181,10 +182,10 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
         self.__context = context
 
         # Last computed report
-        self.__report: Optional[Dict[str, Any]] = {}
+        self.__report: dict[str, Any] | None = {}
 
         # Level -> Methods
-        self.__levels: Dict[str, Tuple[Callable[[], Optional[Dict[str, Any]]]]] = {
+        self.__levels: dict[str, tuple[Callable[[], dict[str, Any] | None]]] = {
             # OS and machine details
             "os": (self.os_details,),
             "os_env": (self.os_env,),
@@ -207,7 +208,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
 
         # Aliases, to ease the generation of multiple reports at once
         # Alias -> Levels
-        self.__aliases: Dict[str, Tuple[str, ...]] = {
+        self.__aliases: dict[str, tuple[str, ...]] = {
             # Full report
             "full": tuple(self.__levels.keys()),
             # Pelix & iPOPO
@@ -234,7 +235,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
         """
         return "report"
 
-    def get_methods(self) -> List[Tuple[str, ShellCommandMethod]]:
+    def get_methods(self) -> list[tuple[str, ShellCommandMethod]]:
         """
         Retrieves the list of tuples (command, method) for this command handler
         """
@@ -246,7 +247,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
             ("write", self.write_report),
         ]
 
-    def get_level_methods(self, level: str) -> Set[Callable[..., Any]]:
+    def get_level_methods(self, level: str) -> set[Callable[..., Any]]:
         """
         Returns the methods to call for the given level of report
 
@@ -259,12 +260,12 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
             return set(self.__levels[level])
         except KeyError:
             # Alias
-            result: Set[Callable[..., Any]] = set()
+            result: set[Callable[..., Any]] = set()
             for sub_level in self.__aliases[level]:
                 result.update(self.get_level_methods(sub_level))
             return result
 
-    def get_levels(self) -> Set[str]:
+    def get_levels(self) -> set[str]:
         """
         Returns the available levels of reports
 
@@ -276,21 +277,25 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
         """
         Lists available levels
         """
-        lines: List[str] = []
+        lines: list[str] = []
         for level in sorted(self.get_levels()):
-            methods = sorted(method.__name__ for method in self.get_level_methods(level))
+            methods = sorted(
+                str(method.__name__)
+                for method in self.get_level_methods(level)
+                if hasattr(method, "__name__")
+            )
             lines.append(f"- {level}:")
             lines.append(f"\t{', '.join(methods)}")
         session.write_line("\n".join(lines))
 
     @staticmethod
-    def os_details() -> Dict[str, Any]:
+    def os_details() -> dict[str, Any]:
         """
         Returns a dictionary containing details about the operating system
         """
         # Compute architecture and linkage
         bits, linkage = platform.architecture()
-        results: Dict[str, Any] = {
+        results: dict[str, Any] = {
             # Machine details
             "platform.arch.bits": bits,
             "platform.arch.linkage": linkage,
@@ -319,25 +324,25 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
 
         try:
             # Only for Unix
-            results["sys.dlopenflags"] = getattr(sys, "getdlopenflags")()
+            results["sys.dlopenflags"] = sys.getdlopenflags()
         except AttributeError:
             results["sys.dlopenflags"] = None
 
         return results
 
     @staticmethod
-    def os_env() -> Dict[str, str]:
+    def os_env() -> dict[str, str]:
         """
         Returns a copy of the environment variables
         """
         return os.environ.copy()
 
     @staticmethod
-    def process_details() -> Dict[str, Any]:
+    def process_details() -> dict[str, Any]:
         """
         Returns details about the current process
         """
-        results: Dict[str, Any] = {"argv": sys.argv, "working.directory": os.getcwd()}
+        results: dict[str, Any] = {"argv": sys.argv, "working.directory": os.getcwd()}
 
         # Process ID and execution IDs (UID, GID, Login, ...)
         for key, method in {
@@ -357,7 +362,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
         return results
 
     @staticmethod
-    def network_details() -> Dict[str, Any]:
+    def network_details() -> dict[str, Any]:
         """
         Returns details about the network links
         """
@@ -397,12 +402,12 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
         }
 
     @staticmethod
-    def python_details() -> Dict[str, Any]:
+    def python_details() -> dict[str, Any]:
         """
         Returns a dictionary containing details about the Python interpreter
         """
         build_no, build_date = platform.python_build()
-        results: Dict[str, Any] = {
+        results: dict[str, Any] = {
             # Version of interpreter
             "build.number": build_no,
             "build.date": build_date,
@@ -439,7 +444,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
         return results
 
     @staticmethod
-    def python_path() -> Dict[str, Any]:
+    def python_path() -> dict[str, Any]:
         """
         Returns the content of sys.path
         """
@@ -450,22 +455,22 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
         }
 
     @staticmethod
-    def python_modules() -> Dict[str, Any]:
+    def python_modules() -> dict[str, Any]:
         """
         Returns the list of Python modules and their file
         """
-        imported: Dict[str, str] = {}
+        imported: dict[str, str] = {}
         results = {"builtins": sys.builtin_module_names, "imported": imported}
         for module_name, module_ in sys.modules.items():
             if module_name not in sys.builtin_module_names:
                 try:
                     imported[module_name] = inspect.getfile(module_)
                 except TypeError:
-                    imported[module_name] = f"<no file information :: {repr(module_)}>"
+                    imported[module_name] = f"<no file information :: {module_!r}>"
 
         return results
 
-    def pelix_infos(self) -> Dict[str, Any]:
+    def pelix_infos(self) -> dict[str, Any]:
         """
         Basic information about the Pelix framework instance
         """
@@ -475,7 +480,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
             "properties": framework.get_properties(),
         }
 
-    def pelix_bundles(self) -> Dict[str, Any]:
+    def pelix_bundles(self) -> dict[str, Any]:
         """
         List of installed bundles
         """
@@ -490,11 +495,11 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
             for bundle in framework.get_bundles()
         }
 
-    def pelix_services(self) -> Dict[str, Any]:
+    def pelix_services(self) -> dict[str, Any]:
         """
         List of registered services
         """
-        svc_refs: Optional[List[ServiceReference[Any]]] = self.__context.get_all_service_references(None)
+        svc_refs: list[ServiceReference[Any]] | None = self.__context.get_all_service_references(None)
         if not svc_refs:
             return {}
 
@@ -509,7 +514,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
             for svc_ref in svc_refs
         }
 
-    def ipopo_factories(self) -> Optional[Dict[str, Any]]:
+    def ipopo_factories(self) -> dict[str, Any] | None:
         """
         List of iPOPO factories
         """
@@ -520,7 +525,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
             # iPOPO is not available:
             return None
 
-    def ipopo_instances(self) -> Optional[Dict[str, Any]]:
+    def ipopo_instances(self) -> dict[str, Any] | None:
         """
         List of iPOPO instances
         """
@@ -534,11 +539,11 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
             return None
 
     @staticmethod
-    def threads_list() -> Dict[str, Any]:
+    def threads_list() -> dict[str, Any]:
         """
         Lists the active threads and their current code line
         """
-        results: Dict[str, Any] = {}
+        results: dict[str, Any] = {}
 
         # pylint: disable=W0212
         try:
@@ -546,7 +551,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
             frames = sys._current_frames()
 
             # Get the thread ID -> Thread mapping
-            names: Dict[int, threading.Thread] = getattr(threading, "_active", {}).copy()
+            names: dict[int, threading.Thread] = getattr(threading, "_active", {}).copy()
         except AttributeError:
             # Extraction not available
             return results
@@ -564,7 +569,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
                 name = "<unknown>"
 
             trace_lines = []
-            frame: Optional[types.FrameType] = stack
+            frame: types.FrameType | None = stack
             while frame is not None:
                 # Store the line information
                 trace_lines.append(format_frame_info(frame))
@@ -580,7 +585,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
 
         return results
 
-    def make_report(self, session: ShellSession, *levels: str) -> Optional[Dict[str, Any]]:
+    def make_report(self, session: ShellSession, *levels: str) -> dict[str, Any] | None:
         """
         Prepares the report at the requested level(s)
         """
@@ -589,7 +594,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
 
         try:
             # List the methods to call, avoiding double-calls
-            methods: Set[Callable[[], Dict[str, Any]]] = set()
+            methods: set[Callable[[], dict[str, Any]]] = set()
             for level in levels:
                 methods.update(self.get_level_methods(level))
         except KeyError as ex:
@@ -598,12 +603,14 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
             self.__report = None
         else:
             # Call each method
-            self.__report = {method.__name__: method() for method in methods}
+            self.__report = {
+                str(method.__name__): method() for method in methods if hasattr(method, "__name__")
+            }
             # Describe the report
             self.__report["report"] = {
                 "report.levels": levels,
                 "time.stamp": time.time(),
-                "time.local": str(datetime.datetime.now()),
+                "time.local": str(datetime.datetime.now().astimezone()),
                 "time.utc": str(datetime.datetime.now(datetime.timezone.utc)),
             }
 
@@ -665,7 +672,7 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
         try:
             with open(filename, "w+", encoding="utf8") as out_file:
                 out_file.write(self.to_json(self.__report))
-        except IOError as ex:
+        except OSError as ex:
             session.write_line(f"Error writing to file: {ex}")
 
 
@@ -682,7 +689,7 @@ class Activator(ActivatorProto):
         """
         Sets up the activator
         """
-        self._svc_reg: Optional[ServiceRegistration[Any]] = None
+        self._svc_reg: ServiceRegistration[Any] | None = None
 
     def start(self, context: BundleContext) -> None:
         """
@@ -695,7 +702,7 @@ class Activator(ActivatorProto):
             {},
         )
 
-    def stop(self, _: BundleContext) -> None:
+    def stop(self, context: BundleContext) -> None:
         """
         Bundle stopping
         """

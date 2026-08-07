@@ -8,6 +8,7 @@ Tests the iPOPO @RequiresBest decorator.
 
 import random
 import unittest
+from typing import Any
 
 from pelix.framework import BundleContext, FrameworkFactory
 from pelix.ipopo.constants import IPopoEvent
@@ -16,7 +17,7 @@ from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 NAME_A = "componentA"
@@ -34,7 +35,7 @@ class SampleEchoService(IEchoService):
         self.called = False
         self.value = None
         self.raised = False
-        self.sub_service = None
+        self.sub_service: Any = None
 
     def echo(self, value):
         self.called = True
@@ -97,7 +98,7 @@ class RequiresBestTest(unittest.TestCase):
         self.assertListEqual(
             [IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
             consumer.states,
-            "Invalid component states: {0}".format(consumer.states),
+            f"Invalid component states: {consumer.states}",
         )
         consumer.reset()
 
@@ -120,7 +121,7 @@ class RequiresBestTest(unittest.TestCase):
             self.assertListEqual(
                 [],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             consumer.reset()
 
@@ -148,7 +149,7 @@ class RequiresBestTest(unittest.TestCase):
             self.assertListEqual(
                 [],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             consumer.reset()
 
@@ -195,7 +196,7 @@ class RequiresBestTest(unittest.TestCase):
         self.assertListEqual(
             [IPopoEvent.INSTANTIATED],
             consumer.states,
-            "Invalid component states: {0}".format(consumer.states),
+            f"Invalid component states: {consumer.states}",
         )
         consumer.reset()
 
@@ -216,7 +217,7 @@ class RequiresBestTest(unittest.TestCase):
                 self.assertListEqual(
                     [IPopoEvent.VALIDATED],
                     consumer.states,
-                    "Invalid component states: {0}".format(consumer.states),
+                    f"Invalid component states: {consumer.states}",
                 )
                 consumer.reset()
             else:
@@ -224,7 +225,7 @@ class RequiresBestTest(unittest.TestCase):
                 self.assertListEqual(
                     [],
                     consumer.states,
-                    "Invalid component states: {0}".format(consumer.states),
+                    f"Invalid component states: {consumer.states}",
                 )
                 consumer.reset()
 
@@ -251,7 +252,7 @@ class RequiresBestTest(unittest.TestCase):
                 self.assertListEqual(
                     [],
                     consumer.states,
-                    "Invalid component states: {0}".format(consumer.states),
+                    f"Invalid component states: {consumer.states}",
                 )
                 consumer.reset()
 
@@ -270,7 +271,7 @@ class RequiresBestTest(unittest.TestCase):
         self.assertListEqual(
             [IPopoEvent.INVALIDATED],
             consumer.states,
-            "Invalid component states: {0}".format(consumer.states),
+            f"Invalid component states: {consumer.states}",
         )
         consumer.reset()
 
@@ -314,7 +315,7 @@ class RequiresBestTest(unittest.TestCase):
             self.assertListEqual(
                 [IPopoEvent.INSTANTIATED, IPopoEvent.VALIDATED],
                 consumer.states,
-                "Invalid component states: {0}".format(consumer.states),
+                f"Invalid component states: {consumer.states}",
             )
             consumer.reset()
 

@@ -32,19 +32,14 @@ import inspect
 import logging
 import threading
 import traceback
+from collections.abc import Callable, Generator, Iterable
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Concatenate,
-    Generator,
     Generic,
-    Iterable,
-    List,
-    Optional,
     ParamSpec,
     TypeVar,
-    Union,
     cast,
 )
 
@@ -136,7 +131,7 @@ def get_method_arguments(method: Callable[..., Any]) -> ArgSpec:
     return ArgSpec(args, varargs, keywords, defaults or None)
 
 
-def get_remote_method(service: Any, method_name: str) -> Optional[Callable[..., Any]]:
+def get_remote_method(service: Any, method_name: str) -> Callable[..., Any] | None:
     """
     Looks for a method a remote caller is allowed to call on an exported service.
 
@@ -158,7 +153,7 @@ def get_remote_method(service: Any, method_name: str) -> Optional[Callable[..., 
     return method_ref
 
 
-def check_xml_no_doctype(xml_str: Union[str, bytes, bytearray]) -> None:
+def check_xml_no_doctype(xml_str: str | bytes | bytearray) -> None:
     """
     Ensures that an XML document doesn't declare a document type (DTD).
 
@@ -218,7 +213,7 @@ class Deprecated:
     Prints a warning when using the decorated method
     """
 
-    def __init__(self, message: Optional[str] = None, logger: Optional[str] = None) -> None:
+    def __init__(self, message: str | None = None, logger: str | None = None) -> None:
         """
         Sets the deprecation message, e.g. to indicate which method to call
         instead.
@@ -252,6 +247,7 @@ class Deprecated:
         :param method: The decorated method
         :return: The wrapped method
         """
+        method_name = getattr(method, "__name__", repr(method))
 
         # Prepare the wrapped call
         @functools.wraps(method)
@@ -259,7 +255,7 @@ class Deprecated:
             """
             Wrapped deprecated method
             """
-            self.__log(method.__name__)
+            self.__log(method_name)
             return method(*args, **kwargs)
 
         return cast(Callable[P, T], wrapped)
@@ -273,7 +269,7 @@ class Synchronized:
     A synchronizer for global methods
     """
 
-    def __init__(self, lock: Optional[threading.Lock] = None) -> None:
+    def __init__(self, lock: "threading.Lock | None" = None) -> None:
         """
         Sets up the decorator. If 'lock' is None, an RLock() is created for
         this decorator.
@@ -281,7 +277,7 @@ class Synchronized:
         :param lock: The lock to be used for synchronization (can be None)
         """
         if lock is None or not is_lock(lock):
-            self.__lock: Union[threading.Lock, threading.RLock] = threading.RLock()
+            self.__lock: threading.Lock | threading.RLock = threading.RLock()
         else:
             self.__lock = lock
 
@@ -408,7 +404,7 @@ def read_only_property(value: Any) -> property:
 # ------------------------------------------------------------------------------
 
 
-def remove_all_occurrences(sequence: List[Any], item: Any) -> None:
+def remove_all_occurrences(sequence: list[Any], item: Any) -> None:
     """
     Removes all occurrences of item in the given sequence
 
@@ -422,7 +418,7 @@ def remove_all_occurrences(sequence: List[Any], item: Any) -> None:
         sequence.remove(item)
 
 
-def remove_duplicates(items: Iterable[T]) -> List[T]:
+def remove_duplicates(items: Iterable[T]) -> list[T]:
     """
     Returns a list without duplicates, keeping elements order
 
@@ -432,7 +428,7 @@ def remove_duplicates(items: Iterable[T]) -> List[T]:
     if items is None:
         return items
 
-    new_list: List[T] = []
+    new_list: list[T] = []
     for item in items:
         if item not in new_list:
             new_list.append(item)
@@ -442,7 +438,7 @@ def remove_duplicates(items: Iterable[T]) -> List[T]:
 # ------------------------------------------------------------------------------
 
 
-def add_listener(registry: List[T], listener: T) -> bool:
+def add_listener(registry: list[T], listener: T) -> bool:
     """
     Adds a listener in the registry, if it is not yet in
 
@@ -457,7 +453,7 @@ def add_listener(registry: List[T], listener: T) -> bool:
     return True
 
 
-def remove_listener(registry: List[T], listener: T) -> bool:
+def remove_listener(registry: list[T], listener: T) -> bool:
     """
     Removes a listener from the registry
 
@@ -500,7 +496,7 @@ def is_string(string: Any) -> bool:
     return isinstance(string, str)
 
 
-def to_bytes(data: Union[bytes, str], encoding: str = "UTF-8") -> bytes:
+def to_bytes(data: bytes | str, encoding: str = "UTF-8") -> bytes:
     """
     Converts the given string to an array of bytes.
     Returns the first parameter if it is already an array of bytes.
@@ -516,7 +512,7 @@ def to_bytes(data: Union[bytes, str], encoding: str = "UTF-8") -> bytes:
     return data.encode(encoding)
 
 
-def to_str(data: Union[bytes, bytearray, str], encoding: str = "UTF-8") -> str:
+def to_str(data: bytes | bytearray | str, encoding: str = "UTF-8") -> str:
     """
     Converts the given parameter to a string.
     Returns the first parameter if it is already an instance of ``str``.
@@ -535,7 +531,7 @@ def to_str(data: Union[bytes, bytearray, str], encoding: str = "UTF-8") -> str:
 # ------------------------------------------------------------------------------
 
 
-def to_iterable(value: Any, allow_none: bool = True) -> Optional[Iterable[Any]]:
+def to_iterable(value: Any, allow_none: bool = True) -> Iterable[Any] | None:
     """
     Tries to convert the given value to an iterable, if necessary.
     If the given value is a list, a list is returned; if it is a string, a list
@@ -568,25 +564,25 @@ class EventData(Generic[T]):
     A threading event with some associated data
     """
 
-    __slots__ = ("__event", "__data", "__exception")
+    __slots__ = ("__data", "__event", "__exception")
 
     def __init__(self) -> None:
         """
         Sets up the event
         """
         self.__event = threading.Event()
-        self.__data: Optional[T] = None
-        self.__exception: Optional[BaseException] = None
+        self.__data: T | None = None
+        self.__exception: BaseException | None = None
 
     @property
-    def data(self) -> Optional[T]:
+    def data(self) -> T | None:
         """
         Returns the associated value
         """
         return self.__data
 
     @property
-    def exception(self) -> Optional[BaseException]:
+    def exception(self) -> BaseException | None:
         """
         Returns the exception used to stop the wait() method
         """
@@ -606,7 +602,7 @@ class EventData(Generic[T]):
         """
         return self.__event.is_set()
 
-    def set(self, data: Optional[T] = None) -> None:
+    def set(self, data: T | None = None) -> None:
         """
         Sets the event
         """
@@ -624,7 +620,7 @@ class EventData(Generic[T]):
         self.__exception = exception
         self.__event.set()
 
-    def wait(self, timeout: Optional[float] = None) -> bool:
+    def wait(self, timeout: float | None = None) -> bool:
         """
         Waits for the event or for the timeout
 
@@ -686,7 +682,7 @@ class CountdownEvent:
 
         return False
 
-    def wait(self, timeout: Optional[float] = None) -> bool:
+    def wait(self, timeout: float | None = None) -> bool:
         """
         Waits for the event or for the timeout
 
@@ -699,7 +695,7 @@ class CountdownEvent:
 # ------------------------------------------------------------------------------
 
 
-def str2bool(value: Optional[str]) -> bool:
+def str2bool(value: str | None) -> bool:
     """
     Translates a string to a boolean.
 
@@ -726,7 +722,7 @@ def get_log_level(level: str | int) -> int | None:
         return level
 
     try:
-        return logging.getLevelNamesMapping().get(level)
+        return logging.getLevelNamesMapping().get(level)  # type: ignore
     except AttributeError:
         # Fallback for older Python versions
         return {

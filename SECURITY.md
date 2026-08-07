@@ -47,7 +47,7 @@ If you wish to encrypt your report, request the maintainer's public key at that 
 
 The more of this you can provide, the faster the fix:
 
-- **Affected version and branch** (e.g. `3.2.1`, `v3`), and the Python version
+- **Affected version and branch** (e.g. `3.2.2`, `v3`), and the Python version
 - **Affected component** (e.g. `pelix.remote.discovery.mdns`, `pelix.http.basic`, `pelix.shell.remote`)
 - **Type of issue**: remote code execution, path traversal, information disclosure, denial of service, authentication bypass, etc.
 - **Reproduction steps**, ideally a minimal script or bundle. A failing test case is ideal

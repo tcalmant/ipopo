@@ -12,12 +12,12 @@ from typing import Any
 
 import pelix.framework
 import pelix.shell
-import pelix.shell.beans as beans
 from pelix.ipopo.constants import use_ipopo
+from pelix.shell import beans
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------

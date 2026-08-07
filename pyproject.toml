@@ -72,3 +72,14 @@ ignore = [
   # Let all modules have their shebang
   "EXE001"
 ]
+
+[tool.ty.rules]
+invalid-type-form = "ignore"
+unsupported-base = "ignore"
+unused-type-ignore-comment = "ignore"
+
+[tool.ty.src]
+exclude = [
+  "**/*_pb2.py",
+  "**/*_pb2.pyi"
+]

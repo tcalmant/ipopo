@@ -11,7 +11,7 @@ import os
 import sys
 import tempfile
 import unittest
-from typing import Any, Dict
+from typing import Any
 
 from pelix.framework import FrameworkFactory
 from pelix.ipopo.constants import use_ipopo
@@ -20,7 +20,7 @@ from pelix.misc.init_handler import InitFileHandler, _Configuration
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -126,9 +126,7 @@ class ConfigurationTest(unittest.TestCase):
         """
         self.config.add_components(None)
         self.config.add_components([{"name": "comp-a", "factory": "factory.a"}])
-        self.config.add_components(
-            [{"name": "comp-b", "factory": "factory.b", "properties": {"answer": 42}}]
-        )
+        self.config.add_components([{"name": "comp-b", "factory": "factory.b", "properties": {"answer": 42}}])
         self.assertDictEqual(
             self.config.components,
             {"comp-a": ("factory.a", {}), "comp-b": ("factory.b", {"answer": 42})},
@@ -170,7 +168,7 @@ class InitFileHandlerTest(unittest.TestCase):
         self.tmp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp_dir.cleanup)
 
-    def _write_conf(self, name: str, configuration: Dict[str, Any]) -> str:
+    def _write_conf(self, name: str, configuration: dict[str, Any]) -> str:
         """
         Writes a configuration file in the temporary directory
         """
@@ -225,12 +223,15 @@ class InitFileHandlerTest(unittest.TestCase):
         """
         Tests the reset_* flags clearing previously loaded values
         """
-        first = self._write_conf(
-            "first.conf", {"properties": {"only.first": 1}, "bundles": ["bundle.a"]}
-        )
+        first = self._write_conf("first.conf", {"properties": {"only.first": 1}, "bundles": ["bundle.a"]})
         second = self._write_conf(
             "second.conf",
-            {"reset_properties": True, "properties": {"fresh": 2}, "reset_bundles": True, "bundles": ["bundle.b"]},
+            {
+                "reset_properties": True,
+                "properties": {"fresh": 2},
+                "reset_bundles": True,
+                "bundles": ["bundle.b"],
+            },
         )
 
         self.handler.load(first)
@@ -301,7 +302,11 @@ class InitFileHandlerTest(unittest.TestCase):
             "components.conf",
             {
                 "components": [
-                    {"name": "init-test-component", "factory": TEST_FACTORY, "properties": {"config.answer": 42}}
+                    {
+                        "name": "init-test-component",
+                        "factory": TEST_FACTORY,
+                        "properties": {"config.answer": 42},
+                    }
                 ]
             },
         )

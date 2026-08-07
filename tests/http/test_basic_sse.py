@@ -9,14 +9,14 @@ Pelix async HTTP service SSE test module.
 import asyncio
 import time
 import unittest
-from typing import cast
+from typing import Any, cast
 
 try:
     import aiohttp
 except ImportError:
     raise unittest.SkipTest("aiohttp library not available")
 
-import pelix.http as http
+from pelix import http
 from pelix.framework import FrameworkFactory, create_framework
 from pelix.ipopo.constants import use_ipopo
 from tests.http.utils import async_test
@@ -58,7 +58,7 @@ class SSETestCase(unittest.TestCase):
         FrameworkFactory.delete_framework(cls.framework)
 
     def setUp(self):
-        self.sse_state = {"clients": set(), "disconnects": 0}
+        self.sse_state: dict[str, Any] = {"clients": set(), "disconnects": 0}
 
         # Create the SSE handler
         parent = self
@@ -79,7 +79,7 @@ class SSETestCase(unittest.TestCase):
                     while True:
                         await response.send_sse(data=data)
                         await asyncio.sleep(0.1)
-                except Exception:
+                except Exception:  # noqa: BLE001
                     parent.sse_state["disconnects"] += 1
                 finally:
                     parent.sse_state["clients"].discard(clt)

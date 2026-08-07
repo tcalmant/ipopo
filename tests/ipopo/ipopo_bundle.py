@@ -33,7 +33,7 @@ from tests.interfaces import IEchoService
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 BASIC_FACTORY = "basic-component-factory"
@@ -66,7 +66,7 @@ PROP_USABLE = "usable"
 @ComponentFactory(BASIC_FACTORY)
 @Instantiate(BASIC_INSTANCE)
 @Provides("basic-component-svc")
-class BasicComponent(object):
+class BasicComponent:
     """
     Dummy instantiated component
     """
@@ -98,7 +98,7 @@ class BasicComponent(object):
 
 
 @Property("name", IPOPO_INSTANCE_NAME)
-class TestComponentFactory(object):
+class TestComponentFactory:
     """
     Parent class of components
     """
@@ -202,7 +202,7 @@ class ComponentFactoryB(TestComponentFactory):
         """ "
         Constructor
         """
-        super(ComponentFactoryB, self).__init__()
+        super().__init__()
         self.service: IEchoService = None  # type: ignore
         self.raiser = False
         self.fw_raiser = False
@@ -223,7 +223,7 @@ class ComponentFactoryB(TestComponentFactory):
             raise FrameworkException("FrameworkException", self.fw_raiser_stop)
 
         if self.raiser:
-            raise Exception("Some exception")
+            raise Exception("Some exception")  # noqa: TRY002
 
     @Unbind
     def unbind(self, svc, svc_ref):
@@ -241,7 +241,7 @@ class ComponentFactoryB(TestComponentFactory):
             raise FrameworkException("FrameworkException", self.fw_raiser_stop)
 
         if self.raiser:
-            raise Exception("Some exception")
+            raise Exception("Some exception")  # noqa: TRY002
 
 
 @ComponentFactory(name=FACTORY_C)
@@ -255,8 +255,8 @@ class ComponentFactoryC(TestComponentFactory):
         """ "
         Constructor
         """
-        super(ComponentFactoryC, self).__init__()
-        self.services = None
+        super().__init__()
+        self.services: list[IEchoService] | None = None
 
     @Bind
     def bind(self, svc, svc_ref):
@@ -266,6 +266,7 @@ class ComponentFactoryC(TestComponentFactory):
         self.states.append(IPopoEvent.BOUND)
 
         # Assert that the service is already usable
+        assert self.services is not None
         assert svc in self.services
 
     @Unbind
@@ -276,6 +277,7 @@ class ComponentFactoryC(TestComponentFactory):
         self.states.append(IPopoEvent.UNBOUND)
 
         # Assert that the service has been removed
+        assert self.services is not None
         assert svc in self.services
 
 
@@ -296,7 +298,7 @@ class MapComponentFactory(TestComponentFactory):
         """
         Sets up members
         """
-        super(MapComponentFactory, self).__init__()
+        super().__init__()
 
         self.single = None
         self.multiple = None
@@ -476,7 +478,7 @@ class TemporalComponentFactory(TestComponentFactory):
         """
         Calls the service
         """
-        return self.service.method()
+        return self.service.method()  # type: ignore
 
 
 # ------------------------------------------------------------------------------
@@ -493,7 +495,7 @@ class ErroneousComponentFactory(TestComponentFactory):
         """
         Sets up members
         """
-        super(ErroneousComponentFactory, self).__init__()
+        super().__init__()
         self.raise_exception = True
 
     @Validate
@@ -504,7 +506,7 @@ class ErroneousComponentFactory(TestComponentFactory):
         if self.raise_exception:
             raise OSError("Error raised")
         else:
-            super(ErroneousComponentFactory, self).validate(context)
+            super().validate(context)
 
 
 # ------------------------------------------------------------------------------
@@ -513,7 +515,7 @@ class ErroneousComponentFactory(TestComponentFactory):
 @ComponentFactory(FACTORY_HIDDEN_PROPS)
 @HiddenProperty("hidden", "hidden.prop", "hidden")
 @Property("public", "public.prop", "public")
-class HiddenPropTest(object):
+class HiddenPropTest:
     """
     Test for hidden properties
     """
@@ -531,7 +533,7 @@ class HiddenPropTest(object):
 
 @ComponentFactory(FACTORY_PROVIDES_SVC_FACTORY)
 @Provides("factory.service", factory=True)
-class SvcFactoryProvider(object):
+class SvcFactoryProvider:
     """
     Test for providing a service factory
     """
@@ -561,7 +563,7 @@ class SvcFactoryProvider(object):
 
 @ComponentFactory(FACTORY_PROVIDES_SVC_PROTOTYPE)
 @Provides("prototype.service", prototype=True)
-class SvcPrototypeFactoryProvider(object):
+class SvcPrototypeFactoryProvider:
     """
     Test for providing a prototype service factory
     """
@@ -601,6 +603,9 @@ class SvcPrototypeFactoryProvider(object):
 
 # ------------------------------------------------------------------------------
 
+started: bool = False
+stopped: bool = False
+
 
 @BundleActivator
 class ActivatorTest:
@@ -639,12 +644,10 @@ class ActivatorTest:
 # Inheritance tests
 
 
-class GrandMother(object):
+class GrandMother:
     """
     Parent class of Mother class: must not appear in specifications
     """
-
-    pass
 
 
 class Mother(GrandMother):
@@ -652,20 +655,14 @@ class Mother(GrandMother):
     Direct parent class: must appear in specifications
     """
 
-    pass
 
-
-class Father(object):
+class Father:
     """
     Direct parent class: must appear in specifications
     """
-
-    pass
 
 
 class Child(Father, Mother):
     """
     Implementation class: must not appear in specifications
     """
-
-    pass

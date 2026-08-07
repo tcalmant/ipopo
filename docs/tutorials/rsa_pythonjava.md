@@ -133,16 +133,16 @@ class RemoteHelloConsumer:
 
         # call sayHelloAsync which returns Future and we add lambda to print
         # the result when done
-        self._helloservice.sayHelloAsync(
-            f"{self._name}Async", self._msg
-        ).add_done_callback(lambda f: print("async response:", f.result()))
+        self._helloservice.sayHelloAsync(f"{self._name}Async", self._msg).add_done_callback(
+            lambda f: print("async response:", f.result())
+        )
         print("done with sayHelloAsync method")
 
         # call sayHelloAsync which returns Future and we add lambda to print
         # the result when done
-        self._helloservice.sayHelloPromise(
-            f"{self._name}Promise", self._msg
-        ).add_done_callback(lambda f: print("promise response:", f.result()))
+        self._helloservice.sayHelloPromise(f"{self._name}Promise", self._msg).add_done_callback(
+            lambda f: print("promise response:", f.result())
+        )
         print("done with sayHelloPromise method")
 ```
 
@@ -155,9 +155,7 @@ result (`resp`) to the console:
 def _validate(self, bundle_context):
     # call it!
     resp = self._helloservice.sayHello(f"{self._name}Sync", self._msg)
-    print(
-        self._name, "IHello service consumer received sync response:", resp
-    )
+    print(self._name, "IHello service consumer received sync response:", resp)
 ```
 
 The print in the code above is responsible for the console output:
@@ -280,6 +278,7 @@ class Py4jHelloImpl(HelloImpl):
 
     See samples.rsa.helloimpl module.
     """
+
     pass
 ```
 

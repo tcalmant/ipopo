@@ -6,13 +6,13 @@ Bundle defining multiple classes and component factories for HTTP service tests
 :author: Thomas Calmant
 """
 
-import pelix.http as http
+from pelix import http
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides
 from tests.http.utils import ASYNC_SERVLET_FACTORY, SIMPLE_SERVLET_FACTORY, TestServlet
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------

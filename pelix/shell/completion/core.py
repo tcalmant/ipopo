@@ -6,7 +6,7 @@ Defines the ``Completer`` class, mother of all shell completion handlers
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.1
+:version: 3.2.2
 :status: Alpha
 
 ..
@@ -28,7 +28,8 @@ Defines the ``Completer`` class, mother of all shell completion handlers
 
 import abc
 import logging
-from typing import TYPE_CHECKING, Callable, List
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING
 
 from pelix.utilities import use_service
 
@@ -49,7 +50,7 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 1)
+__version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -67,7 +68,7 @@ class AbstractCompleter(abc.ABC, Completer):
 
     @staticmethod
     def set_display_hook(
-        display_hook: Callable[[str, "ShellSession", "BundleContext", List[str], int], None],
+        display_hook: Callable[[str, "ShellSession", "BundleContext", Sequence[str], int], None],
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
@@ -90,9 +91,9 @@ class AbstractCompleter(abc.ABC, Completer):
         prompt: str,
         session: "ShellSession",
         context: "BundleContext",
-        current_arguments: List[str],
+        current_arguments: list[str],
         current: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Returns the list of bundle IDs matching the current state
 
@@ -115,8 +116,8 @@ def completion_hints(
     session: "ShellSession",
     context: "BundleContext",
     current: str,
-    arguments: List[str],
-) -> List[str]:
+    arguments: list[str],
+) -> list[str]:
     """
     Returns the possible completions of the current argument
 
@@ -167,6 +168,6 @@ def completion_hints(
                 return []
 
             return matches
-    except Exception as ex:
-        _logger.exception("Error calling completer %s: %s", completer_id, ex)
+    except Exception:
+        _logger.exception("Error calling completer %s", completer_id)
         return []
