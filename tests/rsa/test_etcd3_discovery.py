@@ -11,6 +11,9 @@ import json
 import unittest
 from typing import Any, TypeVar, cast
 
+if importlib.util.find_spec("grpc") is None:
+    raise unittest.SkipTest("grpc library not available")
+
 from pelix.internals.registry import ServiceReference
 from pelix.rsa.providers.discovery.etcd3 import Etcd3EndpointDiscovery
 from pelix.utilities import EventData
@@ -38,10 +41,6 @@ from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent
 from pelix.rsa.topologymanagers import TopologyManager
 from tests.utilities import WrappedProcess, is_server_reachable
-
-if importlib.util.find_spec("grpc") is None:
-    raise unittest.SkipTest("grpc library not available")
-
 
 TEST_ETCD_HOSTNAME = "localhost"
 TEST_ETCD_PORT = 2379
