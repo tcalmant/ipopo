@@ -102,6 +102,7 @@ def get_method_description(method: Callable[..., Any]) -> str:
     :return: A description of the method (at least its name)
     :raise AttributeError: Given object has no __name__ attribute
     """
+    method_name = getattr(method, "__name__", repr(method))
     try:
         try:
             line_no = inspect.getsourcelines(method)[1]
@@ -109,10 +110,10 @@ def get_method_description(method: Callable[..., Any]) -> str:
             # Error reading the source file
             line_no = -1
 
-        return f"'{method.__name__}' ({inspect.getfile(method)}:{line_no})"
+        return f"'{method_name}' ({inspect.getfile(method)}:{line_no})"
     except TypeError:
         # Method can't be inspected
-        return f"'{method.__name__}'"
+        return f"'{method_name}'"
 
 
 def validate_method_arity(method: Callable[..., Any], *needed_args: str) -> None:
@@ -172,7 +173,7 @@ def _ipopo_setup_callback(cls: type[Any], context: FactoryContext) -> None:
     assert isinstance(context, FactoryContext)
 
     if context.callbacks is not None:
-        callbacks = context.callbacks.copy()
+        callbacks: dict[str, Callable[..., Any]] = context.callbacks.copy()
     else:
         callbacks = {}
 
@@ -196,10 +197,14 @@ def _ipopo_setup_callback(cls: type[Any], context: FactoryContext) -> None:
         # Keeping it allows inheritance : by removing it, only the first
         # child will see the attribute -> Don't remove it
 
+        # Cast known types
+        method_callbacks = cast(list[str], method_callbacks)
+        func = cast(Callable[..., Any], func)
+
         # Store the call backs
         for _callback in method_callbacks:
             if _callback in callbacks and not is_from_parent(
-                cls, callbacks[_callback].__name__, callbacks[_callback]
+                cls, getattr(callbacks[_callback], "__name__", None), callbacks[_callback]
             ):
                 _logger.warning(
                     "Redefining the callback %s in class '%s'.\n"

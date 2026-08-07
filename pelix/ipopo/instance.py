@@ -777,12 +777,17 @@ class StoredInstance:
             # Nothing to do
             return False
 
+        method_name = getattr(method, "__name__", None)
+        if method_name is None:
+            self._logger.error("Invalid method to call in handlers: %s", method)
+            return False
+
         result = True
         for handler in self.get_handlers():
             # Get the method for each handler
             try:
                 # Get the bound method
-                handler_method = cast(Callable[P, bool | None], getattr(handler, method.__name__))
+                handler_method = cast(Callable[P, bool | None], getattr(handler, method_name))
                 # Call it
                 res = handler_method(*args, **kwargs)
                 if res is not None and not res:
