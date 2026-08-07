@@ -20,6 +20,7 @@ Unreleased
   format (JSON and XML).
   It is kept as an artifact of the `SBOM` workflow, and is attached to the
   GitHub releases
+* Overall linting and typing review. `ruff` and `ty` now return no error.
 
 ### Security
 
