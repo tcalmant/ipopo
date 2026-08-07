@@ -247,6 +247,7 @@ class Deprecated:
         :param method: The decorated method
         :return: The wrapped method
         """
+        method_name = getattr(method, "__name__", repr(method))
 
         # Prepare the wrapped call
         @functools.wraps(method)
@@ -254,7 +255,7 @@ class Deprecated:
             """
             Wrapped deprecated method
             """
-            self.__log(method.__name__)
+            self.__log(method_name)
             return method(*args, **kwargs)
 
         return cast(Callable[P, T], wrapped)
@@ -721,7 +722,7 @@ def get_log_level(level: str | int) -> int | None:
         return level
 
     try:
-        return logging.getLevelNamesMapping().get(level)
+        return logging.getLevelNamesMapping().get(level)  # ty: ignore[unresolved-attribute]
     except AttributeError:
         # Fallback for older Python versions
         return {

@@ -430,7 +430,9 @@ class ThreadPool:
                         # Call the method
                         task.future.execute(task.method, task.args, task.kwargs)
                     except Exception:
-                        self._logger.exception("Error executing %s", task.method.__name__)
+                        self._logger.exception(
+                            "Error executing %s", getattr(task.method, "__name__", repr(task.method))
+                        )
                     finally:
                         # Mark the action as executed
                         self._queue.task_done()

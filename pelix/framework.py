@@ -576,9 +576,9 @@ class Bundle:
             try:
                 # Reload the module
                 reload_module(self.__module)
-            except (ImportError, SyntaxError) as ex:
+            except (ImportError, SyntaxError):
                 # Exception raised if the file is unreadable
-                _logger.exception("Error updating %s: %s", self.__name, ex)
+                _logger.exception("Error updating %s", self.__name)
 
                 # Reset module content
                 self.__module.__dict__.clear()
@@ -909,7 +909,7 @@ class Framework(Bundle):
             path = pathlib.Path(path)
 
         if not isinstance(path, pathlib.Path):
-            raise ValueError(f"Expected path to be string or pathlib.Path, got {type(path).__name__}")
+            raise ValueError(f"Expected path to be string or pathlib.Path, got {type(path).__name__}")  # noqa: TRY004
 
         # Use an absolute path
         path = path.absolute()
@@ -977,7 +977,7 @@ class Framework(Bundle):
             path = pathlib.Path(path)
 
         if not isinstance(path, pathlib.Path):
-            raise ValueError(f"Expected path to be string or pathlib.Path, got {type(path).__name__}")
+            raise ValueError(f"Expected path to be string or pathlib.Path, got {type(path).__name__}")  # noqa: TRY004
 
         # Validate the visitor
         if visitor is None:
@@ -1003,7 +1003,7 @@ class Framework(Bundle):
                     continue
 
                 # Compute the full name of the module
-                fullname = ".".join((prefix, name)) if prefix else name
+                fullname = f"{prefix}.{name}" if prefix else name
                 try:
                     if visitor(fullname, is_package, path.name):
                         if is_package:
@@ -1011,7 +1011,7 @@ class Framework(Bundle):
                             bundles.add(self.install_bundle(fullname, path))
 
                             # Visit the package
-                            sub_path = os.path.join(path, name)
+                            sub_path = path / name
                             sub_bundles, sub_failed = self.install_visiting(sub_path, visitor, fullname)
                             bundles.update(sub_bundles)
                             failed.update(sub_failed)
@@ -1168,12 +1168,11 @@ class Framework(Bundle):
 
                 try:
                     bundle.stop()
-                except Exception as ex:
+                except Exception:
                     # Just log exceptions
                     _logger.exception(
-                        "Error stopping bundle %s: %s",
+                        "Error stopping bundle %s",
                         bundle.get_symbolic_name(),
-                        ex,
                     )
 
             # Framework is now stopped
@@ -1790,7 +1789,7 @@ class FrameworkFactory:
             # Stop the framework
             try:
                 framework.stop()
-            except:
+            except:  # noqa: E722
                 _logger.exception("Error stopping the framework")
 
             # Uninstall its bundles
@@ -1798,7 +1797,7 @@ class FrameworkFactory:
             for bundle in bundles:
                 try:
                     bundle.uninstall()
-                except:
+                except:  # noqa: E722
                     _logger.exception(
                         "Error uninstalling bundle %s",
                         bundle.get_symbolic_name(),
