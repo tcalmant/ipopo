@@ -388,10 +388,10 @@ else:
             # Get shell PS1 (static method)
             import pelix.shell.core
 
-            ps1 = pelix.shell.core._ShellService.get_ps1()
+            ps1 = pelix.shell.core._ShellService.PS1
 
             # Start the remote shell process
-            port = 9000
+            port = 9001
             args = [sys.executable, "-m"]
             if has_coverage:
                 args += ["coverage", "run", "-m"]
@@ -522,7 +522,7 @@ class TLSRemoteShellTest(unittest.TestCase):
                     "remoteShell",
                     {
                         "pelix.shell.address": "127.0.0.1",
-                        "pelix.shell.port": 9000,
+                        "pelix.shell.port": 9001,
                         "pelix.shell.ssl.ca": ca_chain,
                         "pelix.shell.ssl.cert": srv_cert,
                         "pelix.shell.ssl.key": srv_key,
@@ -536,7 +536,7 @@ class TLSRemoteShellTest(unittest.TestCase):
         # Create a client
         client = TLSShellClient(self.shell.get_ps1(), self.fail, client_cert, client_key, ca_chain)
         try:
-            client.connect(self.remote.get_access())
+            client.connect(self.remote.get_access())  # type: ignore
 
             # Test a command
             test_str = "toto"
@@ -567,7 +567,7 @@ class TLSRemoteShellTest(unittest.TestCase):
                     "remoteShell",
                     {
                         "pelix.shell.address": "127.0.0.1",
-                        "pelix.shell.port": 9000,
+                        "pelix.shell.port": 9001,
                         "pelix.shell.ssl.ca": ca_chain,
                         "pelix.shell.ssl.cert": srv_cert,
                         "pelix.shell.ssl.key": srv_key,
@@ -604,7 +604,7 @@ class TLSRemoteShellTest(unittest.TestCase):
                     "remoteShell",
                     {
                         "pelix.shell.address": "127.0.0.1",
-                        "pelix.shell.port": 9000,
+                        "pelix.shell.port": 9001,
                         "pelix.shell.ssl.ca": ca_chain,
                         "pelix.shell.ssl.cert": srv_cert,
                         "pelix.shell.ssl.key": srv_key,
@@ -616,7 +616,7 @@ class TLSRemoteShellTest(unittest.TestCase):
         # Create a client
         client = TLSShellClient(self.shell.get_ps1(), self.fail, client_cert, client_key, ca_chain)
         try:
-            client.connect(self.remote.get_access())
+            client.connect(self.remote.get_access())  # type: ignore
 
             # Test a command
             test_str = "toto"

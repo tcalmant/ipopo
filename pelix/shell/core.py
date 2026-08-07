@@ -170,6 +170,8 @@ class _ShellService(parser.Shell, ShellService):
     Provides the core shell service for Pelix
     """
 
+    BANNER = "** Pelix Shell prompt **\n"
+
     def __init__(self, context: BundleContext, utilities: _ShellUtils) -> None:
         """
         Sets up the shell
@@ -272,7 +274,7 @@ class _ShellService(parser.Shell, ShellService):
         """
         Returns the Shell banner
         """
-        return "** Pelix Shell prompt **\n"
+        return self.BANNER
 
     def var_set(self, session: "ShellSession", **kwargs: Any) -> Any:
         """

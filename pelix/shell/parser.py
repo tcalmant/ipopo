@@ -159,6 +159,12 @@ class Shell:
     Allows the use of name spaces.
     """
 
+    PS1: str = "$ "
+    """ Shell prompt """
+
+    BANNER: str = "** Shell prompt **\n"
+    """ Shell banner """
+
     def __init__(self, framework: "Framework", logname: str | None = None) -> None:
         """
         Sets up members
@@ -190,13 +196,13 @@ class Shell:
         """
         Returns the Shell banner
         """
-        return "** Shell prompt **\n"
+        return self.BANNER
 
     def get_ps1(self) -> str:
         """
         Returns the PS1, the basic shell prompt
         """
-        return "$ "
+        return self.PS1
 
     def register_command(self, namespace: str | None, command: str, method: ShellCommandMethod) -> bool:
         """

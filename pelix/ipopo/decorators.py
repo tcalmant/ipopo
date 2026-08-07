@@ -102,7 +102,8 @@ def get_method_description(method: Callable[..., Any]) -> str:
     :return: A description of the method (at least its name)
     :raise AttributeError: Given object has no __name__ attribute
     """
-    method_name = getattr(method, "__name__", repr(method))
+    # Let it raise an AttributeError if the method has no __name__ attribute
+    method_name = method.__name__  # ty: ignore[unresolved-attribute]
     try:
         try:
             line_no = inspect.getsourcelines(method)[1]
@@ -917,7 +918,7 @@ class Provides:
     HANDLER_ID = constants.HANDLER_PROVIDES
     """ ID of the handler configured by this decorator """
 
-    USE_MODULE_QUALNAME = False
+    USE_MODULE_QUALNAME: bool = False
     """
     Selects the methodology to generate a specification from a class.
     A value of False uses ``__name__`` (legacy), while True enables

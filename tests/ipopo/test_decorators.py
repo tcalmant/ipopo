@@ -108,7 +108,7 @@ class UtilityMethodsTest(unittest.TestCase):
         # Try with a compiled method
         local_vars = {}
         mod = code.compile_command("def foobar():\n    pass\n", "<generated>")
-        exec(mod, {}, local_vars)  # noqa: S102
+        exec(mod, {}, local_vars)  # type: ignore # noqa: S102
         foobar = local_vars["foobar"]
 
         description = decorators.get_method_description(foobar)
@@ -135,7 +135,7 @@ class UtilityMethodsTest(unittest.TestCase):
             __name__ = "<Bar>"
 
         # Name exists in instance
-        description = decorators.get_method_description(Bar())
+        description = decorators.get_method_description(Bar())  # type: ignore
         self.assertIn(repr(Bar().__name__), description)
 
 
@@ -375,18 +375,18 @@ class DecoratorsTest(unittest.TestCase):
         self.assertRaises(TypeError, decorators.Provides("spec", factory=True), DummyClass)
 
         # One of two methods
-        DummyClass.get_service = valid_method
+        DummyClass.get_service = valid_method  # type: ignore
         self.assertRaises(TypeError, decorators.Provides("spec", factory=True), DummyClass)
 
         # Both methods
-        DummyClass.unget_service = valid_method
+        DummyClass.unget_service = valid_method  # type: ignore
         try:
             decorators.Provides("spec", factory=True)(DummyClass)
         except TypeError:
             self.fail("Error on valid class")
 
         # Invalid arity
-        DummyClass.get_service = invalid_method
+        DummyClass.get_service = invalid_method  # type: ignore
         self.assertRaises(TypeError, decorators.Provides("spec", factory=True), DummyClass)
 
     def test_provides_prototype(self):
@@ -410,31 +410,31 @@ class DecoratorsTest(unittest.TestCase):
         self.assertRaises(TypeError, decorators.Provides("spec", prototype=True), DummyClass)
 
         # One of three methods
-        DummyClass.get_service = valid_method
+        DummyClass.get_service = valid_method  # type: ignore
         self.assertRaises(TypeError, decorators.Provides("spec", prototype=True), DummyClass)
 
         # Two of three methods
-        DummyClass.unget_service = valid_method
+        DummyClass.unget_service = valid_method  # type: ignore
         self.assertRaises(TypeError, decorators.Provides("spec", prototype=True), DummyClass)
 
         # Two (other) of three methods
-        del DummyClass.unget_service
-        DummyClass.unget_service_instance = valid_instance_method
+        del DummyClass.unget_service  # type: ignore
+        DummyClass.unget_service_instance = valid_instance_method  # type: ignore
         self.assertRaises(TypeError, decorators.Provides("spec", prototype=True), DummyClass)
 
         # All methods
-        DummyClass.unget_service = valid_method
+        DummyClass.unget_service = valid_method  # type: ignore
         try:
             decorators.Provides("spec", prototype=True)(DummyClass)
         except TypeError:
             self.fail("Error on valid class")
 
         # Invalid arity
-        DummyClass.get_service = invalid_method
+        DummyClass.get_service = invalid_method  # type: ignore
         self.assertRaises(TypeError, decorators.Provides("spec", prototype=True), DummyClass)
 
-        DummyClass.get_service = valid_method
-        DummyClass.unget_service_instance = invalid_method
+        DummyClass.get_service = valid_method  # type: ignore
+        DummyClass.unget_service_instance = invalid_method  # type: ignore
         self.assertRaises(TypeError, decorators.Provides("spec", prototype=True), DummyClass)
 
     def test_requires_base(self):

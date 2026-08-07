@@ -6,6 +6,7 @@ Tests the shell console
 :author: Thomas Calmant
 """
 
+import importlib.util
 import random
 import string
 import sys
@@ -14,6 +15,11 @@ import time
 import unittest
 
 from pelix.utilities import to_bytes, to_str
+
+if importlib.util.find_spec("subprocess") is None:
+    raise unittest.SkipTest("subprocess module not available")
+
+import subprocess
 
 # ------------------------------------------------------------------------------
 
@@ -26,146 +32,141 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
-try:
-    import subprocess
-except ImportError:
-    # Can't run the test if we can't start another process
-    pass
-else:
+class ShellStandaloneTest(unittest.TestCase):
+    """
+    Tests the console shell when started as a script
+    """
 
-    class ShellStandaloneTest(unittest.TestCase):
+    @staticmethod
+    def random_str():
         """
-        Tests the console shell when started as a script
+        Generates a random string
+
+        :return: A random string
         """
+        data = list(string.ascii_letters)
+        random.shuffle(data)
+        return "".join(data)
 
-        @staticmethod
-        def random_str():
-            """
-            Generates a random string
+    def test_echo(self):
+        """
+        Tests the console shell 'echo' method
+        """
+        # Get shell PS1 (static method)
+        import pelix.shell.core
 
-            :return: A random string
-            """
-            data = list(string.ascii_letters)
-            random.shuffle(data)
-            return "".join(data)
+        ps1 = pelix.shell.core._ShellService.PS1
 
-        def test_echo(self):
-            """
-            Tests the console shell 'echo' method
-            """
-            # Get shell PS1 (static method)
-            import pelix.shell.core
+        # Start the shell process
+        process = subprocess.Popen(
+            [sys.executable, "-m", "pelix.shell"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        assert process.stdin is not None
+        assert process.stdout is not None
 
-            ps1 = pelix.shell.core._ShellService.get_ps1()
+        # Avoid being blocked...
+        timer = threading.Timer(5, process.terminate)
+        timer.start()
 
-            # Start the shell process
-            process = subprocess.Popen(
-                [sys.executable, "-m", "pelix.shell"],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-            )
-
-            # Avoid being blocked...
-            timer = threading.Timer(5, process.terminate)
-            timer.start()
-
-            # Wait for prompt
-            got = ""
-            while ps1 not in got:
-                char = to_str(process.stdout.read(1))
-                if not char:
-                    if process.poll():
-                        output = to_str(process.stdout.read())
-                    else:
-                        output = "<no output>"
-
-                    self.fail(f"Can't read from stdout (rc={process.returncode})\n{output}")
+        # Wait for prompt
+        got = ""
+        while ps1 not in got:
+            char = to_str(process.stdout.read(1))
+            if not char:
+                if process.poll():
+                    output = to_str(process.stdout.read())
                 else:
-                    got += char
+                    output = "<no output>"
 
-            # We should be good
-            timer.cancel()
+                self.fail(f"Can't read from stdout (rc={process.returncode})\n{output}")
+            else:
+                got += char
 
+        # We should be good
+        timer.cancel()
+
+        try:
+            # Try echoing
+            data = self.random_str()
+
+            # Write command
+            process.stdin.write(to_bytes(f"echo {data}\n"))
+            process.stdin.flush()
+
+            # Read result
+            last_line = to_str(process.stdout.readline()).rstrip()
+            self.assertEqual(last_line, data, "Wrong output")
+
+            # Stop the process
+            process.stdin.write(to_bytes("exit\n"))
+            process.stdin.flush()
+
+            # Wait for the process to stop (1 second max)
+            delta = 0
+            start = time.time()
+            while delta <= 1:
+                delta = time.time() - start
+                if process.poll() is not None:
+                    break
+                time.sleep(0.1)
+            else:
+                self.fail("Process took too long to stop")
+        finally:
             try:
-                # Try echoing
-                data = self.random_str()
+                # Kill it in any case
+                process.terminate()
+                process.wait(1)
+            except OSError:
+                # Process was already stopped
+                pass
 
-                # Write command
-                process.stdin.write(to_bytes(f"echo {data}\n"))
-                process.stdin.flush()
+    def test_properties(self):
+        """
+        Tests the console shell properties parameter
+        """
+        # Prepare some properties
+        key1 = self.random_str()[:5]
+        key2 = self.random_str()[:5]
 
-                # Read result
-                last_line = to_str(process.stdout.readline()).rstrip()
-                self.assertEqual(last_line, data, "Wrong output")
+        val1 = self.random_str()
+        val2 = self.random_str()
 
-                # Stop the process
-                process.stdin.write(to_bytes("exit\n"))
-                process.stdin.flush()
+        # Start the shell process
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "pelix.shell",
+                "-D",
+                f"{key1}={val1}",
+                f"{key2}={val2}",
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+        )
 
-                # Wait for the process to stop (1 second max)
-                delta = 0
-                start = time.time()
-                while delta <= 1:
-                    delta = time.time() - start
-                    if process.poll() is not None:
-                        break
-                    time.sleep(0.1)
-                else:
-                    self.fail("Process took too long to stop")
-            finally:
-                try:
-                    # Kill it in any case
-                    process.terminate()
-                    process.wait(1)
-                except OSError:
-                    # Process was already stopped
-                    pass
+        try:
+            # List properties, stop and get output
+            output = to_str(process.communicate(to_bytes("properties"))[0])
 
-        def test_properties(self):
-            """
-            Tests the console shell properties parameter
-            """
-            # Prepare some properties
-            key1 = self.random_str()[:5]
-            key2 = self.random_str()[:5]
+            found = 0
+            for line in output.splitlines(False):
+                if key1 in line:
+                    self.assertIn(val1, line)
+                    found += 1
+                elif key2 in line:
+                    self.assertIn(val2, line)
+                    found += 1
 
-            val1 = self.random_str()
-            val2 = self.random_str()
-
-            # Start the shell process
-            process = subprocess.Popen(
-                [
-                    sys.executable,
-                    "-m",
-                    "pelix.shell",
-                    "-D",
-                    f"{key1}={val1}",
-                    f"{key2}={val2}",
-                ],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-            )
-
+            self.assertEqual(found, 2, "Wrong number of properties")
+        finally:
             try:
-                # List properties, stop and get output
-                output = to_str(process.communicate(to_bytes("properties"))[0])
-
-                found = 0
-                for line in output.splitlines(False):
-                    if key1 in line:
-                        self.assertIn(val1, line)
-                        found += 1
-                    elif key2 in line:
-                        self.assertIn(val2, line)
-                        found += 1
-
-                self.assertEqual(found, 2, "Wrong number of properties")
-            finally:
-                try:
-                    # Kill it in any case
-                    process.terminate()
-                    process.wait(1)
-                except OSError:
-                    # Process was already stopped
-                    pass
+                # Kill it in any case
+                process.terminate()
+                process.wait(1)
+            except OSError:
+                # Process was already stopped
+                pass
