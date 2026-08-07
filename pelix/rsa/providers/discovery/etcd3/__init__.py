@@ -192,7 +192,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     _grpc_credentials: grpc.ChannelCredentials | None
     _grpc_options: Sequence[tuple[str, Any]] | None
     _grpc_compression: grpc.Compression | None
-    _channel: grpc.Channel | None
+    _channel: grpc.aio.Channel | None
     _lease_ttl: int
     _keepalive_interval: int
     _call_timeout: int
@@ -245,11 +245,12 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         assert self._loop is not None
         return asyncio.run_coroutine_threadsafe(coro, self._loop).result(self._call_timeout)
 
-    async def _get_key_value(self, key: str) -> str | None:
+    async def _get_key_value(self, key: str) -> str:
         await self._connected_event.wait()
         resp = await rpc_pb2_grpc.KVStub(self._channel).Range(rpc_pb2.RangeRequest(key=to_bytes(key)))
         if resp.kvs and len(resp.kvs) > 0:
             return str(resp.kvs.pop().value, self._encoding)
+        raise KeyError(f"No value found for key={key}")
 
     def _get_value(self, endpoint_id: str) -> str:
         return self._run_coroutine(self._get_key_value(endpoint_id))
@@ -423,7 +424,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             rpc_pb2.PutRequest(key=to_bytes(key), value=to_bytes(value), lease=self._lease_id)
         )
 
-    def _create_async_channel(self) -> grpc.Channel:
+    def _create_async_channel(self) -> grpc.aio.Channel:
         target = f"{self._hostname}:{self._port}"
         if self._grpc_credentials:
             return grpc.aio.secure_channel(
@@ -511,7 +512,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
 
     async def _delete_range(self, key: str) -> rpc_pb2.DeleteRangeResponse:
         await self._connected_event.wait()
-        return await rpc_pb2_grpc.KVStub(self._channel).Range(
+        return await rpc_pb2_grpc.KVStub(self._channel).DeleteRange(
             rpc_pb2.DeleteRangeRequest(key=to_bytes(key), range_end=to_bytes(f"{key}\\0"))
         )
 

@@ -9,9 +9,10 @@ Tests the RSA discovery provider
 import importlib.util
 import json
 import unittest
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from pelix.internals.registry import ServiceReference
+from pelix.rsa.providers.discovery.etcd3 import Etcd3EndpointDiscovery
 from pelix.utilities import EventData
 
 try:
@@ -387,8 +388,8 @@ class EtcdDiscoveryPublishTest(unittest.TestCase):
         assert self.framework is not None
         self.framework.get_bundle_context().unget_service(sr)
 
-    def _get_advertiser(self):
-        self.advertiser = self._get_service(self._get_discovery_advertiser_sr())
+    def _get_advertiser(self) -> Etcd3EndpointDiscovery:
+        self.advertiser = cast(Etcd3EndpointDiscovery, self._get_service(self._get_discovery_advertiser_sr()))
         return self.advertiser
 
     def _get_rsa(self):
