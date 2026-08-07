@@ -76,3 +76,4 @@ ignore = [
 [tool.ty.rules]
 invalid-type-form = "ignore"
 unsupported-base = "ignore"
+unused-type-ignore-comment = "ignore"
