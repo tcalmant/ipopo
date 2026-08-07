@@ -28,7 +28,7 @@ RequiresBroadcast handler implementation
 import logging
 import threading
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, cast
 
 import pelix.ipopo.constants as ipopo_constants
 from pelix.constants import ActivatorProto, BundleActivator, BundleException
@@ -68,8 +68,11 @@ class _HandlerFactory(requires._HandlerFactory):
         requirements = component_context.get_handler(ipopo_constants.HANDLER_REQUIRES_BROADCAST)
         requires_filters = component_context.properties.get(ipopo_constants.IPOPO_REQUIRES_FILTERS, None)
 
-        # Prepare requirements
-        requirements = self._prepare_requirements(requirements, requires_filters)
+        # Prepare requirements (cast them as stored by decorator)
+        requirements = cast(
+            dict[str, tuple[Requirement, bool, bool]],
+            self._prepare_requirements(requirements, requires_filters),
+        )
 
         # Set up the runtime dependency handlers
         handlers = []
