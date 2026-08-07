@@ -143,6 +143,7 @@ class LifeCycleTest(unittest.TestCase):
 
         # Update its bundle
         bundle = self.framework.get_bundle_by_name("tests.ipopo.ipopo_bundle")
+        assert bundle is not None, "Bundle not found"
         bundle.update()
 
         # Assert the auto-restart component is still in the registry

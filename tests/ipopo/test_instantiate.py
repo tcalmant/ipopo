@@ -40,6 +40,7 @@ class InstantiateTest(unittest.TestCase):
         """
         Called after each test
         """
+        assert self.framework is not None, "Framework not found"
         self.framework.stop()
         FrameworkFactory.delete_framework()
 
@@ -51,6 +52,9 @@ class InstantiateTest(unittest.TestCase):
         """
         Tests the life cycle with an @Instantiate decorator
         """
+        assert self.framework is not None, "Framework not found"
+        assert self.ipopo is not None, "iPOPO not found"
+
         factory = "basic-component-factory"
         name = "basic-component"
         svc_spec = "basic-component-svc"
@@ -87,8 +91,7 @@ class InstantiateTest(unittest.TestCase):
 
         # Assert it has been validated
         ref = context.get_service_reference(svc_spec)
-        self.assertIsNotNone(ref, "No reference found (component not validated)")
-
+        assert ref is not None, "No reference found (component not validated)"
         compo = context.get_service(ref)
 
         self.assertEqual(
@@ -123,6 +126,8 @@ class InstantiateTest(unittest.TestCase):
         """
         Checks that the instantiation is refused when iPOPO is stopped
         """
+        assert self.framework is not None, "Framework not found"
+        assert self.ipopo is not None, "iPOPO not found"
         # Stop the framework
         self.framework.stop()
 
@@ -134,6 +139,7 @@ class InstantiateTest(unittest.TestCase):
         Tests when the @Validate and @Invalidate methods are called
         """
         # Install the bundle
+        assert self.framework is not None, "Framework not found"
         context = self.framework.get_bundle_context()
         bundle = context.install_bundle("tests.ipopo.ipopo_boot_order_bundle")
         module = bundle.get_module()

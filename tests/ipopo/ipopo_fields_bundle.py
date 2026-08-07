@@ -6,6 +6,8 @@ Bundle defining multiple component factories for iPOPO tests
 :author: Thomas Calmant
 """
 
+from typing import Any
+
 from pelix.constants import OBJECTCLASS
 from pelix.ipopo.decorators import (
     Bind,
@@ -140,8 +142,8 @@ class Consumer:
         Constructor
         """
         self.states = []
-        self._svc_a = None
-        self._svc_b = None
+        self._svc_a: Any = None
+        self._svc_b: Any = None
 
     def change_a(self, value):
         """
@@ -249,8 +251,8 @@ class ConsumerBindIfValid:
         Constructor
         """
         self.states = []
-        self._svc_a = None
-        self._svc_b = None
+        self._svc_a: Any = None
+        self._svc_b: Any = None
 
     def change_b(self, value):
         """

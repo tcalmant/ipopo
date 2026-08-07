@@ -39,6 +39,7 @@ class UtilitiesTest(unittest.TestCase):
         """
         Called after each test
         """
+        assert self.framework is not None
         self.framework.stop()
         FrameworkFactory.delete_framework()
         self.framework = None
@@ -48,6 +49,9 @@ class UtilitiesTest(unittest.TestCase):
         """
         Tests the ipopo.constants.get_service_reference() method
         """
+        assert self.framework is not None
+        assert self.context is not None
+
         # Try without the bundle
         self.assertIsNone(
             constants.get_ipopo_svc_ref(self.context), "iPOPO service found while not installed."
@@ -57,7 +61,7 @@ class UtilitiesTest(unittest.TestCase):
         ipopo_svc = install_ipopo(self.framework)
 
         # Test the method result
-        ref, svc = constants.get_ipopo_svc_ref(self.context)
+        ref, svc = constants.get_ipopo_svc_ref(self.context)  # type: ignore
         self.assertIsNotNone(ref, "Invalid service reference")
         self.assertIs(svc, ipopo_svc, "Found a different service.")
 
@@ -77,6 +81,8 @@ class UtilitiesTest(unittest.TestCase):
         """
         Tests ipopo.constants.use_ipopo()
         """
+        assert self.context is not None
+
         # Try without the bundle
         self.assertRaises(pelix.BundleException, constants.use_ipopo(self.context).__enter__)
 

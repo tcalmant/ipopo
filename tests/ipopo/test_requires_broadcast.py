@@ -8,6 +8,7 @@ Tests the iPOPO @RequiresBest decorator.
 
 import random
 import unittest
+from typing import Any
 
 from pelix.framework import BundleContext, FrameworkFactory
 from pelix.ipopo.constants import IPopoEvent
@@ -34,7 +35,7 @@ class SampleEchoService(IEchoService):
         self.called = False
         self.value = None
         self.raised = False
-        self.sub_service = None
+        self.sub_service: Any = None
 
     def echo(self, value):
         self.called = True

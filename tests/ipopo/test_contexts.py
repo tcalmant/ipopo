@@ -208,8 +208,8 @@ class ContextsTests(unittest.TestCase):
 
         # Prepare a context (content type is not tested)
         context = FactoryContext()
-        context.bundle_context = 0
-        context.callbacks["callback"] = "fct"
+        context.bundle_context = 0  # type: ignore
+        context.callbacks["callback"] = "fct"  # type: ignore
         context.name = "name"
         context.properties["prop"] = 42
         context.properties_fields["field_prop"] = "prop"

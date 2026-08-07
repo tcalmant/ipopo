@@ -8,6 +8,7 @@ Tests the bundles handling.
 
 import os
 import unittest
+from typing import Any
 
 from pelix.framework import Bundle, BundleContext, BundleException, FrameworkFactory
 from tests import log_off, log_on
@@ -135,7 +136,7 @@ class BundlesTest(unittest.TestCase):
         assert isinstance(bundle, Bundle)
 
         # Get the internal module
-        module_ = bundle.get_module()
+        module_: Any = bundle.get_module()
 
         # Assert initial state
         self.assertFalse(module_.started, "Bundle should not be started yet")
@@ -184,7 +185,7 @@ class BundlesTest(unittest.TestCase):
         assert isinstance(bundle, Bundle)
 
         # Get the internal module
-        module_ = bundle.get_module()
+        module_: Any = bundle.get_module()
 
         # Assert initial state
         self.assertFalse(module_.started, "Bundle should not be started yet")

@@ -105,13 +105,13 @@ class ServiceEventListenerImpl(ServiceListener):
     A standard service event
     """
 
-    def service_changed(self, service_event: ServiceEvent[Any]) -> None:
+    def service_changed(self, event: ServiceEvent[Any]) -> None:
         """
         Notification of a service event, always executed after the hook.
 
-        :param service_event: The service event to handle
+        :param event: The service event to handle
         """
-        print("ServiceEventListenerImpl event=", service_event)
+        print("ServiceEventListenerImpl event=", event)
 
 
 @BundleActivator

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from mcp.types import ToolAnnotations
@@ -21,9 +21,9 @@ class ToolResultDescription:
 class ToolDescription:
     name: str = ""
     description: str = ""
-    tool_param_descriptions: list[ToolParamDescription] = None
-    result_description: ToolResultDescription = None
-    tool_annotations: list[ToolAnnotations] = None
+    tool_param_descriptions: list[ToolParamDescription] = field(default_factory=list)
+    result_description: ToolResultDescription = field(default_factory=ToolResultDescription)
+    tool_annotations: list[ToolAnnotations] = field(default_factory=list)
 
 
 # convert a single Java ToolDescription object to a puthon ToolDescription
@@ -34,17 +34,17 @@ def convert_tool_description(tool_desc: Any) -> ToolDescription:
     ]
     tool_result_desc = ToolResultDescription(tool_desc.resultDescription().description())
     d = tool_desc.toolAnnotationsDescription()
-    tool_annotations = (
-        ToolAnnotations(
-            destructiveHint=d.destructiveHint(),
-            idempotentHint=d.idempotentHint(),
-            openWorldHint=d.openWorldHint(),
-            readOnlyHint=d.readOnlyHint(),
-            title=d.title(),
+    tool_annotations: list[ToolAnnotations] = []
+    if d:
+        tool_annotations.append(
+            ToolAnnotations(
+                destructiveHint=d.destructiveHint(),
+                idempotentHint=d.idempotentHint(),
+                openWorldHint=d.openWorldHint(),
+                readOnlyHint=d.readOnlyHint(),
+                title=d.title(),
+            )
         )
-        if d
-        else None
-    )
     return ToolDescription(
         tool_desc.name(),
         tool_desc.description(),

@@ -7,6 +7,7 @@ Tests the framework events.
 """
 
 import unittest
+from typing import Any
 
 from pelix.framework import (
     Bundle,
@@ -279,7 +280,7 @@ class ServiceEventTest(unittest.TestCase):
         self.reset_state()
 
         # Uninstall the bundle, without unregistering the service
-        module_ = bundle.get_module()
+        module_: Any = bundle.get_module()
         module_.unregister = False
         bundle.uninstall()
 
@@ -314,10 +315,10 @@ class ServiceEventTest(unittest.TestCase):
 
         # Get the service
         ref = context.get_service_reference(IEchoService)
-        self.assertIsNotNone(ref, "ServiceReference not found")
+        assert ref is not None, "ServiceReference not found"
 
-        svc = context.get_service(ref)
-        self.assertIsNotNone(ref, "Invalid service instance")
+        svc: Any = context.get_service(ref)
+        assert svc is not None, "Invalid service instance"
 
         # Modify the service => Simple modification
         svc.modify({"answer": 42})

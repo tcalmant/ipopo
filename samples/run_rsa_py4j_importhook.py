@@ -83,7 +83,7 @@ def main() -> None:
     print()
     print("...importing Bar class from foo.bar.baz package")
     print()
-    from foo.bar.baz import Bar
+    from foo.bar.baz import Bar  # type: ignore
 
     print()
     print("...Bar class imported")

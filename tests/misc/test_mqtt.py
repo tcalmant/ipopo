@@ -44,9 +44,9 @@ def _disconnect_client(client: mqtt.MqttClient) -> None:
     :param client: MQTT Client
     """
     # Get all the socket references
-    sock = cast(socket.socket | None, client.raw_client._sock)
-    pair_r = cast(socket.socket | None, client.raw_client._sockpairR)
-    pair_w = cast(socket.socket | None, client.raw_client._sockpairW)
+    sock = cast(socket.socket, client.raw_client._sock)
+    pair_r = client.raw_client._sockpairR
+    pair_w = client.raw_client._sockpairW
 
     # Explicitly set the them to None: Paho doesn't create new sockets if they are still set
     client.raw_client._sock = None
@@ -349,7 +349,7 @@ class MqttClientTest(unittest.TestCase):
             if result_code != 0:
                 # Disconnected unwillingly: stop the timer
                 # -- IMPLEMENTATION SPECIFIC --
-                clt._MqttClient__stop_timer()
+                clt._MqttClient__stop_timer()  # type: ignore
                 # == IMPLEMENTATION SPECIFIC ==
 
         client.on_connect = on_connect

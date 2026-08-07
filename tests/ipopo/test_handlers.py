@@ -71,6 +71,7 @@ class LifeCycleTest(unittest.TestCase):
         """
         Called after each test
         """
+        assert self.framework is not None, "Framework not found"
         self.framework.stop()
         FrameworkFactory.delete_framework()
         self.framework = None
@@ -79,6 +80,8 @@ class LifeCycleTest(unittest.TestCase):
         """
         Test a single component life cycle
         """
+        assert self.framework is not None, "Framework not found"
+
         # Install iPOPO
         ipopo = install_ipopo(self.framework)
 
@@ -95,18 +98,20 @@ class LifeCycleTest(unittest.TestCase):
         self.assertTrue(ipopo.is_registered_instance(COMPONENT_NAME), "Instance has not been validated")
 
         # Remove the handler
-        self.framework.get_bundle_by_name(HANDLER_BUNDLE_NAME).stop()
+        self.framework.get_bundle_by_name(HANDLER_BUNDLE_NAME).stop()  # type: ignore
 
         # The component must be absent
         self.assertFalse(ipopo.is_registered_instance(COMPONENT_NAME), "Instance still there")
 
         # Remove the component
-        self.framework.get_bundle_by_name(COMPONENT_BUNDLE_NAME).stop()
+        self.framework.get_bundle_by_name(COMPONENT_BUNDLE_NAME).stop()  # type: ignore
 
     def testHandlerBeforeBundle(self):
         """
         Test a single component life cycle
         """
+        assert self.framework is not None, "Framework not found"
+
         # Install the handler
         install_bundle(self.framework, HANDLER_BUNDLE_NAME)
 
@@ -120,15 +125,17 @@ class LifeCycleTest(unittest.TestCase):
         self.assertTrue(ipopo.is_registered_instance(COMPONENT_NAME), "Instance has not been validated")
 
         # Remove the component
-        self.framework.get_bundle_by_name(COMPONENT_BUNDLE_NAME).stop()
+        self.framework.get_bundle_by_name(COMPONENT_BUNDLE_NAME).stop()  # type: ignore
 
         # Remove the handler
-        self.framework.get_bundle_by_name(HANDLER_BUNDLE_NAME).stop()
+        self.framework.get_bundle_by_name(HANDLER_BUNDLE_NAME).stop()  # type: ignore
 
     def testWaitingFactoryDetails(self):
         """
         Tests the "handlers" entry of factory details dictionary
         """
+        assert self.framework is not None, "Framework not found"
+
         # Install iPOPO
         ipopo = install_ipopo(self.framework)
 
@@ -169,7 +176,7 @@ class LifeCycleTest(unittest.TestCase):
         ipopo.get_instance_details(COMPONENT_NAME)
 
         # Remove the handler
-        self.framework.get_bundle_by_name(HANDLER_BUNDLE_NAME).stop()
+        self.framework.get_bundle_by_name(HANDLER_BUNDLE_NAME).stop()  # type: ignore
 
         # The component must be back in the waiting list
         waiting = ipopo.get_waiting_components()
@@ -187,6 +194,8 @@ class LifeCycleTest(unittest.TestCase):
         """
         Duplicated handler must be ignored
         """
+        assert self.framework is not None, "Framework not found"
+
         # Install iPOPO
         ipopo = install_ipopo(self.framework)
 
@@ -214,7 +223,7 @@ class LifeCycleTest(unittest.TestCase):
         self.assertFalse(dummy_handler.called, "Second handler has been used")
 
         # Remove the original handler
-        self.framework.get_bundle_by_name(HANDLER_BUNDLE_NAME).stop()
+        self.framework.get_bundle_by_name(HANDLER_BUNDLE_NAME).stop()  # type: ignore
 
         # The component is not waiting
         waiting = ipopo.get_waiting_components()

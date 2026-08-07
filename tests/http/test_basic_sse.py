@@ -9,7 +9,7 @@ Pelix async HTTP service SSE test module.
 import asyncio
 import time
 import unittest
-from typing import cast
+from typing import Any, cast
 
 try:
     import aiohttp
@@ -58,7 +58,7 @@ class SSETestCase(unittest.TestCase):
         FrameworkFactory.delete_framework(cls.framework)
 
     def setUp(self):
-        self.sse_state = {"clients": set(), "disconnects": 0}
+        self.sse_state: dict[str, Any] = {"clients": set(), "disconnects": 0}
 
         # Create the SSE handler
         parent = self

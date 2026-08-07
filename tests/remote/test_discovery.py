@@ -103,7 +103,7 @@ class RemoteService:
 def load_framework(
     transport: str,
     discovery: str,
-    components: Iterable[tuple[str, str] | tuple[str, str, dict[str, Any]]],
+    components: Iterable[tuple[str, str] | tuple[str, str, dict[str, Any] | None]],
 ) -> Framework:
     """
     Starts a Pelix framework in the local process
@@ -217,7 +217,7 @@ class HttpTransportsTest(unittest.TestCase):
         transport_bundle = "pelix.remote.json_rpc"
 
         # Define components
-        components = [
+        components: list[tuple[str, str] | tuple[str, str, dict[str, Any] | None]] = [
             (pelix.remote.FACTORY_TRANSPORT_JSONRPC_EXPORTER, "rs-exporter"),
             (pelix.remote.FACTORY_TRANSPORT_JSONRPC_IMPORTER, "rs-importer"),
             (discovery_factory, "discovery", discovery_opts),

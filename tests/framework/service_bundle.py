@@ -8,6 +8,7 @@ Simple bundle registering a service
 
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.framework import BundleContext
+from pelix.internals.registry import ServiceRegistration
 from tests.interfaces import IEchoService
 
 __version_info__ = (3, 2, 2)
@@ -30,7 +31,7 @@ class ServiceTest(IEchoService):
         """
         IEchoService.__init__(self)
         self.toto = 0
-        self.registration = None
+        self.registration: ServiceRegistration | None = None
 
     def echo(self, value):
         """
@@ -42,6 +43,7 @@ class ServiceTest(IEchoService):
         """
         Changes the service properties
         """
+        assert self.registration is not None, "Service registration not found"
         self.registration.set_properties(new_props)
 
 
@@ -80,4 +82,6 @@ class ActivatorService(ActivatorProto):
 
         if unregister:
             # To test auto-unregistration...
+            assert self.svc is not None, "Service not found"
+            assert self.svc.registration is not None, "Service registration not set"
             self.svc.registration.unregister()

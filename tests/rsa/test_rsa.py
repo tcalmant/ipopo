@@ -166,7 +166,7 @@ class RSABasicFeatures(unittest.TestCase):
             self.fail("No exported endpoints")
 
         # Temporary file
-        tmp_file = tempfile.mktemp()
+        _tmp_fd, tmp_file = tempfile.mkstemp()
 
         # Write the EDEF XML file
         EDEFWriter().write(export_endpoints, tmp_file)
@@ -262,12 +262,13 @@ class RSABasicFeatures(unittest.TestCase):
 
         # Update the endpoint
         assert export_reg is not None
-        export_endpoint_2 = export_reg.get_export_reference().update({})
+        export_endpoint_2 = export_reg.get_export_reference().update({})  # type: ignore
+        assert export_endpoint_2 is not None
         self.assertEqual(val_2, export_endpoint_2.get_properties()[key])
 
         # Write & load it
         # Export & import the EDEF XML
-        edef_2 = EDEFWriter().to_string([export_endpoint_2])
+        edef_2 = EDEFWriter().to_string([export_endpoint_2])  # type: ignore
         parsed_endpoint_2 = EDEFReader().parse(edef_2)[0]
 
         # Check parsed file

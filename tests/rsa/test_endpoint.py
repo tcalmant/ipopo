@@ -93,7 +93,7 @@ class EndpointDescriptionTests(unittest.TestCase):
         Tests package_name()
         """
         for empty in (None, ""):
-            self.assertEqual("", rsa_ed.package_name(empty))
+            self.assertEqual("", rsa_ed.package_name(empty))  # type: ignore
 
         self.assertEqual("simple", rsa_ed.package_name("simple"))
         self.assertEqual("package", rsa_ed.package_name("package.simple"))

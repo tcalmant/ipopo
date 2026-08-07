@@ -68,6 +68,7 @@ class EventAdminPrinterTest(unittest.TestCase):
         Tests the topics filtering
         """
         # Start the printer
+        assert self.framework is not None
         with use_ipopo(self.framework.get_bundle_context()) as ipopo:
             ipopo.instantiate(
                 pelix.misc.FACTORY_EVENT_ADMIN_PRINTER,
@@ -104,6 +105,7 @@ class EventAdminPrinterTest(unittest.TestCase):
         Tests the parse boolean method of the printer module
         """
         # Get the module
+        assert self.framework is not None
         bundle = self.framework.get_bundle_by_name("pelix.misc.eventadmin_printer")
         assert bundle is not None
         module = bundle.get_module()

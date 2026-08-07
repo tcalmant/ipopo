@@ -122,7 +122,7 @@ class JabsorbConverterTest(unittest.TestCase):
                 self.set = jabsorb.to_jabsorb({1, 2, 3})
 
             def __eq__(self, other: object) -> Any:
-                return self.list == other.list and self.tuple == other.tuple and self.set == other.set
+                return self.list == other.list and self.tuple == other.tuple and self.set == other.set  # type: ignore
 
         # Prepare the bean
         bean = Bean()

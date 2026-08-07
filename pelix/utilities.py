@@ -722,7 +722,7 @@ def get_log_level(level: str | int) -> int | None:
         return level
 
     try:
-        return logging.getLevelNamesMapping().get(level)  # ty: ignore[unresolved-attribute]
+        return logging.getLevelNamesMapping().get(level)  # type: ignore
     except AttributeError:
         # Fallback for older Python versions
         return {

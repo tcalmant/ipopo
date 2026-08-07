@@ -48,6 +48,8 @@ class IPopoServiceTest(unittest.TestCase):
         """
         Tests the (un)register_factory and get_factories behavior
         """
+        assert self.ipopo is not None, "iPOPO service not found"
+
         FACTORY = "dummy-factory"
         context = self.framework.get_bundle_context()
 
@@ -91,7 +93,8 @@ class IPopoServiceTest(unittest.TestCase):
         # Unregister the factory
         for invalid in (None, "", "Dummy", [FACTORY]):
             self.assertFalse(
-                (self.ipopo.unregister_factory(invalid)), f"Invalid factory unregistered: {invalid}"
+                (self.ipopo.unregister_factory(invalid)),
+                f"Invalid factory unregistered: {invalid}",  # type: ignore
             )
 
         self.assertTrue(self.ipopo.unregister_factory(FACTORY))
@@ -106,6 +109,8 @@ class IPopoServiceTest(unittest.TestCase):
         """
         Tests the get_factory_bundle() method
         """
+        assert self.ipopo is not None, "iPOPO service not found"
+
         factory_name = "dummy-factory"
         context = self.framework.get_bundle_context()
 
@@ -132,6 +137,7 @@ class IPopoServiceTest(unittest.TestCase):
         """
         Instance details method test
         """
+        assert self.ipopo is not None, "iPOPO service not found"
         module = install_bundle(self.framework)
 
         # Invalid component names
@@ -157,6 +163,7 @@ class IPopoServiceTest(unittest.TestCase):
         """
         # Uninstall the iPOPO bundle
         ipopo_bundle = self.framework.get_bundle_by_name("pelix.ipopo.core")
+        assert ipopo_bundle is not None, "iPOPO bundle not found"
         ipopo_bundle.uninstall()
         self.ipopo = None
 
@@ -175,6 +182,8 @@ class IPopoServiceTest(unittest.TestCase):
         """
         Tests the instantiate method
         """
+        assert self.ipopo is not None, "iPOPO service not found"
+
         FACTORY = "dummy-factory"
         FACTORY_2 = "dummy-factory-2"
         INSTANCE = "dummy-instance"
@@ -217,6 +226,8 @@ class IPopoServiceTest(unittest.TestCase):
         """
         Tests iPOPO event listener
         """
+        assert self.ipopo is not None, "iPOPO service not found"
+
         FACTORY = "dummy-factory"
         INSTANCE = "dummy-instance"
         context = self.framework.get_bundle_context()
@@ -306,6 +317,8 @@ class IPopoServiceTest(unittest.TestCase):
         """
         Tests the get_instance(name) method
         """
+        assert self.ipopo is not None, "iPOPO service not found"
+
         # Test if the framework is clean
         self.assertEqual(len(self.ipopo.get_factories()), 0, "Some factories are already registered.")
 

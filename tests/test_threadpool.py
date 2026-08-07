@@ -431,7 +431,7 @@ class ThreadPoolTest(unittest.TestCase):
                 release_worker.wait(5)
             return task
 
-        self.pool._queue.get = paused_get  # type: ignore[method-assign]
+        self.pool._queue.get = paused_get  # type: ignore
         self.pool.start()
 
         # Enqueue a task and wait for the worker to grab it

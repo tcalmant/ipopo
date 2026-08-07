@@ -220,7 +220,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
         # No filter given
         for empty in (None, [], (), (None, None, None)):  # type: ignore
             self.assertIsNone(
-                pelix.ldapfilter.combine_filters(empty),
+                pelix.ldapfilter.combine_filters(empty),  # type: ignore
                 "Can't combine an empty list of filters",  # type: ignore
             )
 

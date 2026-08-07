@@ -70,15 +70,15 @@ class ProvidesTest(unittest.TestCase):
             self.assertNotEqual(ref, ref2, "Service references must be different")
 
             # Compare service instances
-            svc = context.get_service(ref)
+            svc = context.get_service(ref)  # type: ignore
             self.assertIs(svc, compoA, "Different instances for service and component")
 
-            svc2 = context.get_service(ref2)
+            svc2 = context.get_service(ref2)  # type: ignore
             self.assertEqual(svc, svc2, "Got different service instances")
 
             # Clean up
-            context.unget_service(ref)
-            context.unget_service(ref2)
+            context.unget_service(ref)  # type: ignore
+            context.unget_service(ref2)  # type: ignore
             svc = None
             svc2 = None
 
@@ -118,7 +118,7 @@ class ProvidesTest(unittest.TestCase):
             self.assertIsNotNone(ref, "TestService hasn't been registered")
 
             # Get the service instance
-            svc = context.get_service(ref)
+            svc = context.get_service(ref)  # type: ignore
 
             # Change the value of the controller
             svc.change_controller(False)
@@ -149,7 +149,7 @@ class ProvidesTest(unittest.TestCase):
             self.assertIsNone(context.get_service_reference(IEchoService), "EchoService is still registered")
 
             # Clean up
-            context.unget_service(ref)
+            context.unget_service(ref)  # type: ignore
         finally:
             try:
                 self.ipopo.kill(NAME_A)
@@ -186,7 +186,7 @@ class ProvidesTest(unittest.TestCase):
             del component.calls_unregister[:]
 
             # Get the service instance
-            svc = context.get_service(ref)
+            svc = context.get_service(ref)  # type: ignore
 
             # Change the value of the controller
             svc.change_controller(False)
@@ -235,7 +235,7 @@ class ProvidesTest(unittest.TestCase):
             self.assertListEqual(component.calls_unregister, [])
 
             # Clean up
-            context.unget_service(ref)
+            context.unget_service(ref)  # type: ignore
         finally:
             try:
                 self.ipopo.kill(NAME_A)
@@ -258,7 +258,7 @@ class ProvidesTest(unittest.TestCase):
 
         # Consume the service
         svc_ref = context.get_service_reference("factory.service")
-        svc = context.get_service(svc_ref)
+        svc = context.get_service(svc_ref)  # type: ignore
 
         # Ensure the new state
         self.assertIs(component.caller, self.framework)
@@ -270,7 +270,7 @@ class ProvidesTest(unittest.TestCase):
         component.registration = None
 
         # Try to re-get the service
-        svc2 = context.get_service(svc_ref)
+        svc2 = context.get_service(svc_ref)  # type: ignore
 
         # Ensure no sub call and same service
         self.assertIsNone(component.caller)
@@ -278,15 +278,15 @@ class ProvidesTest(unittest.TestCase):
         self.assertIs(svc, svc2)
 
         # Unget the service
-        context.unget_service(svc_ref)
+        context.unget_service(svc_ref)  # type: ignore
         self.assertIsNone(component.caller)
         self.assertIsNone(component.registration)
         self.assertIs(svc, svc2)
 
         # A second time
-        context.unget_service(svc_ref)
+        context.unget_service(svc_ref)  # type: ignore
         self.assertIs(component.caller, self.framework)
-        self.assertIs(component.registration.get_reference(), svc_ref)
+        self.assertIs(component.registration.get_reference(), svc_ref)  # type: ignore
         self.assertFalse(component.service)
 
     def test_prototype(self):
@@ -305,6 +305,7 @@ class ProvidesTest(unittest.TestCase):
 
         # Consume the service
         svc_ref = context.get_service_reference("prototype.service")
+        assert svc_ref is not None, "Service reference not found"
         objs = context.get_service_objects(svc_ref)
         svc = objs.get_service()
 
@@ -322,7 +323,7 @@ class ProvidesTest(unittest.TestCase):
 
         # Ensure a new call has been made and we have a new service
         self.assertIs(component.caller, self.framework)
-        self.assertIs(component.registration.get_reference(), svc_ref)
+        self.assertIs(component.registration.get_reference(), svc_ref)  # type: ignore
         self.assertIsNot(svc, svc2)
 
         # Ensure that the previous service reference has been kept
@@ -334,7 +335,7 @@ class ProvidesTest(unittest.TestCase):
         self.assertTrue(component.flag_unget_instance)
         self.assertFalse(component.flag_unget_service)
         self.assertIs(component.caller, self.framework)
-        self.assertIs(component.registration.get_reference(), svc_ref)
+        self.assertIs(component.registration.get_reference(), svc_ref)  # type: ignore
         self.assertNotIn(svc, component.services)
         self.assertIn(svc2, component.services)
 
@@ -348,7 +349,7 @@ class ProvidesTest(unittest.TestCase):
         self.assertTrue(component.flag_unget_instance)
         self.assertTrue(component.flag_unget_service)
         self.assertIs(component.caller, self.framework)
-        self.assertIs(component.registration.get_reference(), svc_ref)
+        self.assertIs(component.registration.get_reference(), svc_ref)  # type: ignore
         self.assertNotIn(svc, component.services)
         self.assertNotIn(svc2, component.services)
 

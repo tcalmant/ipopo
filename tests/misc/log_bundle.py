@@ -7,7 +7,7 @@ Test bundle for the log service
 """
 
 from pelix.ipopo.decorators import ComponentFactory, Requires
-from pelix.misc import LOG_SERVICE
+from pelix.misc import LOG_SERVICE, LogService
 
 # ------------------------------------------------------------------------------
 
@@ -26,6 +26,8 @@ class LoggerComponent:
     """
     Dummy instantiated component
     """
+
+    logger: LogService
 
     def log(self, level, message):
         """

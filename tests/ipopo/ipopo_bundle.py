@@ -256,7 +256,7 @@ class ComponentFactoryC(TestComponentFactory):
         Constructor
         """
         super().__init__()
-        self.services = None
+        self.services: list[IEchoService] | None = None
 
     @Bind
     def bind(self, svc, svc_ref):
@@ -266,6 +266,7 @@ class ComponentFactoryC(TestComponentFactory):
         self.states.append(IPopoEvent.BOUND)
 
         # Assert that the service is already usable
+        assert self.services is not None
         assert svc in self.services
 
     @Unbind
@@ -276,6 +277,7 @@ class ComponentFactoryC(TestComponentFactory):
         self.states.append(IPopoEvent.UNBOUND)
 
         # Assert that the service has been removed
+        assert self.services is not None
         assert svc in self.services
 
 
@@ -476,7 +478,7 @@ class TemporalComponentFactory(TestComponentFactory):
         """
         Calls the service
         """
-        return self.service.method()
+        return self.service.method()  # type: ignore
 
 
 # ------------------------------------------------------------------------------
@@ -600,6 +602,9 @@ class SvcPrototypeFactoryProvider:
 
 
 # ------------------------------------------------------------------------------
+
+started: bool = False
+stopped: bool = False
 
 
 @BundleActivator

@@ -384,7 +384,7 @@ class UtilitiesTest(unittest.TestCase):
         # Check other types
         for value in ("hello", 123, {1: 2}, object()):
             self.assertListEqual(
-                utilities.to_iterable(value),
+                utilities.to_iterable(value),  # type: ignore
                 [value],
                 "to_iterable() didn't returned a list",  # type: ignore
             )
@@ -566,7 +566,7 @@ class MiscUtilitiesTest(unittest.TestCase):
         """
         Tests the remove_duplicates() method
         """
-        self.assertIsNone(utilities.remove_duplicates(None))
+        self.assertIsNone(utilities.remove_duplicates(None))  # type: ignore
         self.assertListEqual(utilities.remove_duplicates(["a", "b", "a", "c", "b"]), ["a", "b", "c"])
 
     def testStr2Bool(self) -> None:

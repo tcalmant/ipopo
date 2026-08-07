@@ -12,6 +12,7 @@ import sys
 import threading
 import time
 import unittest
+from typing import Any
 
 from pelix.framework import Bundle, BundleContext, BundleException, FrameworkFactory
 
@@ -63,7 +64,7 @@ class FrameworkTest(unittest.TestCase):
         """
         framework = FrameworkFactory.get_framework()
 
-        self.assertIsNone(framework.get_bundle_by_name(None), "None name is not bundle 0")
+        self.assertIsNone(framework.get_bundle_by_name(None), "None name is not bundle 0")  # type: ignore
 
         self.assertIs(framework, framework.get_bundle_by_id(0), "Invalid bundle 0")
 
@@ -166,7 +167,7 @@ class FrameworkTest(unittest.TestCase):
 
         # Install the bundle
         bundle = context.install_bundle(SIMPLE_BUNDLE)
-        module_ = bundle.get_module()
+        module_: Any = bundle.get_module()
 
         # Set module in raiser mode
         module_.raiser = True
@@ -215,7 +216,7 @@ class FrameworkTest(unittest.TestCase):
 
         # Install the bundle
         bundle = context.install_bundle(SIMPLE_BUNDLE)
-        module_ = bundle.get_module()
+        module_: Any = bundle.get_module()
 
         # Set module in non-raiser mode
         module_.raiser = False
@@ -249,7 +250,7 @@ class FrameworkTest(unittest.TestCase):
 
         # Install the bundle
         bundle = context.install_bundle(SIMPLE_BUNDLE)
-        module_ = bundle.get_module()
+        module_: Any = bundle.get_module()
 
         # Set module in raiser stop mode
         module_.fw_raiser = True

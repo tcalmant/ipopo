@@ -7,6 +7,7 @@ Tests the iPOPO class manipulation.
 """
 
 import unittest
+from typing import Any
 
 from pelix.framework import FrameworkFactory
 from pelix.ipopo import decorators
@@ -55,7 +56,11 @@ class ManipulatedClassTest(unittest.TestCase):
         @decorators.Property("prop_1", "prop.1")
         @decorators.Property("prop_2", "prop.2", 42)
         class TestClass:
-            pass
+            controller: bool
+            req_1: Any
+            req_2: Any
+            prop_1: Any
+            prop_2: Any
 
         # Instantiate
         instance = TestClass()

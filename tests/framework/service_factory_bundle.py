@@ -7,6 +7,7 @@ Simple bundle registering a service
 """
 
 import os
+from typing import Any
 
 from pelix.constants import ActivatorProto, BundleActivator
 
@@ -78,7 +79,7 @@ class ServiceFactoryCleanupTest:
     """
 
     def __init__(self):
-        self.reg = None
+        self.reg: Any = None
 
     def get_service(self, bundle, registration):
         """
@@ -122,10 +123,11 @@ class ActivatorService(ActivatorProto):
         svc2 = ServiceFactoryCleanupTest()
         svc2.reg = context.register_service(SVC_NO_CLEAN, svc2, {}, factory=True)
 
-    def stop(self, _):
+    def stop(self, context):
         """
         Bundle stopped
         """
+        assert self.reg is not None, "Service registration not found"
         self.reg.unregister()
         self.reg = None
 

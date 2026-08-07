@@ -80,10 +80,10 @@ class ServicesTest(unittest.TestCase):
 
         # Get the reference
         ref1 = context.get_service_reference(IEchoService)
-        self.assertIsNotNone(ref1, "get_service_reference found nothing")
+        assert ref1 is not None, "get_service_reference found nothing"
 
         ref2 = context.get_service_reference(IEchoService, svc_filter)
-        self.assertIsNotNone(ref2, "get_service_reference, filtered found nothing")
+        assert ref2 is not None, "get_service_reference, filtered found nothing"
 
         # Assert we found the same references
         self.assertIs(ref1, ref2, "References are not the same")
@@ -92,12 +92,12 @@ class ServicesTest(unittest.TestCase):
         refs = context.get_all_service_references(IEchoService, None)
 
         # Assert we found only one reference
-        self.assertIsNotNone(refs, "get_all_service_reference found nothing")
+        assert refs is not None, "get_all_service_reference found nothing"
 
         refs = context.get_all_service_references(IEchoService, svc_filter)
 
         # Assert we found only one reference
-        self.assertIsNotNone(refs, "get_all_service_reference filtered found nothing")
+        assert refs is not None, "get_all_service_reference filtered found nothing"
 
         # Assert that the first found reference is the first of "all"
         # references
@@ -106,13 +106,13 @@ class ServicesTest(unittest.TestCase):
         # Assert that the bundle can find its own services
         self.assertListEqual(
             refs,
-            bundle_context.get_service_references(IEchoService, None),
+            bundle_context.get_service_references(IEchoService, None),  # type: ignore
             "The bundle can't find its own services",
         )
 
         self.assertListEqual(
             refs,
-            bundle_context.get_service_references(IEchoService, svc_filter),
+            bundle_context.get_service_references(IEchoService, svc_filter),  # type: ignore
             "The bundle can't find its own filtered services",
         )
 
@@ -120,13 +120,13 @@ class ServicesTest(unittest.TestCase):
         # services
         self.assertListEqual(
             [],
-            context.get_service_references(IEchoService, None),
+            context.get_service_references(IEchoService, None),  # type: ignore
             "Framework bundle shouldn't get the echo service",
         )
 
         self.assertListEqual(
             [],
-            context.get_service_references(IEchoService, svc_filter),
+            context.get_service_references(IEchoService, svc_filter),  # type: ignore
             "Framework bundle shouldn't get the filtered echo service",
         )
 
@@ -176,16 +176,16 @@ class ServicesTest(unittest.TestCase):
         # --- Start it (registers a service) ---
         bundle.start()
 
-        self.assertIsNotNone(module_.service, "The service instance is missing")
+        assert module_.service is not None, "The service instance is missing"
 
         # Get the reference
         ref = context.get_service_reference(IEchoService)
-        self.assertIsNotNone(ref, "get_service_reference found nothing")
+        assert ref is not None, "get_service_reference found nothing"
         self.assertIn(ref, bundle.get_registered_services(), "Reference not in registered services")
 
         # Get the service
         svc = context.get_service(ref)
-        self.assertIsNotNone(svc, "Service not found")
+        assert svc is not None, "Service not found"
         self.assertIn(ref, self.framework.get_services_in_use(), "Reference usage not indicated")
 
         # Release the service
@@ -324,7 +324,7 @@ class ServicesTest(unittest.TestCase):
 
         # Get all references count
         all_refs = context.get_all_service_references(None, None)
-        self.assertIsNotNone(all_refs, "All references result must not be None")
+        assert all_refs is not None, "All references result must not be None"
         self.assertEqual(len(all_refs), 0, "Services list should be empty")
 
         # Install the service bundle
@@ -332,18 +332,19 @@ class ServicesTest(unittest.TestCase):
 
         # No services yet
         all_refs = context.get_all_service_references(None, None)
-        self.assertIsNotNone(all_refs, "All references result must not be None")
+        assert all_refs is not None, "All references result must not be None"
         self.assertEqual(len(all_refs), 0, "Services list should be empty")
 
         # Start the bundle
         bundle.start()
 
         all_refs = context.get_all_service_references(None, None)
-        self.assertIsNotNone(all_refs, "All references result must not be None")
+        assert all_refs is not None, "All references result must not be None"
         self.assertGreater(len(all_refs), 0, "Services list shouldn't be empty")
 
         # Try with an empty filter (lists should be equal)
         all_refs_2 = context.get_all_service_references(None, "")
+        assert all_refs_2 is not None, "All references result must not be None"
         self.assertListEqual(all_refs, all_refs_2, "References lists should be equal")
 
         # Assert that the registered service is in the list
@@ -378,11 +379,12 @@ class ServicesTest(unittest.TestCase):
             # Lookup by class must not fail and must only return the service
             # providing all the specifications
             refs = context.get_all_service_references(MultiSpecService, None)
-            self.assertIsNotNone(refs, "No reference found for the multi-specification class")
+            assert refs is not None, "No reference found for the multi-specification class"
             self.assertListEqual(refs, [reg_full.get_reference()], "Expected the full-match service only")
 
             # Lookup must also work with an additional filter
             refs = context.get_all_service_references(MultiSpecService, "(!(missing=*))")
+            assert refs is not None, "No reference found for the multi-specification class with filter"
             self.assertListEqual(refs, [reg_full.get_reference()], "Expected the full-match service only")
         finally:
             reg_full.unregister()

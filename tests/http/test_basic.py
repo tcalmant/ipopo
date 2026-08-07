@@ -10,7 +10,7 @@ import logging
 import socket
 import sys
 import unittest
-from typing import Any, cast
+from typing import Any
 
 from pelix import http
 from pelix.framework import Framework, FrameworkFactory
@@ -563,8 +563,8 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         self.assertIsNone(self.http_svc.get_servlet("/"), "Empty servlet service may return None")
 
         # Dummy objects
-        servlet_1 = cast(http.Servlet, object())
-        servlet_2 = cast(http.Servlet, object())
+        servlet_1: http.Servlet = object()
+        servlet_2: http.Servlet = object()
 
         # Register'em
         path_1 = "/test"
@@ -595,8 +595,8 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         Tests the behavior of register_servlet with dummy objects
         """
         # Dummy objects
-        servlet_1 = cast(http.Servlet, object())
-        servlet_2 = cast(http.Servlet, object())
+        servlet_1: http.Servlet = object()
+        servlet_2: http.Servlet = object()
 
         # Refuse None servlets
         self.assertRaises(ValueError, self.http_svc.register_servlet, "/test", None)
@@ -619,7 +619,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
         Tests the behavior of register_servlet with dummy objects
         """
         # Dummy object
-        servlet_1 = cast(http.Servlet, object())
+        servlet_1: http.Servlet = object()
 
         self.http_svc.register_servlet("/test", servlet_1)
 
@@ -634,7 +634,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
 
         # Try to unregister an unknown servlet
         self.assertFalse(
-            self.http_svc.unregister(None, cast(http.Servlet, object())),
+            self.http_svc.unregister(None, object()),  # type: ignore
             "An unknown servlet can't be unregistered.",
         )
 

@@ -75,7 +75,7 @@ class RemoteToolManager(ToolManager):
                 field_info,
             )
         arguments_model = create_model(
-            f"{param_desc.name}Arguments",
+            f"{param_desc.name}Arguments",  # type: ignore
             **dynamic_pydantic_model_params,
             __base__=ArgModelBase,
         )
@@ -257,8 +257,10 @@ class RemoteToolsFastMCPServer:
 
     @Bind
     def _bind_tool_service(self, service_proxy: Any, service_reference: ServiceReference):
+        assert self._mcp is not None, "RemoteToolFastMCP instance not found"
         self._mcp.add_tools_from_service(service_proxy, ARITHMETIC_TOOL_SERVICE_INTERFACE)
 
     @Unbind
     def _unbind_tool_service(self, service_proxy: Any, service_reference: ServiceReference):
+        assert self._mcp is not None, "RemoteToolFastMCP instance not found"
         self._mcp.remove_tools_from_service(service_proxy, ARITHMETIC_TOOL_SERVICE_INTERFACE)
