@@ -214,17 +214,17 @@ class Py4jContainer(ExportContainer, ImportContainer):
 
 
 # Distribution Provider property names
-ECF_PY4J_JAVA_PORT_PROP = ".".join([ECF_PY4J_CONTAINER_CONFIG_TYPE, "javaport"])
+ECF_PY4J_JAVA_PORT_PROP = f"{ECF_PY4J_CONTAINER_CONFIG_TYPE}.javaport"
 ECF_PY4J_JAVA_PORT_DEFAULT = DEFAULT_PORT
-ECF_PY4J_PYTHON_PORT_PROP = ".".join([ECF_PY4J_CONTAINER_CONFIG_TYPE, "pythonport"])
+ECF_PY4J_PYTHON_PORT_PROP = f"{ECF_PY4J_CONTAINER_CONFIG_TYPE}.pythonport"
 ECF_PY4J_PYTHON_PORT_DEFAULT = DEFAULT_PYTHON_PROXY_PORT
-ECF_PY4J_SERVICE_TIMEOUT_PROP = ".".join([ECF_PY4J_CONTAINER_CONFIG_TYPE, "defaultservicetimeout"])
+ECF_PY4J_SERVICE_TIMEOUT_PROP = f"{ECF_PY4J_CONTAINER_CONFIG_TYPE}.defaultservicetimeout"
 ECF_PY4J_SERVICE_TIMEOUT_DEFAULT = 30
-ECF_PY4J_USE_IMPORT_HOOK_PROP = ".".join([ECF_PY4J_CONTAINER_CONFIG_TYPE, "useimporthook"])
+ECF_PY4J_USE_IMPORT_HOOK_PROP = f"{ECF_PY4J_CONTAINER_CONFIG_TYPE}.useimporthook"
 ECF_PY4J_USE_IMPORT_HOOK_DEFAULT = False
-ECF_PY4J_GATEWAY_PARAMS_PROP = ".".join([ECF_PY4J_CONTAINER_CONFIG_TYPE, "gatewayparams"])
+ECF_PY4J_GATEWAY_PARAMS_PROP = f"{ECF_PY4J_CONTAINER_CONFIG_TYPE}.gatewayparams"
 ECF_PY4J_GATEWAY_PARAMS_DEFAULT = None
-ECF_PY4J_CALLBACKSERVER_PARAMS_PROP = ".".join([ECF_PY4J_CONTAINER_CONFIG_TYPE, "callbackserverparams"])
+ECF_PY4J_CALLBACKSERVER_PARAMS_PROP = f"{ECF_PY4J_CONTAINER_CONFIG_TYPE}.callbackserverparams"
 ECF_PY4J_CALLBACKSERVER_PARAMS_DEFAULT = None
 
 
@@ -319,9 +319,8 @@ class Py4jDistributionProvider(
             if ECF_PY4JPB_JAVA_HOST_CONFIG_TYPE in exported_configs:
                 if self._match_intents_supported(service_intents, self._supported_pb_intents):
                     return cast(ImportContainer, self._container)
-            elif ECF_PY4J_JAVA_HOST_CONFIG_TYPE in exported_configs:
-                if self._match_intents(service_intents):
-                    return cast(ImportContainer, self._container)
+            elif ECF_PY4J_JAVA_HOST_CONFIG_TYPE in exported_configs and self._match_intents(service_intents):
+                return cast(ImportContainer, self._container)
 
         return None
 
@@ -332,12 +331,15 @@ class Py4jDistributionProvider(
         service_intents: list[str] | None,
         export_props: dict[str, Any],
     ) -> ExportContainer | None:
-        if exported_configs and self._match_intents(service_intents):
-            if (
+        if (
+            exported_configs
+            and self._match_intents(service_intents)
+            and (
                 ECF_PY4J_PYTHON_HOST_CONFIG_TYPE in exported_configs
                 or ECF_PY4JPB_PYTHON_HOST_CONFIG_TYPE in exported_configs
-            ):
-                return cast(ExportContainer, self._container)
+            )
+        ):
+            return cast(ExportContainer, self._container)
 
         return None
 
@@ -362,9 +364,9 @@ class Py4jDistributionProvider(
             self._bridge.connect(
                 path_hook=OSGIPythonModulePathHook(self._bridge) if self._import_hook else None
             )
-        except Exception as e:
+        except Exception:
             self._bridge = None
-            raise e
+            raise
         # Once bridge is connected, instantiate container using bridge id
         container_props = self._prepare_container_props(self._supported_intents, {})
         if self._default_service_timeout:
@@ -384,12 +386,12 @@ class Py4jDistributionProvider(
             try:
                 self._ipopo.invalidate(self._bridge.get_id())
             except ValueError:
-                pass
+                _logger.exception("Error invalidating bridge container")
 
             try:
                 self._bridge.disconnect()
             except Exception:
-                pass
+                _logger.exception("Error disconnecting bridge")
 
             self._bridge = None
             self._container = None
@@ -437,7 +439,7 @@ class Py4jDistributionProvider(
             try:
                 # get the function from item[2]
                 f = item[2]
-            except Exception:
+            except Exception:  # noqa: BLE001
                 _logger.error("Exception getting code in item=%s", item)
 
             if f is not None:
@@ -445,7 +447,7 @@ class Py4jDistributionProvider(
                     # get the endpoint description properties from item[1]
                     # and create EndpointDescription instance
                     ed = EndpointDescription(properties=item[1])
-                except Exception:
+                except Exception:  # noqa: BLE001
                     _logger.error(
                         "Exception creating endpoint description from props=%s",
                         item[1],
@@ -454,7 +456,7 @@ class Py4jDistributionProvider(
                     # call appropriate function
                     try:
                         f(ed)
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         _logger.error("Exception invoking function=%s", f)
 
             # no matter what, we are done with this task

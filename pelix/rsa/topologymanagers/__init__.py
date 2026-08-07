@@ -27,7 +27,7 @@ Topology Manager API
 """
 
 import logging
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, cast
 
 import pelix.rsa.remoteserviceadmin as rsa_impl
 from pelix.framework import BundleContext
@@ -164,7 +164,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
         for adv in self._advertisers or []:
             try:
                 adv.advertise_endpoint(ed)
-            except:
+            except:  # noqa: E722
                 _logger.error(
                     "Exception in advertise_endpoint for advertiser=%s endpoint=%s",
                     adv,
@@ -175,7 +175,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
         for adv in self._advertisers or []:
             try:
                 adv.update_endpoint(ed)
-            except:
+            except:  # noqa: E722
                 _logger.error(
                     "Exception in update_endpoint for advertiser=%s endpoint=%s",
                     adv,
@@ -186,7 +186,7 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
         for adv in self._advertisers or []:
             try:
                 adv.unadvertise_endpoint(ed.get_id())
-            except:
+            except:  # noqa: E722
                 _logger.error(
                     "Exception in unadvertise_endpoint for advertiser=%s endpoint=%s",
                     adv,

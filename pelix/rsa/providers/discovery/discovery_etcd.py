@@ -102,8 +102,8 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     Note that this depends upon the python-etcd client library.
     """
 
-    REMOVE_ACTIONS: list[str] = ["delete", "expire"]
-    ADD_ACTIONS: list[str] = ["set", "create"]
+    REMOVE_ACTIONS: tuple[str, ...] = ("delete", "expire")
+    ADD_ACTIONS: tuple[str, ...] = ("set", "create")
 
     def __init__(self) -> None:
         import warnings
@@ -170,7 +170,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         # write to etcd
         with self._client_lock:
             if self._client is None:
-                raise Exception("etcd client not available")
+                raise ValueError("etcd client not available")
 
             return self._client.write(
                 key=self._get_endpoint_path(endpoint_description.get_id()),
@@ -195,7 +195,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         # write to etcd
         with self._client_lock:
             if self._client is None:
-                raise Exception("etcd client not available")
+                raise ValueError("etcd client not available")
 
             return self._client.delete(key=self._get_endpoint_path(endpointid))
 
@@ -224,7 +224,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         """
         with self._client_lock:
             if self._client:
-                raise Exception("already connected")
+                raise ValueError("already connected")
             # create etcd Client instance
             self._client = etcd.Client(host=self._hostname, port=self._port)
             # now make request against basic
@@ -234,12 +234,12 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 # if this happens, attempt to write it
                 try:
                     top_response = self._client.write(self._top_path, None, None, True)
-                except Exception as e:
+                except Exception:
                     _logger.exception(
                         "Exception attempting to create top dir=%s",
                         self._top_path,
                     )
-                    raise e
+                    raise
             # set top nodes with list comprehension base top_response subtree
             self._top_nodes = [
                 x for x in list(top_response.get_subtree()) if x.dir and x.key != self._top_path
@@ -252,12 +252,12 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                     dir=True,
                     prevExist=False,
                 )
-            except Exception as e:
+            except Exception:
                 _logger.exception(
                     "Exception creating session for client at session_path=%s",
                     self._get_session_path(),
                 )
-                raise e
+                raise
 
             # Note: error disabled as EtcdResult object is too dynamic
             # pylint: disable=E1101

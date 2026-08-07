@@ -351,9 +351,7 @@ class HashResponse(_message.Message):
     HASH_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
     hash: int
-    def __init__(
-        self, header: ResponseHeader | _Mapping | None = ..., hash: int | None = ...
-    ) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ..., hash: int | None = ...) -> None: ...
 
 class HashKVRequest(_message.Message):
     __slots__ = ("revision",)
@@ -704,9 +702,7 @@ class AlarmMember(_message.Message):
     ALARM_FIELD_NUMBER: _ClassVar[int]
     memberID: int
     alarm: AlarmType
-    def __init__(
-        self, memberID: int | None = ..., alarm: AlarmType | str | None = ...
-    ) -> None: ...
+    def __init__(self, memberID: int | None = ..., alarm: AlarmType | str | None = ...) -> None: ...
 
 class AlarmResponse(_message.Message):
     __slots__ = ("alarms", "header")
@@ -874,9 +870,7 @@ class AuthenticateResponse(_message.Message):
     TOKEN_FIELD_NUMBER: _ClassVar[int]
     header: ResponseHeader
     token: str
-    def __init__(
-        self, header: ResponseHeader | _Mapping | None = ..., token: str | None = ...
-    ) -> None: ...
+    def __init__(self, header: ResponseHeader | _Mapping | None = ..., token: str | None = ...) -> None: ...
 
 class AuthUserAddResponse(_message.Message):
     __slots__ = ("header",)

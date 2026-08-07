@@ -29,7 +29,7 @@ Discovery Provider API
 import abc
 import logging
 from threading import RLock
-from typing import Any, Dict, List, Optional, Protocol, Tuple
+from typing import Any, Protocol
 
 from pelix.constants import Specification
 from pelix.internals.registry import ServiceReference
@@ -319,7 +319,11 @@ class EndpointSubscriber(abc.ABC):
             try:
                 return self._endpoint_event_listeners.remove((listener, service_ref))
             except Exception:
-                pass
+                _logger.exception(
+                    "Exception removing endpoint event listener=%s with service_ref=%s",
+                    listener,
+                    service_ref,
+                )
 
     def _get_matching_endpoint_event_listeners(
         self, ed: EndpointDescription
@@ -374,7 +378,7 @@ class EndpointSubscriber(abc.ABC):
     def _fire_endpoint_event(self, event_type: int, ed: EndpointDescription) -> None:
         listeners = self._get_matching_endpoint_event_listeners(ed)
         if not listeners:
-            logging.error(
+            _logger.error(
                 "EndpointSubscriber._fire_endpoint_event found no matching "
                 "listeners for event_type=%s and endpoint=%s",
                 event_type,

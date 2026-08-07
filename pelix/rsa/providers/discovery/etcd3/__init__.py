@@ -34,7 +34,7 @@ import threading
 import uuid
 from collections.abc import Callable, Iterable, Sequence
 from concurrent.futures.thread import ThreadPoolExecutor
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import grpc
 
@@ -59,7 +59,6 @@ __docformat__ = "restructuredtext en"
 _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
-# ------------------------------------------------------------------------------
 
 
 def to_bytes(bytes_or_str):
@@ -73,10 +72,10 @@ def to_bytes(bytes_or_str):
 ETCD_NAME_PREFIX = "etcd"
 
 # etcd.hostname prop; type: str; Default: "localhost"
-ETCD_HOSTNAME_PROP = ".".join([ETCD_NAME_PREFIX, "hostname"])
+ETCD_HOSTNAME_PROP = f"{ETCD_NAME_PREFIX}.hostname"
 ETCD_HOSTNAME_DEFAULT = "localhost"
 # etcd.port prop; type: int;  Default: 2379
-ETCD_PORT_PROP = ".".join([ETCD_NAME_PREFIX, "port"])
+ETCD_PORT_PROP = f"{ETCD_NAME_PREFIX}.port"
 ETCD_PORT_DEFAULT = 2379
 # etcd.top_key prop; type: str;
 # Default: "org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer"
@@ -84,57 +83,57 @@ ETCD_PORT_DEFAULT = 2379
 # all etcd3 endpoint description discovery clients can share
 # it should have only no forward slashes ('/') as that is used
 # as a a separator character
-ETCD_TOPKEY_PROP = ".".join([ETCD_NAME_PREFIX, "top_key"])
+ETCD_TOPKEY_PROP = f"{ETCD_NAME_PREFIX}.top_key"
 ETCD_TOPKEY_DEFAULT = "org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer"
 # etcd.grpc_credentials prop; type: Optional[grpc.ChannelCredentials]; Default: None
 # if credentials is not None then a secure channel will be created.  If None then insecure channel will
 # be created
-ETCD_GRPCCREDENTIALS_PROP = ".".join([ETCD_NAME_PREFIX, "grpc_credentials"])
+ETCD_GRPCCREDENTIALS_PROP = f"{ETCD_NAME_PREFIX}.grpc_credentials"
 ETCD_GRPCCREDENTIALS_DEFAULT = None
 # etcd.grpc_options prop; type: Optional[Sequence[Tuple[str, Any]]]; Default: None
 # See grpc documentation for 'options' and 'compression' argument at following
 # https://grpc.github.io/grpc/python/grpc_asyncio.html#grpc.aio.insecure_channel
-ETCD_GRPCOPTIONS_PROP = ".".join([ETCD_NAME_PREFIX, "grpc_options"])
+ETCD_GRPCOPTIONS_PROP = f"{ETCD_NAME_PREFIX}.grpc_options"
 ETCD_GRPCOPTIONS_DEFAULT = None
 # etcd.grpc_compression prop; type: Optional[grpc.Compression]; Default: None
-ETCD_GRPCCOMPRESSION_PROP = ".".join([ETCD_NAME_PREFIX, "grpc_compression"])
+ETCD_GRPCCOMPRESSION_PROP = f"{ETCD_NAME_PREFIX}.grpc_compression"
 ETCD_GRPCCOMPRESSION_DEFAULT = None
 # etcd.session_id prop; type: str; Default: value returned from call to create_uuid()
 # upon __init_
-ETCD_SESSIONID_PROP = ".".join([ETCD_NAME_PREFIX, "session_id"])
+ETCD_SESSIONID_PROP = f"{ETCD_NAME_PREFIX}.session_id"
 ETCD_SESSIONID_DEFAULT = create_uuid()
 # etcd.session_id prop; type: str; Default: None
-ETCD_CONNECTED_CALLBACK_PROP = ".".join([ETCD_NAME_PREFIX, "connected_callback"])
+ETCD_CONNECTED_CALLBACK_PROP = f"{ETCD_NAME_PREFIX}.connected_callback"
 ETCD_CONNECTED_CALLBACK_DEFAULT = None
 # etcd.lease_ttl prop; type: int;  Default: 30 seconds
 # When a lease is request for the client, a ttl of the value of etcd.lease_ttl will
 # be requests
-ETCD_LEASETTL_PROP = ".".join([ETCD_NAME_PREFIX, "lease_ttl"])
+ETCD_LEASETTL_PROP = f"{ETCD_NAME_PREFIX}.lease_ttl"
 ETCD_LEASETTL_DEFAULT = 30
 # etcd.keepalive_interval prop; type: int;  Default: 25 seconds
 # Once a lease is granted, an  etcd lease keepalive request will be sent every
 # etcd.keepalive_interval seconds.  This value should be a few seconds
 # less than the value of etcd.lease_ttl value
 # be requests
-ETCD_KEEPALIVEINTERVAL_PROP = ".".join([ETCD_NAME_PREFIX, "keepalive_interval"])
+ETCD_KEEPALIVEINTERVAL_PROP = f"{ETCD_NAME_PREFIX}.keepalive_interval"
 ETCD_KEEPALIVEINTERVAL_DEFAULT = 25
 # etcd.call_timeout prop; type: int;  Default: 3 seconds
 # When making blocking calls to advertise/unadvertise or _get,
 # these calls will timeout (and raise TimeoutError
-ETCD_CALLTIMEOUT_PROP = ".".join([ETCD_NAME_PREFIX, "call_timeout"])
+ETCD_CALLTIMEOUT_PROP = f"{ETCD_NAME_PREFIX}.call_timeout"
 ETCD_CALLTIMEOUT_DEFAULT = 3
 # etcd.disconnect_timeout prop; type: int;  Default: 5 seconds
 # When disconnect is called, it will wait block the calling thread
 # until disconnect is complete and wait etcd.disconnect_timeout before
 # raising a TimeoutError
-ETCD_DISCONNECTTIMEOUT_PROP = ".".join([ETCD_NAME_PREFIX, "disconnect_timeout"])
+ETCD_DISCONNECTTIMEOUT_PROP = f"{ETCD_NAME_PREFIX}.disconnect_timeout"
 ETCD_DISCONNECTTIMEOUT_DEFAULT = 5
 # etcd.hostip prop; type: str;  Default: string returned from call to
 # socket.gethostbyname(socket.gethostname())
-ETCD_HOSTIP_PROP = ".".join([ETCD_NAME_PREFIX, "hostip"])
+ETCD_HOSTIP_PROP = f"{ETCD_NAME_PREFIX}.hostip"
 ETCD_HOSTIP_DEFAULT = socket.gethostbyname(socket.gethostname())
 # etcd._call_executor; type: Optional[ThreadPoolExecutor]; Default: None (uses asyncio ThreadPoolExecutor
-ETCD_CALLEXECUTOR_PROP = ".".join([ETCD_NAME_PREFIX, "call_executor"])
+ETCD_CALLEXECUTOR_PROP = f"{ETCD_NAME_PREFIX}.call_executor"
 ETCD_CALLEXECUTOR_DEFAULT = None
 
 ETCD_FACTORY_NAME = "etcd3-endpoint-discovery-factory"
@@ -301,8 +300,8 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     def _invalidate(self, _: BundleContext) -> None:
         try:
             asyncio.run_coroutine_threadsafe(self._disconnect(), self._loop).result(self._disconnect_timeout)
-        except:
-            pass
+        except:  # noqa: E722
+            _logger.exception("session_id=%s exception during disconnect", self._session_id)
 
     # implementation of EndpointAdvertiser service.  These methods
     # are called when (e.g.) RSA asks us to advertise/unadvertise
@@ -320,13 +319,13 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         return self._top_key
 
     def _get_session_key(self):
-        return "/".join([self._get_key_prefix(), self._session_id])
+        return f"{self._get_key_prefix()}/{self._session_id}"
 
     class EndpointKey:
         def __init__(self, sessionid: str, ed_id: str) -> None:
             self.sessionid = sessionid
             self.ed_id = ed_id
-            self.fullkey = "/".join([self.sessionid, self.ed_id])
+            self.fullkey = f"{self.sessionid}/{self.ed_id}"
 
         def __str__(self) -> str:
             return f"[EndpointKey sessionid={self.sessionid} ed_id={self.ed_id} fullKey={self.fullkey}]"
@@ -350,7 +349,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             return self.EndpointKey(split_key[1], split_key[2])
 
     def _get_full_key(self, endpoint_fk):
-        return "/".join([self._get_key_prefix(), endpoint_fk])
+        return f"{self._get_key_prefix()}/{endpoint_fk}"
 
     def _remove_endpoint(self, endpoint_key: EndpointKey):
         removed_ep = self._remove_discovered_endpoint(endpoint_key.ed_id)
@@ -402,7 +401,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     def _process_kv(self, key: str, value: str, add_remove: bool):
         endpoint_key = self._create_endpoint_key(key)
         # only do anything if valid endpoint_key and not our sessionid
-        if endpoint_key and not endpoint_key.sessionid == self._session_id:
+        if endpoint_key and endpoint_key.sessionid != self._session_id:
             if add_remove and value:
                 self._add_or_modify_endpoint(endpoint_key, value)
             else:
@@ -472,7 +471,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         # we are now connected so notify by setting self._connected_event
         kp = self._get_key_prefix()
         kp_bytes = to_bytes(kp)
-        kp_range_end_bytes = to_bytes("".join([kp, "\\0"]))
+        kp_range_end_bytes = to_bytes(f"{kp}\\0")
         range_resp = await rpc_pb2_grpc.KVStub(self._channel).Range(
             rpc_pb2.RangeRequest(key=kp_bytes, range_end=kp_range_end_bytes)
         )
@@ -507,7 +506,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     async def _delete_range(self, key: str) -> rpc_pb2.DeleteRangeResponse:
         await self._connected_event.wait()
         return await rpc_pb2_grpc.KVStub(self._channel).Range(
-            rpc_pb2.DeleteRangeRequest(key=to_bytes(key), range_end=to_bytes("".join([key, "\\0"])))
+            rpc_pb2.DeleteRangeRequest(key=to_bytes(key), range_end=to_bytes(f"{key}\\0"))
         )
 
     async def _disconnect(self) -> None:

@@ -30,7 +30,7 @@ import abc
 import logging
 from collections.abc import Callable, Iterable
 from threading import RLock
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, cast
 
 import pelix.rsa.remoteserviceadmin as rsa_impl
 from pelix import rsa
@@ -141,9 +141,7 @@ class DistributionProvider(abc.ABC):
         return [self._config_name]
 
     @staticmethod
-    def _match_intents_supported(
-        intents: list[str] | None, supported_intents: list[str] | None
-    ) -> bool:
+    def _match_intents_supported(intents: list[str] | None, supported_intents: list[str] | None) -> bool:
         """
         Match the list of given intents with given supported_intents.
         This method is used by the other _match methods.
@@ -232,20 +230,20 @@ class DistributionProvider(abc.ABC):
         required_configs: list[str] | None,
         service_intents: list[str] | None,
         all_props: dict[str, Any],
-    ) -> Optional["Container"]:
+    ) -> "Container | None":
         if self._match_required_configs(required_configs) and self._match_intents(service_intents):
             container_props = self._prepare_container_props(service_intents, all_props)
             if container_props:
                 container_id = self._prepare_container_id(container_props)
                 if not container_id:
                     # Container not created
-                    raise Exception(f"No container ID found for properties {container_props}")
+                    raise ValueError(f"No container ID found for properties {container_props}")
                 container = self._find_container(container_id, container_props)
                 if container is None:
                     container = self._ipopo.instantiate(self._config_name, container_id, container_props)
 
                 if not isinstance(container, Container) or not container.is_valid():
-                    raise Exception("New RSA container is invalid")
+                    raise ValueError("New RSA container is invalid")
 
                 return container
 
@@ -328,7 +326,7 @@ class ExportDistributionProvider(DistributionProvider):
         exported_configs: list[str] | None,
         service_intents: list[str] | None,
         export_props: dict[str, Any],
-    ) -> Optional["ExportContainer"]:
+    ) -> "ExportContainer | None":
         """
         Method called by rsa.export_service to ask if this
         ExportDistributionProvider supports export for given
@@ -369,7 +367,7 @@ class ImportDistributionProvider(DistributionProvider):
         exported_configs: list[str] | None,
         service_intents: list[str] | None,
         endpoint_props: dict[str, Any],
-    ) -> Optional["ImportContainer"]:
+    ) -> "ImportContainer | None":
         """
         Method called by rsa.export_service to ask if this
         ImportDistributionProvider supports import for given
@@ -426,7 +424,7 @@ class Container(abc.ABC):
             or self.get_config_name()
             or self.get_namespace()
         ):
-            raise Exception("Invalid container")
+            raise ValueError("Invalid container")
         return True
 
     @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_PROPERTIES)
@@ -459,7 +457,7 @@ class Container(abc.ABC):
         :return: A bundle context
         """
         if self._bundle_context is None:
-            raise Exception("Bundle context should be set")
+            raise ValueError("Bundle context should be set")
         return self._bundle_context
 
     def _add_export(self, ed_id: str, inst: tuple[Any, EndpointDescription]) -> None:
@@ -661,16 +659,12 @@ class ExportContainer(Container):
         """
         return self._unexport_service(ed)
 
-    def _dispatch_exported(
-        self, rs_id: int, method_name: str, params: Iterable[Any] | dict[str, Any]
-    ) -> Any:
+    def _dispatch_exported(self, rs_id: int, method_name: str, params: Iterable[Any] | dict[str, Any]) -> Any:
         # first lookup service instance by comparing the rs_id against the
         # service's remote service id
         service = self._find_export(lambda val: val[1].get_remoteservice_id()[1] == int(rs_id))
         if not service:
-            raise RemoteServiceError(
-                f"Unknown service with rs_id={rs_id} for method call={method_name}"
-            )
+            raise RemoteServiceError(f"Unknown service with rs_id={rs_id} for method call={method_name}")
         # Get the method: only the public API of the service can be called remotely
         method_ref = get_remote_method(service[0], method_name)
         if method_ref is None:
@@ -713,7 +707,7 @@ class ImportContainer(Container, abc.ABC):
         """
         Utility method to construct the properties of the proxy of the given endpoint description
         """
-        result_props = copy_non_reserved(endpoint_description.get_properties(), dict())
+        result_props = copy_non_reserved(endpoint_description.get_properties(), {})
         # remove these props
         result_props.pop(OBJECTCLASS, None)
         result_props.pop(SERVICE_ID, None)

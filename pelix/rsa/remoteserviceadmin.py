@@ -29,7 +29,7 @@ Remote Service Admin API
 import logging
 import sys
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from traceback import print_exception
 from typing import IO, Any, Optional, Protocol, cast
 
@@ -374,7 +374,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
                     export_props,
                 )
                 return []
-        except:
+        except:  # noqa: E722
             error_reg = ExportRegistrationImpl.fromexception(
                 sys.exc_info(), EndpointDescription(service_ref, error_props)
             )
@@ -423,7 +423,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
                                 export_event = RemoteServiceAdminEvent.fromexportreg(bundle, export_reg)
                             else:
                                 raise RemoteServiceError("Service couldn't be exported")
-                        except Exception:
+                        except Exception:  # noqa: BLE001
                             export_reg = ExportRegistrationImpl.fromexception(
                                 sys.exc_info(),
                                 EndpointDescription.fromprops(ed_props),
@@ -463,7 +463,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
             )
             if not importer:
                 raise SelectImporterError(f"Could not find importer for endpoint={endpoint_description}")
-        except:
+        except:  # noqa: E722
             import_reg = ImportRegistrationImpl.fromexception(sys.exc_info(), endpoint_description)
             import_event = RemoteServiceAdminEvent.fromimportreg(self._get_bundle(), import_reg)
         else:
@@ -496,7 +496,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
                         self, importer, endpoint_description, svc_reg
                     )
                     import_event = RemoteServiceAdminEvent.fromimportreg(self._get_bundle(), import_reg)
-                except:
+                except:  # noqa: E722
                     import_reg = ImportRegistrationImpl.fromexception(sys.exc_info(), endpoint_description)
                     import_event = RemoteServiceAdminEvent.fromimportreg(self._get_bundle(), import_reg)
 
@@ -510,7 +510,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
             for listener in listeners:
                 try:
                     listener.remote_admin_event(event)
-                except:
+                except:  # noqa: E722
                     _logger.error("Exception calling rsa event listener=%s", listener)
 
     def _get_bundle(self) -> Bundle:
@@ -597,7 +597,7 @@ class _ExportEndpoint:
     def _rsa(self) -> RemoteServiceAdmin:
         with self.__lock:
             if self.__rsa is None:
-                raise Exception("Export endpoint is already closed")
+                raise ValueError("Export endpoint is already closed")
 
             return self.__rsa
 
@@ -616,42 +616,42 @@ class _ExportEndpoint:
     def get_description(self) -> EndpointDescription:
         with self.__lock:
             if self.__ed is None:
-                raise Exception("Export endpoint is already closed")
+                raise ValueError("Export endpoint is already closed")
 
             return self.__ed
 
     def get_reference(self) -> ServiceReference[Any]:
         with self.__lock:
             if self.__svc_ref is None:
-                raise Exception("Export endpoint is already closed")
+                raise ValueError("Export endpoint is already closed")
 
             return self.__svc_ref
 
     def get_export_container_id(self) -> str:
         with self.__lock:
             if self.__export_container is None:
-                raise Exception("Export endpoint is already closed")
+                raise ValueError("Export endpoint is already closed")
 
             return self.__export_container.get_id()
 
     def get_export_container_ns(self) -> str:
         with self.__lock:
             if self.__export_container is None:
-                raise Exception("Export endpoint is already closed")
+                raise ValueError("Export endpoint is already closed")
 
             return self.__export_container.get_namespace()
 
     def get_remoteservice_id(self) -> tuple[tuple[str, str], int]:
         with self.__lock:
             if self.__ed is None:
-                raise Exception("Export endpoint is already closed")
+                raise ValueError("Export endpoint is already closed")
 
             return self.__ed.get_remoteservice_id()
 
     def update(self, props: dict[str, Any]) -> EndpointDescription:
         with self.__lock:
             if self.__svc_ref is None:
-                raise Exception("Export endpoint is already closed")
+                raise ValueError("Export endpoint is already closed")
 
             rsprops = self.__orig_props.copy()
             if not props:
@@ -683,7 +683,7 @@ class _ExportEndpoint:
             if len(self.__active_registrations) == 0:
                 try:
                     self.__export_container.unexport_service(self.__ed)
-                except:
+                except:  # noqa: E722
                     _logger.error(
                         "get_exception in exporter.unexport_service ed=%s",
                         self.__ed,
@@ -715,9 +715,7 @@ class ExportReferenceImpl(ExportReference):
         return cls(endpoint=endpoint)
 
     @classmethod
-    def fromexception(
-        cls, e: tuple[Any, Any, Any] | None, ed: EndpointDescription
-    ) -> "ExportReferenceImpl":
+    def fromexception(cls, e: tuple[Any, Any, Any] | None, ed: EndpointDescription) -> "ExportReferenceImpl":
         return cls(endpoint=None, exception=e, errored=ed)
 
     def __init__(
@@ -882,9 +880,7 @@ class ExportRegistrationImpl(ExportRegistration):
 
             return self.__exportref
 
-    def _exportendpoint(
-        self, svc_ref: ServiceReference[Any], cid: tuple[str, str]
-    ) -> _ExportEndpoint | None:
+    def _exportendpoint(self, svc_ref: ServiceReference[Any], cid: tuple[str, str]) -> _ExportEndpoint | None:
         with self.__lock:
             if self.__closed:
                 return None
@@ -964,10 +960,10 @@ class ExportRegistrationImpl(ExportRegistration):
                 return None
 
             # if properties is set then copy
-            props = properties.copy() if properties else dict()
+            props = properties.copy() if properties else {}
             try:
                 updated_ed = self.__exportref.update(props)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 self.__update_exception = sys.exc_info()
                 return None
 
@@ -1120,7 +1116,7 @@ class _ImportEndpoint:
                     except BundleException:
                         # The service might already have unregistered
                         pass
-                    except:
+                    except:  # noqa: E722
                         _logger.error(
                             "Exception unregistering local proxy=%s",
                             self.__svc_reg.get_reference(),
@@ -1128,7 +1124,7 @@ class _ImportEndpoint:
                     self.__svc_reg = None  # type: ignore
                 try:
                     self.__importer.unimport_service(self.__ed)
-                except:
+                except:  # noqa: E722
                     _logger.error(
                         "Exception calling importer.unimport_service with ed=%s",
                         self.__ed,
@@ -1365,7 +1361,7 @@ class ImportRegistrationImpl(ImportRegistration):
 
             try:
                 self.__importref.update(endpoint_description)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 self.__update_exception = sys.exc_info()
                 return False
 
@@ -1527,8 +1523,8 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
         self._output.write("---End Exception Stack---\n")
 
     def write_type(self, event_type: int) -> None:
-        (dt, micro) = datetime.now().strftime("%H:%M:%S.%f").split(".")
-        dt = "%s.%03d" % (dt, int(micro) / 1000)
+        (dt, micro) = datetime.now(tz=timezone.utc).strftime("%H:%M:%S.%f").split(".")
+        dt = f"{dt}.{int(micro) // 1000:03d}"
         self._output.write(dt + ";" + self._eventtypestr.get(event_type, "UNKNOWN") + ";")
 
     def write_event(self, rsa_event: RemoteServiceAdminEvent) -> None:

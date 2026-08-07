@@ -33,14 +33,8 @@ from collections.abc import Iterable
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
-    List,
-    Optional,
     Protocol,
-    Set,
-    Tuple,
     TypeVar,
-    Union,
     cast,
 )
 
@@ -239,13 +233,13 @@ class ExportRegistration(Protocol):
     exported service.
     """
 
-    def get_export_reference(self) -> Optional["ExportReference"]:
+    def get_export_reference(self) -> "ExportReference | None":
         """
         Get the ExportReference associated with this ExportRegistration.  Will
         be None if this registration has been previously closed.  See
         ExportReference class.
 
-        :return ExportReference associated with this registration, or None
+        :return: ExportReference associated with this registration, or None
         """
         ...
 
@@ -282,7 +276,7 @@ class ExportRegistration(Protocol):
         be None if the ExportRegistration has been closed, or if an exception
         occurred on attempted export
 
-        :return ServiceReference associated with this ExportRegistration or
+        :return: ServiceReference associated with this ExportRegistration or
         None if this has been previously closed, or if an exception occurred
         on attempted export.
         """
@@ -305,7 +299,7 @@ class ExportRegistration(Protocol):
         Get EndpointDescription associated with this ExportRegistration.
         Will not be None.  See EndpointDescription class.
 
-        :return EndpointDescription associated with this registration
+        :return: EndpointDescription associated with this registration
         """
         ...
 
@@ -319,11 +313,11 @@ class ExportRegistration(Protocol):
         """
         ...
 
-    def update(self, properties: dict[str, Any] | None) -> Optional["EndpointDescription"]:
+    def update(self, properties: dict[str, Any] | None) -> "EndpointDescription | None":
         """
         Updates ExportRegistration with new properties.
 
-        :param properties a dictionary of new properties.  May be None.
+        :param properties: A dictionary of new properties.  May be None.
         :return: EndpointDescription for ExportRegistration, or None if not updated.
         """
         ...
@@ -388,7 +382,7 @@ class ExportReference(Protocol):
         """
         ...
 
-    def get_description(self) -> Optional["EndpointDescription"]:
+    def get_description(self) -> "EndpointDescription | None":
         """
         Get EndpointDescription associated with this ExportReference.
         Will not be None.  See EndpointDescription class.  Will be None
@@ -411,7 +405,7 @@ class ExportReference(Protocol):
         """
         ...
 
-    def update(self, properties: dict[str, Any]) -> Optional["EndpointDescription"]:
+    def update(self, properties: dict[str, Any]) -> "EndpointDescription | None":
         """
         Update the service properties of the exported service.
 
@@ -520,7 +514,7 @@ class ImportRegistration(Protocol):
         """
         ...
 
-    def get_description(self) -> Optional["EndpointDescription"]:
+    def get_description(self) -> "EndpointDescription | None":
         """
         Get EndpointDescription associated with this ImportRegistration.
         Will not be None.  See EndpointDescription class.
@@ -621,7 +615,7 @@ class ImportReference(Protocol):
         """
         ...
 
-    def get_description(self) -> Optional["EndpointDescription"]:
+    def get_description(self) -> "EndpointDescription | None":
         """
         Get EndpointDescription associated with this ImportReference.
         Will not be None.  See EndpointDescription class.  Will be None
@@ -644,7 +638,7 @@ class ImportReference(Protocol):
         """
         ...
 
-    def update(self, endpoint: "EndpointDescription") -> Optional["EndpointDescription"]:
+    def update(self, endpoint: "EndpointDescription") -> "EndpointDescription | None":
         """
         Update the service properties of the imported service.
 
@@ -931,7 +925,7 @@ class RemoteServiceAdminEvent:
         bundle: Bundle,
         cid: tuple[str, str],
         rsid: tuple[tuple[str, str], int],
-        endpoint: Optional["EndpointDescription"],
+        endpoint: "EndpointDescription | None",
         import_ref: ImportReference | None = None,
         export_ref: ExportReference | None = None,
         exception: tuple[Any, Any, Any] | None = None,
@@ -945,10 +939,10 @@ class RemoteServiceAdminEvent:
         self._exception = exception
         self._ed = endpoint
 
-    def get_description(self) -> Optional["EndpointDescription"]:
+    def get_description(self) -> "EndpointDescription | None":
         """
         Get the EndpointDescription associated with this event.
-        Will not be None
+        Should not be None
 
         :return EndpointDescription associated with this event
         """
@@ -1059,9 +1053,7 @@ def get_fw_uuid(context: BundleContext) -> str:
     return str(context.get_property(constants.OSGI_FRAMEWORK_UUID))
 
 
-def get_matching_interfaces(
-    object_class: list[str], exported_intfs: list[str] | None
-) -> list[str] | None:
+def get_matching_interfaces(object_class: list[str], exported_intfs: list[str] | None) -> list[str] | None:
     """
     Returns the list of interfaces matching the export property
 
@@ -1331,10 +1323,10 @@ def get_rsa_props(
     """
     results: dict[str, Any] = {}
     if not object_class:
-        raise Exception("object_class must be an [] of Strings")
+        raise ValueError("object_class must be an [] of Strings")
     results["objectClass"] = object_class
     if not exported_cfgs:
-        raise Exception("exported_cfgs must be an array of Strings")
+        raise ValueError("exported_cfgs must be an array of Strings")
     results[REMOTE_CONFIGS_SUPPORTED] = exported_cfgs
     results[SERVICE_IMPORTED_CONFIGS] = exported_cfgs
     if remote_intents:
@@ -1377,10 +1369,10 @@ def get_ecf_props(
     """
     results: dict[str, Any] = {}
     if not ep_id:
-        raise Exception("ep_id must be a valid endpoint id")
+        raise ValueError("ep_id must be a valid endpoint id")
     results[ECF_ENDPOINT_ID] = ep_id
     if not ep_id_ns:
-        raise Exception("ep_id_ns must be a valid namespace")
+        raise ValueError("ep_id_ns must be a valid namespace")
     results[ECF_ENDPOINT_CONTAINERID_NAMESPACE] = ep_id_ns
     if not rsvc_id:
         rsvc_id = get_next_rsid()
@@ -1579,19 +1571,16 @@ class SelectExporterError(Exception):
     """
 
 
-
 class SelectImporterError(Exception):
     """
     Error selecting importer
     """
 
 
-
 class RemoteServiceError(Exception):
     """
     Generic RSA exception
     """
-
 
 
 def instantiate_rsa_component(

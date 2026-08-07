@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # -- Content-Encoding: UTF-8 --
 """
-
 XmlRpc-on-HttpService-based Export and Import Distribution Providers
 
 :author: Scott Lewis
@@ -26,6 +25,7 @@ XmlRpc-on-HttpService-based Export and Import Distribution Providers
     limitations under the License.
 """
 
+import logging
 import xmlrpc.client as xmlrpclib
 from collections.abc import Callable
 from concurrent.futures import Executor
@@ -66,6 +66,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
+
+_logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 # XmlRpc Distribution Provider Constants. Note that to get interoperability with
@@ -109,12 +111,10 @@ class ServerDispatcher(SimpleXMLRPCDispatcher, Servlet):
 
     def _dispatch(self, method: str | None, params: Any) -> Any:
         if method is None:
-            raise Exception("No method to dispatch given")
+            raise ValueError("No method to dispatch given")
         obj_method_list = method.split(".")
         if not len(obj_method_list) == 2:
-            raise Exception(
-                "_dispatch: invalid method=" + method + ".  Must be of form <objectid>.<methodname>"
-            )
+            raise ValueError("Invalid method=" + method + ".  Must be of form <objectid>.<methodname>")
         # and call _dispatch_func/3
         if self._executor:
             return self._executor.submit(
@@ -168,8 +168,8 @@ class XmlRpcExportContainer(ExportContainer):
             dp = self._get_distribution_provider()
             dp._httpservice.unregister(dp._uri_path)
             ExportContainer._invalidate_component(self, bundle_context)
-        except:
-            pass
+        except:  # noqa: E722
+            _logger.exception("Error while invalidating XmlRpcExportContainer")
 
 
 # ------------------------------------------------------------------------------
@@ -307,4 +307,3 @@ class XmlRpcImportDistributionProvider(ImportDistributionProvider):
     """
     We get all necessary methods from ImportDistributionProvider
     """
-

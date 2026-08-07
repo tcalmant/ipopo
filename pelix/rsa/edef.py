@@ -86,7 +86,7 @@ TYPES_INT = (
 )
 
 # Type of properties
-TYPED_BOOL: tuple[str, ...] = tuple()
+TYPED_BOOL: tuple[str, ...] = ()
 TYPED_LONG: tuple[str, ...] = (
     rsa.ENDPOINT_SERVICE_ID,
     rsa.ECF_ENDPOINT_TIMESTAMP,
@@ -202,7 +202,7 @@ class EDEFReader:
 
         elif kind == TAG_SET:
             # Set
-            return set(self._convert_value(vtype, value_node.text) for value_node in node.findall(TAG_VALUE))
+            return {self._convert_value(vtype, value_node.text) for value_node in node.findall(TAG_VALUE)}
 
         else:
             # Unknown
@@ -265,7 +265,7 @@ class EDEFWriter:
 
             # Yep, let the "element" variable be overwritten
             # pylint: disable=R1704
-            for element in element:
+            for element in element:  # noqa: B020, PLR1704
                 self._indent(element, level + 1, prefix)
 
             # Tail of the last child
