@@ -136,11 +136,11 @@ DESCRIPTOR.message_types_by_name["HelloMsgContent"] = _HELLOMSGCONTENT
 HelloMsgContent = _reflection.GeneratedProtocolMessageType(
     "HelloMsgContent",
     (_message.Message,),
-    dict(
-        DESCRIPTOR=_HELLOMSGCONTENT,
-        __module__="hellomsg_pb2",
+    {
+        "DESCRIPTOR": _HELLOMSGCONTENT,
+        "__module__": "hellomsg_pb2",
         # @@protoc_insertion_point(class_scope:org.eclipse.ecf.examples.protobuf.hello.HelloMsgContent)
-    ),
+    },
 )
 _sym_db.RegisterMessage(HelloMsgContent)
 

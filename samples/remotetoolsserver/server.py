@@ -142,8 +142,6 @@ class RemoteToolManager(ToolManager):
 # and remove_tools_from_service, which are methods that dynamically adds and remove
 # remote tools, implemented in Java as OSGi remote services
 class RemoteToolFastMCP(FastMCP):
-    _tool_descriptions: dict = {}
-
     def __init__(
         self,
         name: str | None = None,
@@ -154,6 +152,7 @@ class RemoteToolFastMCP(FastMCP):
         tools: list[Tool] | None = None,
         **settings: Any,
     ):
+        self._tool_descriptions = {}
         self.settings = Settings(**settings)
 
         self._mcp_server = MCPServer(
