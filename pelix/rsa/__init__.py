@@ -514,7 +514,7 @@ class ImportRegistration(Protocol):
         """
         ...
 
-    def get_description(self) -> "EndpointDescription | None":
+    def get_description(self) -> "EndpointDescription":
         """
         Get EndpointDescription associated with this ImportRegistration.
         Will not be None.  See EndpointDescription class.
@@ -925,7 +925,7 @@ class RemoteServiceAdminEvent:
         bundle: Bundle,
         cid: tuple[str, str],
         rsid: tuple[tuple[str, str], int],
-        endpoint: "EndpointDescription | None",
+        endpoint: "EndpointDescription",
         import_ref: ImportReference | None = None,
         export_ref: ExportReference | None = None,
         exception: tuple[Any, Any, Any] | None = None,
@@ -939,7 +939,7 @@ class RemoteServiceAdminEvent:
         self._exception = exception
         self._ed = endpoint
 
-    def get_description(self) -> "EndpointDescription | None":
+    def get_description(self) -> "EndpointDescription":
         """
         Get the EndpointDescription associated with this event.
         Should not be None

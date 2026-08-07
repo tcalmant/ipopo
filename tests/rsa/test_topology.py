@@ -144,7 +144,7 @@ class TopologyManagerTest(unittest.TestCase):
         imported = [
             import_ref
             for import_ref in self.rsa.get_imported_endpoints()
-            if import_ref.get_description().get_id() == parsed_endpoint.get_id()
+            if import_ref.get_description().get_id() == parsed_endpoint.get_id()  # type: ignore
         ]
         self.assertTrue(imported, "Endpoint not imported on ADDED event")
 

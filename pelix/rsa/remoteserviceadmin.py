@@ -463,7 +463,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
             )
             if not importer:
                 raise SelectImporterError(f"Could not find importer for endpoint={endpoint_description}")
-        except:  # noqa: E722
+        except Exception:  # noqa: BLE001
             import_reg = ImportRegistrationImpl.fromexception(sys.exc_info(), endpoint_description)
             import_event = RemoteServiceAdminEvent.fromimportreg(self._get_bundle(), import_reg)
         else:
@@ -1217,6 +1217,8 @@ class ImportReferenceImpl(ImportReference):
         with self.__lock:
             if self.__endpoint:
                 return self.__endpoint.get_remoteservice_id()
+            elif self.__errored:
+                return self.__errored.get_remoteservice_id()
             else:
                 raise RemoteServiceError("Remote service ID not found")
 
@@ -1225,11 +1227,14 @@ class ImportReferenceImpl(ImportReference):
             if self.__endpoint:
                 return self.__endpoint.get_reference()
 
-    def get_description(self) -> EndpointDescription | None:
+    def get_description(self) -> EndpointDescription:
         with self.__lock:
             if self.__endpoint:
                 return self.__endpoint.get_description()
-            return self.__errored
+            elif self.__errored:
+                return self.__errored
+            else:
+                raise RemoteServiceError("Endpoint description not set")
 
     def get_exception(self) -> tuple[Any, Any, Any] | None:
         with self.__lock:
@@ -1355,10 +1360,10 @@ class ImportRegistrationImpl(ImportRegistration):
 
             return self.__importref.get_exception()
 
-    def get_description(self) -> EndpointDescription | None:
+    def get_description(self) -> EndpointDescription:
         with self.__lock:
             if self.__closed:
-                return None
+                raise RemoteServiceError("ImportRegistration already closed")
 
             return self.__importref.get_description()
 
