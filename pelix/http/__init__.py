@@ -478,6 +478,7 @@ class AbstractAsyncWriter(ABC):
     Abstract class to wrap asynchronous writers
     """
 
+    @abstractmethod
     async def write(self, raw: bytes) -> int:
         """
         Writes raw data to the stream
@@ -485,7 +486,7 @@ class AbstractAsyncWriter(ABC):
         :param raw: Data to write
         :return: Number of bytes written
         """
-        ...  # noqa: PIE790
+        ...
 
     async def flush(self) -> None:
         """

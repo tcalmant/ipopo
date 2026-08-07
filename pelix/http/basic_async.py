@@ -186,7 +186,7 @@ class _WriteWrapper(IO[bytes]):
     def read(self, size: int = -1) -> bytes:
         raise OSError("This stream is not readable")
 
-    def write(self, b: bytes) -> int:
+    def write(self, b: bytes) -> int:  # type: ignore
         return self._buffer.write(b)
 
     def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
@@ -849,7 +849,7 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                 await runner.cleanup()
                 await self._app.shutdown()
                 await self._app.cleanup()
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             # Anything went wrong, log the error
             self._logger.error("Error running the HTTP server: %s", ex)
             self._start_done_event.raise_exception(ex)
@@ -961,7 +961,7 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                                 await ws_response.close()
 
                         return ws_response
-            except Exception:
+            except Exception:  # noqa: BLE001
                 # Send a 500 error page on error.
                 # The details are logged by make_exception_page()
                 self._logger.error("Error handling %s request to %s", request.method, path)

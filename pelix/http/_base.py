@@ -612,7 +612,7 @@ class AbstractHttpService(http.HTTPService):
                 return True
 
             return result
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             self.log_exception("Error calling back an instance: %s", ex)
 
         return False
