@@ -269,6 +269,7 @@ from pelix.ipopo.decorators import ComponentFactory, Instantiate, Requires, Vali
 
 from concurrent.futures import ThreadPoolExecutor
 
+
 @ComponentFactory("remote-hello-consumer-factory")
 # The '(service.imported=*)' filter only allows remote services to be injected
 @Requires(

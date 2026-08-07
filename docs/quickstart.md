@@ -205,6 +205,7 @@ with of the `hello.world` specification.
 ```python
 from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate
 
+
 # Define the component factory, with a given name
 @ComponentFactory("service-provider-factory")
 # Defines the service to provide when the component is active
@@ -212,8 +213,8 @@ from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate
 # A component must be instantiated as soon as the bundle is active
 @Instantiate("provider")
 class Greetings:
-      def hello(self, name="World"):
-          print("Hello,", name, "!")
+    def hello(self, name="World"):
+        print("Hello,", name, "!")
 ```
 
 Start a Pelix shell like shown in the previous section, then install and
@@ -234,8 +235,8 @@ code of this component, which should be store in the `consumer` module
 (`consumer.py`).
 
 ```python
-from pelix.ipopo.decorators import ComponentFactory, Requires, Instantiate, \
-     Validate, Invalidate
+from pelix.ipopo.decorators import ComponentFactory, Requires, Instantiate, Validate, Invalidate
+
 
 # Define the component factory, with a given name
 @ComponentFactory("service-consumer-factory")
@@ -389,14 +390,14 @@ to indicate that all services interfaces are exported.
 Here is the new version of the *hello world* provider, with the export property:
 
 ```python
-from pelix.ipopo.decorators import ComponentFactory, Provides, \
-    Instantiate, Property
+from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate, Property
 from pelix.remote import PROP_EXPORTED_INTERFACES
+
 
 @ComponentFactory("service-provider-factory")
 @Provides("hello.world")
 # Here is the new property, to authorize the export
-@Property('_export_itfs', PROP_EXPORTED_INTERFACES, '*')
+@Property("_export_itfs", PROP_EXPORTED_INTERFACES, "*")
 @Instantiate("provider")
 class Greetings:
     def hello(self, name="World"):

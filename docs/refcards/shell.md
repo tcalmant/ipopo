@@ -253,6 +253,7 @@ from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate
 import pelix.shell
 from pelix.shell.beans import ShellSession
 
+
 @ComponentFactory("sample-commands-factory")
 @Provides(pelix.shell.ShellCommandsProvider)
 @Instantiate("sample-shell-commands")
@@ -260,6 +261,7 @@ class SampleCommands(pelix.shell.ShellCommandsProvider):
     """
     Sample shell commands
     """
+
     def get_namespace(self):
         """
         Retrieves the name space of this command handler
@@ -272,7 +274,7 @@ class SampleCommands(pelix.shell.ShellCommandsProvider):
         """
         return [("echo", self.echo), ("hello", self.hello)]
 
-    def hello(self, session: ShellSession, name: str|None=None) -> None:
+    def hello(self, session: ShellSession, name: str | None = None) -> None:
         """
         Says hello
         """

@@ -5,7 +5,6 @@ This bundle provides a component that is a simple implementation of the
 Dictionary service. It contains some English words.
 """
 
-
 from spell_checker_api import SpellDictionary
 
 from pelix.framework import BundleContext
