@@ -70,6 +70,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+
+_logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
@@ -235,7 +237,7 @@ class _FactoryCounter:
         try:
             _, counter = self.__factored[svc_ref]
         except KeyError:
-            logging.warning("Trying to release an unknown service factory: %s", svc_ref)
+            _logger.warning("Trying to release an unknown service factory: %s", svc_ref)
         else:
             if svc_ref.is_prototype() and service is not None:
                 # Notify the factory to clean up the given instance
@@ -277,7 +279,7 @@ class _FactoryCounter:
                 for service in services:
                     try:
                         factory.unget_service_instance(self.__bundle, svc_registration, service)
-                    except Exception:
+                    except Exception:  # noqa: BLE001, S110
                         # Ignore instance-level exceptions, potential errors
                         # will reappear in unget_service()
                         pass
@@ -857,7 +859,7 @@ class EventDispatcher:
         for listener in listeners:
             try:
                 listener.bundle_changed(event)
-            except:
+            except:  # noqa: E722
                 self._logger.exception("Error calling a bundle listener")
 
     def fire_framework_stopping(self) -> None:
@@ -872,7 +874,7 @@ class EventDispatcher:
         for listener in listeners:
             try:
                 listener.framework_stopping()
-            except:
+            except:  # noqa: E722
                 self._logger.exception("An error occurred calling one of the framework stop listeners")
 
     def fire_service_event(self, event: ServiceEvent[Any]) -> None:
@@ -935,7 +937,7 @@ class EventDispatcher:
             try:
                 if sent_event is not None:
                     data.listener.service_changed(sent_event)
-            except:
+            except:  # noqa: E722
                 self._logger.exception("Error calling a service listener")
 
     def _filter_with_hooks(
@@ -966,7 +968,7 @@ class EventDispatcher:
             )
 
             for hook_ref in hook_refs:
-                if not svc_ref == hook_ref:
+                if svc_ref != hook_ref:
                     # Get the bundle of the hook service
                     hook_bundle = hook_ref.get_bundle()
                     # lookup service from registry
@@ -977,7 +979,7 @@ class EventDispatcher:
                         # (which can be modified by hook)
                         try:
                             hook_svc.event(svc_event, shrinkable_ctx_listeners)
-                        except:
+                        except:  # noqa: E722
                             self._logger.exception("Error calling EventListenerHook")
                         finally:
                             # Clean up the service
@@ -1316,7 +1318,7 @@ class ServiceRegistry:
             if new_filter is not None:
                 # Prepare a generator, as we might not need a complete
                 # walk-through
-                refs_set = iter(set(ref for ref in refs_set if new_filter.matches(ref.get_properties())))
+                refs_set = iter({ref for ref in refs_set if new_filter.matches(ref.get_properties())})
 
             if only_one:
                 # Return the first element in the list/generator
