@@ -222,7 +222,7 @@ class FrameworkException(Exception):
 # ------------------------------------------------------------------------------
 
 
-def is_from_parent(cls: type[Any], attribute_name: str, value: Any = None) -> bool:
+def is_from_parent(cls: type[Any], attribute_name: str | None, value: Any = None) -> bool:
     """
     Tests if the current attribute value is shared by a parent of the given
     class.
@@ -234,6 +234,10 @@ def is_from_parent(cls: type[Any], attribute_name: str, value: Any = None) -> bo
     :param value: The exact value in the child class (optional)
     :return: True if the attribute value is shared with a parent class
     """
+    if attribute_name is None:
+        # No attribute name: can't be from a parent
+        return False
+
     if value is None:
         try:
             # Get the current value
