@@ -82,6 +82,8 @@ All versions up to 3.2.1 are affected.
 * Added tests for the content of the HTTP error pages
 * Added tests for the rejection of XML document type declarations
 * Added tests for the code shared by the HTTP service implementations
+* Python 3.15 is now tested in CI, except for RSA which has some dependencies
+  not yet available pre-built for that version
 
 ## iPOPO 3.2.1
 
