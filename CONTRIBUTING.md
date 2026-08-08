@@ -16,7 +16,8 @@ discussed on the users mailing list.
 
 In order to contribute code to iPOPO, you must fork the project then use
 [GitHub Pull Requests](https://github.com/tcalmant/ipopo/pulls). Your
-code will be reviewed, tested and inserted into the master branch.
+code will be reviewed, tested and inserted into the `v3` branch, which is the
+current development line.
 
 Your code style must follow some rules, described in the following section.
 
