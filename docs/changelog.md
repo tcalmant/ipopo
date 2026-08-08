@@ -21,6 +21,7 @@ Unreleased
   It is kept as an artifact of the `SBOM` workflow, and is attached to the
   GitHub releases
 * Overall linting and typing review. `ruff` and `ty` now return no error.
+* Added an empty `py.typed` as per [PEP 561](https://peps.python.org/pep-0561/)
 
 ### Security
 
