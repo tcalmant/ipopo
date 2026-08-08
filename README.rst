@@ -505,8 +505,9 @@ All contributions are welcome!
    about your idea or the problem you encounter
 #. `Fork <https://github.com/tcalmant/ipopo/fork>`_ the project
 #. Develop your changes
-#. Check your code with `pylint <https://pypi.python.org/pypi/pylint/>`_
-   and `ruff <https://docs.astral.sh/ruff/>`_
+#. Check your code with `ruff <https://docs.astral.sh/ruff/>`_
+   (``ruff check`` and ``ruff format``) and `ty <https://docs.astral.sh/ty/>`_
+   (``ty check pelix tests``)
 #. If necessary, write some unit tests
 #. Commit your changes, indicating in each commit a reference to the issue
    you're working on

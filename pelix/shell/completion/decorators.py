@@ -33,7 +33,6 @@ from . import ATTR_COMPLETERS, CompletionInfo
 
 try:
     # Everything here relies on readline
-    # pylint: disable=W0611
     HAS_READLINE = importlib.util.find_spec("readline") is not None
 except ImportError:
     HAS_READLINE = False

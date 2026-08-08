@@ -470,7 +470,6 @@ class MqttClient:
         rc: ReasonCode,
         properties: Properties | None,
     ) -> None:
-        # pylint: disable=W0613
         """
         Client connected to the server
 
@@ -501,7 +500,6 @@ class MqttClient:
         rc: ReasonCode,
         properties: Properties | None,
     ) -> None:
-        # pylint: disable=W0613
         """
         Client has been disconnected from the server
 
@@ -525,7 +523,6 @@ class MqttClient:
                 _logger.exception("Error executing MQTT disconnection callback")
 
     def __on_message(self, client: paho.Client, userdata: Any, msg: paho.MQTTMessage) -> None:
-        # pylint: disable=W0613
         """
         A message has been received from a server
 
@@ -543,7 +540,6 @@ class MqttClient:
     def __on_publish(
         self, client: paho.Client, userdata: Any, mid: int, reason_code: ReasonCode, properties: Properties
     ) -> None:
-        # pylint: disable=W0613
         """
         A message has been published by a server
 
@@ -572,7 +568,6 @@ class MqttClient:
         reason_code_list: list[ReasonCode],
         properties: Properties,
     ) -> None:
-        # pylint: disable=W0613
         """
         A subscription has been accepted by the server
 
@@ -598,7 +593,6 @@ class MqttClient:
         properties: Properties,
         reasonCodes: ReasonCode | list[ReasonCode],
     ) -> None:
-        # pylint: disable=W0613
         """
         A subscription has been accepted by the server
 

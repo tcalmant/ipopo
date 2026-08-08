@@ -82,7 +82,6 @@ KEY_SENDER = pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID
 
 
 def make_topic(topic: str, suffix: str) -> str:
-    # pylint: disable=W0613
     """
     Prepares a topic with the given suffix
 
@@ -169,7 +168,6 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         self.__mqtt = None
 
     def __on_connect(self, client: MqttClient, result_code: int) -> None:
-        # pylint: disable=W0613
         """
         Client connected to the server
         """
@@ -180,7 +178,6 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
             client.subscribe(request_topic_filter)
 
     def __on_message(self, client: MqttClient, message: MqttMessage) -> None:
-        # pylint: disable=W0613
         """
         An MQTT message has been received
 
@@ -264,7 +261,6 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
 
 class _MqttCallableProxy:
-    # pylint: disable=R0903
     """
     Callable object that makes the real request to the MQTT server
     """
@@ -335,7 +331,6 @@ class _MqttCallableProxy:
 
 
 class _ServiceCallProxy:
-    # pylint: disable=R0903
     """
     Service call proxy
     """
@@ -487,7 +482,6 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         self.__mqtt.publish(make_topic(topic_prefix, TOPIC_REQUEST), request, qos=2)
 
     def __on_message(self, client: MqttClient, message: MqttMessage) -> None:
-        # pylint: disable=W0613
         """
         An MQTT reply has been received
         """

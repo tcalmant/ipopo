@@ -732,7 +732,6 @@ class Property:
 
 
 class HiddenProperty(Property):
-    # pylint: disable=R0903
     """
     The ``@HiddenProperty`` decorator defines a component property which won't
     be visible in the properties of the services it provides.
@@ -860,7 +859,6 @@ def _get_specifications(
 
 
 class Provides:
-    # pylint: disable=R0903
     """
     The ``@Provides`` decorator defines a service to be exposed by component
     instances. A service can have one or more specifications. The specifications
@@ -1053,7 +1051,6 @@ class Provides:
 
 
 class Requires:
-    # pylint: disable=R0903
     """
     The ``@Requires`` decorator defines the requirement of a service.
     A specification of requirement can be given by its name (string) or type (class/protocol).
@@ -1171,7 +1168,6 @@ class Requires:
 
 
 class RequiresVarFilter(Requires):
-    # pylint: disable=R0903
     """
     The ``@RequiresVarFilter`` decorator acts like :class:`Requires`, but its
     LDAP filter dynamically adapts to the properties of this component.
@@ -1217,7 +1213,6 @@ class RequiresVarFilter(Requires):
 
 
 class RequiresBest(Requires):
-    # pylint: disable=R0903
     """
     The ``@RequiresBest`` decorator acts like :class:`Requires`, but it
     always injects the service with the best rank (``service.ranking``
@@ -1289,7 +1284,6 @@ class RequiresBest(Requires):
 
 
 class RequiresMap(Requires):
-    # pylint: disable=R0903
     """
     The ``@RequiresMap`` decorator defines a requirement that must be injected
     in a dictionary, based on a service property.
@@ -1372,7 +1366,6 @@ class RequiresMap(Requires):
 
 
 class RequiresBroadcast(Requires):
-    # pylint: disable=R0903
     """
     The ``@RequiresBroadcast`` decorator defines a requirement that will be
     injected as a single object, hiding the underlying missing dependency or
@@ -1455,7 +1448,6 @@ class RequiresBroadcast(Requires):
 
 
 class Temporal(Requires):
-    # pylint: disable=R0903
     """
     The ``@Temporal`` decorator defines a single immediate rebind requirement
     with a grace time when the injected service disappears.
@@ -1543,7 +1535,6 @@ class Temporal(Requires):
 
 
 class BindField:
-    # pylint: disable=R0903
     """
     The ``@BindField`` callback decorator is called when a component is bound
     to a dependency, injected in the given field.
@@ -1608,7 +1599,6 @@ class BindField:
 
 
 class UpdateField:
-    # pylint: disable=R0903
     """
     The ``@UpdateField`` callback decorator is called when the properties of
     a service injected in the given field have been updated.
@@ -1673,7 +1663,6 @@ class UpdateField:
 
 
 class UnbindField:
-    # pylint: disable=R0903
     """
     The ``@UnbindField`` callback decorator is called when an injected
     dependency is unbound.
@@ -1746,7 +1735,6 @@ class UnbindField:
 def Bind(
     method: Callable[[Any, T, ServiceReference[T]], None],
 ) -> Callable[[Any, T, ServiceReference[T]], None]:
-    # pylint: disable=C0103
     """
     The ``@Bind`` callback decorator is called when a component is bound to a
     dependency.
@@ -1792,7 +1780,6 @@ def Bind(
 def Update(
     method: Callable[[Any, T, ServiceReference[T], dict[str, Any]], None],
 ) -> Callable[[Any, T, ServiceReference[T], dict[str, Any]], None]:
-    # pylint: disable=C0103
     """
     The ``@Update`` callback decorator is called when the properties of an
     injected service have been modified.
@@ -1839,7 +1826,6 @@ def Update(
 def Unbind(
     method: Callable[[Any, T, ServiceReference[T]], None],
 ) -> Callable[[Any, T, ServiceReference[T]], None]:
-    # pylint: disable=C0103
     """
     The ``@Unbind`` callback decorator is called when a component dependency is
     unbound.
@@ -1888,7 +1874,6 @@ def Unbind(
 
 
 class ValidateComponent:
-    # pylint: disable=R0903
     """
     The ``@ValidateComponent`` decorator declares a callback method for
     component validation.
@@ -1982,7 +1967,6 @@ class ValidateComponent:
 
 
 class InvalidateComponent(ValidateComponent):
-    # pylint: disable=R0903
     """
     The ``@InvalidateComponent`` decorator declares a callback method for
     component invalidation.
@@ -2027,7 +2011,6 @@ class InvalidateComponent(ValidateComponent):
 
 
 def Validate(method: Callable[[T, BundleContext], None]) -> Callable[[T, BundleContext], None]:
-    # pylint: disable=C0103
     """
     This decorator is an alias to :class:`ValidateComponent` to decorate a
     callback method than only accepts the
@@ -2064,7 +2047,6 @@ def Validate(method: Callable[[T, BundleContext], None]) -> Callable[[T, BundleC
 
 
 def Invalidate(method: Callable[[T, BundleContext], None]) -> Callable[[T, BundleContext], None]:
-    # pylint: disable=C0103
     """
     This decorator is an alias to :class:`InvalidateComponent` to decorate a
     callback method than only accepts the
@@ -2102,7 +2084,6 @@ def Invalidate(method: Callable[[T, BundleContext], None]) -> Callable[[T, Bundl
 def PostRegistration(
     method: Callable[[T, ServiceReference[Any]], None],
 ) -> Callable[[T, ServiceReference[Any]], None]:
-    # pylint: disable=C0103
     """
     The service post-registration callback decorator is called after a service
     of the component has been registered to the framework.
@@ -2147,7 +2128,6 @@ def PostRegistration(
 def PostUnregistration(
     method: Callable[[T, ServiceReference[Any]], None],
 ) -> Callable[[T, ServiceReference[Any]], None]:
-    # pylint: disable=C0103
     """
     The service post-unregistration callback decorator is called after a
     service of the component has been unregistered from the framework.

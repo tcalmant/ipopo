@@ -104,7 +104,6 @@ class ServerDispatcher(SimpleXMLRPCDispatcher, Servlet):
         self._executor = executor
 
     def do_POST(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
-        # pylint: disable=C0103
         data = request.read_data().decode()
         result = self._marshaled_dispatch(data, self._dispatch)
         response.send_content(200, result, "text/xml")
@@ -146,7 +145,6 @@ class XmlRpcExportContainer(ExportContainer):
 
     @ValidateComponent(ARG_BUNDLE_CONTEXT, ARG_PROPERTIES)
     def _validate_component(self, bundle_context: BundleContext, container_props: dict[str, Any]) -> None:
-        # pylint: disable=W0212
         ExportContainer._validate_component(self, bundle_context, container_props)
         timeout = container_props.get(ECF_XMLRPC_TIMEOUT_PROP, None)
         dp = self._get_distribution_provider()
@@ -159,7 +157,6 @@ class XmlRpcExportContainer(ExportContainer):
 
     @Invalidate
     def _invalidate_component(self, bundle_context: BundleContext) -> None:
-        # pylint: disable=W0212
         """
         First invalidate by unregistering the servlet/dispatcher,
         and then call super._invalidate

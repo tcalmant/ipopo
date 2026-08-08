@@ -57,7 +57,6 @@ __docformat__ = "restructuredtext en"
 
 
 class _HandlerFactory(constants.HandlerFactory):
-    # pylint: disable=R0903
     """
     Factory service for service registration handlers
     """

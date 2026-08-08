@@ -301,7 +301,6 @@ class Synchronized:
 
 
 def SynchronizedClassMethod(*locks_attr_names: str, **kwargs: Any) -> Callable[..., Any]:
-    # pylint: disable=C1801
     """
     A synchronizer decorator for class methods. An AttributeError can be raised
     at runtime if the given lock attribute doesn't exist or if it is None.
@@ -628,8 +627,6 @@ class EventData(Generic[T]):
         :return: True if the event as been set, else False
         """
         result = self.__event.wait(timeout)
-        # pylint: disable=E0702
-        # Pylint seems to miss the "is None" check below
         if self.__exception is None:
             return result
         else:

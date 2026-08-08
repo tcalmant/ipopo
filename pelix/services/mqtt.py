@@ -284,7 +284,6 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
                     # client.reconnect()
 
     def __on_message(self, client: paho.Client, userdata: Any, msg: paho.MQTTMessage) -> None:
-        # pylint: disable=W0613
         """
         A message has been received from a server
 
@@ -378,7 +377,6 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
                 rc: ReasonCode,
                 properties: Properties | None,
             ) -> None:
-                # pylint: disable=W0613
                 """
                 Connected to the server
                 """
@@ -419,7 +417,6 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
                 rc: ReasonCode,
                 properties: Properties | None,
             ) -> None:
-                # pylint: disable=W0613
                 """
                 Disconnected from the server
                 """

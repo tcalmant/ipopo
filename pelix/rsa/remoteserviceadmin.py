@@ -1383,7 +1383,6 @@ class ImportRegistrationImpl(ImportRegistration):
                 return False
 
             if self.__rsa:
-                # pylint: disable=W0212
                 self.__rsa._publish_event(
                     RemoteServiceAdminEvent.fromimportupdate(self.__rsa._get_bundle(), self)
                 )

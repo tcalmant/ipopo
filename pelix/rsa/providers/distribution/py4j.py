@@ -179,7 +179,6 @@ class Py4jContainer(ExportContainer, ImportContainer):
         ExportContainer._unexport_service(self, ed)
 
     def _prepare_proxy(self, endpoint_description: EndpointDescription) -> Any:
-        # pylint: disable=W0212
         # lookup the bridge proxy associated with the
         # endpoint_description.get_id()
         dp = cast(Py4jDistributionProvider, self._get_distribution_provider())

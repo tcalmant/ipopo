@@ -416,7 +416,6 @@ class StoredInstance:
 
             # Call the component
             if callback:
-                # pylint: disable=W0212
                 self.__safe_validation_callback(constants.IPOPO_CALLBACK_INVALIDATE)
 
                 # Trigger an "Invalidated" event
@@ -477,7 +476,6 @@ class StoredInstance:
             self.state = StoredInstance.KILLED
 
             # Trigger the event
-            # pylint: disable=W0212
             self._ipopo_service._fire_ipopo_event(constants.IPopoEvent.KILLED, self.factory_name, self.name)
 
             # Clean up members
@@ -536,7 +534,6 @@ class StoredInstance:
 
             # We may have caused a framework error, so check if iPOPO is active
             if self._ipopo_service is not None:
-                # pylint: disable=W0212
                 # Trigger the iPOPO event (after the service _registration)
                 self._ipopo_service._fire_ipopo_event(
                     constants.IPopoEvent.VALIDATED, self.factory_name, self.name

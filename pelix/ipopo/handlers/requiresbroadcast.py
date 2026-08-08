@@ -462,7 +462,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
                     try:
                         # Call it
                         to_call(*args, **kwargs)
-                    except Exception:  # pylint:disable=broad-except
+                    except Exception:
                         if not self._muffle_ex:
                             # Propagate if requested
                             raise

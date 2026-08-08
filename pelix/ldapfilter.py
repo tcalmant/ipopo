@@ -359,7 +359,6 @@ def _comparator_presence(_: Any, tested_value: Any) -> bool:
         return False
     elif hasattr(tested_value, "__len__"):
         # Refuse empty values
-        # pylint: disable=C1801
         return len(tested_value) != 0
 
     # Presence validated

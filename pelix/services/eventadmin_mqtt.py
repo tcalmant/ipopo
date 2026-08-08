@@ -162,7 +162,6 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
             self._controller = True
 
     def __on_disconnect(self, client: MqttClient, result_code: int) -> None:
-        # pylint: disable=W0613
         """
         Client has been disconnected from the server
         """
@@ -170,7 +169,6 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         self._controller = False
 
     def __on_message(self, client: MqttClient, message: MqttMessage) -> None:
-        # pylint: disable=W0613
         """
         A message has been received from a server
 

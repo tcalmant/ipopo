@@ -614,7 +614,6 @@ class ServiceRegistration(Generic[T]):
             # Service ranking not updated: ignore
             pass
 
-        # pylint: disable=W0212
         with self.__reference._props_lock:
             # Update the properties
             previous = self.__properties.copy()

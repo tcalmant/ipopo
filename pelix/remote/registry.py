@@ -95,7 +95,6 @@ class ImportsRegistry(RemoteServiceRegistry):
         listener: RemoteServiceImportEndpointListener,
         svc_ref: ServiceReference[RemoteServiceImportEndpointListener],
     ) -> None:
-        # pylint: disable=W0613
         """
         New listener bound
         """

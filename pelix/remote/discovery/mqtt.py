@@ -178,7 +178,6 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
             self.__send_message(EVENT_DISCOVER, self._framework_uid)
 
     def __on_disconnect(self, client: MqttClient, result_code: int) -> None:
-        # pylint: disable=W0613
         """
         Client has been disconnected from the server
         """
@@ -186,7 +185,6 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         self._controller = False
 
     def __on_message(self, client: MqttClient, message: MqttMessage) -> None:
-        # pylint: disable=W0613
         """
         A message has been received from a server
 
@@ -314,7 +312,6 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         self.__send_message(EVENT_ADD, xml_string)
 
     def endpoint_updated(self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None) -> None:
-        # pylint: disable=W0613
         """
         An end point is updated
 
