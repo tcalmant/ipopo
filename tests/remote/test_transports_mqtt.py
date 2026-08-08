@@ -127,11 +127,16 @@ class RemoteService:
 # ------------------------------------------------------------------------------
 
 
-def load_framework(app_id: str, transport: str, components: Iterable[tuple[str, str]]) -> Framework:
+def load_framework(
+    app_id: str, mqtt_server: str, transport: str, components: Iterable[tuple[str, str]]
+) -> Framework:
     """
     Starts a Pelix framework in the local process
 
     :param app_id: Application ID
+    :param mqtt_server: Host of the MQTT broker to use. It is given explicitly as
+                        the peer process is spawned, i.e. it reimports this module:
+                        looking for the broker on its own could give another result
     :param transport: Name of the transport bundle to install
     :param components: Tuples (factory, name) of instances to start
     """
@@ -152,30 +157,35 @@ def load_framework(app_id: str, transport: str, components: Iterable[tuple[str, 
         ipopo.instantiate(
             pelix.remote.FACTORY_DISCOVERY_MQTT,
             "mqtt-discovery",
-            {"mqtt.host": MQTT_SERVER, "application.id": app_id},
+            {"mqtt.host": mqtt_server, "application.id": app_id},
         )
 
         # Start other components
         for factory, name in components:
-            ipopo.instantiate(factory, name, {"mqtt.host": MQTT_SERVER})
+            ipopo.instantiate(factory, name, {"mqtt.host": mqtt_server})
 
     return framework
 
 
 def export_framework(
-    state_queue: Queue, app_id: str, transport: str, components: Iterable[tuple[str, str]]
+    state_queue: Queue,
+    app_id: str,
+    mqtt_server: str,
+    transport: str,
+    components: Iterable[tuple[str, str]],
 ) -> None:
     """
     Starts a Pelix framework, on the export side
 
     :param state_queue: Queue to store status
     :param app_id: Application ID
+    :param mqtt_server: Host of the MQTT broker to use
     :param transport: Name of the transport bundle to install
     :param components: Tuples (factory, name) of instances to start
     """
     try:
         # Load the framework
-        framework = load_framework(app_id, transport, components)
+        framework = load_framework(app_id, mqtt_server, transport, components)
         context = framework.get_bundle_context()
 
         # Register the exported service
@@ -219,6 +229,8 @@ class MqttTransportsTest(unittest.TestCase):
         :raise queue.Empty: Peer took to long to answer
         :raise ValueError: Test failed
         """
+        assert MQTT_SERVER is not None
+
         # Define components
         components = [(exporter_factory, "rs-exporter"), (importer_factory, "rs-importer")]
 
@@ -226,7 +238,8 @@ class MqttTransportsTest(unittest.TestCase):
         print("Starting...")
         status_queue = Queue()
         peer = WrappedProcess(
-            target=export_framework, args=(status_queue, APP_ID, transport_bundle, components)
+            target=export_framework,
+            args=(status_queue, APP_ID, MQTT_SERVER, transport_bundle, components),
         )
         peer.start()
 
@@ -237,7 +250,7 @@ class MqttTransportsTest(unittest.TestCase):
             self.assertEqual(state, "ready")
 
             # Load the local framework (after the fork)
-            framework = load_framework(APP_ID, transport_bundle, components)
+            framework = load_framework(APP_ID, MQTT_SERVER, transport_bundle, components)
             context = framework.get_bundle_context()
 
             # Look for the remote service

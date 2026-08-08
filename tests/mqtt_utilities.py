@@ -35,11 +35,28 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
+MQTT_SERVER = "localhost"
+"""
+Host of the MQTT broker used by the tests: the one from tests-infra.
+
+Public brokers must not be used as a fallback: tests would publish their content
+on the Internet, depend on a third party, and each process looking for a server
+on its own could end up on a different broker than its peers.
+"""
+
+PUBLICATION_TIMEOUT = 10
+"""
+Time (in seconds) to wait for the test publication to be acknowledged.
+Kept large as a loaded machine can be slow to answer, and considering the broker
+as missing would only make tests fail later on, in a way harder to understand.
+"""
+
+
 def find_mqtt_server() -> str | None:
     """
-    Looks for a working server to run the tests
+    Checks if the MQTT broker of tests-infra is available
 
-    :return: The host name of a working MQTT server, else None
+    :return: The host name of the MQTT server, else None
     """
     try:
         from pelix.misc.mqtt_client import MqttClient
@@ -54,30 +71,26 @@ def find_mqtt_server() -> str | None:
 
     clt.on_disconnect = handle_disconnect
 
-    for server in ("localhost", "test.mosquitto.org", "iot.eclipse.org", "broker.hivemq.com"):
-        try:
-            # Try to connect
-            evt.clear()
-            clt.connect(server, blocking=True)
-        except OSError:
-            # Not available
-            pass
-        else:
-            try:
-                # Try publishing something
-                mid = clt.publish("/ipopo/test/bootstrap", "initial.data", wait=True)
-                if mid is None:
-                    # Error while publishing: next server
-                    continue
+    try:
+        # Try to connect
+        evt.clear()
+        clt.connect(MQTT_SERVER, blocking=True)
+    except OSError:
+        # Not available
+        return None
 
-                if clt.wait_publication(mid, 1):
-                    # Message sent without error and with a correct delay
-                    return server
-                elif evt.is_set():
-                    # Got disconnected while waiting
-                    continue
-            finally:
-                # Disconnect from the server
-                clt.disconnect()
+    try:
+        # Try publishing something
+        mid = clt.publish("/ipopo/test/bootstrap", "initial.data", wait=True)
+        if mid is None:
+            # Error while publishing
+            return None
+
+        if clt.wait_publication(mid, PUBLICATION_TIMEOUT):
+            # Message sent without error and with a correct delay
+            return MQTT_SERVER
+    finally:
+        # Disconnect from the server
+        clt.disconnect()
 
     return None
