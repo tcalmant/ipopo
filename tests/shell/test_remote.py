@@ -7,6 +7,7 @@ Tests the remote shell
 """
 
 import importlib.util
+import re
 import socket
 import sys
 import threading
@@ -147,21 +148,37 @@ class RemoteShellStandaloneTest(unittest.TestCase):
 
         ps1 = pelix.shell.core._ShellService.PS1
 
-        # Start the remote shell process
-        port = 9001
+        # Start the remote shell process, on a random port
         args = [sys.executable, "-m"]
         if has_coverage:
             args += ["coverage", "run", "-m"]
-        args += ["pelix.shell.remote", "-a", "127.0.0.1", "-p", str(port)]
+        args += ["pelix.shell.remote", "-a", "127.0.0.1", "-p", "0"]
         process = subprocess.Popen(
             args,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        assert process.stderr is not None
 
-        # Wait a little to ensure that the socket is here
-        time.sleep(1)
+        # Wait for the interactive console banner to report the bound port
+        # (see pelix.shell.remote.main(): interact() writes it to stderr)
+        # The trailing "\n" ensures the whole number was read, not just its first digit
+        port_re = re.compile(r"Remote shell bound to: [^:\n]+:(\d+)\n")
+        port = None
+        got = ""
+        banner_timer = threading.Timer(10, process.terminate)
+        banner_timer.start()
+        while port is None:
+            char = to_str(process.stderr.read(1))
+            if not char:
+                output = to_str(process.stderr.read())
+                self.fail(f"Process exited before printing its port (rc={process.returncode})\n{output}")
+            got += char
+            match = port_re.search(got)
+            if match:
+                port = int(match.group(1))
+        banner_timer.cancel()
 
         client = ShellClient(None, ps1, self.fail)
         try:
@@ -234,7 +251,7 @@ class RemoteShellTest(unittest.TestCase):
             self.remote = ipopo.instantiate(
                 FACTORY_REMOTE_SHELL,
                 "remoteShell",
-                {"pelix.shell.address": "127.0.0.1", "pelix.shell.port": 9001},
+                {"pelix.shell.address": "127.0.0.1", "pelix.shell.port": 0},
             )
 
     def tearDown(self) -> None:

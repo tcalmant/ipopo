@@ -618,8 +618,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         self.context.install_bundle("pelix.shell.ipopo").start()
 
         # Prepare a session
-        port = 9001
-        session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout), {"port": port})
+        session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout), {"port": 0})
 
         # Run the file a first time
         self.assertTrue(self.shell.execute(f"run '{filename}'", session))
@@ -632,10 +631,13 @@ class ShellCoreCommandsTest(unittest.TestCase):
         bundle = self.context.get_bundle(rshell_bundle)
         self.assertEqual(bundle.get_symbolic_name(), "pelix.shell.remote")
 
-        # Check the instance properties
+        # Check the instance properties: the requested port was 0 (OS-assigned),
+        # so check that a real port was bound instead of comparing against it
         with use_ipopo(self.context) as ipopo:
             details = ipopo.get_instance_details(session.get("rshell.name"))
-            self.assertEqual(int(details["properties"]["pelix.shell.port"]), port)
+            port = int(details["properties"]["pelix.shell.port"])
+            self.assertGreater(port, 0)
+            self.assertLess(port, 65536)
 
         # Run the file a second time: it must fail
         self.assertFalse(self.shell.execute(f"run '{filename}'", session))

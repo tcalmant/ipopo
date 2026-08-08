@@ -10,6 +10,7 @@ import importlib.util
 import ipaddress
 import os
 import pathlib
+import re
 import socket
 import sys
 import tempfile
@@ -390,8 +391,7 @@ else:
 
             ps1 = pelix.shell.core._ShellService.PS1
 
-            # Start the remote shell process
-            port = 9001
+            # Start the remote shell process, on a random port
             args = [sys.executable, "-m"]
             if has_coverage:
                 args += ["coverage", "run", "-m"]
@@ -400,7 +400,7 @@ else:
                 "-a",
                 "127.0.0.1",
                 "-p",
-                str(port),
+                "0",
                 "--cert",
                 srv_cert,
                 "--key",
@@ -414,9 +414,26 @@ else:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
+            assert process.stderr is not None
 
-            # Wait a little to ensure that the socket is here
-            time.sleep(1)
+            # Wait for the interactive console banner to report the bound port
+            # (see pelix.shell.remote.main(): interact() writes it to stderr)
+            # The trailing "\n" ensures the whole number was read, not just its first digit
+            port_re = re.compile(r"Remote shell bound to: [^:\n]+:(\d+)\n")
+            port = None
+            got = ""
+            banner_timer = threading.Timer(10, process.terminate)
+            banner_timer.start()
+            while port is None:
+                char = to_str(process.stderr.read(1))
+                if not char:
+                    output = to_str(process.stderr.read())
+                    self.fail(f"Process exited before printing its port (rc={process.returncode})\n{output}")
+                got += char
+                match = port_re.search(got)
+                if match:
+                    port = int(match.group(1))
+            banner_timer.cancel()
 
             # Check if the remote shell port has been opened
             client = TLSShellClient(ps1, self.fail, client_cert, client_key, ca_chain)
@@ -522,7 +539,7 @@ class TLSRemoteShellTest(unittest.TestCase):
                     "remoteShell",
                     {
                         "pelix.shell.address": "127.0.0.1",
-                        "pelix.shell.port": 9001,
+                        "pelix.shell.port": 0,
                         "pelix.shell.ssl.ca": ca_chain,
                         "pelix.shell.ssl.cert": srv_cert,
                         "pelix.shell.ssl.key": srv_key,
@@ -567,7 +584,7 @@ class TLSRemoteShellTest(unittest.TestCase):
                     "remoteShell",
                     {
                         "pelix.shell.address": "127.0.0.1",
-                        "pelix.shell.port": 9001,
+                        "pelix.shell.port": 0,
                         "pelix.shell.ssl.ca": ca_chain,
                         "pelix.shell.ssl.cert": srv_cert,
                         "pelix.shell.ssl.key": srv_key,
@@ -604,7 +621,7 @@ class TLSRemoteShellTest(unittest.TestCase):
                     "remoteShell",
                     {
                         "pelix.shell.address": "127.0.0.1",
-                        "pelix.shell.port": 9001,
+                        "pelix.shell.port": 0,
                         "pelix.shell.ssl.ca": ca_chain,
                         "pelix.shell.ssl.cert": srv_cert,
                         "pelix.shell.ssl.key": srv_key,

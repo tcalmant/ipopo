@@ -142,7 +142,7 @@ class BasicHTTPSTest(unittest.TestCase):
         key_file: str | None = None,
         password: str | None = None,
         address: str | None = DEFAULT_HOST,
-        port: int | None = DEFAULT_PORT,
+        port: int | None = 0,
     ) -> http.HTTPService:
         """
         Instantiates a basic server component
@@ -165,15 +165,19 @@ class BasicHTTPSTest(unittest.TestCase):
         """
         Tests the use of a certificate without password
         """
-        self.instantiate_server(cert_file="server.crt", key_file="server.key")
-        self.assertEqual(get_https_code(), 404, "Received something other than a 404")
+        srv = self.instantiate_server(cert_file="server.crt", key_file="server.key")
+        port = srv.get_access()[1]
+        self.assertEqual(get_https_code(port=port), 404, "Received something other than a 404")
 
     def testPasswordCertificate(self) -> None:
         """
         Tests the use of a certificate with a password
         """
-        self.instantiate_server(cert_file="server_enc.crt", key_file="server_enc.key", password=PASSWORD)
-        self.assertEqual(get_https_code(), 404, "Received something other than a 404")
+        srv = self.instantiate_server(
+            cert_file="server_enc.crt", key_file="server_enc.key", password=PASSWORD
+        )
+        port = srv.get_access()[1]
+        self.assertEqual(get_https_code(port=port), 404, "Received something other than a 404")
 
 
 # ------------------------------------------------------------------------------
