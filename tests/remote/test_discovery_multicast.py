@@ -61,22 +61,26 @@ class MulticastSocketTest(unittest.TestCase):
     """
 
     def test_ipv4(self) -> None:
-        sock, address = create_multicast_socket(IPV4_GROUP, 24680)
+        sock, address, port = create_multicast_socket(IPV4_GROUP, 0)
         try:
             self.assertEqual(address, IPV4_GROUP)
             self.assertEqual(sock.family, socket.AF_INET)
+            self.assertGreater(port, 0)
+            self.assertEqual(sock.getsockname()[1], port)
         finally:
             close_multicast_socket(sock, address)
 
     def test_ipv6(self) -> None:
         try:
-            sock, address = create_multicast_socket(IPV6_GROUP, 24680)
+            sock, address, port = create_multicast_socket(IPV6_GROUP, 0)
         except OSError as ex:
             self.skipTest(f"IPv6 multicast not available: {ex}")
 
         try:
             self.assertEqual(address, IPV6_GROUP)
             self.assertEqual(sock.family, socket.AF_INET6)
+            self.assertGreater(port, 0)
+            self.assertEqual(sock.getsockname()[1], port)
         finally:
             close_multicast_socket(sock, address)
 

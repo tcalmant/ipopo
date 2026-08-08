@@ -165,14 +165,14 @@ def make_mreq(family: socket.AddressFamily, address: str) -> bytes:
 # ------------------------------------------------------------------------------
 
 
-def create_multicast_socket(address: str, port: int) -> tuple[socket.socket, str]:
+def create_multicast_socket(address: str, port: int) -> tuple[socket.socket, str, int]:
     """
     Creates a multicast socket according to the given address and port.
     Handles both IPv4 and IPv6 addresses.
 
     :param address: Multicast address/group
     :param port: Socket port
-    :return: A tuple (socket, listening address)
+    :return: A tuple (socket, listening address, bound port)
     :raise ValueError: Invalid address or port
     """
     # Get the information about a datagram (UDP) socket, of any family
@@ -230,7 +230,7 @@ def create_multicast_socket(address: str, port: int) -> tuple[socket.socket, str
         # Allow multicast packets to get back on this host
         sock.setsockopt(ipproto_ipv6(), socket.IPV6_MULTICAST_LOOP, 1)
 
-    return sock, str(addr_info[4][0])
+    return sock, str(addr_info[4][0]), sock.getsockname()[1]
 
 
 def close_multicast_socket(sock: socket.socket, address: str) -> None:
@@ -500,7 +500,7 @@ class MulticastDiscovery:
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
 
         # Create the socket
-        self._socket, address = create_multicast_socket(self._group, self._port)
+        self._socket, address, self._port = create_multicast_socket(self._group, self._port)
 
         # Store group access information
         self._target = (address, self._port)

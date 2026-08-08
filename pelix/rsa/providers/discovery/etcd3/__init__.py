@@ -295,7 +295,10 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             asyncio.set_event_loop(self._loop)
             self._loop_thread_id = threading.current_thread().ident
             asyncio.run_coroutine_threadsafe(connected(), self._loop)
-            self._loop.run_until_complete(self._connect())
+            try:
+                self._loop.run_until_complete(self._connect())
+            except Exception:
+                _logger.exception("session_id=%s exception in etcd3 worker thread", self._session_id)
 
         # create and start thread
         threading.Thread(target=worker, name=f"etcd3[{self._session_id}]", daemon=True).start()
@@ -487,28 +490,35 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         # Now announce us as present by putting key on etcd server
         await self._putKV(self._get_session_key(), self._session_id)
 
-        async for watch_response in rpc_pb2_grpc.WatchStub(self._channel).Watch(
-            self._generate_watch_request(
-                rpc_pb2.WatchCreateRequest(key=kp_bytes, range_end=kp_range_end_bytes), None
-            )
-        ):
-            if watch_response.created:
-                self._watch_id = watch_response.watch_id
-                self._connected_event.set()
-            elif watch_response.canceled:
-                _logger.error(f"session_id={self._session_id} watch_cancelled ")
-                return
-            else:
-                for event in watch_response.events:
-                    key = str(event.kv.key, self._encoding)
-                    value = str(event.kv.value, self._encoding)
-                    from .etcdrpc.kv_pb2 import Event
+        try:
+            async for watch_response in rpc_pb2_grpc.WatchStub(self._channel).Watch(
+                self._generate_watch_request(
+                    rpc_pb2.WatchCreateRequest(key=kp_bytes, range_end=kp_range_end_bytes), None
+                )
+            ):
+                if watch_response.created:
+                    self._watch_id = watch_response.watch_id
+                    self._connected_event.set()
+                elif watch_response.canceled:
+                    _logger.error(f"session_id={self._session_id} watch_cancelled ")
+                    return
+                else:
+                    for event in watch_response.events:
+                        key = str(event.kv.key, self._encoding)
+                        value = str(event.kv.value, self._encoding)
+                        from .etcdrpc.kv_pb2 import Event
 
-                    if key:
-                        if event.type == Event.EventType.PUT:
-                            self._process_kv(key, value, True)
-                        elif event.type == Event.EventType.DELETE:
-                            self._process_kv(key, value, False)
+                        if key:
+                            if event.type == Event.EventType.PUT:
+                                self._process_kv(key, value, True)
+                            elif event.type == Event.EventType.DELETE:
+                                self._process_kv(key, value, False)
+        except asyncio.CancelledError:
+            # Calling _disconnect() will cancel this async for loop (no log necessary)
+            return
+        except:
+            _logger.exception("session_id=%s exception in watch loop", self._session_id)
+            raise
 
     async def _delete_range(self, key: str) -> rpc_pb2.DeleteRangeResponse:
         await self._connected_event.wait()

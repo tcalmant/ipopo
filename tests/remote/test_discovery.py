@@ -33,6 +33,7 @@ import traceback
 import unittest
 from collections.abc import Iterable
 from typing import Any
+from unittest import mock
 
 import pelix.http
 import pelix.remote
@@ -112,6 +113,14 @@ def load_framework(
     :param discovery: Name of the discovery bundle to install
     :param components: Tuples (factory, name, props) of instances to start
     """
+    if discovery == "pelix.remote.discovery.mdns":
+        # This test runs two Zeroconf() instances (this process and the spawned
+        # one) on the same host, both binding UDP 5353 with SO_REUSEPORT (set
+        # by the zeroconf package). It seems that in some conditions, one of the
+        # two processes doesn't receive the goodbye packet of the other one,
+        # keeping the service registered.
+        mock.patch("zeroconf._utils.net.set_so_reuseport_if_available", lambda sock: None).start()
+
     all_bundles = [
         "pelix.ipopo.core",
         "pelix.http.basic",
@@ -270,9 +279,8 @@ class HttpTransportsTest(unittest.TestCase):
             # Wait a bit more, to let coverage save its files
             peer.join(1)
 
-            # Check the remote service
-            # Look for the remote service
-            for _ in range(10):
+            # Look for the remote service (give it some time to unregister)
+            for _ in range(15):
                 svc_ref = context.get_service_reference(SVC_SPEC)
                 if svc_ref is None:
                     break
