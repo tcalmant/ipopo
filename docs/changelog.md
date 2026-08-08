@@ -301,7 +301,7 @@ All versions up to 3.2.1 are affected.
   See [#101](https://github.com/tcalmant/ipopo/pull/101) for more details.
 * Use a local `etcd` server in Travis-CI instead of a public one.
 
-## iPOPO 1.0.0
+## iPOPO 0.8.0
 
 :::{admonition} Release Date
 :class: info
