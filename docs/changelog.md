@@ -63,7 +63,12 @@ All versions up to 3.2.1 are affected.
   Recent versions of `expat` limit that expansion, but Pelix also supports
   systems where it is not the case
 
-### Pelix
+### Utilities
+
+* Multicast socket utility accepts `0` as port (random port), and now returns
+  the bound port in addition to the socket and the bound address.
+
+### Remote
 
 * Fixed the serialization of Zeroconf/mDNS properties: a value that JSON can't
   handle (a `set`, a custom object, ...) raised a `TypeError` that aborted the
