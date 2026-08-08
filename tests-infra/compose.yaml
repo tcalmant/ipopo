@@ -14,7 +14,7 @@ services:
   mqtt-broker:
     image: eclipse-mosquitto
     volumes:
-      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:z
     ports:
       - "1883:1883"
 
@@ -30,7 +30,7 @@ services:
     environment:
       - ERL_OPTS=-noshell
     volumes:
-      - ./xmpp/register_users.sh:/opt/register_users.sh:ro
+      - ./xmpp/register_users.sh:/opt/register_users.sh:ro,z
     # post_start:
     #   - command: /bin/sh /opt/register_users.sh
 
