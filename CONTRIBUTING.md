@@ -14,7 +14,7 @@ discussed on the users mailing list.
 
 ## Code contribution
 
-In order io contribute code to iPOPO, you must fork the project then use
+In order to contribute code to iPOPO, you must fork the project then use
 [GitHub Pull Requests](https://github.com/tcalmant/ipopo/pulls). Your
 code will be reviewed, tested and inserted into the master branch.
 

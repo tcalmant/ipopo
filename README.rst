@@ -231,8 +231,8 @@ provide a ``sample.hello`` service.
     # iPOPO decorators
     from pelix.ipopo.decorators import ComponentFactory, Provides, Instantiate
 
-   # Import the specification, if we want to use its type
-   from specification import HelloWorld
+    # Import the specification, if we want to use its type
+    from specification import HelloWorld
 
     # Manipulates the class and sets its (unique) factory name
     @ComponentFactory("hello-provider-factory")
@@ -341,7 +341,7 @@ Run!
 
 To run this sample, you'll need to copy the snippets above in different files:
 
-* copy the *Service specification* snipper in a file named *specification.py*
+* copy the *Service specification* snippet in a file named *specification.py*
 * copy the *Service provider* snippet in a file named *provider.py*
 * copy the *Service consumer* snippet in a file named *consumer.py*
 
