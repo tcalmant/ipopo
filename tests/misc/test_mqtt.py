@@ -469,6 +469,46 @@ class MqttClientTest(unittest.TestCase):
         self.assertEqual(msg.topic, msg_topic)
         self.assertEqual(to_str(msg.payload), msg_value)
 
+    def test_wait_publish_not_missed(self) -> None:
+        """
+        Tests that a publication notified while publish() is still running is
+        not missed: the network loop thread can call back before the event of
+        the message has been stored, which used to block the caller until the
+        end of its timeout
+        """
+        assert MQTT_SERVER is not None
+
+        msg_topic = f"pelix/test/mqtt/wait-race/{uuid.uuid4()!s}"
+
+        client = mqtt.MqttClient()
+        event_connect = EventData[None]()
+
+        def on_connect(clt: mqtt.MqttClient, result_code: int) -> None:
+            if result_code == 0:
+                event_connect.set()
+            else:
+                event_connect.raise_exception(RuntimeError(f"Connection failed with code {result_code}"))
+
+        client.on_connect = on_connect
+        client.connect(MQTT_SERVER)
+        try:
+            if not event_connect.wait(5):
+                self.fail("Connection timeout")
+
+            # Publish in a tight loop: the shorter the delay between the call to
+            # the Paho client and the storage of the event, the more likely the
+            # publication is notified in between
+            for idx in range(100):
+                mid = client.publish(msg_topic, f"value-{idx}", wait=True)
+                self.assertIsNotNone(mid)
+                assert mid is not None
+                self.assertTrue(
+                    client.wait_publication(mid, 5),
+                    f"Publication {idx} (mid={mid}) was not notified",
+                )
+        finally:
+            client.disconnect()
+
     def test_client_id(self) -> None:
         """
         Tests the generation of a client ID
@@ -534,6 +574,29 @@ class MqttClientTest(unittest.TestCase):
 
         # Client ID must be kept as is
         self.assertEqual(client.client_id, long_id)
+
+    def test_clean_session(self) -> None:
+        """
+        Tests that a generated client ID implies a clean session: the broker
+        would keep the session of a random ID forever, without any way to
+        resume it
+        """
+        client_id: str | None
+
+        def is_clean(client: mqtt.MqttClient) -> bool:
+            """
+            Returns the clean session flag given to the underlying Paho client
+            """
+            paho_client = vars(client)["_MqttClient__mqtt"]
+            return bool(paho_client._clean_session)
+
+        # No ID given: the session can't be resumed, it must be cleaned
+        for client_id in (None, ""):
+            self.assertTrue(is_clean(mqtt.MqttClient(client_id)))
+
+        # Explicit ID: the caller decides
+        self.assertFalse(is_clean(mqtt.MqttClient("custom_id")))
+        self.assertTrue(is_clean(mqtt.MqttClient("custom_id", clean_session=True)))
 
     def test_topic_matches(self) -> None:
         """

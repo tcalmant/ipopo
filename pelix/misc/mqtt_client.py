@@ -77,7 +77,8 @@ class MqttClient:
     ) -> None:
         """
         :param client_id: ID of the MQTT client
-        :param clean_session: If True, the broker will clean the client session on disconnect
+        :param clean_session: If True, the broker will clean the client session on disconnect.
+                              Forced to True if no client ID is given.
         :param protocol: MQTT protocol version (MQTTv31, MQTTv311 or MQTTv5)
         :param transport: Transport protocol (tcp or websockets)
         """
@@ -85,6 +86,12 @@ class MqttClient:
         if not client_id:
             # Randomize client ID
             self._client_id = self.generate_id()
+
+            # A generated ID is different on each run: the session kept by the
+            # broker could never be resumed, it would only pile up there
+            # (MQTT 3.1.1 sessions have no expiry), along with the messages
+            # queued for it. Only an explicit client ID can make use of it.
+            clean_session = True
         elif len(client_id) > 23:
             # ID too large
             _logger.warning(
@@ -102,6 +109,10 @@ class MqttClient:
 
         # Publication events
         self.__in_flight: dict[int, threading.Event] = {}
+
+        # Protects __in_flight: the publication can be notified by the network
+        # loop thread before publish() had a chance to store its event
+        self.__in_flight_lock = threading.Lock()
 
         # Assert protocol version
         try:
@@ -329,7 +340,10 @@ class MqttClient:
         self.__stop_timer()
 
         # Unlock all publishers
-        for event in self.__in_flight.values():
+        with self.__in_flight_lock:
+            pending = list(self.__in_flight.values())
+
+        for event in pending:
             event.set()
 
         # Disconnect from the server
@@ -362,17 +376,22 @@ class MqttClient:
         :param wait: If True, prepares an event to wait for the message to be published
         :return: The local message ID, None on error
         """
-        result = self.__mqtt.publish(topic, payload, qos, retain)
-        if result.rc != 0:
-            # No success
-            _logger.debug("Failed to publish message on %s: %d", topic, result.rc)
-            return None
+        # The message must be sent and its event stored atomically: the network
+        # loop thread can notify the publication as soon as the packet is sent,
+        # i.e. before this method returns. Without the lock, that notification
+        # would find no event to set and the waiter would block until timeout.
+        with self.__in_flight_lock:
+            result = self.__mqtt.publish(topic, payload, qos, retain)
+            if result.rc != 0:
+                # No success
+                _logger.debug("Failed to publish message on %s: %d", topic, result.rc)
+                return None
 
-        if wait:
-            # Publish packet sent, wait for it to return
-            self.__in_flight[result.mid] = threading.Event()
+            if wait:
+                # Publish packet sent, wait for it to return
+                self.__in_flight[result.mid] = threading.Event()
 
-        return result.mid
+            return result.mid
 
     def wait_publication(self, mid: int, timeout: float | None = None) -> bool:
         """
@@ -383,10 +402,13 @@ class MqttClient:
         :return: True if the message was published, False if timeout was raised
         :raise KeyError: Unknown waiting local message ID
         """
-        event = self.__in_flight[mid]
+        with self.__in_flight_lock:
+            event = self.__in_flight[mid]
+
         if event.wait(timeout):
             # Message published: no need to wait for it anymore
-            self.__in_flight.pop(mid)
+            with self.__in_flight_lock:
+                self.__in_flight.pop(mid, None)
             return True
 
         # Publication not sent yet
@@ -548,10 +570,11 @@ class MqttClient:
         :param mid: Message ID
         """
         # Unblock wait_publication, if any
-        try:
-            self.__in_flight[mid].set()
-        except KeyError:
-            pass
+        with self.__in_flight_lock:
+            event = self.__in_flight.get(mid)
+
+        if event is not None:
+            event.set()
 
         # Notify the explicit callback, if any
         if self.__on_publish_cb is not None:
