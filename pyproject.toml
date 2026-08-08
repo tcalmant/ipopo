@@ -61,10 +61,10 @@ dev = [
   # Enables coverage in the frameworks started in subprocesses by the tests
   "coverage-enable-subprocess>=1.0",
   "coveralls>=4.0",
+  # Linter, formatter and type checker: the same ones the CI enforces
+  "ruff>=0.16.2",
+  "ty>=0.0.69",
 ]
-
-[tool.black]
-line-length = 110
 
 [tool.ruff]
 line-length = 110
