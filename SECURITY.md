@@ -9,7 +9,7 @@ Security fixes are provided for the following branches:
 
 | Version | Branch | Python | Status |
 | ------- | ------ | ------ | ------ |
-| 3.2.x   | `v3`   | 3.10 - 3.14 | Actively maintained: security and bug fixes |
+| 3.2.x   | `v3`   | 3.10 - 3.15 | Actively maintained: security and bug fixes |
 | 2.x     | `v2`   | 2.7, 3.4+ | Abandoned: no fixes |
 | 1.x     | `v1`   | 2.7, 3.4+ | Extremely critical fixes only |
 
