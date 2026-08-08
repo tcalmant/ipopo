@@ -1,0 +1,47 @@
+name: Docs build
+
+# Builds the documentation the way Read the Docs does, to detect
+# build issues more easily
+#
+# Only runs when the docs/ folder changes: nothing else affects the build.
+
+on:
+  push:
+    branches: [v1, v2, v3, ci-test]
+    paths:
+      - "docs/**"
+  pull_request:
+    branches: [v1, v2, v3]
+    paths:
+      - "docs/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          # Must match the interpreter declared in .readthedocs.yaml
+          python-version: "3.14"
+
+      - name: Install the documentation dependencies
+        run: |
+          uv venv
+          uv pip install -r docs/requirements.txt
+
+      - name: Build the HTML documentation
+        # -W to consider warnings as errors
+        run: .venv/bin/sphinx-build -W --keep-going -b html docs docs/_build/html
+
+      - name: Build the LaTeX documentation
+        run: .venv/bin/sphinx-build -W --keep-going -b latex docs docs/_build/latex
