@@ -77,7 +77,8 @@ class MqttClient:
     ) -> None:
         """
         :param client_id: ID of the MQTT client
-        :param clean_session: If True, the broker will clean the client session on disconnect
+        :param clean_session: If True, the broker will clean the client session on disconnect.
+                              Forced to True if no client ID is given.
         :param protocol: MQTT protocol version (MQTTv31, MQTTv311 or MQTTv5)
         :param transport: Transport protocol (tcp or websockets)
         """
@@ -85,6 +86,12 @@ class MqttClient:
         if not client_id:
             # Randomize client ID
             self._client_id = self.generate_id()
+
+            # A generated ID is different on each run: the session kept by the
+            # broker could never be resumed, it would only pile up there
+            # (MQTT 3.1.1 sessions have no expiry), along with the messages
+            # queued for it. Only an explicit client ID can make use of it.
+            clean_session = True
         elif len(client_id) > 23:
             # ID too large
             _logger.warning(

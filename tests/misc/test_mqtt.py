@@ -535,6 +535,29 @@ class MqttClientTest(unittest.TestCase):
         # Client ID must be kept as is
         self.assertEqual(client.client_id, long_id)
 
+    def test_clean_session(self) -> None:
+        """
+        Tests that a generated client ID implies a clean session: the broker
+        would keep the session of a random ID forever, without any way to
+        resume it
+        """
+        client_id: str | None
+
+        def is_clean(client: mqtt.MqttClient) -> bool:
+            """
+            Returns the clean session flag given to the underlying Paho client
+            """
+            paho_client = vars(client)["_MqttClient__mqtt"]
+            return bool(paho_client._clean_session)
+
+        # No ID given: the session can't be resumed, it must be cleaned
+        for client_id in (None, ""):
+            self.assertTrue(is_clean(mqtt.MqttClient(client_id)))
+
+        # Explicit ID: the caller decides
+        self.assertFalse(is_clean(mqtt.MqttClient("custom_id")))
+        self.assertTrue(is_clean(mqtt.MqttClient("custom_id", clean_session=True)))
+
     def test_topic_matches(self) -> None:
         """
         Tests the topic_matches() method
