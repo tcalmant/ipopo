@@ -23,6 +23,32 @@ updates:
           - "minor"
           - "patch"
 
+  # Documentation dependencies
+  #
+  # Dependabot edits the pinned docs/requirements.txt directly, which pull requests
+  # trigger the Documentation workflow and should catch incoherent bumps.
+  # After merging one, regenerate the file to keep it consistent with
+  # docs/requirements.in:
+  #
+  #     uv pip compile --python-version 3.14 docs/requirements.in -o docs/requirements.txt
+  - package-ecosystem: "pip"
+    directory: "/docs"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "documentation"
+    commit-message:
+      prefix: "Update"
+    groups:
+      # Sphinx and its plugins move together: a single pull request avoids
+      # proposing a version of one that no longer matches the others
+      documentation:
+        patterns:
+          - "*"
+
   # Actions used by the workflows
   - package-ecosystem: "github-actions"
     directory: "/"

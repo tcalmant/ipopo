@@ -3,3 +3,8 @@ parallel = True
 
 [report]
 include = pelix/*
+
+# Blocks that are never executed at run time.
+exclude_also =
+    ^\s*if TYPE_CHECKING:
+    ^\s*@(typing\.)?overload$

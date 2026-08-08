@@ -1,4 +1,4 @@
-#/bin/sh
+#!/bin/sh
 
 script_dir=$(dirname "$(readlink -f "$0")")
 

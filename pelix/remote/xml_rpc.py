@@ -105,7 +105,6 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher, pelix.http.Servlet):
     def do_POST(
         self, request: pelix.http.AbstractHTTPServletRequest, response: pelix.http.AbstractHTTPServletResponse
     ) -> None:
-        # pylint: disable=C0103
         """
         Handles a HTTP POST request
 
@@ -206,7 +205,6 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
 
 class _ServiceCallProxy:
-    # pylint: disable=R0903
     """
     Service call proxy
     """

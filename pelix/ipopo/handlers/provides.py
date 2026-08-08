@@ -159,7 +159,6 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
             raise ValueError("Stored instance not available")
 
         def get_value(_: T, name: str) -> Any:
-            # pylint: disable=W0613
             """
             Retrieves the controller value, from the iPOPO dictionaries
 
@@ -169,7 +168,6 @@ class ServiceRegistrationHandler(constants.ServiceProviderHandler):
             return stored_instance.get_controller_state(name)
 
         def set_value(_: T, name: str, new_value: Any) -> Any:
-            # pylint: disable=W0613
             """
             Sets the property value and trigger an update event
 

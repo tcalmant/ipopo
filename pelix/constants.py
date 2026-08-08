@@ -168,7 +168,6 @@ class ActivatorProto(Protocol):
 
 
 def BundleActivator(clazz: type[ActivatorProto]) -> type[ActivatorProto]:
-    # pylint: disable=C0103
     """
     Decorator to declare the bundle activator
 

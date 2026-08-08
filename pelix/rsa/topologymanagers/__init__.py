@@ -96,14 +96,12 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
         return self._rsa.import_service(endpoint_description)
 
     def _unimport_removed_endpoint(self, endpoint_description: EndpointDescription) -> None:
-        # pylint: disable=W0212
         import_regs = cast(rsa_impl.RemoteServiceAdminImpl, self._rsa)._get_import_regs()
         for import_reg in import_regs:
             if import_reg.match_ed(endpoint_description):
                 import_reg.close()
 
     def _update_imported_endpoint(self, endpoint_description: EndpointDescription) -> None:
-        # pylint: disable=W0212
         import_regs = cast(rsa_impl.RemoteServiceAdminImpl, self._rsa)._get_import_regs()
         for import_reg in import_regs:
             if import_reg.match_ed(endpoint_description):
@@ -117,7 +115,6 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
         self._rsa.export_service(service_ref, {SERVICE_EXPORTED_INTERFACES: exp_intfs})
 
     def _handle_service_unregistering(self, service_ref: ServiceReference[Any]) -> None:
-        # pylint: disable=W0212
         export_regs = cast(rsa_impl.RemoteServiceAdminImpl, self._rsa)._get_export_regs()
         if export_regs:
             for export_reg in export_regs:
@@ -129,7 +126,6 @@ class TopologyManager(EventListenerHook, RemoteServiceAdminListener, EndpointEve
                     export_reg.close()
 
     def _handle_service_modified(self, service_ref: ServiceReference[Any]) -> None:
-        # pylint: disable=W0212
         export_regs = cast(rsa_impl.RemoteServiceAdminImpl, self._rsa)._get_export_regs()
         if export_regs:
             for export_reg in export_regs:

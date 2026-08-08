@@ -397,7 +397,6 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         self._zeroconf.register_service(info, self._ttl)
 
     def endpoint_updated(self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None) -> None:
-        # pylint: disable=W0613
         """
         An end point is updated
 

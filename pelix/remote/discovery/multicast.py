@@ -86,7 +86,6 @@ if os.name == "nt":
 
             # Prepare structure
             class sockaddr_in6(ctypes.Structure):
-                # pylint: disable=C0103, R0903
                 """
                 Definition of the C structure 'sockaddr_in6'
                 """
@@ -202,7 +201,6 @@ def create_multicast_socket(address: str, port: int) -> tuple[socket.socket, str
     SO_REUSEPORT = getattr(socket, "SO_REUSEPORT", None)
     if SO_REUSEPORT is not None:
         # Special for MacOS
-        # pylint: disable=E1101
         sock.setsockopt(socket.SOL_SOCKET, SO_REUSEPORT, 1)
 
     # Bind the socket
@@ -395,7 +393,6 @@ class MulticastDiscovery:
         self.__send_packet(data)
 
     def endpoint_updated(self, endpoint: ExportEndpoint, old_properties: dict[str, Any] | None) -> None:
-        # pylint: disable=W0613
         """
         An end point is updated
         """

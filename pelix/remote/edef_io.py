@@ -106,7 +106,6 @@ XML_VALUE = "__pelix__edef__xml_value"
 
 
 class EDEFReader:
-    # pylint: disable=R0903
     """
     Reads an EDEF XML data. Inspired from EndpointDescriptionParser from ECF
     """
@@ -256,7 +255,6 @@ class EDEFWriter:
                 element.tail = element_prefix
 
             # Yep, let the "element" variable be overwritten
-            # pylint: disable=R1704
             for element in element:  # noqa: B020, PLR1704
                 self._indent(element, level + 1, prefix)
 

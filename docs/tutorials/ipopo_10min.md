@@ -141,7 +141,7 @@ Once the specifications are defined, we can continue by implementing them with
 different components.
 
 :::{note}
-Depending on your own code style, you might to easer provide explicit types
+Depending on your own code style, you might to either provide explicit types
 on specification methods methods or let them be inherited from the protocol.
 
 Also note that the specification module must be importable by the bundles,

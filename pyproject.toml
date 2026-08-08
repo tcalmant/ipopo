@@ -19,6 +19,8 @@ classifiers = [
   "Environment :: Console",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -26,6 +28,7 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: 3.15",
   "Topic :: Software Development :: Libraries :: Application Frameworks",
+  "Typing :: Typed",
 ]
 license = "Apache-2.0"
 license-files = ["LICENSE"]
@@ -58,10 +61,10 @@ dev = [
   # Enables coverage in the frameworks started in subprocesses by the tests
   "coverage-enable-subprocess>=1.0",
   "coveralls>=4.0",
+  # Linter, formatter and type checker: the same ones the CI enforces
+  "ruff>=0.16.2",
+  "ty>=0.0.69",
 ]
-
-[tool.black]
-line-length = 110
 
 [tool.ruff]
 line-length = 110

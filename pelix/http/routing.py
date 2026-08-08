@@ -228,35 +228,30 @@ class RestDispatcher(Servlet):
         self._setup_rest_dispatcher()
 
     def do_GET(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
-        # pylint: disable=C0103
         """
         Handles a GET request
         """
         self._rest_dispatch(request, response)
 
     def do_HEAD(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
-        # pylint: disable=C0103
         """
         Handles a HEAD request
         """
         self._rest_dispatch(request, response)
 
     def do_POST(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
-        # pylint: disable=C0103
         """
         Handles a POST request
         """
         self._rest_dispatch(request, response)
 
     def do_PUT(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
-        # pylint: disable=C0103
         """
         Handles a PUT request
         """
         self._rest_dispatch(request, response)
 
     def do_DELETE(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
-        # pylint: disable=C0103
         """
         Handles a DELETE request
         """

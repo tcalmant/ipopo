@@ -264,7 +264,6 @@ class EDEFWriter:
                 element.tail = element_prefix
 
             # Yep, let the "element" variable be overwritten
-            # pylint: disable=R1704
             for element in element:  # noqa: B020, PLR1704
                 self._indent(element, level + 1, prefix)
 

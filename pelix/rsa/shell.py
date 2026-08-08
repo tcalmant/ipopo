@@ -503,7 +503,6 @@ class RSACommandHandler(ShellCommandsProvider):
         """
         Un-export endpoint with given endpoint_id (required)
         """
-        # pylint: disable=W0212
         export_regs = cast(rsa_impl.RemoteServiceAdminImpl, self._rsa)._get_export_regs()
         found_reg = None
         for export_reg in export_regs:

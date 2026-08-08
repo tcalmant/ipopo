@@ -78,7 +78,6 @@ def _parse_boolean(value: Any) -> bool:
 @Property("_print", "evt.print", True)
 @Property("_log", "evt.log", False)
 class EventAdminPrinter(services.ServiceEventHandler):
-    # pylint: disable=R0903
     """
     Utility component which can print and log EventAdmin events
     """

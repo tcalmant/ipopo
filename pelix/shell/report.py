@@ -545,7 +545,6 @@ class _ReportCommands(ShellCommandsProvider, ShellReport):
         """
         results: dict[str, Any] = {}
 
-        # pylint: disable=W0212
         try:
             # Extract frames
             frames = sys._current_frames()

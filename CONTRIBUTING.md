@@ -14,9 +14,10 @@ discussed on the users mailing list.
 
 ## Code contribution
 
-In order io contribute code to iPOPO, you must fork the project then use
+In order to contribute code to iPOPO, you must fork the project then use
 [GitHub Pull Requests](https://github.com/tcalmant/ipopo/pulls). Your
-code will be reviewed, tested and inserted into the master branch.
+code will be reviewed, tested and inserted into the `v3` branch, which is the
+current development line.
 
 Your code style must follow some rules, described in the following section.
 
@@ -38,6 +39,16 @@ An [EditorConfig](https://editorconfig.org/) is available in the repository:
 you should make sure your IDE loads it, either natively or using a plugin
 (*e.g.* [EditorConfig for VS Code](https://marketplace.visualstudio.com/items?itemName=EditorConfig.EditorConfig)).
 
+[ruff](https://docs.astral.sh/ruff/) and [ty](https://docs.astral.sh/ty/) are
+part of the development dependencies, so `uv sync` installs them. The
+continuous integration rejects a pull request that doesn't pass all three of:
+
+```bash
+uv run ruff check .
+uv run ruff format --check .
+uv run ty check pelix tests
+```
+
 ### General
 
 - Your code must be compatible with Python 3.10+.
@@ -51,7 +62,7 @@ you should make sure your IDE loads it, either natively or using a plugin
 
 ### Formatting
 
-- Rule of thumb: use [black](https://pypi.org/project/black/) to format your files
+- Rule of thumb: use [ruff](https://docs.astral.sh/ruff/) to format your files, with `ruff format`. It is configured in `pyproject.toml`, so it doesn't need any argument.
 - Avoid inline comments; use 2 spaces when using them (mainly for type hinting)
 - Break long lines after **110** characters. Exception for URLs.
 - Delete trailing whitespace.

@@ -360,7 +360,6 @@ class Dispatcher(pelix.remote.RemoteServiceDispatcher):
         listener: pelix.remote.RemoteServiceExportEndpointListener,
         svc_ref: ServiceReference[pelix.remote.RemoteServiceExportEndpointListener],
     ) -> None:
-        # pylint: disable=W0613
         """
         Listener bound to the component
         """
@@ -378,7 +377,6 @@ class Dispatcher(pelix.remote.RemoteServiceDispatcher):
         exporter: pelix.remote.RemoteServiceExportProvider,
         exporter_ref: ServiceReference[pelix.remote.RemoteServiceExportProvider],
     ) -> None:
-        # pylint: disable=W0613
         """
         Exporter bound
         """
@@ -415,7 +413,6 @@ class Dispatcher(pelix.remote.RemoteServiceDispatcher):
         exporter: pelix.remote.RemoteServiceExportProvider,
         svc_ref: ServiceReference[pelix.remote.RemoteServiceExportProvider],
     ) -> None:
-        # pylint: disable=W0613
         """
         Exporter gone
         """
@@ -617,7 +614,6 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         return endpoint
 
     def bound_to(self, path: str, parameters: dict[str, Any]) -> None:
-        # pylint: disable=W0613
         """
         This servlet has been bound to a server
 
@@ -633,7 +629,6 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
             self._controller = True
 
     def unbound_from(self, path: str, parameters: dict[str, Any]) -> None:
-        # pylint: disable=W0613
         """
         This servlet has been unbound from a server
 

@@ -21,6 +21,7 @@ Unreleased
   It is kept as an artifact of the `SBOM` workflow, and is attached to the
   GitHub releases
 * Overall linting and typing review. `ruff` and `ty` now return no error.
+* Added an empty `py.typed` as per [PEP 561](https://peps.python.org/pep-0561/)
 
 ### Security
 
@@ -301,7 +302,7 @@ All versions up to 3.2.1 are affected.
   See [#101](https://github.com/tcalmant/ipopo/pull/101) for more details.
 * Use a local `etcd` server in Travis-CI instead of a public one.
 
-## iPOPO 1.0.0
+## iPOPO 0.8.0
 
 :::{admonition} Release Date
 :class: info

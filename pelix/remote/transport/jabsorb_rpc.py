@@ -116,7 +116,6 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
     def do_POST(
         self, request: pelix.http.AbstractHTTPServletRequest, response: pelix.http.AbstractHTTPServletResponse
     ) -> None:
-        # pylint: disable=C0103
         """
         Handle a POST request
 
@@ -257,7 +256,6 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
 
 class _ServiceCallProxy:
-    # pylint: disable=R0903
     """
     Service call proxy
     """

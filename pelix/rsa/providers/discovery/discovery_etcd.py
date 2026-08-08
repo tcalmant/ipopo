@@ -260,7 +260,6 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                 raise
 
             # Note: error disabled as EtcdResult object is too dynamic
-            # pylint: disable=E1101
             self._wait_index = session_exists_result.createdIndex + 1
             self._ttl_thread = threading.Thread(target=self._ttl_job, name="Etcd TTL Job")
             self._ttl_thread.daemon = True
@@ -353,7 +352,6 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
 
                 # reset wait_index
                 # Note: error disabled as EtcdResult object is too dynamic
-                # pylint: disable=E1101
                 self._wait_index = result.modifiedIndex + 1
                 key = result.key
                 action = result.action

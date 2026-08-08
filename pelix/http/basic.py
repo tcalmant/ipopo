@@ -289,7 +289,6 @@ class _RequestHandler(BaseHTTPRequestHandler):
         return self.send_no_servlet_response
 
     def log_error(self, format: str, *args: Any, **kwargs: Any) -> None:
-        # pylint: disable=W0221
         """
         Log server error
         """

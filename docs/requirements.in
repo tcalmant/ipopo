@@ -1,0 +1,12 @@
+# Top-level documentation dependencies.
+#
+# docs/requirements.txt is generated from this file and is the one installed by
+# Read the Docs.
+# Do not edit the .txt by hand, regenerate it instead:
+#
+#     uv pip compile --python-version 3.14 docs/requirements.in -o docs/requirements.txt
+#
+# The Python version must match the interpreter declared in .readthedocs.yaml.
+sphinx
+sphinx-rtd-theme
+myst-parser

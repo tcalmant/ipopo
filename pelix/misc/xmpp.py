@@ -180,7 +180,6 @@ class XMPPBotClient(ClientXMPP):
         self._disconnected_event.set()
 
     async def on_session_start(self, data: Any) -> None:
-        # pylint: disable=W0613
         """
         XMPP session started
         """
@@ -220,7 +219,6 @@ class InviteMixIn(BaseXMPP):
     """
 
     def __init__(self, nick: str) -> None:
-        # pylint: disable=W0231
         """
         Sets up the Mix-in
 
@@ -269,7 +267,6 @@ class ServiceDiscoveryMixin(BaseXMPP):
     """
 
     def __init__(self) -> None:
-        # pylint: disable=W0231
         """
         Sets up the Mix-in
         """

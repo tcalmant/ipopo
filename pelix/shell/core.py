@@ -165,7 +165,6 @@ class _ShellUtils(ShellUtils):
 
 
 class _ShellService(parser.Shell, ShellService):
-    # pylint: disable=R0904
     """
     Provides the core shell service for Pelix
     """
@@ -527,7 +526,6 @@ class _ShellService(parser.Shell, ShellService):
         except (ValueError, TypeError):
             max_depth = None
 
-        # pylint: disable=W0212
         try:
             # Extract frames
             frames = sys._current_frames()
@@ -591,7 +589,6 @@ class _ShellService(parser.Shell, ShellService):
         except (ValueError, TypeError):
             max_depth = None
 
-        # pylint: disable=W0212
         try:
             # Get the stack
             thread_id = int(thread_id)

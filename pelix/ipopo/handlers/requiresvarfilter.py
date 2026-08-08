@@ -197,7 +197,6 @@ class _VariableFilterMixIn(requires._RuntimeDependency):
         return False
 
     def on_property_change(self, name: str, old_value: Any, new_value: Any) -> None:
-        # pylint: disable=W0613
         """
         A component property has been updated
 

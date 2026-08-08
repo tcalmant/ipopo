@@ -158,7 +158,6 @@ def _get_class_spec(clazz: type[Any]) -> str | list[str]:
 
 
 class Bundle:
-    # pylint: disable=W0212
     """
     Represents a "bundle" in Pelix
     """
@@ -481,8 +480,6 @@ class Bundle:
             self._fire_bundle_event(BundleEvent.STOPPED)
 
         # Raise the exception, if any
-        # pylint: disable=E0702
-        # Pylint seems to miss the "is not None" check below
         if exception is not None:
             raise exception
 
@@ -918,7 +915,6 @@ class Framework(Bundle):
 
         # Create a simple visitor
         def visitor(fullname: str, is_package: bool, module_path: str) -> bool:
-            # pylint: disable=W0613
             """
             Package visitor: accepts everything in recursive mode,
             else avoids packages
@@ -1776,7 +1772,6 @@ class FrameworkFactory:
 
     @classmethod
     def delete_framework(cls, framework: Framework | None = None) -> bool:
-        # pylint: disable=W0212
         """
         Removes the framework singleton
 

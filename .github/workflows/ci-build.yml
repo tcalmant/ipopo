@@ -8,8 +8,37 @@ on:
   workflow_dispatch:
 
 jobs:
+  lint:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Lint against python 3.14, as some dependencies are not available
+      # for 3.15 yet
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          python-version: "3.14"
+
+      - name: Install dependencies
+        # All the extras so that `ty` sees the optional imports
+        run: uv sync --all-extras --locked
+
+      - name: Check code style
+        run: uv run --no-sync ruff check .
+
+      - name: Check formatting
+        run: uv run --no-sync ruff format --check .
+
+      - name: Check types
+        # Don't check samples as they depend on other dependencies
+        run: uv run --no-sync ty check pelix tests
+
   test:
-    timeout-minutes: 15
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
