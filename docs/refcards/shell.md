@@ -136,6 +136,18 @@ This factory accepts the following properties:
 | `pelix.shell.ssl.key` | `None` | Path to the server's private key |
 | `pelix.shell.ssl.key_password` | `None` | Password of the server's private key |
 
+:::{warning}
+`pelix.shell.ssl.ca` is not optional when `pelix.shell.ssl.cert` is set.
+
+When a certificate is given without an authority chain, the remote shell still
+requires a client certificate, but validates it against the **system trust
+store**: any certificate signed by any publicly trusted authority is accepted,
+by a shell which can install and start arbitrary bundles.
+
+iPOPO 3.2.2 logs an error when it detects this configuration, but still starts.
+Starting with iPOPO 3.3.0, this configuration will be refused.
+:::
+
 ### XMPP Shell
 
 The XMPP shell interface allows to communicate with a Pelix framework
@@ -167,6 +179,7 @@ In addition to the common parameters, the script accepts the following ones:
 | `-p PORT`, `--port PORT` | 5222 | Port of the XMPP server |
 | `--tls` | *not set* | If set, use a STARTTLS connection |
 | `--ssl` | *not set* | If set, use an SSL connection |
+| `--tls-verify` | *not set* | If set, verify the certificate of the XMPP server |
 
 #### Programmatic startup
 
@@ -192,6 +205,16 @@ This factory accepts the following properties:
 | `shell.xmpp.password` | `None`    | User password             |
 | `shell.xmpp.tls`      | 1         | Use a STARTTLS connection |
 | `shell.xmpp.ssl`      | 0         | Use an SSL connection     |
+| `shell.xmpp.tls.verify` | 0       | Verify the certificate of the XMPP server |
+
+:::{warning}
+`shell.xmpp.tls.verify` defaults to `0`, meaning the certificate of the XMPP
+server is **not** verified: an attacker able to intercept the connection can
+impersonate the server and capture the credentials of the shell account.
+
+Set it to `1` in any deployment where the connection to the server is not fully
+trusted. This default will become `1` in iPOPO 3.3.0.
+:::
 
 ## Provided command bundles
 

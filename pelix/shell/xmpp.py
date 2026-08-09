@@ -154,6 +154,7 @@ class _XmppInStream(IO[str]):
 @HiddenProperty("_password", "shell.xmpp.password")
 @Property("_use_tls", "shell.xmpp.tls", "1")
 @Property("_use_ssl", "shell.xmpp.ssl", "0")
+@Property("_tls_verify", "shell.xmpp.tls.verify", "0")
 class IPopoXMPPShell:
     """
     The iPOPO XMPP Shell, based on the Pelix Shell
@@ -172,6 +173,7 @@ class IPopoXMPPShell:
         self._password: str | None = None
         self._use_tls: bool = True
         self._use_ssl: bool = False
+        self._tls_verify: bool = False
 
         # XMPP Bot
         self.__bot: pelix.misc.xmpp.BasicBot | None = None
@@ -204,6 +206,7 @@ class IPopoXMPPShell:
         self._port = self.__normalize_int(self._port, 5222)
         self._use_tls = bool(self.__normalize_int(self._use_tls, 1))
         self._use_ssl = bool(self.__normalize_int(self._use_ssl, 0))
+        self._tls_verify = bool(self.__normalize_int(self._tls_verify, 0))
 
         # Check other values
         if not self._host:
@@ -228,7 +231,7 @@ class IPopoXMPPShell:
         )
 
         # Create the bot. Negative priority avoids listening to human messages
-        self.__bot = pelix.misc.xmpp.BasicBot(self._jid, self._password)
+        self.__bot = pelix.misc.xmpp.BasicBot(self._jid, self._password, ssl_verify=self._tls_verify)
         self.__bot.auto_authorize = True
 
         # Register to events
@@ -421,6 +424,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Use an SSL connection",
     )
+    group.add_argument(
+        "--tls-verify",
+        dest="tls_verify",
+        action="store_true",
+        help="Verify the certificate of the XMPP server",
+    )
 
     # Parse them
     args = parser.parse_args(argv)
@@ -480,6 +489,7 @@ def main(argv: list[str] | None = None) -> int:
                 "shell.xmpp.password": password,
                 "shell.xmpp.tls": args.use_tls,
                 "shell.xmpp.ssl": args.use_ssl,
+                "shell.xmpp.tls.verify": args.tls_verify,
             },
         )
 
