@@ -30,9 +30,8 @@ import abc
 import logging
 from collections.abc import Callable, Iterable
 from threading import RLock
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-import pelix.rsa.remoteserviceadmin as rsa_impl
 from pelix import rsa
 from pelix.constants import OBJECTCLASS, SERVICE_SCOPE, Specification
 from pelix.framework import BundleContext
@@ -62,6 +61,9 @@ from pelix.rsa import (
 )
 from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.utilities import get_remote_method
+
+if TYPE_CHECKING:
+    import pelix.rsa.remoteserviceadmin as rsa_impl
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -260,7 +262,7 @@ class DistributionProvider(abc.ABC):
         if not ed:
             return None
 
-        import_regs = cast(rsa_impl.RemoteServiceAdminImpl, self._rsa)._get_import_regs()
+        import_regs = cast("rsa_impl.RemoteServiceAdminImpl", self._rsa)._get_import_regs()
         if import_regs:
             for import_reg in import_regs:
                 if import_reg.match_ed(ed):
