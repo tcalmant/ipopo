@@ -34,6 +34,13 @@ This class inherits the methods from :class:`pelix.framework.Bundle`.
 Service management
 ------------------
 
+Services are registered and looked up by specification.
+The :class:`~pelix.constants.Specification` decorator names the protocol or the
+class describing a service, as detailed in :ref:`refcard_specifications`.
+
+.. autoclass:: pelix.constants.Specification
+   :members:
+
 The lookup methods of the bundle context will return
 :class:`~pelix.internals.registry.ServiceReference` objects that can be used
 to check the metadata of a service before using it.

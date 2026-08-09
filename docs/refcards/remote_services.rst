@@ -136,6 +136,18 @@ Finally, the :class:`~pelix.remote.beans.ExportEndpoint` object also gives
 access to the service reference and implementation, in order to let transport
 providers access the methods and properties of the service.
 
+A remote caller can only reach the public API of an exported service: the name
+it gives is resolved by :func:`~pelix.utilities.get_remote_method`, which
+refuses the private and special members (leading underscore), the dotted names
+(``member.method``) and the attributes which aren't callable.
+Note that this is the only restriction applied: **every** public method of the
+exported service can be called, whether or not it is part of the exported
+specifications.
+
+.. versionchanged:: 3.2.2
+   The name given by the caller was previously passed to ``getattr()`` without
+   any check, letting a caller reach any member of the service.
+
 
 Core Services
 -------------
@@ -305,7 +317,8 @@ mDNS Discovery
 :Bundle: pelix.remote.discovery.mdns
 :Factory: pelix-remote-discovery-zeroconf-factory
 :Requires: HTTP Service, Dispatcher Servlet
-:Libraries: `pyzeroconf <https://github.com/mcfletch/pyzeroconf>`_
+:Libraries: `zeroconf <https://github.com/python-zeroconf/python-zeroconf>`_,
+            installed by the ``zeroconf`` extra
 
 The mDNS protocol, also known as Zeroconf, is a standard protocol based on
 multicast packets.
@@ -316,11 +329,6 @@ Unlike the home-made multicast protocol, this one doesn't support service
 updates and gives troubles with service unregistrations (frameworks lost, ...).
 As a result, it should be used only if it is required to interact with other
 mDNS devices.
-
-In order to work with the mDNS discovery from the
-Eclipse Communication Framework, the ``pyzeroconf`` library must be patched:
-the ``.local.`` check in ``zeroconf.mdns.DNSQuestion`` must be removed
-(around line 220).
 
 This provider is implemented in the ``pelix.remote.discovery.mdns`` bundle,
 which provides a ``pelix-remote-discovery-zeroconf-factory`` iPOPO
@@ -333,6 +341,18 @@ Property              Default value         Description
 zeroconf.service.type _pelix_rs._tcp.local. Zeroconf service type of exported services
 zeroconf.ttl          60                    Time To Live of services (in seconds)
 ===================== ===================== ===================================
+
+The properties of an endpoint are carried by the mDNS records with a
+pseudo-serialization, which supports the ``bool``, ``float``, ``int`` and
+``str`` types.
+A property of any other type is sent as a string, and read back as a string.
+
+.. versionchanged:: 3.2.2
+   The values read from the records were previously converted by ``eval()``,
+   which allowed any host on the local link to execute arbitrary code in the
+   framework process.
+   A value which JSON can't handle also aborted the export of the whole
+   endpoint instead of being sent as a string.
 
 To use this discovery provider, you'll need to install the following bundles
 and instantiate the associated components:

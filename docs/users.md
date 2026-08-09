@@ -5,9 +5,9 @@ If you want to add your name here, send a mail on the
 
 ## Cohorte Technologies (isandlaTech)
 
-[![Cohorte Technologies](/_static/users/cohorte_technologies.svg){width="33.0%"}](http://cohorte-technologies.com/)
+[![Cohorte Technologies](/_static/users/cohorte_technologies.svg){width="33.0%"}](https://web.archive.org/web/20231209190354/http://cohorte-technologies.com/)
 
-[Cohorte Technologies](http://cohorte-technologies.com/) is the main
+[Cohorte Technologies](https://web.archive.org/web/20231209190354/http://cohorte-technologies.com/) is the main
 sponsor and user of iPOPO. It uses iPOPO as the basis of all its core
 developments, like the [Cohorte Framework](http://cohorte.github.io/).
 
@@ -89,4 +89,4 @@ students and Grenoble students to invent, create and implement projects
 and application objects ambient intelligence through their training. The
 platform of the [Grenoble Alps University](https://www.univ-grenoble-alpes.fr/) is housed in the
 [Polytech Grenoble](https://polytech.grenoble-inp.fr/) building. AIR is
-an educational platform of the [labex Persyval](https://persyval-lab.org/).
+an educational platform of the [labex Persyval](https://persyval.univ-grenoble-alpes.fr/).

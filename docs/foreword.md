@@ -44,7 +44,7 @@ concepts of OSGi.
 
 A first draft, called `python.injections`, was developed in December 2011.
 It was a proof of concept that was good enough for my employer,
-[isandlaTech](http://www.cohorte-technologies.com/fr/) (now Cohorte
+[isandlaTech](https://web.archive.org/web/20231130215424/http://cohorte-technologies.com/fr/) (now Cohorte
 Technologies), to allow the development of what would become iPOPO.
 
 The first public release was version 0.3 in April 2012, under the GPLv3

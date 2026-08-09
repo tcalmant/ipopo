@@ -45,6 +45,15 @@ The PID is just a string, which must be globally unique.
 Assuming a simple case where your pretty printer configurator receives the
 configuration has a unique class name, you may well use that name.
 
+.. note:: The default persistence stores each configuration in a file named
+   after its PID, therefore it refuses the PIDs containing a path separator
+   (``/`` or ``\``) or a null character.
+
+   .. versionchanged:: 3.2.2
+      Those PIDs were previously accepted, meaning a PID like
+      ``../../some/file`` could be used to read, write or delete a file outside
+      of the configuration folder.
+
 So lets assume, our managed service is called ``PrettyPrinter`` and that name
 is also used as the PID.
 The class would be:

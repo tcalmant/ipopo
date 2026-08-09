@@ -21,14 +21,24 @@ the implementation of long-running operations like Server Sent Events and Websoc
 Configuration properties
 ------------------------
 
-The asynchronous HTTP service supports the same properties as the basic HTTP service:
+The asynchronous HTTP service supports the same properties as the basic HTTP
+service, described in :ref:`its reference card <refcard_http>`:
 
-================== ======= ====================================================
-Property           Default Description
-================== ======= ====================================================
-pelix.http.address 0.0.0.0 The address the HTTP server is bound to
-pelix.http.port    8080    The port the HTTP server is bound to
-================== ======= ====================================================
+========================= ======= =============================================
+Property                  Default Description
+========================= ======= =============================================
+pelix.http.address        0.0.0.0 The address the HTTP server is bound to
+pelix.http.port           8080    The port the HTTP server is bound to
+pelix.http.debug          False   If set, error pages sent to the clients
+                                  contain the stack trace of the error
+pelix.http.max_body_size  1048576 Maximum size, in bytes, of the body of a
+                                  request. A request with a bigger body is
+                                  answered with a 413 error code. A value
+                                  lesser than or equal to 0 removes the limit
+pelix.http.socket_timeout 60      Accepted for compatibility with the basic
+                                  HTTP service, but not applied: the timeouts
+                                  of the connections are left to ``aiohttp``
+========================= ======= =============================================
 
 Instantiation
 -------------
@@ -110,6 +120,19 @@ Note that their content and liability is implementation-dependent:
 * ``http.async``: a boolean flag indicating if the servlet is asynchronous
   (True) or synchronous (False). This is set automatically by the HTTP service
   when registering the servlet.
+
+Like a synchronous one, an asynchronous servlet can override the
+``pelix.http.max_body_size`` property of the HTTP service for the requests it
+handles, either as a service property, next to ``pelix.http.path.async``, or in
+the ``parameters`` argument of :meth:`~HTTPService.register_servlet`.
+The limit applies to the
+:meth:`~pelix.http.AbstractAsyncHTTPServletRequest.read_data` method: a servlet
+reading the raw stream given by
+:meth:`~pelix.http.AbstractAsyncHTTPServletRequest.get_rfile` has to bound what
+it reads itself.
+
+.. versionadded:: 3.2.2
+   The ``pelix.http.max_body_size`` entry.
 
 An asynchronous servlet for the Pelix HTTP service has the following methods:
 

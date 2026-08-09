@@ -6,7 +6,7 @@ Remote Service Admin
 Pelix/iPOPO now includes an implementation of the
 `Remote Service Admin OSGi specification <https://docs.osgi.org/specification/osgi.cmpn/7.0.0/service.remoteserviceadmin.html>`__.
 It has been contributed by `Scott Lewis <https://github.com/scottslewis>`__,
-leader of the `Eclipse Communication Framework <https://eclipse.dev/ecf/>`__
+leader of the `Eclipse Communication Framework <https://github.com/eclipse-ecf/ecf>`__
 project.
 
 This feature can be use to let multiple iPOPO and OSGi frameworks share their
@@ -21,7 +21,7 @@ similar to the Eclipse Communication Framework (implemented in Java).
 Most of the concepts have been kept in the Python implementation, it is
 therefore useful to check the documentation of this Eclipse project.
 
-* `ECF project page <https://eclipse.dev/ecf/>`__, the formal project page
+* `ECF project page <https://github.com/eclipse-ecf/ecf>`__, the formal project page
 * `ECF wiki <https://wiki.eclipse.org/Eclipse_Communication_Framework_Project>`__,
   where most of the documentation can be found
 * `ECF blog <http://eclipseecf.blogspot.com/>`__, providing news and description
@@ -51,6 +51,17 @@ Module / Package           Description
 ``providers.distribution`` Package of transport providers
 ``topologymanagers.basic`` Basic implementation of a Topology Manager
 ========================== ====================================================
+
+Like in :ref:`Pelix Remote Services <refcard_remote_services>`, a remote caller
+can only reach the public API of an exported service: the transport providers
+resolve the name given by the caller with
+:func:`~pelix.utilities.get_remote_method`, which refuses the private and
+special members (leading underscore), the dotted names (``member.method``) and
+the attributes which aren't callable.
+
+.. versionchanged:: 3.2.2
+   The name given by the caller was previously passed to ``getattr()`` without
+   any check, letting a caller reach any member of the service.
 
 Providers included with Pelix/iPOPO
 ===================================

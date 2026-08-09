@@ -92,6 +92,16 @@ language = "en"
 # This patterns also effect to html_static_path and html_extra_path
 exclude_patterns = ["doc-env", "_build", "Thumbs.db", ".DS_Store", ".gitignore", "requirements.txt"]
 
+# URLs the linkcheck builder can't validate:
+# - the sample servers described in the reference cards don't run while
+#   the documentation is built
+# - GitHub computes the "#L<line>" anchors of a source file client-side, so
+#   the builder reports them as missing
+linkcheck_ignore = [
+    r"^https?://localhost(:\d+)?/",
+    r"^https://github\.com/.*/blob/.*#L\d+$",
+]
+
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
 #
