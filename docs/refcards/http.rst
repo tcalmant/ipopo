@@ -27,14 +27,30 @@ Configuration properties
 
 All implementations of the HTTP service must support the following properties:
 
-================== ======= ====================================================
-Property           Default Description
-================== ======= ====================================================
-pelix.http.address 0.0.0.0 The address the HTTP server is bound to
-pelix.http.port    8080    The port the HTTP server is bound to
-pelix.http.debug   False   If set, error pages sent to the clients contain the
-                           stack trace of the error
-================== ======= ====================================================
+========================= ======= =============================================
+Property                  Default Description
+========================= ======= =============================================
+pelix.http.address        0.0.0.0 The address the HTTP server is bound to
+pelix.http.port           8080    The port the HTTP server is bound to
+pelix.http.debug          False   If set, error pages sent to the clients
+                                  contain the stack trace of the error
+pelix.http.max_body_size  1048576 Maximum size, in bytes, of the body of a
+                                  request. A request with a bigger body is
+                                  answered with a 413 error code. A value
+                                  lesser than or equal to 0 removes the limit
+pelix.http.socket_timeout 60      Timeout, in seconds, of the sockets handling
+                                  the requests. A client which takes longer to
+                                  send its request gets a 408 error code. A
+                                  value lesser than or equal to 0 removes the
+                                  timeout
+========================= ======= =============================================
+
+.. versionadded:: 3.2.2
+   ``pelix.http.max_body_size`` and ``pelix.http.socket_timeout``.
+
+   Before that release, the body of a request was read without any size limit,
+   and a request without a ``Content-Length`` header blocked its handling
+   thread until the client closed the connection.
 
 .. warning:: ``pelix.http.debug`` must be kept unset in production.
 
@@ -131,6 +147,22 @@ Note that their content and liability is implementation-dependent:
 * ``http.async``: a boolean flag indicating if the servlet is asynchronous
   (True) or synchronous (False). In the case of the basic HTTP service,
   this is always False, as it only supports synchronous servlets.
+
+A servlet can, on the other hand, configure the way the HTTP service handles
+the requests it will be given, with the following entry:
+
+* ``pelix.http.max_body_size``: the maximum size, in bytes, of the body of a
+  request handled by this servlet. It overrides the property of the same name
+  of the HTTP service, in both directions: a servlet can accept bodies bigger
+  than the other ones, which is useful to carry RPC payloads, or restrict
+  itself to smaller ones. A value lesser than or equal to 0 removes the limit.
+
+It can be given either as a property of the servlet service, next to
+``pelix.http.path``, or in the ``parameters`` argument of
+:meth:`~HTTPService.register_servlet`.
+
+.. versionadded:: 3.2.2
+   The ``pelix.http.max_body_size`` entry.
 
 A servlet for the Pelix HTTP service has the following methods:
 

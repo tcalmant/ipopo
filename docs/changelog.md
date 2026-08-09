@@ -79,6 +79,27 @@ All versions up to 3.2.1 are affected.
   credentials.
   The property **defaults to `0`**, keeping the previous behaviour in a patch
   version: **it will default to `1` in iPOPO 3.3.0**
+* The HTTP services now bound the requests they handle.
+  A `POST` request without a `Content-Length` header made the synchronous
+  service read its body until the client closed the connection: the handling
+  thread was blocked for as long as the client wanted, and being neither a
+  daemon nor tracked by the server, it also prevented the interpreter from
+  exiting.
+  Such a request is now considered as having an empty body.
+  Two properties were added to limit the resources a single client can use:
+  `pelix.http.max_body_size` (1 MiB by default), which answers a 413 error code
+  to a bigger request, and `pelix.http.socket_timeout` (60 seconds by default),
+  which answers a 408 error code to a client which takes too long to send its
+  request.
+  Both accept a value lesser than or equal to 0 to remove the limit
+* The body of a request given to an asynchronous servlet (`do_async_*`) was not
+  limited at all.
+  Such a servlet reads the request itself, through `get_rfile()`, instead of
+  going through the reader of `aiohttp`, which is where the size of the body of
+  the other requests was checked.
+  The asynchronous HTTP service now reads and checks the bodies itself, in both
+  cases: on the announced size of the body and, for a chunked request which
+  declares none, on the bytes actually read
 
 ### Utilities
 
@@ -96,6 +117,32 @@ All versions up to 3.2.1 are affected.
 * Shared code of synchronous and asynchronous HTTP services has been moved to
   a common base class in the `pelix.http._base` module. It is intended for
   internal use only
+* Stopping the asynchronous HTTP service doesn't raise an error anymore when its
+  event loop is still running.
+  `aiohttp` keeps a connection alive for a few seconds after a refused request,
+  to read and discard the body the client is still sending, which can outlast
+  the delay the service waits for its thread
+* The threads handling the requests of the synchronous HTTP service are now
+  registered by `ThreadingMixIn`, so that stopping the service waits for the
+  requests being handled instead of ignoring them. They keep the name giving
+  the address of their client, and are still marked as daemons according to the
+  `daemon_threads` flag of the server, which `ThreadingMixIn` applies itself
+* Added the `pelix.http.BodyTooLargeError` exception, raised by `read_data()`
+  when a request declares a body bigger than `pelix.http.max_body_size`.
+  Servlets don't have to handle it: the HTTP service answers a 413 error code
+* A servlet can now override `pelix.http.max_body_size` for the requests it
+  handles, by giving it as a service property (next to `pelix.http.path`) or in
+  the `parameters` argument of `register_servlet()`.
+  The limit of the HTTP service is a sane default for a servlet handling forms,
+  but not for one carrying RPC payloads: without this, accepting a big body on
+  a single path meant raising the limit of the whole server
+
+### Shell
+
+* The remote shell lets `ThreadingMixIn` start the threads handling its clients,
+  like the HTTP service does, instead of starting them itself. Their name and
+  their daemon flag are unchanged: the threads are simply registered by the
+  server, which would let it wait for them if they ever stopped being daemons
 
 ### Tests
 
@@ -108,6 +155,10 @@ All versions up to 3.2.1 are affected.
 * Python 3.15 is now tested in CI, except for RSA which has some dependencies
   not yet available pre-built for that version
 * Added tests for the TLS configuration of the remote and XMPP shells
+* Added tests for the body size limit, the socket timeout and the lifecycle of
+  the request handling threads of the HTTP services
+* Added a test for the name and the daemon flag of the threads handling the
+  clients of the remote shell
 * The MQTT service and EventAdmin MQTT bridge tests are now skipped when no
   broker is available
 

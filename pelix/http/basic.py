@@ -84,16 +84,24 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
     HTTP Servlet request helper
     """
 
-    def __init__(self, request_handler: BaseHTTPRequestHandler, full_path: str, prefix: str) -> None:
+    def __init__(
+        self,
+        request_handler: BaseHTTPRequestHandler,
+        full_path: str,
+        prefix: str,
+        max_body_size: int | None = None,
+    ) -> None:
         """
         Sets up the request helper
 
         :param request_handler: The basic request handler
         :param full_path: The normalized request path, including the prefix
         :param prefix: The path to the servlet root
+        :param max_body_size: Maximum accepted size of the body, in bytes
         """
         self._handler = request_handler
         self._prefix = prefix
+        self.max_body_size = max_body_size
 
         # Compute the sub path
         self._sub_path = compute_sub_path(full_path, prefix)
@@ -246,8 +254,20 @@ class _RequestHandler(BaseHTTPRequestHandler):
         """
         self._service = http_svc
 
-        # This calls the do_* methods
+        # This calls setup() then the do_* methods
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
+
+    def setup(self) -> None:
+        """
+        Prepares the handling of the request: applies the timeout of the HTTP
+        service to the connection, so that a slow client can't keep a handling
+        thread busy forever.
+        """
+        super().setup()
+
+        timeout = self._service.get_socket_timeout()
+        if timeout is not None:
+            self.connection.settimeout(timeout)
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -267,7 +287,9 @@ class _RequestHandler(BaseHTTPRequestHandler):
         servlet = routing.servlet
         if servlet is not None and hasattr(servlet, name):
             # Prepare the helpers
-            request = _HTTPServletRequest(self, routing.path, routing.prefix)
+            request = _HTTPServletRequest(
+                self, routing.path, routing.prefix, self._service.resolve_max_body_size(routing.parameters)
+            )
             response = _HTTPServletResponse(self)
 
             # Create a wrapper to pass the handler to the servlet
@@ -278,6 +300,12 @@ class _RequestHandler(BaseHTTPRequestHandler):
                 try:
                     # Handle the request
                     getattr(servlet, name)(request, response)
+                except http.BodyTooLargeError as ex:
+                    # The client announced a body we refuse to read
+                    self.send_too_large_response(response, ex)
+                except TimeoutError:
+                    # The client didn't send the body it announced in time
+                    self.send_timeout_response(response)
                 except Exception:  # noqa: BLE001
                     # Send a 500 error page on error
                     self.send_exception(response)
@@ -308,6 +336,63 @@ class _RequestHandler(BaseHTTPRequestHandler):
         response = _HTTPServletResponse(self)
         response.send_content(404, self._service.make_not_found_page(self.path))
 
+    def send_too_large_response(
+        self, response: http.AbstractHTTPServletResponse, error: http.BodyTooLargeError
+    ) -> None:
+        """
+        Sends a "request entity too large" page with a 413 error code.
+
+        :param response: The response handler
+        :param error: The error raised while reading the body of the request
+        """
+        self._service.log(
+            logging.WARNING,
+            "Refused a request body of %d bytes on %s (maximum is %d)",
+            error.size,
+            self.path,
+            error.max_size,
+        )
+
+        # Don't echo the request path back to the client: only the sizes, which
+        # the client already knows
+        response.send_content(
+            413,
+            f"""<html>
+<head>
+<title>413 - Request entity too large</title>
+</head>
+<body>
+<h1>Request entity too large</h1>
+<p>The maximum accepted size of a request body is {error.max_size} bytes.</p>
+</body>
+</html>""",
+        )
+
+    def send_timeout_response(self, response: http.AbstractHTTPServletResponse) -> None:
+        """
+        Sends a "request timeout" page with a 408 error code, when the client
+        took too long to send its request.
+
+        :param response: The response handler
+        """
+        self._service.log(logging.WARNING, "Timeout while reading a request on %s", self.path)
+
+        # The connection can't be reused after a timeout
+        self.close_connection = True
+
+        response.send_content(
+            408,
+            """<html>
+<head>
+<title>408 - Request timeout</title>
+</head>
+<body>
+<h1>Request timeout</h1>
+<p>The request took too long to be sent.</p>
+</body>
+</html>""",
+        )
+
     def send_exception(self, response: http.AbstractHTTPServletResponse) -> None:
         """
         Sends an exception page with a 500 error code.
@@ -335,6 +420,8 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
     Inspired from:
     http://www.arcfn.com/2011/02/ipv6-web-serving-with-arc-or-python.html
     """
+
+    daemon_threads = False
 
     def __init__(
         self,
@@ -396,20 +483,18 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
             # Use the local host name in case of error, like CPython does
             self.server_name = socket.gethostname()
 
-    def process_request(
+    def process_request_thread(
         self, request: socket.socket | tuple[bytes, socket.socket], client_address: Any
     ) -> None:
         """
-        Starts a new thread to process the request, adding the client address
-        in its name.
+        Handles the request in its own thread, named after the client address.
+
+        The thread itself is started by ``ThreadingMixIn.process_request()``.
+        Overriding that method to name the thread would bypass this
+        bookkeeping.
         """
-        thread = threading.Thread(
-            name=f"HttpService-{self.server_port}-Client-{client_address}",
-            target=self.process_request_thread,
-            args=(request, client_address),
-        )
-        thread.daemon = self.daemon_threads
-        thread.start()
+        threading.current_thread().name = f"HttpService-{self.server_port}-Client-{client_address}"
+        super().process_request_thread(request, client_address)
 
 
 # ------------------------------------------------------------------------------
@@ -460,11 +545,12 @@ class HttpServiceImpl(AbstractHttpService):
         paths = service_reference.get_property(http.HTTP_SERVLET_PATH)
         if utilities.is_string(paths):
             # Register the servlet to a single path
-            self.register_servlet(paths, service)
+            self.register_servlet(paths, service, self._get_servlet_parameters(service_reference))
         elif isinstance(paths, (list, tuple)):
-            # Register the servlet to multiple paths
+            # Register the servlet to multiple paths.
+            # Each registration must get its own parameters dictionary
             for path in paths:
-                self.register_servlet(path, service)
+                self.register_servlet(path, service, self._get_servlet_parameters(service_reference))
 
     @BindField("_servlets_services")
     def _bind(self, _: str, service: http.Servlet, service_reference: ServiceReference[http.Servlet]) -> None:
@@ -484,7 +570,9 @@ class HttpServiceImpl(AbstractHttpService):
         """
         Called by iPOPO when the properties of a service have been updated
         """
-        self._on_update(service, service_reference, old_properties, (http.HTTP_SERVLET_PATH,))
+        self._on_update(
+            service, service_reference, old_properties, (http.HTTP_SERVLET_PATH, http.HTTP_MAX_BODY_SIZE)
+        )
 
     @UnbindField("_servlets_services")
     def _unbind(

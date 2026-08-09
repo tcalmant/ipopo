@@ -87,6 +87,25 @@ an error are always logged by the server, along with the error ID shown in the
 error page.
 """
 
+# ... maximum size of the body of a request
+HTTP_MAX_BODY_SIZE = "pelix.http.max_body_size"
+"""
+Maximum size, in bytes, of the body of a request (integer, 1 MiB by default).
+
+A request declaring a bigger body is answered with a 413 error code. A value
+lesser than or equal to 0 removes the limit.
+"""
+
+# ... timeout of the sockets of the server
+HTTP_SOCKET_TIMEOUT = "pelix.http.socket_timeout"
+"""
+Timeout, in seconds, of the sockets handling the requests (float, 60 by
+default).
+
+Avoids a slow client to keep a request handling thread busy forever. A value
+lesser than or equal to 0 removes the timeout.
+"""
+
 # HTTP servlet constants
 HTTP_SERVLET = "pelix.http.servlet"
 """ HTTP Servlet service specification """
@@ -180,9 +199,75 @@ def make_html_list(items: Iterable[Any], tag: str = "ul") -> str:
 # ------------------------------------------------------------------------------
 
 
+class BodyTooLargeError(Exception):
+    """
+    The body of a request is bigger than the limit given by the
+    ``pelix.http.max_body_size`` property of the HTTP service.
+    """
+
+    def __init__(self, size: int, max_size: int) -> None:
+        """
+        :param size: Size of the body of the request, in bytes
+        :param max_size: Maximum accepted size, in bytes
+        """
+        super().__init__(f"Request body is too large: {size} bytes, maximum is {max_size}")
+        self.size = size
+        self.max_size = max_size
+
+
+async def read_body(reader: "asyncio.StreamReader", size: int | None, max_size: int | None) -> bytes:
+    """
+    Reads the body of a request from an asynchronous stream, without loading
+    more than the accepted maximum size in memory.
+
+    :param reader: The stream to read the body from
+    :param size: Size of the body announced by the client, None if unknown
+    :param max_size: Maximum accepted size, in bytes, None for no limit
+    :return: The body of the request
+    :raise BodyTooLargeError: The body is bigger than the accepted maximum size
+    """
+    if size is not None and max_size is not None and size > max_size:
+        # The client announces a body we don't want to read
+        raise BodyTooLargeError(size, max_size)
+
+    if size is None:
+        if max_size is None:
+            # No bound at all: read until the end of the stream
+            return await reader.read(-1)
+
+        # Size of the body unknown (chunked request): read one byte more than
+        # the maximum, to detect an oversized body without loading it all
+        remaining = max_size + 1
+    else:
+        remaining = size
+
+    # A stream can return less bytes than requested, even before its end
+    data = bytearray()
+    while remaining > 0:
+        chunk = await reader.read(remaining)
+        if not chunk:
+            # End of the stream
+            break
+
+        data.extend(chunk)
+        remaining -= len(chunk)
+
+    if max_size is not None and len(data) > max_size:
+        raise BodyTooLargeError(len(data), max_size)
+
+    return bytes(data)
+
+
 class AbstractHTTPServletRequest(ABC):
     """
     Abstract HTTP Servlet request helper
+    """
+
+    max_body_size: int | None = None
+    """
+    Maximum size, in bytes, of the body accepted by ``read_data()``, or None
+    for no limit. It is set by the HTTP service, according to its
+    ``pelix.http.max_body_size`` property.
     """
 
     @abstractmethod
@@ -262,11 +347,25 @@ class AbstractHTTPServletRequest(ABC):
         Reads all the data in the input stream
 
         :return: The read data
+        :raise BodyTooLargeError: The declared body is bigger than the accepted
+                                  maximum size
         """
         try:
             size = int(self.get_header("content-length"))
         except (ValueError, TypeError):
-            size = -1
+            # No (valid) content length: consider the body empty.
+            # Reading until the end of the stream would block the handling
+            # thread until the client closes the connection, and this stream
+            # doesn't decode the chunked transfer encoding anyway.
+            size = 0
+
+        max_size = self.max_body_size
+        if max_size is not None:
+            if size > max_size:
+                raise BodyTooLargeError(size, max_size)
+
+            # Don't trust the declared size either
+            size = min(size, max_size)
 
         return self.get_rfile().read(size)
 
@@ -387,6 +486,13 @@ class AbstractAsyncHTTPServletRequest(ABC):
     Asynchronous HTTP Servlet request helper
     """
 
+    max_body_size: int | None = None
+    """
+    Maximum size, in bytes, of the body accepted by ``read_data()``, or None
+    for no limit. It is set by the HTTP service, according to its
+    ``pelix.http.max_body_size`` property.
+    """
+
     @abstractmethod
     def get_command(self) -> str:
         """
@@ -464,13 +570,19 @@ class AbstractAsyncHTTPServletRequest(ABC):
         Reads all the data in the input stream
 
         :return: The read data
+        :raise BodyTooLargeError: The body is bigger than the accepted maximum
+                                  size
         """
         try:
-            size = int(await self.get_header("content-length"))
+            size: int | None = int(await self.get_header("content-length"))
         except (ValueError, TypeError):
-            size = -1
+            # Unlike the synchronous implementation, reading until the end of
+            # the stream is safe here: the underlying reader is bound by the
+            # transfer framing, and a missing content length is how a chunked
+            # request looks like.
+            size = None
 
-        return await self.get_rfile().read(size)
+        return await read_body(self.get_rfile(), size, self.max_body_size)
 
 
 class AbstractAsyncWriter(ABC):

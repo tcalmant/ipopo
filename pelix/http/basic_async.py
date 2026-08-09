@@ -325,16 +325,24 @@ class _AsyncHTTPServletRequest(http.AbstractAsyncHTTPServletRequest):
     HTTP Servlet request helper
     """
 
-    def __init__(self, request: aiohttp.web.Request, full_path: str, prefix: str) -> None:
+    def __init__(
+        self,
+        request: aiohttp.web.Request,
+        full_path: str,
+        prefix: str,
+        max_body_size: int | None = None,
+    ) -> None:
         """
         Sets up the request helper
 
         :param request: The aiohttp Request object
         :param full_path: The full request path, including the prefix
         :param prefix: The path to the servlet root
+        :param max_body_size: Maximum accepted size of the body, in bytes
         """
         self._request = request
         self._prefix = prefix
+        self.max_body_size = max_body_size
 
         # Compute the sub path
         self._sub_path = compute_sub_path(full_path, prefix)
@@ -762,21 +770,31 @@ class AsyncHttpServiceImpl(AbstractHttpService):
 
         # Close the event loop
         if self._loop is not None and not self._loop.is_closed():
-            try:
-                # Cancel pending tasks
-                pending = [task for task in asyncio.all_tasks(self._loop) if not task.done()]
-                for task in pending:
-                    task.cancel()
+            # Cancel pending tasks
+            pending = [task for task in asyncio.all_tasks(self._loop) if not task.done()]
+            for task in pending:
+                task.cancel()
 
-                if pending:
-                    self._loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+            if self._loop.is_running():
+                # The server thread didn't stop in time: the loop can neither be
+                # driven from here nor closed. This happens when aiohttp is still
+                # draining the connection of a client whose request was refused.
+                # Its own thread stops it when it is done.
+                self.log(
+                    logging.WARNING,
+                    "The event loop is still running: leaving it to its own thread",
+                )
+            else:
+                try:
+                    if pending:
+                        self._loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
 
-                self._loop.run_until_complete(self._loop.shutdown_asyncgens())
-                self._loop.run_until_complete(self._loop.shutdown_default_executor())
-            except Exception:
-                self._logger.exception("Error closing the event loop")
-            finally:
-                self._loop.close()
+                    self._loop.run_until_complete(self._loop.shutdown_asyncgens())
+                    self._loop.run_until_complete(self._loop.shutdown_default_executor())
+                except Exception:
+                    self._logger.exception("Error closing the event loop")
+                finally:
+                    self._loop.close()
 
         # Clear references
         self._loop = None
@@ -878,11 +896,14 @@ class AsyncHttpServiceImpl(AbstractHttpService):
             async_name = f"do_async_{request.method.upper()}"
             sync_name = f"do_{request.method.upper()}"
 
+            # The servlet can accept bodies of a different size than the others
+            max_body_size = self.resolve_max_body_size(routing.parameters)
+
             try:
                 match servlet_type:
                     case http.ServletType.ASYNC if hasattr(servlet, async_name):
                         # Prepare the helpers
-                        servlet_request = _AsyncHTTPServletRequest(request, path, prefix)
+                        servlet_request = _AsyncHTTPServletRequest(request, path, prefix, max_body_size)
                         servlet_response = _AsyncHTTPServletResponse(request)
 
                         # Handle the request
@@ -894,7 +915,12 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                         # Read the request content
                         # FIXME: find a better way to handle the content, wrapping the request
                         #        in a file-like object
-                        content = await request.read()
+                        content = await http.read_body(
+                            # aiohttp StreamReader is compatible with the asyncio one
+                            cast(asyncio.StreamReader, request.content),
+                            request.content_length,
+                            max_body_size,
+                        )
 
                         # Prepare the helpers
                         servlet_request = _SyncHTTPServletRequest(request, path, prefix, content)
@@ -961,6 +987,25 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                                 await ws_response.close()
 
                         return ws_response
+            except aiohttp.web.HTTPException:
+                # Let aiohttp answer the errors it detects itself
+                raise
+            except http.BodyTooLargeError as ex:
+                # An asynchronous servlet refused to read the body of the
+                # request: aiohttp only checks the size of the bodies it reads
+                # itself, i.e. those given to synchronous servlets
+                self.log(
+                    logging.WARNING,
+                    "Refused a request body of %d bytes on %s (maximum is %d)",
+                    ex.size,
+                    path,
+                    ex.max_size,
+                )
+                # Note: the body has not been read. aiohttp will keep the
+                # connection alive for a while, reading and discarding the rest
+                # of the body the client announced ("lingering close"), so that
+                # the client can finish sending it and read this answer
+                raise aiohttp.web.HTTPRequestEntityTooLarge(ex.max_size, ex.size) from ex
             except Exception:  # noqa: BLE001
                 # Send a 500 error page on error.
                 # The details are logged by make_exception_page()
@@ -1013,11 +1058,21 @@ class AsyncHttpServiceImpl(AbstractHttpService):
             paths = service_reference.get_property(http.HTTP_SERVLET_PATH)
             if utilities.is_string(paths):
                 # Register the servlet to a single path
-                self.register_servlet(paths, sync_servlet, {}, http.ServletType.SYNC)
+                self.register_servlet(
+                    paths,
+                    sync_servlet,
+                    self._get_servlet_parameters(service_reference),
+                    http.ServletType.SYNC,
+                )
             elif isinstance(paths, (list, tuple)):
                 # Register the servlet to multiple paths
                 for path in paths:
-                    self.register_servlet(path, sync_servlet, {}, http.ServletType.SYNC)
+                    self.register_servlet(
+                        path,
+                        sync_servlet,
+                        self._get_servlet_parameters(service_reference),
+                        http.ServletType.SYNC,
+                    )
 
         # No else here: a service could implement both specifications
         if http.HTTP_SERVLET_ASYNC in spec:
@@ -1026,11 +1081,21 @@ class AsyncHttpServiceImpl(AbstractHttpService):
             paths = service_reference.get_property(http.HTTP_SERVLET_ASYNC_PATH)
             if utilities.is_string(paths):
                 # Register the servlet to a single path
-                self.register_servlet(paths, async_servlet, {}, http.ServletType.ASYNC)
+                self.register_servlet(
+                    paths,
+                    async_servlet,
+                    self._get_servlet_parameters(service_reference),
+                    http.ServletType.ASYNC,
+                )
             elif isinstance(paths, (list, tuple)):
                 # Register the servlet to multiple paths
                 for path in paths:
-                    self.register_servlet(path, async_servlet, {}, http.ServletType.ASYNC)
+                    self.register_servlet(
+                        path,
+                        async_servlet,
+                        self._get_servlet_parameters(service_reference),
+                        http.ServletType.ASYNC,
+                    )
 
         # No else here: a service could implement both specifications
         if http.HTTP_WEBSOCKET_HANDLER in spec:
@@ -1039,11 +1104,21 @@ class AsyncHttpServiceImpl(AbstractHttpService):
             paths = service_reference.get_property(http.HTTP_WEBSOCKET_PATH)
             if utilities.is_string(paths):
                 # Register the WebSocket handler to a single path
-                self.register_servlet(paths, websocket_handler, {}, http.ServletType.WEBSOCKET)
+                self.register_servlet(
+                    paths,
+                    websocket_handler,
+                    self._get_servlet_parameters(service_reference),
+                    http.ServletType.WEBSOCKET,
+                )
             elif isinstance(paths, (list, tuple)):
                 # Register the WebSocket handler to multiple paths
                 for path in paths:
-                    self.register_servlet(path, websocket_handler, {}, http.ServletType.WEBSOCKET)
+                    self.register_servlet(
+                        path,
+                        websocket_handler,
+                        self._get_servlet_parameters(service_reference),
+                        http.ServletType.WEBSOCKET,
+                    )
 
     @BindField("_servlets_services")
     @BindField("_servlets_async_services")
@@ -1076,7 +1151,12 @@ class AsyncHttpServiceImpl(AbstractHttpService):
             service,
             service_reference,
             old_properties,
-            (http.HTTP_SERVLET_PATH, http.HTTP_SERVLET_ASYNC_PATH, http.HTTP_WEBSOCKET_PATH),
+            (
+                http.HTTP_SERVLET_PATH,
+                http.HTTP_SERVLET_ASYNC_PATH,
+                http.HTTP_WEBSOCKET_PATH,
+                http.HTTP_MAX_BODY_SIZE,
+            ),
         )
 
     @UnbindField("_servlets_services")
