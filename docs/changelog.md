@@ -107,6 +107,9 @@ All versions up to 3.2.1 are affected.
 * Added tests for the code shared by the HTTP service implementations
 * Python 3.15 is now tested in CI, except for RSA which has some dependencies
   not yet available pre-built for that version
+* Added tests for the TLS configuration of the remote and XMPP shells
+* The MQTT service and EventAdmin MQTT bridge tests are now skipped when no
+  broker is available
 
 ## iPOPO 3.2.1
 
