@@ -365,20 +365,18 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
 
         return client_stream, client_address
 
-    def process_request(
+    def process_request_thread(
         self, request: socket.socket | tuple[bytes, socket.socket], client_address: tuple[str, int]
     ) -> None:
         """
-        Starts a new thread to process the request, adding the client address
-        in its name.
+        Handles the request in its own thread, named after the client address.
+
+        The thread itself is started by ``ThreadingMixIn.process_request()``.
+        Overriding that method to name the thread would bypass this
+        bookkeeping.
         """
-        thread = threading.Thread(
-            name=f"RemoteShell-{self.server_address[1]}-Client-{client_address[:2]}",
-            target=self.process_request_thread,
-            args=(request, client_address),
-        )
-        thread.daemon = self.daemon_threads
-        thread.start()
+        threading.current_thread().name = f"RemoteShell-{self.server_address[1]}-Client-{client_address[:2]}"
+        super().process_request_thread(request, client_address)
 
 
 def _create_server(

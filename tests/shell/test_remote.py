@@ -280,6 +280,30 @@ class RemoteShellTest(unittest.TestCase):
         self.shell.execute(command, session)
         return str_output.getvalue().strip()
 
+    def testClientThread(self) -> None:
+        """
+        The thread handling a client must be named after it and be a daemon,
+        both being applied by ThreadingMixIn.process_request()
+        """
+        port = self.remote.get_access()[1]  # type: ignore
+        prefix = f"RemoteShell-{port}-Client-"
+
+        client = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
+        try:
+            client.connect(self.remote.get_access())  # type: ignore
+
+            # Run a command to be sure the client is being handled
+            client.run_command("bl")
+
+            threads = [thread for thread in threading.enumerate() if thread.name.startswith(prefix)]
+            self.assertEqual(len(threads), 1, f"Expected one thread named {prefix}*, got {threads}")
+
+            # The remote shell doesn't wait for its clients when it is stopped
+            self.assertTrue(threads[0].daemon, "The client threads must be daemons")
+        finally:
+            # Close the client in any case
+            client.close()
+
     def testCoreVsRemoteCommands(self) -> None:
         """
         Tests the output of commands, through the shell service and the remote
