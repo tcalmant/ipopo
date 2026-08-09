@@ -5,7 +5,7 @@ Report generation service and shell command.
 
 This bundle provides a service and a shell command to generates reports, i.e.
 dictionaries containing the description of the current Pelix framework and of
-its environement.
+its environment.
 
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant

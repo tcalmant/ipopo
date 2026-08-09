@@ -179,7 +179,7 @@ def create_multicast_socket(address: str, port: int) -> tuple[socket.socket, str
     try:
         addrs_info = socket.getaddrinfo(address, port, socket.AF_UNSPEC, socket.SOCK_DGRAM)
     except socket.gaierror:
-        raise ValueError(f"Error retrieving address informations ({address}, {port})")
+        raise ValueError(f"Error retrieving address information ({address}, {port})")
 
     if len(addrs_info) > 1:
         _logger.debug("More than one address information found. Using the first one.")

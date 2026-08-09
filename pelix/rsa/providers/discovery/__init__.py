@@ -148,7 +148,7 @@ class EndpointAdvertiser(abc.ABC):
         """
         Get the advertised endpoint given endpointid.
 
-        :param endpointid.  The string reeturned from ed.get_id() or the value
+        :param endpointid.  The string returned from ed.get_id() or the value
         of property endpoint.id.  Should not be None.
 
         :return tuple/2 with (endpoint_description,advertise_result), or

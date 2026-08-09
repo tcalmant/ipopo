@@ -34,7 +34,7 @@ To achieve this, iPOPO provides a simple and extensible service
 component model based on POPOs.
 
 Since iPOPO v3, we recommend using types as much as possible to avoid issues
-when developping large softwares with the framework.
+when developing large software with the framework.
 
 ## Basic concepts
 
@@ -110,7 +110,7 @@ Finally, a
 script starts the Pelix framework. It is not considered as a bundle as
 it is not loaded by the framework, but it can control the latter.
 
-### Definining specifications
+### Defining specifications
 
 :::{note}
 This section is new in iPOPO v3
@@ -177,7 +177,7 @@ Dictionary service. It contains few English words.
 
 For more information about decorators, see [](../refcards/ipopo_decorators.rst).
 
-In order for IDEs and type checking tools like MyPy to help you developping
+In order for IDEs and type checking tools like MyPy to help you developing
 components, you should indicate that the component class inherits from
 the specification protocols it provides.
 

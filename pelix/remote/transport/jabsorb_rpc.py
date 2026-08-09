@@ -276,7 +276,7 @@ class _ServiceCallProxy:
         """
         # Make a proxy for this call
         # This is an ugly trick to handle multithreaded calls, as the
-        # underlying proxy re-uses the same connection when possible: sometimes
+        # underlying proxy reuses the same connection when possible: sometimes
         # it means sending a request before retrieving a result
         proxy = jsonrpclib.ServerProxy(self.__url)
 

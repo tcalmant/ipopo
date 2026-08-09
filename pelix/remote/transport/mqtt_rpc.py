@@ -361,7 +361,7 @@ class _ServiceCallProxy:
         """
         # Make a proxy for this call
         # This is an ugly trick to handle multi-threaded calls, as the
-        # underlying proxy re-uses the same connection when possible: sometimes
+        # underlying proxy reuses the same connection when possible: sometimes
         # it means sending a request before retrieving a result
         return _MqttCallableProxy(
             self.__uid,

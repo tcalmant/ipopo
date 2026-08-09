@@ -205,7 +205,7 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
                 endpoints = [endpoint.to_import() for endpoint in endpoints_descr]
 
                 if not endpoints or endpoints[0].framework == self._framework_uid:
-                    # No enpoints to read or Loopback message
+                    # No endpoints to read or Loopback message
                     return
 
                 # Give the list of endpoints to the handler

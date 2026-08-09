@@ -184,7 +184,7 @@ For more information, take a look at `iPOPO in 10 minutes <https://ipopo.readthe
 Service specification
 =====================
 
-In iPOPO v3, you can use a Python `procotol <https://docs.python.org/3/library/typing.html#typing.Protocol>`_
+In iPOPO v3, you can use a Python `protocol <https://docs.python.org/3/library/typing.html#typing.Protocol>`_
 to define the specification of a service.
 A specification class/protocol should be decorated with ``@Specification`` to be
 given a unique name.
@@ -525,7 +525,7 @@ Compatibility
 
 Pelix and iPOPO are tested using
 `GitHub actions <https://github.com/tcalmant/ipopo/actions>`_
-targetting Python 3.10 to 3.15.
+targeting Python 3.10 to 3.15.
 
 ``grpcio``, required by the ``RSA`` extra, doesn't provide pre-built wheels
 for Python 3.15 yet. Its compilation from source stalls in CI, so the CI

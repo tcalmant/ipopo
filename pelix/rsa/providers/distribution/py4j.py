@@ -81,7 +81,7 @@ __docformat__ = "restructuredtext en"
 _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
-# Note:  These must match the Java-side constants recored in Java interface
+# Note:  These must match the Java-side constants recorded in Java interface
 # class: org.eclipse.ecf.provider.py4j.Py4jConstants
 ECF_PY4J_DEFAULT_TIMEOUT = 15  # seconds
 

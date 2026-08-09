@@ -225,7 +225,7 @@ class _ServiceCallProxy:
         """
         # Make a proxy for this call
         # This is an ugly trick to handle multithreaded calls, as the
-        # underlying proxy re-uses the same connection when possible: sometimes
+        # underlying proxy reuses the same connection when possible: sometimes
         # it means sending a request before retrieving a result
         proxy = xmlrpclib.ServerProxy(self.__url, allow_none=True)
         return getattr(proxy, f"{self.__name}.{name}")
