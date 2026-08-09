@@ -121,9 +121,11 @@ They are known and tracked, and they do **not** need to be reported, but a *spec
 - **No bundle isolation.**
   See "malicious bundles" above.
   Python's single module namespace makes per-bundle isolation infeasible: iPOPO provides lifecycle management, not a security boundary
-- **No resource limits on network services.**
-  The HTTP service and remote shell spawn a thread per connection without a concurrency cap, request size limit or rate limiting.
-  Do not expose them to untrusted clients
+- **No concurrency limit on network services.**
+  The HTTP service and remote shell spawn a thread per connection without a concurrency cap or rate limiting.
+  Since 3.2.2 the HTTP service does bound each individual request, with `pelix.http.max_body_size` (1 MiB by default) and `pelix.http.socket_timeout` (60 seconds by default), so a single client can no longer hold a handling thread forever.
+  The remote shell has no equivalent limits.
+  Do not expose either to untrusted clients
 
 If you believe one of these is materially worse than described here, that is a report worth making.
 

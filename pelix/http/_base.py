@@ -81,6 +81,32 @@ AnyServlet = http.Servlet | http.AsyncServlet | http.WebSocketHandler
 ServletEntry = tuple[AnyServlet, dict[str, Any], http.ServletType]
 """ Servlet registry entry: (servlet, parameters, type) """
 
+SERVLET_PARAMETERS = (http.HTTP_MAX_BODY_SIZE,)
+"""
+Properties of a servlet service which are copied in the parameters of its
+registration, i.e. which a servlet can use to override a configuration of the
+HTTP service
+"""
+
+# ------------------------------------------------------------------------------
+
+
+def normalize_max_body_size(value: Any) -> int | None:
+    """
+    Normalizes the value of a ``pelix.http.max_body_size`` configuration
+
+    :param value: The raw value of the configuration
+    :return: A size in bytes, or None if there is no limit
+    """
+    try:
+        size = int(value)
+    except (TypeError, ValueError):
+        return None
+
+    # A non-positive value removes the limit
+    return size if size > 0 else None
+
+
 # ------------------------------------------------------------------------------
 
 
@@ -143,6 +169,8 @@ class RequestRouting:
 @Property("_address", http.HTTP_SERVICE_ADDRESS, DEFAULT_BIND_ADDRESS)
 @Property("_port", http.HTTP_SERVICE_PORT, 8080)
 @Property("_debug_errors", http.HTTP_DEBUG_ERRORS, False)
+@Property("_max_body_size", http.HTTP_MAX_BODY_SIZE, 1024 * 1024)
+@Property("_socket_timeout", http.HTTP_SOCKET_TIMEOUT, 60.0)
 @Property("_uses_ssl", http.HTTP_USES_SSL, False)
 @Property("_cert_file", http.HTTPS_CERT_FILE, None)
 @Property("_key_file", http.HTTPS_KEY_FILE, None)
@@ -161,6 +189,8 @@ class AbstractHttpService(http.HTTPService):
         self._address = DEFAULT_BIND_ADDRESS
         self._port = 8080
         self._debug_errors = False
+        self._max_body_size: int | None = 1024 * 1024
+        self._socket_timeout: float | None = 60.0
         self._uses_ssl = False
         self._extra: dict[str, Any] | None = None
         self._instance_name: str | None = None
@@ -247,9 +277,55 @@ class AbstractHttpService(http.HTTPService):
             # Ensure the port is positive (or set it to 0 for a random port)
             self._port = max(self._port, 0)
 
+        # Normalize the resource limits: a non-positive value removes the limit
+        self._max_body_size = normalize_max_body_size(self._max_body_size)
+
+        try:
+            self._socket_timeout = float(self._socket_timeout)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            self._socket_timeout = None
+        else:
+            if self._socket_timeout <= 0:
+                self._socket_timeout = None
+
         # Normalize the extra properties
         if not isinstance(self._extra, dict):
             self._extra = {}
+
+    def get_max_body_size(self) -> int | None:
+        """
+        Returns the maximum accepted size of the body of a request, in bytes,
+        or None if there is no limit
+
+        :return: A size in bytes or None
+        """
+        return self._max_body_size
+
+    def resolve_max_body_size(self, parameters: dict[str, Any]) -> int | None:
+        """
+        Returns the maximum accepted size of the body of a request handled by
+        the servlet registered with the given parameters.
+
+        A servlet can override the configuration of the HTTP service, to accept
+        bigger bodies than the other servlets, or smaller ones.
+
+        :param parameters: The parameters a servlet has been registered with
+        :return: A size in bytes or None
+        """
+        try:
+            return normalize_max_body_size(parameters[http.HTTP_MAX_BODY_SIZE])
+        except KeyError:
+            # The servlet doesn't override the configuration of the service
+            return self._max_body_size
+
+    def get_socket_timeout(self) -> float | None:
+        """
+        Returns the timeout of the sockets handling the requests, in seconds,
+        or None if there is no timeout
+
+        :return: A timeout in seconds or None
+        """
+        return self._socket_timeout
 
     def _setup_logger(self) -> logging.Logger:
         """
@@ -616,6 +692,26 @@ class AbstractHttpService(http.HTTPService):
             self.log_exception("Error calling back an instance: %s", ex)
 
         return False
+
+    def _get_servlet_parameters(self, service_reference: ServiceReference[Any]) -> dict[str, Any]:
+        """
+        Returns the registration parameters taken from the properties of a
+        servlet service.
+
+        A new dictionary is returned on each call: ``register_servlet()`` keeps
+        the one it is given and completes it with the description of the
+        server, so it can't be shared by two registrations.
+
+        :param service_reference: The reference of a servlet service
+        :return: The parameters to register the servlet with
+        """
+        parameters = {}
+        for name in SERVLET_PARAMETERS:
+            value = service_reference.get_property(name)
+            if value is not None:
+                parameters[name] = value
+
+        return parameters
 
     def _register_servlet_service(
         self, service: AnyServlet, service_reference: ServiceReference[Any]
