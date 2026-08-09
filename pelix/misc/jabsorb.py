@@ -52,7 +52,7 @@ V = TypeVar("V")
 
 JSON_CLASS = "__jsonclass__"
 """
-Tuple used by jsonrpclib to indicate wich Python class corresponds to its
+Tuple used by jsonrpclib to indicate which Python class corresponds to its
 content
 """
 

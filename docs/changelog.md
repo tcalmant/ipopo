@@ -15,13 +15,27 @@ Unreleased
 * `uv` is now used to handle the development environment: `uv.lock` is part of
   the repository and the continuous integration uses `uv sync --all-extras`.
   The `requirements.txt` file has been removed
-* Added a Dependabot configuration
+* Added a Dependabot configuration for both the project and the documentation
 * Added the generation of a Software Bill of Materials (SBOM), in the CycloneDX
   format (JSON and XML).
   It is kept as an artifact of the `SBOM` workflow, and is attached to the
   GitHub releases
-* Overall linting and typing review. `ruff` and `ty` now return no error.
+* Overall linting and typing review. `ruff check`, `ruff format --check` and
+  `ty check pelix/ tests/` are now part of the continuous integration, so that
+  they keep returning no error.
+* The documentation is now built with the `-W` flag in the continuous
+  integration, *i.e.* warnings are considered as errors
+* `ruff` is now the only linter and formatter of the project. `pylintrc` and
+  `[tool.black]` configurations have been removed.
+  `CONTRIBUTING.md` and `README.rst` now describe the commands the continuous
+  integration runs
+* Added `ruff` and `ty` to the `dev` dependency group, so that `uv sync` gives
+  the tools the continuous integration uses
+* Removed `setup.cfg` as it only declared a Python 2/3 universal wheel, which
+  doesn't apply to iPOPO 3.x
 * Added an empty `py.typed` as per [PEP 561](https://peps.python.org/pep-0561/)
+* Coverage reports don't count the `if TYPE_CHECKING:` blocks nor the
+  `@overload` declarations anymore, as they are never executed at run time
 
 ### Security
 
@@ -91,15 +105,19 @@ All versions up to 3.2.1 are affected.
   to a bigger request, and `pelix.http.socket_timeout` (60 seconds by default),
   which answers a 408 error code to a client which takes too long to send its
   request.
-  Both accept a value lesser than or equal to 0 to remove the limit
-* The body of a request given to an asynchronous servlet (`do_async_*`) was not
-  limited at all.
-  Such a servlet reads the request itself, through `get_rfile()`, instead of
-  going through the reader of `aiohttp`, which is where the size of the body of
-  the other requests was checked.
-  The asynchronous HTTP service now reads and checks the bodies itself, in both
-  cases: on the announced size of the body and, for a chunked request which
-  declares none, on the bytes actually read
+  Both accept a value lesser than or equal to 0 to remove the limit.
+  The timeout is only applied by the synchronous service: the asynchronous one
+  leaves the timeouts of the connections to `aiohttp`
+* The `read_data()` method of a request given to an asynchronous servlet
+  (`do_async_*`) was not limited at all.
+  It read the body itself instead of going through the reader of `aiohttp`,
+  which is where the size of the body of the other requests was checked.
+  It now applies `pelix.http.max_body_size` in both cases: on the announced size
+  of the body and, for a chunked request which declares none, on the bytes
+  actually read.
+  Note that `get_rfile()` gives the raw input stream in both HTTP services: a
+  servlet reading it instead of calling `read_data()` is responsible for
+  limiting what it reads
 
 ### Utilities
 
@@ -144,6 +162,26 @@ All versions up to 3.2.1 are affected.
   their daemon flag are unchanged: the threads are simply registered by the
   server, which would let it wait for them if they ever stopped being daemons
 
+### Documentation
+
+* The `@Specification` decorator is now described in the *Services* reference
+  card and in the API documentation: the name it stores, the declaration of
+  several specifications at once, the behaviour on inheritance and the
+  `ignore_parent` argument.
+  It also explains why a specification should be given an explicit name: the
+  framework otherwise falls back on the name of the class, so two unrelated
+  bundles declaring a `Store` protocol share the same specification
+* Documented the behaviour changes of this release where they are used: the
+  restriction of the PIDs accepted by the Configuration Admin persistence, the
+  restriction of the members reachable by a remote caller and the types
+  supported by the Zeroconf/mDNS properties
+* The reference card of the asynchronous HTTP service now lists the properties
+  it had missed (`pelix.http.debug` and `pelix.http.max_body_size`) and the
+  per-servlet body size limit
+* The mDNS discovery reference card doesn't ask to patch `pyzeroconf` anymore:
+  that library was replaced by `zeroconf` a long time ago
+* Fixed dead links, and typos found by `codespell`
+
 ### Tests
 
 * Added tests for the Zeroconf/mDNS property serialization
@@ -161,6 +199,7 @@ All versions up to 3.2.1 are affected.
   clients of the remote shell
 * The MQTT service and EventAdmin MQTT bridge tests are now skipped when no
   broker is available
+* Fixed the test infrastructure composition for SELinux
 
 ## iPOPO 3.2.1
 
@@ -273,7 +312,7 @@ All versions up to 3.2.1 are affected.
 ### Project
 
 * Dropped support for Python 2.7 and versions earlier than 3.10
-* Kept compability with iPOPO 1.0 on API level
+* Kept compatibility with iPOPO 1.0 on API level
 * Moved from Travis-CI to GitHub actions to test project against Python 3.10, 3.11 and 3.12
 * Added type hints where possible
 * Support types in specifications
@@ -420,7 +459,7 @@ All versions up to 3.2.1 are affected.
 
 ### Pelix
 
-* Aded support for Event Listeners Hooks.
+* Added support for Event Listeners Hooks.
   See [#88](https://github.com/tcalmant/ipopo/pull/88) for more details.
 * Fixed `Framework.delete()` when framework was already stopped.
 
@@ -794,7 +833,7 @@ All versions up to 3.2.1 are affected.
   the same API as the I/O handler so there is no need to update
   existing commands. I/O Handler write methods are now synchronized.
 * The shell supports variables as arguments, *e.g.* `echo $var`. See
-  [string.Template](https://docs.python.org/3/library/string.html#template-strings)
+  [string.Template](https://docs.python.org/3/library/string.html#template-strings-pep292)
   for more information. The Template used in Pelix Shell allows `.` (dot) in names.
 * A special variable `$?` stores the result of the last command which
   returned a result, *i.e.* anything but `None` or `False`.

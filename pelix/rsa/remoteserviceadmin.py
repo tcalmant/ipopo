@@ -916,7 +916,7 @@ class ExportRegistrationImpl(ExportRegistration):
 
     def get_reference(self) -> ServiceReference[Any] | None:
         """
-        Retruns the service reference of the exported service
+        Returns the service reference of the exported service
 
         :return: A service reference
         """

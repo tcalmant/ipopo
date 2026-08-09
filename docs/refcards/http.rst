@@ -52,6 +52,12 @@ pelix.http.socket_timeout 60      Timeout, in seconds, of the sockets handling
    and a request without a ``Content-Length`` header blocked its handling
    thread until the client closed the connection.
 
+.. note:: ``pelix.http.socket_timeout`` is only applied by the synchronous HTTP
+   service.
+
+   The asynchronous service accepts the property, as it is common to all the
+   implementations, but leaves the timeouts of the connections to ``aiohttp``.
+
 .. warning:: ``pelix.http.debug`` must be kept unset in production.
 
    A stack trace describes the server: the paths of its files, the packages it

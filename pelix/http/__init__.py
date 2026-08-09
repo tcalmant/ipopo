@@ -336,7 +336,12 @@ class AbstractHTTPServletRequest(ABC):
     @abstractmethod
     def get_rfile(self) -> IO[bytes]:
         """
-        Returns the request input as a file stream
+        Returns the request input as a file stream.
+
+        The stream gives the raw body of the request: it is **not** limited by
+        ``pelix.http.max_body_size``, unlike :meth:`read_data`.
+        A servlet reading it is responsible for limiting the number of bytes it
+        accepts.
 
         :return: A file-like input stream
         """
@@ -344,7 +349,13 @@ class AbstractHTTPServletRequest(ABC):
 
     def read_data(self) -> bytes:
         """
-        Reads all the data in the input stream
+        Reads the body of the request, within the limit given by the
+        ``pelix.http.max_body_size`` property.
+
+        A request which doesn't declare a valid ``Content-Length`` header is
+        considered as having an empty body: reading until the end of the stream
+        would block the thread handling the request until the client decides to
+        close the connection.
 
         :return: The read data
         :raise BodyTooLargeError: The declared body is bigger than the accepted
@@ -559,7 +570,12 @@ class AbstractAsyncHTTPServletRequest(ABC):
     @abstractmethod
     def get_rfile(self) -> asyncio.StreamReader:
         """
-        Returns the request input as a stream reader
+        Returns the request input as a stream reader.
+
+        The reader gives the raw body of the request: it is **not** limited by
+        ``pelix.http.max_body_size``, unlike :meth:`read_data`.
+        A servlet reading it is responsible for limiting the number of bytes it
+        accepts.
 
         :return: A stream reader for the input stream
         """
@@ -567,7 +583,12 @@ class AbstractAsyncHTTPServletRequest(ABC):
 
     async def read_data(self) -> bytes:
         """
-        Reads all the data in the input stream
+        Reads the body of the request, within the limit given by the
+        ``pelix.http.max_body_size`` property.
+
+        A request which doesn't declare a valid ``Content-Length`` header, e.g.
+        a chunked one, is read until the end of its stream, the limit then
+        applying to the bytes actually read.
 
         :return: The read data
         :raise BodyTooLargeError: The body is bigger than the accepted maximum

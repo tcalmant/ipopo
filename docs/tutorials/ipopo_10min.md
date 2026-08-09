@@ -34,7 +34,7 @@ To achieve this, iPOPO provides a simple and extensible service
 component model based on POPOs.
 
 Since iPOPO v3, we recommend using types as much as possible to avoid issues
-when developping large softwares with the framework.
+when developing large software with the framework.
 
 ## Basic concepts
 
@@ -110,7 +110,7 @@ Finally, a
 script starts the Pelix framework. It is not considered as a bundle as
 it is not loaded by the framework, but it can control the latter.
 
-### Definining specifications
+### Defining specifications
 
 :::{note}
 This section is new in iPOPO v3
@@ -134,6 +134,8 @@ in order to share it between the provider and consumer bundles.
   of the specification. This is highly recommended as it will be the name used
   in the Pelix service registry and when communicating with remote framework
   if you want to use remote services.
+  See {ref}`refcard_specifications` for the details of the decorator, and why
+  the name should be given explicitly.
 * We recommend using the Python `Protocol` as parent of each specification class
   as it is meant to declare a type.
 
@@ -141,8 +143,9 @@ Once the specifications are defined, we can continue by implementing them with
 different components.
 
 :::{note}
-Depending on your own code style, you might to either provide explicit types
-on specification methods methods or let them be inherited from the protocol.
+Depending on your own code style, you can either repeat the explicit types on
+the methods implementing a specification, or let them be inherited from the
+protocol.
 
 Also note that the specification module must be importable by the bundles,
 but doesn't need to be installed as a bundle itself.
@@ -177,7 +180,7 @@ Dictionary service. It contains few English words.
 
 For more information about decorators, see [](../refcards/ipopo_decorators.rst).
 
-In order for IDEs and type checking tools like MyPy to help you developping
+In order for IDEs and type checking tools like MyPy to help you developing
 components, you should indicate that the component class inherits from
 the specification protocols it provides.
 

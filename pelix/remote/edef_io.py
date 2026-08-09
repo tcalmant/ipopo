@@ -166,7 +166,7 @@ class EDEFReader:
         :return: A (name, value) tuple
         :raise KeyError: Attribute missing
         """
-        # Get informations
+        # Get information
         name = node.attrib[ATTR_NAME]
         vtype = node.attrib.get(ATTR_VALUE_TYPE, TYPE_STRING)
 

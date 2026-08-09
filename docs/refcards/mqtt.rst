@@ -55,7 +55,7 @@ The MQTT service registers a service of specification named
 This service allows to publish a message to its specific broker.
 
 There is no *public* typed specification for that service yet as it depends on types
-from the Paho libary.
+from the Paho library.
 The current *protected* specification is
 :class:`pelix.services.mqtt._MqttConnection` and is subject to change.
 

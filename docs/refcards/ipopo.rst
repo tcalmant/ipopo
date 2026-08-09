@@ -114,7 +114,7 @@ iPOPO Waiting List
 iPOPO provides a utility service to register components to a waiting list, which
 will try to instantiate them when a new iPOPO component factory or a new iPOPO
 handler is available.
-This is useful for softwares using a composition described in a configuration
+This is useful for software using a composition described in a configuration
 file: add an instant to the list and let iPOPO instantiate it when possible.
 
 This feature is provided by the ``pelix.ipopo.waiting`` bundle, which must be

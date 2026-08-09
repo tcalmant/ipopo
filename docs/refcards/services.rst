@@ -21,6 +21,70 @@ The framework will return a :class:`~ServiceReference` object, which provides a
 read-only access to the description of its associated service:
 properties, registering bundle, bundles using it, etc.
 
+.. _refcard_specifications:
+
+Specifications
+--------------
+
+A specification is identified by a name, a string shared by the provider and the
+consumers of a service.
+That name is what the service registry stores, what an LDAP filter matches and
+what is sent on the wire when a service is exported with
+:ref:`Remote Services <refcard_remote_services>`.
+
+The name can be given directly, as in iPOPO v1, but the recommended way in
+iPOPO v3 is to declare a :class:`~typing.Protocol` describing the service and to
+name it with the :class:`~pelix.constants.Specification` decorator.
+The provider and the consumers then share a type, which lets the development
+tools check the methods and their signatures, instead of sharing a bare string:
+
+.. literalinclude:: /_static/tutorials/spell_checker/spell_checker_api.py
+   :language: python
+   :lines: 7-27
+
+The decorator stores the names it is given in the ``__SPECIFICATION__``
+attribute of the class, and the framework reads that attribute when a class is
+used as a specification.
+The specification module must be importable by the provider and the consumer
+bundles, but it doesn't need to be installed as a bundle itself.
+
+The decorator accepts several names at once, given as arguments or as lists, and
+removes the duplicates:
+
+.. code-block:: python
+
+   @Specification("sample.hello", ["sample.greeter", "sample.hello"])
+   class Hello(Protocol):
+       ...
+   # Hello.__SPECIFICATION__ == ["sample.hello", "sample.greeter"]
+
+A specification inheriting from another one **adds** its names to those of its
+parent, unless ``ignore_parent=True`` is given:
+
+.. code-block:: python
+
+   @Specification("sample.hello.fr")
+   class HelloFR(Hello, Protocol):
+       ...
+   # HelloFR.__SPECIFICATION__ == ["sample.hello.fr", "sample.hello", "sample.greeter"]
+
+   @Specification("sample.hello.fr", ignore_parent=True)
+   class OnlyFR(Hello, Protocol):
+       ...
+   # OnlyFR.__SPECIFICATION__ == ["sample.hello.fr"]
+
+Called without any argument, the decorator uses the name of the class it
+decorates, which is also what the framework falls back to when a class is used
+as a specification without having been decorated at all.
+
+.. warning:: Give an explicit name to your specifications.
+
+   The fallback on the name of the class means that two unrelated bundles, each
+   defining a protocol named ``Store`` or ``Config``, register the very same
+   specification: a consumer of one gets bound to the provider of the other.
+   An explicit, namespaced name such as ``acme.storage.Store`` avoids the
+   collision, and keeps the name stable if the class is later renamed or moved.
+
 Properties
 ----------
 
