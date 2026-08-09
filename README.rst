@@ -71,6 +71,7 @@ Note on this version
 ====================
 
 This is the 3.x branch of iPOPO, which is intended to work with Python 3.10+.
+It is tested from Python 3.10 to 3.15?
 The iPOPO API didn't change much between v1 and v3: code written for iPOPO v1
 should generally remain compatible with iPOPO v3 as long as the Python syntax
 and dependencies are also compatible with newer Python versions.
@@ -80,7 +81,7 @@ If that is not the case, please fill in a bug report on
 If you are working with Python 2.7 or versions earlier than 3.10, you must
 instead use the `1.x branch <https://github.com/tcalmant/ipopo/tree/v1>`_ of
 iPOPO.
-Note that iPOPO has not been tested with versions 3.8 and 3.9.
+Note that iPOPO 1.x and 2.x were not tested with versions 3.8 and 3.9.
 
 `Version 2.x <https://github.com/tcalmant/ipopo/tree/v2>`_ was a trial to
 implement iPOPO with ``asyncio`` for Python 3.7, but has been stalled due to

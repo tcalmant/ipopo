@@ -15,13 +15,27 @@ Unreleased
 * `uv` is now used to handle the development environment: `uv.lock` is part of
   the repository and the continuous integration uses `uv sync --all-extras`.
   The `requirements.txt` file has been removed
-* Added a Dependabot configuration
+* Added a Dependabot configuration for both the project and the documentation
 * Added the generation of a Software Bill of Materials (SBOM), in the CycloneDX
   format (JSON and XML).
   It is kept as an artifact of the `SBOM` workflow, and is attached to the
   GitHub releases
-* Overall linting and typing review. `ruff` and `ty` now return no error.
+* Overall linting and typing review. `ruff check`, `ruff format` and
+  `ty check pelix/ tests/` are now part of the continuous integration, so that
+  they keep returning no error.
+* The documentation is now built with the `-W` flag in the continuous
+  integration, *i.e.* warnings are considered as errors
+* `ruff` is now the only linter and formatter of the project. `pylintrc` and
+  `[tool.black]` configurations have been removed
+  `CONTRIBUTING.md` and `README.rst` now describe the commands the continuous
+  integration runs
+* Added `ruff` and `ty` to the `dev` dependency group, so that `uv sync` gives
+  the tools the continuous integration uses
+* Removed `setup.cfg` as it only declared a Python 2/3 universal wheel, which
+  doesn't apply to iPOPO 3.x
 * Added an empty `py.typed` as per [PEP 561](https://peps.python.org/pep-0561/)
+* Coverage reports don't count the `if TYPE_CHECKING:` blocks nor the
+  `@overload` declarations anymore, as they are never executed at run time
 
 ### Security
 
@@ -161,6 +175,7 @@ All versions up to 3.2.1 are affected.
   clients of the remote shell
 * The MQTT service and EventAdmin MQTT bridge tests are now skipped when no
   broker is available
+* Fixed the test infrastructure composition for SELinux
 
 ## iPOPO 3.2.1
 
