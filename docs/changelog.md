@@ -62,6 +62,23 @@ All versions up to 3.2.1 are affected.
   discovery providers, and have no use for a DTD.
   Recent versions of `expat` limit that expansion, but Pelix also supports
   systems where it is not the case
+* The remote shell now logs an error when `pelix.shell.ssl.cert` is set without
+  `pelix.shell.ssl.ca`.
+  In that case, the shell requires a client certificate but validates it against
+  the system trust store, meaning any certificate signed by any publicly trusted
+  authority is accepted.
+  The configuration is only reported in this release, to avoid breaking existing
+  deployments in a patch version: **it will be refused in iPOPO 3.3.0**
+* The XMPP shell can now verify the certificate of the XMPP server, with the new
+  `shell.xmpp.tls.verify` property (or the `--tls-verify` argument of
+  `python -m pelix.shell.xmpp`).
+  The XMPP shell is a full remote administration channel, but it gave no way to
+  follow the hardening guidance of `SECURITY.md`: it always used the
+  `ssl_verify=False` default of `pelix.misc.xmpp`, so an attacker able to
+  intercept the connection could impersonate the server and capture the
+  credentials.
+  The property **defaults to `0`**, keeping the previous behaviour in a patch
+  version: **it will default to `1` in iPOPO 3.3.0**
 
 ### Utilities
 
