@@ -29,6 +29,10 @@ except ImportError:
 __version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
+MQTT_SERVER = find_mqtt_server()
+if not MQTT_SERVER:
+    raise unittest.SkipTest("No valid MQTT server found")
+
 # ------------------------------------------------------------------------------
 
 
@@ -55,7 +59,7 @@ class MqttServiceTest(unittest.TestCase):
     Tests the MQTT utility service
     """
 
-    HOST = find_mqtt_server()
+    HOST = MQTT_SERVER
     PORT = 1883
 
     framework: pelix.framework.Framework

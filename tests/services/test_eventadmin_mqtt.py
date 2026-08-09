@@ -28,6 +28,10 @@ except ImportError:
 __version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
+MQTT_SERVER = find_mqtt_server()
+if not MQTT_SERVER:
+    raise unittest.SkipTest("No valid MQTT server found")
+
 # ------------------------------------------------------------------------------
 
 
@@ -152,7 +156,7 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
     Tests the EventAdmin MQTT bridge service
     """
 
-    HOST = find_mqtt_server()
+    HOST = MQTT_SERVER
     PORT = 1883
 
     framework: pelix.framework.Framework
@@ -256,7 +260,6 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
         bridge_event_filter = "/mqtt/propagate/*"
 
         # Setup a client
-        assert self.HOST is not None
         client = MQTTListener(self.HOST, self.PORT, bridge_prefix)
         client.start()
         if not client.connect_event.wait(10):
@@ -305,7 +308,6 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
         bridge_event_filter = "/mqtt/propagate/*"
 
         # Setup a client
-        assert self.HOST is not None
         client = MQTTListener(self.HOST, self.PORT, bridge_prefix)
         client.start()
         if not client.connect_event.wait(10):
@@ -392,7 +394,6 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
         self._setup_bridge(bridge_event_filter, bridge_prefix)
 
         # Setup a client
-        assert self.HOST is not None
         client = MQTTListener(self.HOST, self.PORT, bridge_prefix)
         client.start()
         if not client.connect_event.wait(10):

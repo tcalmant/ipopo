@@ -35,7 +35,7 @@ import socketserver
 import sys
 import threading
 from select import select
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pelix.framework
 import pelix.ipv6utils
@@ -54,14 +54,22 @@ from pelix.ipopo.decorators import (
 from pelix.shell import beans
 from pelix.shell.console import handle_common_arguments, make_common_parser
 
-try:
-    # Some Python distributions don't support SSL
+if TYPE_CHECKING:
+    # Type checkers must always see "ssl" as the module and never as None, so
+    # that annotations like "ssl.SSLContext" stay valid. Whether SSL is really
+    # available is a run-time question, answered by HAS_SSL.
     import ssl
 
-    HAS_SSL = True
-except ImportError:
-    HAS_SSL = False
-    ssl = None  # ty: ignore[invalid-assignment]
+    HAS_SSL: bool = True
+else:
+    try:
+        # Some Python distributions don't support SSL
+        import ssl
+
+        HAS_SSL = True
+    except ImportError:
+        HAS_SSL = False
+        ssl = None
 
 # ------------------------------------------------------------------------------
 
@@ -279,6 +287,10 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         self.key_password = key_password
         self.ca_file = ca_file
 
+        # Prepare the SSL context once: the certificate and key files must not
+        # be re-read and re-parsed for each incoming connection
+        self.ssl_context: ssl.SSLContext | None = self.__make_ssl_context()
+
         # Call the super constructor
         socketserver.ThreadingTCPServer.__init__(self, server_address, request_handler_class, False)
         if self.address_family == socket.AF_INET6:
@@ -290,6 +302,43 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
             except OSError:
                 _logger.exception("Error setting up IPv6 double stack")
 
+    def __make_ssl_context(self) -> "ssl.SSLContext | None":
+        """
+        Prepares the SSL context to accept clients with a certificate signed by
+        a known chain of authority. Other clients will be rejected during the
+        handshake.
+
+        :return: The SSL context, or None if TLS is not configured
+        """
+        if not HAS_SSL or not self.cert_file:
+            # Nothing to do
+            return None
+
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        try:
+            # Force a valid/signed client-side certificate
+            context.verify_mode = ssl.CERT_REQUIRED
+
+            # Load the server certificate
+            context.load_cert_chain(
+                certfile=self.cert_file,
+                keyfile=self.key_file,
+                password=self.key_password,
+            )
+
+            if self.ca_file:
+                # Load the given authority chain
+                context.load_verify_locations(self.ca_file)
+            else:
+                # Load the default chain if none given
+                context.load_default_certs(ssl.Purpose.CLIENT_AUTH)
+        except Exception as ex:
+            # Explicitly log the error as the default behaviour hides it
+            _logger.error("Error setting up the SSL context: %s", ex)
+            raise
+
+        return context
+
     def get_request(self) -> tuple[socket.socket, tuple[str, int]]:
         """
         Accepts a new client. Sets up SSL wrapping if necessary.
@@ -299,36 +348,12 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         # Accept the client
         client_socket, client_address = self.socket.accept()
 
-        if ssl is not None and self.cert_file:
-            # Setup an SSL context to accept clients with a certificate
-            # signed by a known chain of authority.
-            # Other clients will be rejected during handshake.
-            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            try:
-                # Force a valid/signed client-side certificate
-                context.verify_mode = ssl.CERT_REQUIRED
-
-                # Load the server certificate
-                context.load_cert_chain(
-                    certfile=self.cert_file,
-                    keyfile=self.key_file,
-                    password=self.key_password,
-                )
-
-                if self.ca_file:
-                    # Load the given authority chain
-                    context.load_verify_locations(self.ca_file)
-                else:
-                    # Load the default chain if none given
-                    context.load_default_certs(ssl.Purpose.CLIENT_AUTH)
-            except Exception as ex:
-                # Explicitly log the error as the default behaviour hides it
-                _logger.error("Error setting up the SSL context: %s", ex)
-                raise
-
+        if self.ssl_context is not None:
             try:
                 # SSL handshake
-                client_stream = cast(socket.socket, context.wrap_socket(client_socket, server_side=True))
+                client_stream = cast(
+                    socket.socket, self.ssl_context.wrap_socket(client_socket, server_side=True)
+                )
             except ssl.SSLError as ex:
                 # Explicitly log the exception before re-raising it
                 _logger.warning("Error during SSL handshake with %s: %s", client_address, ex)
@@ -517,6 +542,16 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         if not self._encoding:
             self._encoding = "utf-8"
 
+        if self._cert_file and not self._ca_file:
+            # Without an explicit authority chain, any client certificate signed
+            # by any CA of the system trust store would be accepted
+            _logger.error(
+                "pelix.shell.ssl.cert is set without pelix.shell.ssl.ca: ANY client certificate "
+                "signed by ANY CA in the system trust store will be accepted by a shell which can "
+                "install and start arbitrary bundles. Set pelix.shell.ssl.ca. "
+                "This configuration will be refused in iPOPO 3.3.0."
+            )
+
         # Start the TCP server
         self._thread, self._server, self._server_flag = _create_server(
             self,
@@ -595,7 +630,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="pelix.shell.remote",
         parents=[make_common_parser()],
-        description=f"Pelix Remote Shell ({'with' if ssl is not None else 'without'} SSL support)",
+        description=f"Pelix Remote Shell ({'with' if HAS_SSL else 'without'} SSL support)",
     )
 
     # Remote shell options
@@ -614,7 +649,7 @@ def main(argv: list[str] | None = None) -> int:
         help="The remote shell binding port",
     )
 
-    if ssl is not None:
+    if HAS_SSL:
         # Remote Shell TLS options
         group = parser.add_argument_group("TLS Options")
         group.add_argument("--cert", help="Path to the server certificate file")
@@ -669,7 +704,7 @@ def main(argv: list[str] | None = None) -> int:
             ipopo.get_instance_details(rshell_name)
         except ValueError:
             # Component doesn't exist, we can instantiate it.
-            if ssl is not None:
+            if HAS_SSL:
                 # Copy parsed arguments
                 ca_chain = args.ca_chain
                 cert = args.cert

@@ -136,9 +136,13 @@ If you are deploying iPOPO in production, and particularly on a network you do n
 - **Do not expose the remote shell.**
   It allows installing, starting and stopping arbitrary bundles, which is equivalent to remote code execution.
   It binds to `localhost` by default, keep it that way.
-  If remote administration is required, use the TLS front-end **with certificate-based client authentication** (`pelix.shell.ssl.ca`), documented in `docs/refcards/shell.md`, and restrict it to an administrative network
+  If remote administration is required, use the TLS front-end **with certificate-based client authentication** (`pelix.shell.ssl.ca`), documented in `docs/refcards/shell.md`, and restrict it to an administrative network.
+  `pelix.shell.ssl.ca` is **not optional**: setting `pelix.shell.ssl.cert` without it makes the shell accept any client certificate signed by any authority of the system trust store.
+  Since 3.2.2 this is logged as an error; it will be refused in 3.3.0
 - **Enable TLS verification on the XMPP client.**
-  Pass `ssl_verify=True`; the current default does not verify server certificates
+  Set the `shell.xmpp.tls.verify` property of the XMPP shell to `1`, or pass `--tls-verify` to `python -m pelix.shell.xmpp`.
+  When using `pelix.misc.xmpp` directly, pass `ssl_verify=True`.
+  The default does not verify server certificates; it will become `1` in 3.3.0
 - **Keep Remote Services and mDNS discovery on trusted network segments only.**
   mDNS discovery accepts input from any host on the local link
 - **Validate any externally-derived Configuration Admin PID** before passing it to the Configuration Admin API
