@@ -18,7 +18,7 @@ import threading
 import time
 import unittest
 from collections.abc import Callable
-from typing import cast
+from typing import Any, cast
 
 try:
     import ssl
@@ -642,6 +642,104 @@ class TLSRemoteShellTest(unittest.TestCase):
         finally:
             # Close the client in any case
             client.close()
+
+    def test_missing_ca_warns_but_starts(self) -> None:
+        """
+        Tests that a certificate without an authority chain is accepted, but
+        warned about: without a CA file, any client certificate signed by any
+        CA of the system trust store would be accepted.
+        """
+        srv_cert = os.path.join(TMP_DIR, "server.crt")
+        srv_key = os.path.join(TMP_DIR, "server.key")
+
+        # Start the remote shell without a CA file
+        context = self.framework.get_bundle_context()
+        with (
+            self.assertLogs("pelix.shell.remote", level="ERROR") as logs,
+            use_ipopo(context) as ipopo,
+        ):
+            self.remote = cast(
+                RemoteShell,
+                ipopo.instantiate(
+                    FACTORY_REMOTE_SHELL,
+                    "remoteShell",
+                    {
+                        "pelix.shell.address": "127.0.0.1",
+                        "pelix.shell.port": 0,
+                        "pelix.shell.ssl.cert": srv_cert,
+                        "pelix.shell.ssl.key": srv_key,
+                    },
+                ),
+            )
+
+        # The warning must name the property to set
+        self.assertIn("pelix.shell.ssl.ca", "\n".join(logs.output))
+
+        # ... but the shell must still be running (this is to change in 3.3.0)
+        _, port = self.remote.get_access()
+        assert port is not None
+        self.assertGreater(port, 0)
+
+    def test_ssl_context_is_reused(self) -> None:
+        """
+        Tests that the SSL context is prepared once, not rebuilt for each client
+        """
+        ca_chain = os.path.join(TMP_DIR, "ca.crt")
+        srv_cert = os.path.join(TMP_DIR, "server.crt")
+        srv_key = os.path.join(TMP_DIR, "server.key")
+        client_cert = os.path.join(TMP_DIR, "client.crt")
+        client_key = os.path.join(TMP_DIR, "client.key")
+
+        # Start the remote shell
+        context = self.framework.get_bundle_context()
+        with use_ipopo(context) as ipopo:
+            self.remote = cast(
+                RemoteShell,
+                ipopo.instantiate(
+                    FACTORY_REMOTE_SHELL,
+                    "remoteShell",
+                    {
+                        "pelix.shell.address": "127.0.0.1",
+                        "pelix.shell.port": 0,
+                        "pelix.shell.ssl.ca": ca_chain,
+                        "pelix.shell.ssl.cert": srv_cert,
+                        "pelix.shell.ssl.key": srv_key,
+                    },
+                ),
+            )
+
+        # The context must have been prepared before any client showed up
+        server = cast(Any, self.remote)._server
+        ssl_context = server.ssl_context
+        self.assertIsNotNone(ssl_context)
+
+        # Two successive clients must be served by that very same context
+        for _ in range(2):
+            client = TLSShellClient(self.shell.get_ps1(), self.fail, client_cert, client_key, ca_chain)
+            try:
+                client.connect(self.remote.get_access())  # type: ignore
+                self.assertEqual(client.run_command("echo toto"), "toto")
+            finally:
+                client.close()
+
+            self.assertIs(server.ssl_context, ssl_context)
+
+    def test_no_ssl_context_without_certificate(self) -> None:
+        """
+        Tests that no SSL context is prepared when no certificate is given
+        """
+        context = self.framework.get_bundle_context()
+        with use_ipopo(context) as ipopo:
+            self.remote = cast(
+                RemoteShell,
+                ipopo.instantiate(
+                    FACTORY_REMOTE_SHELL,
+                    "remoteShell",
+                    {"pelix.shell.address": "127.0.0.1", "pelix.shell.port": 0},
+                ),
+            )
+
+        self.assertIsNone(cast(Any, self.remote)._server.ssl_context)
 
 
 if __name__ == "__main__":
