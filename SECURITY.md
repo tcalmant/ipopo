@@ -25,6 +25,17 @@ If you are running an older patch release, upgrade before reporting an issue.
 
 The `v3` branch is the current development line and is where fixes land first.
 
+### Support period
+
+The `v3` branch is supported as long as it is the current development line, without a fixed end date.
+It is the only branch for which new releases are planned.
+
+Within that branch, support follows the minor version: a minor version keeps receiving security fixes until the next minor version is released, plus **three months** to leave time to upgrade.
+For example, once 3.3.0 is released, the 3.2.x line receives security fixes for three more months and is then end of life.
+
+The set of supported Python versions is that of the latest release, listed in the table above and in `pyproject.toml`.
+A Python version is dropped once it reaches its own end of life, which is announced in the release notes of the version dropping it.
+
 ## Reporting a vulnerability
 
 **Please do not report security vulnerabilities through public GitHub issues, pull requests or discussions.**
@@ -153,6 +164,37 @@ If you are deploying iPOPO in production, and particularly on a network you do n
   iPOPO does not drop privileges itself
 - **Install bundles only from sources you trust**, and prefer pinned versions
 - **Watch the releases feed** (https://github.com/tcalmant/ipopo/releases) or subscribe to repository security advisories, so you learn about fixes
+
+## Verifying a release
+
+Starting with 3.2.2, releases are built and published by the `Publish` GitHub Actions workflow, triggered by the push of a signed tag.
+Nothing is uploaded from a developer machine, and no long-lived PyPI token exists: the upload is authenticated with a short-lived OpenID Connect token, through [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/).
+
+Four things can be checked independently.
+
+**The PyPI attestations.**
+Each file published on PyPI carries a [PEP 740](https://peps.python.org/pep-0740/) attestation, shown in the *Verified details* panel of the project page.
+PyPI itself verifies it against the trusted publisher declared for the project, so a file uploaded from anywhere else would not carry it.
+
+**The build provenance.**
+The same artifacts are covered by a SLSA provenance attestation, which links them to the workflow run and the commit that produced them:
+
+```bash
+gh attestation verify iPOPO-3.2.2.tar.gz --repo tcalmant/ipopo
+```
+
+**The release tag.**
+Release tags are annotated and signed with the maintainer GPG key:
+
+```bash
+git tag -v 3.2.2
+```
+
+**The SBOM.**
+Every release has a CycloneDX Software Bill of Materials attached to it, as `ipopo-sbom.cdx.json` and `ipopo-sbom.cdx.xml`.
+It lists the components iPOPO depends on, so they can be checked against vulnerability databases, and records the SHA-256 digest of each published artifact.
+
+If any of these checks fails on a file you obtained from PyPI or from the GitHub releases page, please report it as described above: the release pipeline and the integrity of the published artifacts are in scope.
 
 ## Security advisories
 

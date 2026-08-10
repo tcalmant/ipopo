@@ -37,6 +37,11 @@ jobs:
         # Don't check samples as they depend on other dependencies
         run: uv run --no-sync ty check pelix tests
 
+      - name: Check the declared version
+        # The version is repeated in pyproject.toml and in every module: catch a
+        # half-applied bump here rather than when the release is being published
+        run: python .github/scripts/check_version.py
+
   test:
     timeout-minutes: 10
     runs-on: ubuntu-latest
