@@ -105,3 +105,55 @@ Unit tests are executed using `pytest` and based on `unittest`.
 You can also provide new samples in the `samples` folder. They must come
 as a `run_XXX.py` entry-point script and an `XXX` package containing all
 the sample bundles.
+
+## Releasing
+
+Releases are made by the maintainer. The process is written down here so that it
+is reproducible, not because it is open to contributors.
+
+A release is prepared on a dedicated branch (`release-X.Y.Z`), merged into `v3`
+through a pull request, then published by pushing a signed tag.
+
+1. **Bump the version.** It is declared in `pyproject.toml`, and, in every module
+   of `pelix` and `tests`, both as a `__version_info__` tuple and as a
+   `:version:` field of the module docstring. All of them must agree:
+
+   ```bash
+   python .github/scripts/check_version.py
+   ```
+
+2. **Set the release date** in `docs/changelog.md`, replacing `Unreleased` in the
+   admonition of the section of the version being released. That section is the
+   source of the GitHub release notes, so it must describe the release
+   completely. Security fixes go in a `### Security` subsection.
+
+3. **Check the branch locally**, as the continuous integration does:
+
+   ```bash
+   uv sync --all-extras --locked
+   uv run ruff check . && uv run ruff format --check .
+   uv run ty check pelix tests
+   uv run pytest tests
+   uv build && uvx twine check --strict dist/*
+   ```
+
+4. **Rehearse the publication**, optionally, by running the `Publish` workflow
+   manually with the `testpypi` target. It builds, publishes to TestPyPI and
+   stops before creating a GitHub release.
+
+5. **Merge the pull request**, then tag the merge commit and push the tag. The
+   tag is a bare version number and must be annotated and signed:
+
+   ```bash
+   git tag -s X.Y.Z -m "iPOPO X.Y.Z"
+   git push origin X.Y.Z
+   ```
+
+   That push is the release. The `Publish` workflow then builds the artifacts,
+   attests their provenance, uploads them to PyPI through Trusted Publishing,
+   generates the SBOM and creates the GitHub release — titled `vX.Y.Z`, with
+   notes taken from `docs/changelog.md`. None of this is done by hand, and no
+   PyPI token is involved.
+
+6. **Verify the result** as a user would, following the *Verifying a release*
+   section of `SECURITY.md`.

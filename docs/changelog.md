@@ -5,7 +5,7 @@
 :::{admonition} Release Date
 :class: info
 
-Unreleased
+2026-08-10
 :::
 
 ### Project
@@ -19,7 +19,25 @@ Unreleased
 * Added the generation of a Software Bill of Materials (SBOM), in the CycloneDX
   format (JSON and XML).
   It is kept as an artifact of the `SBOM` workflow, and is attached to the
-  GitHub releases
+  GitHub releases. The published SBOM also lists the released artifacts and
+  their SHA-256 digests
+* Releases are now built and published by the `Publish` workflow, triggered by
+  the push of a signed tag. Nothing is uploaded from a developer machine
+  anymore
+* iPOPO is now published to PyPI using Trusted Publishing: the upload is
+  authenticated with a short-lived OpenID Connect token instead of a long-lived
+  API token, and each artifact carries a [PEP 740](https://peps.python.org/pep-0740/)
+  attestation, verifiable on PyPI
+* Added a SLSA build provenance attestation to the released artifacts, which can
+  be checked with `gh attestation verify <file> --repo tcalmant/ipopo`
+* Release tags are now annotated and signed with the maintainer GPG key
+* The notes of a GitHub release are now generated from this changelog, and a
+  release fails if the version is inconsistent across `pyproject.toml` and the
+  modules of `pelix`
+* Added a `CHANGELOG.md` file at the root of the repository, pointing to these
+  release notes
+* Documented in `SECURITY.md` how long a version is supported and how to verify
+  the integrity of a release
 * Overall linting and typing review. `ruff check`, `ruff format --check` and
   `ty check pelix/ tests/` are now part of the continuous integration, so that
   they keep returning no error.
