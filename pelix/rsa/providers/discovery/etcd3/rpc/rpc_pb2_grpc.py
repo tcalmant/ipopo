@@ -2,7 +2,6 @@
 """Client and server classes corresponding to protobuf-defined services."""
 
 import grpc
-
 import grpc.experimental
 
 from pelix.rsa.providers.discovery.etcd3.rpc import (
