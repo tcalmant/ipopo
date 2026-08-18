@@ -3,6 +3,8 @@
 
 import grpc
 
+import grpc.experimental
+
 from pelix.rsa.providers.discovery.etcd3.rpc import (
     rpc_pb2 as pelix_dot_rsa_dot_providers_dot_discovery_dot_etcd3_dot_rpc_dot_rpc__pb2,
 )
