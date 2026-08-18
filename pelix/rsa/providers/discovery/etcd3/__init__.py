@@ -45,7 +45,6 @@ from pelix.rsa.endpointdescription import EndpointDescription, decode_endpoint_p
 from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent, EndpointSubscriber
 
 from .rpc import rpc_pb2, rpc_pb2_grpc
-
 from .rpc.kv_pb2 import Event
 
 # ------------------------------------------------------------------------------
@@ -332,7 +331,6 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         return f"{self._get_key_prefix()}/{self._session_id}"
 
     class EndpointKey:
-
         def __init__(self, sessionid: str, ed_id: str) -> None:
             self.sessionid = sessionid
             self.ed_id = ed_id
@@ -552,7 +550,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             self._channel = None
 
 
-def instantiate_etcd3_discovery_provider(context: BundleContext, properties: dict[str, Any] | None=None):
+def instantiate_etcd3_discovery_provider(context: BundleContext, properties: dict[str, Any] | None = None):
     from pelix.rsa import instantiate_rsa_component
 
     return instantiate_rsa_component(context, ETCD_FACTORY_NAME, ETCD_INSTANCE_NAME, properties)
