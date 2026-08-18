@@ -3,10 +3,11 @@
 isort:skip_file
 """
 
+import builtins as _builtins
+
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import descriptor_pb2 as _descriptor_pb2
 from google.protobuf.internal import extension_dict as _extension_dict
-import builtins as _builtins
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
