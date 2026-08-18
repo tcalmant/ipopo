@@ -43,7 +43,6 @@ from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provi
 from pelix.rsa import create_uuid
 from pelix.rsa.endpointdescription import EndpointDescription, decode_endpoint_props, encode_endpoint_props
 from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent, EndpointSubscriber
-
 from pelix.rsa.providers.discovery.etcd3.rpc import rpc_pb2, rpc_pb2_grpc
 from pelix.rsa.providers.discovery.etcd3.rpc.kv_pb2 import Event
 
