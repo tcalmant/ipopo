@@ -68,6 +68,7 @@ dev = [
 
 [tool.ruff]
 line-length = 110
+extend-exclude = ["pelix/rsa/providers/discovery/etcd3/rpc"]
 
 [tool.ruff.lint]
 extend-select = ["I"]
